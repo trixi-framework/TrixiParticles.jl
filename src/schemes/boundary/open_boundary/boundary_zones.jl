@@ -5,19 +5,19 @@ struct InFlow end
 struct OutFlow end
 
 @doc raw"""
-    InFlow(; plane, flow_direction, density, particle_spacing,
-           initial_condition=nothing, extrude_geometry=nothing,
-           open_boundary_layers::Integer)
+    BoundaryZone(; plane, plane_normal, density, particle_spacing,
+                 initial_condition=nothing, extrude_geometry=nothing,
+                 open_boundary_layers::Integer, boundary_type=:bidirectional_flow)
 
-Inflow boundary zone for [`OpenBoundarySPHSystem`](@ref).
+Boundary zone for [`OpenBoundarySPHSystem`](@ref).
 
-The specified plane (line in 2D or rectangle in 3D) will be extruded in upstream
-direction (the direction opposite to `flow_direction`) to create a box for the boundary zone.
-There are three ways to specify the actual shape of the inflow:
+The specified plane (line in 2D or rectangle in 3D) will be extruded in the direction
+opposite to `plane_normal` to create a box for the boundary zone.
+There are three ways to specify the actual shape of the boundary zone:
 1. Don't pass `initial_condition` or `extrude_geometry`. The boundary zone box will then
-   be filled with inflow particles (default).
+   be filled with boundary particles (default).
 2. Specify `extrude_geometry` by passing a 1D shape in 2D or a 2D shape in 3D,
-   which is then extruded in upstream direction to create the inflow particles.
+   which is then extruded in the direction opposite to `plane_normal` to create the boundary particles.
    - In 2D, the shape must be either an initial condition with 2D coordinates, which lies
      on the line specified by `plane`, or an initial condition with 1D coordinates, which lies
      on the line specified by `plane` when a y-coordinate of `0` is added.
@@ -25,7 +25,7 @@ There are three ways to specify the actual shape of the inflow:
      in the rectangle specified by `plane`, or an initial condition with 2D coordinates,
      which lies in the rectangle specified by `plane` when a z-coordinate of `0` is added.
 3. Specify `initial_condition` by passing a 2D initial condition in 2D or a 3D initial condition in 3D,
-   which will be used for the inflow particles.
+   which will be used for the boundary particles.
 
 !!! note "Note"
     Particles outside the boundary zone box will be removed.
@@ -40,7 +40,11 @@ There are three ways to specify the actual shape of the inflow:
            In 3D, pass three points ``(A, B, C)``, so that the rectangular inflow surface
            is spanned by the vectors ``\widehat{AB}`` and ``\widehat{AC}``.
            These two vectors must be orthogonal.
-- `flow_direction`: Vector defining the flow direction.
+- `plane_normal`: Vector defining the plane normal. It always points inside the fluid domain.
+- `boundary_type=:bidirectional_flow`: Specify the type of the boundary. Available types are
+    - `:inflow` for an inflow boundary
+    - `:outflow` for an outflow boundary
+    - `:bidrectional_flow` (default) for an bidirectional flow boundary
 - `open_boundary_layers`: Number of particle layers in upstream direction.
 - `particle_spacing`: The spacing between the particles (see [`InitialCondition`](@ref)).
 - `density`: Particle density (see [`InitialCondition`](@ref)).
@@ -55,23 +59,23 @@ There are three ways to specify the actual shape of the inflow:
 ```julia
 # 2D
 plane_points = ([0.0, 0.0], [0.0, 1.0])
-flow_direction=[1.0, 0.0]
+plane_normal=[1.0, 0.0]
 
-inflow = InFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
-                open_boundary_layers=4)
+inflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
+                      open_boundary_layers=4, boundary_type=:inflow)
 
 # 3D
 plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
-flow_direction=[0.0, 0.0, 1.0]
+plane_normal=[0.0, 0.0, 1.0]
 
-inflow = InFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
-                open_boundary_layers=4)
+outflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
+                       open_boundary_layers=4, boundary_type=:outflow)
 
 # 3D particles sampled as cylinder
 circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
 
-inflow = InFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
-                extrude_geometry=circle, open_boundary_layers=4)
+bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1,
+                                  density=1.0, extrude_geometry=circle, open_boundary_layers=4)
 ```
 
 !!! warning "Experimental Implementation"
@@ -87,8 +91,7 @@ struct BoundaryZone{F, NDIMS, IC, S, ZO, ZW, FD, PN}
 
     function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                           initial_condition=nothing, extrude_geometry=nothing,
-                          open_boundary_layers::Integer,
-                          boundary_type=:bidirectional_flow)
+                          open_boundary_layers::Integer, boundary_type=:bidirectional_flow)
         if open_boundary_layers <= 0
             throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
         end
