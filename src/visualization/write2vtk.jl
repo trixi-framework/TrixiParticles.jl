@@ -81,6 +81,11 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
                    custom_quantities...)
     mkpath(output_directory)
 
+    # Skip empty systems
+    if nparticles(system_) == 0
+        return
+    end
+
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
     v, u, system = transfer2cpu(v_, u_, system_)
 
