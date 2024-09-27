@@ -378,8 +378,3 @@ end
 @inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
     extract_smatrix(system.cache.correction_matrix, system, particle)
 end
-
-@inline function surface_normal(particle_system::FluidSystem, particle)
-    (; cache) = particle_system
-    return extract_svector(cache.surface_normal, particle_system, particle)
-end

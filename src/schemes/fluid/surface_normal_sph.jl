@@ -17,6 +17,11 @@ function create_cache_surface_normal(::ColorfieldSurfaceNormal, ELTYPE, NDIMS, n
     return (; surface_normal, neighbor_count)
 end
 
+@inline function surface_normal(particle_system::FluidSystem, particle)
+    (; cache) = particle_system
+    return extract_svector(cache.surface_normal, particle_system, particle)
+end
+
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: This is the simplest form of normal approximation commonly used in SPH and comes
 # with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
@@ -46,10 +51,7 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem, u_system, v,
                                             neighbor_system, neighbor)
         grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
         for i in 1:ndims(system)
-            # The `smoothing_length` here is used for scaling
-            # TODO move this to the surface tension model since this is not a general thing
-            cache.surface_normal[i, particle] += m_b / density_neighbor *
-                                                 grad_kernel[i] * smoothing_length
+            cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
         end
 
         cache.neighbor_count[particle] += 1
@@ -71,17 +73,17 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-    # if smoothing_length != system.smoothing_length ||
-    #    smoothing_kernel !== system.smoothing_kernel
-    #     # TODO: this is really slow but there is no way to easily implement multiple search radia
-    #     search_radius = compact_support(smoothing_kernel, smoothing_length)
-    #     nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
-    #                                                   nparticles(system))
-    #     nhs_bnd = PointNeighbors.copy_neighborhood_search(nhs_bnd, search_radius,
-    #                                                   nparticles(neighbor_system))
-    #     PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
-    #     PointNeighbors.initialize!(nhs_bnd, neighbor_system_coords, neighbor_system_coords)
-    # end
+    if smoothing_length != system.smoothing_length ||
+       smoothing_kernel !== system.smoothing_kernel
+        # TODO: this is really slow but there is no way to easily implement multiple search radia
+        search_radius = compact_support(smoothing_kernel, smoothing_length)
+        nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
+                                                      nparticles(system))
+        nhs_bnd = PointNeighbors.copy_neighborhood_search(nhs_bnd, search_radius,
+                                                      nparticles(neighbor_system))
+        PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
+        PointNeighbors.initialize!(nhs_bnd, neighbor_system_coords, neighbor_system_coords)
+    end
 
     # First we need to calculate the smoothed colorfield values
     # TODO: move colorfield to extra step
@@ -110,10 +112,7 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
             grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
                                       smoothing_length)
             for i in 1:ndims(system)
-                # The `smoothing_length` here is used for scaling
-                # TODO move this to the surface tension model since this is not a general thing
-                cache.surface_normal[i, particle] += m_b / density_neighbor *
-                                                     grad_kernel[i] * smoothing_length
+                cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
             end
             cache.neighbor_count[particle] += 1
         end

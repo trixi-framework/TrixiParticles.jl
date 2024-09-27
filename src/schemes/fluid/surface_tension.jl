@@ -139,7 +139,7 @@ end
 
     return cohesion_force_akinci(surface_tension_a, support_radius, m_b,
                                  pos_diff, distance) .-
-           (surface_tension_coefficient * (n_a - n_b))
+           (surface_tension_coefficient * (n_a - n_b) * smoothing_length)
 end
 
 # Skip
