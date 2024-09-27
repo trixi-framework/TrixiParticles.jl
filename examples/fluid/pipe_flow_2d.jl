@@ -84,8 +84,9 @@ function velocity_function(pos, t)
     return SVector(prescribed_velocity, 0.0)
 end
 
-inflow = InFlow(; plane=([0.0, 0.0], [0.0, domain_size[2]]), flow_direction,
-                open_boundary_layers, density=fluid_density, particle_spacing)
+inflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, domain_size[2]]),
+                      plane_normal=flow_direction, open_boundary_layers,
+                      density=fluid_density, particle_spacing, boundary_type=:inflow)
 
 open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
                                          boundary_model=BoundaryModelLastiwka(),
@@ -94,9 +95,9 @@ open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
                                          reference_pressure=pressure,
                                          reference_velocity=velocity_function)
 
-outflow = OutFlow(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2]]),
-                  flow_direction, open_boundary_layers, density=fluid_density,
-                  particle_spacing)
+outflow = BoundaryZone(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2]]),
+                       plane_normal=-flow_direction, open_boundary_layers,
+                       density=fluid_density, particle_spacing, boundary_type=:outflow)
 
 open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
                                           boundary_model=BoundaryModelLastiwka(),

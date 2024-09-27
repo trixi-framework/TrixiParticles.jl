@@ -47,7 +47,7 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     update_callback_used :: Ref{Bool}
     cache                :: C
 
-    function OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow};
+    function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                    fluid_system::FluidSystem,
                                    buffer_size::Integer, boundary_model,
                                    reference_velocity=nothing,
@@ -238,7 +238,7 @@ end
 
 # Outflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::OutFlow, particle, v, u,
+                                   boundary_zone::BoundaryZone{OutFlow}, particle, v, u,
                                    v_fluid, u_fluid)
     deactivate_particle!(system, particle, u)
 
@@ -247,7 +247,7 @@ end
 
 # Inflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::InFlow, particle, v, u,
+                                   boundary_zone::BoundaryZone{InFlow}, particle, v, u,
                                    v_fluid, u_fluid)
     (; spanning_set) = boundary_zone
 
@@ -258,6 +258,31 @@ end
     for dim in 1:ndims(system)
         u[dim, particle] += spanning_set[1][dim]
     end
+
+    return system
+end
+
+# Buffer particle is outside the boundary zone
+@inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
+                                   boundary_zone::BoundaryZone{BidirectionalFlow}, particle,
+                                   v, u, v_fluid, u_fluid)
+    particle_position = particle_coords - boundary_zone.zone_origin
+
+    # Check if particle is in- or outside the fluid domain.
+    # `plane_normal` is always pointing in the fluid domain.
+    if dot(particle_position, boundary_zone.plane_normal)
+
+        # Activate a new particle in simulation domain
+        transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+
+        # Reset position of boundary particle
+        for dim in 1:ndims(system)
+            u[dim, particle] = boundary_zone.plane_normal[dim]
+        end
+        return system
+    end
+
+    deactivate_particle!(system, particle, u)
 
     return system
 end

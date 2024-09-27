@@ -162,7 +162,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     return system
 end
 
-@inline function prescribe_conditions!(characteristics, particle, ::OutFlow)
+@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{OutFlow})
     # J3 is prescribed (i.e. determined from the exterior of the domain).
     # J1 and J2 is transimtted from the domain interior.
     characteristics[3, particle] = zero(eltype(characteristics))
@@ -170,7 +170,7 @@ end
     return characteristics
 end
 
-@inline function prescribe_conditions!(characteristics, particle, ::InFlow)
+@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{InFlow})
     # Allow only J3 to propagate upstream to the boundary
     characteristics[1, particle] = zero(eltype(characteristics))
     characteristics[2, particle] = zero(eltype(characteristics))
