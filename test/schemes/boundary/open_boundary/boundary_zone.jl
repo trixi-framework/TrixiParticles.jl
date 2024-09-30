@@ -33,7 +33,7 @@
                 @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in boundary_zones
                     zone_width = open_boundary_layers *
                                  boundary_zone.initial_condition.particle_spacing
-                    sign_ = (first(typeof(boundary_zone).parameters) isa TrixiParticles.InFlow) ? -1 : 1
+                    sign_ = (first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow) ? -1 : 1
 
                     @test plane_points_1[i] == boundary_zone.zone_origin
                     @test plane_points_2[i] - boundary_zone.zone_origin ==
@@ -42,11 +42,6 @@
                                    normalize(boundary_zone.spanning_set[1]), atol=1e-14)
                     @test isapprox(zone_width, norm(boundary_zone.spanning_set[1]),
                                    atol=1e-14)
-
-                                   if  !(isapprox(sign_ * flow_directions[j],
-                                    normalize(boundary_zone.spanning_set[1]), atol=1e-14))
-                                    TrixiParticles.@autoinfiltrate
-                                   end
                 end
             end
         end
@@ -88,7 +83,7 @@
                                       open_boundary_layers, boundary_type=:inflow)
                 outflow = BoundaryZone(; plane=(point_1, point_2, point_3),
                                        particle_spacing,
-                                       plane_normal=flow_directions[j], density=1.0,
+                                       plane_normal=-flow_directions[j], density=1.0,
                                        open_boundary_layers, boundary_type=:outflow)
 
                 boundary_zones = [
@@ -99,7 +94,7 @@
                 @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in boundary_zones
                     zone_width = open_boundary_layers *
                                  boundary_zone.initial_condition.particle_spacing
-                    sign_ = (first(typeof(boundary_zone).parameters) isa TrixiParticles.InFlow) ? -1 : 1
+                    sign_ = (first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow) ? -1 : 1
 
                     @test plane_points_1[i] == boundary_zone.zone_origin
                     @test plane_points_2[i] - boundary_zone.zone_origin ==
@@ -134,7 +129,7 @@
         ]
 
         @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in boundary_zones
-            perturb_ = first(typeof(boundary_zone).parameters) isa TrixiParticles.InFlow ? sqrt(eps()) :
+            perturb_ = first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow ? sqrt(eps()) :
                        -sqrt(eps())
 
             point1 = plane_points[1]
@@ -177,7 +172,7 @@
         ]
 
         @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in boundary_zones
-            perturb_ = first(typeof(boundary_zone).parameters) isa TrixiParticles.InFlow ? eps() : -eps()
+            perturb_ = first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow ? eps() : -eps()
             point4 = boundary_zone.spanning_set[1] + boundary_zone.zone_origin
 
             query_points = Dict(
