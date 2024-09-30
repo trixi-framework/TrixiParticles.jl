@@ -156,9 +156,10 @@ end
 create_cache_boundary(::Nothing, initial_condition) = (;)
 
 function create_cache_boundary(::BoundaryMovement, initial_condition)
+    initial_coordinates = copy(initial_condition.coordinates)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)
-    return (; velocity, acceleration)
+    return (; velocity, acceleration, initial_coordinates)
 end
 
 function Base.show(io::IO, system::BoundarySPHSystem)
@@ -194,10 +195,17 @@ timer_name(::Union{BoundarySPHSystem, BoundaryDEMSystem}) = "boundary"
     eltype(system.coordinates)
 end
 
-# This does not account for moving boundaries, but it's only used to initialize the
-# neighborhood search, anyway.
-@inline function initial_coordinates(system::Union{BoundarySPHSystem, BoundaryDEMSystem})
-    system.coordinates
+@inline function initial_coordinates(system::BoundarySPHSystem)
+    initial_coordinates(system::BoundarySPHSystem, system.movement)
+end
+
+@inline initial_coordinates(system::BoundaryDEMSystem) = system.coordinates
+
+@inline initial_coordinates(system::BoundarySPHSystem, ::Nothing) = system.coordinates
+
+# We need static initial coordinates as reference when system is moving
+@inline function initial_coordinates(system::BoundarySPHSystem, movement)
+    return system.cache.initial_coordinates
 end
 
 function (movement::BoundaryMovement)(system, t)
