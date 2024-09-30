@@ -263,24 +263,23 @@ end
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
                                    boundary_zone::BoundaryZone{BidirectionalFlow}, particle,
                                    v, u, v_fluid, u_fluid)
-    particle_position = particle_coords - boundary_zone.zone_origin
+    particle_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
     # `plane_normal` is always pointing in the fluid domain.
-    if dot(particle_position, boundary_zone.plane_normal)
-
-        # Activate a new particle in simulation domain
-        transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
-
-        # Reset position of boundary particle
-        for dim in 1:ndims(system)
-            u[dim, particle] = boundary_zone.plane_normal[dim]
-        end
+    if signbit(dot(particle_position, boundary_zone.plane_normal))
+        deactivate_particle!(system, particle, u)
 
         return system
     end
 
-    deactivate_particle!(system, particle, u)
+    # Activate a new particle in simulation domain
+    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+
+    # Reset position of boundary particle
+    for dim in 1:ndims(system)
+        u[dim, particle] = boundary_zone.plane_normal[dim]
+    end
 
     return system
 end
