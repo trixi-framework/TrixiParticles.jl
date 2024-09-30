@@ -335,8 +335,8 @@ end
 end
 
 function compute_pressure!(boundary_model,
-                           boundary_density_calc::Union{AdamiPressureExtrapolation,
-                                                        BernoulliPressureExtrapolation},
+                           ::Union{AdamiPressureExtrapolation,
+                                   BernoulliPressureExtrapolation},
                            system, v, u, v_ode, u_ode, semi)
     (; pressure, cache, viscosity) = boundary_model
 
@@ -508,8 +508,8 @@ end
 
 @inline function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
                                   density_neighbor, v, v_neighbor_system, pos_diff,
-                                  distance, particle, neighbor, system::BoundarySystem,
-                                  neighbor_system)
+                                  distance, particle, neighbor,
+                                  system::BoundarySystem, neighbor_system)
     if system.ismoving[]
         relative_velocity = current_velocity(v, system, particle) .-
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -523,8 +523,8 @@ end
 
 @inline function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
                                   density_neighbor, v, v_neighbor_system, pos_diff,
-                                  distance, particle, neighbor, system::SolidSystem,
-                                  neighbor_system)
+                                  distance, particle, neighbor,
+                                  system::SolidSystem, neighbor_system)
     relative_velocity = current_velocity(v, system, particle) .-
                         current_velocity(v_neighbor_system, neighbor_system, neighbor)
     normal_velocity = dot(relative_velocity, pos_diff) / distance
