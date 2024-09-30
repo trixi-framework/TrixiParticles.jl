@@ -22,6 +22,7 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
                              prescribed_pressure=false, prescribed_velocity=false)
     (; pressure, density, fluid_system, boundary_zone, reference_density,
     reference_velocity, reference_pressure) = system
+    (; plane_normal) = boundary_zone
 
     state_equation = system_state_equation(system.fluid_system)
 
@@ -66,7 +67,8 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
                 # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
-                v_b = dot(v_b, boundary_zone.flow_direction) * boundary_zone.flow_direction
+                # TODO: Investigate further because it doesn't really make a difference.
+                #v_b = dot(v_b, plane_normal) * plane_normal
 
                 kernel_value = smoothing_kernel(fluid_system, distance)
                 grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance)
@@ -176,7 +178,7 @@ end
 
 function mirror_position(particle_coords, boundary_zone)
     particle_position = particle_coords - boundary_zone.zone_origin
-    dist = dot(particle_position, boundary_zone.flow_direction)
+    dist = dot(particle_position, boundary_zone.plane_normal)
 
-    return particle_coords - 2 * dist * boundary_zone.flow_direction
+    return particle_coords - 2 * dist * boundary_zone.plane_normal
 end
