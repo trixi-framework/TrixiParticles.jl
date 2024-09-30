@@ -1,5 +1,3 @@
-include("../../test_util.jl")
-
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing;
                              buffer_size=0, NDIMS=2, smoothing_length=1.0)
     smoothing_kernel = SchoenbergCubicSplineKernel{NDIMS}()
@@ -43,7 +41,8 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     u = TrixiParticles.wrap_u(u0_ode, system, semi)
 
     # Compute the surface normals
-    TrixiParticles.compute_surface_normal!(system, surface_tension, v, u, v0_ode, u0_ode, semi, 0.0)
+    TrixiParticles.compute_surface_normal!(system, surface_tension, v, u, v0_ode, u0_ode,
+                                           semi, 0.0)
 
     # After computation, check that surface normals have been computed
     @test all(isfinite.(system.cache.surface_normal))
@@ -83,7 +82,8 @@ end
     fluid_density = 1000.0
     density = fill(fluid_density, nparticles)
 
-    system, semi, ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing;
+    system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
+                                            particle_spacing;
                                             buffer_size=0, NDIMS=NDIMS)
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
@@ -105,8 +105,10 @@ end
     density = sphere_ic.density
 
     # To get some what accurate normals we increase the smoothing length unrealistically
-    system, semi, ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing;
-                                            buffer_size=0, NDIMS=NDIMS, smoothing_length=3.0*particle_spacing)
+    system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
+                                            particle_spacing;
+                                            buffer_size=0, NDIMS=NDIMS,
+                                            smoothing_length=3.0 * particle_spacing)
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
 
@@ -121,7 +123,7 @@ end
         norm_r = norm(r)
 
         if abs(norm_r - radius) < particle_spacing
-            expected_normals[:, i] = - r / norm_r
+            expected_normals[:, i] = -r / norm_r
 
             push!(surface_particles, i)
         else

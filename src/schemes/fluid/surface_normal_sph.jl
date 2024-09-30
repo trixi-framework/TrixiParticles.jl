@@ -80,7 +80,7 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
         nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
                                                       nparticles(system))
         nhs_bnd = PointNeighbors.copy_neighborhood_search(nhs_bnd, search_radius,
-                                                      nparticles(neighbor_system))
+                                                          nparticles(neighbor_system))
         PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
         PointNeighbors.initialize!(nhs_bnd, neighbor_system_coords, neighbor_system_coords)
     end
