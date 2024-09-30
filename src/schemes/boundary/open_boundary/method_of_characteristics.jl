@@ -10,8 +10,9 @@ struct BoundaryModelLastiwka end
 
 @inline function update_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                     v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, flow_direction,
+    (; density, pressure, cache, boundary_zone,
     reference_velocity, reference_pressure, reference_density) = system
+    (; flow_direction) = boundary_zone
 
     sound_speed = system_sound_speed(system.fluid_system)
 
@@ -114,8 +115,9 @@ end
 
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, flow_direction, density, pressure,
+    (; volume, cache, boundary_zone, density, pressure,
     reference_velocity, reference_pressure, reference_density) = system
+    (; flow_direction) = boundary_zone
     (; characteristics) = cache
 
     v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)

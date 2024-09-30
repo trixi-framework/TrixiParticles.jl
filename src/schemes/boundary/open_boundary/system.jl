@@ -39,7 +39,6 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     volume               :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     pressure             :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     boundary_zone        :: BZ
-    flow_direction       :: SVector{NDIMS, ELTYPE}
     reference_velocity   :: RV
     reference_pressure   :: RP
     reference_density    :: RD
@@ -98,8 +97,6 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
             reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
         end
 
-        flow_direction_ = boundary_zone.flow_direction
-
         cache = create_cache_open_boundary(boundary_model, initial_condition)
 
         return new{typeof(boundary_model), typeof(boundary_zone), NDIMS, ELTYPE,
@@ -108,7 +105,7 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                    typeof(reference_density_), typeof(buffer),
                    typeof(cache)}(initial_condition, fluid_system, boundary_model, mass,
                                   density, volume, pressure, boundary_zone,
-                                  flow_direction_, reference_velocity_, reference_pressure_,
+                                  reference_velocity_, reference_pressure_,
                                   reference_density_, buffer, false, cache)
     end
 end
@@ -147,7 +144,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         summary_line(io, "fluid system", type2string(system.fluid_system))
         summary_line(io, "boundary model", type2string(system.boundary_model))
         summary_line(io, "boundary type", boundary_type_name(system.boundary_zone))
-        summary_line(io, "flow direction", system.flow_direction)
         summary_line(io, "prescribed velocity", type2string(system.reference_velocity))
         summary_line(io, "prescribed pressure", type2string(system.reference_pressure))
         summary_line(io, "prescribed density", type2string(system.reference_density))
