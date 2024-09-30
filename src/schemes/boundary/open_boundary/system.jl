@@ -276,6 +276,7 @@ end
         for dim in 1:ndims(system)
             u[dim, particle] = boundary_zone.plane_normal[dim]
         end
+
         return system
     end
 
