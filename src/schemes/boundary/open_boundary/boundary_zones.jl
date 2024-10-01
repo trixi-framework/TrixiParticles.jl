@@ -255,7 +255,7 @@ end
 end
 
 function remove_outside_particles(initial_condition, spanning_set, zone_origin)
-    (; coordinates, density, particle_spacing) = initial_condition
+    (; coordinates, density, pressure, particle_spacing) = initial_condition
 
     in_zone = fill(true, nparticles(initial_condition))
 
@@ -266,6 +266,6 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
         in_zone[particle] = is_in_boundary_zone(spanning_set, particle_position)
     end
 
-    return InitialCondition(; coordinates=coordinates[:, in_zone], density=first(density),
-                            particle_spacing)
+    return InitialCondition(; coordinates=coordinates[:, in_zone], density=density[in_zone],
+                            pressure=pressure[in_zone], particle_spacing)
 end

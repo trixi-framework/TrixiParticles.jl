@@ -186,6 +186,10 @@ end
     return system.pressure[particle]
 end
 
+@inline system_smoothing_length(system::OpenBoundarySPHSystem) = system_smoothing_length(system.fluid_system)
+
+@inline system_sound_speed(system::OpenBoundarySPHSystem) = system_sound_speed(system.fluid_system)
+
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
                        update_from_callback=false)
     if !update_from_callback && !(system.update_callback_used[])

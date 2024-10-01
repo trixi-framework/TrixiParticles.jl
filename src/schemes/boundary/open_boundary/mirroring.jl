@@ -46,6 +46,8 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
                                          eltype(system)})
         interpolated_pressure = zero(SVector{ndims(system) + 1, eltype(system)})
 
+        interpolated_density = zero(SVector{ndims(system) + 1, eltype(system)})
+
         interpolated_velocity = zero(SMatrix{ndims(system), ndims(system) + 1,
                                              eltype(system)})
 
@@ -79,6 +81,8 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
 
                 !(prescribed_pressure) && (interpolated_pressure += pressure_b * R)
 
+                !(prescribed_density) && (interpolated_density += rho_b * R)
+
                 !(prescribed_velocity) && (interpolated_velocity += v_b * R')
             end
         end
@@ -107,6 +111,24 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
             pressure[particle] = f_p[1] + dot(pos_diff, df_p)
         end
 
+        # TODO: Check if the following is better
+        # Unlike Tafuni et al. (2018), we calculate the density using the inverse state-equation.
+        # if prescribed_density
+        #     density[particle] = reference_value(reference_density, density[particle],
+        #                                         particle_coords, t)
+        # else
+        #     inverse_state_equation!(density, state_equation, pressure, particle)
+        # end
+        if prescribed_density
+            density[particle] = reference_value(reference_density, density[particle],
+                                                 particle_coords, t)
+        else
+            f_p = L_inv * interpolated_density
+            df_p = f_p[two_to_end]
+
+            density[particle] = f_p[1] + dot(pos_diff, df_p)
+        end
+
         if prescribed_velocity
             v_particle = current_velocity(v_open_boundary, system, particle)
             v_ref = reference_value(reference_velocity, v_particle, particle_coords, t)
@@ -120,14 +142,6 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
 
                 v_open_boundary[dim, particle] = f_v[1] + dot(pos_diff, df_v)
             end
-        end
-
-        # Unlike Tafuni et al. (2018), we calculate the density using the inverse state-equation.
-        if prescribed_density
-            density[particle] = reference_value(reference_density, density[particle],
-                                                particle_coords, t)
-        else
-            inverse_state_equation!(density, state_equation, pressure, particle)
         end
     end
 

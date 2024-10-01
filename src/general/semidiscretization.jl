@@ -805,6 +805,22 @@ function update_nhs!(neighborhood_search,
     return neighborhood_search
 end
 
+function update_nhs!(neighborhood_search,
+                     system::TotalLagrangianSPHSystem,
+                     neighbor::OpenBoundarySPHSystem,
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySPHSystem,
+                     neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
 # Forward to PointNeighbors.jl
 function update!(neighborhood_search, system, x, y; points_moving=(true, false))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving)

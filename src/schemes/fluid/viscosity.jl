@@ -189,7 +189,7 @@ end
 # In: Reports on Progress in Physics (2005), pages 1703-1759.
 # [doi: 10.1088/0034-4885/68/8/r01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
 function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan)
-    (; smoothing_length) = system
+    smoothing_length = system_smoothing_length(system)
     (; alpha) = viscosity
     sound_speed = system_sound_speed(system)
 
