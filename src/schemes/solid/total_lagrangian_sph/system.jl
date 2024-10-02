@@ -55,9 +55,10 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, ST} <: SolidSystem{NDIMS}
+                                YM, PR, LL, LM, K, PF, ST, M, IM} <: SolidSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    # `current_coordinates` contains `u` plus coordinates of the fixed particles
     current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     mass                :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     correction_matrix   :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
@@ -75,6 +76,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     boundary_model      :: BM
     penalty_force       :: PF
     source_terms        :: ST
+    fixed_particle_movement :: M
+    fixed_particles_moving  :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     buffer              :: Nothing
 end
 
@@ -84,7 +87,8 @@ function TotalLagrangianSPHSystem(initial_condition,
                                   n_fixed_particles=0, boundary_model=nothing,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
-                                  penalty_force=nothing, source_terms=nothing)
+                                  penalty_force=nothing, source_terms=nothing,
+                                  movement=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -113,13 +117,21 @@ function TotalLagrangianSPHSystem(initial_condition,
                      ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
     lame_mu = @. (young_modulus / 2) / (1 + poisson_ratio)
 
+    if movement !== nothing && isempty(movement.moving_particles)
+        # Default is an empty vector, since the number of particles is not known when
+        # instantiating `BoundaryMovement`.
+        resize!(movement.moving_particles, n_fixed_particles)
+        movement.moving_particles .= collect((n_moving_particles + 1):n_particles)
+    end
+
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
                                     pk1_corrected, deformation_grad, material_density,
                                     n_moving_particles, young_modulus, poisson_ratio,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
-                                    penalty_force, source_terms, nothing)
+                                    penalty_force, source_terms, movement,
+                                    Ref(!isnothing(movement)), nothing)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
@@ -243,13 +255,44 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; current_coordinates) = system
+    (; current_coordinates, fixed_particle_movement) = system
+
+    fixed_particle_movement(system, v, u, t)
 
     @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             current_coordinates[i, particle] = u[i, particle]
         end
     end
+end
+
+function (movement::BoundaryMovement)(system::TotalLagrangianSPHSystem, v, u, t)
+    (; current_coordinates) = system
+    (; movement_function, is_moving, moving_particles) = movement
+
+    system.fixed_particles_moving[] = is_moving(t)
+
+    is_moving(t) || return system
+
+    @threaded system for particle in moving_particles
+        pos_new = initial_coords(system, particle) + movement_function(t)
+        vel = ForwardDiff.derivative(movement_function, t)
+        # acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
+
+        @inbounds for i in 1:ndims(system)
+            current_coordinates[i, particle] = pos_new[i]
+            # v[i, particle] = vel[i]
+            # acceleration[i, particle] = acc[i]
+        end
+    end
+
+    return system
+end
+
+function (movement::Nothing)(system::TotalLagrangianSPHSystem, v, u, t)
+    system.fixed_particles_moving[] = false
+
+    return system
 end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)

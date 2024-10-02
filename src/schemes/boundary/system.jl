@@ -53,7 +53,6 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
         movement.moving_particles .= collect(1:nparticles(initial_condition))
     end
 
-    # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
                              ismoving, adhesion_coefficient, cache, nothing)
 end
