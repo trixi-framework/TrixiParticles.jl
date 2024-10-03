@@ -12,6 +12,7 @@ docs/src/news.md
 *_replaced.md
 run
 *.json
+!.zenodo.json
 *.png
 *.jpg
 *.gif
@@ -19,4 +20,9 @@ run
 *.vtu
 *.pvd
 *.mp4
-*.csv
+
+# ParaView states
+*.pvsm
+
+# FreeCAD models
+*.FCStd

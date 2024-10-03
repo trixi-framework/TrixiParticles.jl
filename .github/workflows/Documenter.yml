@@ -8,10 +8,12 @@ on:
     paths-ignore:
       - '.github/workflows/ci.yml'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
   pull_request:
     paths-ignore:
       - '.github/workflows/ci.yml'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
   workflow_dispatch:
 
 concurrency:
@@ -28,17 +30,17 @@ jobs:
       - name: Check out project
         uses: actions/checkout@v4
       - name: Set up Julia
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v2
         with:
           version: '1'
           show-versioninfo: true
-      - uses: julia-actions/cache@v1
+      - uses: julia-actions/cache@v2
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Build and deploy
-        # env:
-        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        #   DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
         run: julia --project=docs --color=yes docs/make.jl

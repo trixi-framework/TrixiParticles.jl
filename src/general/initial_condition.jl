@@ -8,6 +8,8 @@ The following setups return `InitialCondition`s for commonly used setups:
 - [`RectangularShape`](@ref)
 - [`SphereShape`](@ref)
 - [`RectangularTank`](@ref)
+- [`ComplexShape`](@ref)
+- [`extrude_geometry`](@ref)
 
 `InitialCondition`s support the set operations `union`, `setdiff` and `intersect` in order
 to build more complex geometries.
@@ -98,8 +100,11 @@ struct InitialCondition{ELTYPE}
                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
         end
 
-        # SVector of coordinates to pass to functions
-        coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+        # SVector of coordinates to pass to functions.
+        # This will return a vector of SVectors in 2D and 3D, but an 1×n matrix in 1D.
+        coordinates_svector_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+        # In 1D, this will reshape the 1×n matrix to a vector, in 2D/3D it will do nothing
+        coordinates_svector = reshape(coordinates_svector_, length(coordinates_svector_))
 
         if velocity isa AbstractMatrix
             velocities = velocity
@@ -290,12 +295,12 @@ function find_too_close_particles(coords1, coords2, max_distance)
     NDIMS = size(coords1, 1)
     result = Int[]
 
-    nhs = GridNeighborhoodSearch{NDIMS}(max_distance, size(coords2, 2))
-    TrixiParticles.initialize!(nhs, coords2)
+    nhs = GridNeighborhoodSearch{NDIMS}(search_radius=max_distance,
+                                        n_points=size(coords2, 2))
+    PointNeighbors.initialize!(nhs, coords1, coords2)
 
     # We are modifying the vector `result`, so this cannot be parallel
-    TrixiParticles.for_particle_neighbor(coords1, coords2, nhs,
-                                         parallel=false) do particle, _, _, _
+    foreach_point_neighbor(coords1, coords2, nhs, parallel=false) do particle, _, _, _
         if !(particle in result)
             append!(result, particle)
         end

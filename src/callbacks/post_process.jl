@@ -12,10 +12,15 @@ anonymous as the function name will be used as part of the name of the value.
 The callback can be triggered either by a fixed number of time steps (`interval`) or by
 a fixed interval of simulation time (`dt`).
 
-
 # Keywords
-- `funcs...`: Functions to be executed at specified intervals during the simulation.
-              The functions must have the arguments `(v, u, t, system)`.
+- `funcs...`:   Functions to be executed at specified intervals during the simulation.
+                Each function must have the arguments `(v, u, t, system)`,
+                and will be called for every system, where `v` and `u` are the
+                wrapped solution arrays for the corresponding system and `t` is
+                the current simulation time. Note that working with these `v`
+                and `u` arrays requires undocumented internal functions of
+                TrixiParticles. See [Custom Quantities](@ref custom_quantities)
+                for a list of pre-defined functions that can be used here.
 - `interval=0`: Specifies the number of time steps between each invocation of the callback.
                 If set to `0`, the callback will not be triggered based on time steps.
                 Either `interval` or `dt` must be set to something larger than 0.
@@ -34,15 +39,11 @@ a fixed interval of simulation time (`dt`).
 
 # Examples
 ```jldoctest; output = false
-function example_function(v, u, t, system)
-    println("test_func ", t)
-end
-
 # Create a callback that is triggered every 100 time steps
-postprocess_callback = PostprocessCallback(interval=100, example_quantity=example_function)
+postprocess_callback = PostprocessCallback(interval=100, example_quantity=kinetic_energy)
 
 # Create a callback that is triggered every 0.1 simulation time units
-postprocess_callback = PostprocessCallback(dt=0.1, example_quantity=example_function)
+postprocess_callback = PostprocessCallback(dt=0.1, example_quantity=kinetic_energy)
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -72,6 +73,7 @@ struct PostprocessCallback{I, F}
     append_timestamp    :: Bool
     write_csv           :: Bool
     write_json          :: Bool
+    git_hash            :: Ref{String}
 end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
@@ -93,14 +95,15 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
     post_callback = PostprocessCallback(interval, write_file_interval,
                                         Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
-                                        append_timestamp, write_csv, write_json)
+                                        append_timestamp, write_csv, write_json,
+                                        Ref("UnknownVersion"))
     if dt > 0
-        # Add a `tstop` every `dt`, and save the final solution.
+        # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(post_callback, dt,
                                 initialize=initialize_postprocess_callback!,
                                 save_positions=(false, false), final_affect=true)
     else
-        # The first one is the condition, the second the affect!
+        # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(post_callback, post_callback,
                                 save_positions=(false, false),
                                 initialize=initialize_postprocess_callback!)
@@ -208,12 +211,15 @@ function initialize_postprocess_callback!(cb, u, t, integrator)
 end
 
 function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integrator)
+    cb.git_hash[] = compute_git_hash()
+
     # Apply the callback
     cb(integrator)
-    return nothing
+
+    return cb
 end
 
-# condition with interval
+# `condition` with interval
 function (pp::PostprocessCallback)(u, t, integrator)
     (; interval) = pp
 
@@ -230,7 +236,7 @@ function (pp::PostprocessCallback)(integrator)
     new_data = false
 
     # Update systems to compute quantities like density and pressure
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
 
     foreach_system(semi) do system
         if system isa BoundarySystem && pp.exclude_boundary
@@ -259,7 +265,7 @@ function (pp::PostprocessCallback)(integrator)
         write_postprocess_callback(pp)
     end
 
-    # Tell OrdinaryDiffEq that u has not been modified
+    # Tell OrdinaryDiffEq that `u` has not been modified
     u_modified!(integrator, false)
 end
 
@@ -275,12 +281,12 @@ end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
 function write_postprocess_callback(pp::PostprocessCallback)
-    if isempty(pp.data)
-        return
-    end
+    isempty(pp.data) && return
+
+    mkpath(pp.output_directory)
 
     data = Dict{String, Any}()
-    write_meta_data!(data)
+    write_meta_data!(data, pp.git_hash[])
     prepare_series_data!(data, pp)
 
     time_stamp = ""
@@ -330,9 +336,9 @@ function create_series_dict(values, times, system_name="")
                 "time" => times)
 end
 
-function write_meta_data!(data)
+function write_meta_data!(data, git_hash)
     meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => get_git_hash(),
+                     "solver_version" => git_hash,
                      "julia_version" => string(VERSION))
 
     data["meta"] = meta_data
@@ -372,57 +378,4 @@ function add_entry!(pp, entry_key, t, value, system_name)
 
     # Add the new entry to the list
     push!(entries, value)
-end
-
-function kinetic_energy(v, u, t, system)
-    return sum(each_moving_particle(system)) do particle
-        velocity = current_velocity(v, system, particle)
-        return 0.5 * system.mass[particle] * dot(velocity, velocity)
-    end
-end
-
-function total_mass(v, u, t, system)
-    return sum(each_moving_particle(system)) do particle
-        return system.mass[particle]
-    end
-end
-
-function max_pressure(v, u, t, system)
-    return maximum(particle -> particle_pressure(v, system, particle),
-                   each_moving_particle(system))
-end
-
-function min_pressure(v, u, t, system)
-    return minimum(particle -> particle_pressure(v, system, particle),
-                   each_moving_particle(system))
-end
-
-function avg_pressure(v, u, t, system)
-    if n_moving_particles(system) == 0
-        return 0.0
-    end
-
-    sum_ = sum(particle -> particle_pressure(v, system, particle),
-               each_moving_particle(system))
-    return sum_ / n_moving_particles(system)
-end
-
-function max_density(v, u, t, system)
-    return maximum(particle -> particle_density(v, system, particle),
-                   each_moving_particle(system))
-end
-
-function min_density(v, u, t, system)
-    return minimum(particle -> particle_density(v, system, particle),
-                   each_moving_particle(system))
-end
-
-function avg_density(v, u, t, system)
-    if n_moving_particles(system) == 0
-        return 0.0
-    end
-
-    sum_ = sum(particle -> particle_density(v, system, particle),
-               each_moving_particle(system))
-    return sum_ / n_moving_particles(system)
 end

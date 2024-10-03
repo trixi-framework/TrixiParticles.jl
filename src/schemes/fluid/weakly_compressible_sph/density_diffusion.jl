@@ -134,22 +134,29 @@ diffusion terms.
   In: Computer Physics Communications 180.6 (2009), pages 861--872.
   [doi: 10.1016/j.cpc.2008.12.004](https://doi.org/10.1016/j.cpc.2008.12.004)
 """
-struct DensityDiffusionAntuono{NDIMS, ELTYPE} <: DensityDiffusion
+struct DensityDiffusionAntuono{NDIMS, ELTYPE, ARRAY2D, ARRAY3D} <: DensityDiffusion
     delta                       :: ELTYPE
-    correction_matrix           :: Array{ELTYPE, 3} # [i, j, particle]
-    normalized_density_gradient :: Array{ELTYPE, 2} # [i, particle]
+    correction_matrix           :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    normalized_density_gradient :: ARRAY2D # Array{ELTYPE, 2}: [i, particle]
 
-    function DensityDiffusionAntuono(initial_condition; delta)
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
-        correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
-                                             nparticles(initial_condition))
-
-        normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
-                                                       nparticles(initial_condition))
-
-        new{NDIMS, ELTYPE}(delta, correction_matrix, normalized_density_gradient)
+    function DensityDiffusionAntuono(delta, correction_matrix, normalized_density_gradient)
+        new{size(correction_matrix, 1), typeof(delta),
+            typeof(normalized_density_gradient),
+            typeof(correction_matrix)}(delta, correction_matrix,
+                                       normalized_density_gradient)
     end
+end
+
+function DensityDiffusionAntuono(initial_condition; delta)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+    correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
+                                         nparticles(initial_condition))
+
+    normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
+                                                   nparticles(initial_condition))
+
+    return DensityDiffusionAntuono(delta, correction_matrix, normalized_density_gradient)
 end
 
 @inline Base.ndims(::DensityDiffusionAntuono{NDIMS}) where {NDIMS} = NDIMS
@@ -163,8 +170,8 @@ function Base.show(io::IO, density_diffusion::DensityDiffusionAntuono)
 end
 
 @inline function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
-                                       rho_a, rho_b,
-                                       pos_diff, distance, system, particle, neighbor)
+                                       rho_a, rho_b, pos_diff, distance, system,
+                                       particle, neighbor)
     (; normalized_density_gradient) = density_diffusion
 
     normalized_gradient_a = extract_svector(normalized_density_gradient, system, particle)
@@ -194,8 +201,8 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
     # Compute normalized density gradient
     set_zero!(normalized_density_gradient)
 
-    for_particle_neighbor(system, system, system_coords, system_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(system, system, system_coords, system_coords,
+                           neighborhood_search) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
@@ -216,4 +223,31 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
     end
 
     return density_diffusion
+end
+
+@inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,
+                                    v_particle_system, particle, neighbor, pos_diff,
+                                    distance, m_b, rho_a, rho_b,
+                                    particle_system::FluidSystem, grad_kernel)
+    # Density diffusion terms are all zero for distance zero
+    distance < sqrt(eps()) && return
+
+    (; delta) = density_diffusion
+    (; smoothing_length, state_equation) = particle_system
+    (; sound_speed) = state_equation
+
+    volume_b = m_b / rho_b
+
+    psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
+                                particle_system, particle, neighbor)
+    density_diffusion_term = dot(psi, grad_kernel) * volume_b
+
+    dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
+end
+
+# Density diffusion `nothing` or interaction other than fluid-fluid
+@inline function density_diffusion!(dv, density_diffusion, v_particle_system, particle,
+                                    neighbor, pos_diff, distance, m_b, rho_a, rho_b,
+                                    particle_system, grad_kernel)
+    return dv
 end

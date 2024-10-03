@@ -193,10 +193,10 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
         neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
-        for_particle_neighbor(system, neighbor_system, system_coords,
-                              neighbor_coords, neighborhood_search,
-                              particles=eachparticle(system)) do particle, neighbor,
-                                                                 pos_diff, distance
+        foreach_point_neighbor(system, neighbor_system, system_coords,
+                               neighbor_coords, neighborhood_search,
+                               points=eachparticle(system)) do particle, neighbor,
+                                                               pos_diff, distance
             rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
@@ -255,11 +255,10 @@ function compute_correction_values!(system,
         neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
-        for_particle_neighbor(system, neighbor_system, system_coords,
-                              neighbor_coords,
-                              neighborhood_search,
-                              particles=eachparticle(system)) do particle, neighbor,
-                                                                 pos_diff, distance
+        foreach_point_neighbor(system, neighbor_system, system_coords,
+                               neighbor_coords, neighborhood_search,
+                               points=eachparticle(system)) do particle, neighbor,
+                                                               pos_diff, distance
             rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
@@ -361,11 +360,9 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(system, system,
-                          coordinates, coordinates,
-                          neighborhood_search;
-                          particles=eachparticle(system)) do particle, neighbor,
-                                                             pos_diff, distance
+    foreach_point_neighbor(system, system, coordinates, coordinates, neighborhood_search;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
         volume = mass[neighbor] / density_fun(neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
@@ -397,12 +394,10 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
         neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
-        for_particle_neighbor(system, neighbor_system, coordinates, neighbor_coords,
-                              neighborhood_search;
-                              particles=eachparticle(system)) do particle,
-                                                                 neighbor,
-                                                                 pos_diff,
-                                                                 distance
+        foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
+                               neighborhood_search;
+                               points=eachparticle(system)) do particle, neighbor,
+                                                               pos_diff, distance
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      particle_density(v_neighbor_system, neighbor_system, neighbor)
 
@@ -440,34 +435,35 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 end
 
 function correction_matrix_inversion_step!(corr_matrix, system)
-    @threaded for particle in eachparticle(system)
+    @threaded system for particle in eachparticle(system)
         L = extract_smatrix(corr_matrix, system, particle)
-        norm_ = norm(L)
 
-        # The norm value is quasi-zero, so there are probably no neighbors for this particle
-        if norm_ < sqrt(eps())
-            # The correction matrix is set to an identity matrix, which effectively disables
-            # the correction for this particle.
-            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                corr_matrix[i, j, particle] = 0.0
-            end
-            @inbounds for i in 1:ndims(system)
-                corr_matrix[i, i, particle] = 1.0
-            end
-            continue
-        end
-
-        det_ = abs(det(L))
-        @fastmath if det_ < 1e-6 * norm_
-            L_inv = pinv(L)
-            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                corr_matrix[i, j, particle] = L_inv[i, j]
-            end
+        # The matrix `L` only becomes singular when the particle and all neighbors
+        # are collinear (in 2D) or lie all in the same plane (in 3D).
+        # This happens only when two (in 2D) or three (in 3D) particles are isolated,
+        # or in cases where there is only one layer of fluid particles on a wall.
+        # In these edge cases, we just disable the correction and set the corrected
+        # gradient to be the uncorrected one by setting `L` to the identity matrix.
+        #
+        # Proof: `L` is just a sum of tensor products of relative positions X_ab with
+        # themselves. According to
+        # https://en.wikipedia.org/wiki/Outer_product#Connection_with_the_matrix_product
+        # the sum of tensor products can be rewritten as A A^T, where the columns of A
+        # are the relative positions X_ab. The rank of A A^T is equal to the rank of A,
+        # so `L` is singular if and only if the position vectors X_ab don't span the
+        # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
+        # or plane (in 3D).
+        if abs(det(L)) < 1e-9
+            L_inv = I
         else
             L_inv = inv(L)
-            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                corr_matrix[i, j, particle] = L_inv[i, j]
-            end
+        end
+
+        # Write inverse back to `corr_matrix`
+        for j in 1:ndims(system), i in 1:ndims(system)
+            @inbounds corr_matrix[i, j, particle] = L_inv[i, j]
         end
     end
+
+    return corr_matrix
 end

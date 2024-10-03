@@ -19,7 +19,7 @@ sigma = 0.5
 # Make this a constant because global variables in the source terms are slow
 const OMEGA = 1.0
 
-source_terms = (coords, velocity, density, pressure) -> -OMEGA^2 * coords
+source_terms = (coords, velocity, density, pressure, t) -> -OMEGA^2 * coords
 
 # 1 period in the exact solution as computed below (but integrated with a small timestep)
 period = 4.567375
@@ -89,5 +89,5 @@ exact_solution_ode = ODEProblem(exact_solution_rhs, exact_u0, tspan)
 sol_exact = solve(exact_solution_ode, RDPK3SpFSAL49(), save_everystep=false)
 
 # Error in the semi-major axis of the elliptical drop
-error_A = maximum(sol.u[end].x[2]) + 0.5fluid_particle_spacing -
+error_A = maximum(sol.u[end].x[2]) + 0.5 * fluid_particle_spacing -
           maximum(sol_exact.u[end][2:3])
