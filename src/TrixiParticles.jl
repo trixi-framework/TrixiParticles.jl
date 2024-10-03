@@ -19,6 +19,7 @@ using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using RecipesBase: RecipesBase, @series
+using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem
 @reexport using StaticArrays: SVector
@@ -50,6 +51,7 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
+include("preprocessing/particle_packing/particle_packing.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -59,7 +61,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback
 export ContinuityDensity, SummationDensity
-export PenaltyForceGanzenmueller
+export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
@@ -73,6 +75,7 @@ export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
+export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry
 export SourceTermDamping

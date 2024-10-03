@@ -16,7 +16,7 @@ function (point_in_poly::WindingNumberHormann)(geometry, points; store_winding_n
     (; edge_vertices) = geometry
 
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
-    inpoly = fill(false, size(points, 2))
+    inpoly = fill(false, length(points))
 
     winding_numbers = Float64[]
     store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
@@ -28,9 +28,9 @@ function (point_in_poly::WindingNumberHormann)(geometry, points; store_winding_n
         (v[1] >= p[1] && v[2] < p[2]) && return 3
     end
 
-    @threaded points for query_point in axes(points, 2)
+    @threaded points for query_point in eachindex(points)
+        v_query = points[query_point]
         winding_number = 0
-        v_query = point_position(points, geometry, query_point)
 
         for edge in eachface(geometry)
             v1 = edge_vertices[edge][1]
