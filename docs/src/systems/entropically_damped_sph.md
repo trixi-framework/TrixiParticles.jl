@@ -74,6 +74,7 @@ and is obtained at every time-step ``\Delta t`` from
 ```
 
 where ``\rho_a`` is the density of particle ``a`` and ``p_{\text{background}}`` is a constant background pressure field.
+The tilde in the second term of the right hand side indicates that the material derivative has an advection part.
 
 The discretized form of the last term is
 
