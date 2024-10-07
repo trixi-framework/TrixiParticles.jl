@@ -32,7 +32,6 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 sphere_radius = 0.0015
 
-
 sphere1_center = (0.5, sphere_radius)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere())
@@ -83,10 +82,8 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
 # 0.115 ~90
 # 0.12 > 90
 
-
 # 0.0005
 #0.11 ~100
-
 
 # 0.00025
 # 0.115 ~60 grad aber zu tief in der mitte 0.006
@@ -128,10 +125,6 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
 # decrease adh=1.26 and  x-axis: 2.4mm y-axis:1.8
 # decrease adh=1.255 and  x-axis: 2.4mm y-axis:1.8
 # decrease smoothing length from 4 -> 3.75 x-axis: 2mm y-axis:1.9
-
-
-
-
 
 # 60deg x=2.4, y=1.3
 # adh = 1.15, surft=0.115, nu=0.0003, h=3.75, x=1.7-1.8, y=2.2
@@ -187,7 +180,6 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
 # adh = 0.13, surft=0.011,  nu=0.00089, h=2.5, wall_nu=5*0.00089, x=2.6, y=1.5
 # adh = 0.11, surft=0.011,  nu=0.00089, h=2.5, wall_nu=5*0.00089, x=2.4, y=1.6
 
-
 # 75deg (x-axis: 2.2mm, y-axis: 1.6mm)
 # adh = 0.20, surft=0.015, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.5, y=1.6
 # adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=20*0.00089, x=2, y=1.7 <- 90d
@@ -234,7 +226,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
 # adhesion_coefficient = 0.001 and surface_tension_coefficient=2.0 for no wetting
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.01)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
+                                    adhesion_coefficient=0.01)
 
 # ==========================================================================================
 # ==== Simulation
