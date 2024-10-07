@@ -42,6 +42,10 @@ write_v0!(v0, system, density_calculator) = v0
 @inline viscosity_model(system::FluidSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 @inline viscosity_model(system::FluidSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 
+@inline system_state_equation(system::FluidSystem) = system.state_equation
+
+@inline system_smoothing_length(system::FluidSystem) = system.smoothing_length
+
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
     return system

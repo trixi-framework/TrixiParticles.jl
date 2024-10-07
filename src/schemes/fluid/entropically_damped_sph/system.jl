@@ -196,6 +196,8 @@ end
     return v[end, particle]
 end
 
+@inline system_state_equation(system::EntropicallyDampedSPHSystem) = nothing
+
 # WARNING!
 # These functions are intended to be used internally to set the pressure
 # of newly activated particles in a callback.

@@ -5,16 +5,16 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-particle_spacing = 0.05
+particle_spacing = 0.02
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
-boundary_layers = 3
+boundary_layers = 5
 
 # Make sure that the kernel support of fluid particles at an open boundary is always
 # fully sampled.
 # Note: Due to the dynamics at the inlets and outlets of open boundaries,
 # it is recommended to use `open_boundary_layers > boundary_layers`
-open_boundary_layers = 6
+open_boundary_layers = 8
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -34,12 +34,11 @@ fluid_density = 1000.0
 
 # For this particular example, it is necessary to have a background pressure.
 # Otherwise the suction at the outflow is to big and the simulation becomes unstable.
-pressure = 1000.0
+pressure = 0.0
 
-sound_speed = 10 * prescribed_velocity
+sound_speed = 20 * prescribed_velocity
 
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7, background_pressure=pressure)
+state_equation = nothing
 
 pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_density,
                        pressure=pressure, n_layers=boundary_layers,
@@ -48,7 +47,7 @@ pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_densi
 # Shift pipe walls in negative x-direction for the inflow
 pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
-n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]
+n_buffer_particles = 40 * pipe.n_particles_per_dimension[2]
 
 # ==========================================================================================
 # ==== Fluid
@@ -67,6 +66,8 @@ fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothi
                                            buffer_size=n_buffer_particles)
 
 # Alternatively the WCSPH scheme can be used
+# state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+#                                    exponent=1, background_pressure=pressure)
 # alpha = 8 * kinematic_viscosity / (smoothing_length * sound_speed)
 # viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 
@@ -84,26 +85,24 @@ function velocity_function(pos, t)
     return SVector(prescribed_velocity, 0.0)
 end
 
-inflow = InFlow(; plane=([0.0, 0.0], [0.0, domain_size[2]]), flow_direction,
-                open_boundary_layers, density=fluid_density, particle_spacing)
+inflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, domain_size[2]]),
+                      plane_normal=flow_direction, open_boundary_layers,
+                      density=fluid_density, particle_spacing, boundary_type=:inflow)
 
 open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
-                                         boundary_model=BoundaryModelLastiwka(),
+                                         boundary_model=BoundaryModelTafuni(),
                                          buffer_size=n_buffer_particles,
-                                         reference_density=fluid_density,
-                                         reference_pressure=pressure,
                                          reference_velocity=velocity_function)
 
-outflow = OutFlow(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2]]),
-                  flow_direction, open_boundary_layers, density=fluid_density,
-                  particle_spacing)
+outflow = BoundaryZone(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2]]),
+                       plane_normal=-flow_direction, open_boundary_layers,
+                       density=fluid_density, particle_spacing, boundary_type=:outflow)
 
 open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
-                                          boundary_model=BoundaryModelLastiwka(),
+                                          boundary_model=BoundaryModelTafuni(),
                                           buffer_size=n_buffer_particles,
-                                          reference_density=fluid_density,
-                                          reference_pressure=pressure,
-                                          reference_velocity=velocity_function)
+                                          # reference_velocity=velocity_function,
+                                          reference_pressure=pressure)
 
 # ==========================================================================================
 # ==== Boundary
@@ -111,7 +110,7 @@ open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
 boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundary.mass,
                                              AdamiPressureExtrapolation(),
                                              state_equation=state_equation,
-                                             #viscosity=ViscosityAdami(nu=1e-4),
+                                             viscosity=ViscosityAdami(nu=1e-4),
                                              smoothing_kernel, smoothing_length)
 
 boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
