@@ -55,8 +55,9 @@
                                                            density_calculator=ContinuityDensity(),
                                                            smoothing_length, sound_speed)
 
-                boundary_system = OpenBoundarySPHSystem(boundary_zone; sound_speed,
+                boundary_system = OpenBoundarySPHSystem(boundary_zone;
                                                         fluid_system, buffer_size=0,
+                                                        boundary_model=BoundaryModelLastiwka(),
                                                         reference_velocity,
                                                         reference_pressure,
                                                         reference_density)
@@ -93,7 +94,7 @@
                 t1 = 2.0
                 TrixiParticles.evaluate_characteristics!(boundary_system,
                                                          v, u, v0_ode, u0_ode, semi, t1)
-                evaluated_vars1 = boundary_system.characteristics
+                evaluated_vars1 = boundary_system.cache.characteristics
 
                 if boundary_zone isa InFlow
                     @test all(isapprox.(evaluated_vars1[1, :], 0.0))
@@ -113,7 +114,7 @@
                 t2 = 3.0
                 TrixiParticles.evaluate_characteristics!(boundary_system,
                                                          v, u, v0_ode, u0_ode, semi, t2)
-                evaluated_vars2 = boundary_system.characteristics
+                evaluated_vars2 = boundary_system.cache.characteristics
 
                 if boundary_zone isa InFlow
                     @test all(isapprox.(evaluated_vars2[1, :], 0.0))

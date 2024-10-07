@@ -31,7 +31,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `buffer_size`:    Number of buffer particles.
                     This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
-                    (by default), or a function of `(coords, velocity, density, pressure)`
+                    (by default), or a function of `(coords, velocity, density, pressure, t)`
                     (which are the quantities of a single particle), returning a `Tuple`
                     or `SVector` that is to be added to the acceleration of that particle.
                     See, for example, [`SourceTermDamping`](@ref).

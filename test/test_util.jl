@@ -1,5 +1,6 @@
 using Test
 using TrixiParticles
+using TrixiParticles: PointNeighbors
 using LinearAlgebra
 using Printf
 using CSV: CSV
