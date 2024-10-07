@@ -199,13 +199,14 @@ end
     initial_coordinates(system::BoundarySPHSystem, system.movement)
 end
 
+@inline initial_coordinates(system::BoundaryDEMSystem) = system.coordinates
+
 @inline initial_coordinates(system::BoundarySPHSystem, ::Nothing) = system.coordinates
 
+# We need static initial coordinates as reference when system is moving
 @inline function initial_coordinates(system::BoundarySPHSystem, movement)
     return system.cache.initial_coordinates
 end
-
-@inline initial_coordinates(system::BoundaryDEMSystem) = system.coordinates
 
 function (movement::BoundaryMovement)(system, t)
     (; coordinates, cache) = system

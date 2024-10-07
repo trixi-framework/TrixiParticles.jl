@@ -1,10 +1,11 @@
 struct SystemBuffer{V}
-    active_particle :: BitVector
+    active_particle :: Vector{Bool}
     eachparticle    :: V # Vector{Int}
     buffer_size     :: Int
 
     function SystemBuffer(active_size, buffer_size::Integer)
-        active_particle = vcat(trues(active_size), fill(false, buffer_size))
+        # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
+        active_particle = vcat(fill(true, active_size), fill(false, buffer_size))
         eachparticle = collect(1:active_size)
 
         return new{typeof(eachparticle)}(active_particle, eachparticle, buffer_size)
