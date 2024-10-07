@@ -4,17 +4,11 @@ abstract type AkinciTypeSurfaceTension <: SurfaceTensionModel end
 @doc raw"""
     CohesionForceAkinci(surface_tension_coefficient=1.0)
 
-This model only implements the cohesion force of the Akinci surface tension model.
+This model only implements the cohesion force of the [Akinci2013](@cite) surface tension model.
 
 # Keywords
 - `surface_tension_coefficient=1.0`: Modifies the intensity of the surface tension-induced force,
    enabling the tuning of the fluid's surface tension properties within the simulation.
-
-# References
-- Nadir Akinci, Gizem Akinci, Matthias Teschner.
-  "Versatile Surface Tension and Adhesion for SPH Fluids".
-  In: ACM Transactions on Graphics 32.6 (2013).
-  [doi: 10.1145/2508363.2508395](https://doi.org/10.1145/2508363.2508395)
 """
 struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
@@ -28,7 +22,7 @@ end
     SurfaceTensionAkinci(surface_tension_coefficient=1.0)
 
 Implements a model for surface tension and adhesion effects drawing upon the
-principles outlined by Akinci et al. This model is instrumental in capturing the nuanced
+principles outlined by [Akinci2013](@cite). This model is instrumental in capturing the nuanced
 behaviors of fluid surfaces, such as droplet formation and the dynamics of merging or
 separation, by utilizing intra-particle forces.
 
@@ -36,12 +30,6 @@ separation, by utilizing intra-particle forces.
 - `surface_tension_coefficient=1.0`: A parameter to adjust the magnitude of
    surface tension forces, facilitating the fine-tuning of how surface tension phenomena
    are represented in the simulation.
-
-# References
-- Nadir Akinci, Gizem Akinci, Matthias Teschner.
-  "Versatile Surface Tension and Adhesion for SPH Fluids".
-  In: ACM Transactions on Graphics 32.6 (2013).
-  [doi: 10.1145/2508363.2508395](https://doi.org/10.1145/2508363.2508395)
 """
 struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
