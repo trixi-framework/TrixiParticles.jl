@@ -109,7 +109,7 @@ Here, ``\tilde{p}_{ab}`` is the density-weighted pressure
 \tilde{p}_{ab} = \frac{\rho_b p_a + \rho_a p_b}{\rho_a + \rho_b},
 ```
 
-with the density  ``\rho_a``,  ``\rho_b`` and the pressure  ``p_a``,  ``p_b`` of particles ``a`` and ``b`` respectively. ``\bm{A}_a`` and ``\bm{A}_b`` are the convection tensors for particle ``a`` and ``b`` respectively and is given, e.g. for particle ``a``, as ``\bm{A}_a = \rho v_a\left(\tilde{v}_a-v_a\right)^T``.
+with the density  ``\rho_a``,  ``\rho_b`` and the pressure  ``p_a``,  ``p_b`` of particles ``a`` and ``b`` respectively. ``\bm{A}_a`` and ``\bm{A}_b`` are the convection tensors for particle ``a`` and ``b`` respectively and are given, e.g. for particle ``a``, as ``\bm{A}_a = \rho v_a\left(\tilde{v}_a-v_a\right)^T``.
 
 ```@autodocs
 Modules = [TrixiParticles]
