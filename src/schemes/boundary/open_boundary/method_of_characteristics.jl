@@ -13,8 +13,9 @@ struct BoundaryModelLastiwka
     end
 end
 
-@inline function update_quantities!(system, boundary_model::BoundaryModelLastiwka,
-                                    v, u, v_ode, u_ode, semi, t)
+# Called from update callback
+@inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
+                                             v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, boundary_zone,
     reference_velocity, reference_pressure, reference_density) = system
     (; flow_direction) = boundary_zone
@@ -60,9 +61,26 @@ end
     return system
 end
 
+# Called from semidiscretization
 function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "evaluate characteristics" begin
         evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
+    end
+end
+
+function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
+    (; cache) = system
+    (; previous_characteristics_inited) = cache
+
+    # Propagate characteristics through the open boundary
+    if !previous_characteristics_inited[1]
+        for iteration in 1:4
+            calc_characteristics!(system, v, u, v_ode, u_ode, semi, t)
+        end
+
+        previous_characteristics_inited[1] = true
+    else
+        calc_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
@@ -70,9 +88,9 @@ end
 # J1: Associated with convection and entropy and propagates at flow velocity.
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
-function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
+function calc_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     (; volume, cache, boundary_zone) = system
-    (; characteristics, previous_characteristics) = cache
+    (; characteristics, previous_characteristics, previous_characteristics_inited) = cache
 
     for particle in eachparticle(system)
         previous_characteristics[1, particle] = characteristics[1, particle]
