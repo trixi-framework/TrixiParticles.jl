@@ -135,8 +135,8 @@
         Trixi simulation finished.  Final time: 23.0  Time steps: 453 (accepted), 472 (total)
         ────────────────────────────────────────────────────────────────────────────────────────────────────
 
-         ────────────────────────────────────────────────────────────────────
-         TrixiParticles.jl          Time                    Allocations"""
+        ────────────────────────────────────────────────────────────────────
+        TrixiParticles.jl          Time                    Allocations"""
 
         # Redirect `stdout` to a string
         pipe = Pipe()
