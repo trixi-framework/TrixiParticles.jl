@@ -23,7 +23,7 @@ end
 @doc raw"""
     DensityDiffusionMolteniColagrossi(; delta)
 
-The commonly used density diffusion term by Molteni & Colagrossi (2009).
+The commonly used density diffusion term by [Molteni (2009)](@cite Molteni2009).
 
 The term ``\psi_{ab}`` in the continuity equation in [`DensityDiffusion`](@ref) is defined
 by
@@ -35,12 +35,6 @@ and ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a
 
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
-
-## References
-- Diego Molteni, Andrea Colagrossi.
-  "A Simple Procedure to Improve the Pressure Evaluation in Hydrodynamic Context Using the SPH."
-  In: Computer Physics Communications 180.6 (2009), pages 861--872.
-  [doi: 10.1016/j.cpc.2008.12.004](https://doi.org/10.1016/j.cpc.2008.12.004)
 """
 struct DensityDiffusionMolteniColagrossi{ELTYPE} <: DensityDiffusion
     delta::ELTYPE
@@ -51,15 +45,14 @@ struct DensityDiffusionMolteniColagrossi{ELTYPE} <: DensityDiffusion
 end
 
 @inline function density_diffusion_psi(::DensityDiffusionMolteniColagrossi, rho_a, rho_b,
-                                       pos_diff, distance, system, neighbor_system,
-                                       particle, neighbor)
+                                       pos_diff, distance, system, particle, neighbor)
     return 2 * (rho_a - rho_b) * pos_diff / distance^2
 end
 
 @doc raw"""
     DensityDiffusionFerrari()
 
-A density diffusion term by Ferrari et al. (2009).
+A density diffusion term by [Ferrari (2009)](@cite Ferrari2009).
 
 The term ``\psi_{ab}`` in the continuity equation in [`DensityDiffusion`](@ref) is defined
 by
@@ -72,12 +65,6 @@ where ``\rho_a`` and ``\rho_b`` denote the densities of particles ``a`` and ``b`
 
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
-
-## References
-- Angela Ferrari, Michael Dumbser, Eleuterio F. Toro, Aronne Armanini.
-  "A New 3D Parallel SPH Scheme for Free Surface Flows."
-  In: Computers & Fluids 38.6 (2009), pages 1203--1217.
-  [doi: 10.1016/j.compfluid.2008.11.012](https://doi.org/10.1016/j.compfluid.2008.11.012).
 """
 struct DensityDiffusionFerrari <: DensityDiffusion
     delta::Int
@@ -87,8 +74,7 @@ struct DensityDiffusionFerrari <: DensityDiffusion
 end
 
 @inline function density_diffusion_psi(::DensityDiffusionFerrari, rho_a, rho_b,
-                                       pos_diff, distance, system, neighbor_system,
-                                       particle, neighbor)
+                                       pos_diff, distance, system, particle, neighbor)
     (; smoothing_length) = system
 
     return ((rho_a - rho_b) / 2smoothing_length) * pos_diff / distance
@@ -97,9 +83,9 @@ end
 @doc raw"""
     DensityDiffusionAntuono(initial_condition; delta)
 
-The commonly used density diffusion terms by Antuono et al. (2010), also referred to as
-δ-SPH. The density diffusion term by Molteni & Colagrossi (2009) is extended by a second
-term, which is nicely written down by Antuono et al. (2012).
+The commonly used density diffusion terms by [Antuono (2010)](@cite Antuono2010), also referred to as
+δ-SPH. The density diffusion term by [Molteni (2009)](@cite Molteni2009) is extended by a second
+term, which is nicely written down by [Antuono (2012)](@cite Antuono2012).
 
 The term ``\psi_{ab}`` in the continuity equation in [`DensityDiffusion`](@ref) is defined
 by
@@ -121,20 +107,6 @@ where ``d`` is the number of dimensions.
 
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
-
-## References
-- M. Antuono, A. Colagrossi, S. Marrone, D. Molteni.
-  "Free-Surface Flows Solved by Means of SPH Schemes with Numerical Diffusive Terms."
-  In: Computer Physics Communications 181.3 (2010), pages 532--549.
-  [doi: 10.1016/j.cpc.2009.11.002](https://doi.org/10.1016/j.cpc.2009.11.002)
-- M. Antuono, A. Colagrossi, S. Marrone.
-  "Numerical Diffusive Terms in Weakly-Compressible SPH Schemes."
-  In: Computer Physics Communications 183.12 (2012), pages 2570--2580.
-  [doi: 10.1016/j.cpc.2012.07.006](https://doi.org/10.1016/j.cpc.2012.07.006)
-- Diego Molteni, Andrea Colagrossi.
-  "A Simple Procedure to Improve the Pressure Evaluation in Hydrodynamic Context Using the SPH."
-  In: Computer Physics Communications 180.6 (2009), pages 861--872.
-  [doi: 10.1016/j.cpc.2008.12.004](https://doi.org/10.1016/j.cpc.2008.12.004)
 """
 struct DensityDiffusionAntuono{NDIMS, ELTYPE, ARRAY2D, ARRAY3D} <: DensityDiffusion
     delta                       :: ELTYPE
@@ -173,12 +145,11 @@ end
 
 @inline function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
                                        rho_a, rho_b, pos_diff, distance, system,
-                                       neighbor_system, particle, neighbor)
+                                       particle, neighbor)
     (; normalized_density_gradient) = density_diffusion
 
     normalized_gradient_a = extract_svector(normalized_density_gradient, system, particle)
-    normalized_gradient_b = extract_svector(normalized_density_gradient, neighbor_system,
-                                            neighbor)
+    normalized_gradient_b = extract_svector(normalized_density_gradient, system, neighbor)
 
     # Fist term by Molteni & Colagrossi
     result = 2 * (rho_a - rho_b)
@@ -229,12 +200,9 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
 end
 
 @inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    m_b, rho_a, rho_b,
-                                    particle_system::FluidSystem,
-                                    neighbor_system::FluidSystem,
-                                    grad_kernel)
+                                    v_particle_system, particle, neighbor, pos_diff,
+                                    distance, m_b, rho_a, rho_b,
+                                    particle_system::FluidSystem, grad_kernel)
     # Density diffusion terms are all zero for distance zero
     distance < sqrt(eps()) && return
 
@@ -245,17 +213,15 @@ end
     volume_b = m_b / rho_b
 
     psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
-                                particle_system, neighbor_system, particle, neighbor)
+                                particle_system, particle, neighbor)
     density_diffusion_term = dot(psi, grad_kernel) * volume_b
 
     dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
-@inline function density_diffusion!(dv, density_diffusion,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    m_b, rho_a, rho_b,
-                                    particle_system, neighbor_system, grad_kernel)
+@inline function density_diffusion!(dv, density_diffusion, v_particle_system, particle,
+                                    neighbor, pos_diff, distance, m_b, rho_a, rho_b,
+                                    particle_system, grad_kernel)
     return dv
 end

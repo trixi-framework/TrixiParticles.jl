@@ -55,7 +55,7 @@
                                                            density_calculator=ContinuityDensity(),
                                                            smoothing_length, sound_speed)
 
-                boundary_system = OpenBoundarySPHSystem(boundary_zone; sound_speed,
+                boundary_system = OpenBoundarySPHSystem(boundary_zone;
                                                         fluid_system, buffer_size=0,
                                                         boundary_model=BoundaryModelLastiwka(),
                                                         reference_velocity,
