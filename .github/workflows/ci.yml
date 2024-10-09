@@ -27,7 +27,6 @@ on:
       - 'docs/**'
   workflow_dispatch:
 
-
 # Cancel redundant CI tests automatically
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -36,25 +35,26 @@ concurrency:
 jobs:
   build:
     name: Run Tests (Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
-      # Don't cancel all running jobs when one job fails
       fail-fast: false
       matrix:
-        version:
-          - '1.9'
-          - '1.10'
-          - '1'
-        os:
-          - ubuntu-latest
-        arch:
-          - x64
         include:
-          # Also run tests on Windows and macOS-ARM, but only with the latest Julia version
-          # TODO: change back to '1' after JuliaLang/julia#55009 has been backported
+          # Ubuntu jobs with Julia 1.9, 1.10, and 1.11
+          - version: '1.9'
+            os: ubuntu-latest
+            arch: x64
+          - version: '1.10'
+            os: ubuntu-latest
+            arch: x64
+          - version: '1'
+            os: ubuntu-latest
+            arch: x64
+          # Windows job with Julia 1.10
           - version: '1.10'
             os: windows-latest
             arch: x64
+          # macOS ARM job with Julia 1.10
           - version: '1.10'
             os: macos-14
             arch: arm64
@@ -62,29 +62,35 @@ jobs:
     steps:
       - name: Check out project
         uses: actions/checkout@v4
+
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
+
       - uses: julia-actions/cache@v2
+
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
+
       - name: Run unit tests
         uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
-          # Only run coverage in one Job (Ubuntu and latest Julia version)
+          # Only run coverage in the Ubuntu job with Julia 1.11
           coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
         env:
           TRIXIPARTICLES_TEST: unit
+
       - name: Process coverage results
-        # Only run coverage in one Job (Ubuntu and latest Julia version)
+        # Only process coverage in the Ubuntu job with Julia 1.11
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
         uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,test
+
       - name: Upload coverage report to Codecov
-        # Only run coverage in one Job (Ubuntu and latest Julia version)
+        # Only upload coverage in the Ubuntu job with Julia 1.11
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
         uses: codecov/codecov-action@v4
         with:
@@ -93,6 +99,7 @@ jobs:
           flags: unit
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Run example tests
         uses: julia-actions/julia-runtest@v1
         with:
