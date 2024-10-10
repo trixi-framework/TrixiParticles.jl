@@ -289,8 +289,9 @@ function spanning_vectors(plane_points::NTuple{3}, zone_width)
     edge1 = plane_points[2] - plane_points[1]
     edge2 = plane_points[3] - plane_points[1]
 
-    if !isapprox(dot(edge1, edge2), 0.0, atol=1e-7)
-        throw(ArgumentError("the vectors `AB` and `AC` for the provided points `A`, `B`, `C` must be orthogonal"))
+    # Check if the edges are linearly dependent (to avoid degenerate planes)
+    if isapprox(dot(normalize(edge1), normalize(edge2)), 1.0; atol=1e-7)
+        throw(ArgumentError("The vectors `AB` and `AC` must not be collinear"))
     end
 
     # Calculate normal vector of plane

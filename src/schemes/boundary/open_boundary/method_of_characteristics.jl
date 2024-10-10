@@ -51,6 +51,8 @@ function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi
     @trixi_timeit timer() "evaluate characteristics" begin
         evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    return system
 end
 
 # ==== Characteristics
@@ -100,9 +102,16 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
                 end
             end
 
-            characteristics[1, particle] = avg_J1 / counter
-            characteristics[2, particle] = avg_J2 / counter
-            characteristics[3, particle] = avg_J3 / counter
+            # To prevent NANs here if the boundary has not been in contact before.
+            if avg_J1 + avg_J2 + avg_J3 > eps()
+                characteristics[1, particle] = avg_J1 / counter
+                characteristics[2, particle] = avg_J2 / counter
+                characteristics[3, particle] = avg_J3 / counter
+            else
+                characteristics[1, particle] = 0.0
+                characteristics[2, particle] = 0.0
+                characteristics[3, particle] = 0.0
+            end
         else
             characteristics[1, particle] /= volume[particle]
             characteristics[2, particle] /= volume[particle]
@@ -166,7 +175,7 @@ end
 
 @inline function prescribe_conditions!(characteristics, particle, ::OutFlow)
     # J3 is prescribed (i.e. determined from the exterior of the domain).
-    # J1 and J2 is transimtted from the domain interior.
+    # J1 and J2 is transmitted from the domain interior.
     characteristics[3, particle] = zero(eltype(characteristics))
 
     return characteristics
