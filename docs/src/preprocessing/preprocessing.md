@@ -15,12 +15,12 @@ Here, ``\Theta_i`` is the *signed* angle between ``\mathbf{c}_i - \mathbf{p}`` a
 In 3D, we refer to the solid angle of an *oriented* triangle with respect to ``\mathbf{p}``.
 
 We provide the following methods to calculate ``w(\mathbf{p})``:
-- Horman et al. (2001) evaluate the winding number combined with an even-odd rule, but only for 2D polygons (see [WindingNumberHorman](@ref)).
-- Naive winding: Jacobson et al. (2013) generalized the winding number so that the algorithm can be applied for both 2D and 3D geometries (see [WindingNumberJacobson](@ref)).
-- Hierarchical winding: Jacobson et al. (2013) also introduced a fast hierarchical evaluation of the winding number. For further information see the description below.
+- [Hormann et al. (2001)](@cite Hormann2001) evaluate the winding number combined with an even-odd rule, but only for 2D polygons (see [WindingNumberHormann](@ref)).
+- Naive winding: [Jacobson et al. (2013)](@cite Jacobson2013) generalized the winding number so that the algorithm can be applied for both 2D and 3D geometries (see [WindingNumberJacobson](@ref)).
+- Hierarchical winding: [Jacobson et al. (2013)](@cite Jacobson2013) also introduced a fast hierarchical evaluation of the winding number. For further information see the description below.
 
 ## [Hierarchical Winding](@id hierarchical_winding)
-According to Jacobson et al. (2013) the winding number with respect to a polygon (2D) or triangle mesh (3D) is the sum of the winding numbers with respect to each edge (2D) or face (3D).
+According to [Jacobson et al. (2013)](@cite Jacobson2013) the winding number with respect to a polygon (2D) or triangle mesh (3D) is the sum of the winding numbers with respect to each edge (2D) or face (3D).
 We can show this with the following example in which we determine the winding number for each edge of a triangle separately and sum them up:
 
 ```julia
@@ -164,7 +164,7 @@ Splitting stops when the number of a box's edges slips below a
 threshold (usually ``\approx 100`` faces in 3D, here: 6 edges).
 
 (3):
-For the closure, Jacobson et al. (2013) define *exterior vertices* (*exterior edges* in 3D)
+For the closure, [Jacobson et al. (2013)](@cite Jacobson2013) define *exterior vertices* (*exterior edges* in 3D)
 as boundary vertices of such a segmentation (red dots in (3)).
 To find them, we traverse around each edge (face in 3D) in order, and
 increment or decrement for each vertex (edge) a specific counter.
@@ -210,7 +210,7 @@ This is because the property ``w_{\mathcal{S}}(\mathbf{p}) = - w_{\bar{\mathcal{
 only holds when ``\mathbf{p}`` is outside of ``\mathcal{B}``, which is not the case here.
 
 #### Correct evaluation
-Jacobson et al. (2013) don't mention this problem or provide a solution to it.
+[Jacobson et al. (2013)](@cite Jacobson2013) don't mention this problem or provide a solution to it.
 We contacted the authors and found that they know about this problem and solve it
 by resizing the bounding box to fully include the closing surface
 of the neighboring box, since it doesn't matter if the boxes overlap.
@@ -243,7 +243,7 @@ The evaluation then looks as follows.
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_horman.jl")]
+Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_hormann.jl")]
 ```
 
 ```@autodocs
@@ -255,11 +255,3 @@ Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_jacobson.jl"
 Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "geometries", "io.jl")]
 ```
-
-### [References](@id references_complex_shape)
-- Alec Jacobson, Ladislav Kavan, and Olga Sorkine-Hornung "Robust inside-outside segmentation using generalized winding numbers".
-  In: ACM Transactions on Graphics, 32.4 (2013), pages 1--12.
-  [doi: 10.1145/2461912.2461916](https://igl.ethz.ch/projects/winding-number/robust-inside-outside-segmentation-using-generalized-winding-numbers-siggraph-2013-jacobson-et-al.pdf)
-- Kai Horman, Alexander Agathos "The point in polygon problem for arbitrary polygons".
-  In: Computational Geometry, 20.3 (2001), pages 131--144.
-  [doi: 10.1016/s0925-7721(01)00012-8](https://doi.org/10.1016/S0925-7721(01)00012-8)
