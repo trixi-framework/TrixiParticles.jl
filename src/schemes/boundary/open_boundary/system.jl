@@ -138,8 +138,7 @@ function create_cache_open_boundary(boundary_model, initial_condition)
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
     return (; characteristics=characteristics,
-            previous_characteristics=previous_characteristics,
-            previous_characteristics_inited=[false])
+            previous_characteristics=previous_characteristics)
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"
