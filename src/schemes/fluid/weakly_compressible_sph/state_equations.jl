@@ -53,19 +53,18 @@ end
 @inline sound_speed(eos) = eos.sound_speed
 
 @doc raw"""
-    StateEquationIdealGas(; gas_constant, temperature)
-
+    StateEquationIdealGas(; gas_constant, temperature, gamma)
 Equation of state to describe the relationship between pressure and density
 of a gas using the Ideal Gas Law.
-
 # Keywords
 - `gas_constant`: Specific gas constant (R) for the gas, typically in J/(kg*K).
 - `temperature` : Absolute temperature of the gas in Kelvin.
-- `gamma`       :
-
+- `gamma`       : Heat-capacity ratio
 This struct calculates the pressure of a gas from its density using the formula:
 \[ P = \rho \cdot R \cdot T \]
 where \( P \) is pressure, \( \rho \) is density, \( R \) is the gas constant, and \( T \) is temperature.
+Note:
+For basic WCSPH this boils down to the assumption of a linear pressure-density relationship.
 """
 struct StateEquationIdealGas{ELTYPE}
     gas_constant :: ELTYPE
@@ -83,10 +82,32 @@ function (state_equation::StateEquationIdealGas)(density)
     return pressure
 end
 
+# This version is for simulations that include a temperature.
+function (state_equation::StateEquationIdealGas)(density, internal_energy)
+    (; gamma) = state_equation
+    pressure = (gamma - 1.0) * density * internal_energy
+    return pressure
+end
+
 function inverse_state_equation(state_equation::StateEquationIdealGas, pressure)
     (; gas_constant, temperature) = state_equation
-    return pressure / (gas_constant * temperature)
+    density = pressure / (gas_constant * temperature)
+    return density
+end
+
+# This version is for simulations that include a temperature.
+function inverse_state_equation(state_equation::StateEquationIdealGas, pressure,
+                                internal_energy)
+    gamma = state_equation.gamma
+
+    density = pressure / ((gamma - 1.0) * internal_energy)
+    return density
 end
 
 @inline sound_speed(eos::StateEquationIdealGas) = sqrt(eos.gamma * eos.gas_constant *
                                                        eos.temperature)
+# This version is for simulations that include a temperature.
+@inline sound_speed(eos::StateEquationIdealGas, pressure, density) = sqrt(eos.gamma *
+                                                                          pressure /
+                                                                          (density *
+                                                                           eos.gas_constant))

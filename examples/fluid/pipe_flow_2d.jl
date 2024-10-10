@@ -78,7 +78,7 @@ fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothi
 
 # ==========================================================================================
 # ==== Open Boundary
-function velocity_function(pos, t)
+function velocity_function2d(pos, t)
     # Use this for a time-dependent inflow velocity
     # return SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
 
@@ -92,7 +92,9 @@ inflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, domain_size[2]]),
 open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
                                          boundary_model=BoundaryModelTafuni(),
                                          buffer_size=n_buffer_particles,
-                                         reference_velocity=velocity_function)
+                                         reference_density=fluid_density,
+                                         reference_pressure=pressure,
+                                         reference_velocity=velocity_function2d)
 
 outflow = BoundaryZone(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2]]),
                        plane_normal=-flow_direction, open_boundary_layers,
@@ -101,8 +103,9 @@ outflow = BoundaryZone(; plane=([domain_size[1], 0.0], [domain_size[1], domain_s
 open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
                                           boundary_model=BoundaryModelTafuni(),
                                           buffer_size=n_buffer_particles,
-                                          # reference_velocity=velocity_function,
-                                          reference_pressure=pressure)
+                                          reference_density=fluid_density,
+                                          reference_pressure=pressure,
+                                          reference_velocity=velocity_function2d)
 
 # ==========================================================================================
 # ==== Boundary

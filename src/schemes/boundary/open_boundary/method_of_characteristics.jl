@@ -13,7 +13,7 @@ struct BoundaryModelLastiwka
     end
 end
 
-# Called from update callback
+# Called from update callback via update_open_boundary_eachstep!
 @inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, boundary_zone,
@@ -66,31 +66,17 @@ function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi
     @trixi_timeit timer() "evaluate characteristics" begin
         evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
-end
 
-function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-    (; cache) = system
-    (; previous_characteristics_inited) = cache
-
-    # Propagate characteristics through the open boundary
-    if !previous_characteristics_inited[1]
-        for iteration in 1:4
-            calc_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-        end
-
-        previous_characteristics_inited[1] = true
-    else
-        calc_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-    end
+    return system
 end
 
 # ==== Characteristics
 # J1: Associated with convection and entropy and propagates at flow velocity.
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
-function calc_characteristics!(system, v, u, v_ode, u_ode, semi, t)
+function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     (; volume, cache, boundary_zone) = system
-    (; characteristics, previous_characteristics, previous_characteristics_inited) = cache
+    (; characteristics, previous_characteristics) = cache
 
     for particle in eachparticle(system)
         previous_characteristics[1, particle] = characteristics[1, particle]
@@ -131,9 +117,16 @@ function calc_characteristics!(system, v, u, v_ode, u_ode, semi, t)
                 end
             end
 
-            characteristics[1, particle] = avg_J1 / counter
-            characteristics[2, particle] = avg_J2 / counter
-            characteristics[3, particle] = avg_J3 / counter
+            # To prevent NANs here if the boundary has not been in contact before.
+            if avg_J1 + avg_J2 + avg_J3 > eps()
+                characteristics[1, particle] = avg_J1 / counter
+                characteristics[2, particle] = avg_J2 / counter
+                characteristics[3, particle] = avg_J3 / counter
+            else
+                characteristics[1, particle] = 0.0
+                characteristics[2, particle] = 0.0
+                characteristics[3, particle] = 0.0
+            end
         else
             characteristics[1, particle] /= volume[particle]
             characteristics[2, particle] /= volume[particle]
@@ -199,7 +192,7 @@ end
 
 @inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{OutFlow})
     # J3 is prescribed (i.e. determined from the exterior of the domain).
-    # J1 and J2 is transimtted from the domain interior.
+    # J1 and J2 is transmitted from the domain interior.
     characteristics[3, particle] = zero(eltype(characteristics))
 
     return characteristics
