@@ -8,7 +8,7 @@ Returns an [`InitialCondition`](@ref).
 
 # Arguments
 - `geometry`:           Either particle coordinates or an [`InitialCondition`](@ref)
-                        defining a 2D shape to extrude to a 3D volume, or two 2D points
+                        defining a 2D shape to extrude into a 3D volume, or two 2D points
                         ``(A, B)`` defining the interval ``[A, B]`` to extrude to a plane
                         in 2D, or three 3D points ``(A, B, C)`` defining the parallelogram
                         spanned by the vectors ``\widehat{AB}`` and ``\widehat {AC}`` to extrude
@@ -174,7 +174,7 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph=nothing)
 
     # Vectors defining the edges of the parallelogram
     edge1 = point2_ - point1_
-    edge2 = point3_ - point1_
+    edge2 = point3_ - point2_
 
     # Check if the points are collinear
     if norm(cross(edge1, edge2)) == 0
@@ -185,6 +185,10 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph=nothing)
     num_points_edge1 = ceil(Int, norm(edge1) / particle_spacing)
     num_points_edge2 = ceil(Int, norm(edge2) / particle_spacing)
 
+    # Calculate the fourth point of the parallelogram
+    point4_ = point1_ + edge2
+
+    # Initialize the array to store coordinates
     coords = zeros(3, (num_points_edge1 + 1) * (num_points_edge2 + 1))
 
     index = 1

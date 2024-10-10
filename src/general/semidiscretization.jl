@@ -260,6 +260,11 @@ u0: ([...], [...]) *this line is ignored by filter*
 function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
     (; systems) = semi
 
+    for system in systems
+        println(system, eltype(system))
+        println(typeof(system))
+    end
+
     @assert all(system -> eltype(system) === eltype(systems[1]), systems)
     ELTYPE = eltype(systems[1])
 

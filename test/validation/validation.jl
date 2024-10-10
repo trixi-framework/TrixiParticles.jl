@@ -47,13 +47,14 @@
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
 
-        if VERSION >= v"1.10"
+        if VERSION == v"1.10"
             @test isapprox(error_edac_P1, 0, atol=eps())
             @test isapprox(error_edac_P2, 0, atol=eps())
             @test isapprox(error_wcsph_P1, 0, atol=eps())
             @test isapprox(error_wcsph_P2, 0, atol=eps())
         else
             # 1.9 causes a large difference in the solution
+            # 1.11 requires a performance hotfix which will likely change these results again
             @test isapprox(error_edac_P1, 0, atol=4e-9)
             @test isapprox(error_edac_P2, 0, atol=3e-11)
             @test isapprox(error_wcsph_P1, 0, atol=26.3)

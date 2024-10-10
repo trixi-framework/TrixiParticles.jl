@@ -63,12 +63,13 @@ export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
-export StateEquationCole
+export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing, BoundaryModelLastiwka
+       PressureMirroring, PressureZeroing
+export BoundaryModelLastiwka, BasicOutlet
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
@@ -83,6 +84,7 @@ export kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
 export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d,
        interpolate_plane_2d_vtk
-export SurfaceTensionAkinci, CohesionForceAkinci
+export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris
+export ColorfieldSurfaceNormal
 
 end # module
