@@ -233,7 +233,7 @@ struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
         elseif !isnothing(extrude_geometry)
             initial_condition = TrixiParticles.extrude_geometry(extrude_geometry;
                                                                 particle_spacing, density,
-                                                                direction=-flow_direction_,
+                                                                direction=flow_direction_,
                                                                 n_extrude=open_boundary_layers)
         end
 
@@ -326,7 +326,7 @@ end
 function remove_outside_particles(initial_condition, spanning_set, zone_origin)
     (; coordinates, density, particle_spacing) = initial_condition
 
-    in_zone = trues(nparticles(initial_condition))
+    in_zone = fill(true, nparticles(initial_condition))
 
     for particle in eachparticle(initial_condition)
         current_position = current_coords(coordinates, initial_condition, particle)
