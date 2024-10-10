@@ -4,11 +4,11 @@
 
     inflow = InFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
                     open_boundary_layers=2, density=1.0, flow_direction=[1.0, 0.0])
-    system = OpenBoundarySPHSystem(inflow; sound_speed=1.0, fluid_system=FluidSystemMock3(),
+    system = OpenBoundarySPHSystem(inflow; fluid_system=FluidSystemMock3(),
                                    reference_density=0.0, reference_pressure=0.0,
                                    reference_velocity=[0, 0],
                                    boundary_model=BoundaryModelLastiwka(), buffer_size=0)
-    system_buffer = OpenBoundarySPHSystem(inflow; sound_speed=1.0, buffer_size=5,
+    system_buffer = OpenBoundarySPHSystem(inflow; buffer_size=5,
                                           reference_density=0.0, reference_pressure=0.0,
                                           reference_velocity=[0, 0],
                                           boundary_model=BoundaryModelLastiwka(),

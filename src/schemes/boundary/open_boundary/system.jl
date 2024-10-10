@@ -1,5 +1,5 @@
 @doc raw"""
-    OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}; sound_speed,
+    OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow};
                           fluid_system::FluidSystem, buffer_size::Integer,
                           boundary_model,
                           reference_velocity=nothing,
@@ -12,7 +12,6 @@ Open boundary system for in- and outflow particles.
 - `boundary_zone`: Use [`InFlow`](@ref) for an inflow and [`OutFlow`](@ref) for an outflow boundary.
 
 # Keywords
-- `sound_speed`: Speed of sound.
 - `fluid_system`: The corresponding fluid system
 - `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
 - `buffer_size`: Number of buffer particles.

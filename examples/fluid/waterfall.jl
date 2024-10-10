@@ -96,7 +96,7 @@ boundary_system2 = BoundarySPHSystem(end_tank.boundary, boundary_model2)
 
 outflow = OutFlow(; plane=([0.4, -0.2, -0.1], [0.4, -0.2, 0.3], [0.8, -0.2, 0.3]),
                   flow_direction=[0.0, -1.0, 0.0], open_boundary_layers=1,
-                  density=2*eps(), particle_spacing=fluid_particle_spacing)
+                  density=2 * eps(), particle_spacing=fluid_particle_spacing)
 
 open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
                                           boundary_model=BasicOutlet())

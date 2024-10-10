@@ -57,8 +57,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
                                             neighbor_system, neighbor)
         grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
         for i in 1:ndims(system)
-            cache.surface_normal[i, particle] += m_b / density_neighbor *
-                                                 grad_kernel[i]
+            cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
         end
 
         cache.neighbor_count[particle] += 1
@@ -79,17 +78,17 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-    # if smoothing_length != system.smoothing_length ||
-    #    smoothing_kernel !== system.smoothing_kernel
-    #     # TODO: this is really slow but there is no way to easily implement multiple search radia
-    #     search_radius = compact_support(smoothing_kernel, smoothing_length)
-    #     nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
-    #                                                   nparticles(system))
-    #     nhs_bnd = PointNeighbors.copy_neighborhood_search(nhs_bnd, search_radius,
-    #                                                   nparticles(neighbor_system))
-    #     PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
-    #     PointNeighbors.initialize!(nhs_bnd, neighbor_system_coords, neighbor_system_coords)
-    # end
+    if smoothing_length != system.smoothing_length ||
+       smoothing_kernel !== system.smoothing_kernel
+        # TODO: this is really slow but there is no way to easily implement multiple search radia
+        search_radius = compact_support(smoothing_kernel, smoothing_length)
+        nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
+                                                      nparticles(system))
+        nhs_bnd = PointNeighbors.copy_neighborhood_search(nhs_bnd, search_radius,
+                                                          nparticles(neighbor_system))
+        PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
+        PointNeighbors.initialize!(nhs_bnd, neighbor_system_coords, neighbor_system_coords)
+    end
 
     # First we need to calculate the smoothed colorfield values
     # TODO: move colorfield to extra step
@@ -118,8 +117,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
             grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
                                       smoothing_length)
             for i in 1:ndims(system)
-                cache.surface_normal[i, particle] += m_b / density_neighbor *
-                                                     grad_kernel[i]
+                cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
             end
             cache.neighbor_count[particle] += 1
         end
