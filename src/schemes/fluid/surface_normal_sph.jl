@@ -112,9 +112,9 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
-        # TODO: add Explanation
-        # TODO: fix division by zero by improving the condition
-        if colorfield[neighbor] / maximum_colorfield > 0.1
+        # Exclude boundary particles with negligible colorfield values relative to the maximum,
+        # to focus on significant contributions and avoid numerical errors.
+        if colorfield[neighbor] > 0.1 *  maximum_colorfield
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
             grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
@@ -173,7 +173,6 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTe
         particle_surface_normal = cache.surface_normal[1:ndims(system), particle]
         norm2 = dot(particle_surface_normal, particle_surface_normal)
 
-        # println(norm2, " > ", normal_condition2)
         # see eq. 21
         if norm2 > normal_condition2
             cache.surface_normal[1:ndims(system), particle] = particle_surface_normal /
@@ -182,9 +181,6 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTe
             cache.surface_normal[1:ndims(system), particle] .= 0
         end
     end
-
-    # println("after removable: ")
-    # println(cache.surface_normal)
 
     return system
 end
