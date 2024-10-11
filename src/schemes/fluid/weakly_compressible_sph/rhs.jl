@@ -6,7 +6,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
-    (; density_calculator, correction, surface_tension) = particle_system
+    (; density_calculator, state_equation, correction, surface_tension) = particle_system
+
+    sound_speed_ = sound_speed(state_equation)
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
@@ -55,8 +57,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                         dv_viscosity(particle_system, neighbor_system,
                                      v_particle_system, v_neighbor_system,
                                      particle, neighbor, pos_diff, distance,
-                                     system_sound_speed(particle_system), m_a, m_b, rho_a,
-                                     rho_b, grad_kernel)
+                                     sound_speed_, m_a, m_b, rho_a, rho_b, grad_kernel)
 
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,
