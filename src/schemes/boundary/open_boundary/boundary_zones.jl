@@ -256,7 +256,6 @@ struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
         # Flip the normal vector to point in `flow_direction`
         spanning_set[:, 1] .*= sign(dot_)
 
-
         spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
 
         # Remove particles outside the boundary zone.
