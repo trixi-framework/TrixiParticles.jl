@@ -103,7 +103,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
             end
 
             # To prevent NANs here if the boundary has not been in contact before.
-            if abs(avg_J1 + avg_J2 + avg_J3) > eps()
+            if counter > 0
                 characteristics[1, particle] = avg_J1 / counter
                 characteristics[2, particle] = avg_J2 / counter
                 characteristics[3, particle] = avg_J3 / counter
