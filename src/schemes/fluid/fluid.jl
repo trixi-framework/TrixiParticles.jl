@@ -42,6 +42,10 @@ write_v0!(v0, system, density_calculator) = v0
 @inline viscosity_model(system::FluidSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 @inline viscosity_model(system::FluidSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 
+@inline system_state_equation(system::FluidSystem) = system.state_equation
+
+@inline system_smoothing_length(system::FluidSystem) = system.smoothing_length
+
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
     return system
@@ -75,8 +79,25 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
     return min(dt_viscosity, dt_acceleration, dt_sound_speed)
 end
 
+@inline function surface_tension_model(system::FluidSystem)
+    return system.surface_tension
+end
+
+@inline function surface_tension_model(system)
+    return nothing
+end
+
+@inline function surface_normal_method(system::FluidSystem)
+    return system.surface_normal_method
+end
+
+@inline function surface_normal_method(system)
+    return nothing
+end
+
 include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("surface_tension.jl")
+include("surface_normal_sph.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")

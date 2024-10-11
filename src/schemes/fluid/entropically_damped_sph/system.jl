@@ -42,12 +42,14 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                     gravity-like source terms.
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
-                                   PF, ST, B, C} <: FluidSystem{NDIMS, IC}
+                                   PF, ST, SRFT, SRFN, B, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
+    number_density                    :: Int64
+    color                             :: Int64
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -55,6 +57,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
     correction                        :: Nothing
     pressure_acceleration_formulation :: PF
     source_terms                      :: ST
+    surface_tension                   :: SRFT
+    surface_normal_method             :: SRFN
     buffer                            :: B
     cache                             :: C
 
@@ -65,7 +69,9 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
                                          alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         source_terms=nothing, buffer_size=nothing)
+                                         source_terms=nothing, surface_tension=nothing,
+                                         surface_normal_method=nothing, buffer_size=nothing,
+                                         reference_particle_spacing=0.0, color_value=0)
         buffer = isnothing(buffer_size) ? nothing :
                  SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -75,6 +81,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
         ELTYPE = eltype(initial_condition)
 
         mass = copy(initial_condition.mass)
+        n_particles = length(initial_condition.mass)
 
         if ndims(smoothing_kernel) != NDIMS
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -85,6 +92,22 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
+        if surface_tension !== nothing && surface_normal_method === nothing
+            surface_normal_method = ColorfieldSurfaceNormal(smoothing_kernel,
+                                                            smoothing_length)
+        end
+
+        if surface_normal_method !== nothing && reference_particle_spacing < eps()
+            throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+        end
+
+        number_density_ = 0
+        if reference_particle_spacing > 0.0
+            number_density_ = number_density(Val(NDIMS), reference_particle_spacing,
+                                             compact_support(smoothing_kernel,
+                                                             smoothing_length))
+        end
+
         pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                          density_calculator,
                                                                          NDIMS, ELTYPE,
@@ -93,14 +116,23 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
         nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
         cache = create_cache_density(initial_condition, density_calculator)
+        cache = (;
+                 create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
+                                             n_particles)...,
+                 create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
+                                              n_particles)...,
+                 cache...)
 
         new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
             typeof(density_calculator), typeof(smoothing_kernel),
             typeof(viscosity), typeof(pressure_acceleration), typeof(source_terms),
+            typeof(surface_tension), typeof(surface_normal_method),
             typeof(buffer),
             typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
-                           smoothing_length, sound_speed, viscosity, nu_edac,
+                           smoothing_length, number_density_, color_value, sound_speed,
+                           viscosity, nu_edac,
                            acceleration_, nothing, pressure_acceleration, source_terms,
+                           surface_tension, surface_normal_method,
                            buffer, cache)
     end
 end
@@ -113,6 +145,8 @@ function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
+    print(io, ", ", system.surface_tension)
+    print(io, ", ", system.surface_normal_method)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -135,6 +169,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "ν₍EDAC₎", "≈ $(round(system.nu_edac; digits=3))")
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "acceleration", system.acceleration)
+        summary_line(io, "surface tension", system.surface_tension)
+        summary_line(io, "surface normal method", system.surface_normal_method)
         summary_footer(io)
     end
 end
@@ -160,6 +196,8 @@ end
     return v[end, particle]
 end
 
+@inline system_state_equation(system::EntropicallyDampedSPHSystem) = nothing
+
 # WARNING!
 # These functions are intended to be used internally to set the pressure
 # of newly activated particles in a callback.
@@ -177,6 +215,9 @@ end
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     compute_density!(system, u, u_ode, semi, system.density_calculator)
+    compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
+                            t)
+    compute_curvature!(system, system.surface_tension, v, u, v_ode, u_ode, semi, t)
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, density_calculator)
