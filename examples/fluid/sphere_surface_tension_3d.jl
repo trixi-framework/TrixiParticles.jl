@@ -18,8 +18,8 @@ nu = 0.01
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "sphere_surface_tension_2d.jl"),
               dt=0.1, cfl=1.2, surface_tension_coefficient=0.1,
-              tspan=(0.0, 10.0), nu=nu,
+              tspan=(0.0, 20.0), nu=nu,
               alpha=10 * nu / (smoothing_length * sound_speed),
-              smoothing_kernel=SchoenbergCubicSplineKernel{3}(),
+              fluid_smoothing_kernel=SchoenbergCubicSplineKernel{3}(),
               particle_spacing=particle_spacing, sound_speed=sound_speed,
               fluid_density=fluid_density, fluid_size=fluid_size)
