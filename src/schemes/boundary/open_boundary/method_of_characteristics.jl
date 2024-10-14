@@ -6,14 +6,29 @@ This model uses the characteristic variables to propagate the appropriate values
 to the outlet or inlet and have been proposed by Lastiwka et al. (2009). For more information
 about the method see [description below](@ref method_of_characteristics).
 """
-struct BoundaryModelLastiwka end
+struct BoundaryModelLastiwka
+    extrapolate_reference_values::Bool
+    function BoundaryModelLastiwka(; extrapolate_reference_values::Bool=true)
+        return new{}(extrapolate_reference_values)
+    end
+end
 
 @inline function update_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                     v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, flow_direction,
+    (; density, pressure, cache, boundary_zone,
     reference_velocity, reference_pressure, reference_density) = system
+    (; flow_direction) = boundary_zone
 
     sound_speed = system_sound_speed(system.fluid_system)
+
+    if boundary_model.extrapolate_reference_values
+        (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
+
+        @trixi_timeit timer() "extrapolate and correct values" begin
+            extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_pressure,
+                                prescribed_velocity, prescribed_density)
+        end
+    end
 
     # Update quantities based on the characteristic variables
     @threaded system for particle in each_moving_particle(system)
@@ -23,16 +38,16 @@ struct BoundaryModelLastiwka end
         J2 = cache.characteristics[2, particle]
         J3 = cache.characteristics[3, particle]
 
-        rho_ref = reference_value(reference_density, density[particle], system, particle,
+        rho_ref = reference_value(reference_density, density[particle],
                                   particle_position, t)
         density[particle] = rho_ref + ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
 
-        p_ref = reference_value(reference_pressure, pressure[particle], system, particle,
+        p_ref = reference_value(reference_pressure, pressure[particle],
                                 particle_position, t)
         pressure[particle] = p_ref + 0.5 * (J2 + J3)
 
         v_current = current_velocity(v, system, particle)
-        v_ref = reference_value(reference_velocity, v_current, system, particle,
+        v_ref = reference_value(reference_velocity, v_current,
                                 particle_position, t)
         rho = density[particle]
         v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction
@@ -114,8 +129,9 @@ end
 
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, flow_direction, density, pressure,
+    (; volume, cache, boundary_zone, density, pressure,
     reference_velocity, reference_pressure, reference_density) = system
+    (; flow_direction) = boundary_zone
     (; characteristics) = cache
 
     v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
@@ -134,15 +150,16 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
         # Determine current and prescribed quantities
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_ref = reference_value(reference_density, density, system, particle,
+        rho_ref = reference_value(reference_density, density[particle],
                                   neighbor_position, t)
 
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
-        p_ref = reference_value(reference_pressure, pressure, system, particle,
+        p_ref = reference_value(reference_pressure, pressure[particle],
                                 neighbor_position, t)
 
         v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        v_neighbor_ref = reference_value(reference_velocity, v, system, particle,
+        v_particle = current_velocity(v, system, particle)
+        v_neighbor_ref = reference_value(reference_velocity, v_particle,
                                          neighbor_position, t)
 
         # Determine characteristic variables
@@ -162,7 +179,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     return system
 end
 
-@inline function prescribe_conditions!(characteristics, particle, ::OutFlow)
+@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{OutFlow})
     # J3 is prescribed (i.e. determined from the exterior of the domain).
     # J1 and J2 is transimtted from the domain interior.
     characteristics[3, particle] = zero(eltype(characteristics))
@@ -170,7 +187,7 @@ end
     return characteristics
 end
 
-@inline function prescribe_conditions!(characteristics, particle, ::InFlow)
+@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{InFlow})
     # Allow only J3 to propagate upstream to the boundary
     characteristics[1, particle] = zero(eltype(characteristics))
     characteristics[2, particle] = zero(eltype(characteristics))
