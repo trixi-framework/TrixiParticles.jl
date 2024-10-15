@@ -391,3 +391,20 @@ end
 @inline function surface_tension_model(system)
     return nothing
 end
+
+function keep_particles(system::WeaklyCompressibleSPHSystem, keep)
+    (; initial_condition, density_calculator, state_equation,
+    smoothing_kernel, smoothing_length, pressure_acceleration_formulation,
+    viscosity, density_diffusion, acceleration, correction,
+    source_terms, surface_tension) = system
+
+    WeaklyCompressibleSPHSystem(keep_particles(initial_condition, keep),
+                                density_calculator, state_equation,
+                                smoothing_kernel, smoothing_length;
+                                pressure_acceleration=pressure_acceleration_formulation,
+                                # buffer_size=nothing,
+                                viscosity, density_diffusion,
+                                acceleration,
+                                correction, source_terms,
+                                surface_tension)
+end

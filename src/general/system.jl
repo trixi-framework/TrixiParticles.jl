@@ -147,3 +147,16 @@ end
 
 # Only for systems requiring a mandatory callback
 reset_callback_flag!(system) = system
+
+function partition(system::System, neighborhood_search)
+    keep = trues(nparticles(system))
+    for particle in eachparticle(system)
+        cell = PointNeighbors.cell_coords(initial_coords(system, particle), neighborhood_search)
+        if neighborhood_search.cell_list.cell_indices[cell...] <= 0
+            # Remove particle from this rank
+            keep[particle] = false
+        end
+    end
+
+    return keep_particles(system, keep)
+end
