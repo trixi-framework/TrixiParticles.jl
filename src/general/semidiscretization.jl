@@ -82,6 +82,11 @@ function Semidiscretization(systems...;
 
     systems = partition(systems, searches)
 
+    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
+                                                      system, neighbor)
+                           for neighbor in systems)
+                     for system in systems)
+
     sizes_u = [u_nvariables(system) * n_moving_particles(system)
                for system in systems]
     ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -478,6 +483,16 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
     # Update NHS
     @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
 
+    # foreach_system(semi) do system
+    #     v = wrap_v(v_ode, system, semi)
+    #     u = wrap_u(u_ode, system, semi)
+
+    #     mpi_communication1!(system, v, u, v_ode, u_ode, semi, t)
+    # end
+
+    # TODO update NHS for ghost systems
+    # @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
+
     # Second update step.
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
@@ -489,12 +504,21 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
+    # TODO MPI communication 2 if correction is used
+
     # Perform correction and pressure calculation
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        mpi_communication3!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems

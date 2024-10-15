@@ -216,6 +216,12 @@ end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
 
+# function mpi_communication1!(system::WeaklyCompressibleSPHSystem, v, u,
+#                              v_ode, u_ode, semi, t)
+#     # Send data (?) to other ranks
+#     return system
+# end
+
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system
@@ -241,6 +247,46 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
                             density_calculator)
     compute_pressure!(system, v)
     compute_surface_normal!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
+
+    return system
+end
+
+function mpi_communication3!(system::WeaklyCompressibleSPHSystem, v, u,
+                             v_ode, u_ode, semi, t)
+    # TODO Send only density and pressure from other ranks
+    # and move the rest to `mpi_communication1!`.
+    nhs = get_neighborhood_search(system, semi)
+    _, mpi_neighbors = nhs.cell_list.neighbor_cells
+
+    particles_for_rank = [Int[] for _ in 1:MPI.Comm_size(MPI.COMM_WORLD)]
+    for particle in eachparticle(system)
+        cell = PointNeighbors.cell_coords(current_coords(u, system, particle), nhs)
+        for (rank, _) in mpi_neighbors[nhs.cell_list.cell_indices[cell...]]
+            if !(particle in particles_for_rank[rank])
+                push!(particles_for_rank[rank], particle)
+            end
+        end
+    end
+
+    requests = Vector{MPI.Request}(undef, 3 * MPI.Comm_size(MPI.COMM_WORLD))
+
+    for dest in 0:MPI.Comm_size(MPI.COMM_WORLD) - 1
+        coordinates = [current_coords(u, system, particle) for particle in particles_for_rank[dest + 1]]
+        requests[dest + 1] = MPI.Isend(coordinates, MPI.COMM_WORLD; dest=dest, tag=1)
+    end
+
+    # Send density and pressure to other ranks
+    for dest in 0:MPI.Comm_size(MPI.COMM_WORLD) - 1
+        density = [current_coords(u, system, particle) for particle in particles_for_rank[dest + 1]]
+        requests[dest + MPI.Comm_size(MPI.COMM_WORLD) + 1] = MPI.Isend(density, MPI.COMM_WORLD; dest=dest, tag=2)
+    end
+
+    for dest in 0:MPI.Comm_size(MPI.COMM_WORLD) - 1
+        pressure = [current_coords(u, system, particle) for particle in particles_for_rank[dest + 1]]
+        requests[dest + 2 * MPI.Comm_size(MPI.COMM_WORLD) + 1] = MPI.Isend(pressure, MPI.COMM_WORLD; dest=dest, tag=3)
+    end
+
+    # MPI.Waitall(requests)
 
     return system
 end

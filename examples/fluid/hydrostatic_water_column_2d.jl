@@ -1,5 +1,7 @@
 using TrixiParticles
 using OrdinaryDiffEq
+using P4estTypes, PointNeighbors
+using MPI; MPI.Init()
 
 # ==========================================================================================
 # ==== Resolution
@@ -44,6 +46,13 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                         #    acceleration=system_acceleration,
                                            source_terms=nothing)
 
+fluid_system2 = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length, viscosity=viscosity,
+                                        #    acceleration=system_acceleration,
+                                           source_terms=nothing)
+ghost_system = TrixiParticles.GhostSystem(fluid_system2)
+
 # ==========================================================================================
 # ==== Boundary
 
@@ -69,7 +78,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, movement=noth
 min_corner = minimum(tank.fluid.coordinates, dims = 2) .- 2 * smoothing_length .- 0.2
 max_corner = maximum(tank.fluid.coordinates, dims = 2) .+ 2 * smoothing_length .- 0.2
 
-semi = Semidiscretization(fluid_system,
+semi = Semidiscretization(fluid_system, ghost_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(cell_list=PointNeighbors.P4estCellList(; min_corner, max_corner)))
 ode = semidiscretize(semi, tspan)
 
