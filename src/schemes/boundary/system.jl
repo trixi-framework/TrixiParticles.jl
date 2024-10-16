@@ -395,7 +395,7 @@ end
 # viscosity model has to be used.
 @inline viscosity_model(system::BoundarySPHSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
+function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf
 end
 

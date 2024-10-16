@@ -12,8 +12,8 @@ particle_spacing = 0.05
 fluid_size = (0.5, 0.5)
 
 sound_speed = 20.0
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7, clip_negative_pressure=true)
+# state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+#                                    exponent=7, clip_negative_pressure=true)
 
 # For all surface tension simulations, we need a compact support of `2 * particle_spacing`
 # smoothing_length = 2.0 * particle_spacing
@@ -63,7 +63,7 @@ info_callback = InfoCallback(interval=100)
 # For overwriting via `trixi_include`
 saving_callback = SolutionSavingCallback(dt=0.02)
 
-stepsize_callback = StepsizeCallback(cfl=1.0)
+stepsize_callback = StepsizeCallback(cfl=0.25)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
