@@ -407,7 +407,7 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
-    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system), systems)
+    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system, semi), systems)
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
