@@ -6,6 +6,8 @@ using OrdinaryDiffEq
 fluid_density = 1000.0
 
 particle_spacing = 0.05
+# Use a higher resolution for a better result
+# particle_spacing = 0.025
 
 # Note: Only square shapes will result in a sphere.
 # Furthermore, changes of the coefficients might be necessary for higher resolutions or larger squares.
@@ -22,12 +24,12 @@ sound_speed = 20.0
 
 smoothing_length = 3.5 * particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
-nu = 0.025
+nu = 0.05
 
 fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_spacing),
                          zeros(length(fluid_size)), density=fluid_density)
 
-alpha = 8 * nu / (smoothing_length * sound_speed)
+# alpha = 8 * nu / (smoothing_length * sound_speed)
 source_terms = SourceTermDamping(; damping_coefficient=0.5)
 # fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
 #                                            state_equation, fluid_smoothing_kernel,
@@ -41,14 +43,13 @@ source_terms = SourceTermDamping(; damping_coefficient=0.5)
 fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
                                            smoothing_length,
                                            sound_speed,
-                                           viscosity=ArtificialViscosityMonaghan(alpha=alpha,
-                                                                                 beta=0.0),
+                                           viscosity=ViscosityMorris(nu=nu),
                                            density_calculator=ContinuityDensity(),
                                            reference_particle_spacing=particle_spacing,
-                                           acceleration=(0.0, 0.0),
+                                           acceleration=zeros(length(fluid_size)),
                                            surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
                                                                                          smoothing_length),
-                                           surface_tension=SurfaceTensionMorris(surface_tension_coefficient=100 *
+                                           surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
                                                                                                             0.0728))
 
 # ==========================================================================================
@@ -61,7 +62,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 
 # For overwriting via `trixi_include`
-saving_callback = SolutionSavingCallback(dt=0.02)
+saving_callback = SolutionSavingCallback(dt=1.0)
 
 stepsize_callback = StepsizeCallback(cfl=0.25)
 

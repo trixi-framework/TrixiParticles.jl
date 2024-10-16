@@ -77,7 +77,6 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
-    nhs_bnd = get_neighborhood_search(neighbor_system, neighbor_system, semi)
 
     if smoothing_length != system.smoothing_length ||
        smoothing_kernel !== system.smoothing_kernel
@@ -112,13 +111,11 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
-        # Exclude boundary particles with negligible colorfield values relative to the maximum,
-        # to focus on significant contributions and avoid numerical errors.
-        if colorfield[neighbor] > 0.1 *  maximum_colorfield
+        if colorfield[neighbor] / maximum_colorfield > 0.1
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
             grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
-                                    smoothing_length)
+                                      smoothing_length)
             for i in 1:ndims(system)
                 cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
             end
@@ -162,10 +159,9 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTe
 
         # TODO: make selectable
         # TODO: make settable
-        # Heuristic condition if there is no gas phase to find the free surface
-        # The idea is here to zero out normals that in the inside of the fluid which are to
-        # be assumed to be related to the number density value.
-        if 0.75 * number_density < cache.neighbor_count[particle]
+        # heuristic condition if there is no gas phase to find the free surface
+        # if 0.75 * number_density < cache.neighbor_count[particle] #2d
+        if 0.45 * number_density < cache.neighbor_count[particle]
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
@@ -173,6 +169,7 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTe
         particle_surface_normal = cache.surface_normal[1:ndims(system), particle]
         norm2 = dot(particle_surface_normal, particle_surface_normal)
 
+        # println(norm2, " > ", normal_condition2)
         # see eq. 21
         if norm2 > normal_condition2
             cache.surface_normal[1:ndims(system), particle] = particle_surface_normal /
@@ -181,6 +178,9 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTe
             cache.surface_normal[1:ndims(system), particle] .= 0
         end
     end
+
+    # println("after removable: ")
+    # println(cache.surface_normal)
 
     return system
 end
@@ -251,12 +251,15 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
         grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
         v_b = m_b / rho_b
 
-        # eq. 22
+        # eq. 22 we can test against eps() here since the surface normals that are invalid have been reset
         if dot(n_a, n_a) > eps() && dot(n_b, n_b) > eps()
+            # for i in 1:ndims(system)
             curvature[particle] += v_b * dot((n_b .- n_a), grad_kernel)
+            # end
             # eq. 24
             correction_factor[particle] += v_b * kernel(smoothing_kernel, distance,
                                                   smoothing_length)
+            # prevent NaNs from systems that are entirely skipped
             no_valid_neighbors += 1
         end
     end
@@ -266,9 +269,12 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
         for i in 1:n_moving_particles(system)
             curvature[i] /= correction_factor[i]
         end
-    else
-        curvature[i] = 0.0
     end
+
+    # println("after curvature")
+    # println("surf_norm ", cache.surface_normal)
+    # println("curv ", cache.curvature)
+    # println("C ", correction_factor)
 
     return system
 end
