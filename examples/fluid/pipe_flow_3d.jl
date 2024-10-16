@@ -2,6 +2,8 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
+tspan = (0.0, 2.0)
+
 # load variables
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"),
               sol=nothing)
