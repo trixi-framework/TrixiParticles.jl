@@ -93,7 +93,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system::GhostSystem)
     interact!(dv, v_particle_system, u_particle_system,
-              v_neighbor_system, u_neighbor_system, neighborhood_search,
+              neighbor_system.v, neighbor_system.u, neighborhood_search,
               particle_system, neighbor_system.system)
 
     return dv

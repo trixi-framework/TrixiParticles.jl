@@ -42,13 +42,37 @@ function partition(system::GhostSystem, neighborhood_search)
     keep = trues(nparticles(system))
     for particle in eachparticle(system)
         cell = PointNeighbors.cell_coords(initial_coords(system, particle), neighborhood_search)
-        if neighborhood_search.cell_list.cell_indices[cell...] > 0
+        mpi_neighbors = neighborhood_search.cell_list.neighbor_cells[2]
+        # length of mpi_neighbors is the number of mirror cells. Everything after that is ghost.
+        if neighborhood_search.cell_list.cell_indices[cell...] <= length(mpi_neighbors)
             # Remove particle from this rank
             keep[particle] = false
         end
     end
 
     return GhostSystem(keep_particles(system.system, keep))
+end
+
+function copy_neighborhood_search_ghost(nhs, search_radius, n_points)
+    (; periodic_box) = nhs
+
+    cell_list = copy_cell_list_ghost(nhs.cell_list, search_radius, periodic_box)
+
+    return GridNeighborhoodSearch{ndims(nhs)}(; search_radius, n_points, periodic_box,
+                                              cell_list,
+                                              update_strategy = nhs.update_strategy)
+end
+
+function copy_cell_list_ghost(cell_list, search_radius, periodic_box)
+    (; min_corner, max_corner) = cell_list
+
+    return PointNeighbors.P4estCellList(; min_corner, max_corner, search_radius,
+                                        backend = typeof(cell_list.cells), ghost=true)
+end
+
+function create_neighborhood_search(neighborhood_search, system, neighbor::GhostSystem)
+    return copy_neighborhood_search_ghost(neighborhood_search, compact_support(system, neighbor),
+                                    nparticles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -74,19 +98,13 @@ end
 function mpi_communication3!(system::GhostSystem, v, u, v_ode, u_ode, semi, t)
     # TODO Receive only density and pressure from other ranks
     # and move the rest to `mpi_communication1!`.
-    nhs = get_neighborhood_search(system, semi)
-    _, mpi_neighbors = nhs.cell_list.neighbor_cells
-
-    particles_from_rank = [Int[] for _ in 1:MPI.Comm_size(MPI.COMM_WORLD)]
-    for particle in eachparticle(system)
-        cell = PointNeighbors.cell_coords(current_coords(u, system, particle), nhs)
-        for (rank, remote_particle) in mpi_neighbors[cell...]
-            if !(remote_particle in particles_from_rank[rank])
-                push!(particles_from_rank[rank], remote_particle)
-            end
-        end
+    n_particles_from_rank = zeros(Int, MPI.Comm_size(MPI.COMM_WORLD))
+    for source in 0:MPI.Comm_size(MPI.COMM_WORLD) - 1
+        buffer = view(n_particles_from_rank, source + 1)
+        MPI.Recv!(buffer, MPI.COMM_WORLD; source=source, tag=0)
     end
-    n_particles_from_rank = length.(particles_from_rank)
+
+    @info "" n_particles_from_rank
     total_particles = sum(n_particles_from_rank)
 
     requests = Vector{MPI.Request}(undef, 3 * MPI.Comm_size(MPI.COMM_WORLD))
@@ -151,3 +169,5 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     return dv
 end
+
+@inline add_velocity!(du, v, particle, system::GhostSystem) = du

@@ -262,10 +262,16 @@ function mpi_communication3!(system::WeaklyCompressibleSPHSystem, v, u,
     for particle in eachparticle(system)
         cell = PointNeighbors.cell_coords(current_coords(u, system, particle), nhs)
         for (rank, _) in mpi_neighbors[nhs.cell_list.cell_indices[cell...]]
-            if !(particle in particles_for_rank[rank])
-                push!(particles_for_rank[rank], particle)
+            if !(particle in particles_for_rank[rank + 1])
+                push!(particles_for_rank[rank + 1], particle)
             end
         end
+    end
+
+    @info "" particles_for_rank
+
+    for dest in 0:MPI.Comm_size(MPI.COMM_WORLD) - 1
+        MPI.Isend(length(particles_for_rank[dest + 1]), MPI.COMM_WORLD; dest=dest, tag=0)
     end
 
     requests = Vector{MPI.Request}(undef, 3 * MPI.Comm_size(MPI.COMM_WORLD))
@@ -277,12 +283,12 @@ function mpi_communication3!(system::WeaklyCompressibleSPHSystem, v, u,
 
     # Send density and pressure to other ranks
     for dest in 0:MPI.Comm_size(MPI.COMM_WORLD) - 1
-        density = [current_coords(u, system, particle) for particle in particles_for_rank[dest + 1]]
+        density = [particle_density(v, system, particle) for particle in particles_for_rank[dest + 1]]
         requests[dest + MPI.Comm_size(MPI.COMM_WORLD) + 1] = MPI.Isend(density, MPI.COMM_WORLD; dest=dest, tag=2)
     end
 
     for dest in 0:MPI.Comm_size(MPI.COMM_WORLD) - 1
-        pressure = [current_coords(u, system, particle) for particle in particles_for_rank[dest + 1]]
+        pressure = [particle_pressure(v, system, particle) for particle in particles_for_rank[dest + 1]]
         requests[dest + 2 * MPI.Comm_size(MPI.COMM_WORLD) + 1] = MPI.Isend(pressure, MPI.COMM_WORLD; dest=dest, tag=3)
     end
 
