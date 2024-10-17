@@ -70,11 +70,54 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 end
 
 @doc raw"""
-    AdamiPressureExtrapolation()
+    AdamiPressureExtrapolation(; pressure_offset=0.0, allow_loop_flipping=true)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
+
+# Keywords
+- `pressure_offset=0.0`: Sometimes it is necessary to artificially increase the boundary pressure
+                         to prevent penetration, which is possible by increasing this value.
+- `allow_loop_flipping=true`: Allow to flip the loop order for the pressure extrapolation.
+                              Disable to prevent error variations between simulations with
+                              different numbers of threads.
+                              Usually, the first (multithreaded) loop is over the boundary
+                              particles and the second loop over the fluid neighbors.
+                              When the number of boundary particles is larger than
+                              `ceil(0.5 * nthreads())` times the number of fluid particles,
+                              it is usually more efficient to flip the loop order and loop
+                              over the fluid particles first.
+                              The factor depends on the number of threads, as the flipped
+                              loop is not thread parallelizable.
+                              This can cause error variations between simulations with
+                              different numbers of threads.
+
 """
-struct AdamiPressureExtrapolation end
+struct AdamiPressureExtrapolation{ELTYPE}
+    pressure_offset     :: ELTYPE
+    allow_loop_flipping :: Bool
+
+    function AdamiPressureExtrapolation(; pressure_offset=0.0, allow_loop_flipping=true)
+        return new{eltype(pressure_offset)}(pressure_offset, allow_loop_flipping)
+    end
+end
+
+@doc raw"""
+    BernoulliPressureExtrapolation(; pressure_offset=0.0)
+
+`density_calculator` for `BoundaryModelDummyParticles`.
+
+# Keywords
+- `pressure_offset=0.0`: Sometimes it is necessary to artificially increase the boundary pressure
+                         to prevent penetration, which is possible by increasing this value.
+
+"""
+struct BernoulliPressureExtrapolation{ELTYPE}
+    pressure_offset::ELTYPE
+
+    function BernoulliPressureExtrapolation(; pressure_offset=0.0)
+        return new{eltype(pressure_offset)}(pressure_offset)
+    end
+end
 
 @doc raw"""
     PressureMirroring()
@@ -134,7 +177,9 @@ end
 
 @inline create_cache_model(initial_density, ::ContinuityDensity) = (; initial_density)
 
-function create_cache_model(initial_density, ::AdamiPressureExtrapolation)
+function create_cache_model(initial_density,
+                            ::Union{AdamiPressureExtrapolation,
+                                    BernoulliPressureExtrapolation})
     density = copy(initial_density)
     volume = similar(initial_density)
 
@@ -194,7 +239,7 @@ end
 # Note that the other density calculators are dispatched in `density_calculators.jl`
 @inline function particle_density(v,
                                   ::Union{AdamiPressureExtrapolation, PressureMirroring,
-                                          PressureZeroing},
+                                          PressureZeroing, BernoulliPressureExtrapolation},
                                   boundary_model, particle)
     (; cache) = boundary_model
 
@@ -216,10 +261,11 @@ end
 
 function compute_density!(boundary_model,
                           ::Union{ContinuityDensity, AdamiPressureExtrapolation,
+                                  BernoulliPressureExtrapolation,
                                   PressureMirroring, PressureZeroing},
                           system, v, u, v_ode, u_ode, semi)
     # No density update for `ContinuityDensity`, `PressureMirroring` and `PressureZeroing`.
-    # For `AdamiPressureExtrapolation`, the density is updated in `compute_pressure!`.
+    # For `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation`, the density is updated in `compute_pressure!`.
     return boundary_model
 end
 
@@ -299,9 +345,13 @@ end
     boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0.0)
 end
 
-function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation, system, v, u,
+function compute_pressure!(boundary_model,
+                           bnd_density_calc::Union{AdamiPressureExtrapolation,
+                                                   BernoulliPressureExtrapolation}, system,
+                           v, u,
                            v_ode, u_ode, semi)
     (; pressure, cache, viscosity) = boundary_model
+    (; allow_loop_flipping) = bnd_density_calc
 
     set_zero!(pressure)
 
@@ -318,25 +368,30 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation, system,
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         # This is an optimization for simulations with large and complex boundaries.
-        # Especially, in 3D simulations with large and/or complex structures outside
+        # Especially in 3D simulations with large and/or complex structures outside
         # of areas with permanent flow.
         # Note: The version iterating neighbors first is not thread parallelizable.
         # The factor is based on the achievable speed-up of the thread parallelizable version.
-        if nparticles(system) >
-           ceil(Int, 0.5 * Threads.nthreads()) * nparticles(neighbor_system)
+        if allow_loop_flipping &&
+           nparticles(system) > div(Threads.nthreads(), 2) * nparticles(neighbor_system)
+           
             nhs = get_neighborhood_search(neighbor_system, system, semi)
 
-            # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
-            adami_pressure_extrapolation_neighbor!(boundary_model, system, neighbor_system,
-                                                   system_coords, neighbor_coords,
-                                                   v_neighbor_system, nhs)
+            # Loop over fluid particles and then the neighboring boundary particles
+            # to extrapolate fluid pressure to the boundaries.
+            bnd_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                 neighbor_system,
+                                                 system_coords, neighbor_coords, v,
+                                                 v_neighbor_system, nhs)
         else
             nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-            # Loop over boundary particles and then the neighboring fluid particles to extrapolate fluid pressure to the boundaries
-            adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                          system_coords, neighbor_coords,
-                                          v_neighbor_system, nhs)
+            # Loop over boundary particles and then the neighboring fluid particles
+            # to extrapolate fluid pressure to the boundaries.
+            bnd_pressure_extrapolation!(boundary_model, system,
+                                        neighbor_system,
+                                        system_coords, neighbor_coords, v,
+                                        v_neighbor_system, nhs)
         end
 
         @threaded system for particle in eachparticle(system)
@@ -378,68 +433,115 @@ function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZe
     return boundary_model
 end
 
-@inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                        neighbor_system, system_coords,
-                                                        neighbor_coords, v_neighbor_system,
-                                                        neighborhood_search)
+@inline function dynamic_pressure(density_neighbor, v, v_neighbor_system, particle,
+                                  neighbor, system::BoundarySystem)
+    if system.ismoving[]
+        return 0.5 * density_neighbor *
+               norm(current_velocity(v, system, particle) -
+                    v_neighbor_system[1:ndims(system), neighbor])^2
+    end
+    return 0.0
+end
+
+@inline function dynamic_pressure(density_neighbor, v, v_neighbor_system, particle,
+                                  neighbor, system::SolidSystem)
+    return 0.5 * density_neighbor *
+           norm(current_velocity(v, system, particle) -
+                v_neighbor_system[1:ndims(system), neighbor])^2
+end
+
+@inline function bnd_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                      neighbor_system, system_coords,
+                                                      neighbor_coords, v, v_neighbor_system,
+                                                      neighborhood_search)
     return boundary_model
 end
 
-@inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                        neighbor_system::FluidSystem,
-                                                        system_coords, neighbor_coords,
-                                                        v_neighbor_system,
-                                                        neighborhood_search)
-    (; pressure, cache, viscosity) = boundary_model
+@inline function bnd_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                      neighbor_system::FluidSystem,
+                                                      system_coords, neighbor_coords, v,
+                                                      v_neighbor_system,
+                                                      neighborhood_search)
+    (; pressure, cache, viscosity, density_calculator) = boundary_model
+    (; pressure_offset) = density_calculator
 
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords,
                            neighborhood_search; points=eachparticle(neighbor_system),
                            parallel=false) do neighbor, particle, pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
-        adami_pressure_inner!(boundary_model, system, neighbor_system,
-                              v_neighbor_system, particle, neighbor, pos_diff,
-                              distance, viscosity, cache, pressure)
+        bnd_pressure_inner!(boundary_model, density_calculator, system, neighbor_system, v,
+                            v_neighbor_system, particle, neighbor, pos_diff,
+                            distance, viscosity, cache, pressure, pressure_offset)
     end
 end
 
-@inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                               system_coords, neighbor_coords,
-                                               v_neighbor_system, neighborhood_search)
+@inline function bnd_pressure_extrapolation!(boundary_model, system, neighbor_system,
+                                             system_coords, neighbor_coords, v,
+                                             v_neighbor_system, neighborhood_search)
     return boundary_model
 end
 
-@inline function adami_pressure_extrapolation!(boundary_model, system,
-                                               neighbor_system::FluidSystem,
-                                               system_coords, neighbor_coords,
-                                               v_neighbor_system, neighborhood_search)
-    (; pressure, cache, viscosity) = boundary_model
+@inline function bnd_pressure_extrapolation!(boundary_model, system,
+                                             neighbor_system::FluidSystem,
+                                             system_coords, neighbor_coords, v,
+                                             v_neighbor_system, neighborhood_search)
+    (; pressure, cache, viscosity, density_calculator) = boundary_model
+    (; pressure_offset) = density_calculator
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                            neighborhood_search;
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
-        adami_pressure_inner!(boundary_model, system, neighbor_system,
-                              v_neighbor_system, particle, neighbor, pos_diff,
-                              distance, viscosity, cache, pressure)
+        bnd_pressure_inner!(boundary_model, density_calculator, system, neighbor_system, v,
+                            v_neighbor_system, particle, neighbor, pos_diff,
+                            distance, viscosity, cache, pressure, pressure_offset)
     end
 end
 
-@inline function adami_pressure_inner!(boundary_model, system, neighbor_system,
-                                       v_neighbor_system, particle, neighbor, pos_diff,
-                                       distance, viscosity, cache, pressure)
+@inline function bnd_pressure_inner!(boundary_model, ::BernoulliPressureExtrapolation,
+                                     system, neighbor_system::FluidSystem, v,
+                                     v_neighbor_system, particle, neighbor, pos_diff,
+                                     distance, viscosity, cache, pressure,
+                                     pressure_offset)
     density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-    resulting_acc = neighbor_system.acceleration -
-                    current_acceleration(system, particle)
+    resulting_acc = neighbor_system.acceleration - current_acceleration(system, particle)
 
     kernel_weight = smoothing_kernel(boundary_model, distance)
 
-    pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
+    pressure[particle] += (pressure_offset +
+                           particle_pressure(v_neighbor_system, neighbor_system,
                                              neighbor) +
-                           dot(resulting_acc, density_neighbor * pos_diff)) *
-                          kernel_weight
+                           dynamic_pressure(density_neighbor, v, v_neighbor_system,
+                                            particle, neighbor, system)
+                           +
+                           dot(resulting_acc,
+                               density_neighbor * pos_diff)) * kernel_weight
+
+    cache.volume[particle] += kernel_weight
+
+    compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+                               kernel_weight, particle, neighbor)
+end
+
+@inline function bnd_pressure_inner!(boundary_model, ::AdamiPressureExtrapolation,
+                                     system, neighbor_system::FluidSystem, v,
+                                     v_neighbor_system, particle, neighbor, pos_diff,
+                                     distance, viscosity, cache, pressure,
+                                     pressure_offset)
+    density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
+
+    resulting_acc = neighbor_system.acceleration - current_acceleration(system, particle)
+
+    kernel_weight = smoothing_kernel(boundary_model, distance)
+
+    pressure[particle] += (pressure_offset +
+                           particle_pressure(v_neighbor_system, neighbor_system,
+                                             neighbor) +
+                           dot(resulting_acc,
+                               density_neighbor * pos_diff)) * kernel_weight
 
     cache.volume[particle] += kernel_weight
 
