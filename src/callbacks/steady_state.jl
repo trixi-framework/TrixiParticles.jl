@@ -1,0 +1,163 @@
+"""
+    SteadyStateCallback(; interval::Integer=0, dt=0.0, interval_size::Integer=10,
+                        abstol=1.0e-8, reltol=1.0e-6)
+
+Terminates the integration when the residual of the change in kinetic energy
+falls below the threshold specified by `abstol + reltol * ekin`,
+where `ekin` is the total kinetic energy of the simulation.
+
+# Keywords
+- `interval=0`:     Check steady state condition every `interval` time steps.
+- `dt=0.0`:         Check steady state condition in regular intervals of `dt` in terms
+                    of integration time by adding additional `tstops`
+                    (note that this may change the solution).
+- `interval_size`:  The interval in which the change of the kinetic energy is considered.
+                    `interval_size` is a (integer) multiple of `interval` or `dt`.
+- `abstol`:         Absolute tolerance.
+- `reltol`:         Relative tolerance.
+"""
+mutable struct SteadyStateCallback{I, ELTYPE <: Real}
+    interval      :: I
+    abstol        :: ELTYPE
+    reltol        :: ELTYPE
+    previous_ekin :: Vector{ELTYPE}
+    interval_size :: Int
+end
+
+function SteadyStateCallback(; interval::Integer=0, dt=0.0, interval_size::Integer=10,
+                             abstol=1.0e-8, reltol=1.0e-6)
+    abstol, reltol = promote(abstol, reltol)
+
+    if dt > 0 && interval > 0
+        throw(ArgumentError("setting both `interval` and `dt` is not supported"))
+    end
+
+    if dt > 0
+        interval = Float64(dt)
+    end
+
+    steady_state_callback = SteadyStateCallback(interval, abstol, reltol, [Inf64],
+                                                interval_size)
+
+    if dt > 0
+        return PeriodicCallback(steady_state_callback, dt, save_positions=(false, false),
+                                final_affect=true)
+    else
+        return DiscreteCallback(steady_state_callback, steady_state_callback,
+                                save_positions=(false, false))
+    end
+end
+
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SteadyStateCallback})
+    @nospecialize cb # reduce precompilation time
+
+    cb_ = cb.affect!
+
+    print(io, "SteadyStateCallback(abstol=", cb_.abstol, ", ", "reltol=", cb_.reltol, ")")
+end
+
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:SteadyStateCallback}})
+    @nospecialize cb # reduce precompilation time
+
+    cb_ = cb.affect!.affect!
+
+    print(io, "SteadyStateCallback(abstol=", cb_.abstol, ", reltol=", cb_.reltol, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any, <:SteadyStateCallback})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        cb_ = cb.affect!
+
+        setup = ["absolute tolerance" => cb_.abstol,
+            "relative tolerance" => cb_.reltol,
+            "interval" => cb_.interval,
+            "interval size" => cb_.interval_size]
+        summary_box(io, "SteadyStateCallback", setup)
+    end
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:SteadyStateCallback}})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        cb_ = cb.affect!.affect!
+
+        setup = ["absolute tolerance" => cb_.abstol,
+            "relative tolerance" => cb_.reltol,
+            "interval" => cb_.interval,
+            "interval_size" => cb_.interval_size]
+        summary_box(io, "SteadyStateCallback", setup)
+    end
+end
+
+# `affect!` (`PeriodicCallback`)
+function (cb::SteadyStateCallback)(integrator)
+    steady_state_condition!(cb, integrator) || return nothing
+
+    print_summary(integrator)
+
+    # `terminate!(integrator)` terminates the simulation immediately and might cause an error message.
+    integrator.opts.maxiters = integrator.iter
+end
+
+# `affect!` (`DiscreteCallback`)
+function (cb::SteadyStateCallback{Int})(integrator)
+    print_summary(integrator)
+
+    # `terminate!(integrator)` terminates the simulation immediately and might cause an error message.
+    integrator.opts.maxiters = integrator.iter
+end
+
+# `condition` (`DiscreteCallback`)
+function (steady_state_callback::SteadyStateCallback)(vu_ode, t, integrator)
+    return steady_state_condition!(steady_state_callback, integrator)
+end
+
+@inline function steady_state_condition!(cb, integrator)
+    (; abstol, reltol, previous_ekin, interval_size) = cb
+
+    vu_ode = integrator.u
+    v_ode, u_ode = vu_ode.x
+    semi = integrator.p
+
+    # Calculate kinetic energy
+    ekin = 0.0
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        unused_arg = nothing
+
+        ekin += kinetic_energy(v, unused_arg, unused_arg, system)
+    end
+
+    if length(previous_ekin) == interval_size
+
+        # Calculate MSE only over the `interval_size`
+        mse = 0.0
+        for index in 1:interval_size
+            mse += (previous_ekin[index] - ekin)^2 / interval_size
+        end
+
+        if mse <= abstol + reltol * ekin
+            return true
+        end
+
+        # Pop old kinetic energy
+        popfirst!(previous_ekin)
+    end
+
+    # Add current kinetic energy
+    push!(previous_ekin, ekin)
+
+    return false
+end
