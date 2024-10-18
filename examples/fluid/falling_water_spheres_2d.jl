@@ -40,7 +40,7 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 1.0 * fluid_particle_spacing
+fluid_smoothing_length = 1.0 * fluid_particle_spacing - eps()
 fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -50,13 +50,13 @@ alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
-sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
-                                                     state_equation, fluid_smoothing_kernel,
+sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
-                                                     viscosity=viscosity,
+                                                     sound_speed, viscosity=viscosity,
+                                                     density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
-                                                     correction=AkinciFreeSurfaceCorrection(fluid_density))
+                                                     reference_particle_spacing=fluid_particle_spacing)
 
 sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
                                      state_equation, fluid_smoothing_kernel,
@@ -75,16 +75,16 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              viscosity=ViscosityAdami(nu=wall_viscosity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    adhesion_coefficient=0.001)
+                                    adhesion_coefficient=1.0)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(boundary_system, sphere_surface_tension, sphere)
+semi = Semidiscretization(sphere_surface_tension, sphere, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix="",
-                                         write_meta_data=true)
+saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out",
+                                         prefix="", write_meta_data=true)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
