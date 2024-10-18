@@ -17,7 +17,7 @@ particle_spacing = 0.1
 # The following depends on the sampling of the particles. In this case `boundary_thickness`
 # means literally the thickness of the boundary packed with boundary particles and *not*
 # how many rows of boundary particles will be sampled.
-boundary_thickness = 4particle_spacing
+boundary_thickness = 8particle_spacing
 
 # ==========================================================================================
 # ==== Load complex shape
@@ -37,6 +37,7 @@ background_pressure = 1e8 * particle_spacing^3
 
 if pack_boundary
     boundary_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
+                                            boundary_compress_factor=0.8,
                                             is_boundary=true, background_pressure)
 else
     boundary_system = nothing

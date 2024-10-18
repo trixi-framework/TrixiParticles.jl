@@ -54,7 +54,7 @@ end
 function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, density,
                       pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
                       sample_boundary=false, boundary_thickness=6particle_spacing,
-                      create_signed_distance_field=false,
+                      create_signed_distance_field=false, tlsph=true,
                       point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
                                                                         hierarchical_winding=false,
                                                                         winding_number_factor=sqrt(eps())),
@@ -94,7 +94,8 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
         (; positions, distances, max_signed_distance) = signed_distance_field
 
         # Delete unnecessary large signed distance field
-        keep_indices = (particle_spacing .< distances .<= max_signed_distance)
+        distance_to_boundary = tlsph ? particle_spacing : 0.5 * particle_spacing
+        keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
 
         boundary_coordinates = stack(positions[keep_indices])
         initial_condition_boundary = InitialCondition(; coordinates=boundary_coordinates,

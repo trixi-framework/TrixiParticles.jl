@@ -1,13 +1,14 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-file = "hexagon"
+filename = "circle"
+file = joinpath("examples", "preprocessing", "data", filename * ".asc")
 
 # ==========================================================================================
 # ==== Packing parameters
-tlsph = true
-maxiters = 100
+maxiters = 200
 save_intervals = false
+tlsph = true
 
 # ==========================================================================================
 # ==== Resolution
@@ -16,15 +17,25 @@ particle_spacing = 0.03
 # The following depends on the sampling of the particles. In this case `boundary_thickness`
 # means literally the thickness of the boundary packed with boundary particles and *not*
 # how many rows of boundary particles will be sampled.
-boundary_thickness = 5particle_spacing
+boundary_thickness = 8particle_spacing
 
 # ==========================================================================================
 # ==== Load complex shape
-density = 1000.0
+geometry = load_geometry(file)
 
-trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_2d.jl"), file=file,
-              particle_spacing=particle_spacing, density=density, sample_boundary=true,
-              boundary_thickness=8particle_spacing)
+point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
+                                                    winding_number_factor=0.4,
+                                                    hierarchical_winding=true)
+# Returns `InitialCondition`
+shape_sampled = ComplexShape(geometry; particle_spacing, density=1000.0,
+                             store_winding_number=true, sample_boundary=true,
+                             boundary_thickness, tlsph=tlsph,
+                             create_signed_distance_field=true,
+                             grid_offset=0.25 * particle_spacing,
+                             point_in_geometry_algorithm)
+
+trixi2vtk(shape_sampled.initial_condition)
+trixi2vtk(shape_sampled.initial_condition_boundary, filename="initial_condition_boundary")
 
 # ==========================================================================================
 # ==== Packing
@@ -35,12 +46,11 @@ trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_2d.jl"), 
 background_pressure = 1e6 * particle_spacing^2
 
 packing_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
-                                       neighborhood_search=true,
                                        background_pressure)
 
 boundary_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
                                         is_boundary=true,
-                                        neighborhood_search=true,
+                                        boundary_compress_factor=0.8,
                                         background_pressure)
 
 # ==========================================================================================
@@ -62,5 +72,13 @@ sol = solve(ode, RK4();
 packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 
-trixi2vtk(packed_ic)
-trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary")
+v_ode, u_ode = sol.u[end].x
+u = TrixiParticles.wrap_u(u_ode, packing_system, semi)
+TrixiParticles.summation_density!(packing_system, semi, u, u_ode, packed_ic.density)
+
+u = TrixiParticles.wrap_u(u_ode, boundary_system, semi)
+TrixiParticles.summation_density!(boundary_system, semi, u, u_ode,
+                                  packed_boundary_ic.density)
+
+trixi2vtk(packed_ic, filename="initial_condition_packed")
+trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary_packed")

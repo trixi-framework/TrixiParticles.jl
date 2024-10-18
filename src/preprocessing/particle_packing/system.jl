@@ -55,6 +55,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
                                    smoothing_length=1.2shape.particle_spacing,
                                    signed_distance_field::SignedDistanceField=shape.signed_distance_field,
                                    is_boundary=false,
+                                   boundary_compress_factor=1.0,
                                    boundary::Union{Polygon, TriangleMesh}=shape.geometry,
                                    neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
                                    background_pressure, tlsph=true)
@@ -76,7 +77,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
         PointNeighbors.initialize_grid!(nhs, stack(signed_distance_field.positions))
 
         shift_condition = if is_boundary
-            -signed_distance_field.max_signed_distance
+            -boundary_compress_factor * signed_distance_field.max_signed_distance
         else
             tlsph ? zero(ELTYPE) : 0.5shape.particle_spacing
         end
@@ -230,6 +231,19 @@ function constrain_particles!(u, system, particle, distance_signed, normal_vecto
     if distance_signed >= -shift_condition
         # Constrain outside particles onto surface
         shift = (distance_signed + shift_condition) * normal_vector
+
+        for dim in 1:ndims(system)
+            u[dim, particle] -= shift[dim]
+        end
+    end
+
+    system.is_boundary || return u
+
+    particle_spacing = system.initial_condition.particle_spacing
+    shift_condition_inner = system.tlsph ? particle_spacing : 0.5 * particle_spacing
+
+    if distance_signed < shift_condition_inner
+        shift = (distance_signed - shift_condition_inner) * normal_vector
 
         for dim in 1:ndims(system)
             u[dim, particle] -= shift[dim]
