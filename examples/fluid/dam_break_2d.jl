@@ -35,7 +35,8 @@ tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_sp
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * H)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=1, clip_negative_pressure=false)
+                                   exponent=1, clip_negative_pressure=false,
+                                   background_pressure=0.0)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -59,9 +60,11 @@ density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
+                                           reference_particle_spacing=fluid_particle_spacing,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity), correction=nothing,
-                                           surface_tension=nothing)
+                                           surface_tension=nothing,
+                                           reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Boundary

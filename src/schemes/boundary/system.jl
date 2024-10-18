@@ -395,6 +395,32 @@ end
 # viscosity model has to be used.
 @inline viscosity_model(system::BoundarySPHSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
+function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf
+end
+
+function initialize!(system::BoundarySPHSystem, neighborhood_search)
+    initialize_colorfield!(system, system.boundary_model, neighborhood_search)
+    return system
+end
+
+function initialize_colorfield!(system, boundary_model, neighborhood_search)
+    return system
+end
+
+function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborhood_search)
+    system_coords = system.coordinates
+    (; smoothing_kernel, smoothing_length) = system.boundary_model
+
+    foreach_point_neighbor(system, system,
+                           system_coords, system_coords,
+                           neighborhood_search,
+                           points=eachparticle(system)) do particle, neighbor, pos_diff,
+                                                           distance
+        system.boundary_model.cache.colorfield_bnd[particle] += kernel(smoothing_kernel,
+                                                                       distance,
+                                                                       smoothing_length)
+        system.boundary_model.cache.neighbor_count[particle] += 1
+    end
+    return system
 end
