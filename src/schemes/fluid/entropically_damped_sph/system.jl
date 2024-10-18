@@ -246,11 +246,9 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         end
     end
 
-    for particle in eachparticle(system)
-        if neighbor_counter[particle] > 0
-            pressure_average[particle] /= neighbor_counter[particle]
-        end
-    end
+    pressure_average ./= neighbor_counter
+
+    return system
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::SummationDensity)

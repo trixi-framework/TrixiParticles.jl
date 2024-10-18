@@ -130,7 +130,7 @@ end
 
 InitialCondition(ic::InitialCondition; is_boundary=false) = ic
 
-function reset_callback_flag(system::ParticlePackingSystem)
+function reset_callback_flag!(system::ParticlePackingSystem)
     system.update_callback_used[] = false
 
     return system

@@ -217,6 +217,8 @@
                                              smoothing_length, 0.0)
         semi = Semidiscretization(system)
 
+        TrixiParticles.initialize_neighborhood_searches!(semi)
+
         u_ode = vec(fluid.coordinates)
         v_ode = vec(vcat(fluid.velocity, fluid.velocity, fluid.pressure'))
 

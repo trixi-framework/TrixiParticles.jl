@@ -5,11 +5,11 @@ this scheme uses a pressure evolution equation to calculate the pressure
 ```math
 \frac{\mathrm{d} p_a}{\mathrm{d}t} =  - \rho c_s^2 \nabla \cdot v + \nu \nabla^2 p,
 ```
-which is derived by Clausen (2013). This equation is similar to the continuity equation (first term, see
+which is derived by [Clausen (2013)](@cite Clausen2013). This equation is similar to the continuity equation (first term, see
 [`ContinuityDensity`](@ref)), but also contains a pressure damping term (second term, similar to density diffusion
 see [`DensityDiffusion`](@ref)), which reduces acoustic pressure waves through an entropy-generation mechanism.
 
-The pressure evolution is discretized with the SPH method by Ramachandran (2019) as following:
+The pressure evolution is discretized with the SPH method by [Ramachandran (2019)](@cite Ramachandran2019) as following:
 
 The first term is equivalent to the classical artificial compressible methods, which are commonly
 motivated by assuming the artificial equation of state ([`StateEquationCole`](@ref) with `exponent=1`)
@@ -31,15 +31,14 @@ The viscosity parameter ``\eta_a`` for a particle ``a`` is given as
 ```math
 \eta_a = \rho_a \frac{\alpha h c_s}{8},
 ```
-where it is found in the numerical experiments of Ramachandran (2019) that ``\alpha = 0.5``
+where it is found in the numerical experiments of [Ramachandran (2019)](@cite Ramachandran2019) that ``\alpha = 0.5``
 is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
 
 !!! note
     > The EDAC formulation keeps the density constant and this eliminates the need for the continuity equation
     > or the use of a summation density to ﬁnd the pressure. However, in SPH discretizations, ``m/\rho``
     > is typically used as a proxy for the particle volume. The density of the ﬂuids can
-    > therefore be computed using the summation density approach.
-    Ramachandran (2019)
+    > therefore be computed using the summation density approach. [Ramachandran2019](@cite)
 
 
 ```@autodocs
@@ -47,18 +46,10 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "entropically_damped_sph", "system.jl")]
 ```
 
-### References
-- Prabhu Ramachandran. "Entropically damped artiﬁcial compressibility for SPH".
-  In: Computers and Fluids 179 (2019), pages 579--594.
-  [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
-- Jonathan R. Clausen. "Entropically damped form of artificial compressibility for explicit simulation of incompressible flow".
-  In: American Physical Society 87 (2013), page 13309.
-  [doi: 10.1103/PhysRevE.87.013309](http://dx.doi.org/10.1103/PhysRevE.87.013309)
-
 ## [Transport Velocity Formulation (TVF)](@id transport_velocity_formulation)
 Standard SPH suffers from problems like tensile instability or the creation of void regions in the flow.
-To address these problems, Adami et al. (2013) modified the advection velocity and added an extra term to the momentum equation.
-The authors introduced the so-called Transport Velocity Formulation (TVF) for WCSPH. Ramachandran et al. (2019) applied the TVF
+To address these problems, [Adami (2013)](@cite Adami2013) modified the advection velocity and added an extra term to the momentum equation.
+The authors introduced the so-called Transport Velocity Formulation (TVF) for WCSPH. [Ramachandran (2019)](@cite Ramachandran2019) applied the TVF
 also for the [EDAC](@ref edac) scheme.
 
 The transport velocity ``\tilde{v}_a`` of particle ``a`` is used to evolve the position of the particle ``r_a`` from one time step to the next by
@@ -74,6 +65,7 @@ and is obtained at every time-step ``\Delta t`` from
 ```
 
 where ``\rho_a`` is the density of particle ``a`` and ``p_{\text{background}}`` is a constant background pressure field.
+The tilde in the second term of the right hand side indicates that the material derivative has an advection part.
 
 The discretized form of the last term is
 
@@ -108,18 +100,9 @@ Here, ``\tilde{p}_{ab}`` is the density-weighted pressure
 \tilde{p}_{ab} = \frac{\rho_b p_a + \rho_a p_b}{\rho_a + \rho_b},
 ```
 
-with the density  ``\rho_a``,  ``\rho_b`` and the pressure  ``p_a``,  ``p_b`` of particles ``a`` and ``b`` respectively. ``\bm{A}_a`` and ``\bm{A}_b`` are the convection tensors for particle ``a`` and ``b`` respectively and is given, e.g. for particle ``a``, as ``\bm{A}_a = \rho v_a\left(\tilde{v}_a-v_a\right)^T``.
+with the density  ``\rho_a``,  ``\rho_b`` and the pressure  ``p_a``,  ``p_b`` of particles ``a`` and ``b`` respectively. ``\bm{A}_a`` and ``\bm{A}_b`` are the convection tensors for particle ``a`` and ``b`` respectively and are given, e.g. for particle ``a``, as ``\bm{A}_a = \rho v_a\left(\tilde{v}_a-v_a\right)^T``.
 
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "transport_velocity.jl")]
 ```
-
-### References
-- S. Adami, X. Y. Hu, N. A. Adams.
-  "A transport-velocity formulation for smoothed particle hydrodynamics".
-  In: Journal of Computational Physics 241, (2013), pages 292--307.
-  [doi: 10.1016/j.jcp.2013.01.043](http://dx.doi.org/10.1016/j.jcp.2013.01.043)
-- Prabhu Ramachandran. "Entropically damped artiﬁcial compressibility for SPH".
-  In: Computers and Fluids 179 (2019), pages 579--594.
-  [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)

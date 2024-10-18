@@ -13,11 +13,8 @@ See [TVF](@ref transport_velocity_formulation) for more details of the method.
     Thus, it is highly recommended to use [`ViscosityAdami`](@ref) as viscosity model,
     since [`ArtificialViscosityMonaghan`](@ref) leads to bad results.
 """
-struct TransportVelocityAdami{ELTYPE}
-    background_pressure::ELTYPE
-    function TransportVelocityAdami(background_pressure::Real)
-        new{typeof(background_pressure)}(background_pressure)
-    end
+struct TransportVelocityAdami{T <: Real}
+    background_pressure::T
 end
 
 # Calculate `v_nvariables` appropriately

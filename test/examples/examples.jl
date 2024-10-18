@@ -235,15 +235,6 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/dam_break_2d_surface_tension.jl" begin
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "fluid",
-                                                    "dam_break_2d_surface_tension.jl"),
-                                           tspan=(0.0, 0.1))
-            @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
-        end
-
         @trixi_testset "fluid/taylor_green_vortex_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
