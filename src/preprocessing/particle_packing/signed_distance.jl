@@ -99,7 +99,6 @@ end
 
 function calculate_signed_distances!(positions, distances, normals,
                                      boundary, sdf_factor, max_signed_distance, nhs)
-    NDIMS = ndims(boundary)
 
     @threaded positions for point in eachindex(positions)
         point_coords = positions[point]
@@ -108,23 +107,24 @@ function calculate_signed_distances!(positions, distances, normals,
             # `sdf = (sign, distance, normal)`
             sdf = signed_point_face_distance(point_coords, boundary, face)
 
-            # Store "larger" signed distance field outside `boundary` to guarantee
-            # compact support for boundary particles.
-
-            # outside (positive sign): `sdf_factor * max_signed_distance`
-            cond_1 = !(sdf[1]) && sdf[2] <= (sdf_factor * max_signed_distance)^2
-
-            # inside (negative sign): `1 * max_signed_distance`
-            cond_2 = sdf[1] && sdf[2] <= max_signed_distance^2
-
-            if (cond_1 || cond_2) && sdf[2] < distances[point]^2
+            if sdf[2] < distances[point]^2
                 distances[point] = sdf[1] ? -sqrt(sdf[2]) : sqrt(sdf[2])
                 normals[point] = sdf[3]
             end
         end
     end
 
-    delete_indices = distances .== Inf
+    # Distances to remove:
+    cond_1 = distances .== Inf
+
+    # Maximum inner distances
+    cond_2 = distances .< -max_signed_distance
+
+    # Keep "larger" signed distance field outside `boundary` to guarantee
+    # compact support for boundary particles.
+    cond_3 = distances .> sdf_factor * max_signed_distance
+
+    delete_indices = (cond_1 .|| cond_2 .|| cond_3)
 
     deleteat!(distances, delete_indices)
     deleteat!(normals, delete_indices)
