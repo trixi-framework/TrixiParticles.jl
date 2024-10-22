@@ -18,6 +18,11 @@ Then start the simulation by executing
 julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"))
 ```
 
+The easiest way to quickly visualize the result is to use Plots.jl:
+```jldoctest getting_started; filter = r".*"s, setup=:(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl")))
+julia> using Plots; plot(sol)
+```
+
 This will open a new window with a 2D visualization of the final solution:
 ![plot_hydrostatic_water_column](https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/95821154-577d-4323-ba57-16ef02ea24e0)
 
