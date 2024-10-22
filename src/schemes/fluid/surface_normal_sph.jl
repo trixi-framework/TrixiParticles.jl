@@ -146,7 +146,9 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTe
 end
 
 # see Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTensionMorris)
+function remove_invalid_normals!(system::FluidSystem,
+                                 surface_tension::Union{SurfaceTensionMorris,
+                                                        SurfaceTensionMomentumMorris})
     (; cache, smoothing_length, smoothing_kernel, number_density) = system
 
     # println("compact_support ", compact_support(smoothing_kernel, smoothing_length))
@@ -160,8 +162,8 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTe
         # TODO: make selectable
         # TODO: make settable
         # heuristic condition if there is no gas phase to find the free surface
-        # if 0.75 * number_density < cache.neighbor_count[particle] #2d
-        if 0.45 * number_density < cache.neighbor_count[particle]
+        if 0.75 * number_density < cache.neighbor_count[particle] #2d
+            # if 0.45 * number_density < cache.neighbor_count[particle] #3d
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
@@ -297,6 +299,90 @@ function compute_curvature!(system::FluidSystem, surface_tension::SurfaceTension
         calc_curvature!(system, neighbor_system, u, v, v_neighbor_system,
                         u_neighbor_system, semi, surface_normal_method(system),
                         surface_normal_method(neighbor_system))
+    end
+    return system
+end
+
+function calc_stress_tensors!(system::FluidSystem, neighbor_system::FluidSystem, u_system,
+                              v,
+                              v_neighbor_system, u_neighbor_system, semi,
+                              surfn::ColorfieldSurfaceNormal,
+                              nsurfn::ColorfieldSurfaceNormal)
+    (; cache) = system
+    (; smoothing_kernel, smoothing_length) = surfn
+    (; stress_tensor, delta_s) = cache
+
+    neighbor_cache = neighbor_system.cache
+    neighbor_delta_s = neighbor_cache.delta_s
+
+    NDIMS = ndims(system)
+    max_delta_s = max(maximum(delta_s), maximum(neighbor_delta_s))
+
+    for particle in each_moving_particle(system)
+        normal = surface_normal(system, particle)
+        delta_s_particle = delta_s[particle]
+        if delta_s_particle > eps()
+            for i in 1:NDIMS
+                for j in 1:NDIMS
+                    delta_ij = (i == j) ? 1.0 : 0.0
+                    stress_tensor[i, j, particle] = delta_s_particle *
+                                                    (delta_ij - normal[i] * normal[j]) -
+                                                    delta_ij * max_delta_s
+                end
+            end
+        end
+    end
+
+    return system
+end
+
+function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+# Section 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
+function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMorris,
+                                 v, u, v_ode, u_ode, semi, t)
+    (; cache) = system
+    (; delta_s, stress_tensor) = cache
+
+    # Reset surface stress_tensor
+    set_zero!(stress_tensor)
+
+    max_delta_s = maximum(delta_s)
+    NDIMS = ndims(system)
+
+    @trixi_timeit timer() "compute surface stress tensor" for particle in each_moving_particle(system)
+        normal = surface_normal(system, particle)
+        delta_s_particle = delta_s[particle]
+        if delta_s_particle > eps()
+            for i in 1:NDIMS
+                for j in 1:NDIMS
+                    delta_ij = (i == j) ? 1.0 : 0.0
+                    stress_tensor[i, j, particle] = delta_s_particle *
+                                                    (delta_ij - normal[i] * normal[j]) -
+                                                    delta_ij * max_delta_s
+                end
+            end
+        end
+    end
+
+    return system
+end
+
+function compute_surface_delta_function!(system, surface_tension)
+    return system
+end
+
+# eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
+function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris)
+    (; cache) = system
+    (; delta_s) = cache
+
+    set_zero!(delta_s)
+
+    for particle in each_moving_particle(system)
+        delta_s[particle] = norm(surface_normal(system, particle))
     end
     return system
 end

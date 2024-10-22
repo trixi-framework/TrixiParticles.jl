@@ -56,6 +56,22 @@ function create_cache_surface_tension(::SurfaceTensionMorris, ELTYPE, NDIMS, npa
     return (; curvature)
 end
 
+struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTensionModel
+    surface_tension_coefficient::ELTYPE
+
+    function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
+        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    end
+end
+
+function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
+                                      nparticles)
+    # Allocate stress tensor for each particle: NDIMS x NDIMS x nparticles
+    delta_s = Array{ELTYPE, 1}(undef, nparticles)
+    stress_tensor = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+    return (; stress_tensor, delta_s)
+end
+
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
 # Currently, specializations reducing this to simple multiplications exist only up
 # to a power of three, see
@@ -110,7 +126,7 @@ end
 # Skip
 @inline function surface_tension_force(surface_tension_a, surface_tension_b,
                                        particle_system, neighbor_system, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b)
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
     return zero(pos_diff)
 end
 
@@ -118,7 +134,7 @@ end
                                        surface_tension_b::CohesionForceAkinci,
                                        particle_system::FluidSystem,
                                        neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b)
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
     (; smoothing_length) = particle_system
     # No cohesion with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
@@ -133,7 +149,7 @@ end
                                        surface_tension_b::SurfaceTensionAkinci,
                                        particle_system::FluidSystem,
                                        neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b)
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
     (; smoothing_length, smoothing_kernel) = particle_system
     (; surface_tension_coefficient) = surface_tension_a
 
@@ -154,7 +170,7 @@ end
                                        surface_tension_b::SurfaceTensionMorris,
                                        particle_system::FluidSystem,
                                        neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b)
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
     (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself
@@ -164,6 +180,24 @@ end
     curvature_a = curvature(particle_system, particle)
 
     return -surface_tension_coefficient / rho_a * curvature_a * n_a
+end
+
+@inline function surface_tension_force(surface_tension_a::SurfaceTensionMomentumMorris,
+                                       surface_tension_b::SurfaceTensionMomentumMorris,
+                                       particle_system::FluidSystem,
+                                       neighbor_system::FluidSystem, particle, neighbor,
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+    (; surface_tension_coefficient) = surface_tension_a
+
+    # No surface tension with oneself
+    distance < sqrt(eps()) && return zero(pos_diff)
+
+    S_a = particle_system.cache.stress_tensor[:, :, particle]
+    S_b = neighbor_system.cache.stress_tensor[:, :, neighbor]
+
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+    return surface_tension_coefficient * m_b * (S_a + S_b)/(rho_a*rho_b)*grad_kernel
 end
 
 @inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,

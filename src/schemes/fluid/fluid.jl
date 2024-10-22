@@ -76,7 +76,8 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
 
     # Eq. 28 in Morris (2000)
     dt_surface_tension = max(dt_viscosity, dt_acceleration, dt_sound_speed)
-    if surface_tension isa SurfaceTensionMorris
+    if surface_tension isa SurfaceTensionMorris ||
+       surface_tension isa SurfaceTensionMomentumMorris
         v = wrap_v(v_ode, system, semi)
         dt_surface_tension = sqrt(particle_density(v, system, 1) * smoothing_length^3 /
                                   (2 * pi * surface_tension.surface_tension_coefficient))

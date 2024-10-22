@@ -63,7 +63,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                              surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
                                                    particle, neighbor, pos_diff, distance,
-                                                   rho_a, rho_b)
+                                                   rho_a, rho_b, grad_kernel)
 
         dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)

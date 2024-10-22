@@ -24,7 +24,8 @@ sound_speed = 20.0
 
 smoothing_length = 3.5 * particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
-nu = 0.05
+# nu = 0.001 # SurfaceTensionMomentumMorris
+nu = 0.05 # SurfaceTensionMorris
 
 fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_spacing),
                          zeros(length(fluid_size)), density=fluid_density)
@@ -49,14 +50,26 @@ fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
                                            acceleration=zeros(length(fluid_size)),
                                            surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
                                                                                          smoothing_length),
-                                           surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
-                                                                                                            0.0728))
+                                                                                         surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
+                                                                                         0.0728))
+
+
+# fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
+#                                            smoothing_length,
+#                                            sound_speed,
+#                                            viscosity=ViscosityMorris(nu=nu),
+#                                            density_calculator=ContinuityDensity(),
+#                                            reference_particle_spacing=particle_spacing,
+#                                            acceleration=zeros(length(fluid_size)),
+#                                            surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
+#                                                                                          smoothing_length),
+#                                            surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0))
 
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system)
 
-tspan = (0.0, 20.0)
+tspan = (0.0, 50.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
@@ -64,7 +77,7 @@ info_callback = InfoCallback(interval=100)
 # For overwriting via `trixi_include`
 saving_callback = SolutionSavingCallback(dt=1.0)
 
-stepsize_callback = StepsizeCallback(cfl=0.25)
+stepsize_callback = StepsizeCallback(cfl=1.0)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
