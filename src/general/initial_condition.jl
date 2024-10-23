@@ -264,7 +264,7 @@ function Base.setdiff(initial_condition::InitialCondition,
     geometry = first(geometries)
 
     if ndims(geometry) != ndims(initial_condition)
-        throw(ArgumentError("all passed geometries must have the same dimensionality as the intitial condition"))
+        throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
     delete_indices, _ = WindingNumberJacobson(; geometry)(geometry,
@@ -317,7 +317,7 @@ function Base.intersect(initial_condition::InitialCondition,
     geometry = first(geometries)
 
     if ndims(geometry) != ndims(initial_condition)
-        throw(ArgumentError("all passed geometries must have the same dimensionality as the intitial condition"))
+        throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
     keep_indices, _ = WindingNumberJacobson(; geometry)(geometry,
