@@ -7,7 +7,6 @@ file = joinpath("examples", "preprocessing", "data", filename * ".stl")
 
 geometry = load_geometry(file)
 
-
 filename_diff = "sphere"
 file_diff = joinpath("examples", "preprocessing", "data", filename_diff * ".stl")
 
