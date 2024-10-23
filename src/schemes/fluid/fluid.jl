@@ -57,7 +57,11 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     (; smoothing_length, viscosity, acceleration, surface_tension) = system
 
-    dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity(system, viscosity)
+    if !(system.viscosity isa Nothing)
+        dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity(system, viscosity)
+    else
+        dt_viscosity = 0.125 * smoothing_length^2
+    end
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)
     # are using a per-particle acceleration. Is that supposed to be the previous RHS?

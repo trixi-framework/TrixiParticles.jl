@@ -197,7 +197,7 @@ end
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-    return surface_tension_coefficient * m_b * (S_a + S_b)/(rho_a*rho_b)*grad_kernel
+    return surface_tension_coefficient * m_b * (S_a + S_b) / (rho_a * rho_b) * grad_kernel
 end
 
 @inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,

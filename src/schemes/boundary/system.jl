@@ -21,24 +21,25 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
     movement             :: M
     ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     adhesion_coefficient :: ELTYPE
+    color                :: Int64
     cache                :: CA
     buffer               :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, cache, buffer)
+                               ismoving, adhesion_coefficient, cache, buffer, color)
         ELTYPE = eltype(coordinates)
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
             typeof(coordinates), typeof(movement), typeof(ismoving),
             typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
-                           ismoving, adhesion_coefficient, cache, buffer)
+                           ismoving, adhesion_coefficient, color, cache, buffer)
     end
 end
 
 function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                           adhesion_coefficient=0.0)
+                           adhesion_coefficient=0.0, color_value=0)
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(movement))
@@ -54,7 +55,7 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
 
     # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, cache, nothing)
+                             ismoving, adhesion_coefficient, cache, nothing, color_value)
 end
 
 """
@@ -417,7 +418,10 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborh
                            neighborhood_search,
                            points=eachparticle(system)) do particle, neighbor, pos_diff,
                                                            distance
-        system.boundary_model.cache.colorfield_bnd[particle] += kernel(smoothing_kernel,
+        system.boundary_model.cache.colorfield_bnd[particle] += system.initial_condition.mass[particle] /
+                                                                system.initial_condition.density[particle] *
+                                                                system.color *
+                                                                kernel(smoothing_kernel,
                                                                        distance,
                                                                        smoothing_length)
         system.boundary_model.cache.neighbor_count[particle] += 1

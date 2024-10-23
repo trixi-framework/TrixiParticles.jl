@@ -14,6 +14,7 @@ end
 function create_cache_surface_normal(::ColorfieldSurfaceNormal, ELTYPE, NDIMS, nparticles)
     surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
     neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
+    colorfield = Array{ELTYPE, 1}(undef, nparticles)
     return (; surface_normal, neighbor_count)
 end
 
@@ -90,20 +91,19 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
         PointNeighbors.initialize!(nhs_bnd, neighbor_system_coords, neighbor_system_coords)
     end
 
-    # First we need to calculate the smoothed colorfield values
+    # First we need to calculate the smoothed colorfield values of the boundary
     # TODO: move colorfield to extra step
     # TODO: this is only correct for a single fluid
-    set_zero!(colorfield)
 
-    foreach_point_neighbor(system, neighbor_system,
-                           system_coords, neighbor_system_coords,
+    # Reset to the constant boundary interpolated color values
+    colorfield .= colorfield_bnd
+
+    # Accumulate fluid neighbors
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
-        colorfield[neighbor] += kernel(smoothing_kernel, distance, smoothing_length)
-    end
-
-    @threaded neighbor_system for bnd_particle in eachparticle(neighbor_system)
-        colorfield[bnd_particle] = colorfield[bnd_particle] / (colorfield[bnd_particle] +
-                                    colorfield_bnd[bnd_particle])
+        colorfield[neighbor] += hydrodynamic_mass(system, particle) /
+                                particle_density(v, system, particle) * system.color *
+                                kernel(smoothing_kernel, distance, smoothing_length)
     end
 
     maximum_colorfield = maximum(colorfield)
