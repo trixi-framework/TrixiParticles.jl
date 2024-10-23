@@ -259,6 +259,30 @@ function Base.setdiff(initial_condition::InitialCondition, initial_conditions...
     return setdiff(result, Base.tail(initial_conditions)...)
 end
 
+function Base.setdiff(initial_condition::InitialCondition,
+                      geometries::Union{Polygon, TriangleMesh}...)
+    geometry = first(geometries)
+
+    if ndims(geometry) != ndims(initial_condition)
+        throw(ArgumentError("all passed geometries must have the same dimensionality as the intitial condition"))
+    end
+
+    delete_indices, _ = WindingNumberJacobson(; geometry)(geometry,
+                                                          initial_condition.coordinates)
+
+    coordinates = initial_condition.coordinates[:, .!delete_indices]
+    velocity = initial_condition.velocity[:, .!delete_indices]
+    mass = initial_condition.mass[.!delete_indices]
+    density = initial_condition.density[.!delete_indices]
+    pressure = initial_condition.pressure[.!delete_indices]
+
+    result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
+                                                        density, pressure,
+                                                        initial_condition.particle_spacing)
+
+    return setdiff(result, Base.tail(geometries)...)
+end
+
 Base.setdiff(initial_condition::InitialCondition) = initial_condition
 
 function Base.intersect(initial_condition::InitialCondition, initial_conditions...)
@@ -286,6 +310,30 @@ function Base.intersect(initial_condition::InitialCondition, initial_conditions.
                                          particle_spacing)
 
     return intersect(result, Base.tail(initial_conditions)...)
+end
+
+function Base.intersect(initial_condition::InitialCondition,
+                        geometries::Union{Polygon, TriangleMesh}...)
+    geometry = first(geometries)
+
+    if ndims(geometry) != ndims(initial_condition)
+        throw(ArgumentError("all passed geometries must have the same dimensionality as the intitial condition"))
+    end
+
+    keep_indices, _ = WindingNumberJacobson(; geometry)(geometry,
+                                                        initial_condition.coordinates)
+
+    coordinates = initial_condition.coordinates[:, keep_indices]
+    velocity = initial_condition.velocity[:, keep_indices]
+    mass = initial_condition.mass[keep_indices]
+    density = initial_condition.density[keep_indices]
+    pressure = initial_condition.pressure[keep_indices]
+
+    result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
+                                                        density, pressure,
+                                                        initial_condition.particle_spacing)
+
+    return intersect(result, Base.tail(geometries)...)
 end
 
 Base.intersect(initial_condition::InitialCondition) = initial_condition
