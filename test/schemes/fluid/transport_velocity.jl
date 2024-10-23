@@ -3,7 +3,7 @@
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     smoothing_length = 1.2particle_spacing
 
-    fluid = rectangular_patch(particle_spacing, (3, 3), seed=1)
+    fluid = rectangular_patch(particle_spacing, (3, 3))
 
     v0_tvf = zeros(5, nparticles(fluid))
 
@@ -20,7 +20,7 @@
     @testset "write_v0!" begin
         TrixiParticles.write_v0!(v0_tvf, system_tvf)
 
-        @test vcat(fluid.velocity, fluid.velocity, fluid.pressure') ≈ v0_tvf
+        @test isapprox(vcat(fluid.velocity, fluid.velocity, fluid.pressure'), v0_tvf)
     end
 
     @testset "Update" begin
@@ -30,6 +30,6 @@
 
         TrixiParticles.update_transport_velocity!(system_tvf, vec(v0_tvf), semi)
 
-        @test fill(2.5, (4, nparticles(system_tvf))) ≈ v0_tvf[1:4, :]
+        @test isapprox(fill(2.5, (4, nparticles(system_tvf))), v0_tvf[1:4, :])
     end
 end
