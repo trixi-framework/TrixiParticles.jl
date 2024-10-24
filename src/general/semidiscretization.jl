@@ -407,7 +407,7 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
-    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system), systems)
+    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system, semi), systems)
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
@@ -805,6 +805,22 @@ function update_nhs!(neighborhood_search,
     return neighborhood_search
 end
 
+function update_nhs!(neighborhood_search,
+                     system::TotalLagrangianSPHSystem,
+                     neighbor::OpenBoundarySPHSystem,
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySPHSystem,
+                     neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
 # Forward to PointNeighbors.jl
 function update!(neighborhood_search, system, x, y; points_moving=(true, false))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving)
@@ -818,12 +834,48 @@ function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(tr
 end
 
 function check_configuration(systems)
+    min_color = 0
+    max_color = 0
+    no_fluid_and_bnd_systems = 0
+    uses_surface_tension_model = false
+
     foreach_system(systems) do system
         check_configuration(system, systems)
+
+        if system isa FluidSystem && !isnothing(system.surface_tension)
+            uses_surface_tension_model = true
+        end
+
+        if system isa FluidSystem || system isa BoundarySPHSystem
+            no_fluid_and_bnd_systems += 1
+            if system.color < min_color
+                min_color = system.color
+            end
+
+            if system.color > max_color
+                max_color = system.color
+            end
+        end
+    end
+
+    if max_color == 0 && min_color == 0 && no_fluid_and_bnd_systems > 1 &&
+       uses_surface_tension_model
+        throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
     end
 end
 
 check_configuration(system, systems) = nothing
+
+function check_configuration(fluid_system::FluidSystem, systems)
+    if !isnothing(fluid_system.surface_tension)
+        foreach_system(systems) do neighbor
+            if neighbor isa FluidSystem && isnothing(fluid_system.surface_tension) &&
+               isnothing(fluid_system.surface_normal_method)
+                throw(ArgumentError("All `FluidSystem` need to use a surface tension model or a surface normal method."))
+            end
+        end
+    end
+end
 
 function check_configuration(boundary_system::BoundarySPHSystem, systems)
     (; boundary_model) = boundary_system
@@ -852,5 +904,15 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+end
+
+function check_configuration(system::OpenBoundarySPHSystem, systems)
+    (; boundary_model, boundary_zone) = system
+
+    if boundary_model isa BoundaryModelLastiwka &&
+       first(typeof(boundary_zone).parameters) === BidirectionalFlow
+        throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
+                            "Please specify inflow and outflow."))
     end
 end
