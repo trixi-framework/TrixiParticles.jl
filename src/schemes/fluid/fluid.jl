@@ -58,16 +58,22 @@ function compute_density!(system, u, u_ode, semi, ::SummationDensity)
     summation_density!(system, semi, u, u_ode, density)
 end
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
-    (; smoothing_length, viscosity, acceleration) = system
+function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
+    (; smoothing_length, viscosity, acceleration, surface_tension) = system
 
-    dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity(system, viscosity)
+    if !(system.viscosity isa Nothing)
+        dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity(system, viscosity)
+    else
+        dt_viscosity = 0.125 * smoothing_length^2
+    end
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)
     # are using a per-particle acceleration. Is that supposed to be the previous RHS?
+    # Morris (2000) also uses the acceleration and cites Monaghan (1992)
     dt_acceleration = 0.25 * sqrt(smoothing_length / norm(acceleration))
 
     # TODO Everyone seems to be doing this differently.
+    # Morris (2000) uses the additional condition CFL < 0.25.
     # Sun et al. (2017) only use h / c (because c depends on v_max as c >= 10 v_max).
     # Adami et al. (2012) use h / (c + v_max) with a fixed CFL of 0.25.
     # Antuono et al. (2012) use h / (c + v_max + h * pi_max), where pi is the viscosity coefficient.
@@ -76,7 +82,16 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
     # See docstring of the callback for the references.
     dt_sound_speed = cfl_number * smoothing_length / system_sound_speed(system)
 
-    return min(dt_viscosity, dt_acceleration, dt_sound_speed)
+    # Eq. 28 in Morris (2000)
+    dt_surface_tension = max(dt_viscosity, dt_acceleration, dt_sound_speed)
+    if surface_tension isa SurfaceTensionMorris ||
+       surface_tension isa SurfaceTensionMomentumMorris
+        v = wrap_v(v_ode, system, semi)
+        dt_surface_tension = sqrt(particle_density(v, system, 1) * smoothing_length^3 /
+                                  (2 * pi * surface_tension.surface_tension_coefficient))
+    end
+
+    return min(dt_viscosity, dt_acceleration, dt_sound_speed, dt_surface_tension)
 end
 
 @inline function surface_tension_model(system::FluidSystem)

@@ -21,24 +21,25 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
     movement             :: M
     ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     adhesion_coefficient :: ELTYPE
+    color                :: Int64
     cache                :: CA
     buffer               :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, cache, buffer)
+                               ismoving, adhesion_coefficient, cache, buffer, color)
         ELTYPE = eltype(coordinates)
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
             typeof(coordinates), typeof(movement), typeof(ismoving),
             typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
-                           ismoving, adhesion_coefficient, cache, buffer)
+                           ismoving, adhesion_coefficient, color, cache, buffer)
     end
 end
 
 function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                           adhesion_coefficient=0.0)
+                           adhesion_coefficient=0.0, color_value=0)
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(movement))
@@ -54,7 +55,36 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
 
     # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, cache, nothing)
+                             ismoving, adhesion_coefficient, cache, nothing, color_value)
+end
+
+function Base.show(io::IO, system::BoundarySPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    print(io, "BoundarySPHSystem{", ndims(system), "}(")
+    print(io, system.boundary_model)
+    print(io, ", ", system.movement)
+    print(io, ", ", system.adhesion_coefficient)
+    print(io, ", ", system.color)
+    print(io, ") with ", nparticles(system), " particles")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "BoundarySPHSystem{$(ndims(system))}")
+        summary_line(io, "#particles", nparticles(system))
+        summary_line(io, "boundary model", system.boundary_model)
+        summary_line(io, "movement function",
+                     isnothing(system.movement) ? "nothing" :
+                     string(system.movement.movement_function))
+        summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
+        summary_line(io, "color", system.color)
+        summary_footer(io)
+    end
 end
 
 """
@@ -160,33 +190,6 @@ function create_cache_boundary(::BoundaryMovement, initial_condition)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)
     return (; velocity, acceleration, initial_coordinates)
-end
-
-function Base.show(io::IO, system::BoundarySPHSystem)
-    @nospecialize system # reduce precompilation time
-
-    print(io, "BoundarySPHSystem{", ndims(system), "}(")
-    print(io, system.boundary_model)
-    print(io, ", ", system.movement)
-    print(io, ", ", system.adhesion_coefficient)
-    print(io, ") with ", nparticles(system), " particles")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
-    @nospecialize system # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, system)
-    else
-        summary_header(io, "BoundarySPHSystem{$(ndims(system))}")
-        summary_line(io, "#particles", nparticles(system))
-        summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "movement function",
-                     isnothing(system.movement) ? "nothing" :
-                     string(system.movement.movement_function))
-        summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
-        summary_footer(io)
-    end
 end
 
 timer_name(::Union{BoundarySPHSystem, BoundaryDEMSystem}) = "boundary"
@@ -395,7 +398,7 @@ end
 # viscosity model has to be used.
 @inline viscosity_model(system::BoundarySPHSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
+function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf
 end
 
@@ -417,7 +420,10 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborh
                            neighborhood_search,
                            points=eachparticle(system)) do particle, neighbor, pos_diff,
                                                            distance
-        system.boundary_model.cache.colorfield_bnd[particle] += kernel(smoothing_kernel,
+        system.boundary_model.cache.colorfield_bnd[particle] += system.initial_condition.mass[particle] /
+                                                                system.initial_condition.density[particle] *
+                                                                system.color *
+                                                                kernel(smoothing_kernel,
                                                                        distance,
                                                                        smoothing_length)
         system.boundary_model.cache.neighbor_count[particle] += 1

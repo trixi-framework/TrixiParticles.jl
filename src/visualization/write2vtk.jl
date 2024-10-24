@@ -251,9 +251,11 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["surf_normal"] = [surface_normal(system, particle)
                               for particle in eachparticle(system)]
         vtk["neighbor_count"] = system.cache.neighbor_count
+        vtk["color"] = system.color
     end
 
-    if system.surface_tension isa SurfaceTensionMorris
+    if system.surface_tension isa SurfaceTensionMorris ||
+       system.surface_tension isa SurfaceTensionMomentumMorris
         surft = zeros((ndims(system), n_moving_particles(system)))
         system_coords = current_coordinates(u, system)
 
@@ -267,16 +269,24 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
                                        distance
             rho_a = particle_density(v, system, particle)
             rho_b = particle_density(v, system, neighbor)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             surft[1:ndims(system), particle] .+= surface_tension_force(surface_tension_a,
                                                                        surface_tension_b,
                                                                        system, system,
                                                                        particle, neighbor,
                                                                        pos_diff, distance,
-                                                                       rho_a, rho_b)
+                                                                       rho_a, rho_b,
+                                                                       grad_kernel)
         end
-        vtk["curvature"] = system.cache.curvature
         vtk["surface_tension"] = surft
+
+        if system.surface_tension isa SurfaceTensionMorris
+            vtk["curvature"] = system.cache.curvature
+        end
+        if system.surface_tension isa SurfaceTensionMomentumMorris
+            vtk["surface_stress_tensor"] = system.cache.stress_tensor
+        end
     end
 
     if write_meta_data
@@ -372,6 +382,7 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
                       for particle in active_particles(system)]
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in active_particles(system)]
+    vtk["colorfield"] = system.cache.colorfield
 
     if write_meta_data
         vtk["boundary_zone"] = type2string(first(typeof(system.boundary_zone).parameters))
@@ -379,6 +390,7 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
         vtk["velocity_function"] = type2string(system.reference_velocity)
         vtk["pressure_function"] = type2string(system.reference_pressure)
         vtk["density_function"] = type2string(system.reference_density)
+        vtk["color"] = system.color
     end
 
     return vtk
