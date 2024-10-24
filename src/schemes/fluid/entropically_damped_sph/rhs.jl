@@ -8,6 +8,9 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
+    surface_tension_a = surface_tension_model(particle_system)
+    surface_tension_b = surface_tension_model(neighbor_system)
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords,
@@ -35,8 +38,17 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle, neighbor, pos_diff, distance,
                                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
+        dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor, pos_diff, distance,
+                                                   rho_a, rho_b, grad_kernel)
+
+        dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
+                                     particle, neighbor, pos_diff, distance)
+
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i]
+            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_surface_tension[i] +
+                               dv_adhesion[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -

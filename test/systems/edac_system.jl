@@ -126,7 +126,7 @@
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
 
-        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, Val{:smoothing_kernel}(), [0.0, 0.0]) with 2 particles"
+        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, Val{:smoothing_kernel}(), [0.0, 0.0], nothing, nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -138,6 +138,8 @@
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
+        │ surface tension: …………………………………… nothing                                                          │
+        │ surface normal method: …………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end
