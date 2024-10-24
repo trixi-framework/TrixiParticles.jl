@@ -65,7 +65,7 @@ function replace_with_code(filename)
     path_tutorials = "docs/src/tutorials"
     if !isdir(path_tutorials)
         mkdir(path_tutorials)
-    end 
+    end
 
     file_basename = basename(filename)
 
