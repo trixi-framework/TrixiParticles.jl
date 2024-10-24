@@ -151,6 +151,32 @@ end
     return mesh
 end
 
+@inline function Base.setdiff(geometry::TriangleMesh, geometries...)
+    (; vertices, face_vertices, face_normals) = geometry
+
+    geometry_diff = first(geometries)
+
+    for face in eachindex(geometry_diff.face_normals)
+        geometry_diff.face_normals[face] *= -1.0
+
+        v1 = geometry_diff.face_vertices[face][1]
+        v2 = geometry_diff.face_vertices[face][2]
+        v3 = geometry_diff.face_vertices[face][3]
+
+        # Flip order of vertices
+        geometry_diff.face_vertices[face] = (v3, v2, v1)
+    end
+
+    face_vertices_ = vcat(face_vertices, geometry_diff.face_vertices)
+    face_normals_ = vcat(face_normals, geometry_diff.face_normals)
+    vertices_ = vcat(vertices, geometry_diff.vertices)
+    mesh = TriangleMesh(face_vertices_, face_normals_, vertices_)
+
+    return setdiff(mesh, Base.tail(geometries)...)
+end
+
+Base.setdiff(mesh::TriangleMesh) = mesh
+
 @inline nfaces(mesh::TriangleMesh) = length(mesh.face_normals)
 
 @inline function face_vertices(triangle, geometry::TriangleMesh)
