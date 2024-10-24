@@ -47,8 +47,7 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=2.0),
-                                                     correction=AkinciFreeSurfaceCorrection(fluid_density),
+                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=1.0),
                                                      reference_particle_spacing=fluid_particle_spacing)
 
 trixi_include(@__MODULE__,

@@ -71,7 +71,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
                                                              ndims(smoothing_kernel)),
                                          source_terms=nothing, surface_tension=nothing,
                                          surface_normal_method=nothing, buffer_size=nothing,
-                                         reference_particle_spacing=0.0, color_value=0)
+                                         reference_particle_spacing=0.0, color_value=1)
         buffer = isnothing(buffer_size) ? nothing :
                  SystemBuffer(nparticles(initial_condition), buffer_size)
 

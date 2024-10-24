@@ -80,7 +80,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                                          ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
-                                     reference_particle_spacing=0.0, color_value=0)
+                                     reference_particle_spacing=0.0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -186,6 +186,9 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.density_diffusion)
     print(io, ", ", system.surface_tension)
     print(io, ", ", system.surface_normal_method)
+    if system.surface_normal_method isa ColorfieldSurfaceNormal
+        print(io, ", ", system.color)
+    end
     print(io, ", ", system.acceleration)
     print(io, ", ", system.source_terms)
     print(io, ") with ", nparticles(system), " particles")
@@ -214,6 +217,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "density diffusion", system.density_diffusion)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
+        if system.surface_normal_method isa ColorfieldSurfaceNormal
+            summary_line(io, "color", system.color)
+        end
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "source terms", system.source_terms |> typeof |> nameof)
         summary_footer(io)
