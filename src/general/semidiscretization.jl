@@ -805,6 +805,22 @@ function update_nhs!(neighborhood_search,
     return neighborhood_search
 end
 
+function update_nhs!(neighborhood_search,
+                     system::TotalLagrangianSPHSystem,
+                     neighbor::OpenBoundarySPHSystem,
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySPHSystem,
+                     neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
 # Forward to PointNeighbors.jl
 function update!(neighborhood_search, system, x, y; points_moving=(true, false))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving)
@@ -852,5 +868,15 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+end
+
+function check_configuration(system::OpenBoundarySPHSystem, systems)
+    (; boundary_model, boundary_zone) = system
+
+    if boundary_model isa BoundaryModelLastiwka &&
+       first(typeof(boundary_zone).parameters) === BidirectionalFlow
+        throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
+                            "Please specify inflow and outflow."))
     end
 end

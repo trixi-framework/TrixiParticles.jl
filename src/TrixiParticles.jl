@@ -54,8 +54,7 @@ include("visualization/recipes_plots.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem, InFlow,
-       OutFlow
+       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem, BoundaryZone
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback
 export ContinuityDensity, SummationDensity
@@ -68,7 +67,7 @@ export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing, BoundaryModelLastiwka
+       PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
