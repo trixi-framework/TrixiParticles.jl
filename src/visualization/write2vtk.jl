@@ -107,36 +107,39 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
                                             periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
-    if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
-        println("Warning: At least one particle's absolute coordinates exceed `max_coordinates`"
-                *
-                " and have been clipped")
-        for i in eachindex(points)
-            points[i] = clamp(points[i], -max_coordinates, max_coordinates)
+    if !isempty(points)
+        if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
+            println("Warning: At least one particle's absolute coordinates exceed `max_coordinates`"
+                    *
+                    " and have been clipped")
+            for i in eachindex(points)
+                points[i] = clamp(points[i], -max_coordinates, max_coordinates)
+            end
         end
     end
 
     @trixi_timeit timer() "write to vtk" vtk_grid(file, points, cells) do vtk
-        # dispatches based on the different system types e.g. FluidSystem, TotalLagrangianSPHSystem
-        write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
+        if !isempty(points)
+            # dispatches based on the different system types e.g. FluidSystem, TotalLagrangianSPHSystem
+            write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
 
-        # Store particle index
-        vtk["index"] = active_particles(system)
-        vtk["time"] = t
+            # Store particle index
+            vtk["index"] = active_particles(system)
+            vtk["time"] = t
 
-        if write_meta_data
-            vtk["solver_version"] = git_hash
-            vtk["julia_version"] = string(VERSION)
-        end
+            if write_meta_data
+                vtk["solver_version"] = git_hash
+                vtk["julia_version"] = string(VERSION)
+            end
 
-        # Extract custom quantities for this system
-        for (key, quantity) in custom_quantities
-            value = custom_quantity(quantity, v, u, t, system)
-            if value !== nothing
-                vtk[string(key)] = value
+            # Extract custom quantities for this system
+            for (key, quantity) in custom_quantities
+                value = custom_quantity(quantity, v, u, t, system)
+                if value !== nothing
+                    vtk[string(key)] = value
+                end
             end
         end
-
         # Add to collection
         pvd[t] = vtk
     end
