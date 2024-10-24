@@ -831,8 +831,7 @@ function check_configuration(systems)
         end
 
         if system isa FluidSystem || system isa BoundarySPHSystem
-
-            no_fluid_and_bnd_systems +=1
+            no_fluid_and_bnd_systems += 1
             if system.color < min_color
                 min_color = system.color
             end
@@ -843,7 +842,8 @@ function check_configuration(systems)
         end
     end
 
-    if max_color == 0 && min_color == 0 && no_fluid_and_bnd_systems > 1 && uses_surface_tension_model
+    if max_color == 0 && min_color == 0 && no_fluid_and_bnd_systems > 1 &&
+       uses_surface_tension_model
         throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
     end
 end
@@ -853,7 +853,8 @@ check_configuration(system, systems) = nothing
 function check_configuration(fluid_system::FluidSystem, systems)
     if !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
-            if neighbor isa FluidSystem && isnothing(fluid_system.surface_tension) && isnothing(fluid_system.surface_normal_method)
+            if neighbor isa FluidSystem && isnothing(fluid_system.surface_tension) &&
+               isnothing(fluid_system.surface_normal_method)
                 throw(ArgumentError("All `FluidSystem` need to use a surface tension model or a surface normal method."))
             end
         end

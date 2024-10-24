@@ -21,7 +21,7 @@ sound_speed = 120.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-sphere_radius = 0.05
+sphere_radius = 0.04
 
 sphere1_center = (0.25, sphere_radius)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
@@ -29,8 +29,11 @@ sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 1.0 * fluid_particle_spacing - eps()
-fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+# fluid_smoothing_length = 1.0 * fluid_particle_spacing - eps()
+# fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+fluid_smoothing_length = 3.25 * fluid_particle_spacing
+fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For perfect wetting
 # nu = 0.0005
@@ -42,13 +45,38 @@ alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 # `adhesion_coefficient = 0.001` and `surface_tension_coefficient = 2.0` for no wetting
 
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+# sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(),
+#                                                      state_equation, fluid_smoothing_kernel,
+#                                                      fluid_smoothing_length,
+#                                                      viscosity=viscosity,
+#                                                      acceleration=(0.0, -gravity),
+#                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=10.0,
+#                                                                                           free_surface_threshold=0.75),
+#                                                      reference_particle_spacing=fluid_particle_spacing,
+#                                                      surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
+#                                                                                                    fluid_smoothing_length,
+#                                                                                                    boundary_contact_threshold=0.05))
+
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(),
                                                      state_equation, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=1.0),
-                                                     reference_particle_spacing=fluid_particle_spacing)
+                                                     surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0,
+                                                                                                  free_surface_threshold=0.75),
+                                                     reference_particle_spacing=fluid_particle_spacing,
+                                                     surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
+                                                                                                   fluid_smoothing_length,
+                                                                                                   boundary_contact_threshold=0.05))
+
+# sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(),
+#                                                      state_equation, fluid_smoothing_kernel,
+#                                                      fluid_smoothing_length,
+#                                                      viscosity=viscosity,
+#                                                      acceleration=(0.0, -gravity),
+#                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=2.0),
+#                                                      correction=AkinciFreeSurfaceCorrection(fluid_density),
+#                                                      reference_particle_spacing=fluid_particle_spacing)
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl"),

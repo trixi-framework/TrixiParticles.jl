@@ -1,10 +1,13 @@
 struct ColorfieldSurfaceNormal{ELTYPE, K}
     smoothing_kernel::K
     smoothing_length::ELTYPE
+    boundary_contact_threshold::ELTYPE
 end
 
-function ColorfieldSurfaceNormal(; smoothing_kernel, smoothing_length)
-    return ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length)
+function ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length;
+                                 boundary_contact_threshold=0.1)
+    return ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length,
+                                   boundary_contact_threshold)
 end
 
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
@@ -73,7 +76,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
                       v_neighbor_system, u_neighbor_system, semi, surfn, nsurfn)
     (; cache) = system
     (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
-    (; smoothing_kernel, smoothing_length) = surfn
+    (; smoothing_kernel, smoothing_length, boundary_contact_threshold) = surfn
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -111,7 +114,8 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
-        if colorfield[neighbor] / maximum_colorfield > 0.1
+        # we assume that we are in contact with the boundary if the color of the boundary particle is larger than the threshold
+        if colorfield[neighbor] / maximum_colorfield > boundary_contact_threshold
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
             grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
@@ -150,6 +154,7 @@ function remove_invalid_normals!(system::FluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
                                                         SurfaceTensionMomentumMorris})
     (; cache, smoothing_length, smoothing_kernel, number_density) = system
+    (; free_surface_threshold) = surface_tension
 
     # println("compact_support ", compact_support(smoothing_kernel, smoothing_length))
 
@@ -160,10 +165,10 @@ function remove_invalid_normals!(system::FluidSystem,
     for particle in each_moving_particle(system)
 
         # TODO: make selectable
-        # TODO: make settable
         # heuristic condition if there is no gas phase to find the free surface
-        if 0.75 * number_density < cache.neighbor_count[particle] #2d
+        if free_surface_threshold * number_density < cache.neighbor_count[particle]
             # if 0.45 * number_density < cache.neighbor_count[particle] #3d
+            # if 0.75 * number_density < cache.neighbor_count[particle] #2d
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
