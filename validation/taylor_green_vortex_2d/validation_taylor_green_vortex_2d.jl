@@ -9,9 +9,9 @@ particle_spacings = [0.02, 0.01, 0.005]
 tspan = (0.0, 5.0)
 reynolds_number = 100.0
 
-function compute_L1v_error(v, u, t, system)
+function compute_l1v_error(v, u, t, system)
     v_analytical_avg = 0.0
-    L1v = 0.0
+    v_avg = 0.0
 
     for particle in TrixiParticles.eachparticle(system)
         position = TrixiParticles.current_coords(u, system, particle)
@@ -20,16 +20,16 @@ function compute_L1v_error(v, u, t, system)
         v_analytical = TrixiParticles.norm(velocity_function(position, t))
 
         v_analytical_avg += abs(v_analytical)
-        L1v += abs(v_mag - v_analytical)
+        v_avg += abs(v_mag - v_analytical)
     end
     v_analytical_avg /= nparticles(system)
 
-    L1v /= nparticles(system)
+    v_avg /= nparticles(system)
 
-    return L1v /= v_analytical_avg
+    return v_avg /= v_analytical_avg
 end
 
-function compute_L1p_error(v, u, t, system)
+function compute_l1p_error(v, u, t, system)
     p_max_exact = 0.0
 
     L1p = 0.0
@@ -70,8 +70,8 @@ for particle_spacing in particle_spacings
                                              p_avg=diff_p_loc_p_avg)
 
     pp_callback = PostprocessCallback(; dt=0.02,
-                                      L1v=compute_L1v_error,
-                                      L1p=compute_L1p_error,
+                                      L1v=compute_l1v_error,
+                                      L1p=compute_l1p_error,
                                       output_directory=output_directory,
                                       filename="errors",
                                       write_csv=true, write_file_interval=1)

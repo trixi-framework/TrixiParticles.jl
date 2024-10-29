@@ -59,7 +59,7 @@ smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.0, 0.0),
-                         coordinates_perturbation=0.2, # To avoid stagnant streamlines
+                         coordinates_perturbation=0.2, # To avoid stagnant streamlines when not using TVF.
                          density=fluid_density, pressure=initial_pressure_function,
                          velocity=initial_velocity_function)
 
@@ -90,5 +90,4 @@ dt_max = min(smoothing_length / 4 * (sound_speed + U), smoothing_length^2 / (8 *
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=dt_max,#1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+            dtmax=dt_max, save_everystep=false, callback=callbacks);
