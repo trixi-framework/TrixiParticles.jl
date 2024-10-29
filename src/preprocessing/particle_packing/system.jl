@@ -28,7 +28,7 @@ For more information about the methods, see description below.
                           - If set to `nothing` the signed distance from a particle to a face is calculated directly on the fly
                             which is only recommended when the number of faces are significantly less than the number of particles.
                           Note when `is_boundary=true`, the [`SignedDistanceField`](@ref) of the boundary is mandatory.
-- `neighborhood_search`: If set to `true` an internaly generated neighborhood search is used to increase performance.
+- `neighborhood_search`: If set to `true` an internally generated neighborhood search is used to increase performance.
 - `smoothing_kernel`: Smoothing kernel to be used for this system.
                       See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`: Smoothing length to be used for this system.

@@ -42,7 +42,7 @@ trixi2vtk(shape_sampled.initial_condition_boundary, filename="initial_condition_
 
 # Large `background_pressure` can cause high accelerations. That is, the adaptive
 # time-stepsize will be adjusted properly. We found that the following order of
-# `background_pressure` result in appropiate time-stepsizes.
+# `background_pressure` result in appropriate time-stepsizes.
 background_pressure = 1e6 * particle_spacing^2
 
 packing_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
