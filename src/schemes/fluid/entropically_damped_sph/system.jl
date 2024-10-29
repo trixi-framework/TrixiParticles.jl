@@ -246,6 +246,8 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         end
     end
 
+    # We do not need to check for zero division here, as `neighbor_counter = 1`
+    # for zero neighbors. That is, the `particle` itself is also taken into account.
     pressure_average ./= neighbor_counter
 
     return system
