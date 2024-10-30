@@ -99,7 +99,6 @@ end
 
 function calculate_signed_distances!(positions, distances, normals,
                                      boundary, sdf_factor, max_signed_distance, nhs)
-
     @threaded positions for point in eachindex(positions)
         point_coords = positions[point]
 
