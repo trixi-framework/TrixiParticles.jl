@@ -162,8 +162,6 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
     u = wrap_u(u_ode, system, semi)
 
     update_position!(u, system)
-
-    update_transport_velocity!(system, v_ode, semi)
 end
 
 function update_position!(u, system::ParticlePackingSystem)
