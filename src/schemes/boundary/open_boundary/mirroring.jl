@@ -121,7 +121,7 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
         # end
         if prescribed_density
             density[particle] = reference_value(reference_density, density[particle],
-                                                 particle_coords, t)
+                                                particle_coords, t)
         else
             f_p = L_inv * interpolated_density
             df_p = f_p[two_to_end]
