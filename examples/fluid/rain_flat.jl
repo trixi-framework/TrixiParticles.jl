@@ -3,16 +3,16 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.00001 # x75 visc
+fluid_particle_spacing = 0.00004 # x75 visc
 # fluid_particle_spacing = 0.0001 # no improvement
-boundary_particle_spacing = 0.00002
+boundary_particle_spacing = 0.00005
 
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
 tspan = (0.0, 0.02)
 fluid_density = 1000.0
-sound_speed = 80
+sound_speed = 100
 
 # Boundary geometry and initial fluid particle positions
 plate_length = 0.01
@@ -60,7 +60,7 @@ nu_water = 8.9E-7
 
 # Morris has a higher velocity with same viscosity.
 # viscosity = ViscosityMorris(nu=75*nu_water)
-viscosity = ViscosityAdami(nu=nu_water)
+viscosity = ViscosityAdami(nu=20*nu_water)
 
 density_diffusion = DensityDiffusionAntuono(sphere1, delta=0.1)
 
@@ -110,7 +110,7 @@ semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.00005, prefix="rainfall_morris_alpha001_h10micro")
+saving_callback = SolutionSavingCallback(dt=0.00005, prefix="rainfall_morris_alpha001_h40micro_nu20_lowerdt")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
