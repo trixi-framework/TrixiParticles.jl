@@ -32,6 +32,7 @@
             @test system.mass == mass
             @test system.smoothing_kernel == smoothing_kernel
             @test system.smoothing_length == smoothing_length
+            @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
@@ -86,6 +87,7 @@
             @test system.mass == setup.mass
             @test system.smoothing_kernel == smoothing_kernel
             @test system.smoothing_length == smoothing_length
+            @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
@@ -137,6 +139,7 @@
         │ viscosity: …………………………………………………… Nothing                                                          │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
+        │ tansport velocity formulation:  Nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
@@ -200,5 +203,31 @@
         TrixiParticles.write_v0!(v0, system)
 
         @test v0 == vcat(velocity, [0.8, 1.0]')
+    end
+
+    @trixi_testset "Average Pressure" begin
+        particle_spacing = 0.1
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.6particle_spacing
+
+        fluid = rectangular_patch(particle_spacing, (3, 3), seed=1)
+
+        system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
+                                             transport_velocity=TransportVelocityAdami(0.0),
+                                             smoothing_length, 0.0)
+        semi = Semidiscretization(system)
+
+        TrixiParticles.initialize_neighborhood_searches!(semi)
+
+        u_ode = vec(fluid.coordinates)
+        v_ode = vec(vcat(fluid.velocity, fluid.velocity, fluid.pressure'))
+
+        TrixiParticles.update_average_pressure!(system, system.transport_velocity, v_ode,
+                                                u_ode, semi)
+
+        @test all(i -> system.cache.neighbor_counter[i] == nparticles(system),
+                  nparticles(system))
+        @test all(i -> isapprox(system.cache.pressure_average[i], -50.968532955185964),
+                  nparticles(system))
     end
 end
