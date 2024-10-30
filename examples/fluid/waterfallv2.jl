@@ -87,7 +87,7 @@ nu_water = 8.9E-7
 # viscosity = ViscosityMorris(nu=100*nu_water)
 viscosity = ViscosityAdami(nu=50 * nu_water)
 
-density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=false)
