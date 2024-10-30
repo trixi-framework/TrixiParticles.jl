@@ -57,7 +57,7 @@ nu_water = 8.9E-7
 # viscosity = ViscosityMorris(nu=100*nu_water)
 viscosity = ViscosityAdami(nu=100 * nu_water)
 
-density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 # fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 #                                            state_equation, smoothing_kernel,
@@ -94,22 +94,21 @@ boundary_model2 = BoundaryModelDummyParticles(end_tank.boundary.density,
 
 boundary_system2 = BoundarySPHSystem(end_tank.boundary, boundary_model2)
 
-outflow = BoundaryZone(; plane=([0.4, -0.2, -0.1], [0.4, -0.2, 0.3], [0.8, -0.2, 0.3]),
-                  plane_normal=[0.0, -1.0, 0.0], open_boundary_layers=1,
-                  density=2 * eps(), particle_spacing=fluid_particle_spacing,
-                  boundary_type=:outflow)
+# outflow = BoundaryZone(; plane=([0.4, -0.2, -0.1], [0.4, -0.2, 0.3], [0.8, -0.2, 0.3]),
+#                   plane_normal=[0.0, -1.0, 0.0], open_boundary_layers=1,
+#                   density=2 * eps(), particle_spacing=fluid_particle_spacing,
+#                   boundary_type=:outflow)
 
-open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
-                                          boundary_model=BasicOutlet())
+# open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
+#                                           boundary_model=BasicOutlet())
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system, boundary_system2,
-                          open_boundary_out)
+semi = Semidiscretization(fluid_system, boundary_system, boundary_system2)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.01, prefix="lower_visc")
+saving_callback = SolutionSavingCallback(dt=0.01, prefix="waterfall_v2")
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
