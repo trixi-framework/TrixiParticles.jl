@@ -100,7 +100,7 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 #### 2. [`BernoulliPressureExtrapolation`](@ref)
 Identical to [`AdamiPressureExtrapolation`](@ref), but it adds the dynamic pressure component of the Bernoulli equation:
 ```math
-\frac{1}{2} \, \rho_{\text{neighbor}} \left( \frac{ (\mathbf{v}_f - \mathbf{v}_{\text{neighbor}}) \cdot (\mathbf{x}_f - \mathbf{x}_{\text{neighbor}}) }{ \left\| \mathbf{x}_f - \mathbf{x}_{\text{neighbor}} \right\| } \right)^2 \times \text{factor}
+\frac{1}{2} \, \rho_{\text{neighbor}} \left( \frac{ (\mathbf{v}_f - \mathbf{v}_{\text{body}}) \cdot (\mathbf{x}_f - \mathbf{x}_{\text{neighbor}}) }{ \left\| \mathbf{x}_f - \mathbf{x}_{\text{neighbor}} \right\| } \right)^2 \times \text{factor}
 ```
 where ``v_f`` is the velocity of the fluid and ``v_\text{body}`` is the velocity of the body.
 This adjustment provides a higher boundary pressure for solid bodies moving with a relative velocity to the fluid to prevent penetration.
