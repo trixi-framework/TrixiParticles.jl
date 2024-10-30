@@ -62,7 +62,7 @@ function replace_with_code(filename)
     end
 
     # Check if tutorials directory exists, else create one
-    path_tutorials = "docs/src/tutorials"
+    path_tutorials = joinpath("docs", "src", "tutorials")
     if !isdir(path_tutorials)
         mkdir(path_tutorials)
     end
@@ -70,14 +70,14 @@ function replace_with_code(filename)
     file_basename = basename(filename)
 
     # Replace all occurrences in the markdown content
-    copy_file(filename, new_file="$path_tutorials/$file_basename",
+    copy_file(filename, new_file=joinpath(path_tutorials, file_basename),
               pattern => replace_include)
 end
 
-replace_with_code("docs/src/tutorials_template/tut_setup.md")
-replace_with_code("docs/src/tutorials_template/tut_dam_break.md")
-replace_with_code("docs/src/tutorials_template/tut_beam.md")
-replace_with_code("docs/src/tutorials_template/tut_falling.md")
+replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_setup.md"))
+replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_dam_break.md"))
+replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_beam.md"))
+replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_falling.md"))
 
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
