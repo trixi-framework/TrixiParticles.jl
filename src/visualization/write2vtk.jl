@@ -301,6 +301,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             vtk["solver"] = "WCSPH"
 
             vtk["correction_method"] = type2string(system.correction)
+            vtk["number_density"] = system.number_density
             if system.correction isa AkinciFreeSurfaceCorrection
                 vtk["correction_rho0"] = system.correction.rho0
             end

@@ -54,6 +54,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     state_equation                    :: SE
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
+    reference_particle_spacing        :: ELTYPE
     number_density                    :: Int64
     color                             :: Int64
     acceleration                      :: SVector{NDIMS, ELTYPE}
@@ -141,7 +142,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
-                                       smoothing_kernel, smoothing_length,
+                                       smoothing_kernel, smoothing_length, reference_particle_spacing,
                                        number_density_, color_value,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,

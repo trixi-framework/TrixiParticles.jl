@@ -6,7 +6,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
-    (; density_calculator, state_equation, correction, surface_tension) = particle_system
+    (; density_calculator, state_equation, correction) = particle_system
 
     sound_speed_ = sound_speed(state_equation)
 
@@ -48,10 +48,21 @@ function interact!(dv, v_particle_system, u_particle_system,
                                               particle_system, neighbor_system,
                                               particle, neighbor)
 
-        dv_pressure = pressure_correction *
+        n = 4.0
+        alpha = 0.01
+        q = distance/particle_system.reference_particle_spacing
+        if q < 1.0
+            Pi_ij = -alpha * (1 - q)^n / rho_mean
+        else
+            Pi_ij = 0.0
+        end
+
+        dv_pressure = pressure_correction * (
                       pressure_acceleration(particle_system, neighbor_system, neighbor,
                                             m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, correction)
+                                            distance, grad_kernel, correction) -m_b * Pi_ij * grad_kernel)
+
+
 
         dv_viscosity_ = viscosity_correction *
                         dv_viscosity(particle_system, neighbor_system,

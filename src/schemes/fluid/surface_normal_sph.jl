@@ -167,8 +167,6 @@ function remove_invalid_normals!(system::FluidSystem,
         # TODO: make selectable
         # heuristic condition if there is no gas phase to find the free surface
         if free_surface_threshold * number_density < cache.neighbor_count[particle]
-            # if 0.45 * number_density < cache.neighbor_count[particle] #3d
-            # if 0.75 * number_density < cache.neighbor_count[particle] #2d
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
