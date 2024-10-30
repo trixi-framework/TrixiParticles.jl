@@ -516,7 +516,7 @@ end
         normal_velocity = dot(relative_velocity, pos_diff)
 
         return 0.5 * boundary_density_calculator.factor * density_neighbor *
-                normal_velocity^2 / distance
+               normal_velocity^2 / distance
     end
     return zero(density_neighbor)
 end
