@@ -65,6 +65,7 @@ fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.
 
 fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
                                            sound_speed,
+                                           density_calculator=SummationDensity(),
                                            transport_velocity=TransportVelocityAdami(background_pressure),
                                            viscosity=ViscosityAdami(; nu))
 
