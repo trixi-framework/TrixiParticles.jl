@@ -1,4 +1,4 @@
-using Documenter
+using Documenter, DocumenterCitations
 using TrixiParticles
 using TrixiBase
 using PointNeighbors
@@ -61,16 +61,23 @@ function replace_with_code(filename)
         end
     end
 
+    # Check if tutorials directory exists, else create one
+    path_tutorials = joinpath("docs", "src", "tutorials")
+    if !isdir(path_tutorials)
+        mkdir(path_tutorials)
+    end
+
+    file_basename = basename(filename)
+
     # Replace all occurrences in the markdown content
-    filename_noext, extension = splitext(filename)
-    copy_file(filename, new_file="$(filename_noext)_replaced$extension",
+    copy_file(filename, new_file=joinpath(path_tutorials, file_basename),
               pattern => replace_include)
 end
 
-replace_with_code("docs/src/tutorials/tut_setup.md")
-replace_with_code("docs/src/tutorials/tut_dam_break.md")
-replace_with_code("docs/src/tutorials/tut_beam.md")
-replace_with_code("docs/src/tutorials/tut_falling.md")
+replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_setup.md"))
+replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_dam_break.md"))
+replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_beam.md"))
+replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_falling.md"))
 
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
@@ -90,7 +97,10 @@ copy_file("NEWS.md")
 # Define module-wide setups such that the respective modules are available in doctests
 DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recursive=true)
 
+bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
+
 makedocs(sitename="TrixiParticles.jl",
+         plugins=[bib],
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles],
          format=Documenter.HTML(),
@@ -139,6 +149,7 @@ makedocs(sitename="TrixiParticles.jl",
              "Contributing" => "contributing.md",
              "Code of Conduct" => "code_of_conduct.md",
              "License" => "license.md",
+             "References" => "references.md",
          ])
 
 deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",

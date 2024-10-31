@@ -233,7 +233,7 @@ struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
         elseif !isnothing(extrude_geometry)
             initial_condition = TrixiParticles.extrude_geometry(extrude_geometry;
                                                                 particle_spacing, density,
-                                                                direction=-flow_direction_,
+                                                                direction=flow_direction_,
                                                                 n_extrude=open_boundary_layers)
         end
 
