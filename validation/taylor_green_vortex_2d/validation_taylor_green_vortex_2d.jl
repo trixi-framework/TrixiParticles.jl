@@ -10,7 +10,7 @@ tspan = (0.0, 5.0)
 reynolds_number = 100.0
 
 density_calculators = [SummationDensity(), ContinuityDensity()]
-perturbate_coordinates = [true, false]
+pertube_coordinates = [true, false]
 
 function compute_l1v_error(v, u, t, system)
     v_analytical_avg = 0.0
@@ -63,7 +63,7 @@ function diff_p_loc_p_avg(v, u, t, system)
     return v[end, :] .- p_avg_tot
 end
 
-for density_calculator in density_calculators, perturbation in perturbate_coordinates,
+for density_calculator in density_calculators, perturbation in pertube_coordinates,
     particle_spacing in particle_spacings
 
     n_particles_xy = round(Int, 1.0 / particle_spacing)
@@ -89,7 +89,7 @@ for density_calculator in density_calculators, perturbation in perturbate_coordi
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fluid", "taylor_green_vortex_2d.jl"),
                   density_calculator=density_calculator,
-                  perturbate_coordinates=perturbation,
+                  pertube_coordinates=perturbation,
                   particle_spacing=particle_spacing, reynolds_number=reynolds_number,
                   tspan=tspan, saving_callback=saving_callback, pp_callback=pp_callback)
 end
