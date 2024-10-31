@@ -58,9 +58,11 @@ background_pressure = sound_speed^2 * fluid_density
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
-pertube_coordinates = true
+# To be set via `trixi_include`
+perturb_coordinates = true
 fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.0, 0.0),
-                         coordinates_perturbation=pertube_coordinates ? 0.2 : nothing, # To avoid stagnant streamlines when not using TVF.
+                         # Perturb particle coordinates to avoid stagnant streamlines without TVF
+                         coordinates_perturbation=perturb_coordinates ? 0.2 : nothing, # To avoid stagnant streamlines when not using TVF.
                          density=fluid_density, pressure=initial_pressure_function,
                          velocity=initial_velocity_function)
 
