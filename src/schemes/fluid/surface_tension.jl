@@ -105,10 +105,8 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem,
                            system_coords, neighbor_system_coords,
                            neighborhood_search) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
-        density_neighbor = particle_density(v_neighbor_system,
-                                            neighbor_system, neighbor)
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance,
-                                            particle)
+        density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor *
                                                  grad_kernel[i] * smoothing_length
