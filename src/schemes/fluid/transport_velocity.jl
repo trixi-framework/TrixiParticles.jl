@@ -76,13 +76,14 @@ end
     return SVector(ntuple(@inline(dim->v[ndims(system) + dim, particle]), ndims(system)))
 end
 
-@inline function momentum_convection(system, neighbor_system, ::Nothing,
+@inline function momentum_convection(system, neighbor_system, ::Nothing, pos_diff, distance,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
 @inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
+                                     ::Nothing, pos_diff, distance,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     volume_a = m_a / rho_a
@@ -99,6 +100,31 @@ end
     A_b = rho_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'
 
     return volume_term * (0.5 * (A_a + A_b)) * grad_kernel
+end
+
+@inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
+                                     ::ParticleRefinement, pos_diff, distance,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     m_a, m_b, particle, neighbor, grad_kernel)
+    momentum_velocity_a = current_velocity(v_particle_system, system, particle)
+    advection_velocity_a = advection_velocity(v_particle_system, system, particle)
+
+    momentum_velocity_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    advection_velocity_b = advection_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+    factor_a = beta_correction(particle_system, particle_refinement, particle) / rho_a
+    factor_b = beta_correction(neighbor_system, particle_refinement, neighbor) / rho_b
+
+    A_a = factor_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
+    A_b = factor_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'
+
+    # TODO: Use wrapped version
+    grad_kernel_a = kernel_grad(particle_system.smoothing_kernel, pos_diff, distance,
+                                particle_system.smoothing_length[particle])
+    grad_kernel_b = kernel_grad(neighbor_system.smoothing_kernel, pos_diff, distance,
+                                neighbor_system.smoothing_length[neighbor])
+
+    return -m_b * (A_a * grad_kernel_a + A_b * grad_kernel_b)
 end
 
 @inline transport_velocity!(dv, system, rho_a, rho_b, m_a, m_b, grad_kernel, particle) = dv

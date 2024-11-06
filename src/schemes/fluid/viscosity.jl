@@ -209,6 +209,41 @@ end
                                              particle, neighbor, pos_diff,
                                              distance, sound_speed, m_a, m_b,
                                              rho_a, rho_b, grad_kernel)
+    viscosity(particle_system, neighbor_system, particle_system.particle_refinement,
+              v_particle_system, v_neighbor_system, particle, neighbor, pos_diff, distance,
+              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+end
+
+@inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
+                                             particle_refinement::ParticleRefinement,
+                                             v_particle_system, v_neighbor_system,
+                                             particle, neighbor, pos_diff,
+                                             distance, sound_speed, m_a, m_b,
+                                             rho_a, rho_b, grad_kernel)
+    beta_inv_a = beta_correction(particle_system, particle_refinement, particle)
+
+    nu_a = kinematic_viscosity(particle_system,
+                               viscosity_model(neighbor_system, particle_system))
+
+    # TODO: Use wrapped version
+    grad_kernel_a = kernel_grad(particle_system.smoothing_kernel, pos_diff, distance,
+                                particle_system.smoothing_length[particle])
+    grad_kernel_b = kernel_grad(neighbor_system.smoothing_kernel, pos_diff, distance,
+                                neighbor_system.smoothing_length[neighbor])
+
+    grad_W_avg = 0.5 * (grad_kernel_a + grad_kernel_b)
+
+    tmp = (distance^2 + 0.001 * particle_system.smoothing_length[particle]^2)
+
+    return m_b * beta_inv_a * 4 * nu_a * dot(pos_diff, grad_W_avg) * v_diff /
+           (tmp * (rho_a + rho_b))
+end
+
+@inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system, ::Nothing,
+                                             v_particle_system, v_neighbor_system,
+                                             particle, neighbor, pos_diff,
+                                             distance, sound_speed, m_a, m_b,
+                                             rho_a, rho_b, grad_kernel)
     (; smoothing_length) = particle_system
 
     epsilon = viscosity.epsilon
