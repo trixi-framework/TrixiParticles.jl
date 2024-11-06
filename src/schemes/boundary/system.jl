@@ -295,7 +295,7 @@ end
     return current_acceleration(system, system.movement, particle)
 end
 
-@inline function current_acceleration(system, movement, particle)
+@inline function current_acceleration(system::BoundarySPHSystem, movement, particle)
     (; cache, ismoving) = system
 
     if ismoving[]
@@ -305,7 +305,7 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_acceleration(system, movement::Nothing, particle)
+@inline function current_acceleration(system::BoundarySPHSystem, movement::Nothing, particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
