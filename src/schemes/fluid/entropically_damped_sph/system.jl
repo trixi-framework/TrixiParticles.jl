@@ -43,7 +43,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                     The keyword argument `acceleration` should be used instead for
                     gravity-like source terms.
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV, PR,
                                    PF, ST, B, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
@@ -57,6 +57,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     correction                        :: Nothing
     pressure_acceleration_formulation :: PF
     transport_velocity                :: TV
+    particle_refinement               :: PR
     source_terms                      :: ST
     buffer                            :: B
     cache                             :: C
@@ -66,6 +67,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
                                          pressure_acceleration=inter_particle_averaged_pressure,
                                          density_calculator=SummationDensity(),
                                          transport_velocity=nothing,
+                                         particle_refinement=nothing,
                                          alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
@@ -97,16 +99,18 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
         nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
         cache = create_cache_density(initial_condition, density_calculator)
-        cache = (; create_cache_edac(initial_condition, transport_velocity)..., cache...)
+        cache = (; create_cache_edac(initial_condition, transport_velocity)...,
+                 create_cache_edac_particle_refinement(initial_condition,
+                                                       particle_refinements)..., cache...)
 
         new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
             typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
-            typeof(transport_velocity), typeof(pressure_acceleration), typeof(source_terms),
-            typeof(buffer),
+            typeof(transport_velocity), typeof(particle_refinement),
+            typeof(pressure_acceleration), typeof(source_terms), typeof(buffer),
             typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
                            smoothing_length, sound_speed, viscosity, nu_edac, acceleration_,
-                           nothing, pressure_acceleration, transport_velocity, source_terms,
-                           buffer, cache)
+                           nothing, pressure_acceleration, transport_velocity,
+                           particle_refinement, source_terms, buffer, cache)
     end
 end
 
@@ -154,6 +158,14 @@ function create_cache_edac(initial_condition, ::TransportVelocityAdami)
     update_callback_used = Ref(false)
 
     return (; pressure_average, neighbor_counter, update_callback_used)
+end
+
+function create_cache_edac_particle_refinement(initial_condition, ::Nothing)
+    return (;)
+end
+
+function create_cache_edac_particle_refinement(initial_condition, ::ParticleRefinement)
+    return (;)
 end
 
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem)
