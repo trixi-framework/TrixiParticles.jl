@@ -157,6 +157,14 @@ function create_cache_edac(initial_condition, ::TransportVelocityAdami)
     return (; pressure_average, neighbor_counter, update_callback_used)
 end
 
+function create_cache_edac_particle_refinement(initial_condition, ::Nothing)
+    return (;)
+end
+
+function create_cache_edac_particle_refinement(initial_condition, ::ParticleRefinement)
+    return (;)
+end
+
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem)
     return v_nvariables(system, system.density_calculator)
 end
