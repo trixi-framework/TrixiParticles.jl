@@ -147,6 +147,18 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
     end
 end
 
+function smoothing_length(system::EntropicallyDampedSPHSystem, particle)
+    return smoothing_length(system, system.particle_refinement, particle)
+end
+
+function smoothing_length(system::EntropicallyDampedSPHSystem, ::Nothing, particle)
+    return system.cache.smoothing_length
+end
+
+function smoothing_length(system::EntropicallyDampedSPHSystem, refinement, particle)
+    return system.cache.smoothing_length[particle]
+end
+
 create_cache_edac(initial_condition, ::Nothing) = (;)
 
 function create_cache_edac(initial_condition, ::TransportVelocityAdami)
