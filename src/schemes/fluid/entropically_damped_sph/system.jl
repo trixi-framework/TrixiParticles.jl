@@ -94,7 +94,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
                                                                          NDIMS, ELTYPE,
                                                                          nothing)
 
-        nu_edac = (alpha * smoothing_length * sound_speed) / 8
+        nu_edac = (alpha * smoothing_length * sound_speed) /
+                  (2 * ndims(initial_condition) + 4)
 
         cache = create_cache_density(initial_condition, density_calculator)
         cache = (; create_cache_edac(initial_condition, transport_velocity)..., cache...)
@@ -207,6 +208,37 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     compute_density!(system, u, u_ode, semi, system.density_calculator)
     update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
+    factor_for_variable_smoothing_length!(system, u_ode, semi)
+end
+
+function factor_for_variable_smoothing_length!(system, u_ode, semi)
+    (; smoothing_kernel, smoothing_length) = system
+    u = wrap_u(u_ode, system, semi)
+    NDIMS = ndims(system)
+
+    # Use all other systems for the average pressure
+    foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+
+        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               neighborhood_search) do particle, neighbor,
+                                                       pos_diff, distance
+            rho_a = particle_density(v, system, particle)
+            m_a = hydrodynamic_mass(neighbor_system, neighbor)
+
+            w_deriv = kernel_deriv(smoothing_kernel, distance, smoothing_length)
+
+            beta[partcle] += -m_a * distance * w_deriv / (NDIMS * rho_a)
+        end
+    end
+
+    return system
 end
 
 function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
