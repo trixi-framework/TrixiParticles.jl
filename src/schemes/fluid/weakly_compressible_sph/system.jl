@@ -123,7 +123,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
-                                       smoothing_kernel, smoothing_length,
+                                       smoothing_kernel,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
                                        pressure_acceleration, nothing,
