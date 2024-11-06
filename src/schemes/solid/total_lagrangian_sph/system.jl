@@ -57,7 +57,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V, ST, M, IM} <: SolidSystem{NDIMS}
+                                YM, PR, LL, LM, K, PF, V, ST, M, IM, C} <: SolidSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     # `current_coordinates` contains `u` plus coordinates of the fixed particles
@@ -82,6 +82,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     fixed_particle_movement :: M
     fixed_particles_moving  :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     buffer              :: Nothing
+    cache              :: C
 end
 
 function TotalLagrangianSPHSystem(initial_condition,
@@ -127,6 +128,8 @@ function TotalLagrangianSPHSystem(initial_condition,
         movement.moving_particles .= collect((n_moving_particles + 1):n_particles)
     end
 
+    cache = (; acceleration=zero(initial_coordinates), velocity=zero(initial_coordinates))
+
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
                                     pk1_corrected, deformation_grad, material_density,
@@ -134,7 +137,7 @@ function TotalLagrangianSPHSystem(initial_condition,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms, movement,
-                                    Ref(!isnothing(movement)), nothing)
+                                    Ref(!isnothing(movement)), nothing, cache)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
@@ -212,7 +215,8 @@ end
 
 @inline function current_velocity(v, system::TotalLagrangianSPHSystem, particle)
     if particle > n_moving_particles(system)
-        return zero(SVector{ndims(system), eltype(system)})
+        return extract_svector(system.cache.velocity, system, particle)
+        # return zero(SVector{ndims(system), eltype(system)})
     end
 
     return extract_svector(v, system, particle)
@@ -300,8 +304,9 @@ function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode,
 end
 
 function (movement::BoundaryMovement)(system::TotalLagrangianSPHSystem, v, u, t)
-    (; current_coordinates) = system
+    (; current_coordinates, cache) = system
     (; movement_function, is_moving, moving_particles) = movement
+    (; acceleration, velocity) = cache
 
     system.fixed_particles_moving[] = is_moving(t)
 
@@ -310,16 +315,34 @@ function (movement::BoundaryMovement)(system::TotalLagrangianSPHSystem, v, u, t)
     @threaded system for particle in moving_particles
         pos_new = initial_coords(system, particle) + movement_function(t)
         vel = ForwardDiff.derivative(movement_function, t)
-        # acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
+        acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
 
         @inbounds for i in 1:ndims(system)
             current_coordinates[i, particle] = pos_new[i]
-            # v[i, particle] = vel[i]
-            # acceleration[i, particle] = acc[i]
+            velocity[i, particle] = vel[i]
+            acceleration[i, particle] = acc[i]
         end
     end
 
     return system
+end
+
+@inline function current_acceleration(system::TotalLagrangianSPHSystem, particle)
+    return current_acceleration(system, system.fixed_particle_movement, particle)
+end
+
+@inline function current_acceleration(system::TotalLagrangianSPHSystem, movement, particle)
+    (; cache) = system
+
+    # if ismoving[]
+        return extract_svector(cache.acceleration, system, particle)
+    # end
+
+    # return zero(SVector{ndims(system), eltype(system)})
+end
+
+@inline function current_acceleration(system::TotalLagrangianSPHSystem, movement::Nothing, particle)
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 function (movement::Nothing)(system::TotalLagrangianSPHSystem, v, u, t)
