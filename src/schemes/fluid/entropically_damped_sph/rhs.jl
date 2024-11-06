@@ -30,7 +30,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
         dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                             particle, neighbor,
@@ -128,8 +128,9 @@ function pressure_damping_term(particle_system, neighbor_system, ::Nothing,
     eta_b = rho_b * particle_system.nu_edac
     eta_tilde = 2 * eta_a * eta_b / (eta_a + eta_b)
 
-    # TODO For variable smoothing length use average smoothing length
-    tmp = eta_tilde / (distance^2 + 0.01 * particle_system.smoothing_length^2)
+    smoothing_length_average = 0.5 * (smoothing_length(particle_system, particle) +
+                                smoothing_length(particle_system, particle))
+    tmp = eta_tilde / (distance^2 + 0.01 * smoothing_length_average^2)
 
     # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
     # They argued that the formulation is more flexible because of the possibility to formulate
@@ -157,23 +158,17 @@ function pressure_damping_term(particle_system, neighbor_system, ::ParticleRefin
     # TODO: Haftu et al. (2022) use `8` but I think it depeneds on the dimension (see Monaghan, 2005)
     tmp = 2 * ndims(particle_system) + 4
 
-    nu_edac_a = alpha_edac * sound_speed * particle_system.smoothing_length[particle] / tmp
-    nu_edac_a = alpha_edac * sound_speed * particle_system.smoothing_length[neighbor] / tmp
+    nu_edac_a = alpha_edac * sound_speed * smoothing_length(particle_system, particle) / tmp
+    nu_edac_a = alpha_edac * sound_speed * smoothing_length(neighbor_system, neighbor) / tmp
 
     nu_edac_ab = 4 * (nu_edac_a * nu_edac_b) / (nu_edac_a + nu_edac_b)
 
-    # TODO: Use wrapped version
-    grad_kernel_a = kernel_grad(particle_system.smoothing_kernel, pos_diff, distance,
-                                particle_system.smoothing_length[particle])
-    grad_kernel_b = kernel_grad(neighbor_system.smoothing_kernel, pos_diff, distance,
-                                neighbor_system.smoothing_length[neighbor])
+    grad_kernel_a = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+    grad_kernel_b = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
 
     grad_W_avg = 0.5 * (grad_kernel_a + grad_kernel_b)
 
     return beta_inv_a * nu_edac_ab * pressure_diff * dot(pos_diff, grad_W_avg) * m_b / rho_b
-end
-function pressure_damping_term(particle_system, neighbor_system, ::ParticleRefinement,
-                               particle, neighbor, pos_diff, distance, m_b, rho_b)
 end
 
 function pressure_reduction(particle_system, neighbor_system, ::Nothing,
@@ -196,10 +191,8 @@ function pressure_reduction(particle_system, neighbor_system, ::ParticleRefineme
     P_a = (p_a - p_a_avg) / (rho_a^2 * beta_inv_a)
     P_b = (p_b - p_b_avg) / (rho_b^2 * beta_inv_b)
 
-    grad_kernel_a = kernel_grad(particle_system.smoothing_kernel, pos_diff, distance,
-                                particle_system.smoothing_length[particle])
-    grad_kernel_b = kernel_grad(neighbor_system.smoothing_kernel, pos_diff, distance,
-                                neighbor_system.smoothing_length[neighbor])
+    grad_kernel_a = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+    grad_kernel_b = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
 
     v_diff = advection_velocity(v_particle_system, particle_system, particle) -
              current_velocity(v_particle_system, particle_system, particle)
@@ -264,7 +257,6 @@ end
     return dv
 end
 
-
 # Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
 @inline function pressure_acceleration(particle_system::EntropicallyDampedSPHSystem,
                                        neighbor_system, particle, neighbor,
@@ -298,11 +290,8 @@ end
     P_b = beta_correction(particle_system, particle_refinement, neighbor) *
           (p_b - p_b_avg) / rho_b^2
 
-    # TODO: Use wrapped version
-    grad_kernel_a = kernel_grad(particle_system.smoothing_kernel, pos_diff, distance,
-                                particle_system.smoothing_length[particle])
-    grad_kernel_b = kernel_grad(neighbor_system.smoothing_kernel, pos_diff, distance,
-                                neighbor_system.smoothing_length[neighbor])
+    grad_kernel_a = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+    grad_kernel_b = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
 
     return -m_b * (P_a * grad_kernel_a + P_b * grad_kernel_b)
 end

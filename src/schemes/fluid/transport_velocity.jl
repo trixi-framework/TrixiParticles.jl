@@ -118,11 +118,8 @@ end
     A_a = factor_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
     A_b = factor_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'
 
-    # TODO: Use wrapped version
-    grad_kernel_a = kernel_grad(particle_system.smoothing_kernel, pos_diff, distance,
-                                particle_system.smoothing_length[particle])
-    grad_kernel_b = kernel_grad(neighbor_system.smoothing_kernel, pos_diff, distance,
-                                neighbor_system.smoothing_length[neighbor])
+    grad_kernel_a = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+    grad_kernel_b = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
 
     return -m_b * (A_a * grad_kernel_a + A_b * grad_kernel_b)
 end
