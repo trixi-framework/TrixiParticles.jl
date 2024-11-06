@@ -88,11 +88,11 @@ function copy_values_u!(u_new, u_old, system, eachparticle_)
     return u_new
 end
 
-@inline get_iterator(system) = eachparticle(system)
+@inline get_iterator(system) = each_moving_particle(system)
 
 @inline get_iterator(system::FluidSystem) = get_iterator(system, system.particle_refinement)
 
-@inline get_iterator(system::FluidSystem, ::Nothing) = eachparticle(system)
+@inline get_iterator(system::FluidSystem, ::Nothing) = each_moving_particle(system)
 
 @inline function get_iterator(system::FluidSystem, particle_refinement::ParticleRefinement)
     # TODO
@@ -100,8 +100,9 @@ end
 
     # Filter candidates
     # Uncomment for benchmark
-    # return Iterators.filter(i -> !(i in candidates), eachparticle(system))
-    return setdiff(eachparticle(system), candidates_refinement, candidates_coarsening)
+    # return Iterators.filter(i -> !(i in candidates), each_moving_particle(system))
+    return setdiff(each_moving_particle(system), candidates_refinement,
+                   candidates_coarsening)
 end
 
 @inline capacity(system) = capacity(system, system.particle_refinement)
