@@ -1,4 +1,4 @@
-function resize!(semi::Semidiscretization, v_ode, u_ode)
+function resize!(semi::Semidiscretization, v_ode, u_ode, _v_ode, _u_ode)
     # Preserve non-changing values
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
@@ -7,9 +7,9 @@ function resize!(semi::Semidiscretization, v_ode, u_ode)
         _v = wrap_v(_v_ode, system, semi)
         _u = wrap_u(_u_ode, system, semi)
 
-        eachparticle_ = get_iterator(system)
-        copy_values_v!(v, _v, system, eachparticle_)
-        copy_values_u!(u, _u, system, eachparticle_)
+        _each_moving_particle = get_iterator(system)
+        copy_values_v!(v, _v, system, _each_moving_particle)
+        copy_values_u!(u, _u, system, _each_moving_particle)
     end
 
     # Resize all systems
@@ -58,13 +58,14 @@ function resize_system!(system::EntropicallyDampedSPHSystem, capacity_system::In
 end
 
 resize_cache!(cache, n::Int, ::SummationDensity) = resize!(cache.density, n)
+
 resize_cache!(cache, n, ::ContinuityDensity) = cache
 
-function copy_values_v!(v_new, v_old, system, eachparticle_)
+function copy_values_v!(v_new, v_old, system, _each_moving_particle)
 
     # Copy values before resizing
     new_particle_id = 1
-    for particle in eachparticle_
+    for particle in _each_moving_particle
         for i in 1:v_nvariables(system)
             v_new[i, new_particle_id] = v_old[i, particle]
         end
@@ -74,11 +75,11 @@ function copy_values_v!(v_new, v_old, system, eachparticle_)
     return v_new
 end
 
-function copy_values_u!(u_new, u_old, system, eachparticle_)
+function copy_values_u!(u_new, u_old, system, _each_moving_particle)
 
     # Copy values before resizing
     new_particle_id = 1
-    for particle in eachparticle_
+    for particle in _each_moving_particle
         for i in 1:u_nvariables(system)
             u_new[i, new_particle_id] = u_old[i, particle]
         end
