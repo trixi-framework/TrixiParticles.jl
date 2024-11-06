@@ -49,7 +49,6 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
     smoothing_kernel                  :: K
-    smoothing_length                  :: ELTYPE
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -144,6 +143,18 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "acceleration", system.acceleration)
         summary_footer(io)
     end
+end
+
+function smoothing_length(system::EntropicallyDampedSPHSystem, particle)
+    return smoothing_length(system, system.particle_refinement, particle)
+end
+
+function smoothing_length(system::EntropicallyDampedSPHSystem, ::Nothing, particle)
+    return system.cache.smoothing_length
+end
+
+function smoothing_length(system::EntropicallyDampedSPHSystem, refinement, particle)
+    return system.cache.smoothing_length[particle]
 end
 
 create_cache_edac(initial_condition, ::Nothing) = (;)
