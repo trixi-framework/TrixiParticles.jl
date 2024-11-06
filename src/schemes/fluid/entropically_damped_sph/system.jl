@@ -101,7 +101,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV, P
         cache = create_cache_density(initial_condition, density_calculator)
         cache = (; create_cache_edac(initial_condition, transport_velocity)...,
                  create_cache_edac_particle_refinement(initial_condition,
-                                                       particle_refinements)..., cache...)
+                                                       particle_refinement)..., cache...)
 
         new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
             typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
