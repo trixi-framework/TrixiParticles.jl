@@ -123,13 +123,20 @@ end
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
     v_diff = v_a - v_b
 
-    nu_a = kinematic_viscosity(particle_system,
-                               viscosity_model(neighbor_system, particle_system))
-    nu_b = kinematic_viscosity(neighbor_system,
-                               viscosity_model(particle_system, neighbor_system))
+    smoothing_length_particle = smoothing_length(particle_system, particle)
+    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
 
+    # TODO is that correct with the smoothing lengths?
+    nu_a = kinematic_viscosity(particle_system,
+                               viscosity_model(neighbor_system, particle_system),
+                               smoothing_length_particle)
+    nu_b = kinematic_viscosity(neighbor_system,
+                               viscosity_model(particle_system, neighbor_system),
+                               smoothing_length_neighbor)
+
+    # TODO do we need the average smoothing length here?
     pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, rho_a, rho_b,
-                      smoothing_length, grad_kernel, nu_a, nu_b)
+                      smoothing_length_particle, grad_kernel, nu_a, nu_b)
 
     return m_b * pi_ab
 end
@@ -170,12 +177,12 @@ end
 # Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
 # In: Reports on Progress in Physics (2005), pages 1703-1759.
 # [doi: 10.1088/0034-4885/68/8/r01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
-function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan)
-    (; smoothing_length) = system
+function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan,
+                             smoothing_length_particle)
     (; alpha) = viscosity
     sound_speed = system_sound_speed(system)
 
-    return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
+    return alpha * smoothing_length_particle * sound_speed / (2 * ndims(system) + 4)
 end
 
 @doc raw"""
@@ -213,13 +220,18 @@ end
                                              particle, neighbor, pos_diff,
                                              distance, sound_speed, m_a, m_b,
                                              rho_a, rho_b, grad_kernel)
-    (; smoothing_length) = particle_system
-
     epsilon = viscosity.epsilon
+
+    smoothing_length_particle = smoothing_length(particle_system, particle)
+    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
+
+    # TODO is that correct with the smoothing lengths?
     nu_a = kinematic_viscosity(particle_system,
-                               viscosity_model(neighbor_system, particle_system))
+                               viscosity_model(neighbor_system, particle_system),
+                               smoothing_length_particle)
     nu_b = kinematic_viscosity(neighbor_system,
-                               viscosity_model(particle_system, neighbor_system))
+                               viscosity_model(particle_system, neighbor_system),
+                               smoothing_length_neighbor)
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -230,8 +242,8 @@ end
 
     eta_tilde = 2 * (eta_a * eta_b) / (eta_a + eta_b)
 
-    # TODO For variable smoothing_length use average smoothing length
-    tmp = eta_tilde / (distance^2 + epsilon * smoothing_length^2)
+    smoothing_length_average = 0.5 * (smoothing_length_particle + smoothing_length_neighbor)
+    tmp = eta_tilde / (distance^2 + epsilon * smoothing_length_average^2)
 
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
@@ -250,7 +262,7 @@ end
     return visc .* v_diff
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityAdami)
+function kinematic_viscosity(system, viscosity::ViscosityAdami, particle)
     return viscosity.nu
 end
 
