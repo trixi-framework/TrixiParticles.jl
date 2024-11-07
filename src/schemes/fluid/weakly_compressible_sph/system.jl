@@ -160,26 +160,6 @@ function create_cache_wcsph(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
     return (; surface_normal)
 end
 
-function create_cache_refinement(::Nothing, smoothing_length, ELTYPE, NDIMS, n_particles)
-    return (; smoothing_length)
-end
-
-function create_cache_refinement(refinement, smoothing_length, ELTYPE, NDIMS, n_particles)
-    return (; smoothing_length=smoothing_length * ones(n_particles))
-end
-
-function smoothing_length(system::WeaklyCompressibleSPHSystem, particle)
-    return smoothing_length(system, system.particle_refinement, particle)
-end
-
-function smoothing_length(system::WeaklyCompressibleSPHSystem, ::Nothing, particle)
-    return system.cache.smoothing_length
-end
-
-function smoothing_length(system::WeaklyCompressibleSPHSystem, refinement, particle)
-    return system.cache.smoothing_length[particle]
-end
-
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     @nospecialize system # reduce precompilation time
 
