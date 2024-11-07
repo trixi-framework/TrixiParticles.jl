@@ -69,6 +69,10 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        smoothing_length, viscosity, correction, cache)
 end
 
+function smoothing_length(boundary_model::BoundaryModelDummyParticles, particle)
+    return boundary_model.smoothing_length
+end
+
 @doc raw"""
     AdamiPressureExtrapolation()
 
@@ -434,7 +438,7 @@ end
     resulting_acc = neighbor_system.acceleration -
                     current_acceleration(system, particle)
 
-    kernel_weight = smoothing_kernel(boundary_model, distance)
+    kernel_weight = smoothing_kernel(boundary_model, distance, particle)
 
     pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
                                              neighbor) +

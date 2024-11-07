@@ -13,7 +13,27 @@ function create_cache_density(ic, ::ContinuityDensity)
     return (;)
 end
 
+function create_cache_refinement(initial_condition, ::Nothing, smoothing_length)
+    return (; smoothing_length)
+end
+
+function create_cache_refinement(initial_condition, refinement, smoothing_length)
+    return (; smoothing_length=smoothing_length * ones(length(initial_condition.density)))
+end
+
 @inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
+
+@inline function smoothing_length(system::FluidSystem, particle)
+    return smoothing_length(system, system.particle_refinement, particle)
+end
+
+@inline function smoothing_length(system::FluidSystem, ::Nothing, particle)
+    return system.cache.smoothing_length
+end
+
+@inline function smoothing_length(system::FluidSystem, refinement, particle)
+    return system.cache.smoothing_length[particle]
+end
 
 function write_u0!(u0, system::FluidSystem)
     (; initial_condition) = system
@@ -89,7 +109,7 @@ include("entropically_damped_sph/entropically_damped_sph.jl")
     add_velocity!(du, v, particle, system, system.transport_velocity)
 end
 
-@inline function momentum_convection(system, neighbor_system,
+@inline function momentum_convection(system, neighbor_system, pos_diff, distance,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     return zero(grad_kernel)
@@ -98,9 +118,10 @@ end
 @inline function momentum_convection(system,
                                      neighbor_system::Union{EntropicallyDampedSPHSystem,
                                                             WeaklyCompressibleSPHSystem},
+                                     pos_diff, distance,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     momentum_convection(system, neighbor_system, system.transport_velocity,
-                        v_particle_system, v_neighbor_system, rho_a, rho_b,
-                        m_a, m_b, particle, neighbor, grad_kernel)
+                        pos_diff, distance, v_particle_system, v_neighbor_system,
+                        rho_a, rho_b, m_a, m_b, particle, neighbor, grad_kernel)
 end
