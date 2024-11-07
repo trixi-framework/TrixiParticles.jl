@@ -87,7 +87,7 @@ end
     eta_tilde = 2 * eta_a * eta_b / (eta_a + eta_b)
 
     smoothing_length_average = 0.5 * (smoothing_length(particle_system, particle) +
-                                      smoothing_length(particle_system, particle))
+                                smoothing_length(particle_system, particle))
     tmp = eta_tilde / (distance^2 + 0.01 * smoothing_length_average^2)
 
     # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
