@@ -101,12 +101,15 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
 
     cache = create_cache_density(initial_condition, density_calculator)
     cache = (; create_cache_edac(initial_condition, transport_velocity)..., cache...)
+    cache = (;
+             create_cache_refinement(initial_condition, particle_refinement,
+                                     smoothing_length)..., cache...)
 
     return EntropicallyDampedSPHSystem(initial_condition, mass, density_calculator,
-                                       smoothing_kernel, smoothing_length, sound_speed,
-                                       viscosity, nu_edac, acceleration_, nothing,
-                                       pressure_acceleration, transport_velocity,
-                                       source_terms, buffer, particle_refinement, cache)
+                                       smoothing_kernel, sound_speed, viscosity, nu_edac,
+                                       acceleration_, nothing, pressure_acceleration,
+                                       transport_velocity, source_terms, buffer,
+                                       particle_refinement, cache)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
@@ -143,18 +146,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "acceleration", system.acceleration)
         summary_footer(io)
     end
-end
-
-function smoothing_length(system::EntropicallyDampedSPHSystem, particle)
-    return smoothing_length(system, system.particle_refinement, particle)
-end
-
-function smoothing_length(system::EntropicallyDampedSPHSystem, ::Nothing, particle)
-    return system.cache.smoothing_length
-end
-
-function smoothing_length(system::EntropicallyDampedSPHSystem, refinement, particle)
-    return system.cache.smoothing_length[particle]
 end
 
 create_cache_edac(initial_condition, ::Nothing) = (;)
