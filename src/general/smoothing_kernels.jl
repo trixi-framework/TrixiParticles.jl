@@ -3,7 +3,8 @@ abstract type SmoothingKernel{NDIMS} end
 @inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    distance < sqrt(eps(typeof(distance))) && return zero(pos_diff)
+    # Use `eps` relative to `h` and with the type of `h` to allow for `Float32`
+    distance < sqrt(eps(h)) && return zero(pos_diff)
 
     return kernel_deriv(kernel, distance, h) / distance * pos_diff
 end

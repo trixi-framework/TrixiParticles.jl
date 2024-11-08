@@ -177,7 +177,8 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
 
     foreach_point_neighbor(system, system, system_coords, system_coords,
                            neighborhood_search) do particle, neighbor, pos_diff, distance
-        # Only consider particles with a distance > 0
+        # Only consider particles with a distance > 0.
+        # TODO Use `eps` relative to something like the smoothing length.
         distance < sqrt(eps(typeof(distance))) && return
 
         rho_a = particle_density(v, system, particle)
@@ -204,6 +205,7 @@ end
                                     distance, m_b, rho_a, rho_b,
                                     particle_system::FluidSystem, grad_kernel)
     # Density diffusion terms are all zero for distance zero
+    # TODO Use `eps` relative to something like the smoothing length.
     distance < sqrt(eps(typeof(distance))) && return
 
     (; delta) = density_diffusion
