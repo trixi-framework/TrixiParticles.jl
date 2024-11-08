@@ -400,7 +400,7 @@ end
 end
 
 @inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2)
-@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (2pi * h^3)
+@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 2)
 
 @doc raw"""
     WendlandC4Kernel{NDIMS}()
@@ -461,7 +461,7 @@ end
 end
 
 @inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2)
-@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (32pi * h^3)
+@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 32)
 
 @doc raw"""
     WendlandC6Kernel{NDIMS}()
