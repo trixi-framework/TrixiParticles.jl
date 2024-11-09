@@ -1,6 +1,7 @@
 using ReadVTK
 
 vtk = VTKFile("out_vtk/two_points.vtu")
+#vtk = VTKFile("out/fluid_1_0.vtu")
 
 """
 # Fields of vtk
@@ -17,7 +18,9 @@ vtk = VTKFile("out_vtk/two_points.vtu")
 - `n_cells`: number of cells in the VTK file`
 """
 
-cell_data = get_cell_data(vtk)
+""" Examples
+
+#cell_data = get_cell_data(vtk)
 
 point_data = get_point_data(vtk)
 # create an vector with the names of the point data like "velocity"
@@ -33,7 +36,16 @@ vtk_file = point_data.vtk_file
 appended_data = vtk.appended_data
 
 # gets the coords of all the points
-coords = get_points(vtk)
+#coords = get_points(vtk)
 
 # gets the information about the cells
-cells = get_cells(vtk)
+#cells = get_cells(vtk)
+"""
+point_data = get_point_data(vtk)
+
+velocity_array = point_data["velocity"]
+
+velocity_data = get_data(velocity_array)
+
+println("Velocity Data:")
+println(velocity_data)

@@ -21,8 +21,8 @@ vtk_file = vtk_grid(file, points, cells)
 vtk_file["scalar"] = [100.0, 200.0]  # Scalar values for the two points
 
 # Assign vector data (e.g., velocity) to the two points
-vtk_file["velocity"] = [10.0, 0.0, 0.0,   # Velocity for first point
-    0.0, 5.0, 0.0]    # Velocity for second point
+vtk_file["velocity"] = [1.0, 2.0, 3.0,   # Velocity for first point
+    4.0, 5.0, 6.0]    # Velocity for second point
 
 # Save the VTK file
 vtk_save(vtk_file)
