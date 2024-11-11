@@ -20,7 +20,7 @@ You will now see the following:
 
 To now view the result variables **first** make sure you have "fluid_1.pvd" highlighted in the "Pipeline Browser" then select them in the variable selection combo box (see picture below).
 Let's, for example, pick "density". To now view the time progression of the result hit the "play button" (see picture below).
-![image](hhttps://github.com/user-attachments/assets/28599b08-f30a-49fa-b389-720442855fd5)
+![image](https://github.com/user-attachments/assets/28599b08-f30a-49fa-b389-720442855fd5)
 
 ## API
 
