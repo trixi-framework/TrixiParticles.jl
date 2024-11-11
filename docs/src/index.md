@@ -6,7 +6,7 @@
 
 - Physically Accurate Simulations: Supports user-friendly, physically accurate simulations, ensuring reliable multiphysics analyses.
 
-- High Performance: Offers competitive computational performance with scalability from CPU to Exascale-level computing, featuring GPU manufacturer-agnostic implementation through KernelAdaptations.jl and MPI support for parallel processing. (WIP)
+- High Performance: Offers competitive computational performance with scalability from CPU to Exascale-level computing, featuring GPU manufacturer-agnostic implementation through KernelAbstractions.jl and MPI support for parallel processing. (WIP)
 
 - Extensibility: Built with an extensible architecture to incorporate additional particle methods easily, supporting diverse research and educational applications.
 
