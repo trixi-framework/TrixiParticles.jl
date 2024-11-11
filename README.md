@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](https://opensource.org/licenses/MIT)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10797541.svg)](https://zenodo.org/doi/10.5281/zenodo.10797541)
 
-**TrixiParticles.jl** is a high-performance particle simulation solver framework written in [Julia](https://julialang.org). It offers intuitive configuration, robust pre- and post-processing, and seamless scalability from CPU to Exascale-level GPU computing, using KernelAdaptations.jl for GPU manufacturer-agnostic support and MPI (WIP) for parallel processing. The extensible architecture allows users to incorporate additional particle methods easily, making TrixiParticles.jl ideal for research and educational purposes.
+**TrixiParticles.jl** is a high-performance particle simulation solver framework written in [Julia](https://julialang.org). It offers intuitive configuration, robust pre- and post-processing, and seamless scalability from CPU to Exascale-level GPU computing, using KernelAbstractions.jl for GPU manufacturer-agnostic support and MPI (WIP) for parallel processing. The extensible architecture allows users to incorporate additional particle methods easily, making TrixiParticles.jl ideal for research and educational purposes.
 
 [![YouTube](https://github.com/user-attachments/assets/dc2be627-a799-4bfd-9226-2077f737c4b0)](https://www.youtube.com/watch?v=V7FWl4YumcA&t=4667s)
 
