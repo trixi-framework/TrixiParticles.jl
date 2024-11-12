@@ -171,6 +171,7 @@
                 function TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _)
                     return kernel_derivative
                 end
+                Base.eps(::Val{:mock_smoothing_length}) = eps()
 
                 # Compute deformation gradient
                 deformation_grad = ones(2, 2, 2)
