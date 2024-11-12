@@ -100,7 +100,9 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
 
         flow_direction_ = boundary_zone.flow_direction
 
-        cache = create_cache_open_boundary(boundary_model, initial_condition)
+        cache = create_cache_open_boundary(boundary_model, initial_condition,
+                                           reference_density, reference_velocity,
+                                           reference_pressure)
 
         return new{typeof(boundary_model), typeof(boundary_zone), NDIMS, ELTYPE,
                    typeof(initial_condition), typeof(fluid_system), typeof(mass),
@@ -113,14 +115,28 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     end
 end
 
-function create_cache_open_boundary(boundary_model, initial_condition)
+function create_cache_open_boundary(boundary_model, initial_condition,
+                                    reference_density, reference_velocity,
+                                    reference_pressure)
     ELTYPE = eltype(initial_condition)
+
+    prescribed_pressure = isnothing(reference_pressure) ? false : true
+    prescribed_velocity = isnothing(reference_velocity) ? false : true
+    prescribed_density = isnothing(reference_density) ? false : true
+
+    if boundary_model isa BoundaryModelTafuni
+        return (; prescribed_pressure=prescribed_pressure,
+                prescribed_density=prescribed_density,
+                prescribed_velocity=prescribed_velocity)
+    end
 
     characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
     return (; characteristics=characteristics,
-            previous_characteristics=previous_characteristics)
+            previous_characteristics=previous_characteristics,
+            prescribed_pressure=prescribed_pressure,
+            prescribed_density=prescribed_density, prescribed_velocity=prescribed_velocity)
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"
@@ -339,17 +355,23 @@ function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
 end
 
-function reference_value(value::Function, quantity, system, particle, position, t)
+function reference_value(value::Function, quantity, position, t)
     return value(position, t)
 end
 
 # This method is used when extrapolating quantities from the domain
 # instead of using the method of characteristics
-reference_value(value::Nothing, quantity, system, particle, position, t) = quantity
+reference_value(value::Nothing, quantity, position, t) = quantity
+
+function check_reference_values!(boundary_model, reference_density, reference_pressure,
+                                 reference_velocity)
+    return boundary_model
+end
 
 function check_reference_values!(boundary_model::BoundaryModelLastiwka,
                                  reference_density, reference_pressure, reference_velocity)
-    # TODO: Extrapolate the reference values from the domain
+    boundary_model.extrapolate_reference_values && return boundary_model
+
     if any(isnothing.([reference_density, reference_pressure, reference_velocity]))
         throw(ArgumentError("for `BoundaryModelLastiwka` all reference values must be specified"))
     end
