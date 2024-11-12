@@ -14,8 +14,8 @@
 
 TrixiParticles.jl focuses on the following use cases:
 - Development of new particle-based methods and models.
-- Accurate physics-based modelling of complex multiphysics problems.
-- Easily setting up intuitive simulations that are accessible for educational purposes, including student projects, coursework, and thesis work.
+- Accurate and efficient physics-based modelling of complex multiphysics problems.
+- Easy setup of accessible simulations for educational purposes, including student projects, coursework, and thesis work.
 
 It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU-support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl). 
 In the future we plan to enable large-scale simulations through adding MPI support.
