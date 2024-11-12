@@ -1,14 +1,12 @@
 # TrixiParticles.jl
 
-**TrixiParticles.jl** is a high-performance particle simulation framework designed to overcome challenges of particle-based numerical methods in multiphysics applications. Existing frameworks often lack user-friendliness, involve complex configuration, and are not easily extensible for additional particle methods. Additionally, many do not provide seamless scalability from CPU to Exascale-level computing with GPU support. **TrixiParticles.jl** addresses these limitations with an intuitive interface, straightforward configuration, and an extensible design, facilitating efficient simulation setup and execution.
+**TrixiParticles.jl** is a high-performance particle simulation framework designed to overcome challenges of particle-based numerical methods in multiphysics applications. Existing frameworks often lack user-friendliness, involve complex configuration, and are not easily extensible for additional particle methods. In the future we also want to provide seamless scalability from CPU to Exascale-level computing with GPU support. **TrixiParticles.jl** addresses these limitations with an intuitive interface, straightforward configuration, and an extensible design, facilitating efficient simulation setup and execution.
 
-- Enhanced User Experience: Provides an intuitive configuration process and streamlined pre- and post-processing workflows, reducing technical barriers and making the framework accessible to a wide range of users.
+TrixiParticles.jl focuses on the following use cases:
 
-- Physically Accurate Simulations: Supports user-friendly, physically accurate simulations, ensuring reliable multiphysics analyses.
-
-- High Performance: Offers competitive computational performance with scalability from CPU to Exascale-level computing, featuring GPU manufacturer-agnostic implementation through KernelAbstractions.jl and MPI support for parallel processing. (WIP)
-
-- Extensibility: Built with an extensible architecture to incorporate additional particle methods easily, supporting diverse research and educational applications.
+- Development of new particle-based methods and models. By providing an easily extensible architecture to incorporate additional particle methods easily and not focusing on a single model or numerical method.
+- Accurate, reliable and efficient physics-based modelling of complex multiphysics problems by providing a flexible configuration system, tools, high-performance and a wide-range of validation and test cases.
+- Easy setup of accessible simulations for educational purposes, including student projects, coursework, and thesis work through extensive documentation, community engagement and readable configuration files.
 
 Its features include:
 
