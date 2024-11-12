@@ -200,9 +200,9 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
 end
 
 @propagate_inbounds function density_diffusion!(dv, density_diffusion::DensityDiffusion,
-                                    v_particle_system, particle, neighbor, pos_diff,
-                                    distance, m_b, rho_a, rho_b,
-                                    particle_system::FluidSystem, grad_kernel)
+                                                v_particle_system, particle, neighbor,
+                                                pos_diff, distance, m_b, rho_a, rho_b,
+                                                particle_system::FluidSystem, grad_kernel)
     # Density diffusion terms are all zero for distance zero
     distance < sqrt(eps()) && return
 
