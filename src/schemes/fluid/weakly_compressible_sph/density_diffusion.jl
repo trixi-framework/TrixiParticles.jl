@@ -199,7 +199,7 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
     return density_diffusion
 end
 
-@inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,
+@propagate_inbounds function density_diffusion!(dv, density_diffusion::DensityDiffusion,
                                     v_particle_system, particle, neighbor, pos_diff,
                                     distance, m_b, rho_a, rho_b,
                                     particle_system::FluidSystem, grad_kernel)
