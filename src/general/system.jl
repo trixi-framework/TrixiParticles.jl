@@ -55,16 +55,7 @@ initialize!(system, neighborhood_search) = system
 
 # This should not be dispatched by system type. We always expect to get a column of `A`.
 @propagate_inbounds function extract_svector(A, system, i)
-    extract_svector(A, Val(ndims(system)), i)
-end
-
-# Return the `i`-th column of the array `A` as an `SVector`.
-@inline function extract_svector(A, ::Val{NDIMS}, i) where {NDIMS}
-    # Explicit bounds check, which can be removed by calling this function with `@inbounds`
-    @boundscheck checkbounds(A, NDIMS, i)
-
-    # Assume inbounds access now
-    return SVector(ntuple(@inline(dim -> @inbounds A[dim, i]), NDIMS))
+    PointNeighbors.extract_svector(A, Val(ndims(system)), i)
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
