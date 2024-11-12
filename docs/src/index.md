@@ -4,7 +4,7 @@
 
 TrixiParticles.jl focuses on the following use cases:
 
-- Development of new particle-based methods and models. By providing an easily extensible architecture to incorporate additional particle methods easily and not focusing on a single model or numerical method.
+- Development of new particle-based methods and models. By providing an extensible architecture to incorporate additional particle methods easily and not focusing on a single model or numerical method.
 - Accurate, reliable and efficient physics-based modelling of complex multiphysics problems by providing a flexible configuration system, tools, high-performance and a wide-range of validation and test cases.
 - Easy setup of accessible simulations for educational purposes, including student projects, coursework, and thesis work through extensive documentation, community engagement and readable configuration files.
 
