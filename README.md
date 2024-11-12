@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](https://opensource.org/licenses/MIT)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10797541.svg)](https://zenodo.org/doi/10.5281/zenodo.10797541)
 
-**TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods focused on the simulation of complex multiphysics problems and written in [Julia](https://julialang.org).
+**TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods focused on the simulation of complex multiphysics problems and is written in [Julia](https://julialang.org).
 
 TrixiParticles.jl focuses on the following use cases:
 - Development of new particle-based methods and models.
