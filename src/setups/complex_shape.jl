@@ -68,7 +68,7 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
         throw(ArgumentError("only a positive `grid_offset` is supported"))
     end
 
-    padding = sample_boundary ? 2boundary_thickness : 4particle_spacing
+    padding = sample_boundary ? 2boundary_thickness : 2particle_spacing
 
     grid = particle_grid(geometry, particle_spacing; padding, grid_offset, max_nparticles)
 
