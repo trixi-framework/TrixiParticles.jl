@@ -27,7 +27,7 @@ println(interpolate_point([
                               [position_x, 0.1],
                               [position_x, 0.0],
                               [position_x, -0.01],
-                              [position_x, -0.05],
+                              [position_x, -0.05]
                           ], semi, fluid_system, sol))
 
 # It is also possible to interpolate along a line

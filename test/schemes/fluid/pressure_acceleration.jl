@@ -17,7 +17,7 @@
             "KernelCorrection" => KernelCorrection(),
             "GradientCorrection" => GradientCorrection(),
             "BlendedGradientCorrection" => BlendedGradientCorrection(0.5),
-            "MixedKernelGradientCorrection" => MixedKernelGradientCorrection(),
+            "MixedKernelGradientCorrection" => MixedKernelGradientCorrection()
         )
 
         function p_fun_1(a::Float64, b::Float64, c::Float64,
@@ -42,7 +42,7 @@
         correction_dict_2 = Dict(
             "No Correction" => nothing,
             "ShepardKernelCorrection" => ShepardKernelCorrection(),
-            "AkinciFreeSurfaceCorrection" => AkinciFreeSurfaceCorrection(1.0),
+            "AkinciFreeSurfaceCorrection" => AkinciFreeSurfaceCorrection(1.0)
         )
 
         function p_fun_2(a::Float64, b::Float64, c::Float64,

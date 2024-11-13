@@ -116,7 +116,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!
         setup = [
-            "interval" => update_cb.interval,
+            "interval" => update_cb.interval
         ]
         summary_box(io, "UpdateCallback", setup)
     end
@@ -132,7 +132,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!.affect!
         setup = [
-            "dt" => update_cb.interval,
+            "dt" => update_cb.interval
         ]
         summary_box(io, "UpdateCallback", setup)
     end

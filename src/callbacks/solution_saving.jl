@@ -251,7 +251,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
             "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix,
+            "prefix" => solution_saving.prefix
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end
@@ -275,7 +275,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
             "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix,
+            "prefix" => solution_saving.prefix
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end
@@ -300,7 +300,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
             "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix,
+            "prefix" => solution_saving.prefix
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end

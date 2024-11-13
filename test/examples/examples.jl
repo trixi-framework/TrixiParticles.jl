@@ -73,7 +73,7 @@
                                                                                          viscosity=ViscosityMorris(nu=0.0015),
                                                                                          density_calculator=ContinuityDensity(),
                                                                                          acceleration=(0.0,
-                                                                                                       -gravity)),),
+                                                                                                       -gravity)),)
             )
 
             for (test_description, kwargs) in hydrostatic_water_column_tests
@@ -157,7 +157,7 @@
                                                 correction=AkinciFreeSurfaceCorrection(fluid_density),
                                                 density_diffusion=nothing,
                                                 adhesion_coefficient=0.05,
-                                                sound_speed=100.0),
+                                                sound_speed=100.0)
             )
 
             for (test_description, kwargs) in dam_break_tests
@@ -170,7 +170,7 @@
                                                             "dam_break_2d.jl");
                                                    tspan=(0, 0.1), kwargs...) [
                         r"┌ Info: The desired tank length in y-direction .*\n",
-                        r"└ New tank length in y-direction.*\n",
+                        r"└ New tank length in y-direction.*\n"
                     ]
 
                     @test sol.retcode == ReturnCode.Success
@@ -185,7 +185,7 @@
                                                     "dam_break_oil_film_2d.jl"),
                                            tspan=(0.0, 0.05)) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
-                r"└ New tank length in y-direction.*\n",
+                r"└ New tank length in y-direction.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
@@ -286,7 +286,7 @@
                 r"┌ Info: The desired tank length in y-direction .*\n",
                 r"└ New tank length in y-direction.*\n",
                 r"┌ Info: The desired tank length in z-direction .*\n",
-                r"└ New tank length in z-direction.*\n",
+                r"└ New tank length in z-direction.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
@@ -375,7 +375,7 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "n_body",
                                                     "n_body_benchmark_trixi.jl")) [
-                r"WARNING: Method definition interact!.*\n",
+                r"WARNING: Method definition interact!.*\n"
             ]
         end
 
@@ -402,7 +402,7 @@
                 r"WARNING: using deprecated binding PlotUtils.*\n",
                 r"WARNING: Makie.* is deprecated.*\n",
                 r"  likely near none:1\n",
-                r", use .* instead.\n",
+                r", use .* instead.\n"
             ]
             @test sol.retcode == ReturnCode.Success
         end

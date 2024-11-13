@@ -31,7 +31,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         callback = cb.affect!
         setup = [
             "interval" => callback.interval,
-            "reinit_initial_solution" => callback.reinit_initial_solution,
+            "reinit_initial_solution" => callback.reinit_initial_solution
         ]
         summary_box(io, "DensityReinitializationCallback", setup)
     end

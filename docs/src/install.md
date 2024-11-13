@@ -25,7 +25,7 @@ git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 mkdir run
 julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Add TrixiParticles.jl to `run` project
-julia --project=run -e 'using Pkg; Pkg.add("OrdinaryDiffEq", "Plots")' # Add additional packages
+julia --project=run -e 'using Pkg; Pkg.add(["OrdinaryDiffEq", "Plots"])' # Add additional packages
 ```
 
 If you installed TrixiParticles.jl this way, you always have to start Julia with the

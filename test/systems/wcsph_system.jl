@@ -6,11 +6,11 @@
              1.0 2.0],
             [1.0 2.0
              1.0 2.0
-             1.0 2.0],
+             1.0 2.0]
         ]
         density_calculators = [
             SummationDensity(),
-            ContinuityDensity(),
+            ContinuityDensity()
         ]
 
         @testset "$(i+1)D" for i in 1:2
@@ -76,7 +76,7 @@
             SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0),
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0)
         ]
         setup_names = [
             "RectangularShape 2D",
@@ -86,12 +86,12 @@
             "SphereShape 2D",
             "RectangularShape 2D with ShepardKernelCorrection",
             "RectangularShape 2D with AkinciFreeSurfaceCorrection",
-            "RectangularShape 2D with KernelCorrection",
+            "RectangularShape 2D with KernelCorrection"
         ]
         NDIMS_ = [2, 3, 2, 3, 2, 2, 2, 2]
         density_calculators = [
             SummationDensity(),
-            ContinuityDensity(),
+            ContinuityDensity()
         ]
         correction = [
             Nothing(),
@@ -101,7 +101,7 @@
             Nothing(),
             ShepardKernelCorrection(),
             AkinciFreeSurfaceCorrection(1000.0),
-            KernelCorrection(),
+            KernelCorrection()
         ]
 
         @testset "$(setup_names[i])" for i in eachindex(setups)
