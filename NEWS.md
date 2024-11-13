@@ -16,9 +16,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Diverse Doc fixes (#663, #659, #637, #658, #664)
 - Simulations can be run with `Float32` (#662)
 
-
 ### Refactored
-- Surface normal calculation was moved from surface_tension.jl to surface_normal_sph.jl
+- Surface normal calculation was moved from surface_tension.jl to surface_normal_sph.jl (#539)
 
 ## Version 0.2.3
 
