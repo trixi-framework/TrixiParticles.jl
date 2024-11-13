@@ -137,7 +137,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
                                            number_density_,
                                            color_value, sound_speed, viscosity, nu_edac,
                                            acceleration_,
-                                           nothing, pressure_acceleration, transport_velocity, source_terms,
+                                           nothing, pressure_acceleration,
+                                           transport_velocity, source_terms,
                                            surface_tension, surface_normal_method, buffer,
                                            cache)
     end
