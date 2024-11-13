@@ -2,7 +2,8 @@
 The actual API reference is not listed on a single page, like in most Julia packages,
 but instead is split into multiple sections that follow a similar structure
 as the code files themselves.
-In these sections, API docs are integrated into theoretical background of the methods.
+In these sections, API docs are combined with explanations of the theoretical background
+of these methods.
 
 The following page gives a rough overview of important parts of the code.
 

@@ -1,12 +1,12 @@
 # GPU Support
 
-We are currently actively working on GPU support.
+GPU support is still an experimental feature that is actively being worked on.
 As of now, the [`WeaklyCompressibleSPHSystem`](@ref) and the [`BoundarySPHSystem`](@ref)
 are supported on GPUs.
 We have tested this on GPUs by Nvidia and AMD.
 
 To run a simulation on a GPU, we need to use the [`FullGridCellList`](@ref)
-as cell list inside the [`GridNeighborhoodSearch`](@ref).
+as cell list for the [`GridNeighborhoodSearch`](@ref).
 This cell list requires a bounding box for the domain, unlike the default cell list, which
 uses an unbounded domain.
 For simulations that are bounded by a closed tank, we can use the boundary of the tank
@@ -52,6 +52,6 @@ using AMDGPU
 ode = semidiscretize(semi, tspan, data_type=ROCArray)
 ```
 Then, we can run the simulation as usual.
-All data is transferred to the GPU during initialization and all loop over particles
-and neighbors are launched as GPU kernels.
-Data is only copied to the CPU for saving VTK files with the [`SolutionSavingCallback`](@ref).
+All data is transferred to the GPU during initialization and all loops over particles
+and neighbors will be launched as GPU kernels.
+Data is only copied to the CPU for saving VTK files via the [`SolutionSavingCallback`](@ref).
