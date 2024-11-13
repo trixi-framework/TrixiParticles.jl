@@ -197,7 +197,7 @@
                                                     "dam_break_2phase_2d.jl"),
                                            tspan=(0.0, 0.05)) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
-                r"└ New tank length in y-direction.*\n",
+                r"└ New tank length in y-direction.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
