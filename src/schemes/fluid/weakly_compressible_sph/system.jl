@@ -61,6 +61,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     density_diffusion                 :: DD
     correction                        :: COR
     pressure_acceleration_formulation :: PF
+    transport_velocity                :: Nothing # TODO
     source_terms                      :: ST
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
@@ -146,7 +147,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        number_density_, color_value,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
-                                       pressure_acceleration,
+                                       pressure_acceleration, nothing,
                                        source_terms, surface_tension, surface_normal_method,
                                        buffer, cache)
 end

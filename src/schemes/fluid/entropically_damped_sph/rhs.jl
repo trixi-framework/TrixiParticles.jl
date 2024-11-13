@@ -24,19 +24,32 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_a = particle_pressure(v_particle_system, particle_system, particle)
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
 
+        # This technique is for a more robust `pressure_acceleration` but only with TVF.
+        # It results only in significant improvement for EDAC and not for WCSPH.
+        # See Ramachandran (2019) p. 582
+        # Note that the return value is zero when not using EDAC with TVF.
+        p_avg = average_pressure(particle_system, particle)
+
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
         dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
-                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, correction)
+                                            m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
+                                            rho_b, pos_diff, distance, grad_kernel,
+                                            correction)
 
         dv_viscosity_ = dv_viscosity(particle_system, neighbor_system,
                                      v_particle_system, v_neighbor_system,
                                      particle, neighbor, pos_diff, distance,
                                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+
+        # Add convection term when using `TransportVelocityAdami`
+        dv_convection = momentum_convection(particle_system, neighbor_system,
+                                            v_particle_system, v_neighbor_system,
+                                            rho_a, rho_b, m_a, m_b,
+                                            particle, neighbor, grad_kernel)
 
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
@@ -46,7 +59,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_surface_tension[i] +
+            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_convection[i] + dv_surface_tension[i] +
                                dv_adhesion[i]
         end
 
@@ -56,6 +69,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         pressure_evolution!(dv, particle_system, v_diff, grad_kernel,
                             particle, pos_diff, distance, sound_speed, m_a, m_b,
                             p_a, p_b, rho_a, rho_b)
+
+        transport_velocity!(dv, particle_system, rho_a, rho_b, m_a, m_b,
+                            grad_kernel, particle)
 
         continuity_equation!(dv, density_calculator, v_diff, particle, m_b, rho_a, rho_b,
                              particle_system, grad_kernel)

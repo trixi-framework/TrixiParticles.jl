@@ -6,7 +6,7 @@
              1.0 2.0],
             [1.0 2.0
              1.0 2.0
-             1.0 2.0],
+             1.0 2.0]
         ]
 
         @testset "$(i+1)D" for i in 1:2
@@ -32,6 +32,7 @@
             @test system.mass == mass
             @test system.smoothing_kernel == smoothing_kernel
             @test system.smoothing_length == smoothing_length
+            @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
@@ -59,14 +60,14 @@
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
             RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
                             1020.0).fluid,
-            SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0),
+            SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0)
         ]
         setup_names = [
             "RectangularShape 2D",
             "RectangularShape 3D",
             "RectangularTank 2D",
             "RectangularTank 3D",
-            "SphereShape 2D",
+            "SphereShape 2D"
         ]
         NDIMS_ = [2, 3, 2, 3, 2]
 
@@ -86,6 +87,7 @@
             @test system.mass == setup.mass
             @test system.smoothing_kernel == smoothing_kernel
             @test system.smoothing_length == smoothing_length
+            @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
@@ -137,6 +139,7 @@
         │ viscosity: …………………………………………………… Nothing                                                          │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
+        │ tansport velocity formulation:  Nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ surface tension: …………………………………… nothing                                                          │
         │ surface normal method: …………………… nothing                                                          │
@@ -202,5 +205,31 @@
         TrixiParticles.write_v0!(v0, system)
 
         @test v0 == vcat(velocity, [0.8, 1.0]')
+    end
+
+    @trixi_testset "Average Pressure" begin
+        particle_spacing = 0.1
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.6particle_spacing
+
+        fluid = rectangular_patch(particle_spacing, (3, 3), seed=1)
+
+        system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
+                                             transport_velocity=TransportVelocityAdami(0.0),
+                                             smoothing_length, 0.0)
+        semi = Semidiscretization(system)
+
+        TrixiParticles.initialize_neighborhood_searches!(semi)
+
+        u_ode = vec(fluid.coordinates)
+        v_ode = vec(vcat(fluid.velocity, fluid.velocity, fluid.pressure'))
+
+        TrixiParticles.update_average_pressure!(system, system.transport_velocity, v_ode,
+                                                u_ode, semi)
+
+        @test all(i -> system.cache.neighbor_counter[i] == nparticles(system),
+                  nparticles(system))
+        @test all(i -> isapprox(system.cache.pressure_average[i], -50.968532955185964),
+                  nparticles(system))
     end
 end
