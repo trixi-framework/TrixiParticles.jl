@@ -1,6 +1,6 @@
 # Solution type when running a simulation with TrixiParticles.jl and OrdinaryDiffEq.jl
 const TrixiParticlesODESolution = ODESolution{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any,
-                                              <:Any,
+                                              <:Any, <:Any,
                                               <:ODEProblem{<:Any, <:Any, <:Any,
                                                            <:Semidiscretization}}
 
