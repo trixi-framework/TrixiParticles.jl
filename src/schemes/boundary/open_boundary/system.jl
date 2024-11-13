@@ -312,8 +312,6 @@ end
         v_new[dim, particle_new] = v_old[dim, particle_old]
     end
 
-    # TODO: Only when using TVF: set tvf
-
     return system_new
 end
 

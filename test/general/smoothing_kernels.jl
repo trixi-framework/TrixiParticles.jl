@@ -35,7 +35,7 @@
             WendlandC4Kernel,
             WendlandC6Kernel,
             SpikyKernel,
-            Poly6Kernel,
+            Poly6Kernel
         ]
 
         @testset "$kernel" for kernel in kernels
@@ -60,7 +60,7 @@
             WendlandC4Kernel,
             WendlandC6Kernel,
             SpikyKernel,
-            Poly6Kernel,
+            Poly6Kernel
         ]
 
         # Test 4 different smoothing lengths
