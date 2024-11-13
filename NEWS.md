@@ -3,6 +3,23 @@
 TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.2.4
+
+### Features
+- Support for surface tension was added to EDAC (#539)
+
+### Documentation
+- GPU Support Documentation was added (#660)
+
+### Fixes
+- JuliaFormatter was updated from 1.0.42 to 1.0.62 (#661)
+- Diverse Doc fixes (#663, #659, #637, #658, #664)
+- Simulations can be run with `Float32` (#662)
+
+
+### Refactored
+- Surface normal calculation was moved from surface_tension.jl to surface_normal_sph.jl
+
 ## Version 0.2.3
 
 ### Highlights
