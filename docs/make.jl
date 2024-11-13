@@ -6,7 +6,6 @@ using PointNeighbors
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
 
-# Copy files to not need to synchronize them manually
 function copy_file(filename, replaces...;
                    new_file=joinpath(@__DIR__, "src", lowercase(filename)))
     source_path = joinpath(trixiparticles_root_dir, filename)
@@ -19,15 +18,19 @@ function copy_file(filename, replaces...;
     content = read(source_path, String)
     content = replace(content, replaces...)
 
+    # Use `replace` to make sure the path uses forward slashes for URLs
+    filename_url = replace(filename, "\\" => "/")
+    
     header = """
     ```@meta
-    EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/$filename"
+    EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/$filename_url"
     ```
     """
     content = header * content
 
     write(new_file, content)
 end
+
 
 function replace_with_code(filename)
     if !isfile(filename)
