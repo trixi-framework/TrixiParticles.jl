@@ -6,7 +6,7 @@
              1.0 2.0],
             [1.0 2.0
              1.0 2.0
-             1.0 2.0],
+             1.0 2.0]
         ]
 
         @testset "$(i+1)D" for i in 1:2
@@ -60,14 +60,14 @@
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
             RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
                             1020.0).fluid,
-            SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0),
+            SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0)
         ]
         setup_names = [
             "RectangularShape 2D",
             "RectangularShape 3D",
             "RectangularTank 2D",
             "RectangularTank 3D",
-            "SphereShape 2D",
+            "SphereShape 2D"
         ]
         NDIMS_ = [2, 3, 2, 3, 2]
 
