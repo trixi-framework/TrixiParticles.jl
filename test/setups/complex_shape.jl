@@ -68,7 +68,8 @@
                     shape_sampled = ComplexShape(geometry; particle_spacing=0.05,
                                                  density=1.0, point_in_geometry_algorithm)
 
-                    @test isapprox(shape_sampled.initial_condition.coordinates, coords, atol=1e-2)
+                    @test isapprox(shape_sampled.initial_condition.coordinates, coords,
+                                   atol=1e-2)
                 end
             end
         end
@@ -95,7 +96,8 @@
                     shape_sampled = ComplexShape(geometry; grid_offset=0.1,
                                                  particle_spacing=particle_spacings[i],
                                                  density=1.0)
-                    @test isapprox(shape_sampled.initial_condition.coordinates, coords, atol=1e-3)
+                    @test isapprox(shape_sampled.initial_condition.coordinates, coords,
+                                   atol=1e-3)
                 end
             end
             @testset verbose=true "Hierarchical Winding" begin
@@ -118,7 +120,8 @@
                                                                                                    geometry,
                                                                                                    winding_number_factor=0.1,
                                                                                                    hierarchical_winding=true))
-                    @test isapprox(shape_sampled.initial_condition.coordinates, coords, atol=1e-3)
+                    @test isapprox(shape_sampled.initial_condition.coordinates, coords,
+                                   atol=1e-3)
                 end
             end
         end
