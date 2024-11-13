@@ -5,7 +5,7 @@ using OrdinaryDiffEq
 
 fluid_density = 1000.0
 
-particle_spacing = 0.15
+particle_spacing = 0.05
 fluid_size = (0.9, 0.9, 0.9)
 
 sound_speed = 20.0

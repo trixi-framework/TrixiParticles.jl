@@ -5,7 +5,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.001
+fluid_particle_spacing = 0.005
 
 boundary_layers = 3
 spacing_ratio = 1
@@ -35,8 +35,8 @@ sphere1_center = (0.5, 0.2)
 sphere2_center = (1.5, 0.2)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -1.0))
-sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
-                      fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -1.0))
+# sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
+#                       fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -1.0))
 
 # ==========================================================================================
 # ==== Fluid
@@ -50,22 +50,34 @@ alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 # density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
-sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,
-                                                     sound_speed, viscosity=viscosity,
-                                                     density_calculator=ContinuityDensity(),
-                                                     acceleration=(0.0, -gravity),
-                                                     reference_particle_spacing=fluid_particle_spacing,
-                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
+# sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
+#                                                      fluid_smoothing_length,
+#                                                      sound_speed, viscosity=viscosity,
+#                                                      density_calculator=ContinuityDensity(),
+#                                                      acceleration=(0.0, -gravity),
+#                                                      reference_particle_spacing=fluid_particle_spacing,
+#                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
 
-sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
-                                     fluid_smoothing_length,
-                                     sound_speed, viscosity=viscosity,
-                                     density_calculator=ContinuityDensity(),
-                                     acceleration=(0.0, -gravity),
-                                     reference_particle_spacing=fluid_particle_spacing,
-                                     surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
-                                                                                   fluid_smoothing_length))
+
+sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, SummationDensity(),
+                                           state_equation, fluid_smoothing_kernel,
+                                           fluid_smoothing_length,
+                                           viscosity=ArtificialViscosityMonaghan(alpha=alpha,
+                                                                                 beta=0.0),
+                                            surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
+                                            fluid_smoothing_length),
+                                            surface_tension=SurfaceTensionMorris(surface_tension_coefficient= 0.0728),
+                                            correction=GradientCorrection(), reference_particle_spacing=fluid_particle_spacing,
+                                            )
+
+# sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
+#                                      fluid_smoothing_length,
+#                                      sound_speed, viscosity=viscosity,
+#                                      density_calculator=ContinuityDensity(),
+#                                      acceleration=(0.0, -gravity),
+#                                      reference_particle_spacing=fluid_particle_spacing,
+#                                      surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
+#                                                                                    fluid_smoothing_length))
 
 # ==========================================================================================
 # ==== Boundary
@@ -81,12 +93,12 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(sphere_surface_tension, sphere, boundary_system)
+semi = Semidiscretization(sphere_surface_tension, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out",
-                                         prefix="", write_meta_data=true)
+saving_callback = SolutionSavingCallback(dt=0.001, output_directory="out",
+                                         prefix="with_correction_no_heur", write_meta_data=true)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

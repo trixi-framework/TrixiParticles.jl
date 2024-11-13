@@ -160,16 +160,17 @@ function remove_invalid_normals!(system::FluidSystem,
 
     # TODO: make settable
     # We remove invalid normals i.e. they have a small norm (eq. 20)
-    normal_condition2 = (0.01 / compact_support(smoothing_kernel, smoothing_length))^2
+    # normal_condition2 = (0.01 / compact_support(smoothing_kernel, smoothing_length))^2
+    normal_condition2 = (0.1 / compact_support(smoothing_kernel, smoothing_length))^2
 
     for particle in each_moving_particle(system)
 
         # TODO: make selectable
         # heuristic condition if there is no gas phase to find the free surface
-        if free_surface_threshold * number_density < cache.neighbor_count[particle]
-            cache.surface_normal[1:ndims(system), particle] .= 0
-            continue
-        end
+        # if free_surface_threshold * number_density < cache.neighbor_count[particle]
+        #     cache.surface_normal[1:ndims(system), particle] .= 0
+        #     continue
+        # end
 
         particle_surface_normal = cache.surface_normal[1:ndims(system), particle]
         norm2 = dot(particle_surface_normal, particle_surface_normal)

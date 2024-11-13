@@ -14,8 +14,8 @@ particle_spacing = 0.05
 fluid_size = (0.5, 0.5)
 
 sound_speed = 20.0
-# state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-#                                    exponent=7, clip_negative_pressure=true)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7, clip_negative_pressure=true)
 
 # For all surface tension simulations, we need a compact support of `2 * particle_spacing`
 # smoothing_length = 2.0 * particle_spacing
@@ -30,28 +30,31 @@ nu = 0.05 # SurfaceTensionMorris
 fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_spacing),
                          zeros(length(fluid_size)), density=fluid_density)
 
-# alpha = 8 * nu / (smoothing_length * sound_speed)
+alpha = 8 * nu / (smoothing_length * sound_speed)
 source_terms = SourceTermDamping(; damping_coefficient=0.5)
-# fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
-#                                            state_equation, fluid_smoothing_kernel,
-#                                            smoothing_length,
-#                                            viscosity=ArtificialViscosityMonaghan(alpha=alpha,
-#                                                                                  beta=0.0),
-#                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
-#                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
-#                                            source_terms=source_terms)
-
-fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
+fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
+                                           state_equation, fluid_smoothing_kernel,
                                            smoothing_length,
-                                           sound_speed,
-                                           viscosity=ViscosityMorris(nu=nu),
-                                           density_calculator=ContinuityDensity(),
-                                           reference_particle_spacing=particle_spacing,
-                                           acceleration=zeros(length(fluid_size)),
-                                           surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
-                                                                                         smoothing_length),
-                                           surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
-                                                                                                            0.0728))
+                                           viscosity=ArtificialViscosityMonaghan(alpha=alpha,
+                                                                                 beta=0.0),
+                                            surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
+                                                                                            smoothing_length),
+                                            surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
+                                                                                                                0.0728),
+                                            correction=GradientCorrection(), reference_particle_spacing=particle_spacing,
+                                            )
+
+# fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
+#                                            smoothing_length,
+#                                            sound_speed,
+#                                            viscosity=ViscosityMorris(nu=nu),
+#                                            density_calculator=ContinuityDensity(),
+#                                            reference_particle_spacing=particle_spacing,
+#                                            acceleration=zeros(length(fluid_size)),
+#                                            surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
+#                                                                                          smoothing_length),
+#                                            surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
+#                                                                                                             0.0728))
 
 # fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
 #                                            smoothing_length,
