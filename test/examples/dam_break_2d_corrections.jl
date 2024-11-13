@@ -15,7 +15,7 @@
         "gradient_summation_correction" => GradientCorrection(),
         "mixed_kernel_gradient_summation_correction" => MixedKernelGradientCorrection(),
         "gradient_continuity_correction" => GradientCorrection(),
-        "mixed_kernel_gradient_continuity_correction" => MixedKernelGradientCorrection(),
+        "mixed_kernel_gradient_continuity_correction" => MixedKernelGradientCorrection()
     )
 
     smoothing_length_dict = Dict(
@@ -29,7 +29,7 @@
         "gradient_summation_correction" => 3.5 * particle_spacing,
         "mixed_kernel_gradient_summation_correction" => 3.5 * particle_spacing,
         "gradient_continuity_correction" => 4.5 * particle_spacing,
-        "mixed_kernel_gradient_continuity_correction" => 4.0 * particle_spacing,
+        "mixed_kernel_gradient_continuity_correction" => 4.0 * particle_spacing
     )
 
     density_calculator_dict = Dict(
@@ -43,7 +43,7 @@
         "gradient_summation_correction" => SummationDensity(),
         "gradient_continuity_correction" => ContinuityDensity(),
         "mixed_kernel_gradient_summation_correction" => SummationDensity(),
-        "mixed_kernel_gradient_continuity_correction" => ContinuityDensity(),
+        "mixed_kernel_gradient_continuity_correction" => ContinuityDensity()
     )
 
     smoothing_kernel_dict = Dict(
@@ -57,7 +57,7 @@
         "gradient_summation_correction" => WendlandC6Kernel{2}(),
         "gradient_continuity_correction" => WendlandC6Kernel{2}(),
         "mixed_kernel_gradient_summation_correction" => WendlandC6Kernel{2}(),
-        "mixed_kernel_gradient_continuity_correction" => WendlandC6Kernel{2}(),
+        "mixed_kernel_gradient_continuity_correction" => WendlandC6Kernel{2}()
     )
 
     @testset "continuity_reinit" begin

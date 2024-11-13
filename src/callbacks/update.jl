@@ -80,9 +80,13 @@ function (update_callback!::UpdateCallback)(integrator)
     # still have the values from the last stage of the previous step if not updated here.
     update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
 
-    # Other updates might be added here later (e.g. Transport Velocity Formulation).
+    # Update open boundaries first, since particles might be activated or deactivated
     @trixi_timeit timer() "update open boundary" foreach_system(semi) do system
         update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
+    end
+
+    @trixi_timeit timer() "update TVF" foreach_system(semi) do system
+        update_transport_velocity!(system, v_ode, semi)
     end
 
     # Tell OrdinaryDiffEq that `u` has been modified
@@ -112,7 +116,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!
         setup = [
-            "interval" => update_cb.interval,
+            "interval" => update_cb.interval
         ]
         summary_box(io, "UpdateCallback", setup)
     end
@@ -128,7 +132,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!.affect!
         setup = [
-            "dt" => update_cb.interval,
+            "dt" => update_cb.interval
         ]
         summary_box(io, "UpdateCallback", setup)
     end
