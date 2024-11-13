@@ -826,7 +826,7 @@ function check_configuration(systems)
     foreach_system(systems) do system
         check_configuration(system, systems)
 
-        if system isa FluidSystem && !isnothing(system.surface_tension)
+        if system isa FluidSystem && @isdefined(system.surface_tension) && !isnothing(system.surface_tension)
             uses_surface_tension_model = true
         end
 
