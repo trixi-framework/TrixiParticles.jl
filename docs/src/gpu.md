@@ -40,7 +40,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 
 At this point, we should run the simulation and make sure that it still works and that
 the bounding box is large enough.
-For some simulations where particles move outside the initial tank coordiantes,
+For some simulations where particles move outside the initial tank coordinates,
 for example when the tank is not closed or when the tank is moving, an appropriate
 bounding box has to be specified.
 
