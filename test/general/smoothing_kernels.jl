@@ -103,7 +103,7 @@
             WendlandC4Kernel,
             WendlandC6Kernel,
             SpikyKernel,
-            Poly6Kernel,
+            Poly6Kernel
         ]
 
         # Test different smoothing length types
