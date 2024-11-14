@@ -41,7 +41,6 @@ include("general/system.jl")
 # `util.jl` needs to be next because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
 include("preprocessing/preprocessing.jl")
-include("multi_resolution/multi_resolution.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
@@ -54,6 +53,7 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
+include("multi_resolution/multi_resolution.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
