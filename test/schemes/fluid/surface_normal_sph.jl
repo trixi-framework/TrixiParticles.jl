@@ -1,4 +1,5 @@
-function create_fluid_system(coordinates, velocity, mass, density, particle_spacing;
+function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
+                             surface_tension;
                              buffer_size=0, NDIMS=2, smoothing_length=1.0)
     smoothing_kernel = SchoenbergCubicSplineKernel{NDIMS}()
     sound_speed = 20.0
@@ -22,7 +23,8 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
                                          smoothing_kernel, smoothing_length;
                                          surface_normal_method=surface_normal_method,
                                          reference_particle_spacing=reference_particle_spacing,
-                                         buffer_size=buffer_size)
+                                         buffer_size=buffer_size,
+                                         surface_tension=surface_tension)
 
     semi = Semidiscretization(system)
     ode = semidiscretize(semi, tspan)
@@ -33,15 +35,13 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
 end
 
 function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
-    # Set values within the function if they are not changed
-    surface_tension = SurfaceTensionAkinci()
-
     v0_ode, u0_ode = ode.u0.x
     v = TrixiParticles.wrap_v(v0_ode, system, semi)
     u = TrixiParticles.wrap_u(u0_ode, system, semi)
 
     # Compute the surface normals
-    TrixiParticles.compute_surface_normal!(system, surface_tension, v, u, v0_ode, u0_ode,
+    TrixiParticles.compute_surface_normal!(system, system.surface_normal_method, v, u,
+                                           v0_ode, u0_ode,
                                            semi, 0.0)
 
     # After computation, check that surface normals have been computed
@@ -55,13 +55,13 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     # Ensure the threshold is reasonable
     threshold = 2^ndims(system) + 1
 
-    # Test the surface normals based on neighbor counts
+    # Test the surface normals based on validity conditions
+
     for i in 1:nparticles
         if system.cache.neighbor_count[i] < threshold
             @test all(system.cache.surface_normal[:, i] .== 0.0)
         else
             # For the linear arrangement, surface normals may still be zero
-            # Adjust the test to account for this possibility
             @test true
         end
     end
@@ -83,7 +83,7 @@ end
     density = fill(fluid_density, nparticles)
 
     system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
-                                            particle_spacing;
+                                            particle_spacing, nothing;
                                             buffer_size=0, NDIMS=NDIMS)
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
@@ -106,7 +106,7 @@ end
 
     # To get some what accurate normals we increase the smoothing length unrealistically
     system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
-                                            particle_spacing;
+                                            particle_spacing, nothing;
                                             buffer_size=0, NDIMS=NDIMS,
                                             smoothing_length=3.0 * particle_spacing)
 

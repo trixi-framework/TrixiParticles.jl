@@ -130,12 +130,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     return system
 end
 
-function remove_invalid_normals!(system, surface_tension)
-    # Normal not needed
-    return system
-end
-
-function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTensionAkinci)
+function remove_invalid_normals!(system::FluidSystem, surface_tension)
     (; cache) = system
 
     # We remove invalid normals (too few neighbors) to reduce the impact of underdefined normals
@@ -155,8 +150,6 @@ function remove_invalid_normals!(system::FluidSystem,
                                                         SurfaceTensionMomentumMorris})
     (; cache, smoothing_length, smoothing_kernel, number_density) = system
     (; free_surface_threshold) = surface_tension
-
-    # println("compact_support ", compact_support(smoothing_kernel, smoothing_length))
 
     # TODO: make settable
     # We remove invalid normals i.e. they have a small norm (eq. 20)
@@ -185,9 +178,6 @@ function remove_invalid_normals!(system::FluidSystem,
             cache.surface_normal[1:ndims(system), particle] .= 0
         end
     end
-
-    # println("after removable: ")
-    # println(cache.surface_normal)
 
     return system
 end
@@ -277,11 +267,6 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
             curvature[i] /= correction_factor[i]
         end
     end
-
-    # println("after curvature")
-    # println("surf_norm ", cache.surface_normal)
-    # println("curv ", cache.curvature)
-    # println("C ", correction_factor)
 
     return system
 end
