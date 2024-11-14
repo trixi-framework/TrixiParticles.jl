@@ -17,14 +17,12 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Skip intermediate builds: always.
-  # Cancel intermediate builds: only if it is a pull request build.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
-  build-docs:
-    name: Build and Deploy Documentation
+  build-docs-ubuntu:
+    name: Build and Deploy Documentation (Ubuntu)
     runs-on: ubuntu-latest
     steps:
       - name: Check out project
@@ -42,5 +40,24 @@ jobs:
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+        run: julia --project=docs --color=yes docs/make.jl
+
+  build-docs-windows:
+    name: Build Documentation (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+          show-versioninfo: true
+      - uses: julia-actions/cache@v2
+      - name: Build package
+        uses: julia-actions/julia-buildpkg@v1
+      - name: Install dependencies
+        run: julia --project=docs/ -e "using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()"
+      - name: Build documentation
         run: julia --project=docs --color=yes docs/make.jl
