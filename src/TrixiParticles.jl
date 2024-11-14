@@ -41,6 +41,7 @@ include("general/system.jl")
 # `util.jl` needs to be next because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
 include("preprocessing/preprocessing.jl")
+include("multi_resolution/multi_resolution.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
