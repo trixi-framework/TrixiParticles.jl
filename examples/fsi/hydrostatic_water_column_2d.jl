@@ -6,7 +6,7 @@ edac = true
 
 # ==========================================================================================
 # ==== Resolution
-n_particles_plate_y = 5
+n_particles_plate_y = 3
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -18,7 +18,7 @@ gravity = 9.81
 tspan = (0.0, 1.0)
 
 # Boundary geometry and initial fluid particle positions
-initial_fluid_size = (1.0, 2.0)
+initial_fluid_size = (1.0, 1.0)
 plate_size = (1.0, 0.05)
 
 fluid_density = 1000.0
@@ -141,7 +141,7 @@ analytical_sol(v, u, t, system) = nothing
 saving_callback = SolutionSavingCallback(dt=0.005, prefix="")
 
 pp = PostprocessCallback(; interval=100, filename="hydrostatic_water_column_2d",
-                         y_deflection, analytical_sol, kinetic_energy, backup_period=10)
+                         y_deflection, analytical_sol, kinetic_energy, write_file_interval=10)
 
 callbacks = CallbackSet(info_callback, saving_callback, pp)
 
