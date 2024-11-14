@@ -1,9 +1,12 @@
 """
-    ParticlePackingSystem(initial_condition;
-                          boundary, tlsph=false, signed_distance_field=nothing, is_boundary=false,
-                          smoothing_kernel=SchoenbergCubicSplineKernel{ndims(initial_condition)}(),
-                          smoothing_length=1.2initial_condition.particle_spacing,
-                          neighborhood_search=true, background_pressure)
+    ParticlePackingSystem(shape::Union{InitialCondition, ComplexShape};
+                          smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
+                          smoothing_length=1.2shape.particle_spacing,
+                          signed_distance_field::SignedDistanceField=shape.signed_distance_field,
+                          is_boundary=false, boundary_compress_factor=1.0,
+                          boundary::Union{Polygon, TriangleMesh}=shape.geometry,
+                          neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
+                          background_pressure, tlsph=true)
 System to generate body fitted particles for complex shapes.
 For more information about the methods, see description below.
 
@@ -11,7 +14,7 @@ For more information about the methods, see description below.
 - `initial_condition`: [`InitialCondition`](@ref) or [`ComplexShape`](@ref) to be packed.
 
 # Keywords
-- `boundary`: Shape returned by [`load_shape`](@ref).
+- `boundary`: Geometry returned by [`load_geometry`](@ref).
 - `background_pressure`: Constant background pressure to physically pack the particles.
                          A large `background_pressure` can cause high accelerations which requires a properly adjusted time-step criterion.
 - `tlsph`: With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
@@ -23,12 +26,7 @@ For more information about the methods, see description below.
                     - `max_signed_distance=boundary_thickness`
 - `signed_distance_field`: To constrain particles onto the surface, the information about
                           the signed distance from a particle to a face is required.
-                          - (Recommended) If specified with the [`SignedDistanceField`](@ref) of the boundary,
-                            the precalculated signed distances will be interpolated to each particle.
-                          - If set to `nothing` the signed distance from a particle to a face is calculated directly on the fly
-                            which is only recommended when the number of faces are significantly less than the number of particles.
-                          Note when `is_boundary=true`, the [`SignedDistanceField`](@ref) of the boundary is mandatory.
-- `neighborhood_search`: If set to `true` an internally generated neighborhood search is used to increase performance.
+                          The precalculated signed distances will be interpolated to each particle during the packing procedure.
 - `smoothing_kernel`: Smoothing kernel to be used for this system.
                       See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`: Smoothing length to be used for this system.
@@ -54,8 +52,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
                                    smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
                                    smoothing_length=1.2shape.particle_spacing,
                                    signed_distance_field::SignedDistanceField=shape.signed_distance_field,
-                                   is_boundary=false,
-                                   boundary_compress_factor=1.0,
+                                   is_boundary=false, boundary_compress_factor=1.0,
                                    boundary::Union{Polygon, TriangleMesh}=shape.geometry,
                                    neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
                                    background_pressure, tlsph=true)
@@ -66,6 +63,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
+        # TODO: Let `Semidiscretization` handle this?
         # Create neighborhood search
         nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
                neighborhood_search

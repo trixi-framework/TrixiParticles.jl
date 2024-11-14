@@ -1,14 +1,14 @@
 """
-    SignedDistanceField(boundary, particle_spacing;
+    SignedDistanceField(geometry, particle_spacing;
+                        point_grid=nothing,
                         max_signed_distance=4particle_spacing,
-                        use_for_boundary_packing=false,
-                        neighborhood_search=true)
+                        use_for_boundary_packing=false)
 
 Generate particles along a surface of a complex shape holding the signed distances and normals
 to this surface.
 
 # Arguments
-- `boundary`: Shape returned by [`load_shape`](@ref).
+- `geometry`: Geometry returned by [`load_geometry`](@ref).
 - `particle_spacing`: Spacing between the particles.
 
 # Keywords
@@ -16,11 +16,10 @@ to this surface.
                          distance of `abs(max_signed_distance)` to the surface of the shape
                          will be sampled.
 - `point_grid`: Point grid in which the signed distance field is computed.
-                When set to `nothing`, the bounding box of the shape will be sampled
-                with a cartesian point grid.
+                When set to `nothing` (default), the bounding box of the shape will be
+                sampled with a cartesian point grid.
 - `use_for_boundary_packing`: Set to `true` if [`SignedDistanceField`] is used to pack
                               a boundary [`ParticlePackingSystem`](@ref).
-- `neighborhood_search`: If set to `true` an internally generated face neighborhood search is used.
 """
 struct SignedDistanceField{NDIMS, ELTYPE}
     positions           :: Vector{SVector{NDIMS, ELTYPE}}
