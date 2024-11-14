@@ -77,22 +77,24 @@ resize!(system, ::Nothing, capacity_system) = system
 function resize!(system::WeaklyCompressibleSPHSystem, refinement, capacity_system::Int)
     (; mass, pressure, cache, density_calculator) = system
 
-    refinement.n_particles_before_resize = nparticles(system)
+    refinement.n_particles_before_resize[] = nparticles(system)
 
     resize!(mass, capacity_system)
     resize!(pressure, capacity_system)
     resize_density!(system, capacity_system, density_calculator)
-    resize_cache!(system, cache, n)
+    # TODO
+    # resize_cache!(system, cache, n)
 end
 
 function resize!(system::EntropicallyDampedSPHSystem, refinement, capacity_system::Int)
     (; mass, cache, density_calculator) = system
 
-    refinement.n_particles_before_resize = nparticles(system)
+    refinement.n_particles_before_resize[] = nparticles(system)
 
     resize!(mass, capacity_system)
     resize_density!(system, capacity_system, density_calculator)
-    resize_cache!(system, capacity_system)
+    # TODO
+    # resize_cache!(system, capacity_system)
 
     return system
 end
@@ -166,5 +168,5 @@ end
 @inline capacity(system, ::Nothing) = nparticles(system)
 
 @inline function capacity(system, particle_refinement)
-    return particle_refinement.n_new_particles + nparticles(system)
+    return particle_refinement.n_new_particles[] + nparticles(system)
 end
