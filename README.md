@@ -13,8 +13,8 @@
 **TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods, focused on the simulation of complex multiphysics problems, and written in [Julia](https://julialang.org).
 
 TrixiParticles.jl focuses on the following use cases:
-- Development of new particle-based methods and models.
 - Accurate and efficient physics-based modelling of complex multiphysics problems.
+- Development of new particle-based methods and models.
 - Easy setup of accessible simulations for educational purposes, including student projects, coursework, and thesis work.
 
 It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU-support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl). 
