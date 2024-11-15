@@ -1,18 +1,13 @@
-using ReadVTK
-
 """
-    Convert data from VTK-file to InitialCondition
-
-    # FluidSystem data only
+    Convert data from VTK-file to InitialCondition 
 """
+# TODO: write documentation
+# TODO: write tests
 
-function vtk2trixi(filename)
-    vtk_file = VTKFile(filename)
+function vtk2trixi(file)
+    vtk_file = VTKFile(file)
 
-    # Retrieve particle coordinates
-    coordinates = get_points(vtk_file)
-
-    # Retrieve point data fields (e.g., pressure, velocity, ...)
+    # retrieve point data fields (e.g., pressure, velocity, ...)
     vtk_point_data = get_point_data(vtk_file)
 
     # create field data arrays
@@ -21,16 +16,17 @@ function vtk2trixi(filename)
     pressure = get_data(vtk_point_data["pressure"])
 
     velocity = get_data(vtk_point_data["velocity"])
-    if size(velocity, 1) == 2
-        # If velocity is 2D, add 0.0 for the z component
-        velocity = vcat(velocity, zeros(1, size(velocity, 2)))
-    end
+
+    # retrieve particle coordinates
+    # point coordinates are stored in a 3xN matrix, but velocity can be stored either as 3xN or 2xN matrix
+    coordinates = get_points(vtk_file)[axes(velocity, 1), :]
 
     mass = ones(size(coordinates, 2))
+    # TODO: read out mass as soon as mass is written out in vtu-file by Trixi
+
+    # TODO: get custom_quantities from vtk file
+
+    # TODO: include the cases, that flieds like velocity are not stored in the vtk file
 
     return InitialCondition(; coordinates, velocity, mass, density, pressure)
 end
-
-# TODO: edit the mass array --> InitialCondition needs a mass or a particle_spacing
-# TODO: example file in folder examples/readvtk
-# TODO: make it work with 2D velocity --> In ParaView the velocity vecor is 3D after trixi2vtk. It should be 2D if the initial data is 2D.
