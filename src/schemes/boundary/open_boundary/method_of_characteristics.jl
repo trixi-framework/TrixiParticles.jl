@@ -8,7 +8,7 @@ about the method see [description below](@ref method_of_characteristics).
 """
 struct BoundaryModelLastiwka end
 
-# Called from update callback via update_open_boundary_eachstep!
+# Called from update callback via `update_open_boundary_eachstep!`
 @inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, flow_direction,
