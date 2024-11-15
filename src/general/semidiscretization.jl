@@ -73,14 +73,7 @@ function Semidiscretization(systems...;
     # Other checks might be added here later.
     check_configuration(systems)
 
-    sizes_u = [u_nvariables(system) * n_moving_particles(system)
-               for system in systems]
-    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                     for i in eachindex(sizes_u))
-    sizes_v = [v_nvariables(system) * n_moving_particles(system)
-               for system in systems]
-    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                     for i in eachindex(sizes_v))
+    ranges_v, ranges_u = ranges_vu(systems)
 
     # Create a tuple of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
@@ -90,6 +83,16 @@ function Semidiscretization(systems...;
                      for system in systems)
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches)
+end
+
+function ranges_vu(systems)
+    sizes_u = [u_nvariables(system) * n_moving_particles(system) for system in systems]
+    ranges_u = [(sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i]) for i in eachindex(sizes_u)]
+
+    sizes_v = [v_nvariables(system) * n_moving_particles(system) for system in systems]
+    ranges_v = [(sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i]) for i in eachindex(sizes_v)]
+
+    return ranges_v, ranges_u
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
