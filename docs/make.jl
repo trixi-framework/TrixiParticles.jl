@@ -19,9 +19,12 @@ function copy_file(filename, replaces...;
     content = read(source_path, String)
     content = replace(content, replaces...)
 
+    # Use `replace` to make sure the path uses forward slashes for URLs
+    filename_url = replace(filename, "\\" => "/")
+
     header = """
     ```@meta
-    EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/$filename"
+    EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/$filename_url"
     ```
     """
     content = header * content
@@ -117,7 +120,8 @@ makedocs(sitename="TrixiParticles.jl",
              "Preprocessing" => [
                  "Sampling of Geometries" => joinpath("preprocessing", "preprocessing.md")
              ],
-             "Components" => [
+             "GPU Support" => "gpu.md",
+             "API Reference" => [
                  "Overview" => "overview.md",
                  "General" => [
                      "Semidiscretization" => joinpath("general", "semidiscretization.md"),
