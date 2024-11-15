@@ -3,6 +3,7 @@ module TrixiParticles
 using Reexport: @reexport
 
 using Adapt: Adapt
+using Base: @propagate_inbounds
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
