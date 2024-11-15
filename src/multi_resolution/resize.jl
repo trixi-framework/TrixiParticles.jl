@@ -9,7 +9,7 @@ function Base.resize!(semi::Semidiscretization, v_ode, u_ode, _v_ode, _u_ode)
     return semi
 end
 
-function deleteat!(semi::Semidiscretization, v_ode, u_ode, _v_ode, _u_ode)
+function Base.deleteat!(semi::Semidiscretization, v_ode, u_ode, _v_ode, _u_ode)
     # Delete at specific indices
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
@@ -116,15 +116,15 @@ function resize_cache!(system::EntropicallyDampedSPHSystem, n)
     return system
 end
 
-deleteat!(system, v, u) = system
+Base.deleteat!(system::System, v, u) = system
 
-function deleteat!(system::FluidSystem, v, u)
+function Base.deleteat!(system::FluidSystem, v, u)
     return deleteat!(system, system.particle_refinement, v, u)
 end
 
-deleteat!(system, ::Nothing, v, u) = system
+Base.deleteat!(system::FluidSystem, ::Nothing, v, u) = system
 
-function deleteat!(system::FluidSystem, refinement, v, u)
+function Base.deleteat!(system::FluidSystem, refinement, v, u)
     (; delete_candidates) = refinement
 
     delete_counter = 0
@@ -138,12 +138,13 @@ function deleteat!(system::FluidSystem, refinement, v, u)
             pos_keep = current_coords(u, system, dump_id)
 
             mass_keep = hydrodynamic_mass(system, dump_id)
-            density_keep = particle_density(system, v, dump_id)
-            pressure_keep = particle_pressure(system, v, dump_id)
-            smoothing_length_keep = smoothing_length(system, dump_id)
+            density_keep = particle_density(v, system, dump_id)
+            pressure_keep = particle_pressure(v, system,dump_id)
+            #TODO
+            # smoothing_length_keep = smoothing_length(system, dump_id)
+            # system.cache.smoothing_length[particle] = smoothing_length_keep
 
             system.mass[particle] = mass_keep
-            system.cache.smoothing_length[particle] = smoothing_length_keep
 
             set_particle_pressure!(v, system, particle, pressure_keep)
 
