@@ -12,7 +12,8 @@
 
 **TrixiParticles.jl** is a numerical simulation framework designed for particle-based numerical methods, with an emphasis on multiphysics applications, written in [Julia](https://julialang.org).
 A primary goal of the framework is to be user-friendly for engineering, science, and educational purposes. In addition to its extensible design and optimized implementation, we prioritize the user experience, including installation, pre- and postprocessing.
-Its features include:
+
+[![YouTube](https://github.com/user-attachments/assets/dc2be627-a799-4bfd-9226-2077f737c4b0)](https://www.youtube.com/watch?v=V7FWl4YumcA&t=4667s)
 
 ## Features
 - Incompressible Navier-Stokes
@@ -77,7 +78,7 @@ git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 mkdir run
 julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Add TrixiParticles.jl to `run` project
-julia --project=run -e 'using Pkg; Pkg.add("OrdinaryDiffEq", "Plots")' # Add additional packages
+julia --project=run -e 'using Pkg; Pkg.add(["OrdinaryDiffEq", "Plots"])' # Add additional packages
 ```
 
 If you installed TrixiParticles.jl this way, you always have to start Julia with the
