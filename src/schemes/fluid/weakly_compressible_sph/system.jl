@@ -211,7 +211,8 @@ end
     return ndims(system) + 1
 end
 
-@inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
+@propagate_inbounds function particle_pressure(v, system::WeaklyCompressibleSPHSystem,
+                                               particle)
     return system.pressure[particle]
 end
 

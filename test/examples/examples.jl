@@ -9,8 +9,20 @@
                                    "hydrostatic_water_column_2d.jl"),
                           fluid_system=nothing, sol=nothing, semi=nothing, ode=nothing)
 
+            # Neighborhood search for `FullGridCellList` test below
+            search_radius = TrixiParticles.compact_support(smoothing_kernel,
+                                                           smoothing_length)
+            min_corner = minimum(tank.boundary.coordinates, dims=2) .- search_radius
+            max_corner = maximum(tank.boundary.coordinates, dims=2) .+ search_radius
+            cell_list = TrixiParticles.PointNeighbors.FullGridCellList(; min_corner,
+                                                                       max_corner)
+            semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+                                               neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                             cell_list))
+
             hydrostatic_water_column_tests = Dict(
                 "WCSPH default" => (),
+                "WCSPH with FullGridCellList" => (semi=semi_fullgrid,),
                 "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
                 "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
                                                   clip_negative_pressure=true),
