@@ -68,8 +68,10 @@ struct StateEquationIdealGas{ELTYPE, CLIP}
     gamma               :: ELTYPE
     background_pressure :: ELTYPE
 
-    function StateEquationIdealGas(;sound_speed, reference_density, gamma, background_pressure=0.0, clip_negative_pressure=false)
-        new{typeof(sound_speed), clip_negative_pressure}(sound_speed, reference_density, gamma, background_pressure)
+    function StateEquationIdealGas(; sound_speed, reference_density, gamma,
+                                   background_pressure=0.0, clip_negative_pressure=false)
+        new{typeof(sound_speed), clip_negative_pressure}(sound_speed, reference_density,
+                                                         gamma, background_pressure)
     end
 end
 
@@ -77,7 +79,7 @@ clip_negative_pressure(::StateEquationIdealGas{<:Any, CLIP}) where {CLIP} = CLIP
 
 function (state_equation::StateEquationIdealGas)(density)
     (; reference_density, sound_speed, gamma, background_pressure) = state_equation
-    pressure = (density - reference_density) * sound_speed^2/gamma + background_pressure
+    pressure = (density - reference_density) * sound_speed^2 / gamma + background_pressure
 
     # This is determined statically and has therefore no overhead
     if clip_negative_pressure(state_equation)
@@ -89,7 +91,7 @@ end
 
 function inverse_state_equation(state_equation::StateEquationIdealGas, pressure)
     (; reference_density, sound_speed, gamma, background_pressure) = state_equation
-    density = (pressure - background_pressure) * gamma/sound_speed^2 + reference_density
+    density = (pressure - background_pressure) * gamma / sound_speed^2 + reference_density
 
     return density
 end
