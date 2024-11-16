@@ -8,7 +8,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    neighbor_system)
     (; density_calculator, state_equation, correction, surface_tension) = particle_system
 
-    sound_speed_ = sound_speed(state_equation)
+    sound_speed_ = state_equation.sound_speed
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
