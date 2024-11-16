@@ -1,8 +1,6 @@
 # 3D channel flow simulation with open boundaries.
-using TrixiParticles
-using OrdinaryDiffEq
 
-tspan = (0.0, 2.0)
+using TrixiParticles
 
 # Load variables from 2D simulation file
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"),
