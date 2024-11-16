@@ -7,12 +7,16 @@ using OrdinaryDiffEq
 H = 0.6
 W = 2 * H
 
+# ==========================================================================================
+# ==== Resolution
+
+# Note: The resolution is very coarse. A better result is obtained with H/60 or higher (which takes over 1 hour+)
+fluid_particle_spacing = H / 20
+
+# ==========================================================================================
+# ==== Experiment Setup
 gravity = 9.81
 tspan = (0.0, 2.0)
-
-# Resolution
-# Note: The resolution is very coarse. A better result is obtained with H/60 (which takes over 1 hour)
-fluid_particle_spacing = H / 20
 
 # Numerical settings
 smoothing_length = 3.5 * fluid_particle_spacing
