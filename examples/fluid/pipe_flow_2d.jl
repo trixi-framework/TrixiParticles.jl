@@ -77,11 +77,15 @@ fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothi
 
 # ==========================================================================================
 # ==== Open Boundary
-function velocity_function2d(pos, t)
-    # Use this for a time-dependent inflow velocity
-    # return SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
+if !@isdefined(VELOCITY_FUNC)
+    # to avoid double declaration with `trixi_include`
+    function velocity_function2d(pos, t)
+        # Use this for a time-dependent inflow velocity
+        # return SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
 
-    return SVector(prescribed_velocity, 0.0)
+        return SVector(prescribed_velocity, 0.0)
+    end
+    const VELOCITY_FUNC = true
 end
 
 inflow = InFlow(; plane=([0.0, 0.0], [0.0, domain_size[2]]), flow_direction,

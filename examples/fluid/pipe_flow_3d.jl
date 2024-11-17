@@ -1,10 +1,8 @@
 # 3D channel flow simulation with open boundaries.
+
 using TrixiParticles
-using OrdinaryDiffEq
 
-tspan = (0.0, 2.0)
-
-# load variables
+# Load variables from 2D simulation file
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"),
               sol=nothing)
 
@@ -29,7 +27,7 @@ flow_direction = [1.0, 0.0, 0.0]
 # setup simulation
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"),
               domain_size=domain_size, flow_direction=flow_direction,
-              pipe=pipe3d,
+              pipe=pipe3d, tspan=tspan,
               n_buffer_particles=4 * pipe3d.n_particles_per_dimension[2]^2,
               smoothing_kernel=WendlandC2Kernel{3}(),
               reference_velocity=velocity_function3d,

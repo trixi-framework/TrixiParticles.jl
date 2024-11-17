@@ -291,7 +291,7 @@ function spanning_vectors(plane_points::NTuple{3}, zone_width)
 
     # Check if the edges are linearly dependent (to avoid degenerate planes)
     if isapprox(norm(cross(edge1, edge2)), 0.0; atol=eps())
-        throw(ArgumentError("The vectors `AB` and `AC` must not be collinear"))
+        throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
     end
 
     # Calculate normal vector of plane

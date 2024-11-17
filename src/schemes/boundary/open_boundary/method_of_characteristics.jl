@@ -8,7 +8,7 @@ about the method see [description below](@ref method_of_characteristics).
 """
 struct BoundaryModelLastiwka end
 
-# Called from update callback via update_open_boundary_eachstep!
+# Called from update callback via `update_open_boundary_eachstep!`
 @inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, flow_direction,
@@ -108,9 +108,9 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
                 characteristics[2, particle] = avg_J2 / counter
                 characteristics[3, particle] = avg_J3 / counter
             else
-                characteristics[1, particle] = 0.0
-                characteristics[2, particle] = 0.0
-                characteristics[3, particle] = 0.0
+                characteristics[1, particle] = 0
+                characteristics[2, particle] = 0
+                characteristics[3, particle] = 0
             end
         else
             characteristics[1, particle] /= volume[particle]
