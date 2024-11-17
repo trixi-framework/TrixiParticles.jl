@@ -54,28 +54,31 @@ initialize!(system, neighborhood_search) = system
 @inline active_particles(system, ::Nothing) = eachparticle(system)
 
 # This should not be dispatched by system type. We always expect to get a column of `A`.
-@inline function extract_svector(A, system, i)
+@propagate_inbounds function extract_svector(A, system, i)
     extract_svector(A, Val(ndims(system)), i)
 end
 
 # Return the `i`-th column of the array `A` as an `SVector`.
 @inline function extract_svector(A, ::Val{NDIMS}, i) where {NDIMS}
-    return SVector(ntuple(@inline(dim->A[dim, i]), NDIMS))
+    # Explicit bounds check, which can be removed by calling this function with `@inbounds`
+    @boundscheck checkbounds(A, NDIMS, i)
+
+    # Assume inbounds access now
+    return SVector(ntuple(@inline(dim->@inbounds A[dim, i]), NDIMS))
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
 @inline function extract_smatrix(A, system, particle)
     # Extract the matrix elements for this particle as a tuple to pass to SMatrix
-    return SMatrix{ndims(system), ndims(system)}(
-                                                 # Convert linear index to Cartesian index
-                                                 ntuple(@inline(i->A[mod(i - 1, ndims(system)) + 1,
-                                                                     div(i - 1, ndims(system)) + 1,
-                                                                     particle]),
-                                                        Val(ndims(system)^2)))
+    return SMatrix{ndims(system),
+                   ndims(system)}(ntuple(@inline(i->A[mod(i - 1, ndims(system)) + 1,
+                                                      div(i - 1, ndims(system)) + 1,
+                                                      particle]),
+                                         Val(ndims(system)^2)))
 end
 
 # Specifically get the current coordinates of a particle for all system types.
-@inline function current_coords(u, system, particle)
+@propagate_inbounds function current_coords(u, system, particle)
     return extract_svector(current_coordinates(u, system), system, particle)
 end
 
@@ -91,7 +94,8 @@ end
 # This can be dispatched by system type.
 @inline initial_coordinates(system) = system.initial_condition.coordinates
 
-@inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
+@propagate_inbounds current_velocity(v, system, particle) = extract_svector(v, system,
+                                                                            particle)
 
 @inline function current_acceleration(system, particle)
     # TODO: Return `dv` of solid particles

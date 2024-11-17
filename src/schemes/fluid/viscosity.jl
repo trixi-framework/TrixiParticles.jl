@@ -1,9 +1,9 @@
 
 # Unpack the neighboring systems viscosity to dispatch on the viscosity type
-@inline function dv_viscosity(particle_system, neighbor_system,
-                              v_particle_system, v_neighbor_system,
-                              particle, neighbor, pos_diff, distance,
-                              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+@propagate_inbounds function dv_viscosity(particle_system, neighbor_system,
+                                          v_particle_system, v_neighbor_system,
+                                          particle, neighbor, pos_diff, distance,
+                                          sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     viscosity = viscosity_model(particle_system, neighbor_system)
 
     return dv_viscosity(viscosity, particle_system, neighbor_system,
@@ -12,10 +12,10 @@
                         sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
-@inline function dv_viscosity(viscosity, particle_system, neighbor_system,
-                              v_particle_system, v_neighbor_system,
-                              particle, neighbor, pos_diff, distance,
-                              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+@propagate_inbounds function dv_viscosity(viscosity, particle_system, neighbor_system,
+                                          v_particle_system, v_neighbor_system,
+                                          particle, neighbor, pos_diff, distance,
+                                          sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     return viscosity(particle_system, neighbor_system,
                      v_particle_system, v_neighbor_system,
                      particle, neighbor, pos_diff, distance,
@@ -105,12 +105,16 @@ function kinematic_viscosity(system, viscosity::ViscosityMorris)
     return viscosity.nu
 end
 
-@inline function (viscosity::Union{ArtificialViscosityMonaghan,
-                                   ViscosityMorris})(particle_system, neighbor_system,
-                                                     v_particle_system, v_neighbor_system,
-                                                     particle, neighbor, pos_diff,
-                                                     distance, sound_speed, m_a, m_b,
-                                                     rho_a, rho_b, grad_kernel)
+@propagate_inbounds function (viscosity::Union{ArtificialViscosityMonaghan,
+                                               ViscosityMorris})(particle_system,
+                                                                 neighbor_system,
+                                                                 v_particle_system,
+                                                                 v_neighbor_system,
+                                                                 particle, neighbor,
+                                                                 pos_diff, distance,
+                                                                 sound_speed,
+                                                                 m_a, m_b, rho_a, rho_b,
+                                                                 grad_kernel)
     (; smoothing_length) = particle_system
 
     rho_mean = 0.5 * (rho_a + rho_b)
@@ -250,4 +254,6 @@ function kinematic_viscosity(system, viscosity::ViscosityAdami)
     return viscosity.nu
 end
 
-@inline viscous_velocity(v, system, particle) = current_velocity(v, system, particle)
+@propagate_inbounds function viscous_velocity(v, system, particle)
+    return current_velocity(v, system, particle)
+end
