@@ -13,7 +13,7 @@ function create_cache_density(ic, ::ContinuityDensity)
     return (;)
 end
 
-@inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
+@propagate_inbounds hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
 function write_u0!(u0, system::FluidSystem)
     (; initial_condition) = system
