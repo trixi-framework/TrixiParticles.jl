@@ -7,18 +7,22 @@ using OrdinaryDiffEq
 H = 0.6
 W = 2 * H
 
+# ==========================================================================================
+# ==== Resolution
+
+# Note: The resolution is very coarse. A better result is obtained with H/60 or higher (which takes over 1 hour+)
+fluid_particle_spacing = H / 20
+
+# ==========================================================================================
+# ==== Experiment Setup
 gravity = 9.81
 tspan = (0.0, 2.0)
 
-# Resolution
-# Note: The resolution is very coarse. A better result is obtained with H/60 (which takes over 1 hour)
-fluid_particle_spacing = H / 20
-
 # Numerical settings
 smoothing_length = 3.5 * fluid_particle_spacing
-#sound_speed = 100
+sound_speed = 100.0
 # when using the Ideal gas equation
-sound_speed = 400
+# sound_speed = 343.0
 
 # physical values
 nu_water = 8.9E-7
@@ -35,7 +39,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
               viscosity=water_viscosity, smoothing_length=smoothing_length,
               gravity=gravity, tspan=tspan, density_diffusion=nothing,
-              sound_speed=sound_speed, cfl=0.8, exponent=7, background_pressure=0.0,
+              sound_speed=sound_speed, exponent=7,
               tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing,
                          2.6 * H))
 
@@ -63,21 +67,18 @@ end
 
 air_system = union(air_system, air_system2)
 
-# We use background_pressure here to prevent negative pressure regions in the gas phase.
 air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calculator,
                                                 StateEquationCole(; sound_speed,
                                                                   reference_density=air_density,
                                                                   exponent=1,
                                                                   clip_negative_pressure=false,
-                                                                  background_pressure=1000),
+                                                                  background_pressure=0),
                                                 smoothing_kernel, smoothing_length,
                                                 viscosity=air_viscosity,
                                                 acceleration=(0.0, -gravity))
 
 # air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calculator,
-#                                          StateEquationIdealGas(; gamma=1.4,
-#                                                            gas_constant=287.0,
-#                                                            temperature=293.15),
+#                                          StateEquationIdealGas(; sound_speed, reference_density=air_density, gamma=1.4, background_pressure=0),
 #                                          smoothing_kernel, smoothing_length,
 #                                          viscosity=air_viscosity,
 #                                          acceleration=(0.0, -gravity))

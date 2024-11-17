@@ -199,16 +199,16 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
     return density_diffusion
 end
 
-@inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,
-                                    v_particle_system, particle, neighbor, pos_diff,
-                                    distance, m_b, rho_a, rho_b,
-                                    particle_system::FluidSystem, grad_kernel)
+@propagate_inbounds function density_diffusion!(dv, density_diffusion::DensityDiffusion,
+                                                v_particle_system, particle, neighbor,
+                                                pos_diff, distance, m_b, rho_a, rho_b,
+                                                particle_system::FluidSystem, grad_kernel)
     # Density diffusion terms are all zero for distance zero
     distance < sqrt(eps()) && return
 
     (; delta) = density_diffusion
     (; smoothing_length, state_equation) = particle_system
-    sound_speed_ = sound_speed(state_equation)
+    (; sound_speed) = state_equation
 
     volume_b = m_b / rho_b
 
@@ -216,7 +216,7 @@ end
                                 particle_system, particle, neighbor)
     density_diffusion_term = dot(psi, grad_kernel) * volume_b
 
-    dv[end, particle] += delta * smoothing_length * sound_speed_ * density_diffusion_term
+    dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid

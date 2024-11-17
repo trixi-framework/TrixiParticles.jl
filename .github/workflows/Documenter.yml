@@ -21,9 +21,12 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
-  build-docs-ubuntu:
-    name: Build and Deploy Documentation (Ubuntu)
-    runs-on: ubuntu-latest
+  build-docs:
+    name: Build and Deploy Documentation
+    runs-on: ${{ matrix.os }}
+    strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest]
     steps:
       - name: Check out project
         uses: actions/checkout@v4
@@ -38,26 +41,11 @@ jobs:
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - name: Build and deploy
+        if: matrix.os == 'ubuntu-latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
         run: julia --project=docs --color=yes docs/make.jl
-
-  build-docs-windows:
-    name: Build Documentation (Windows)
-    runs-on: windows-latest
-    steps:
-      - name: Check out project
-        uses: actions/checkout@v4
-      - name: Set up Julia
-        uses: julia-actions/setup-julia@v2
-        with:
-          version: '1'
-          show-versioninfo: true
-      - uses: julia-actions/cache@v2
-      - name: Build package
-        uses: julia-actions/julia-buildpkg@v1
-      - name: Install dependencies
-        run: julia --project=docs/ -e "using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()"
-      - name: Build documentation
+      - name: Just Build
+        if: matrix.os != 'ubuntu-latest'
         run: julia --project=docs --color=yes docs/make.jl

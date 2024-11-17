@@ -239,14 +239,12 @@ end
     return ndims(system) + 1
 end
 
-@inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
+@propagate_inbounds function particle_pressure(v, system::WeaklyCompressibleSPHSystem,
+                                               particle)
     return system.pressure[particle]
 end
 
-@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = sound_speed(system.state_equation)
-@inline system_sound_speed(system::WeaklyCompressibleSPHSystem, pressure, density) = sound_speed(system.state_equation,
-                                                                                                 pressure,
-                                                                                                 density)
+@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
 
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
