@@ -112,11 +112,8 @@ end
                                                                  v_neighbor_system,
                                                                  particle, neighbor,
                                                                  pos_diff, distance,
-                                                                 sound_speed,
-                                                                 m_a, m_b, rho_a, rho_b,
-                                                                 grad_kernel)
-    (; smoothing_length) = particle_system
-
+                                                                 sound_speed, m_a, m_b,
+                                                                 rho_a, rho_b, grad_kernel)
     rho_mean = 0.5 * (rho_a + rho_b)
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
@@ -216,6 +213,38 @@ struct ViscosityAdami{ELTYPE}
 end
 
 @inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
+                                             v_particle_system, v_neighbor_system,
+                                             particle, neighbor, pos_diff,
+                                             distance, sound_speed, m_a, m_b,
+                                             rho_a, rho_b, grad_kernel)
+    viscosity(particle_system, neighbor_system, particle_system.particle_refinement,
+              v_particle_system, v_neighbor_system, particle, neighbor, pos_diff, distance,
+              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+end
+
+@inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
+                                             particle_refinement,
+                                             v_particle_system, v_neighbor_system,
+                                             particle, neighbor, pos_diff,
+                                             distance, sound_speed, m_a, m_b,
+                                             rho_a, rho_b, grad_kernel)
+    beta_inv_a = beta_correction(particle_system, particle_refinement, particle)
+
+    nu_a = kinematic_viscosity(particle_system,
+                               viscosity_model(neighbor_system, particle_system))
+
+    grad_kernel_a = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+    grad_kernel_b = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
+
+    grad_W_avg = 0.5 * (grad_kernel_a + grad_kernel_b)
+
+    tmp = (distance^2 + 0.001 * smoothing_length(particle_system, particle)^2)
+
+    return m_b * beta_inv_a * 4 * nu_a * dot(pos_diff, grad_W_avg) * v_diff /
+           (tmp * (rho_a + rho_b))
+end
+
+@inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system, ::Nothing,
                                              v_particle_system, v_neighbor_system,
                                              particle, neighbor, pos_diff,
                                              distance, sound_speed, m_a, m_b,
