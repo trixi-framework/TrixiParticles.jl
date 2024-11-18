@@ -1,3 +1,5 @@
+include("resize.jl")
+
 struct ParticleRefinement
     n_particles_before_resize :: Ref{Int}
     n_new_particles           :: Ref{Int}
