@@ -155,6 +155,8 @@ write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
     return system.initial_condition.mass[particle]
 end
 
+update_particle_packing(system, v_ode, u_ode, semi, integrator) = system
+
 function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
                                  semi, integrator)
     u = wrap_u(u_ode, system, semi)
