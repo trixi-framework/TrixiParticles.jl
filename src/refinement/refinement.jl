@@ -1,19 +1,24 @@
 include("refinement_criteria.jl")
 
-struct ParticleRefinement{RC, ELTYPE}
-    refinement_criteria :: RC
-    max_spacing_ratio   :: ELTYPE
-    mass_ref            :: Vector{ELTYPE} # length(mass_ref) == nparticles
+struct ParticleRefinement{SP, RC, ELTYPE}
+    splitting_pattern         :: SP
+    refinement_criteria       :: RC
+    max_spacing_ratio         :: ELTYPE
+    mass_ref                  :: Vector{ELTYPE} # length(mass_ref) == nparticles
+    n_particles_before_resize :: Int
+    n_new_particles           :: Int
 end
 
-function ParticleRefinement(; max_spacing_ratio,
+function ParticleRefinement(; splitting_pattern, max_spacing_ratio,
                             refinement_criteria=SpatialRefinementCriterion())
     mass_ref = Vector{eltype(max_spacing_ratio)}()
 
     if refinement_criteria isa Tuple
         refinement_criteria = (refinement_criteria,)
     end
-    return ParticleRefinement(refinement_criteria, max_spacing_ratio, mass_ref)
+
+    return ParticleRefinement(splitting_pattern, refinement_criteria, max_spacing_ratio,
+                              mass_ref, 0, 0)
 end
 
 resize_refinement!(system) = system
@@ -37,6 +42,7 @@ function refinement!(semi, v_ode, u_ode, v_tmp, u_tmp, t)
     update_particle_spacing(semi, u_ode)
 
     # Split the particles (Algorithm 2)
+    split_particles!(semi, v_ode, u_ode, v_tmp, u_tmp)
 
     # Merge the particles (Algorithm 3)
 
