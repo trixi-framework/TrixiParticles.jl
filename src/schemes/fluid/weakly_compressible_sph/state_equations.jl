@@ -6,9 +6,9 @@ Equation of state to describe the relationship between pressure and density
 of water up to high pressures.
 
 # Keywords
-- `sound_speed`: Artificial speed of sound.
-- `reference_density`: Reference density of the fluid.
-- `exponent`: A value of `7` is usually used for most simulations.
+- `sound_speed`:             Artificial speed of sound.
+- `reference_density`:       Reference density of the fluid.
+- `exponent`:                A value of `7` is usually used for most simulations.
 - `background_pressure=0.0`: Background pressure.
 """
 struct StateEquationCole{ELTYPE, CLIP} # Boolean to clip negative pressure
@@ -51,7 +51,8 @@ function inverse_state_equation(state_equation::StateEquationCole, pressure)
 end
 
 @doc raw"""
-    StateEquationIdealGas(;sound_speed, reference_density, gamma, background_pressure=0.0)
+    StateEquationIdealGas(;sound_speed, reference_density, gamma, background_pressure=0.0,
+                           clip_negative_pressure=false)
 
 Equation of state to describe the relationship between pressure and density
 of a gas using the Ideal Gas Law.

@@ -1,4 +1,3 @@
-include("../../../test_util.jl")
 @testset verbose=true "State Equations" begin
     @testset verbose=true "StateEquationCole" begin
         # The equation of state was designed by Cole to accurately describe the
