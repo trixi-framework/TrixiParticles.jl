@@ -1,4 +1,6 @@
 include("refinement_criteria.jl")
+include("refinement_pattern.jl")
+include("split.jl")
 
 struct ParticleRefinement{SP, RC, ELTYPE}
     splitting_pattern         :: SP
