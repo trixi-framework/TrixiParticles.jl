@@ -112,9 +112,12 @@ end
                                                                  v_neighbor_system,
                                                                  particle, neighbor,
                                                                  pos_diff, distance,
-                                                                 sound_speed, m_a, m_b,
-                                                                 rho_a, rho_b, grad_kernel)
-    rho_mean = 0.5 * (rho_a + rho_b)
+                                                                 sound_speed,
+                                                                 m_a, m_b, rho_a, rho_b,
+                                                                 grad_kernel)
+    (; smoothing_length) = particle_system
+
+    rho_mean = (rho_a + rho_b) / 2
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
