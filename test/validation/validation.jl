@@ -31,7 +31,7 @@
             r"WARNING: importing deprecated binding Makie.*\n",
             r"WARNING: Makie.* is deprecated.*\n",
             r"  likely near none:1\n",
-            r", use .* instead.\n",
+            r", use .* instead.\n"
         ]
         # Verify number of plots
         @test length(ax1.scene.plots) >= 6
@@ -42,7 +42,7 @@
                                        joinpath(validation_dir(), "dam_break_2d",
                                                 "validation_dam_break_2d.jl")) [
             r"┌ Info: The desired tank length in y-direction.*\n",
-            r"└ New tank length in y-direction is set to.*\n",
+            r"└ New tank length in y-direction is set to.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
@@ -68,7 +68,7 @@
             r"WARNING: Method definition linear_interpolation.*\n",
             r"WARNING: Method definition interpolated_mse.*\n",
             r"WARNING: Method definition extract_number_from_filename.*\n",
-            r"WARNING: Method definition extract_resolution_from_filename.*\n",
+            r"WARNING: Method definition extract_resolution_from_filename.*\n"
         ]
         # Verify number of plots
         @test length(axs_edac[1].scene.plots) >= 2
