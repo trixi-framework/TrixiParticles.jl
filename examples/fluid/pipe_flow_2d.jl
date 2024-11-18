@@ -126,7 +126,9 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
+extra_callback = nothing
+
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)

@@ -116,8 +116,7 @@ end
 function (cb::SteadyStateReachedCallback{Int})(integrator)
     print_summary(integrator)
 
-    # `terminate!(integrator)` terminates the simulation immediately and might cause an error message.
-    integrator.opts.maxiters = integrator.iter
+    terminate!(integrator)
 end
 
 # `condition` (`DiscreteCallback`)
@@ -137,7 +136,7 @@ end
         v = wrap_v(v_ode, system, semi)
         unused_arg = nothing
 
-        ekin += kinetic_energy(v, unused_arg, unused_arg, system)
+        return kinetic_energy(v, unused_arg, unused_arg, system)
     end
 
     if length(previous_ekin) == interval_size
