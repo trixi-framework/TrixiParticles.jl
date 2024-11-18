@@ -3,6 +3,7 @@ module TrixiParticles
 using Reexport: @reexport
 
 using Adapt: Adapt
+using Base: @propagate_inbounds
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
@@ -21,7 +22,8 @@ using Printf: @printf, @sprintf
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem,
+                 RecursiveArrayTools
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
@@ -44,6 +46,7 @@ include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+include("refinement/refinement.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
@@ -51,6 +54,7 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
+include("refinement/resize.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -69,7 +73,9 @@ export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing, BoundaryModelLastiwka
+       PressureMirroring, PressureZeroing, BoundaryModelLastiwka,
+       BernoulliPressureExtrapolation
+export ParticleRefinement, SpatialRefinementCriterion
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk

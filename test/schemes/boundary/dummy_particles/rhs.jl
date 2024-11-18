@@ -90,7 +90,7 @@
                 "Fluid-Fluid" => second_fluid_system,
                 "Fluid-BoundaryDummyPressureZeroing" => boundary_system_zeroing,
                 "Fluid-BoundaryDummyContinuityDensity" => boundary_system_continuity,
-                "Fluid-TLSPH" => solid_system,
+                "Fluid-TLSPH" => solid_system
             )
 
             if density_calculator isa SummationDensity
@@ -105,7 +105,7 @@
                 "Fluid-BoundaryDummyContinuityDensity" => (v_boundary_continuity,
                                                            u_boundary),
                 "Fluid-BoundaryDummySummationDensity" => (v_boundary, u_boundary),
-                "Fluid-TLSPH" => (v_solid, u_solid),
+                "Fluid-TLSPH" => (v_solid, u_solid)
             )
 
             return systems, vu
