@@ -1,6 +1,6 @@
 """
-    SteadyStateCallback(; interval::Integer=0, dt=0.0, interval_size::Integer=10,
-                        abstol=1.0e-8, reltol=1.0e-6)
+    SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
+                               interval_size::Integer=10, abstol=1.0e-8, reltol=1.0e-6)
 
 Terminates the integration when the residual of the change in kinetic energy
 falls below the threshold specified by `abstol + reltol * ekin`,
@@ -16,7 +16,7 @@ where `ekin` is the total kinetic energy of the simulation.
 - `abstol`:         Absolute tolerance.
 - `reltol`:         Relative tolerance.
 """
-mutable struct SteadyStateCallback{I, ELTYPE <: Real}
+mutable struct SteadyStateReachedCallback{I, ELTYPE <: Real}
     interval      :: I
     abstol        :: ELTYPE
     reltol        :: ELTYPE
@@ -24,8 +24,8 @@ mutable struct SteadyStateCallback{I, ELTYPE <: Real}
     interval_size :: Int
 end
 
-function SteadyStateCallback(; interval::Integer=0, dt=0.0, interval_size::Integer=10,
-                             abstol=1.0e-8, reltol=1.0e-6)
+function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
+                                    interval_size::Integer=10, abstol=1.0e-8, reltol=1.0e-6)
     abstol, reltol = promote(abstol, reltol)
 
     if dt > 0 && interval > 0
@@ -36,8 +36,8 @@ function SteadyStateCallback(; interval::Integer=0, dt=0.0, interval_size::Integ
         interval = Float64(dt)
     end
 
-    steady_state_callback = SteadyStateCallback(interval, abstol, reltol, [Inf64],
-                                                interval_size)
+    steady_state_callback = SteadyStateReachedCallback(interval, abstol, reltol, [Inf64],
+                                                       interval_size)
 
     if dt > 0
         return PeriodicCallback(steady_state_callback, dt, save_positions=(false, false),
@@ -48,26 +48,28 @@ function SteadyStateCallback(; interval::Integer=0, dt=0.0, interval_size::Integ
     end
 end
 
-function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SteadyStateCallback})
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SteadyStateReachedCallback})
     @nospecialize cb # reduce precompilation time
 
     cb_ = cb.affect!
 
-    print(io, "SteadyStateCallback(abstol=", cb_.abstol, ", ", "reltol=", cb_.reltol, ")")
+    print(io, "SteadyStateReachedCallback(abstol=", cb_.abstol, ", ", "reltol=", cb_.reltol,
+          ")")
 end
 
 function Base.show(io::IO,
                    cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:SteadyStateCallback}})
+                                        <:PeriodicCallbackAffect{<:SteadyStateReachedCallback}})
     @nospecialize cb # reduce precompilation time
 
     cb_ = cb.affect!.affect!
 
-    print(io, "SteadyStateCallback(abstol=", cb_.abstol, ", reltol=", cb_.reltol, ")")
+    print(io, "SteadyStateReachedCallback(abstol=", cb_.abstol, ", reltol=", cb_.reltol,
+          ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:SteadyStateCallback})
+                   cb::DiscreteCallback{<:Any, <:SteadyStateReachedCallback})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
@@ -79,13 +81,13 @@ function Base.show(io::IO, ::MIME"text/plain",
             "relative tolerance" => cb_.reltol,
             "interval" => cb_.interval,
             "interval size" => cb_.interval_size]
-        summary_box(io, "SteadyStateCallback", setup)
+        summary_box(io, "SteadyStateReachedCallback", setup)
     end
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
                    cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:SteadyStateCallback}})
+                                        <:PeriodicCallbackAffect{<:SteadyStateReachedCallback}})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
@@ -97,22 +99,21 @@ function Base.show(io::IO, ::MIME"text/plain",
             "relative tolerance" => cb_.reltol,
             "interval" => cb_.interval,
             "interval_size" => cb_.interval_size]
-        summary_box(io, "SteadyStateCallback", setup)
+        summary_box(io, "SteadyStateReachedCallback", setup)
     end
 end
 
 # `affect!` (`PeriodicCallback`)
-function (cb::SteadyStateCallback)(integrator)
+function (cb::SteadyStateReachedCallback)(integrator)
     steady_state_condition!(cb, integrator) || return nothing
 
     print_summary(integrator)
 
-    # `terminate!(integrator)` terminates the simulation immediately and might cause an error message.
-    integrator.opts.maxiters = integrator.iter
+    terminate!(integrator)
 end
 
 # `affect!` (`DiscreteCallback`)
-function (cb::SteadyStateCallback{Int})(integrator)
+function (cb::SteadyStateReachedCallback{Int})(integrator)
     print_summary(integrator)
 
     # `terminate!(integrator)` terminates the simulation immediately and might cause an error message.
@@ -120,7 +121,7 @@ function (cb::SteadyStateCallback{Int})(integrator)
 end
 
 # `condition` (`DiscreteCallback`)
-function (steady_state_callback::SteadyStateCallback)(vu_ode, t, integrator)
+function (steady_state_callback::SteadyStateReachedCallback)(vu_ode, t, integrator)
     return steady_state_condition!(steady_state_callback, integrator)
 end
 
@@ -132,8 +133,7 @@ end
     semi = integrator.p
 
     # Calculate kinetic energy
-    ekin = 0.0
-    foreach_system(semi) do system
+    ekin = sum(semi.systems) do system
         v = wrap_v(v_ode, system, semi)
         unused_arg = nothing
 
@@ -143,9 +143,8 @@ end
     if length(previous_ekin) == interval_size
 
         # Calculate MSE only over the `interval_size`
-        mse = 0.0
-        for index in 1:interval_size
-            mse += (previous_ekin[index] - ekin)^2 / interval_size
+        mse = sum(1:interval_size) do index
+            return (previous_ekin[index] - ekin)^2 / interval_size
         end
 
         if mse <= abstol + reltol * ekin
