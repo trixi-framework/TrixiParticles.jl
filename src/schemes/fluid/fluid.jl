@@ -124,6 +124,7 @@ end
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     momentum_convection(system, neighbor_system, system.transport_velocity,
-                        pos_diff, distance, v_particle_system, v_neighbor_system,
-                        rho_a, rho_b, m_a, m_b, particle, neighbor, grad_kernel)
+                        system.particle_refinement, pos_diff, distance, v_particle_system,
+                        v_neighbor_system, rho_a, rho_b, m_a, m_b, particle, neighbor,
+                        grad_kernel)
 end
