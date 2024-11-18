@@ -41,6 +41,12 @@ function initial_refinement!(cb, u, t, integrator)
 end
 
 function initial_refinement!(cb::ParticleRefinementCallback, u, t, integrator)
+    semi = integrator.p
+
+    foreach_system(semi) do system
+        resize_refinement!(system)
+    end
+
     cb(integrator)
 end
 
