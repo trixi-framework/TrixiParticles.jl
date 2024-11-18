@@ -25,7 +25,7 @@ jobs:
         #
         # julia  -e 'using Pkg; Pkg.add(PackageSpec(name = "JuliaFormatter", version = "0.13.0"))'
         run: |
-          julia  -e 'using Pkg; Pkg.add(PackageSpec(name = "JuliaFormatter", version="1.0.45"))'
+          julia  -e 'using Pkg; Pkg.add(PackageSpec(name = "JuliaFormatter", version="1.0.62"))'
           julia  -e 'using JuliaFormatter; format(".")'
       - name: Format check
         run: |
