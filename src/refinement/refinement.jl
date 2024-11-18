@@ -1,12 +1,14 @@
 include("refinement_criteria.jl")
 include("refinement_pattern.jl")
 include("split.jl")
+include("merge.jl")
 
 struct ParticleRefinement{SP, RC, ELTYPE}
     splitting_pattern         :: SP
     refinement_criteria       :: RC
     max_spacing_ratio         :: ELTYPE
     mass_ref                  :: Vector{ELTYPE} # length(mass_ref) == nparticles
+    delete_candidates         :: Vector{Bool}   # length(delete_candidates) == nparticles
     n_particles_before_resize :: Int
     n_new_particles           :: Int
 end
@@ -14,13 +16,14 @@ end
 function ParticleRefinement(; splitting_pattern, max_spacing_ratio,
                             refinement_criteria=SpatialRefinementCriterion())
     mass_ref = Vector{eltype(max_spacing_ratio)}()
+    delete_candidates = Vector{Bool}()
 
     if !(refinement_criteria isa Tuple)
         refinement_criteria = (refinement_criteria,)
     end
 
     return ParticleRefinement(splitting_pattern, refinement_criteria, max_spacing_ratio,
-                              mass_ref, 0, 0)
+                              mass_ref, delete_candidates, 0, 0)
 end
 
 resize_refinement!(system) = system
@@ -33,6 +36,7 @@ resize_refinement!(system, ::Nothing) = system
 
 function resize_refinement!(system, particle_refinement)
     resize!(particle_refinement.mass_ref, nparticles(system))
+    resize!(particle_refinement.delete_candidates, nparticles(system))
 
     return system
 end
@@ -47,6 +51,7 @@ function refinement!(semi, v_ode, u_ode, v_tmp, u_tmp, t)
     split_particles!(semi, v_ode, u_ode, v_tmp, u_tmp)
 
     # Merge the particles (Algorithm 3)
+    merge_particles!(semi, v_ode, u_ode, v_tmp, u_tmp)
 
     # Shift the particles
 
