@@ -381,7 +381,6 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
                       for particle in active_particles(system)]
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in active_particles(system)]
-    vtk["colorfield"] = system.cache.colorfield
 
     if write_meta_data
         vtk["boundary_zone"] = type2string(system.boundary_zone)
@@ -390,7 +389,6 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
         vtk["velocity_function"] = type2string(system.reference_velocity)
         vtk["pressure_function"] = type2string(system.reference_pressure)
         vtk["density_function"] = type2string(system.reference_density)
-        vtk["color"] = system.color
     end
 
     return vtk
