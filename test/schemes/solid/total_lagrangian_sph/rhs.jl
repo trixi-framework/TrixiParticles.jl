@@ -114,6 +114,7 @@
                 nothing
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
+            Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
 
             #### Verification
             systems = [system, system_gpu]
