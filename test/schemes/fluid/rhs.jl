@@ -7,13 +7,13 @@
                 [1000.0, 1000.0],
                 [1000.0, 1000.0],
                 [900.0, 1201.0],
-                [1003.0, 353.4],
+                [1003.0, 353.4]
             ]
             pressures = [
                 [0.0, 0.0],
                 [10_000.0, 10_000.0],
                 [10.0, 10_000.0],
-                [1000.0, -1000.0],
+                [1000.0, -1000.0]
             ]
             grad_kernels = [0.3, 104.0]
             particle = 2
@@ -28,7 +28,7 @@
             pressure_accelerations = [
                 TrixiParticles.inter_particle_averaged_pressure,
                 TrixiParticles.pressure_acceleration_continuity_density,
-                TrixiParticles.pressure_acceleration_summation_density,
+                TrixiParticles.pressure_acceleration_summation_density
             ]
 
             @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
@@ -50,7 +50,7 @@
 
                         @testset verbose=true "$system_name" for system_name in [
                             "WCSPH",
-                            "EDAC",
+                            "EDAC"
                         ]
                             if system_name == "WCSPH"
                                 system = WeaklyCompressibleSPHSystem(fluid,

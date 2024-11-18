@@ -116,10 +116,10 @@ struct InFlow{NDIMS, IC, S, ZO, ZW, FD}
 
         if !isapprox(abs(dot_), 1.0, atol=1e-7)
             throw(ArgumentError("`flow_direction` is not normal to inflow plane"))
-        else
-            # Flip the normal vector to point in the opposite direction of `flow_direction`
-            spanning_set[:, 1] .*= -sign(dot_)
         end
+
+        # Flip the normal vector to point in the opposite direction of `flow_direction`
+        spanning_set[:, 1] .*= -sign(dot_)
 
         spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
 
@@ -251,10 +251,10 @@ struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
 
         if !isapprox(abs(dot_), 1.0, atol=1e-7)
             throw(ArgumentError("`flow_direction` is not normal to outflow plane"))
-        else
-            # Flip the normal vector to point in `flow_direction`
-            spanning_set[:, 1] .*= sign(dot_)
         end
+
+        # Flip the normal vector to point in `flow_direction`
+        spanning_set[:, 1] .*= sign(dot_)
 
         spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
 
@@ -289,8 +289,9 @@ function spanning_vectors(plane_points::NTuple{3}, zone_width)
     edge1 = plane_points[2] - plane_points[1]
     edge2 = plane_points[3] - plane_points[1]
 
-    if !isapprox(dot(edge1, edge2), 0.0, atol=1e-7)
-        throw(ArgumentError("the vectors `AB` and `AC` for the provided points `A`, `B`, `C` must be orthogonal"))
+    # Check if the edges are linearly dependent (to avoid degenerate planes)
+    if isapprox(norm(cross(edge1, edge2)), 0.0; atol=eps())
+        throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
     end
 
     # Calculate normal vector of plane

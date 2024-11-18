@@ -3,7 +3,8 @@ abstract type SmoothingKernel{NDIMS} end
 @inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    distance < sqrt(eps()) && return zero(pos_diff)
+    # TODO Use `eps` relative to `h` to allow scaling of simulations
+    distance < sqrt(eps(typeof(h))) && return zero(pos_diff)
 
     return kernel_deriv(kernel, distance, h) / distance * pos_diff
 end
@@ -98,7 +99,8 @@ end
 @inline compact_support(::GaussianKernel, h) = 3 * h
 
 @inline normalization_factor(::GaussianKernel{2}, h) = 1 / (pi * h^2)
-@inline normalization_factor(::GaussianKernel{3}, h) = 1 / (pi^(3 / 2) * h^3)
+# First convert `pi` to the type of `h` to preserve the type of `h`
+@inline normalization_factor(::GaussianKernel{3}, h) = 1 / (oftype(h, pi)^(3 // 2) * h^3)
 
 @doc raw"""
     SchoenbergCubicSplineKernel{NDIMS}()
@@ -136,8 +138,9 @@ struct SchoenbergCubicSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 @muladd @inline function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     q = r / h
 
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    result = 1 / 4 * (2 - q)^3
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl.
+    # Use `//` to preserve the type of `q`.
+    result = 1 // 4 * (2 - q)^3
     result = result - (q < 1) * (1 - q)^3
 
     # Zero out result if q >= 2
@@ -151,7 +154,8 @@ end
     q = r * inner_deriv
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    result = -3 / 4 * (2 - q)^2
+    # Use `//` to preserve the type of `q`.
+    result = -3 // 4 * (2 - q)^2
     result = result + 3 * (q < 1) * (1 - q)^2
 
     # Zero out result if q >= 2
@@ -164,7 +168,8 @@ end
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
 
 @inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / 3h
-@inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 10 / (7 * pi * h^2)
+# `7 * pi` is always `Float64`. `pi * h^2 * 7` preserves the type of `h`.
+@inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 10 / (pi * h^2 * 7)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{3}, h) = 1 / (pi * h^3)
 
 @doc raw"""
@@ -213,17 +218,19 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 # is a higher priority than exact precision.
 @fastpow @muladd @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
-    q5_2 = (5 / 2 - q)
-    q3_2 = (3 / 2 - q)
-    q1_2 = (1 / 2 - q)
+
+    # Preserve the type of `q`
+    q5_2 = (5 // 2 - q)
+    q3_2 = (3 // 2 - q)
+    q1_2 = (1 // 2 - q)
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
     result = q5_2^4
-    result = result - 5 * (q < 3 / 2) * q3_2^4
-    result = result + 10 * (q < 1 / 2) * q1_2^4
+    result = result - 5 * (q < 3 // 2) * q3_2^4
+    result = result + 10 * (q < 1 // 2) * q1_2^4
 
     # Zero out result if q >= 5/2
-    result = ifelse(q < 5 / 2, normalization_factor(kernel, h) * result, zero(result))
+    result = ifelse(q < 5 // 2, normalization_factor(kernel, h) * result, zero(result))
 
     return result
 end
@@ -232,17 +239,19 @@ end
                                                r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
-    q5_2 = 5 / 2 - q
-    q3_2 = 3 / 2 - q
-    q1_2 = 1 / 2 - q
+
+    # Preserve the type of `q`
+    q5_2 = 5 // 2 - q
+    q3_2 = 3 // 2 - q
+    q1_2 = 1 // 2 - q
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
     result = -4 * q5_2^3
-    result = result + 20 * (q < 3 / 2) * q3_2^3
-    result = result - 40 * (q < 1 / 2) * q1_2^3
+    result = result + 20 * (q < 3 // 2) * q3_2^3
+    result = result - 40 * (q < 1 // 2) * q1_2^3
 
     # Zero out result if q >= 5/2
-    result = ifelse(q < 5 / 2, normalization_factor(kernel, h) * result * inner_deriv,
+    result = ifelse(q < 5 // 2, normalization_factor(kernel, h) * result * inner_deriv,
                     zero(result))
 
     return result
@@ -251,8 +260,9 @@ end
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
 
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / 24h
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (1199 * pi * h^2)
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 1 / (20 * pi * h^3)
+# `1199 * pi` is always `Float64`. `pi * h^2 * 1199` preserves the type of `h`.
+@inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (pi * h^2 * 1199)
+@inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 1 / (pi * h^3 * 20)
 
 @doc raw"""
     SchoenbergQuinticSplineKernel{NDIMS}()
@@ -329,8 +339,9 @@ end
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
 
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / 120h
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (478 * pi * h^2)
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (120 * pi * h^3)
+# `478 * pi` is always `Float64`. `pi * h^2 * 478` preserves the type of `h`.
+@inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (pi * h^2 * 478)
+@inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (pi * h^3 * 120)
 
 abstract type WendlandKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
@@ -400,7 +411,8 @@ end
 end
 
 @inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2)
-@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (2pi * h^3)
+# `2 * pi` is always `Float64`. `pi * h^3 * 2` preserves the type of `h`.
+@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 2)
 
 @doc raw"""
     WendlandC4Kernel{NDIMS}()
@@ -449,8 +461,10 @@ end
 
 @fastpow @muladd @inline function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
-    term1 = (1 - q)^6 * (6 + 70 / 3 * q)
-    term2 = 6 * (1 - q)^5 * (1 + 6q + 35 / 3 * q^2)
+
+    # Use `//` to preserve the type of `q`
+    term1 = (1 - q)^6 * (6 + 70 // 3 * q)
+    term2 = 6 * (1 - q)^5 * (1 + 6q + 35 // 3 * q^2)
     derivative = term1 - term2
 
     # Zero out result if q >= 1
@@ -461,7 +475,8 @@ end
 end
 
 @inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2)
-@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (32pi * h^3)
+# `32 * pi` is always `Float64`. `pi * h^2 * 32` preserves the type of `h`.
+@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 32)
 
 @doc raw"""
     WendlandC6Kernel{NDIMS}()
@@ -521,8 +536,9 @@ end
     return result
 end
 
-@inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (7pi * h^2)
-@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (64pi * h^3)
+# `7 * pi` is always `Float64`. `pi * h^2 * 7` preserves the type of `h`.
+@inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (pi * h^2 * 7)
+@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 64)
 
 @doc raw"""
     Poly6Kernel{NDIMS}()
@@ -588,7 +604,8 @@ end
 @inline compact_support(::Poly6Kernel, h) = h
 
 @inline normalization_factor(::Poly6Kernel{2}, h) = 4 / (pi * h^2)
-@inline normalization_factor(::Poly6Kernel{3}, h) = 315 / (64pi * h^3)
+# `64 * pi` is always `Float64`. `pi * h^3 * 64` preserves the type of `h`.
+@inline normalization_factor(::Poly6Kernel{3}, h) = 315 / (pi * h^3 * 64)
 
 @doc raw"""
     SpikyKernel{NDIMS}()

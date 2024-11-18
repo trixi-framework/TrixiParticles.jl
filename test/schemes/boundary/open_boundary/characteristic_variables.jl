@@ -29,7 +29,7 @@
         plane_size = plane_points[2] - plane_points[1]
         flow_directions = [
             normalize([-plane_size[2], plane_size[1]]),
-            -normalize([-plane_size[2], plane_size[1]]),
+            -normalize([-plane_size[2], plane_size[1]])
         ]
 
         @testset "Flow Direction $j" for j in eachindex(flow_directions)
@@ -41,7 +41,7 @@
 
             boundary_zones = [
                 inflow,
-                outflow,
+                outflow
             ]
 
             @testset "`$(nameof(typeof(boundary_zone)))`" for boundary_zone in boundary_zones

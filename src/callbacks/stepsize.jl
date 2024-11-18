@@ -94,7 +94,7 @@ function Base.show(io::IO, ::MIME"text/plain",
 
         setup = [
             "is constant" => string(is_constant(stepsize_callback)),
-            "CFL number" => stepsize_callback.cfl_number,
+            "CFL number" => stepsize_callback.cfl_number
         ]
         summary_box(io, "StepsizeCallback", setup)
     end

@@ -252,7 +252,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["viscosity"] = type2string(system.viscosity)
         write2vtk!(vtk, system.viscosity)
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
-        vtk["smoothing_length"] = system.smoothing_length
+        # vtk["smoothing_length"] = system.smoothing_length TODO
         vtk["density_calculator"] = type2string(system.density_calculator)
 
         if system isa WeaklyCompressibleSPHSystem

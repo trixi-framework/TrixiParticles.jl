@@ -1,4 +1,4 @@
-# PointNeighbors.jl API
+# [PointNeighbors.jl API](@id pointneighbors)
 
 ```@meta
 CurrentModule = PointNeighbors

@@ -19,9 +19,12 @@ function copy_file(filename, replaces...;
     content = read(source_path, String)
     content = replace(content, replaces...)
 
+    # Use `replace` to make sure the path uses forward slashes for URLs
+    filename_url = replace(filename, "\\" => "/")
+
     header = """
     ```@meta
-    EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/$filename"
+    EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/$filename_url"
     ```
     """
     content = header * content
@@ -115,9 +118,10 @@ makedocs(sitename="TrixiParticles.jl",
              "Examples" => "examples.md",
              "Visualization" => "visualization.md",
              "Preprocessing" => [
-                 "Sampling of Geometries" => joinpath("preprocessing", "preprocessing.md"),
+                 "Sampling of Geometries" => joinpath("preprocessing", "preprocessing.md")
              ],
-             "Components" => [
+             "GPU Support" => "gpu.md",
+             "API Reference" => [
                  "Overview" => "overview.md",
                  "General" => [
                      "Semidiscretization" => joinpath("general", "semidiscretization.md"),
@@ -127,7 +131,7 @@ makedocs(sitename="TrixiParticles.jl",
                      "Density Calculators" => joinpath("general", "density_calculators.md"),
                      "Smoothing Kernels" => joinpath("general", "smoothing_kernels.md"),
                      "Neighborhood Search" => joinpath("general", "neighborhood_search.md"),
-                     "Util" => joinpath("general", "util.md"),
+                     "Util" => joinpath("general", "util.md")
                  ],
                  "Systems" => [
                      "Discrete Element Method (Solid)" => joinpath("systems",
@@ -138,18 +142,18 @@ makedocs(sitename="TrixiParticles.jl",
                                                                                                   "entropically_damped_sph.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
                                                                             "total_lagrangian_sph.md"),
-                     "Boundary" => joinpath("systems", "boundary.md"),
+                     "Boundary" => joinpath("systems", "boundary.md")
                  ],
                  "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",
                  "TrixiBase.jl API Reference" => "reference-trixibase.md",
-                 "PointNeighbors.jl API Reference" => "reference-pointneighbors.md",
+                 "PointNeighbors.jl API Reference" => "reference-pointneighbors.md"
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",
              "Code of Conduct" => "code_of_conduct.md",
              "License" => "license.md",
-             "References" => "references.md",
+             "References" => "references.md"
          ])
 
 deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",
