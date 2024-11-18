@@ -103,7 +103,7 @@ end
 end
 
 @inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
-                                     ::ParticleRefinement, pos_diff, distance,
+                                     refinement, pos_diff, distance,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     momentum_velocity_a = current_velocity(v_particle_system, system, particle)
@@ -112,8 +112,8 @@ end
     momentum_velocity_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
     advection_velocity_b = advection_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    factor_a = beta_correction(particle_system, particle_refinement, particle) / rho_a
-    factor_b = beta_correction(neighbor_system, particle_refinement, neighbor) / rho_b
+    factor_a = beta_correction(particle_system, particle) / rho_a
+    factor_b = beta_correction(neighbor_system, neighbor) / rho_b
 
     A_a = factor_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
     A_b = factor_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'

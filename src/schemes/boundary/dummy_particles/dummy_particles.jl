@@ -585,12 +585,13 @@ end
     return density
 end
 
-@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance, particle)
-    (; smoothing_kernel, smoothing_length, correction) = system.boundary_model
+# TODO
+# @inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance, particle)
+#     (; smoothing_kernel, smoothing_length, correction) = system.boundary_model
 
-    return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                 smoothing_length, correction, system, particle)
-end
+#     return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
+#                                  smoothing_length, correction, system, particle)
+# end
 
 @inline function correction_matrix(system::BoundarySystem, particle)
     extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
