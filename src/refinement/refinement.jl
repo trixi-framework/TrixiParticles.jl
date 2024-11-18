@@ -58,6 +58,7 @@ function refinement!(semi, v_ode, u_ode, v_tmp, u_tmp, t)
     # Correct the particles
 
     # Update smoothing lengths
+    upate_smoothing_lengths!(semi, u_ode)
 
     # Resize neighborhood search
 
@@ -97,6 +98,54 @@ end
 
         smoothing_length[particle] = smoothing_length_factor * new_spacing
         mass_ref[particle] = system.density[particle] * new_spacing^(ndims(system))
+    end
+
+    return system
+end
+
+function upate_smoothing_lengths!(semi, u_ode)
+    foreach_system(semi) do system
+        u = wrap_u(u_ode, system, semi)
+        upate_smoothing_lengths!(system, semi, u)
+    end
+
+    return semi
+end
+
+upate_smoothing_lengths!(system, semi, u) = system
+
+function upate_smoothing_lengths!(system::FluidSystem, semi, u)
+    upate_smoothing_lengths!(system, system.particle_refinement, semi, u)
+end
+
+upate_smoothing_lengths!(system, ::Nothing, semi, u) = system
+
+function upate_smoothing_lengths!(system::FluidSystem, refinement, semi, u)
+    (; smoothing_length, smoothing_length_factor) = system.cache
+
+    neighborhood_search = get_neighborhood_search(system, semi)
+
+    system_coords = current_coordinates(u, system)
+
+    # TODO: Think about a solution when density is not constant in `initial_condition`
+    # Problem: Resized systems
+    rho_0 = first(system.initial_condition.density)
+
+    for particle in each_moving_particle(system)
+        mass_avg = zero(eltype(system))
+        counter_neighbors = 0
+
+        PointNeighbors.foreach_neighbor(system_coords, system_coords, neighborhood_search,
+                                        particle) do particle, neighbor, pos_diff, distance
+            mass_avg += system.mass[neighbor]
+
+            counter_neighbors += 1
+        end
+
+        mass_avg /= counter_neighbors
+
+        smoothing_length[particle] = smoothing_length_factor *
+                                     (mass_avg / rho_0)^(1 / ndims(system))
     end
 
     return system
