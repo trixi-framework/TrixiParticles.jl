@@ -131,7 +131,7 @@
                 Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
                 function TrixiParticles.current_coords(system::Val{:mock_system_tensor},
                                                        particle)
-                    return TrixiParticles.extract_svector(current_coordinates[i], system,
+                    return TrixiParticles.extract_svector(current_coordinates[i], Val(2),
                                                           particle)
                 end
 
