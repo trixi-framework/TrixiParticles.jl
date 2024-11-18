@@ -48,7 +48,7 @@ pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_densi
 # Shift pipe walls in negative x-direction for the inflow
 pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
-n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]
+n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
 
 # ==========================================================================================
 # ==== Fluid
@@ -77,14 +77,16 @@ fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothi
 
 # ==========================================================================================
 # ==== Open Boundary
-function velocity_function(pos, t)
+
+function velocity_function2d(pos, t)
     # Use this for a time-dependent inflow velocity
     # return SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
 
     return SVector(prescribed_velocity, 0.0)
 end
 
-inflow = InFlow(; plane=([0.0, 0.0], [0.0, domain_size[2]]), flow_direction,
+plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
+inflow = InFlow(; plane=plane_in, flow_direction,
                 open_boundary_layers, density=fluid_density, particle_spacing)
 
 open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
@@ -92,9 +94,10 @@ open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
                                          buffer_size=n_buffer_particles,
                                          reference_density=fluid_density,
                                          reference_pressure=pressure,
-                                         reference_velocity=velocity_function)
+                                         reference_velocity=velocity_function2d)
 
-outflow = OutFlow(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2]]),
+plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
+outflow = OutFlow(; plane=plane_out,
                   flow_direction, open_boundary_layers, density=fluid_density,
                   particle_spacing)
 
@@ -103,7 +106,7 @@ open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
                                           buffer_size=n_buffer_particles,
                                           reference_density=fluid_density,
                                           reference_pressure=pressure,
-                                          reference_velocity=velocity_function)
+                                          reference_velocity=velocity_function2d)
 
 # ==========================================================================================
 # ==== Boundary
