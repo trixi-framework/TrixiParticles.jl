@@ -85,7 +85,6 @@ function velocity_function2d(pos, t)
     return SVector(prescribed_velocity, 0.0)
 end
 
-
 plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
 inflow = InFlow(; plane=plane_in, flow_direction,
                 open_boundary_layers, density=fluid_density, particle_spacing)
