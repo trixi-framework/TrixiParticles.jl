@@ -28,7 +28,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # in this hot loop to avoid bounds checking when extracting particle quantities.
         rho_a = @inbounds particle_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_mean = 0.5 * (rho_a + rho_b)
+        rho_mean = (rho_a + rho_b) / 2
 
         # Determine correction factors.
         # This can be ignored, as these are all 1 when no correction is used.
