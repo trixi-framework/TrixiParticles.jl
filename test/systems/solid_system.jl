@@ -171,6 +171,7 @@
                 function TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _)
                     return kernel_derivative
                 end
+                Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
 
                 # Compute deformation gradient
                 deformation_grad = ones(2, 2, 2)
@@ -371,4 +372,4 @@
         @test isapprox(von_mises_stress[1], 1.4257267477533202, atol=1e-14)
         @test isapprox(reference_stress_tensor, cauchy_stress, atol=1e-6)
     end
-end
+end;
