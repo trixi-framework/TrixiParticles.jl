@@ -111,7 +111,7 @@ include("entropically_damped_sph/entropically_damped_sph.jl")
     add_velocity!(du, v, particle, system, system.transport_velocity)
 end
 
-@inline function momentum_convection(system, neighbor_system,
+@inline function momentum_convection(system, neighbor_system, pos_diff, distance,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     return zero(grad_kernel)
@@ -120,9 +120,10 @@ end
 @inline function momentum_convection(system,
                                      neighbor_system::Union{EntropicallyDampedSPHSystem,
                                                             WeaklyCompressibleSPHSystem},
+                                     pos_diff, distance,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     momentum_convection(system, neighbor_system, system.transport_velocity,
-                        v_particle_system, v_neighbor_system, rho_a, rho_b,
-                        m_a, m_b, particle, neighbor, grad_kernel)
+                        pos_diff, distance, v_particle_system, v_neighbor_system,
+                        rho_a, rho_b, m_a, m_b, particle, neighbor, grad_kernel)
 end
