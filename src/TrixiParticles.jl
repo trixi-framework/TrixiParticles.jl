@@ -45,6 +45,7 @@ include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+include("refinement/refinement.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
@@ -73,7 +74,7 @@ export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerr
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelLastiwka,
        BernoulliPressureExtrapolation
-
+export ParticleRefinement, SpatialRefinementCriterion
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
