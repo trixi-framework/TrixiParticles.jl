@@ -19,7 +19,7 @@ function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback{<:Any, <:Inf
         callback = cb.affect!
 
         setup = [
-            "interval" => callback.interval,
+            "interval" => callback.interval
         ]
         summary_box(io, "InfoCallback", setup)
     end

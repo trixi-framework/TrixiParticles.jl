@@ -3,6 +3,7 @@ module TrixiParticles
 using Reexport: @reexport
 
 using Adapt: Adapt
+using Base: @propagate_inbounds
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
@@ -69,7 +70,9 @@ export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing, BoundaryModelLastiwka
+       PressureMirroring, PressureZeroing, BoundaryModelLastiwka,
+       BernoulliPressureExtrapolation
+
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk

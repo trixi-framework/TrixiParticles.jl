@@ -6,7 +6,7 @@
              1.0 2.0],
             [1.0 2.0
              1.0 2.0
-             1.0 2.0],
+             1.0 2.0]
         ]
         @testset "$(i+1)D" for i in 1:2
             NDIMS = i + 1
@@ -131,7 +131,7 @@
                 Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
                 function TrixiParticles.current_coords(system::Val{:mock_system_tensor},
                                                        particle)
-                    return TrixiParticles.extract_svector(current_coordinates[i], system,
+                    return TrixiParticles.extract_svector(current_coordinates[i], Val(2),
                                                           particle)
                 end
 

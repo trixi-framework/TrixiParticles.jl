@@ -55,13 +55,17 @@ of the boundary particle ``b``.
 
 ### Hydrodynamic density of dummy particles
 
-We provide five options to compute the boundary density and pressure, determined by the `density_calculator`:
+We provide six options to compute the boundary density and pressure, determined by the `density_calculator`:
 1. (Recommended) With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
    fluid according to [Adami et al., 2012](@cite Adami2012), and the density is obtained by applying the inverse of the state equation.
    This option usually yields the best results of the options listed here.
-2. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
+2. (Only relevant for FSI) With [`BernoulliPressureExtrapolation`](@ref), the pressure is extrapolated from the 
+   pressure similar to the [`AdamiPressureExtrapolation`](@ref), but a relative velocity-dependent pressure part
+   is calculated between moving solids and fluids, which increases the boundary pressure in areas prone to 
+   penetrations.
+3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
-3. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
+4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
    Note that this causes a gap between fluid and boundary where the boundary is initialized
    without any contact to the fluid. This is due to overestimation of the boundary density
@@ -69,10 +73,10 @@ We provide five options to compute the boundary density and pressure, determined
    contact to the fluid.
    Therefore, in dam break simulations, there is a visible "step", even though the boundary is supposed to be flat.
    See also [dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
-4. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
+5. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
    is computed from the density with the state equation.
    This option is not recommended. The other options yield significantly better results.
-5. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
+6. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
    is not used. Instead, the fluid pressure is mirrored as boundary pressure in the
    momentum equation.
    This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
@@ -93,7 +97,20 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
     AdamiPressureExtrapolation
 ```
 
-#### 4. [`PressureZeroing`](@ref)
+#### 2. [`BernoulliPressureExtrapolation`](@ref)
+Identical to the pressure ``p_b `` calculated via [`AdamiPressureExtrapolation`](@ref), but it adds the dynamic pressure component of the Bernoulli equation:
+```math
+p_b = \frac{\sum_f (p_f + \frac{1}{2} \, \rho_{\text{neighbor}} \left( \frac{ (\mathbf{v}_f - \mathbf{v}_{\text{body}}) \cdot (\mathbf{x}_f - \mathbf{x}_{\text{neighbor}}) }{ \left\| \mathbf{x}_f - \mathbf{x}_{\text{neighbor}} \right\| } \right)^2 \times \text{factor} +\rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)} 
+```
+where ``\mathbf{v}_f`` is the velocity of the fluid and ``\mathbf{v}_{\text{body}}`` is the velocity of the body.
+This adjustment provides a higher boundary pressure for solid bodies moving with a relative velocity to the fluid to prevent penetration.
+This modification is original and not derived from any literature source.
+
+```@docs
+    BernoulliPressureExtrapolation
+```
+
+#### 5. [`PressureZeroing`](@ref)
 
 This is the simplest way to implement dummy boundary particles.
 The density of each particle is set to the reference density and the pressure to the
@@ -102,7 +119,7 @@ reference pressure (the corresponding pressure to the reference density by the s
     PressureZeroing
 ```
 
-#### 5. [`PressureMirroring`](@ref)
+#### 6. [`PressureMirroring`](@ref)
 
 Instead of calculating density and pressure for each boundary particle, we modify the
 momentum equation,
