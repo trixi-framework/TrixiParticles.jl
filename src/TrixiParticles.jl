@@ -22,7 +22,8 @@ using Printf: @printf, @sprintf
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem,
+                 RecursiveArrayTools
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
