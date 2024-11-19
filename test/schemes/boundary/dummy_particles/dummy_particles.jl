@@ -43,8 +43,8 @@
                                                    state_equation,
                                                    smoothing_kernel, smoothing_length)
 
-        neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
-                                                                          TrixiParticles.eachparticle(fluid_system))
+        neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=1.0,
+                                                                          eachpoint=TrixiParticles.eachparticle(fluid_system))
 
         velocities = [[0; -1], [1; 1], [-1; 0], [0.7; 0.2], [0.3; 0.8]]
 
@@ -54,12 +54,14 @@
 
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         boundary_system.boundary_model.viscosity)
-            TrixiParticles.adami_pressure_extrapolation!(boundary_model, boundary_system,
-                                                         fluid_system, boundary.coordinates,
-                                                         fluid.coordinates,
-                                                         v_fluid .*
-                                                         ones(size(fluid.coordinates)),
-                                                         neighborhood_search)
+            TrixiParticles.boundary_pressure_extrapolation!(boundary_model,
+                                                            boundary_system,
+                                                            fluid_system,
+                                                            boundary.coordinates,
+                                                            fluid.coordinates, v_fluid,
+                                                            v_fluid .*
+                                                            ones(size(fluid.coordinates)),
+                                                            neighborhood_search)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
                 if volume[particle] > eps()
@@ -92,10 +94,12 @@
 
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         boundary_system.boundary_model.viscosity)
-            TrixiParticles.adami_pressure_extrapolation!(boundary_model, boundary_system,
-                                                         fluid_system, boundary.coordinates,
-                                                         fluid.coordinates, v_fluid,
-                                                         neighborhood_search)
+            TrixiParticles.boundary_pressure_extrapolation!(boundary_model, boundary_system,
+                                                            fluid_system,
+                                                            boundary.coordinates,
+                                                            fluid.coordinates, v_fluid,
+                                                            v_fluid,
+                                                            neighborhood_search)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
                 if volume[particle] > eps()

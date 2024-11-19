@@ -52,7 +52,16 @@ function initial_update!(cb, u, t, integrator)
     initial_update!(cb.affect!, u, t, integrator)
 end
 
-initial_update!(cb::UpdateCallback, u, t, integrator) = cb(integrator)
+function initial_update!(cb::UpdateCallback, u, t, integrator)
+    semi = integrator.p
+
+    # Tell systems that `UpdateCallback` is used
+    foreach_system(semi) do system
+        update_callback_used!(system)
+    end
+
+    return cb(integrator)
+end
 
 # `condition`
 function (update_callback!::UpdateCallback)(u, t, integrator)
@@ -69,16 +78,16 @@ function (update_callback!::UpdateCallback)(integrator)
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
 
-    # Other updates might be added here later (e.g. Transport Velocity Formulation).
-    # @trixi_timeit timer() "update open boundary" foreach_system(semi) do system
-    #     update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
-    # end
-    #
-    # @trixi_timeit timer() "update TVF" foreach_system(semi) do system
-    #     update_transport_velocity_eachstep!(system, v_ode, u_ode, semi, t)
-    # end
+    # Update open boundaries first, since particles might be activated or deactivated
+    @trixi_timeit timer() "update open boundary" foreach_system(semi) do system
+        update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
+    end
+
+    @trixi_timeit timer() "update TVF" foreach_system(semi) do system
+        update_transport_velocity!(system, v_ode, semi)
+    end
 
     # Tell OrdinaryDiffEq that `u` has been modified
     u_modified!(integrator, true)
@@ -107,7 +116,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!
         setup = [
-            "interval" => update_cb.interval,
+            "interval" => update_cb.interval
         ]
         summary_box(io, "UpdateCallback", setup)
     end
@@ -123,8 +132,10 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!.affect!
         setup = [
-            "dt" => update_cb.interval,
+            "dt" => update_cb.interval
         ]
         summary_box(io, "UpdateCallback", setup)
     end
 end
+
+update_callback_used!(system) = system

@@ -1,3 +1,7 @@
+@inline function set_particle_density!(v, system::FluidSystem, particle, density)
+    set_particle_density!(v, system, system.density_calculator, particle, density)
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
     density = similar(initial_condition.density)
 
@@ -9,7 +13,7 @@ function create_cache_density(ic, ::ContinuityDensity)
     return (;)
 end
 
-@inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
+@propagate_inbounds hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
 function write_u0!(u0, system::FluidSystem)
     (; initial_condition) = system
@@ -27,13 +31,17 @@ function write_v0!(v0, system::FluidSystem)
     copyto!(v0, indices, system.initial_condition.velocity, indices)
 
     write_v0!(v0, system, system.density_calculator)
+    write_v0!(v0, system, system.transport_velocity)
 
     return v0
 end
 
-write_v0!(v0, system, density_calculator) = v0
+write_v0!(v0, system::FluidSystem, _) = v0
 
-@inline viscosity_model(system::FluidSystem) = system.viscosity
+# To account for boundary effects in the viscosity term of the RHS, use the viscosity model
+# of the neighboring particle systems.
+@inline viscosity_model(system::FluidSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
+@inline viscosity_model(system::FluidSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
@@ -70,6 +78,29 @@ end
 
 include("pressure_acceleration.jl")
 include("viscosity.jl")
+include("transport_velocity.jl")
 include("surface_tension.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
+
+@inline function add_velocity!(du, v, particle,
+                               system::Union{EntropicallyDampedSPHSystem,
+                                             WeaklyCompressibleSPHSystem})
+    add_velocity!(du, v, particle, system, system.transport_velocity)
+end
+
+@inline function momentum_convection(system, neighbor_system,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     m_a, m_b, particle, neighbor, grad_kernel)
+    return zero(grad_kernel)
+end
+
+@inline function momentum_convection(system,
+                                     neighbor_system::Union{EntropicallyDampedSPHSystem,
+                                                            WeaklyCompressibleSPHSystem},
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     m_a, m_b, particle, neighbor, grad_kernel)
+    momentum_convection(system, neighbor_system, system.transport_velocity,
+                        v_particle_system, v_neighbor_system, rho_a, rho_b,
+                        m_a, m_b, particle, neighbor, grad_kernel)
+end

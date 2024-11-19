@@ -1,16 +1,19 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS, Nothing}
+# The second type parameter of `System` can't be `Nothing`, or TrixiParticles will launch
+# GPU kernel for `foreach_point_neighbor` loops.
+struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS, 0}
     initial_condition :: InitialCondition{ELTYPE}
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE
+    buffer            :: Nothing
 
     function NBodySystem(initial_condition, G)
         mass = copy(initial_condition.mass)
 
         new{size(initial_condition.coordinates, 1),
-            eltype(mass)}(initial_condition, mass, G)
+            eltype(mass)}(initial_condition, mass, G, nothing)
     end
 end
 
@@ -36,7 +39,7 @@ function TrixiParticles.update_nhs!(neighborhood_search,
                                     u_system, u_neighbor)
     TrixiParticles.PointNeighbors.update!(neighborhood_search,
                                           u_system, u_neighbor,
-                                          particles_moving=(true, true))
+                                          points_moving=(true, true))
 end
 
 function TrixiParticles.compact_support(system::NBodySystem,
@@ -56,10 +59,10 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
     neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    TrixiParticles.for_particle_neighbor(particle_system, neighbor_system,
-                                         system_coords, neighbor_coords,
-                                         neighborhood_search) do particle, neighbor,
-                                                                 pos_diff, distance
+    TrixiParticles.foreach_point_neighbor(particle_system, neighbor_system,
+                                          system_coords, neighbor_coords,
+                                          neighborhood_search) do particle, neighbor,
+                                                                  pos_diff, distance
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 

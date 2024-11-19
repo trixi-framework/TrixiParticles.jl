@@ -23,8 +23,11 @@ specified material properties and contact mechanics.
     captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
  - `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
 
- !!! warning "Experimental Implementation"
+!!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
+
+## References
+[Bicanic2004](@cite), [Cundall1979](@cite), [DiRenzo2004](@cite)
 """
 struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, IC}
     initial_condition   :: IC
@@ -36,6 +39,7 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, I
     damping_coefficient :: ELTYPE
     acceleration        :: SVector{NDIMS, ELTYPE}
     source_terms        :: ST
+    buffer              :: Nothing
 
     function DEMSystem(initial_condition, normal_stiffness, elastic_modulus, poissons_ratio;
                        damping_coefficient=0.0001,
@@ -56,7 +60,8 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, I
         return new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                    typeof(source_terms)}(initial_condition, mass, radius, elastic_modulus,
                                          poissons_ratio, normal_stiffness,
-                                         damping_coefficient, acceleration_, source_terms)
+                                         damping_coefficient, acceleration_, source_terms,
+                                         nothing)
     end
 end
 

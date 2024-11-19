@@ -156,7 +156,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "output directory" => callback.output_directory,
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
             "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no",
+            "write csv file" => callback.write_json ? "yes" : "no"
         ]
 
         for (i, key) in enumerate(keys(callback.func))
@@ -193,7 +193,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "output directory" => callback.output_directory,
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
             "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no",
+            "write csv file" => callback.write_json ? "yes" : "no"
         ]
 
         for (i, key) in enumerate(keys(callback.func))
@@ -236,7 +236,7 @@ function (pp::PostprocessCallback)(integrator)
     new_data = false
 
     # Update systems to compute quantities like density and pressure
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
 
     foreach_system(semi) do system
         if system isa BoundarySystem && pp.exclude_boundary
