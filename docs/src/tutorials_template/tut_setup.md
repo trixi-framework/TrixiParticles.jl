@@ -207,7 +207,7 @@ For the simplest visualization, we can use [Plots.jl](https://docs.juliaplots.or
 ```@example tut_setup
 using Plots
 plot(sol)
-savefig("tut_setup_plot.png"); nothing # hide
+plot!(dpi=200); savefig("tut_setup_plot.png"); nothing # hide
 ```
 ![plot](tut_setup_plot.png)
 
@@ -265,6 +265,23 @@ end
 
 TrixiParticles.compact_support(::MyGaussianKernel, h) = 3 * h
 ```
+
+For this kernel, we use a different smoothing length, which yields a similar kernel
+to the `SchoenbergCubicSplineKernel` that we used earlier.
+```@example tut_setup
+smoothing_length_gauss = 1.0 * fluid_particle_spacing
+```
+We can compare these kernels in a plot.
+```@example tut_setup
+using Plots
+x = range(-0.2, 0.2, length=500)
+plot(x, r -> TrixiParticles.kernel(SchoenbergCubicSplineKernel{2}(), abs(r), smoothing_length),
+     label="SchoenbergCubicSplineKernel", xlabel="r")
+plot!(x, r -> TrixiParticles.kernel(MyGaussianKernel(), abs(r), smoothing_length_gauss),
+      label="MyGaussianKernel")
+plot!(dpi=200); savefig("tut_setup_plot2.png"); nothing # hide
+```
+![plot](tut_setup_plot2.png)
 
 This is all we need to use our custom kernel implementation in a simulation.
 We only need to replace the definition above by
