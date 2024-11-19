@@ -187,10 +187,10 @@
     end
 
     @testset verbose=true "Illegal Inputs" begin
-        no_rectangular_plane = [[0.2, 0.3, -0.5], [-1.0, 1.5, 0.2], [-0.2, 2.0, -0.5]]
+        no_rectangular_plane = [[0.2, 0.3, -0.5], [-1.0, 1.5, 0.2], [-0.4, 0.9, -0.15]]
         flow_direction = [0.0, 0.0, 1.0]
 
-        error_str = "the vectors `AB` and `AC` for the provided points `A`, `B`, `C` must be orthogonal"
+        error_str = "the vectors `AB` and `AC` must not be collinear"
 
         @test_throws ArgumentError(error_str) InFlow(; plane=no_rectangular_plane,
                                                      particle_spacing=0.1,

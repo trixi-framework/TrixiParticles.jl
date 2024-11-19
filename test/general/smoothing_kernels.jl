@@ -90,4 +90,37 @@
             end
         end
     end
-end
+
+    @testset verbose=false "Return Type" begin
+        # Test that the return type of the kernel and kernel derivative preserve
+        # the input type. We don't want to return `Float64` when working with `Float32`.
+        kernels = [
+            GaussianKernel,
+            SchoenbergCubicSplineKernel,
+            SchoenbergQuarticSplineKernel,
+            SchoenbergQuinticSplineKernel,
+            WendlandC2Kernel,
+            WendlandC4Kernel,
+            WendlandC6Kernel,
+            SpikyKernel,
+            Poly6Kernel
+        ]
+
+        # Test different smoothing length types
+        smoothing_lengths = (0.5, 0.5f0)
+
+        @testset "$kernel_type" for kernel_type in kernels
+            for ndims in 2:3
+                kernel_ = kernel_type{ndims}()
+
+                for h in smoothing_lengths
+                    result = TrixiParticles.kernel(kernel_, h / 2, h)
+                    @test typeof(result) == typeof(h)
+
+                    result = TrixiParticles.kernel_deriv(kernel_, h / 2, h)
+                    @test typeof(result) == typeof(h)
+                end
+            end
+        end
+    end
+end;
