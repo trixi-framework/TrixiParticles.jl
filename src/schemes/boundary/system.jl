@@ -160,7 +160,7 @@ is_moving(t) = t < 1.5
 movement = BoundaryMovement(movement_function, is_moving)
 
 # output
-BoundaryMovement{typeof(movement_function), typeof(is_moving)}(movement_function, is_moving, Int64[])
+BoundaryMovement{typeof(movement_function), typeof(is_moving)}(movement_function, is_moving, Int[])
 ```
 """
 struct BoundaryMovement{MF, IM}
