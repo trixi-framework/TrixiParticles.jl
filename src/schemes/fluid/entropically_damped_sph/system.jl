@@ -50,8 +50,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
-    number_density                    :: Int64
-    color                             :: Int64
+    ideal_neighbor_count              :: Int
+    color                             :: Int
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -97,19 +97,19 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
         end
 
         if surface_tension !== nothing && surface_normal_method === nothing
-            surface_normal_method = ColorfieldSurfaceNormal(smoothing_kernel,
-                                                            smoothing_length)
+            surface_normal_method = ColorfieldSurfaceNormal()
         end
 
         if surface_normal_method !== nothing && reference_particle_spacing < eps()
             throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
         end
 
-        number_density_ = 0
+        ideal_neighbor_count_ = 0
         if reference_particle_spacing > 0.0
-            number_density_ = number_density(Val(NDIMS), reference_particle_spacing,
-                                             compact_support(smoothing_kernel,
-                                                             smoothing_length))
+            ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS),
+                                                         reference_particle_spacing,
+                                                         compact_support(smoothing_kernel,
+                                                                         smoothing_length))
         end
 
         pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
@@ -134,7 +134,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
             typeof(surface_tension), typeof(surface_normal_method),
             typeof(buffer), typeof(cache)}(initial_condition, mass, density_calculator,
                                            smoothing_kernel, smoothing_length,
-                                           number_density_,
+                                           ideal_neighbor_count_,
                                            color_value, sound_speed, viscosity, nu_edac,
                                            acceleration_,
                                            nothing, pressure_acceleration,

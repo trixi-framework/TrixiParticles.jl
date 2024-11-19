@@ -7,7 +7,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     exponent = 1
     clip_negative_pressure = false
     density_calculator = SummationDensity()
-    surface_normal_method = ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length)
+    surface_normal_method = ColorfieldSurfaceNormal()
     reference_particle_spacing = particle_spacing
     tspan = (0.0, 0.01)
 

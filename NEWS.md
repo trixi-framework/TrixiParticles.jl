@@ -8,7 +8,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Features
 
 - Support for surface tension was added to EDAC (#539)
-- A method to prevent penetration of fast moving particles with solids was added (#498) 
+- A method to prevent penetration of fast moving particles with solids was added (#498)
+- Added the callback `SteadyStateReachedCallback` to detect converging simulations (#601)
 
 ### Documentation
 
@@ -16,7 +17,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Fixes
 
-- JuliaFormatter was updated from 1.0.42 to 1.0.62 (#661)
 - Diverse Doc fixes (#663, #659, #637, #658, #664)
 - Simulations can be run with `Float32` (#662)
 

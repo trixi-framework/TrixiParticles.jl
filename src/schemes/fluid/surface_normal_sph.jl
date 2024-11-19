@@ -1,13 +1,14 @@
-struct ColorfieldSurfaceNormal{ELTYPE, K}
-    smoothing_kernel::K
-    smoothing_length::ELTYPE
+@doc raw"""
+    ColorfieldSurfaceNormal()
+
+Color field based computation of the interface normals.
+"""
+struct ColorfieldSurfaceNormal{ELTYPE}
     boundary_contact_threshold::ELTYPE
 end
 
-function ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length;
-                                 boundary_contact_threshold=0.1)
-    return ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length,
-                                   boundary_contact_threshold)
+function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1)
+    return ColorfieldSurfaceNormal(boundary_contact_threshold)
 end
 
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
@@ -38,20 +39,10 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
                       v_neighbor_system, u_neighbor_system, semi, surfn,
                       ::ColorfieldSurfaceNormal)
     (; cache) = system
-    (; smoothing_kernel, smoothing_length) = surfn
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
-
-    if smoothing_length != system.smoothing_length ||
-       smoothing_kernel !== system.smoothing_kernel
-        # TODO: this is really slow but there is no way to easily implement multiple search radia
-        search_radius = compact_support(smoothing_kernel, smoothing_length)
-        nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
-                                                      nparticles(system))
-        PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
-    end
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
@@ -59,7 +50,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = particle_density(v_neighbor_system,
                                             neighbor_system, neighbor)
-        grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
         end
@@ -76,23 +67,11 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
                       v_neighbor_system, u_neighbor_system, semi, surfn, nsurfn)
     (; cache) = system
     (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
-    (; smoothing_kernel, smoothing_length, boundary_contact_threshold) = surfn
+    (; boundary_contact_threshold) = surfn
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
-
-    if smoothing_length != system.smoothing_length ||
-       smoothing_kernel !== system.smoothing_kernel
-        # TODO: this is really slow but there is no way to easily implement multiple search radia
-        search_radius = compact_support(smoothing_kernel, smoothing_length)
-        nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
-                                                      nparticles(system))
-        nhs_bnd = PointNeighbors.copy_neighborhood_search(nhs_bnd, search_radius,
-                                                          nparticles(neighbor_system))
-        PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
-        PointNeighbors.initialize!(nhs_bnd, neighbor_system_coords, neighbor_system_coords)
-    end
 
     # First we need to calculate the smoothed colorfield values of the boundary
     # TODO: move colorfield to extra step
@@ -118,8 +97,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
         if colorfield[neighbor] / maximum_colorfield > boundary_contact_threshold
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
-            grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
-                                      smoothing_length)
+            grad_kernel = smoothing_kernel_grad(pos_diff, distance)
             for i in 1:ndims(system)
                 cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
             end
@@ -219,22 +197,13 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
                          v_neighbor_system, u_neighbor_system, semi,
                          surfn::ColorfieldSurfaceNormal, nsurfn::ColorfieldSurfaceNormal)
     (; cache) = system
-    (; smoothing_kernel, smoothing_length) = surfn
+    (; smoothing_length) = surfn
     (; curvature) = cache
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
     correction_factor = fill(eps(eltype(system)), n_moving_particles(system))
-
-    if smoothing_length != system.smoothing_length ||
-       smoothing_kernel !== system.smoothing_kernel
-        # TODO: this is really slow but there is no way to easily implement multiple search radia
-        search_radius = compact_support(smoothing_kernel, smoothing_length)
-        nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
-                                                      nparticles(system))
-        PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
-    end
 
     no_valid_neighbors = 0
 
@@ -245,17 +214,18 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         n_a = surface_normal(system, particle)
         n_b = surface_normal(neighbor_system, neighbor)
-        grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
         v_b = m_b / rho_b
 
         # eq. 22 we can test against eps() here since the surface normals that are invalid have been reset
         if dot(n_a, n_a) > eps() && dot(n_b, n_b) > eps()
-            # for i in 1:ndims(system)
-            curvature[particle] += v_b * dot((n_b .- n_a), grad_kernel)
-            # end
+            w = smoothing_kernel(system, distance)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+            for i in 1:ndims(system)
+                curvature[particle] += v_b * (n_b[i] - n_a[i]) * grad_kernel[i]
+            end
             # eq. 24
-            correction_factor[particle] += v_b * kernel(smoothing_kernel, distance,
-                                                  smoothing_length)
+            correction_factor[particle] += v_b * w
             # prevent NaNs from systems that are entirely skipped
             no_valid_neighbors += 1
         end

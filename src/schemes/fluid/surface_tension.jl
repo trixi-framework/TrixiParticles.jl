@@ -1,5 +1,5 @@
-abstract type SurfaceTensionModel end
-abstract type AkinciTypeSurfaceTension <: SurfaceTensionModel end
+abstract type SurfaceTension end
+abstract type AkinciTypeSurfaceTension <: SurfaceTension end
 
 @doc raw"""
     CohesionForceAkinci(surface_tension_coefficient=1.0)

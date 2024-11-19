@@ -10,7 +10,7 @@ W = 2 * H
 # ==========================================================================================
 # ==== Resolution
 
-# Note: The resolution is very coarse. A better result is obtained with H/60 or higher (which takes over 1 hour+)
+# Note: The resolution is very coarse. A better result is obtained with H/60 or higher (which takes over 1 hour)
 fluid_particle_spacing = H / 20
 
 # ==========================================================================================
@@ -67,21 +67,14 @@ end
 
 air_system = union(air_system, air_system2)
 
+air_eos = StateEquationCole(; sound_speed, reference_density=air_density, exponent=1,
+                            clip_negative_pressure=false)
+#air_eos = StateEquationIdealGas(; sound_speed, reference_density=air_density, gamma=1.4)
+
 air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calculator,
-                                                StateEquationCole(; sound_speed,
-                                                                  reference_density=air_density,
-                                                                  exponent=1,
-                                                                  clip_negative_pressure=false,
-                                                                  background_pressure=0),
-                                                smoothing_kernel, smoothing_length,
+                                                air_eos, smoothing_kernel, smoothing_length,
                                                 viscosity=air_viscosity,
                                                 acceleration=(0.0, -gravity))
-
-# air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calculator,
-#                                          StateEquationIdealGas(; sound_speed, reference_density=air_density, gamma=1.4, background_pressure=0),
-#                                          smoothing_kernel, smoothing_length,
-#                                          viscosity=air_viscosity,
-#                                          acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Simulation
