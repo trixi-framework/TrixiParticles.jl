@@ -10,63 +10,60 @@ without ever cloning the repository.
 
 For different setups and physics, have a look at [our other example files](@ref examples).
 
-## Resolution
-
-At the beginning of most simulation files, we define the numerical resolution,
-so that it can easily be found and changed.
 First, we import TrixiParticles.jl and
 [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), which we will
 use at the very end for the time integration.
-```jldoctest tut_setup; output = false
+```@example tut_setup
 using TrixiParticles
 using OrdinaryDiffEq
-
-# output
-
 ```
+
+## Resolution
+
 Now, we define the particle spacing, which is our numerical resolution.
+We usually call the variable `fluid_particle_spacing`, so that we can easily change
+the resolution of an example file by overwriting this variable with [`trixi_include`](@ref).
+In 2D, the number of particles will grow quadratically, in 3D cubically with the spacing.
+
 We also set the number of boundary layers, which need to be sufficiently
 large, depending on the smoothing kernel and smoothing length, so that
 the compact support of the smoothing kernel is fully sampled with particles
 for a fluid particle close to a boundary.
-```jldoctest tut_setup; output = false
+In particular, we require `boundary_layers >= compact_support`. The value for the
+compact support for each kernel can be found [`in the smoothing kernel overview`](@ref smoothing_kernel).
+```@example tut_setup
 fluid_particle_spacing = 0.05
 boundary_layers = 3
-
-# output
-3
+nothing # hide
 ```
 
 ## Experiment setup
 
 We want to simulate a water column resting under hydrostatic pressure inside
 a rectangular tank.
-First, we define the physical parameters gravitational acceleration,
-initial fluid size, tank size, fluid density, and simulation time.
-```jldoctest tut_setup; output = false
+![Experiment Setup](https://github.com/user-attachments/assets/caf906e4-9e07-422e-8cf4-129add92e8c3)
+First, we define the physical parameters gravitational acceleration, simulation time,
+initial fluid size, tank size and fluid density.
+```@example tut_setup
 gravity = 9.81
 tspan = (0.0, 1.0)
 initial_fluid_size = (1.0, 0.9)
 tank_size = (1.0, 1.0)
 fluid_density = 1000.0
-
-# output
-1000.0
+nothing # hide
 ```
 
 In order to have the initial particle mass and density correspond to the
-hydrostatic pressure gradient, we need to define a state equation, which
-relates the fluid density to pressure.
+hydrostatic pressure gradient, we need to define a [state equation](@ref equation_of_state),
+which relates the fluid density to pressure.
 Note that we could also skip this part here and define the state equation
 later when we define the fluid system, but then the fluid would be initialized
 with constant density, which would cause it to oscillate under gravity.
-```jldoctest tut_setup; output = false
+```@example tut_setup
 sound_speed = 10.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
-
-# output
-StateEquationCole{Float64, false}(10.0, 7.0, 1000.0, 0.0)
+nothing # hide
 ```
 The speed of sound here is numerical and not physical.
 We artificially lower the speed of sound, since the physical speed of sound
@@ -87,93 +84,67 @@ and details on set operations on initial conditions.
 Here, we use the [`RectangularTank`](@ref) setup, which generates a rectangular
 fluid inside a rectangular tank, and supports a hydrostatic pressure gradient
 by passing a gravitational acceleration and a state equation (see above).
-```jldoctest tut_setup; output = false, filter = r"RectangularTank.*"
+```@example tut_setup
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size,
                        fluid_density, n_layers=boundary_layers,
                        acceleration=(0.0, -gravity), state_equation=state_equation)
-
-# output
-RectangularTank{2, 4, Float64}(InitialCondition{Float64}(...))
+nothing # hide
 ```
 
 ## Fluid system
 
-To model the water column, we use the Weakly Compressible Smoothed Particle
-Hydrodynamics (WCSPH) method.
+To model the water column, we use the [Weakly Compressible Smoothed Particle
+Hydrodynamics (WCSPH) method](@ref wcsph).
 This method requires a smoothing kernel and a corresponding smoothing length,
 which should be chosen in relation to the particle spacing.
-```jldoctest tut_setup; output = false
+```@example tut_setup
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-# output
-SchoenbergCubicSplineKernel{2}()
+nothing # hide
 ```
 You can find an overview over smoothing kernels and corresponding smoothing
 lengths [here](@ref smoothing_kernel).
 
 For stability, we need numerical dissipation in form of an artificial viscosity
-term.
-```jldoctest tut_setup; output = false
+term. Other viscosity models offer a physical approach based on the kinematic viscosity
+of the fluid.
+```@example tut_setup
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-
-# output
-ArtificialViscosityMonaghan{Float64}(0.02, 0.0, 0.01)
+nothing # hide
 ```
-We choose the parameters as small as possible to avoid visible viscosity,
+We choose the parameters as small as possible to avoid non-physical behavior,
 but as large as possible to stabilize the simulation.
 
-The WCSPH method can either compute the particle density by a kernel summation
+The WCSPH method can either compute the particle density directly with a kernel summation
 over all neighboring particles (see [`SummationDensity`](@ref)) or by making
-the particle density a variable in the ODE system and integrating it over time.
+the particle density a variable in the ODE system and integrating its change over time.
 We choose the latter approach here by using the density calculator
-[`ContinuityDensity`](@ref).
-```jldoctest tut_setup; output = false
+[`ContinuityDensity`](@ref), which is more efficient and handles free surfaces
+without the need for additional correction terms.
+```@example tut_setup
 fluid_density_calculator = ContinuityDensity()
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
                                            acceleration=(0.0, -gravity))
-
-# output
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ WeaklyCompressibleSPHSystem{2}                                                                   │
-│ ══════════════════════════════                                                                   │
-│ #particles: ………………………………………………… 360                                                              │
-│ density calculator: …………………………… ContinuityDensity                                                │
-│ correction method: ……………………………… Nothing                                                          │
-│ state equation: ……………………………………… StateEquationCole                                                │
-│ smoothing kernel: ………………………………… SchoenbergCubicSplineKernel                                      │
-│ viscosity: …………………………………………………… ArtificialViscosityMonaghan{Float64}(0.02, 0.0, 0.01)            │
-│ density diffusion: ……………………………… nothing                                                          │
-│ acceleration: …………………………………………… [0.0, -9.81]                                                     │
-│ source terms: …………………………………………… Nothing                                                          │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+nothing # hide
 ```
 
 ## Boundary system
 
+To model the boundary, we use particle-based boundary conditions, in which particles
+are sampled in the boundary that interact with the fluid particles to avoid penetration.
 In order to define a boundary system, we first have to choose a boundary model,
 which defines how the fluid interacts with boundary particles.
-We will use the [`BoundaryModelDummyParticles`](@ref) with
-[`AdamiPressureExtrapolation`](@ref), which generally produces the best results
-of the implemented methods.
+We will use the [`BoundaryModelDummyParticles`](@ref) with [`AdamiPressureExtrapolation`](@ref).
 See [here](@ref boundary_models) for a comprehensive overview over boundary models.
-```jldoctest tut_setup; output = false
+```@example tut_setup
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
                                              smoothing_kernel, smoothing_length)
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
-
-# output
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ BoundarySPHSystem{2}                                                                             │
-│ ════════════════════                                                                             │
-│ #particles: ………………………………………………… 276                                                              │
-│ boundary model: ……………………………………… BoundaryModelDummyParticles(AdamiPressureExtrapolation, Nothing) │
-│ movement function: ……………………………… nothing                                                          │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+nothing # hide
 ```
 
 ## Semidiscretization
@@ -185,12 +156,10 @@ the equations in time to provide an ordinary differential equation that still
 has to be solved in time.
 By providing a simulation time span, we can call [`semidiscretize`](@ref),
 which returns an `ODEProblem` that can be solved with a time integration method.
-```jldoctest tut_setup; output = false, filter = r"ODEProblem with .*"s
+```@example tut_setup
 semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
-
-# output
-ODEProblem with uType RecursiveArrayTools.ArrayPartition...
+nothing # hide
 ```
 
 ## Time integration
@@ -205,18 +174,16 @@ information about the simulation setup at the beginning of the simulation,
 information about the current simulation time and runtime during the simulation,
 and a performance summary at the end of the simulation.
 We also want to save the current solution in regular intervals in terms of
-simulation time as VTK, so that we can look at the solution in ParaView.
+simulation time as VTK, so that we can [look at the solution in ParaView](@ref Visualization).
 The [`SolutionSavingCallback`](@ref) provides this functionality.
 To pass the callbacks to OrdinaryDiffEq.jl, we have to bundle them into a
 `CallbackSet`.
-```jldoctest tut_setup; output = false, filter = r"CallbackSet.*"
+```@example tut_setup
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02)
 
 callbacks = CallbackSet(info_callback, saving_callback)
-
-# output
-CallbackSet{Tuple{}, ...}
+nothing # hide
 ```
 
 Finally, we can start the simulation by solving the `ODEProblem`.
@@ -230,14 +197,19 @@ respective simulation.
 You can find both approaches in our [example files](@ref examples).
 Here, we just use the method with the default parameters, and only disable
 `save_everystep` to avoid expensive saving of the solution in every time step.
-```jldoctest tut_setup; output = false, filter = r".*"s
+```@example tut_setup
 sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);
-
-# output
-
+nothing # hide
 ```
 
 See [Visualization](@ref) for how to visualize the solution.
+For the simplest visualization, we can use [Plots.jl](https://docs.juliaplots.org/stable/):
+```@example tut_setup
+using Plots
+plot(sol)
+savefig("tut_setup_plot.png"); nothing # hide
+```
+![plot](tut_setup_plot.png)
 
 ## Replacing components with custom implementations
 
@@ -255,11 +227,8 @@ To implement a custom smoothing kernel, we define a struct extending
 This abstract struct has a type parameter for the number of dimensions,
 which we set to 2 in this case.
 
-```jldoctest tut_setup; output = false
+```@example tut_setup
 struct MyGaussianKernel <: TrixiParticles.SmoothingKernel{2} end
-
-# output
-
 ```
 This kernel is going to be an implementation of the Gaussian kernel with
 a cutoff for compact support.
@@ -273,7 +242,7 @@ and `TrixiParticles.compact_support`, which defines the compact support of the
 kernel in relation to the smoothing length.
 The latter is relevant for determining the search radius of the neighborhood search.
 
-```jldoctest tut_setup; output = false
+```@example tut_setup
 function TrixiParticles.kernel(kernel::MyGaussianKernel, r, h)
     q = r / h
 
@@ -295,18 +264,13 @@ function TrixiParticles.kernel_deriv(kernel::MyGaussianKernel, r, h)
 end
 
 TrixiParticles.compact_support(::MyGaussianKernel, h) = 3 * h
-
-# output
-
 ```
 
 This is all we need to use our custom kernel implementation in a simulation.
 We only need to replace the definition above by
-```jldoctest tut_setup; output = false
+```@example tut_setup
 smoothing_kernel = MyGaussianKernel()
-
-# output
-MyGaussianKernel()
+nothing # hide
 ```
 and run the simulation file again.
 
@@ -314,7 +278,8 @@ In order to use our kernel in a pre-defined example file, we can use the functio
 [`trixi_include`](@ref) to replace the definition of the variable `smoothing_kernel`.
 The following will run the example simulation
 `examples/fluid/hydrostatic_water_column_2d.jl` with our custom kernel.
-```jldoctest tut_setup; output = false, filter = r".*"s
-julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-                     smoothing_kernel=MyGaussianKernel());
+```@example tut_setup
+trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
+              smoothing_kernel=MyGaussianKernel());
+nothing # hide
 ```
