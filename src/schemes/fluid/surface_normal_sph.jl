@@ -2,18 +2,12 @@
     ColorfieldSurfaceNormal(; smoothing_kernel, smoothing_length)
 
 Color field based computation of the interface normals.
-
-# Keywords
-- `smoothing_kernel`: The kernel function used for smoothing, defining how neighboring particles influence the calculation.
-- `smoothing_length`: The smoothing length, determining the radius of influence for the kernel.
 """
 struct ColorfieldSurfaceNormal{ELTYPE, K}
-    smoothing_kernel::K
-    smoothing_length::ELTYPE
 end
 
-function ColorfieldSurfaceNormal(; smoothing_kernel, smoothing_length)
-    return ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length)
+function ColorfieldSurfaceNormal()
+    return ColorfieldSurfaceNormal()
 end
 
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
@@ -37,7 +31,6 @@ end
 function calc_normal_akinci!(system, neighbor_system::FluidSystem, u_system, v,
                              v_neighbor_system, u_neighbor_system, semi, surfn)
     (; cache) = system
-    (; smoothing_kernel, smoothing_length) = surfn
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -49,7 +42,7 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem, u_system, v,
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = particle_density(v_neighbor_system,
                                             neighbor_system, neighbor)
-        grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
         end
@@ -67,7 +60,6 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
                              v_neighbor_system, u_neighbor_system, semi, surfn)
     (; cache) = system
     (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
-    (; smoothing_kernel, smoothing_length) = surfn
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -97,8 +89,7 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
         if colorfield[neighbor] / maximum_colorfield > 0.1
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
-            grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
-                                      smoothing_length)
+            grad_kernel = smoothing_kernel_grad(pos_diff, distance)
             for i in 1:ndims(system)
                 cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
             end
