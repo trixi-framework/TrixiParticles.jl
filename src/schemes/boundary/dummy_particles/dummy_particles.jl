@@ -75,9 +75,9 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     ideal_neighbor_count_ = 0
     if reference_particle_spacing > 0.0
         ideal_neighbor_count_ = ideal_neighbor_count(Val(ndims(boundary_model)),
-                                         reference_particle_spacing,
-                                         compact_support(smoothing_kernel,
-                                                         smoothing_length))
+                                                     reference_particle_spacing,
+                                                     compact_support(smoothing_kernel,
+                                                                     smoothing_length))
     end
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,

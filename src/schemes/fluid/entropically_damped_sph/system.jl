@@ -107,9 +107,10 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
 
         ideal_neighbor_count_ = 0
         if reference_particle_spacing > 0.0
-            ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS), reference_particle_spacing,
-                                             compact_support(smoothing_kernel,
-                                                             smoothing_length))
+            ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS),
+                                                         reference_particle_spacing,
+                                                         compact_support(smoothing_kernel,
+                                                                         smoothing_length))
         end
 
         pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
