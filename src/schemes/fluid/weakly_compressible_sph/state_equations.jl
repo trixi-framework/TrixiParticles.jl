@@ -10,7 +10,7 @@ of water up to high pressures.
 - `reference_density`:       Reference density of the fluid.
 - `exponent`:                A value of `7` is usually used for most simulations.
 - `background_pressure=0.0`: Background pressure.
-- `clip_negative_pressure=false`: Negative pressure values are clipped to 0 which is necessary for `SummationDensity`.
+- `clip_negative_pressure=false`: Negative pressure values are clipped to 0, which prevents spurious surface tension with `SummationDensity` but allows unphysical rarefaction of the fluid.
 """
 struct StateEquationCole{ELTYPE, CLIP} # Boolean to clip negative pressure
     sound_speed         :: ELTYPE
