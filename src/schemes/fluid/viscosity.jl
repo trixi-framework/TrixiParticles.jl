@@ -234,6 +234,10 @@ end
                                viscosity_model(neighbor_system, particle_system),
                                smoothing_length(particle_system, particle))
 
+    v_a = viscous_velocity(v_particle_system, particle_system, particle)
+    v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_diff = v_a - v_b
+
     grad_kernel_a = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
     grad_kernel_b = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
 
