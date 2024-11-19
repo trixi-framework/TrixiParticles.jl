@@ -231,7 +231,8 @@ end
     beta_inv_a = beta_correction(particle_system, particle_refinement, particle)
 
     nu_a = kinematic_viscosity(particle_system,
-                               viscosity_model(neighbor_system, particle_system))
+                               viscosity_model(neighbor_system, particle_system),
+                               smoothing_length(particle_system, particle))
 
     grad_kernel_a = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
     grad_kernel_b = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
@@ -291,7 +292,7 @@ end
     return visc .* v_diff
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityAdami, particle)
+function kinematic_viscosity(system, viscosity::ViscosityAdami, smoothing_length)
     return viscosity.nu
 end
 
