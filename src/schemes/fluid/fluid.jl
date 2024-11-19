@@ -170,7 +170,7 @@ function compute_beta_correction!(system, refinement, v_ode, u_ode, semi)
             rho_a = particle_density(v, system, particle)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-            W_deriv = kernel_deriv(smoothing_kernel, distance,
+            W_deriv = kernel_deriv(system.smoothing_kernel, distance,
                                    smoothing_length(system, particle))
 
             beta[particle] -= m_b * distance * W_deriv * (rho_a * ndims(system))
