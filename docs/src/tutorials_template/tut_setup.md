@@ -21,7 +21,7 @@ using OrdinaryDiffEq
 ## Resolution
 
 Now, we define the particle spacing, which is our numerical resolution.
-We usually call the variable `fluid_particle_spacing`, so that we can easily change
+For a fluid, we usually call the variable `fluid_particle_spacing`, so that we can easily change
 the resolution of an example file by overwriting this variable with [`trixi_include`](@ref).
 In 2D, the number of particles will grow quadratically, in 3D cubically with the spacing.
 
@@ -29,8 +29,9 @@ We also set the number of boundary layers, which need to be sufficiently
 large, depending on the smoothing kernel and smoothing length, so that
 the compact support of the smoothing kernel is fully sampled with particles
 for a fluid particle close to a boundary.
-In particular, we require `boundary_layers >= compact_support`. The value for the
-compact support for each kernel can be found [`in the smoothing kernel overview`](@ref smoothing_kernel).
+In particular, we require the boundary thickness `boundary_layers * fluid_particle_spacing`
+to be larger than the compact support of the kernel. The compact support of each kernel
+can be found [`in the smoothing kernel overview`](@ref smoothing_kernel).
 ```@example tut_setup
 fluid_particle_spacing = 0.05
 boundary_layers = 3
@@ -42,7 +43,7 @@ nothing # hide
 We want to simulate a water column resting under hydrostatic pressure inside
 a rectangular tank.
 ![Experiment Setup](https://github.com/user-attachments/assets/caf906e4-9e07-422e-8cf4-129add92e8c3)
-First, we define the physical parameters gravitational acceleration, simulation time,
+First, we define physical parameters like gravitational acceleration, simulation time,
 initial fluid size, tank size and fluid density.
 ```@example tut_setup
 gravity = 9.81
@@ -105,9 +106,9 @@ nothing # hide
 You can find an overview over smoothing kernels and corresponding smoothing
 lengths [here](@ref smoothing_kernel).
 
-For stability, we need numerical dissipation in form of an artificial viscosity
-term. Other viscosity models offer a physical approach based on the kinematic viscosity
-of the fluid.
+For stability, we need numerical dissipation in form of an artificial viscosity term.
+[Other viscosity models](@ref viscosity_wcsph) offer a physical approach
+based on the kinematic viscosity of the fluid.
 ```@example tut_setup
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 nothing # hide
@@ -151,7 +152,7 @@ nothing # hide
 
 The key component of every simulation is the [`Semidiscretization`](@ref),
 which couples all systems of the simulation.
-All methods in TrixiParticles.jl are semidiscretizations, which discretize
+All simulation methods in TrixiParticles.jl are semidiscretizations, which discretize
 the equations in time to provide an ordinary differential equation that still
 has to be solved in time.
 By providing a simulation time span, we can call [`semidiscretize`](@ref),
