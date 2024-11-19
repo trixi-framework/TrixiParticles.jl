@@ -92,10 +92,10 @@ callbacks = CallbackSet(info_callback, saving_callback)</code></pre><p>Finally, 
 │ #threads: ……………………………………………………… 1                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-#timesteps:     50 │ Δt: 1.4965e-03 │ sim. time: 1.8236e-01 (18.236%)  │ run time: 1.2462e-01 s
-#timesteps:    100 │ Δt: 5.3979e-03 │ sim. time: 4.2540e-01 (42.540%)  │ run time: 2.6655e-01 s
-#timesteps:    150 │ Δt: 5.7273e-03 │ sim. time: 6.7662e-01 (67.662%)  │ run time: 3.9337e-01 s
-#timesteps:    200 │ Δt: 4.8634e-03 │ sim. time: 9.1219e-01 (91.219%)  │ run time: 5.2495e-01 s
+#timesteps:     50 │ Δt: 1.4965e-03 │ sim. time: 1.8236e-01 (18.236%)  │ run time: 1.4330e-01 s
+#timesteps:    100 │ Δt: 5.3979e-03 │ sim. time: 4.2540e-01 (42.540%)  │ run time: 2.6594e-01 s
+#timesteps:    150 │ Δt: 5.7273e-03 │ sim. time: 6.7662e-01 (67.662%)  │ run time: 4.0970e-01 s
+#timesteps:    200 │ Δt: 4.8634e-03 │ sim. time: 9.1219e-01 (91.219%)  │ run time: 5.3601e-01 s
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Trixi simulation finished.  Final time: 1.0  Time steps: 222 (accepted), 222 (total)
 ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -103,43 +103,43 @@ Trixi simulation finished.  Final time: 1.0  Time steps: 222 (accepted), 222 (to
 <span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span>
 <span class="sgr1">      TrixiParticles.jl       </span>         Time                    Allocations
                               ───────────────────────   ────────────────────────
-      Tot / % measured:            576ms /  98.0%           95.4MiB /  98.4%
+      Tot / % measured:            590ms /  98.0%           95.4MiB /  98.4%
 
 Section               ncalls     time    %tot     avg     alloc    %tot      avg
 ────────────────────────────────────────────────────────────────────────────────
-kick!                  1.11k    358ms   63.5%   322μs   3.77MiB    4.0%  3.47KiB
-  system interaction   1.11k    286ms   50.7%   257μs   1.05MiB    1.1%     985B
-    fluid1-fluid1      1.11k    226ms   40.0%   203μs     0.00B    0.0%    0.00B
-    fluid1-boundary2   1.11k   57.0ms   10.1%  51.2μs     0.00B    0.0%    0.00B
-    ~system intera...  1.11k   3.07ms    0.5%  2.76μs   1.05MiB    1.1%     985B
-    boundary2-fluid1   1.11k   32.7μs    0.0%  29.4ns     0.00B    0.0%    0.00B
-    boundary2-boun...  1.11k   32.6μs    0.0%  29.2ns     0.00B    0.0%    0.00B
-  update systems a...  1.11k   71.4ms   12.7%  64.1μs   2.72MiB    2.9%  2.50KiB
-    compute bounda...  1.11k   48.8ms    8.6%  43.8μs     0.00B    0.0%    0.00B
-    update nhs         1.11k   11.4ms    2.0%  10.2μs   2.72MiB    2.9%  2.50KiB
-    inverse state ...  1.11k   6.14ms    1.1%  5.52μs     0.00B    0.0%    0.00B
-    ~update system...  1.11k   5.06ms    0.9%  4.55μs   1.55KiB    0.0%    1.42B
-    update density...  1.11k   32.9μs    0.0%  29.6ns     0.00B    0.0%    0.00B
-  source terms         1.11k    425μs    0.1%   381ns     0.00B    0.0%    0.00B
-  ~kick!~              1.11k    407μs    0.1%   366ns   1.55KiB    0.0%    1.42B
-  reset ∂v/∂t          1.11k    151μs    0.0%   135ns     0.00B    0.0%    0.00B
-save solution             50    205ms   36.3%  4.09ms   90.0MiB   96.0%  1.80MiB
-  write to vtk           100    176ms   31.3%  1.76ms   86.7MiB   92.5%   888KiB
-  ~save solution~         50   25.2ms    4.5%   504μs   3.15MiB    3.4%  64.6KiB
-  update systems          50   3.09ms    0.5%  61.8μs    127KiB    0.1%  2.53KiB
-    compute bounda...     50   2.10ms    0.4%  41.9μs     0.00B    0.0%    0.00B
-    update nhs            50    494μs    0.1%  9.89μs    125KiB    0.1%  2.50KiB
-    inverse state ...     50    269μs    0.0%  5.38μs     0.00B    0.0%    0.00B
-    ~update systems~      50    229μs    0.0%  4.58μs   1.55KiB    0.0%    31.7B
-    update density...     50   1.50μs    0.0%  30.0ns     0.00B    0.0%    0.00B
-drift!                 1.11k    873μs    0.2%   784ns      976B    0.0%    0.88B
-  velocity             1.11k    526μs    0.1%   473ns     0.00B    0.0%    0.00B
-  ~drift!~             1.11k    221μs    0.0%   198ns      976B    0.0%    0.88B
-  reset ∂u/∂t          1.11k    126μs    0.0%   113ns     0.00B    0.0%    0.00B
-compute boundary p...      1   59.3μs    0.0%  59.3μs     0.00B    0.0%    0.00B
-update nhs                 1   54.9μs    0.0%  54.9μs   2.50KiB    0.0%  2.50KiB
-inverse state equa...      1   7.96μs    0.0%  7.96μs     0.00B    0.0%    0.00B
-update density dif...      1   29.0ns    0.0%  29.0ns     0.00B    0.0%    0.00B
+kick!                  1.11k    349ms   60.4%   314μs   3.77MiB    4.0%  3.47KiB
+  system interaction   1.11k    280ms   48.4%   251μs   1.05MiB    1.1%     985B
+    fluid1-fluid1      1.11k    222ms   38.4%   199μs     0.00B    0.0%    0.00B
+    fluid1-boundary2   1.11k   55.1ms    9.5%  49.5μs     0.00B    0.0%    0.00B
+    ~system intera...  1.11k   3.01ms    0.5%  2.71μs   1.05MiB    1.1%     985B
+    boundary2-fluid1   1.11k   33.0μs    0.0%  29.6ns     0.00B    0.0%    0.00B
+    boundary2-boun...  1.11k   32.3μs    0.0%  29.0ns     0.00B    0.0%    0.00B
+  update systems a...  1.11k   68.6ms   11.9%  61.6μs   2.72MiB    2.9%  2.50KiB
+    compute bounda...  1.11k   47.1ms    8.1%  42.3μs     0.00B    0.0%    0.00B
+    update nhs         1.11k   10.6ms    1.8%  9.52μs   2.72MiB    2.9%  2.50KiB
+    inverse state ...  1.11k   6.05ms    1.0%  5.44μs     0.00B    0.0%    0.00B
+    ~update system...  1.11k   4.81ms    0.8%  4.32μs   1.55KiB    0.0%    1.42B
+    update density...  1.11k   32.4μs    0.0%  29.1ns     0.00B    0.0%    0.00B
+  source terms         1.11k    432μs    0.1%   388ns     0.00B    0.0%    0.00B
+  ~kick!~              1.11k    386μs    0.1%   346ns   1.55KiB    0.0%    1.42B
+  reset ∂v/∂t          1.11k    152μs    0.0%   136ns     0.00B    0.0%    0.00B
+save solution             50    228ms   39.4%  4.56ms   90.0MiB   96.0%  1.80MiB
+  write to vtk           100    201ms   34.8%  2.01ms   86.7MiB   92.5%   888KiB
+  ~save solution~         50   23.6ms    4.1%   471μs   3.15MiB    3.4%  64.6KiB
+  update systems          50   3.05ms    0.5%  61.0μs    127KiB    0.1%  2.53KiB
+    compute bounda...     50   2.07ms    0.4%  41.4μs     0.00B    0.0%    0.00B
+    update nhs            50    470μs    0.1%  9.40μs    125KiB    0.1%  2.50KiB
+    inverse state ...     50    278μs    0.0%  5.55μs     0.00B    0.0%    0.00B
+    ~update systems~      50    227μs    0.0%  4.54μs   1.55KiB    0.0%    31.7B
+    update density...     50   1.48μs    0.0%  29.6ns     0.00B    0.0%    0.00B
+drift!                 1.11k    876μs    0.2%   787ns      976B    0.0%    0.88B
+  velocity             1.11k    517μs    0.1%   465ns     0.00B    0.0%    0.00B
+  ~drift!~             1.11k    231μs    0.0%   208ns      976B    0.0%    0.88B
+  reset ∂u/∂t          1.11k    127μs    0.0%   114ns     0.00B    0.0%    0.00B
+compute boundary p...      1   71.7μs    0.0%  71.7μs     0.00B    0.0%    0.00B
+update nhs                 1   38.3μs    0.0%  38.3μs   2.50KiB    0.0%  2.50KiB
+inverse state equa...      1   8.94μs    0.0%  8.94μs     0.00B    0.0%    0.00B
+update density dif...      1   30.0ns    0.0%  30.0ns     0.00B    0.0%    0.00B
 <span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span></code></pre><p>See <a href="../../visualization/#Visualization">Visualization</a> for how to visualize the solution. For the simplest visualization, we can use <a href="https://docs.juliaplots.org/stable/">Plots.jl</a>:</p><pre><code class="language-julia hljs">using Plots
 plot(sol)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">GKS: cannot open display - headless operation mode active</code></pre><p><img src="../tut_setup_plot.png" alt="plot"/></p><h2 id="Replacing-components-with-custom-implementations"><a class="docs-heading-anchor" href="#Replacing-components-with-custom-implementations">Replacing components with custom implementations</a><a id="Replacing-components-with-custom-implementations-1"></a><a class="docs-heading-anchor-permalink" href="#Replacing-components-with-custom-implementations" title="Permalink"></a></h2><p>If we would like to use an implementation of a component that is not available in TrixiParticles.jl, we can implement it ourselves within the simulation file, without ever cloning the TrixiParticles.jl repository. A good starting point is to check out the available implementations in TrixiParticles.jl, then copy the relevant functions to the simulation file and modify them as needed.</p><h3 id="Custom-smoothing-kernel"><a class="docs-heading-anchor" href="#Custom-smoothing-kernel">Custom smoothing kernel</a><a id="Custom-smoothing-kernel-1"></a><a class="docs-heading-anchor-permalink" href="#Custom-smoothing-kernel" title="Permalink"></a></h3><p>To implement a custom smoothing kernel, we define a struct extending <code>TrixiParticles.SmoothingKernel</code>. This abstract struct has a type parameter for the number of dimensions, which we set to 2 in this case.</p><pre><code class="language-julia hljs">struct MyGaussianKernel &lt;: TrixiParticles.SmoothingKernel{2} end</code></pre><p>This kernel is going to be an implementation of the Gaussian kernel with a cutoff for compact support. Note that the same kernel in a more optimized version is already implemented in TrixiParticles.jl as <a href="../../general/smoothing_kernels/#TrixiParticles.GaussianKernel"><code>GaussianKernel</code></a>.</p><p>In order to use our new kernel, we have to define three functions. <code>TrixiParticles.kernel</code>, which is the kernel function itself, <code>TrixiParticles.kernel_deriv</code>, which is the derivative of the kernel function, and <code>TrixiParticles.compact_support</code>, which defines the compact support of the kernel in relation to the smoothing length. The latter is relevant for determining the search radius of the neighborhood search.</p><pre><code class="language-julia hljs">function TrixiParticles.kernel(kernel::MyGaussianKernel, r, h)
     q = r / h
@@ -161,7 +161,12 @@ function TrixiParticles.kernel_deriv(kernel::MyGaussianKernel, r, h)
     return 0.0
 end
 
-TrixiParticles.compact_support(::MyGaussianKernel, h) = 3 * h</code></pre><p>This is all we need to use our custom kernel implementation in a simulation. We only need to replace the definition above by</p><pre><code class="language-julia hljs">smoothing_kernel = MyGaussianKernel()</code></pre><p>and run the simulation file again.</p><p>In order to use our kernel in a pre-defined example file, we can use the function <a href="../../reference-trixibase/#TrixiBase.trixi_include-Tuple{Module, AbstractString}"><code>trixi_include</code></a> to replace the definition of the variable <code>smoothing_kernel</code>. The following will run the example simulation <code>examples/fluid/hydrostatic_water_column_2d.jl</code> with our custom kernel.</p><pre><code class="language-julia hljs">trixi_include(joinpath(examples_dir(), &quot;fluid&quot;, &quot;hydrostatic_water_column_2d.jl&quot;),
+TrixiParticles.compact_support(::MyGaussianKernel, h) = 3 * h</code></pre><p>For this kernel, we use a different smoothing length, which yields a similar kernel to the <code>SchoenbergCubicSplineKernel</code> that we used earlier.</p><pre><code class="language-julia hljs">smoothing_length_gauss = 1.0 * fluid_particle_spacing</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.05</code></pre><p>We can compare these kernels in a plot.</p><pre><code class="language-julia hljs">using Plots
+x = range(-0.2, 0.2, length=500)
+plot(x, r -&gt; TrixiParticles.kernel(SchoenbergCubicSplineKernel{2}(), abs(r), smoothing_length),
+     label=&quot;SchoenbergCubicSplineKernel&quot;, xlabel=&quot;r&quot;)
+plot!(x, r -&gt; TrixiParticles.kernel(MyGaussianKernel(), abs(r), smoothing_length_gauss),
+      label=&quot;MyGaussianKernel&quot;)</code></pre><p><img src="../tut_setup_plot2.png" alt="plot"/></p><p>This is all we need to use our custom kernel implementation in a simulation. We only need to replace the definition above by</p><pre><code class="language-julia hljs">smoothing_kernel = MyGaussianKernel()</code></pre><p>and run the simulation file again.</p><p>In order to use our kernel in a pre-defined example file, we can use the function <a href="../../reference-trixibase/#TrixiBase.trixi_include-Tuple{Module, AbstractString}"><code>trixi_include</code></a> to replace the definition of the variable <code>smoothing_kernel</code>. The following will run the example simulation <code>examples/fluid/hydrostatic_water_column_2d.jl</code> with our custom kernel.</p><pre><code class="language-julia hljs">trixi_include(joinpath(examples_dir(), &quot;fluid&quot;, &quot;hydrostatic_water_column_2d.jl&quot;),
               smoothing_kernel=MyGaussianKernel());</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>You just called `trixi_include`. Julia may now compile the code, please be patient.
 
 ████████╗██████╗ ██╗██╗  ██╗██╗██████╗  █████╗ ██████╗ ████████╗██╗ ██████╗██╗     ███████╗███████╗
@@ -233,26 +238,26 @@ TrixiParticles.compact_support(::MyGaussianKernel, h) = 3 * h</code></pre><p>Thi
 │ #threads: ……………………………………………………… 1                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-#timesteps:     50 │ Δt: 2.1194e-06 │ sim. time: 2.6343e-02 (2.634%)   │ run time: 2.9606e+00 s
-#timesteps:    100 │ Δt: 3.6867e-07 │ sim. time: 2.6368e-02 (2.637%)   │ run time: 3.3357e+00 s
-#timesteps:    150 │ Δt: 3.8641e-06 │ sim. time: 2.7157e-02 (2.716%)   │ run time: 3.7054e+00 s
-#timesteps:    200 │ Δt: 2.7500e-05 │ sim. time: 2.9021e-02 (2.902%)   │ run time: 4.0679e+00 s
-#timesteps:    250 │ Δt: 3.0345e-08 │ sim. time: 2.9289e-02 (2.929%)   │ run time: 4.4684e+00 s
-#timesteps:    300 │ Δt: 5.4341e-07 │ sim. time: 2.9308e-02 (2.931%)   │ run time: 4.8313e+00 s
-#timesteps:    350 │ Δt: 1.1375e-08 │ sim. time: 2.9930e-02 (2.993%)   │ run time: 5.2392e+00 s
-#timesteps:    400 │ Δt: 3.7655e-08 │ sim. time: 3.0011e-02 (3.001%)   │ run time: 5.5881e+00 s
-#timesteps:    450 │ Δt: 2.5171e-06 │ sim. time: 3.0049e-02 (3.005%)   │ run time: 5.9311e+00 s
-#timesteps:    500 │ Δt: 4.6396e-05 │ sim. time: 3.1465e-02 (3.146%)   │ run time: 6.3004e+00 s
-#timesteps:    550 │ Δt: 2.8950e-04 │ sim. time: 3.4385e-02 (3.438%)   │ run time: 6.6800e+00 s
-#timesteps:    600 │ Δt: 4.7243e-04 │ sim. time: 4.0000e-02 (4.000%)   │ run time: 7.0084e+00 s
-#timesteps:    650 │ Δt: 9.2229e-04 │ sim. time: 7.3763e-02 (7.376%)   │ run time: 7.2405e+00 s
-#timesteps:    700 │ Δt: 1.5410e-03 │ sim. time: 1.2753e-01 (12.753%)  │ run time: 7.4190e+00 s
-#timesteps:    750 │ Δt: 7.9337e-04 │ sim. time: 2.1356e-01 (21.356%)  │ run time: 7.6317e+00 s
-#timesteps:    800 │ Δt: 1.5629e-03 │ sim. time: 2.9162e-01 (29.162%)  │ run time: 7.8360e+00 s
-#timesteps:    850 │ Δt: 2.4390e-03 │ sim. time: 3.6859e-01 (36.859%)  │ run time: 8.0382e+00 s
-#timesteps:    900 │ Δt: 2.6538e-03 │ sim. time: 4.5664e-01 (45.664%)  │ run time: 8.2348e+00 s
-#timesteps:    950 │ Δt: 7.2062e-03 │ sim. time: 6.5246e-01 (65.246%)  │ run time: 8.3913e+00 s
-#timesteps:   1000 │ Δt: 6.7704e-03 │ sim. time: 9.7138e-01 (97.138%)  │ run time: 8.5305e+00 s
+#timesteps:     50 │ Δt: 2.1194e-06 │ sim. time: 2.6343e-02 (2.634%)   │ run time: 2.8035e+00 s
+#timesteps:    100 │ Δt: 3.6867e-07 │ sim. time: 2.6368e-02 (2.637%)   │ run time: 3.1763e+00 s
+#timesteps:    150 │ Δt: 3.8641e-06 │ sim. time: 2.7157e-02 (2.716%)   │ run time: 3.5440e+00 s
+#timesteps:    200 │ Δt: 2.7500e-05 │ sim. time: 2.9021e-02 (2.902%)   │ run time: 3.9100e+00 s
+#timesteps:    250 │ Δt: 3.0345e-08 │ sim. time: 2.9289e-02 (2.929%)   │ run time: 4.3057e+00 s
+#timesteps:    300 │ Δt: 5.4341e-07 │ sim. time: 2.9308e-02 (2.931%)   │ run time: 4.6667e+00 s
+#timesteps:    350 │ Δt: 1.1375e-08 │ sim. time: 2.9930e-02 (2.993%)   │ run time: 5.0646e+00 s
+#timesteps:    400 │ Δt: 3.7655e-08 │ sim. time: 3.0011e-02 (3.001%)   │ run time: 5.4334e+00 s
+#timesteps:    450 │ Δt: 2.5171e-06 │ sim. time: 3.0049e-02 (3.005%)   │ run time: 5.7829e+00 s
+#timesteps:    500 │ Δt: 4.6396e-05 │ sim. time: 3.1465e-02 (3.146%)   │ run time: 6.1417e+00 s
+#timesteps:    550 │ Δt: 2.8950e-04 │ sim. time: 3.4385e-02 (3.438%)   │ run time: 6.5197e+00 s
+#timesteps:    600 │ Δt: 4.7243e-04 │ sim. time: 4.0000e-02 (4.000%)   │ run time: 6.8469e+00 s
+#timesteps:    650 │ Δt: 9.2229e-04 │ sim. time: 7.3763e-02 (7.376%)   │ run time: 7.0552e+00 s
+#timesteps:    700 │ Δt: 1.5410e-03 │ sim. time: 1.2753e-01 (12.753%)  │ run time: 7.2325e+00 s
+#timesteps:    750 │ Δt: 7.9337e-04 │ sim. time: 2.1356e-01 (21.356%)  │ run time: 7.4421e+00 s
+#timesteps:    800 │ Δt: 1.5629e-03 │ sim. time: 2.9162e-01 (29.162%)  │ run time: 7.6454e+00 s
+#timesteps:    850 │ Δt: 2.4390e-03 │ sim. time: 3.6859e-01 (36.859%)  │ run time: 7.8445e+00 s
+#timesteps:    900 │ Δt: 2.6538e-03 │ sim. time: 4.5664e-01 (45.664%)  │ run time: 8.0832e+00 s
+#timesteps:    950 │ Δt: 7.2062e-03 │ sim. time: 6.5246e-01 (65.246%)  │ run time: 8.2314e+00 s
+#timesteps:   1000 │ Δt: 6.7704e-03 │ sim. time: 9.7138e-01 (97.138%)  │ run time: 8.6970e+00 s
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Trixi simulation finished.  Final time: 1.0  Time steps: 1003 (accepted), 1891 (total)
 ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -260,41 +265,41 @@ Trixi simulation finished.  Final time: 1.0  Time steps: 1003 (accepted), 1891 (
 <span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span>
 <span class="sgr1">      TrixiParticles.jl       </span>         Time                    Allocations
                               ───────────────────────   ────────────────────────
-      Tot / % measured:            8.54s /  73.0%            228MiB /  53.4%
+      Tot / % measured:            8.71s /  75.0%            228MiB /  53.4%
 
 Section               ncalls     time    %tot     avg     alloc    %tot      avg
 ────────────────────────────────────────────────────────────────────────────────
-kick!                  9.46k    5.64s   90.4%   596μs   22.6MiB   18.6%  2.45KiB
-  system interaction   9.46k    4.77s   76.5%   504μs   8.88MiB    7.3%     984B
-    fluid1-fluid1      9.46k    3.76s   60.2%   397μs     0.00B    0.0%    0.00B
-    fluid1-boundary2   9.46k    988ms   15.8%   104μs     0.00B    0.0%    0.00B
-    ~system intera...  9.46k   24.2ms    0.4%  2.55μs   8.88MiB    7.3%     984B
-    boundary2-boun...  9.46k    281μs    0.0%  29.7ns     0.00B    0.0%    0.00B
-    boundary2-fluid1   9.46k    277μs    0.0%  29.3ns     0.00B    0.0%    0.00B
-  update systems a...  9.46k    862ms   13.8%  91.2μs   13.7MiB   11.3%  1.49KiB
-    compute bounda...  9.46k    696ms   11.2%  73.6μs     0.00B    0.0%    0.00B
-    update nhs         9.46k   74.6ms    1.2%  7.89μs   13.7MiB   11.3%  1.49KiB
-    inverse state ...  9.46k   50.6ms    0.8%  5.35μs     0.00B    0.0%    0.00B
-    ~update system...  9.46k   41.2ms    0.7%  4.35μs   1.55KiB    0.0%    0.17B
+kick!                  9.46k    5.96s   91.3%   631μs   22.6MiB   18.6%  2.45KiB
+  system interaction   9.46k    5.07s   77.7%   536μs   8.88MiB    7.3%     984B
+    fluid1-fluid1      9.46k    3.75s   57.4%   396μs     0.00B    0.0%    0.00B
+    fluid1-boundary2   9.46k    971ms   14.9%   103μs     0.00B    0.0%    0.00B
+    ~system intera...  9.46k    354ms    5.4%  37.5μs   8.88MiB    7.3%     984B
+    boundary2-fluid1   9.46k    279μs    0.0%  29.5ns     0.00B    0.0%    0.00B
+    boundary2-boun...  9.46k    275μs    0.0%  29.1ns     0.00B    0.0%    0.00B
+  update systems a...  9.46k    881ms   13.5%  93.2μs   13.7MiB   11.3%  1.49KiB
+    compute bounda...  9.46k    692ms   10.6%  73.2μs     0.00B    0.0%    0.00B
+    update nhs         9.46k   98.1ms    1.5%  10.4μs   13.7MiB   11.3%  1.49KiB
+    inverse state ...  9.46k   50.2ms    0.8%  5.31μs     0.00B    0.0%    0.00B
+    ~update system...  9.46k   40.9ms    0.6%  4.32μs   1.55KiB    0.0%    0.17B
     update density...  9.46k    276μs    0.0%  29.1ns     0.00B    0.0%    0.00B
-  source terms         9.46k   3.65ms    0.1%   386ns     0.00B    0.0%    0.00B
-  ~kick!~              9.46k   3.11ms    0.0%   329ns   1.55KiB    0.0%    0.17B
-  reset ∂v/∂t          9.46k   1.28ms    0.0%   135ns     0.00B    0.0%    0.00B
-save solution             50    587ms    9.4%  11.7ms   99.2MiB   81.4%  1.98MiB
-  write to vtk           100    335ms    5.4%  3.35ms   86.9MiB   71.4%   890KiB
-  ~save solution~         50    248ms    4.0%  4.95ms   12.1MiB   10.0%   248KiB
-  update systems          50   4.54ms    0.1%  90.9μs    161KiB    0.1%  3.23KiB
-    compute bounda...     50   3.40ms    0.1%  67.9μs     0.00B    0.0%    0.00B
-    update nhs            50    671μs    0.0%  13.4μs    160KiB    0.1%  3.19KiB
-    ~update systems~      50    247μs    0.0%  4.93μs   1.55KiB    0.0%    31.7B
-    inverse state ...     50    228μs    0.0%  4.57μs     0.00B    0.0%    0.00B
-    update density...     50   1.61μs    0.0%  32.1ns     0.00B    0.0%    0.00B
-drift!                 9.46k   7.92ms    0.1%   837ns      976B    0.0%    0.10B
-  velocity             9.46k   5.06ms    0.1%   535ns     0.00B    0.0%    0.00B
-  ~drift!~             9.46k   1.69ms    0.0%   178ns      976B    0.0%    0.10B
-  reset ∂u/∂t          9.46k   1.17ms    0.0%   124ns     0.00B    0.0%    0.00B
-compute boundary p...      1    114μs    0.0%   114μs     0.00B    0.0%    0.00B
-update nhs                 1   39.2μs    0.0%  39.2μs   1.12KiB    0.0%  1.12KiB
-inverse state equa...      1   9.56μs    0.0%  9.56μs     0.00B    0.0%    0.00B
-update density dif...      1   30.0ns    0.0%  30.0ns     0.00B    0.0%    0.00B
-<span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span></code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Tuesday 19 November 2024 14:46">Tuesday 19 November 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  source terms         9.46k   3.50ms    0.1%   370ns     0.00B    0.0%    0.00B
+  ~kick!~              9.46k   3.25ms    0.0%   344ns   1.55KiB    0.0%    0.17B
+  reset ∂v/∂t          9.46k   1.33ms    0.0%   141ns     0.00B    0.0%    0.00B
+save solution             50    558ms    8.5%  11.2ms   99.2MiB   81.4%  1.98MiB
+  write to vtk           100    320ms    4.9%  3.20ms   86.9MiB   71.4%   890KiB
+  ~save solution~         50    233ms    3.6%  4.67ms   12.1MiB   10.0%   248KiB
+  update systems          50   4.43ms    0.1%  88.5μs    161KiB    0.1%  3.23KiB
+    compute bounda...     50   3.33ms    0.1%  66.7μs     0.00B    0.0%    0.00B
+    update nhs            50    642μs    0.0%  12.8μs    160KiB    0.1%  3.19KiB
+    ~update systems~      50    231μs    0.0%  4.62μs   1.55KiB    0.0%    31.7B
+    inverse state ...     50    219μs    0.0%  4.38μs     0.00B    0.0%    0.00B
+    update density...     50   1.44μs    0.0%  28.8ns     0.00B    0.0%    0.00B
+drift!                 9.46k   7.30ms    0.1%   772ns      976B    0.0%    0.10B
+  velocity             9.46k   4.27ms    0.1%   452ns     0.00B    0.0%    0.00B
+  ~drift!~             9.46k   1.97ms    0.0%   208ns      976B    0.0%    0.10B
+  reset ∂u/∂t          9.46k   1.06ms    0.0%   112ns     0.00B    0.0%    0.00B
+compute boundary p...      1    104μs    0.0%   104μs     0.00B    0.0%    0.00B
+update nhs                 1   37.5μs    0.0%  37.5μs   1.12KiB    0.0%  1.12KiB
+inverse state equa...      1   9.29μs    0.0%  9.29μs     0.00B    0.0%    0.00B
+update density dif...      1   40.0ns    0.0%  40.0ns     0.00B    0.0%    0.00B
+<span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span></code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Tuesday 19 November 2024 16:43">Tuesday 19 November 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
