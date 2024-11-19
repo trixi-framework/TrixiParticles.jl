@@ -4,14 +4,14 @@ include("split.jl")
 include("merge.jl")
 
 struct ParticleRefinement{SP, RC, ELTYPE}
-    refinement_pattern         :: SP
+    refinement_pattern        :: SP
     refinement_criteria       :: RC
     max_spacing_ratio         :: ELTYPE
     mass_ref                  :: Vector{ELTYPE} # length(mass_ref) == nparticles
     merge_candidates          :: Vector{Int}    # length(merge_candidates) == nparticles
     delete_candidates         :: Vector{Bool}   # length(delete_candidates) == nparticles
-    n_particles_before_resize :: Int
-    n_new_particles           :: Int
+    n_particles_before_resize :: Ref{Int}
+    n_new_particles           :: Ref{Int}
 end
 
 function ParticleRefinement(; refinement_pattern, max_spacing_ratio,
@@ -24,7 +24,7 @@ function ParticleRefinement(; refinement_pattern, max_spacing_ratio,
     end
 
     return ParticleRefinement(refinement_pattern, refinement_criteria, max_spacing_ratio,
-                              mass_ref, Int[], delete_candidates, 0, 0)
+                              mass_ref, Int[], delete_candidates, Ref(0), Ref(0))
 end
 
 resize_refinement!(system) = system
