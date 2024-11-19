@@ -217,8 +217,8 @@ end
 # - `DiscreteCallback{<:Any, <:SolutionSavingCallback}`.
 #
 # With `interval`
-function Base.show(io::IO, cb::DiscreteCallback{<:SolutionSavingCallback,
-                                                <:SolutionSavingCallback})
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
     solution_saving = cb.affect!
