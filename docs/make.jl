@@ -134,7 +134,7 @@ makedocs(sitename="TrixiParticles.jl",
                      "Util" => joinpath("general", "util.md")
                  ],
                  "Systems" => [
-                    "Fluid Models" => joinpath("systems", "fluid.md"),
+                     "Fluid Models" => joinpath("systems", "fluid.md"),
                      "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
                      "Weakly Compressible SPH (Fluid)" => joinpath("systems",
                                                                    "weakly_compressible_sph.md"),
