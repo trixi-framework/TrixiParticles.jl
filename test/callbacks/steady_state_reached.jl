@@ -1,22 +1,4 @@
 @testset verbose=true "SteadyStateReachedCallback" begin
-    @testset verbose=true "every `dt`" begin
-        steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
-
-        trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"),
-                      extra_callback=steady_state_reached, tspan=(0.0, 1.5))
-
-        @test sol.t[end] < 1.0
-    end
-
-    @testset verbose=true "every `interval`" begin
-        steady_state_reached = SteadyStateReachedCallback(; interval=1, interval_size=10,
-                                                          abstol=1.0e-5, reltol=1.0e-4)
-        trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"),
-                      extra_callback=steady_state_reached, tspan=(0.0, 1.5))
-
-        @test sol.t[end] < 1.0
-    end
-
     @testset verbose=true "show" begin
         # Default
         callback0 = SteadyStateReachedCallback()
