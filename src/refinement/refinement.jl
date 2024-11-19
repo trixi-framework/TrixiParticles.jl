@@ -3,7 +3,7 @@ include("refinement_pattern.jl")
 include("split.jl")
 
 struct ParticleRefinement{SP, RC, ELTYPE}
-    splitting_pattern         :: SP
+    refinement_pattern         :: SP
     refinement_criteria       :: RC
     max_spacing_ratio         :: ELTYPE
     mass_ref                  :: Vector{ELTYPE} # length(mass_ref) == nparticles
@@ -11,7 +11,7 @@ struct ParticleRefinement{SP, RC, ELTYPE}
     n_new_particles           :: Int
 end
 
-function ParticleRefinement(; splitting_pattern, max_spacing_ratio,
+function ParticleRefinement(; refinement_pattern, max_spacing_ratio,
                             refinement_criteria=SpatialRefinementCriterion())
     mass_ref = Vector{eltype(max_spacing_ratio)}()
 
@@ -19,7 +19,7 @@ function ParticleRefinement(; splitting_pattern, max_spacing_ratio,
         refinement_criteria = (refinement_criteria,)
     end
 
-    return ParticleRefinement(splitting_pattern, refinement_criteria, max_spacing_ratio,
+    return ParticleRefinement(refinement_pattern, refinement_criteria, max_spacing_ratio,
                               mass_ref, 0, 0)
 end
 
