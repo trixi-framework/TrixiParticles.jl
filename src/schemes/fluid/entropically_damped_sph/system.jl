@@ -97,8 +97,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
         end
 
         if surface_tension !== nothing && surface_normal_method === nothing
-            surface_normal_method = ColorfieldSurfaceNormal(smoothing_kernel,
-                                                            smoothing_length)
+            surface_normal_method = ColorfieldSurfaceNormal()
         end
 
         if surface_normal_method !== nothing && reference_particle_spacing < eps()

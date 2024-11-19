@@ -1,9 +1,9 @@
 @doc raw"""
-    ColorfieldSurfaceNormal(; smoothing_kernel, smoothing_length)
+    ColorfieldSurfaceNormal()
 
 Color field based computation of the interface normals.
 """
-struct ColorfieldSurfaceNormal{ELTYPE, K}
+struct ColorfieldSurfaceNormal{ELTYPE}
     boundary_contact_threshold::ELTYPE
 end
 
