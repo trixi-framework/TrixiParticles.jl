@@ -19,8 +19,11 @@ end
 
 function create_cache_refinement(initial_condition, refinement, smoothing_length)
     smoothng_length_factor = smoothing_length / initial_condition.particle_spacing
+
+    beta = Vector{eltype(initial_condition)}(undef, nparticles(initial_condition))
+
     return (; smoothing_length=smoothing_length * ones(length(initial_condition.density)),
-            smoothing_length_factor=smoothng_length_factor)
+            smoothing_length_factor=smoothng_length_factor, beta=beta)
 end
 
 @propagate_inbounds hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
@@ -127,4 +130,52 @@ end
                         system.particle_refinement, pos_diff, distance, v_particle_system,
                         v_neighbor_system, rho_a, rho_b, m_a, m_b, particle, neighbor,
                         grad_kernel)
+end
+
+function update_final!(system::FluidSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
+    # Check if `UpdateCallback` is used when simulating with TVF
+    update_final!(system, system.transport_velocity,
+                  v, u, v_ode, u_ode, semi, t; update_from_callback)
+
+    # Compute correction factor when using particle refinement
+    compute_beta_correction!(system, system.particle_refinement, v_ode, u_ode, semi)
+
+    return system
+end
+
+compute_beta_correction!(system, ::Nothing, v_ode, u_ode, semi) = system
+
+function compute_beta_correction!(system, refinement, v_ode, u_ode, semi)
+    (; beta) = system.cache
+
+    set_zero!(beta)
+
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
+
+    system_coords = current_coordinates(u, system)
+
+    foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               neighborhood_search) do particle, neighbor,
+                                                       pos_diff, distance
+            rho_a = particle_density(v, system, particle)
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+            W_deriv = kernel_deriv(smoothing_kernel, distance,
+                                   smoothing_length(system, particle))
+
+            beta[particle] -= m_b * distance * W_deriv * (rho_a * ndims(system))
+        end
+    end
+
+    return system
 end

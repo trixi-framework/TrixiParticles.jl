@@ -177,12 +177,6 @@ function update_callback_used!(system, transport_velocity)
     system.cache.update_callback_used[] = true
 end
 
-function update_final!(system::FluidSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
-    update_final!(system, system.transport_velocity,
-                  v, u, v_ode, u_ode, semi, t; update_from_callback)
-end
-
 function update_final!(system::FluidSystem, ::Nothing,
                        v, u, v_ode, u_ode, semi, t; update_from_callback=false)
     return system
