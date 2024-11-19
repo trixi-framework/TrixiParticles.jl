@@ -1,10 +1,9 @@
 @doc raw"""
-    ColorfieldSurfaceNormal(; smoothing_kernel, smoothing_length)
+    ColorfieldSurfaceNormal()
 
 Color field based computation of the interface normals.
 """
-struct ColorfieldSurfaceNormal{ELTYPE, K}
-end
+struct ColorfieldSurfaceNormal{} end
 
 function ColorfieldSurfaceNormal()
     return ColorfieldSurfaceNormal()
