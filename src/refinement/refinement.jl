@@ -4,7 +4,7 @@ include("split.jl")
 include("merge.jl")
 
 struct ParticleRefinement{SP, RC, ELTYPE}
-    splitting_pattern         :: SP
+    refinement_pattern         :: SP
     refinement_criteria       :: RC
     max_spacing_ratio         :: ELTYPE
     mass_ref                  :: Vector{ELTYPE} # length(mass_ref) == nparticles
@@ -14,7 +14,7 @@ struct ParticleRefinement{SP, RC, ELTYPE}
     n_new_particles           :: Int
 end
 
-function ParticleRefinement(; splitting_pattern, max_spacing_ratio,
+function ParticleRefinement(; refinement_pattern, max_spacing_ratio,
                             refinement_criteria=SpatialRefinementCriterion())
     mass_ref = Vector{eltype(max_spacing_ratio)}()
     delete_candidates = Vector{Bool}()
@@ -23,7 +23,7 @@ function ParticleRefinement(; splitting_pattern, max_spacing_ratio,
         refinement_criteria = (refinement_criteria,)
     end
 
-    return ParticleRefinement(splitting_pattern, refinement_criteria, max_spacing_ratio,
+    return ParticleRefinement(refinement_pattern, refinement_criteria, max_spacing_ratio,
                               mass_ref, Int[], delete_candidates, 0, 0)
 end
 
