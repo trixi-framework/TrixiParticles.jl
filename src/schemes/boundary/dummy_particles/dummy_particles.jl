@@ -2,7 +2,8 @@
     BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
-                                state_equation=nothing, correction=nothing)
+                                state_equation=nothing, correction=nothing,
+                                reference_particle_spacing=0.0)
 
 Boundary model for `BoundarySPHSystem`.
 
@@ -44,7 +45,7 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
-    number_density     :: Int64
+    number_density     :: Int
     viscosity          :: V
     correction         :: COR
     cache              :: C
@@ -70,6 +71,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
               colorfield=zeros(ELTYPE, n_particles),
               neighbor_count=zeros(ELTYPE, n_particles))...)
 
+    # If the reference_density_spacing is set calculate the number_density.
     number_density_ = 0
     if reference_particle_spacing > 0.0
         number_density_ = number_density(Val(ndims(boundary_model)),

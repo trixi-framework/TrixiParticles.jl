@@ -159,9 +159,9 @@ function number_density(::Val{D}, particle_spacing, compact_support) where {D}
 end
 
 @inline function number_density(::Val{2}, particle_spacing, compact_support)
-    return floor(Int64, pi * compact_support^2 / particle_spacing^2)
+    return floor(Int, pi * compact_support^2 / particle_spacing^2)
 end
 
 @inline @fastpow function number_density(::Val{3}, particle_spacing, compact_support)
-    return floor(Int64, 4.0 / 3.0 * pi * compact_support^3 / particle_spacing^3)
+    return floor(Int, 4.0 / 3.0 * pi * compact_support^3 / particle_spacing^3)
 end

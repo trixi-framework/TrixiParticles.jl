@@ -16,7 +16,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Fixes
 
-- JuliaFormatter was updated from 1.0.42 to 1.0.62 (#661)
 - Diverse Doc fixes (#663, #659, #637, #658, #664)
 - Simulations can be run with `Float32` (#662)
 

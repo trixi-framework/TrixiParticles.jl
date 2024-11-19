@@ -50,8 +50,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
-    number_density                    :: Int64
-    color                             :: Int64
+    number_density                    :: Int
+    color                             :: Int
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
