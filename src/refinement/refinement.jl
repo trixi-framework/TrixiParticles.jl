@@ -10,7 +10,7 @@ function ParticleRefinement(; max_spacing_ratio,
                             refinement_criteria=SpatialRefinementCriterion())
     mass_ref = Vector{eltype(max_spacing_ratio)}()
 
-    if refinement_criteria isa Tuple
+    if !(refinement_criteria isa Tuple)
         refinement_criteria = (refinement_criteria,)
     end
     return ParticleRefinement(refinement_criteria, max_spacing_ratio, mass_ref)
