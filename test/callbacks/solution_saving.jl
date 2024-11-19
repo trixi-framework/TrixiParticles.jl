@@ -44,7 +44,7 @@
             @test repr("text/plain", callback) == show_box
         end
 
-        @testset verbose=true "interval" begin
+        @testset verbose=true "save_times" begin
             callback = SolutionSavingCallback(save_times=[1.0, 2.0, 3.0], prefix="test",
                                               output_directory=out)
 
