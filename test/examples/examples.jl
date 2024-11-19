@@ -238,6 +238,33 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
+        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
+            steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
+
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "pipe_flow_2d.jl"),
+                                           extra_callback=steady_state_reached,
+                                           tspan=(0.0, 1.5))
+
+            @test sol.t[end] < 1.0
+            @test sol.retcode == ReturnCode.Terminated
+        end
+
+        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
+            steady_state_reached = SteadyStateReachedCallback(; interval=1,
+                                                              interval_size=10,
+                                                              abstol=1.0e-5, reltol=1.0e-4)
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "pipe_flow_2d.jl"),
+                                           extra_callback=steady_state_reached,
+                                           tspan=(0.0, 1.5))
+
+            @test sol.t[end] < 1.0
+            @test sol.retcode == ReturnCode.Terminated
+        end
+
         @trixi_testset "fluid/pipe_flow_3d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                            joinpath(examples_dir(), "fluid",
