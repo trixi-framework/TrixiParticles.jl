@@ -240,7 +240,7 @@ function Base.show(io::IO,
                    cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
-    solution_saving = cb.finalize
+    solution_saving = cb.affect!
     print(io, "SolutionSavingCallback(save_times=", solution_saving.save_times, ")")
 end
 
@@ -303,7 +303,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     if get(io, :compact, false)
         show(io, cb)
     else
-        solution_saving = cb.finalize
+        solution_saving = cb.affect!
         cq = collect(solution_saving.custom_quantities)
 
         setup = [
