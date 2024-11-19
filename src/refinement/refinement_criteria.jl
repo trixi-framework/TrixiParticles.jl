@@ -36,7 +36,7 @@ end
     return system
 end
 
-@inline set_particle_spacing!(system, _, _, _, _) = system
+@inline set_particle_spacing!(system, _, _, _, _, _) = system
 
 @inline function set_particle_spacing!(particle_system,
                                        neighbor_system::Union{BoundarySystem, SolidSystem},

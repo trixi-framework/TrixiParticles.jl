@@ -34,7 +34,7 @@ function refinement!(semi, v_ode, u_ode, v_tmp, u_tmp, t)
     check_refinement_criteria!(semi, v_ode, u_ode)
 
     # Update the spacing of particles (Algorthm 1)
-    update_particle_spacing(semi, u_ode)
+    update_particle_spacing(semi, v_ode, u_ode)
 
     # Split the particles (Algorithm 2)
 
@@ -51,30 +51,34 @@ function refinement!(semi, v_ode, u_ode, v_tmp, u_tmp, t)
     return semi
 end
 
-function update_particle_spacing(semi, u_ode)
+function update_particle_spacing(semi, v_ode, u_ode)
     foreach_system(semi) do system
-        u = wrap_u(u_ode, system, semi)
-        update_particle_spacing(system, u, semi)
+        update_particle_spacing(system, v_ode, u_ode, semi)
     end
 end
 
 # The methods for the `FluidSystem` are defined in `src/schemes/fluid/fluid.jl`
-@inline update_particle_spacing(system, u, semi) = systemerror
+@inline update_particle_spacing(system, v_ode, u_ode, semi) = system
 
-@inline function update_particle_spacing(system::FluidSystem, u, semi)
-    update_particle_spacing(system, system.particle_refinement, u, semi)
+@inline function update_particle_spacing(system::FluidSystem, v_ode, u_ode, semi)
+    update_particle_spacing(system, system.particle_refinement, v_ode, u_ode, semi)
 end
 
-@inline update_particle_spacing(system, ::Nothing, u, semi) = system
+@inline update_particle_spacing(system, ::Nothing, v_ode, u_ode, semi) = system
 
-@inline function update_particle_spacing(system::FluidSystem, particle_refinement, u, semi)
+@inline function update_particle_spacing(system::FluidSystem, particle_refinement,
+                                         v_ode, u_ode, semi)
     (; smoothing_length, smoothing_length_factor) = system.cache
-    (; mass_ref) = particle_refinement
+    (; mass_ref, max_spacing_ratio) = particle_refinement
+
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
 
     system_coords = current_coordinates(u, system)
 
     for particle in eachparticle(system)
-        dp_min, dp_max, dp_avg = min_max_avg_spacing(system, semi, system_coords, particle)
+        dp_min, dp_max, dp_avg = min_max_avg_spacing(system, semi, u_ode, system_coords,
+                                                     particle)
 
         if dp_max / dp_min < max_spacing_ratio^3
             new_spacing = min(dp_max, max_spacing_ratio * dp_min)
@@ -83,23 +87,24 @@ end
         end
 
         smoothing_length[particle] = smoothing_length_factor * new_spacing
-        mass_ref[particle] = system.density[particle] * new_spacing^(ndims(system))
+        mass_ref[particle] = particle_density(v, system, particle) *
+                             new_spacing^(ndims(system))
     end
 
     return system
 end
 
-@inline function min_max_avg_spacing(system, semi, system_coords, particle)
+
+@inline function min_max_avg_spacing(system, semi, u_ode, system_coords, particle)
     dp_min = Inf
     dp_max = zero(eltype(system))
     dp_avg = zero(eltype(system))
     counter_neighbors = 0
 
     foreach_system(semi) do neighbor_system
-        neighborhood_search = get_neighborhood_search(particle_system, neighbor_system,
-                                                      semi)
+        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
-        u_neighbor_system = wrap_u(u_ode, neighbor, semi)
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         PointNeighbors.foreach_neighbor(system_coords, neighbor_coords, neighborhood_search,
