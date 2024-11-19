@@ -152,6 +152,8 @@ end
 function pressure_damping_term(particle_system, neighbor_system, refinement,
                                particle, neighbor, pos_diff, distance, beta_inv_a,
                                m_a, m_b, p_a, p_b, rho_a, rho_b, grad_kernel_a)
+    (; sound_speed) = particle_system
+
     # EDAC pressure evolution
     pressure_diff = p_a - p_b
 
@@ -162,7 +164,7 @@ function pressure_damping_term(particle_system, neighbor_system, refinement,
     tmp = 2 * ndims(particle_system) + 4
 
     nu_edac_a = alpha_edac * sound_speed * smoothing_length(particle_system, particle) / tmp
-    nu_edac_a = alpha_edac * sound_speed * smoothing_length(neighbor_system, particle) / tmp
+    nu_edac_b = alpha_edac * sound_speed * smoothing_length(neighbor_system, neighbor) / tmp
 
     nu_edac_ab = 4 * (nu_edac_a * nu_edac_b) / (nu_edac_a + nu_edac_b)
 
@@ -207,6 +209,15 @@ end
                                      v_particle_system, v_neighbor_system,
                                      rho_a, rho_b, m_a, m_b,
                                      particle, neighbor, grad_kernel)
+    return zero(pos_diff)
+end
+
+@inline function velocity_correction(particle_system,
+                                     neighbor_system::EntropicallyDampedSPHSystem,
+                                     pos_diff, distance,
+                                     v_particle_system, v_neighbor_system,
+                                     rho_a, rho_b, m_a, m_b,
+                                     particle, neighbor, grad_kernel)
     velocity_correction(particle_system, neighbor_system,
                         particle_system.particle_refinement,
                         pos_diff, distance, v_particle_system, v_neighbor_system,
@@ -226,8 +237,8 @@ end
                                      v_particle_system, v_neighbor_system,
                                      rho_a, rho_b, m_a, m_b, particle, neighbor,
                                      grad_kernel)
-    momentum_velocity_a = current_velocity(v_particle_system, system, particle)
-    advection_velocity_a = advection_velocity(v_particle_system, system, particle)
+    momentum_velocity_a = current_velocity(v_particle_system, particle_system, particle)
+    advection_velocity_a = advection_velocity(v_particle_system, particle_system, particle)
 
     momentum_velocity_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
     advection_velocity_b = advection_velocity(v_neighbor_system, neighbor_system, neighbor)

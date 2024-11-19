@@ -112,7 +112,7 @@ end
     momentum_velocity_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
     advection_velocity_b = advection_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    factor_a = beta_correction(particle_system, particle) / rho_a
+    factor_a = beta_correction(system, particle) / rho_a
     factor_b = beta_correction(neighbor_system, neighbor) / rho_b
 
     A_a = factor_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
