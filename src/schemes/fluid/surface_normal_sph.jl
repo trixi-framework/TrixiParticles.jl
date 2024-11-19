@@ -205,7 +205,6 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
     nhs = get_neighborhood_search(system, neighbor_system, semi)
     correction_factor = fill(eps(eltype(system)), n_moving_particles(system))
 
-
     no_valid_neighbors = 0
 
     foreach_point_neighbor(system, neighbor_system,
