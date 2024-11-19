@@ -228,7 +228,7 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
     correction_factor = fill(eps(eltype(system)), n_moving_particles(system))
 
     if smoothing_length != system.smoothing_length ||
-        surfn.smoothing_kernel !== system.smoothing_kernel
+       surfn.smoothing_kernel !== system.smoothing_kernel
         # TODO: this is really slow but there is no way to easily implement multiple search radia
         search_radius = compact_support(surfn.smoothing_kernel, smoothing_length)
         nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
