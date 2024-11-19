@@ -54,7 +54,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     state_equation                    :: SE
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
-    number_density                    :: Int
+    ideal_neighbor_count              :: Int
     color                             :: Int
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
@@ -117,9 +117,9 @@ function WeaklyCompressibleSPHSystem(initial_condition,
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
     end
 
-    number_density_ = 0
+    ideal_neighbor_count_ = 0
     if reference_particle_spacing > 0.0
-        number_density_ = number_density(Val(NDIMS), reference_particle_spacing,
+        ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS), reference_particle_spacing,
                                          compact_support(smoothing_kernel,
                                                          smoothing_length))
     end

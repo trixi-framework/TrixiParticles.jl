@@ -50,7 +50,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
-    number_density                    :: Int
+    ideal_neighbor_count              :: Int
     color                             :: Int
     sound_speed                       :: ELTYPE
     viscosity                         :: V
@@ -105,9 +105,9 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
             throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
         end
 
-        number_density_ = 0
+        ideal_neighbor_count_ = 0
         if reference_particle_spacing > 0.0
-            number_density_ = number_density(Val(NDIMS), reference_particle_spacing,
+            ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS), reference_particle_spacing,
                                              compact_support(smoothing_kernel,
                                                              smoothing_length))
         end
