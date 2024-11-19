@@ -1,18 +1,13 @@
 """
     DensityReinitializationCallback(; interval::Integer=0, dt=0.0)
 
-Callback to reinitialize the density field when using [`ContinuityDensity`](@ref).
+Callback to reinitialize the density field when using [`ContinuityDensity`](@ref) [Panizzo2007](@cite).
 
 # Keywords
 - `interval=0`:              Reinitialize the density every `interval` time steps.
 - `dt`:                      Reinitialize the density in regular intervals of `dt` in terms
                              of integration time.
 - `reinit_initial_solution`: Reinitialize the initial solution (default=false)
-
-## References
-- Panizzo, Andrea, Giovanni Cuomo, and Robert A. Dalrymple. "3D-SPH simulation of landslide generated waves."
-  In: Coastal Engineering 2006 (2007), pages 1503-1515.
-  [doi: 10.1142/9789812709554_0128](https://doi.org/10.1142/9789812709554_0128)
 """
 mutable struct DensityReinitializationCallback{I}
     interval::I
@@ -36,7 +31,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         callback = cb.affect!
         setup = [
             "interval" => callback.interval,
-            "reinit_initial_solution" => callback.reinit_initial_solution,
+            "reinit_initial_solution" => callback.reinit_initial_solution
         ]
         summary_box(io, "DensityReinitializationCallback", setup)
     end

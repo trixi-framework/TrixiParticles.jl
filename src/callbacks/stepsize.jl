@@ -30,22 +30,7 @@ and ``n`` is the number of dimensions.
     This is an experimental feature and may change in future releases.
 
 ## References
-- M. Antuono, A. Colagrossi, S. Marrone.
-  "Numerical Diffusive Terms in Weakly-Compressible SPH Schemes."
-  In: Computer Physics Communications 183, no. 12 (2012), pages 2570--80.
-  [doi: 10.1016/j.cpc.2012.07.006](https://doi.org/10.1016/j.cpc.2012.07.006)
-- S. Adami, X. Y. Hu, N. A. Adams.
-  "A generalized wall boundary condition for smoothed particle hydrodynamics".
-  In: Journal of Computational Physics 231, 21 (2012), pages 7057--7075.
-  [doi: 10.1016/J.JCP.2012.05.005](https://doi.org/10.1016/J.JCP.2012.05.005)
-- P. N. Sun, A. Colagrossi, S. Marrone, A. M. Zhang.
-  "The δplus-SPH Model: Simple Procedures for a Further Improvement of the SPH Scheme."
-  In: Computer Methods in Applied Mechanics and Engineering 315 (2017), pages 25--49.
-  [doi: 10.1016/j.cma.2016.10.028](https://doi.org/10.1016/j.cma.2016.10.028)
-- M. Antuono, S. Marrone, A. Colagrossi, B. Bouscasse.
-  "Energy Balance in the δ-SPH Scheme."
-  In: Computer Methods in Applied Mechanics and Engineering 289 (2015), pages 209--26.
-  [doi: 10.1016/j.cma.2015.02.004](https://doi.org/10.1016/j.cma.2015.02.004)
+[Antuono2012](@cite), [Adami2012](@cite), [Sun2017](@cite), [Antuono2015](@cite)
 """
 function StepsizeCallback(; cfl::Real)
     # TODO adapt for non-constant CFL conditions
@@ -109,7 +94,7 @@ function Base.show(io::IO, ::MIME"text/plain",
 
         setup = [
             "is constant" => string(is_constant(stepsize_callback)),
-            "CFL number" => stepsize_callback.cfl_number,
+            "CFL number" => stepsize_callback.cfl_number
         ]
         summary_box(io, "StepsizeCallback", setup)
     end

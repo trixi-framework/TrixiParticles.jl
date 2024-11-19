@@ -1,8 +1,8 @@
 # [Installation](@id installation)
 
 ## Setting up Julia
-If you have not yet installed Julia, please [follow the instructions for your
-operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl works
+If you have not yet installed Julia, please [follow the instructions on the
+official website](https://julialang.org/downloads/). TrixiParticles.jl works
 with Julia v1.9 and newer. We recommend using the latest stable release of Julia.
 
 ## For users
@@ -25,7 +25,7 @@ git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 mkdir run
 julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Add TrixiParticles.jl to `run` project
-julia --project=run -e 'using Pkg; Pkg.add("OrdinaryDiffEq", "Plots")' # Add additional packages
+julia --project=run -e 'using Pkg; Pkg.add(["OrdinaryDiffEq", "Plots"])' # Add additional packages
 ```
 
 If you installed TrixiParticles.jl this way, you always have to start Julia with the
