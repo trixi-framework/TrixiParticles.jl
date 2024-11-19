@@ -51,7 +51,7 @@ struct ComplexShape{S, IC, ICB, SDF, IG, WN, ELTYPE}
     particle_spacing           :: ELTYPE
 end
 
-function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, density,
+function ComplexShape(geometry; particle_spacing, density,
                       pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
                       sample_boundary=false, boundary_thickness=6particle_spacing,
                       create_signed_distance_field=false, tlsph=true,

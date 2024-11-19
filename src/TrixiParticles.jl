@@ -40,7 +40,6 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 include("general/system.jl")
 # `util.jl` needs to be next because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
-include("preprocessing/preprocessing.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
@@ -52,7 +51,7 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
-include("preprocessing/particle_packing/particle_packing.jl")
+include("preprocessing/preprocessing.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
