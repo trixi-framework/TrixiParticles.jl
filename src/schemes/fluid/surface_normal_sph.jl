@@ -1,3 +1,12 @@
+@doc raw"""
+    ColorfieldSurfaceNormal(; smoothing_kernel, smoothing_length)
+
+Color field based computation of the interface normals.
+
+# Keywords
+- `smoothing_kernel`: The kernel function used for smoothing, defining how neighboring particles influence the calculation.
+- `smoothing_length`: The smoothing length, determining the radius of influence for the kernel.
+"""
 struct ColorfieldSurfaceNormal{ELTYPE, K}
     smoothing_kernel::K
     smoothing_length::ELTYPE
