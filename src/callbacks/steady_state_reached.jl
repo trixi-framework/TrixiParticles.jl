@@ -2,7 +2,7 @@
     SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
                                interval_size::Integer=10, abstol=1.0e-8, reltol=1.0e-6)
 
-Terminates the integration when the residual of the change in kinetic energy
+Terminates the integration when the change of kinetic energy between time steps
 falls below the threshold specified by `abstol + reltol * ekin`,
 where `ekin` is the total kinetic energy of the simulation.
 
@@ -16,7 +16,7 @@ where `ekin` is the total kinetic energy of the simulation.
 - `abstol`:         Absolute tolerance.
 - `reltol`:         Relative tolerance.
 """
-mutable struct SteadyStateReachedCallback{I, ELTYPE <: Real}
+struct SteadyStateReachedCallback{I, ELTYPE <: Real}
     interval      :: I
     abstol        :: ELTYPE
     reltol        :: ELTYPE
