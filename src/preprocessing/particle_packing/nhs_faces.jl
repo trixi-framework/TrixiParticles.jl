@@ -5,6 +5,7 @@ struct FaceNeighborhoodSearch{NDIMS, ELTYPE, PB}
     empty_vector      :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
     n_cells           :: NTuple{NDIMS, Int}
     periodic_box      :: Nothing
+    search_radius     :: ELTYPE
 
     function FaceNeighborhoodSearch{NDIMS}(search_radius) where {NDIMS}
         ELTYPE = eltype(search_radius)
@@ -18,7 +19,7 @@ struct FaceNeighborhoodSearch{NDIMS, ELTYPE, PB}
         n_cells = ntuple(_ -> -1, Val(NDIMS))
 
         new{NDIMS, ELTYPE, Nothing}(cell_list, cell_size, neighbor_iterator, empty_vector,
-                                    n_cells, nothing)
+                                    n_cells, nothing, search_radius)
     end
 end
 
@@ -43,7 +44,7 @@ end
 
 function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
                      pad=ntuple(_ -> 1, ndims(geometry)))
-    (; cell_list, neighbor_iterator) = neighborhood_search
+    (; cell_list, neighbor_iterator, search_radius) = neighborhood_search
 
     empty!(cell_list)
 
@@ -73,7 +74,8 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
     face_ids = Int[]
     for cell_runner in meshgrid(min_cell, max_cell)
         resize!(face_ids, 0)
-        for neighbor in PointNeighbors.neighboring_cells(cell_runner, neighborhood_search)
+        for neighbor in PointNeighbors.neighboring_cells(cell_runner, neighborhood_search,
+                                                         search_radius)
             append!(face_ids, faces_in_cell(Tuple(neighbor), neighborhood_search))
         end
 

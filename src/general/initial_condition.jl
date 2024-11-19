@@ -290,8 +290,9 @@ end
 
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
-function InitialCondition(sol::ODESolution, system, semi; final_velocity=false,
-                          max_particle_distance=0.25system.initial_condition.particle_spacing)
+function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
+                          max_particle_distance=0.25 *
+                                                system.initial_condition.particle_spacing)
     ic = system.initial_condition
 
     v_ode, u_ode = sol.u[end].x
@@ -299,17 +300,9 @@ function InitialCondition(sol::ODESolution, system, semi; final_velocity=false,
     u = wrap_u(u_ode, system, semi)
     v = wrap_u(v_ode, system, semi)
 
-    # TODO: Remove particles that are closer than `max_particle_distance` to any particle
     too_close = find_too_close_particles(u, max_particle_distance)
 
-    velocity_ = final_velocity ? view(v, 1:ndims(system), :) : ic.velocity
-
-    if isempty(too_close)
-        ic.coordinates .= u
-        ic.velocity .= velocity_
-
-        return ic
-    end
+    velocity_ = use_final_velocity ? view(v, 1:ndims(system), :) : ic.velocity
 
     not_too_close = setdiff(eachparticle(system), too_close)
 
@@ -319,7 +312,7 @@ function InitialCondition(sol::ODESolution, system, semi; final_velocity=false,
     density = ic.density[not_too_close]
     pressure = ic.pressure[not_too_close]
 
-    @info "$(length(too_close)) removed particles that are too close together"
+    @info "Removed $(length(too_close)) particles that are too close together"
 
     return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
                                        ic.particle_spacing)
@@ -337,13 +330,14 @@ function find_too_close_particles(coords1, coords2, max_distance)
     # We are modifying the vector `result`, so this cannot be parallel
     foreach_point_neighbor(coords1, coords2, nhs, parallel=false) do particle, _, _, _
         if !(particle in result)
-            append!(result, particle)
+            push!(result, particle)
         end
     end
 
     return result
 end
 
+# Find particles in `coords` that are closer than `max_distance` to any other particle in `coords`
 function find_too_close_particles(coords, max_distance)
     NDIMS = size(coords, 1)
     result = Int[]
@@ -354,8 +348,9 @@ function find_too_close_particles(coords, max_distance)
 
     # We are modifying the vector `result`, so this cannot be parallel
     foreach_point_neighbor(coords, coords, nhs, parallel=false) do particle, neighbor, _, _
+        # Only consider particles with neighbors that are not to be removed
         if particle != neighbor && !(particle in result) && !(neighbor in result)
-            append!(result, particle)
+            push!(result, particle)
         end
     end
 

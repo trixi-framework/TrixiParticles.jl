@@ -4,7 +4,7 @@
                         max_signed_distance=4particle_spacing,
                         use_for_boundary_packing=false)
 
-Generate particles along a surface of a complex shape holding the signed distances and normals
+Generate particles along a surface of a complex geometry holding the signed distances and normals
 to this surface.
 
 # Arguments
@@ -30,7 +30,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
 
     function SignedDistanceField(geometry, particle_spacing;
                                  point_grid=nothing,
-                                 max_signed_distance=4particle_spacing,
+                                 max_signed_distance=4 * particle_spacing,
                                  use_for_boundary_packing=false)
         NDIMS = ndims(geometry)
         ELTYPE = eltype(max_signed_distance)
