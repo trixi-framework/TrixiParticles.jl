@@ -214,12 +214,10 @@ function Base.show(io::IO, cb::DiscreteCallback)
     if solution_saving !== nothing
         if !isempty(solution_saving.save_times)
             print(io, "SolutionSavingCallback(save_times=", solution_saving.save_times, ")")
-        elseif solution_saving.interval > 0
+        elseif isa(solution_saving.interval, Integer)
             print(io, "SolutionSavingCallback(interval=", solution_saving.interval, ")")
-        elseif solution_saving.interval > 0.0  # if interval is Float64
-            print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
         else
-            print(io, "SolutionSavingCallback()")
+            print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
         end
     else
         # Fallback to default show method
