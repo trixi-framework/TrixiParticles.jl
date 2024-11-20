@@ -5,10 +5,6 @@ Color field based computation of the interface normals.
 """
 struct ColorfieldSurfaceNormal{} end
 
-function ColorfieldSurfaceNormal()
-    return ColorfieldSurfaceNormal()
-end
-
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
     return (;)
 end
