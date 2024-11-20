@@ -220,8 +220,8 @@ function Base.show(io::IO, cb::DiscreteCallback)
             print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
         end
     else
-        # Fallback to default show method
-        Base.show(io, cb)
+        # Fallback to default show method for AbstractCallback
+        invoke(Base.show, Tuple{IO, AbstractCallback}, io, cb)
     end
 end
 
@@ -232,7 +232,6 @@ function Base.show(io::IO, mime::MIME"text/plain", cb::DiscreteCallback)
             show(io, cb)
         else
             cq = collect(solution_saving.custom_quantities)
-            # Determine the label based on the type of `interval`
             interval_label = !isempty(solution_saving.save_times) ? "save_times" :
                              isa(solution_saving.interval, Integer) ? "interval" :
                              "dt"
@@ -251,7 +250,8 @@ function Base.show(io::IO, mime::MIME"text/plain", cb::DiscreteCallback)
             summary_box(io, "SolutionSavingCallback", setup)
         end
     else
-        Base.show(io, mime, cb)
+        # Fallback to default show method for AbstractCallback
+        invoke(Base.show, Tuple{IO, MIME{Symbol}, AbstractCallback}, io, mime, cb)
     end
 end
 
