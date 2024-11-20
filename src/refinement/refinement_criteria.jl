@@ -19,6 +19,11 @@ end
     check_refinement_criteria!(system, system.particle_refinement, v, u, v_ode, u_ode, semi)
 end
 
+@inlin function check_refinement_criteria!(system::FluidSystem, ::Nothing,
+                                           v, u, v_ode, u_ode, semi)
+    system
+end
+
 @inline function check_refinement_criteria!(system::FluidSystem, refinement,
                                             v, u, v_ode, u_ode, semi)
     (; refinement_criteria) = system.particle_refinement
