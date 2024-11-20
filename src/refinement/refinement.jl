@@ -64,7 +64,7 @@ end
     update_particle_spacing(system, system.particle_refinement, v_ode, u_ode, semi)
 end
 
-@inline update_particle_spacing(system, ::Nothing, v_ode, u_ode, semi) = system
+@inline update_particle_spacing(system::FluidSystem, ::Nothing, v_ode, u_ode, semi) = system
 
 @inline function update_particle_spacing(system::FluidSystem, particle_refinement,
                                          v_ode, u_ode, semi)
