@@ -284,7 +284,7 @@ smoothing_length_gauss = 1.0 * fluid_particle_spacing
 We can compare these kernels in a plot.
 ```@example tut_setup
 using Plots
-x = range(-0.2, 0.2, length=500)
+x = range(-0.05, 0.05, length=500)
 plot(x, r -> TrixiParticles.kernel(SchoenbergCubicSplineKernel{2}(), abs(r), smoothing_length),
      label="SchoenbergCubicSplineKernel", xlabel="r")
 plot!(x, r -> TrixiParticles.kernel(MyGaussianKernel(), abs(r), smoothing_length_gauss),
