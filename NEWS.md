@@ -10,6 +10,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Support for surface tension was added to EDAC (#539)
 - A method to prevent penetration of fast moving particles with solids was added (#498)
 - Added the callback `SteadyStateReachedCallback` to detect converging simulations (#601)
+- Added Ideal Gas State Equation (#607)
 
 ### Documentation
 
