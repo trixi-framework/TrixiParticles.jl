@@ -163,7 +163,7 @@ nothing # hide
 The key component of every simulation is the [`Semidiscretization`](@ref),
 which couples all systems of the simulation.
 All simulation methods in TrixiParticles.jl are semidiscretizations, which discretize
-the equations in time to provide an ordinary differential equation that still
+the equations in space to provide an ordinary differential equation that still
 has to be solved in time.
 By providing a simulation time span, we can call [`semidiscretize`](@ref),
 which returns an `ODEProblem` that can be solved with a time integration method.
@@ -213,7 +213,7 @@ sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);
 nothing # hide
 ```
 
-See [Visualization](@ref) for how to visualize the solution.
+See [Visualization](@ref) for how to visualize the final solution.
 For the simplest visualization, we can use [Plots.jl](https://docs.juliaplots.org/stable/):
 ```@example tut_setup
 using Plots
@@ -250,8 +250,8 @@ W(r, h) =
 0 & \text{for } r \geq 2h.
 \end{cases}
 ```
-Note that the same kernel in a more optimized version is already implemented
-in TrixiParticles.jl as [`GaussianKernel`](@ref).
+Note that the same kernel in a more optimized version and with a cutoff at ``3``
+is already implemented in TrixiParticles.jl as [`GaussianKernel`](@ref).
 
 In order to use our new kernel, we have to define three functions.
 `TrixiParticles.kernel`, which is the kernel function itself,
@@ -272,7 +272,7 @@ function TrixiParticles.kernel(kernel::MyGaussianKernel, r, h)
 end
 
 function TrixiParticles.kernel_deriv(kernel::MyGaussianKernel, r, h)
-    q = r * h
+    q = r / h
 
     if q < 2
         return 1 / (pi * h^2)  * (-2 * q) * exp(-q^2) / h
@@ -281,7 +281,7 @@ function TrixiParticles.kernel_deriv(kernel::MyGaussianKernel, r, h)
     return 0.0
 end
 
-TrixiParticles.compact_support(::MyGaussianKernel, h) = 3 * h
+TrixiParticles.compact_support(::MyGaussianKernel, h) = 2 * h
 ```
 
 For this kernel, we use a different smoothing length, which yields a similar kernel
@@ -313,9 +313,10 @@ and run the simulation file again.
 In order to use our kernel in a pre-defined example file, we can use the function
 [`trixi_include`](@ref) to replace the definition of the variable `smoothing_kernel`.
 The following will run the example simulation
-`examples/fluid/hydrostatic_water_column_2d.jl` with our custom kernel.
+`examples/fluid/hydrostatic_water_column_2d.jl` with our custom kernel and the corresponding
+smoothing length.
 ```@example tut_setup
 trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              smoothing_kernel=MyGaussianKernel());
+              smoothing_kernel=MyGaussianKernel(), smoothing_length=smoothing_length_gauss);
 nothing # hide
 ```
