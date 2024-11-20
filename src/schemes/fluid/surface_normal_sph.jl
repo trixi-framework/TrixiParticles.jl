@@ -9,8 +9,10 @@ struct ColorfieldSurfaceNormal{ELTYPE}
     ideal_density_threshold::ELTYPE
 end
 
-function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01, ideal_density_threshold=0.0)
-    return ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold, ideal_density_threshold)
+function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
+                                 ideal_density_threshold=0.0)
+    return ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold,
+                                   ideal_density_threshold)
 end
 
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
@@ -132,12 +134,14 @@ function remove_invalid_normals!(system::FluidSystem,
     (; ideal_density_threshold) = surface_tension
 
     # We remove invalid normals i.e. they have a small norm (eq. 20)
-    normal_condition2 = (interface_threshold / compact_support(smoothing_kernel, smoothing_length))^2
+    normal_condition2 = (interface_threshold /
+                         compact_support(smoothing_kernel, smoothing_length))^2
 
     for particle in each_moving_particle(system)
 
         # heuristic condition if there is no gas phase to find the free surface
-        if ideal_density_threshold > 0 && ideal_density_threshold * number_density < cache.neighbor_count[particle]
+        if ideal_density_threshold > 0 &&
+           ideal_density_threshold * number_density < cache.neighbor_count[particle]
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
