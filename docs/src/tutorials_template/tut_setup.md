@@ -31,7 +31,7 @@ the compact support of the smoothing kernel is fully sampled with particles
 for a fluid particle close to a boundary.
 In particular, we require the boundary thickness `boundary_layers * fluid_particle_spacing`
 to be larger than the compact support of the kernel. The compact support of each kernel
-can be found [`in the smoothing kernel overview`](@ref smoothing_kernel).
+can be found [in the smoothing kernel overview](@ref smoothing_kernel).
 ```@example tut_setup
 fluid_particle_spacing = 0.02
 boundary_layers = 3
