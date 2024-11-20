@@ -65,9 +65,9 @@ end
 
         system.mass[particle] = mass_old / nchilds(system, refinement_pattern)
 
-        set_particle_pressure!(v, system, partice, pressure)
+        set_particle_pressure!(v, system, particle, pressure)
 
-        set_particle_density!(v, system, partice, density)
+        set_particle_density!(v, system, particle, density)
 
         smoothing_length[particle] = alpha * smoothing_length_old
 
