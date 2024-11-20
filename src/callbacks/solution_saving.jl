@@ -212,6 +212,7 @@ end
 function Base.show(io::IO, cb::DiscreteCallback)
     solution_saving = get_solution_saving_callback(cb)
     if solution_saving !== nothing
+        # Display SolutionSavingCallback information
         if !isempty(solution_saving.save_times)
             print(io, "SolutionSavingCallback(save_times=", solution_saving.save_times, ")")
         elseif isa(solution_saving.interval, Integer)
@@ -220,8 +221,8 @@ function Base.show(io::IO, cb::DiscreteCallback)
             print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
         end
     else
-        # Fallback to default show method for AbstractCallback
-        invoke(Base.show, Tuple{IO, AbstractCallback}, io, cb)
+        # Fallback: Provide basic information about DiscreteCallback
+        print(io, "DiscreteCallback(condition=$(cb.condition), affect!=$(cb.affect!))")
     end
 end
 
@@ -229,8 +230,9 @@ function Base.show(io::IO, mime::MIME"text/plain", cb::DiscreteCallback)
     solution_saving = get_solution_saving_callback(cb)
     if solution_saving !== nothing
         if get(io, :compact, false)
-            show(io, cb)
+            show(io, cb)  # Use compact representation
         else
+            # Detailed display for SolutionSavingCallback
             cq = collect(solution_saving.custom_quantities)
             interval_label = !isempty(solution_saving.save_times) ? "save_times" :
                              isa(solution_saving.interval, Integer) ? "interval" :
@@ -250,8 +252,20 @@ function Base.show(io::IO, mime::MIME"text/plain", cb::DiscreteCallback)
             summary_box(io, "SolutionSavingCallback", setup)
         end
     else
-        # Fallback to default show method for AbstractCallback
-        invoke(Base.show, Tuple{IO, MIME{Symbol}, AbstractCallback}, io, mime, cb)
+        if get(io, :compact, false)
+            show(io, cb)
+        else
+            # Fallback: Provide detailed information about DiscreteCallback
+            setup = [
+                "condition" => cb.condition,
+                "affect!" => cb.affect!,
+                "initialize" => cb.initialize,
+                "finalize" => cb.finalize,
+                "save_positions" => cb.save_positions,
+                "interp_points" => cb.interp_points
+            ]
+            summary_box(io, "DiscreteCallback", setup)
+        end
     end
 end
 
