@@ -41,6 +41,8 @@ nothing # hide
 ## Experiment setup
 
 We want to simulate a small dam break problem inside a rectangular tank.
+The setup is similar to the hydrostatic water column example linked above,
+only that we make the tank larger than the fluid to observe a dam break.
 ![Experiment Setup](https://github.com/user-attachments/assets/862a1189-b758-4bad-b1e2-6abc42870bb2)
 First, we define physical parameters like gravitational acceleration, simulation time,
 initial fluid size, tank size and fluid density.
@@ -129,6 +131,7 @@ the particle density a variable in the ODE system and integrating its change ove
 We choose the latter approach here by using the density calculator
 [`ContinuityDensity`](@ref), which is more efficient and handles free surfaces
 without the need for additional correction terms.
+The simulation quality greatly benefits from using [density diffusion](@ref density_diffusion).
 ```@example tut_setup
 fluid_density_calculator = ContinuityDensity()
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
