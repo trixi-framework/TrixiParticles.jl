@@ -6,8 +6,10 @@ OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PointNeighbors = "1c4d5385-0a27-49de-8e2c-43b175c8985c"
 TrixiBase = "9a0f1c46-06d5-4909-a5a3-ce25d3fa3284"
+TrixiParticles = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
 
 [compat]
+Asciicast = "0.1.2"
 Documenter = "1"
 DocumenterCitations = "1"
 OrdinaryDiffEq = "6"
