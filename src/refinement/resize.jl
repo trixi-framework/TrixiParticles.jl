@@ -78,26 +78,26 @@ end
 Base.resize!(system, ::Nothing, capacity_system) = system
 
 function Base.resize!(system::WeaklyCompressibleSPHSystem, refinement, capacity_system::Int)
-    (; mass, pressure, cache, density_calculator) = system
+    (; mass, pressure, density_calculator) = system
 
     refinement.n_particles_before_resize[] = nparticles(system)
 
     resize!(mass, capacity_system)
     resize!(pressure, capacity_system)
     resize_density!(system, capacity_system, density_calculator)
-    # TODO
-    # resize_cache!(system, cache, n)
+
+    resize_cache!(system, capacity_system)
 end
 
 function Base.resize!(system::EntropicallyDampedSPHSystem, refinement, capacity_system::Int)
-    (; mass, cache, density_calculator) = system
+    (; mass, density_calculator) = system
 
     refinement.n_particles_before_resize[] = nparticles(system)
 
     resize!(mass, capacity_system)
     resize_density!(system, capacity_system, density_calculator)
-    # TODO
-    # resize_cache!(system, capacity_system)
+
+    resize_cache!(system, capacity_system)
 
     return system
 end
@@ -105,14 +105,15 @@ end
 resize_density!(system, n::Int, ::SummationDensity) = resize!(system.cache.density, n)
 resize_density!(system, n::Int, ::ContinuityDensity) = system
 
-function resize_cache!(system, n::Int)
+function resize_cache!(system::WeaklyCompressibleSPHSystem, n::Int)
     resize!(system.cache.smoothing_length, n)
 
     return system
 end
 
-function resize_cache!(system::EntropicallyDampedSPHSystem, n)
+function resize_cache!(system::EntropicallyDampedSPHSystem, n::Int)
     resize!(system.cache.smoothing_length, n)
+    resize!(system.cache.beta, n)
     resize!(system.cache.pressure_average, n)
     resize!(system.cache.neighbor_counter, n)
 
