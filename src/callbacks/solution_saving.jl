@@ -227,15 +227,22 @@ function Base.show(io::IO, cb::DiscreteCallback)
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback)
+function Base.show(io::IO, mime::MIME"text/plain", cb::DiscreteCallback)
     solution_saving = get_solution_saving_callback(cb)
     if solution_saving !== nothing
         if get(io, :compact, false)
             show(io, cb)
         else
             cq = collect(solution_saving.custom_quantities)
+            # Determine the label based on the type of `interval`
+            interval_label = !isempty(solution_saving.save_times) ? "save_times" :
+                             isa(solution_saving.interval, Integer) ? "interval" :
+                             "dt"
+            interval_value = !isempty(solution_saving.save_times) ?
+                             solution_saving.save_times :
+                             solution_saving.interval
             setup = [
-                "interval" => solution_saving.interval,
+                interval_label => interval_value,
                 "custom quantities" => isempty(cq) ? nothing : cq,
                 "save initial solution" => solution_saving.save_initial_solution ? "yes" :
                                            "no",
@@ -246,7 +253,7 @@ function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback)
             summary_box(io, "SolutionSavingCallback", setup)
         end
     else
-        Base.show(io, MIME"text/plain", cb)
+        Base.show(io, mime, cb)
     end
 end
 
