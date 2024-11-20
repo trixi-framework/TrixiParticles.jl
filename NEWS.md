@@ -15,6 +15,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Documentation
 
 - GPU Support Documentation was added (#660)
+- A new user tutorial was added (#514)
 
 ### Fixes
 
