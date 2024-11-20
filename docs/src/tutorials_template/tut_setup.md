@@ -2,7 +2,7 @@
 
 In this tutorial, we will guide you through the general structure of simulation files.
 We will set up a simulation similar to the example simulation
-[`examples/fluid/hydrostatic_water_column_2d.jl`](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/fluid/hydrostatic_water_column_2d.jl),
+[`examples/fluid/dam_break_2d.jl`](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/fluid/dam_break_2d.jl),
 which is one of our simplest example simulations.
 In the second part of this tutorial, we will show how to replace components
 of TrixiParticles.jl by custom implementations from within a simulation file,
@@ -41,8 +41,6 @@ nothing # hide
 ## Experiment setup
 
 We want to simulate a small dam break problem inside a rectangular tank.
-The setup is similar to the hydrostatic water column example linked above,
-only that we make the tank larger than the fluid to observe a dam break.
 ![Experiment Setup](https://github.com/user-attachments/assets/862a1189-b758-4bad-b1e2-6abc42870bb2)
 First, we define physical parameters like gravitational acceleration, simulation time,
 initial fluid size, tank size and fluid density.
@@ -244,7 +242,14 @@ which we set to 2 in this case.
 struct MyGaussianKernel <: TrixiParticles.SmoothingKernel{2} end
 ```
 This kernel is going to be an implementation of the Gaussian kernel with
-a cutoff for compact support.
+a cutoff for compact support, which reads
+```math
+W(r, h) =
+\begin{cases}
+\frac{1}{\pi h^2} \exp(-(r/h)^2) & \text{for } r < 2h\\
+0 & \text{for } r \geq 2h.
+\end{cases}
+```
 Note that the same kernel in a more optimized version is already implemented
 in TrixiParticles.jl as [`GaussianKernel`](@ref).
 
@@ -283,6 +288,7 @@ For this kernel, we use a different smoothing length, which yields a similar ker
 to the `SchoenbergCubicSplineKernel` that we used earlier.
 ```@example tut_setup
 smoothing_length_gauss = 1.0 * fluid_particle_spacing
+nothing # hide
 ```
 We can compare these kernels in a plot.
 ```@example tut_setup
