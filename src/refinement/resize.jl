@@ -1,7 +1,7 @@
 function Base.resize!(semi::Semidiscretization, v_ode, u_ode, _v_ode, _u_ode)
     # Resize all systems
     foreach_system(semi) do system
-        resize!(system, capacity(system))
+        capacity(system) > nparticles(system) && resize!(system, capacity(system))
     end
 
     resize!(v_ode, u_ode, _v_ode, _u_ode, semi)
@@ -23,17 +23,19 @@ function Base.deleteat!(semi::Semidiscretization, v_ode, u_ode, _v_ode, _u_ode)
 end
 
 function Base.resize!(v_ode, u_ode, _v_ode, _u_ode, semi::Semidiscretization)
+    (; systems) = semi
+
     copyto!(_v_ode, v_ode)
     copyto!(_u_ode, u_ode)
 
     # Get ranges after resizing the systems
-    ranges_v_new, ranges_u_new = ranges_vu(semi.systems)
+    ranges_v_new, ranges_u_new = ranges_vu(systems)
 
     ranges_v_old = copy(semi.ranges_v)
     ranges_u_old = copy(semi.ranges_u)
 
     # Set ranges after resizing the systems
-    for i in 1:length(semi.systems)
+    for i in 1:length(systems)
         semi.ranges_v[i] = ranges_v_new[i]
         semi.ranges_u[i] = ranges_u_new[i]
     end
@@ -50,13 +52,14 @@ function Base.resize!(v_ode, u_ode, _v_ode, _u_ode, semi::Semidiscretization)
         end
     end
 
-    capacity_global = sum(system -> nparticles(system), semi.systems)
+    sizes_u = sum(u_nvariables(system) * n_moving_particles(system) for system in systems)
+    sizes_v = sum(v_nvariables(system) * n_moving_particles(system) for system in systems)
 
-    resize!(v_ode, capacity_global)
-    resize!(u_ode, capacity_global)
+    resize!(v_ode, sizes_v)
+    resize!(u_ode, sizes_u)
 
-    resize!(_v_ode, capacity_global)
-    resize!(_u_ode, capacity_global)
+    resize!(_v_ode, sizes_v)
+    resize!(_u_ode, sizes_u)
 
     # TODO: Do the following in the callback
     # resize!(integrator, (length(v_ode), length(u_ode)))
