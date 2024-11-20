@@ -1,14 +1,9 @@
 function merge_particles!(semi, v_ode, u_ode, v_tmp, u_tmp)
     foreach_system(semi) do system
-        (; delete_candidates) = system.particle_refinement
-        delete_candidates .= false
-
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        for _ in 1:3
-            merge_particles!(system, v, u)
-        end
+        merge_particles!(system, semi, v, u)
     end
 
     deleteat!(semi, v_ode, u_ode, v_tmp, u_tmp)
@@ -16,21 +11,34 @@ function merge_particles!(semi, v_ode, u_ode, v_tmp, u_tmp)
     return semi
 end
 
-@inline merge_particles!(system, v, u) = System
+@inline merge_particles!(system, semi, v, u) = system
 
-@inline function merge_particles!(system::FluidSystem, v, u)
-    return merge_particles!(system, system.particle_refinement, v, u)
+@inline function merge_particles!(system::FluidSystem, semi, v, u)
+    return merge_particles!(system, system.particle_refinement, semi, v, u)
 end
 
-@inline merge_particles!(system::FluidSystem, ::Nothing, v, u) = system
+@inline merge_particles!(system::FluidSystem, ::Nothing, semi, v, u) = system
 
-@inline function merge_particles!(system::FluidSystem, particle_refinement, v, u)
+@inline function merge_particles!(system::FluidSystem, particle_refinement, semi, v, u)
+    (; delete_candidates) = system.particle_refinement
+
+    delete_candidates .= false
+
+    # Merge particles iteratively
+    for _ in 1:3
+        merge_particles_inner!(system, particle_refinement, semi, v, u)
+    end
+
+    return system
+end
+
+function merge_particles_inner!(system, particle_refinement, semi, v, u)
     (; smoothing_kernel, cache) = system
     (; mass_ref, max_spacing_ratio, merge_candidates, delete_candidates) = particle_refinement
 
     set_zero!(merge_candidates)
 
-    system_coords = current_coordinates(u, particle_system)
+    system_coords = current_coordinates(u, system)
     neighborhood_search = get_neighborhood_search(system, semi)
 
     # Collect merge candidates
@@ -64,7 +72,7 @@ end
 
     # Merge and delete particles
     for particle in merge_candidates
-        iszero(merge_candidates[particle]) && continue
+        iszero(particle) && continue
 
         candidate = merge_candidates[particle]
 
