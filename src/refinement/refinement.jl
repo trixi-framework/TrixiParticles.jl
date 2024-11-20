@@ -10,7 +10,7 @@ struct ParticleRefinement{SP, RC, ELTYPE}
     mass_ref                  :: Vector{ELTYPE} # length(mass_ref) == nparticles
     merge_candidates          :: Vector{Int}    # length(merge_candidates) == nparticles
     delete_candidates         :: Vector{Bool}   # length(delete_candidates) == nparticles
-    split_candidates          :: Vector{Int}
+    split_candidates          :: Vector{Int}    # variable length
     n_particles_before_resize :: Ref{Int}
     n_new_particles           :: Ref{Int}
 end
