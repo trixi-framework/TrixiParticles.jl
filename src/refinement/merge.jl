@@ -71,8 +71,7 @@ function merge_particles_inner!(system, particle_refinement, semi, v, u)
     end
 
     # Merge and delete particles
-    for particle in merge_candidates
-        iszero(particle) && continue
+    for particle in findall(!iszero, merge_candidates)
 
         candidate = merge_candidates[particle]
 
@@ -104,13 +103,14 @@ function merge_particles_inner!(system, particle_refinement, semi, v, u)
                 # TODO:
                 # Check normalization_factor = smoothing_kernel(zero(pos_diff), one(h_a))
                 tmp_m = m_merge * normalization_factor(smoothing_kernel, h_a)
-                tmp_a = m_a * smoothing_kernel(pos_merge - pos_a, h_a)
-                tmp_b = m_b * smoothing_kernel(pos_merge - pos_b, h_b)
+
+                tmp_a = m_a * kernel(smoothing_kernel, norm(pos_merge - pos_a), h_a)
+                tmp_b = m_b * kernel(smoothing_kernel, norm(pos_merge - pos_b), h_b)
 
                 cache.smoothing_length[particle] = (tmp_m / (tmp_a + tmp_b))^(1 /
                                                                               ndims(system))
 
-                system.mass[particl] = m_merge
+                system.mass[particle] = m_merge
             else
                 delete_candidates[candidate] = true
             end
