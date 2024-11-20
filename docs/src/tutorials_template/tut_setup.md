@@ -33,22 +33,21 @@ In particular, we require the boundary thickness `boundary_layers * fluid_partic
 to be larger than the compact support of the kernel. The compact support of each kernel
 can be found [`in the smoothing kernel overview`](@ref smoothing_kernel).
 ```@example tut_setup
-fluid_particle_spacing = 0.05
+fluid_particle_spacing = 0.02
 boundary_layers = 3
 nothing # hide
 ```
 
 ## Experiment setup
 
-We want to simulate a water column resting under hydrostatic pressure inside
-a rectangular tank.
-![Experiment Setup](https://github.com/user-attachments/assets/caf906e4-9e07-422e-8cf4-129add92e8c3)
+We want to simulate a small dam break problem inside a rectangular tank.
+![Experiment Setup](https://github.com/user-attachments/assets/862a1189-b758-4bad-b1e2-6abc42870bb2)
 First, we define physical parameters like gravitational acceleration, simulation time,
 initial fluid size, tank size and fluid density.
 ```@example tut_setup
 gravity = 9.81
 tspan = (0.0, 1.0)
-initial_fluid_size = (1.0, 0.9)
+initial_fluid_size = (1.0, 0.5)
 tank_size = (1.0, 1.0)
 fluid_density = 1000.0
 nothing # hide
@@ -91,6 +90,14 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size,
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 nothing # hide
 ```
+A `RectangularTank` consists of two [`InitialCondition`](@ref)s, `tank.fluid` and `tank.boundary`.
+We can plot these initial conditions to visualize the initial setup.
+```@example tut_setup
+using Plots
+plot(tank.fluid, tank.boundary, labels=["fluid" "boundary"])
+plot!(dpi=200); savefig("tut_setup_plot_tank.png"); nothing # hide
+```
+![plot tank](tut_setup_plot_tank.png)
 
 ## Fluid system
 
@@ -124,9 +131,11 @@ We choose the latter approach here by using the density calculator
 without the need for additional correction terms.
 ```@example tut_setup
 fluid_density_calculator = ContinuityDensity()
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
+                                           density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity))
 nothing # hide
 ```
