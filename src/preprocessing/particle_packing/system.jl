@@ -14,23 +14,28 @@ For more information about the methods, see description below.
 - `initial_condition`: [`InitialCondition`](@ref) or [`ComplexShape`](@ref) to be packed.
 
 # Keywords
-- `boundary`: Geometry returned by [`load_geometry`](@ref).
-- `background_pressure`: Constant background pressure to physically pack the particles.
-                         A large `background_pressure` can cause high accelerations which requires a properly adjusted time-step criterion.
-- `tlsph`: With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
-           on the boundary of the shape and not one particle radius away, as for fluids.
-           When `tlsph=true`, particles will be placed on the boundary of the shape.
-- `is_boundary`: When `is_boundary=true`, boundary particles will be sampled and packed in an offset surface of the `boundary`.
-                 The thickness of the boundary is specified by passing the [`SignedDistanceField`](@ref) of `boundary` with:
-                    - `use_for_boundary_packing=true`
-                    - `max_signed_distance=boundary_thickness`
+- `boundary`:              Geometry returned by [`load_geometry`](@ref).
+- `background_pressure`:   Constant background pressure to physically pack the particles.
+                           A large `background_pressure` can cause high accelerations
+                           which requires a properly adjusted time-step criterion.
+- `tlsph`:                 With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
+                           on the boundary of the shape and not one particle radius away,
+                           as for fluids. When `tlsph=true`, particles will be placed
+                           on the boundary of the shape.
+- `is_boundary`:           When `is_boundary=true`, boundary particles will be sampled
+                           and packed in an offset surface of the `boundary`.
+                           The thickness of the boundary is specified by passing the
+                           [`SignedDistanceField`](@ref) of `boundary` with:
+                              - `use_for_boundary_packing=true`
+                              - `max_signed_distance=boundary_thickness`
 - `signed_distance_field`: To constrain particles onto the surface, the information about
-                          the signed distance from a particle to a face is required.
-                          The precalculated signed distances will be interpolated to each particle during the packing procedure.
-- `smoothing_kernel`: Smoothing kernel to be used for this system.
-                      See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`: Smoothing length to be used for this system.
-                      See [Smoothing Kernels](@ref smoothing_kernel).
+                           the signed distance from a particle to a face is required.
+                           The precalculated signed distances will be interpolated
+                           to each particle during the packing procedure.
+- `smoothing_kernel`:      Smoothing kernel to be used for this system.
+                           See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:      Smoothing length to be used for this system.
+                           See [Smoothing Kernels](@ref smoothing_kernel).
 """
 struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
                              S, N} <: FluidSystem{NDIMS, IC}
