@@ -39,7 +39,7 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
-struct SurfaceTensionMorris{ELTYPE} <: SurfaceTensionModel
+struct SurfaceTensionMorris{ELTYPE} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function SurfaceTensionMorris(; surface_tension_coefficient=1.0)
@@ -56,7 +56,7 @@ function create_cache_surface_tension(::SurfaceTensionMorris, ELTYPE, NDIMS, npa
     return (; curvature)
 end
 
-struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTensionModel
+struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
