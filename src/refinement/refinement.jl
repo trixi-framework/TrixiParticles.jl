@@ -8,6 +8,7 @@ struct ParticleRefinement{SP, RC, ELTYPE}
     refinement_criteria       :: RC
     max_spacing_ratio         :: ELTYPE
     mass_ref                  :: Vector{ELTYPE} # length(mass_ref) == nparticles
+    merge_candidates          :: Vector{Int}    # length(merge_candidates) == nparticles
     delete_candidates         :: Vector{Bool}   # length(delete_candidates) == nparticles
     n_particles_before_resize :: Int
     n_new_particles           :: Int
@@ -23,7 +24,7 @@ function ParticleRefinement(; splitting_pattern, max_spacing_ratio,
     end
 
     return ParticleRefinement(splitting_pattern, refinement_criteria, max_spacing_ratio,
-                              mass_ref, delete_candidates, 0, 0)
+                              mass_ref, Int[], delete_candidates, 0, 0)
 end
 
 resize_refinement!(system) = system
@@ -37,6 +38,7 @@ resize_refinement!(system, ::Nothing) = system
 function resize_refinement!(system, particle_refinement)
     resize!(particle_refinement.mass_ref, nparticles(system))
     resize!(particle_refinement.delete_candidates, nparticles(system))
+    resize!(particle_refinement.merge_candidates, nparticles(system))
 
     return system
 end
