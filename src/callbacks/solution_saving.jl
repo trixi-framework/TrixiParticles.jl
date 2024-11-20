@@ -106,7 +106,9 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                                -1, Ref("UnknownVersion"))
 
     if length(save_times) > 0
-        return PresetTimeCallback(save_times, solution_callback)
+        # See the large comment below for an explanation why we use `finalize` here.
+        # When support for Julia 1.9 is dropped, the `finalize` argument can be removed.
+        return PresetTimeCallback(save_times, solution_callback, finalize=solution_callback)
     elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(solution_callback, dt,
@@ -191,7 +193,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
 end
 
 # The type of the `DiscreteCallback` returned by the constructor is
-# `DiscreteCallback{typeof(condition), typeof(affect!), typeof(initialize)}`.
+# `DiscreteCallback{typeof(condition), typeof(affect!), typeof(initialize), typeof(finalize)}`.
 #
 # When `interval` is used, this is
 # `DiscreteCallback{<:SolutionSavingCallback,
@@ -209,13 +211,32 @@ end
 # `DiscreteCallback{DiffEqCallbacks.var"#115#117"{...},
 #                   <:SolutionSavingCallback,
 #                   DiffEqCallbacks.var"#116#118"{...},
-#                   <:SolutionSavingCallback}`.
+#                   typeof(SciMLBase.FINALIZE_DEFAULT)}}`.
 #
 # So we can unambiguously dispatch on
 # - `DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback}`,
 # - `DiscreteCallback{<:Any, <:PeriodicCallbackAffect{<:SolutionSavingCallback}}`,
 # - `DiscreteCallback{<:Any, <:SolutionSavingCallback}`.
 #
+# WORKAROUND FOR JULIA 1.9:
+# When `save_times` is used, the `affect!` is also wrapped in an anonymous function:
+# `DiscreteCallback{DiffEqCallbacks.var"#110#113"{...},
+#                   DiffEqCallbacks.var"#111#114"{<:SolutionSavingCallback},
+#                   DiffEqCallbacks.var"#116#118"{...},
+#                   typeof(SciMLBase.FINALIZE_DEFAULT)}}`.
+#
+# To dispatch here, we set `finalize` to the callback itself, so that the fourth parameter
+# becomes `<:SolutionSavingCallback`. This is only used in Julia 1.9. 1.10 and later uses
+# a newer version of DiffEqCallbacks.jl that does not have this issue.
+#
+# To use the callback as `finalize`, we have to define the following function.
+# `finalize` is set to `FINALIZE_DEFAULT` by default in the `PresetTimeCallback`,
+# which is a function that just returns `nothing`.
+# We define the `SolutionSavingCallback` to do the same when called with these arguments.
+function (finalize::SolutionSavingCallback)(c, u, t, integrator)
+    return nothing
+end
+
 # With `interval`
 function Base.show(io::IO,
                    cb::DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback})
@@ -235,12 +256,17 @@ function Base.show(io::IO,
     print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
 end
 
-# With `save_times`
+# With `save_times`, also working in Julia 1.9.
+# When support for Julia 1.9 is dropped, this can be changed to
+# `DiscreteCallback{<:Any, <:SolutionSavingCallback}`, and the `finalize` argument
+# in the constructor of `SolutionSavingCallback` can be removed.
 function Base.show(io::IO,
-                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
+                   cb::DiscreteCallback{<:Any, <:Any, <:Any, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
-    solution_saving = cb.affect!
+    # This has to be changed to `cb.affect!` when support for Julia 1.9 is dropped
+    # and finalize is removed from the constructor of `SolutionSavingCallback`.
+    solution_saving = cb.finalize
     print(io, "SolutionSavingCallback(save_times=", solution_saving.save_times, ")")
 end
 
@@ -295,15 +321,17 @@ function Base.show(io::IO, ::MIME"text/plain",
     end
 end
 
-# With `save_times`
+# With `save_times`. See comments above.
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
+                   cb::DiscreteCallback{<:Any, <:Any, <:Any, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, cb)
     else
-        solution_saving = cb.affect!
+        # This has to be changed to `cb.affect!` when support for Julia 1.9 is dropped
+        # and finalize is removed from the constructor of `SolutionSavingCallback`.
+        solution_saving = cb.finalize
         cq = collect(solution_saving.custom_quantities)
 
         setup = [
