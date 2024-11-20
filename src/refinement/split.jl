@@ -65,27 +65,26 @@ end
 
         system.mass[particle] = mass_old / nchilds(system, refinement_pattern)
 
-        set_particle_pressure!(v, system, particle, pressure)
-
-        set_particle_density!(v, system, particle, density)
+        p_a = particle_pressure(v, system, particle)
+        rho_a = particle_density(v, system, particle)
 
         smoothing_length[particle] = alpha * smoothing_length_old
 
-        pos_center = current_coords(system, u, particle)
-        vel_center = current_velocity(system, v, particle)
+        pos_center = current_coords(u, system, particle)
+        vel_center = current_velocity(v, system, particle)
 
         for child_id_local in 1:(nchilds(system, refinement_pattern) - 1)
-            child = n_particles_before_resize + child_id_local
+            child = n_particles_before_resize[] + child_id_local
 
             system.mass[child] = mass_old / nchilds(system, refinement_pattern)
 
-            set_particle_pressure!(v, system, child, pressure)
+            set_particle_pressure!(v, system, child, p_a)
 
-            set_particle_density!(v, system, child, density)
+            set_particle_density!(v, system, child, rho_a)
 
             smoothing_length[child] = alpha * smoothing_length_old
 
-            rel_pos = smoothing_length_old * relative_position[child]
+            rel_pos = smoothing_length_old * relative_position[child_id_local]
             new_pos = pos_center + rel_pos
 
             for dim in 1:ndims(system)
