@@ -5,10 +5,14 @@ Color field based computation of the interface normals.
 """
 struct ColorfieldSurfaceNormal{ELTYPE}
     boundary_contact_threshold::ELTYPE
+    interface_threshold::ELTYPE
+    ideal_density_threshold::ELTYPE
 end
 
-function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1)
-    return ColorfieldSurfaceNormal(boundary_contact_threshold)
+function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
+                                 ideal_density_threshold=0.0)
+    return ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold,
+                                   ideal_density_threshold)
 end
 
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
@@ -127,19 +131,17 @@ function remove_invalid_normals!(system::FluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
                                                         SurfaceTensionMomentumMorris})
     (; cache, smoothing_length, smoothing_kernel, number_density) = system
-    (; free_surface_threshold) = surface_tension
+    (; ideal_density_threshold) = surface_tension
 
-    # TODO: make settable
     # We remove invalid normals i.e. they have a small norm (eq. 20)
-    normal_condition2 = (0.01 / compact_support(smoothing_kernel, smoothing_length))^2
+    normal_condition2 = (interface_threshold /
+                         compact_support(smoothing_kernel, smoothing_length))^2
 
     for particle in each_moving_particle(system)
 
-        # TODO: make selectable
         # heuristic condition if there is no gas phase to find the free surface
-        if free_surface_threshold * number_density < cache.neighbor_count[particle]
-            # if 0.45 * number_density < cache.neighbor_count[particle] #3d
-            # if 0.75 * number_density < cache.neighbor_count[particle] #2d
+        if ideal_density_threshold > 0 &&
+           ideal_density_threshold * number_density < cache.neighbor_count[particle]
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
@@ -147,7 +149,6 @@ function remove_invalid_normals!(system::FluidSystem,
         particle_surface_normal = cache.surface_normal[1:ndims(system), particle]
         norm2 = dot(particle_surface_normal, particle_surface_normal)
 
-        # println(norm2, " > ", normal_condition2)
         # see eq. 21
         if norm2 > normal_condition2
             cache.surface_normal[1:ndims(system), particle] = particle_surface_normal /
@@ -174,7 +175,6 @@ function compute_surface_normal!(system::FluidSystem,
     set_zero!(cache.neighbor_count)
 
     # TODO: if color values are set only different systems need to be called
-    # TODO: what to do if there is no gas phase? -> config values
     @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)

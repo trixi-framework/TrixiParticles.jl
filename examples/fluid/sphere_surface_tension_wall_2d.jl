@@ -50,24 +50,24 @@ viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 #                                                      fluid_smoothing_length,
 #                                                      viscosity=viscosity,
 #                                                      acceleration=(0.0, -gravity),
-#                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=10.0,
-#                                                                                           free_surface_threshold=0.75),
+#                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=10.0),
 #                                                      reference_particle_spacing=fluid_particle_spacing,
 #                                                      surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
 #                                                                                                    fluid_smoothing_length,
-#                                                                                                    boundary_contact_threshold=0.05))
+#                                                                                                    boundary_contact_threshold=0.05,
+#                                                                                           free_surface_threshold=0.75))
 
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(),
                                                      state_equation, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0,
-                                                                                                  free_surface_threshold=0.75),
+                                                     surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0),
                                                      reference_particle_spacing=fluid_particle_spacing,
                                                      surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
                                                                                                    fluid_smoothing_length,
-                                                                                                   boundary_contact_threshold=0.05))
+                                                                                                   boundary_contact_threshold=0.05,
+                                                                                                   free_surface_threshold=0.75))
 
 # sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(),
 #                                                      state_equation, fluid_smoothing_kernel,

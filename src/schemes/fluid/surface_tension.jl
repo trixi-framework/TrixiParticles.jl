@@ -41,12 +41,9 @@ end
 
 struct SurfaceTensionMorris{ELTYPE} <: SurfaceTensionModel
     surface_tension_coefficient::ELTYPE
-    free_surface_threshold::ELTYPE
 
-    function SurfaceTensionMorris(; surface_tension_coefficient=1.0,
-                                  free_surface_threshold=0.75)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient,
-                                                 free_surface_threshold)
+    function SurfaceTensionMorris(; surface_tension_coefficient=1.0)
+        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
 
@@ -61,12 +58,9 @@ end
 
 struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTensionModel
     surface_tension_coefficient::ELTYPE
-    free_surface_threshold::ELTYPE
 
-    function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0,
-                                          free_surface_threshold=0.75)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient,
-                                                 free_surface_threshold)
+    function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
+        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
 
