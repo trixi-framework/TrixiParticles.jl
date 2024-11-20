@@ -65,6 +65,8 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
+using DiffEqCallbacks
+
 mutable struct SolutionSavingCallback{I, CQ}
     interval              :: I
     save_times            :: Array{Float64, 1}
