@@ -209,99 +209,55 @@ function (finalize::SolutionSavingCallback)(c, u, t, integrator)
     return nothing
 end
 
-function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
-    @nospecialize cb # reduce precompilation time
-
-    solution_saving = cb.affect!
-    print(io, "SolutionSavingCallback(interval=", solution_saving.interval, ")")
-end
-
-function Base.show(io::IO,
-                   cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:SolutionSavingCallback}})
-    @nospecialize cb # reduce precompilation time
-
-    solution_saving = cb.affect!.affect!
-    print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
-end
-
-function Base.show(io::IO,
-                   cb::DiscreteCallback{<:Any, <:Any, <:Any, <:SolutionSavingCallback})
-    @nospecialize cb # reduce precompilation time
-
-    solution_saving = cb.finalize
-    print(io, "SolutionSavingCallback(save_times=", solution_saving.save_times, ")")
-end
-
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
-    @nospecialize cb # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, cb)
+function Base.show(io::IO, cb::DiscreteCallback)
+    solution_saving = get_solution_saving_callback(cb)
+    if solution_saving !== nothing
+        if !isempty(solution_saving.save_times)
+            print(io, "SolutionSavingCallback(save_times=", solution_saving.save_times, ")")
+        elseif solution_saving.interval > 0
+            print(io, "SolutionSavingCallback(interval=", solution_saving.interval, ")")
+        elseif solution_saving.interval > 0.0  # if interval is Float64
+            print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
+        else
+            print(io, "SolutionSavingCallback()")
+        end
     else
-        solution_saving = cb.affect!
-        cq = collect(solution_saving.custom_quantities)
-
-        setup = [
-            "interval" => solution_saving.interval,
-            "custom quantities" => isempty(cq) ? nothing : cq,
-            "save initial solution" => solution_saving.save_initial_solution ?
-                                       "yes" : "no",
-            "save final solution" => solution_saving.save_final_solution ? "yes" :
-                                     "no",
-            "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix
-        ]
-        summary_box(io, "SolutionSavingCallback", setup)
+        # Fallback to default show method
+        Base.show(io, cb)
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:Any, <:Any, <:SolutionSavingCallback})
-    @nospecialize cb # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, cb)
+function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback)
+    solution_saving = get_solution_saving_callback(cb)
+    if solution_saving !== nothing
+        if get(io, :compact, false)
+            show(io, cb)
+        else
+            cq = collect(solution_saving.custom_quantities)
+            setup = [
+                "interval" => solution_saving.interval,
+                "custom quantities" => isempty(cq) ? nothing : cq,
+                "save initial solution" => solution_saving.save_initial_solution ? "yes" : "no",
+                "save final solution" => solution_saving.save_final_solution ? "yes" : "no",
+                "output directory" => abspath(solution_saving.output_directory),
+                "prefix" => solution_saving.prefix
+            ]
+            summary_box(io, "SolutionSavingCallback", setup)
+        end
     else
-        solution_saving = cb.finalize
-        cq = collect(solution_saving.custom_quantities)
-
-        setup = [
-            "save_times" => solution_saving.save_times,
-            "custom quantities" => isempty(cq) ? nothing : cq,
-            "save initial solution" => solution_saving.save_initial_solution ?
-                                       "yes" : "no",
-            "save final solution" => solution_saving.save_final_solution ? "yes" :
-                                     "no",
-            "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix
-        ]
-        summary_box(io, "SolutionSavingCallback", setup)
+        Base.show(io, ::MIME"text/plain", cb)
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:SolutionSavingCallback}})
-    @nospecialize cb # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, cb)
+function get_solution_saving_callback(cb::DiscreteCallback)
+    if isa(cb.affect!, SolutionSavingCallback)
+        return cb.affect!
+    elseif isa(cb.affect!, DiffEqCallbacks.PeriodicCallbackAffect) &&
+           isa(cb.affect!.affect!, SolutionSavingCallback)
+        return cb.affect!.affect!
+    elseif isa(cb.finalize, SolutionSavingCallback)
+        return cb.finalize
     else
-        solution_saving = cb.affect!.affect!
-        cq = collect(solution_saving.custom_quantities)
-
-        setup = [
-            "dt" => solution_saving.interval,
-            "custom quantities" => isempty(cq) ? nothing : cq,
-            "save initial solution" => solution_saving.save_initial_solution ?
-                                       "yes" : "no",
-            "save final solution" => solution_saving.save_final_solution ? "yes" :
-                                     "no",
-            "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix
-        ]
-        summary_box(io, "SolutionSavingCallback", setup)
+        return nothing
     end
 end
