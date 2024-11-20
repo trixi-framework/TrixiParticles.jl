@@ -65,8 +65,6 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-using DiffEqCallbacks
-
 mutable struct SolutionSavingCallback{I, CQ}
     interval              :: I
     save_times            :: Array{Float64, 1}
@@ -239,7 +237,8 @@ function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback)
             setup = [
                 "interval" => solution_saving.interval,
                 "custom quantities" => isempty(cq) ? nothing : cq,
-                "save initial solution" => solution_saving.save_initial_solution ? "yes" : "no",
+                "save initial solution" => solution_saving.save_initial_solution ? "yes" :
+                                           "no",
                 "save final solution" => solution_saving.save_final_solution ? "yes" : "no",
                 "output directory" => abspath(solution_saving.output_directory),
                 "prefix" => solution_saving.prefix
@@ -252,11 +251,14 @@ function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback)
 end
 
 function get_solution_saving_callback(cb::DiscreteCallback)
+    # Check if cb.affect! is a SolutionSavingCallback
     if isa(cb.affect!, SolutionSavingCallback)
         return cb.affect!
-    elseif isa(cb.affect!, DiffEqCallbacks.PeriodicCallbackAffect) &&
-           isa(cb.affect!.affect!, SolutionSavingCallback)
-        return cb.affect!.affect!
+        # Check if cb.affect! has an :affect! field (e.g., for PeriodicCallbackAffect)
+    elseif hasfield(cb.affect!, :affect!) &&
+           isa(getfield(cb.affect!, :affect!), SolutionSavingCallback)
+        return getfield(cb.affect!, :affect!)
+        # Check if cb.finalize is a SolutionSavingCallback (for PresetTimeCallback case)
     elseif isa(cb.finalize, SolutionSavingCallback)
         return cb.finalize
     else
