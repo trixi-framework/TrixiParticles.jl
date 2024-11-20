@@ -245,7 +245,7 @@ function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback)
             summary_box(io, "SolutionSavingCallback", setup)
         end
     else
-        Base.show(io, ::MIME"text/plain", cb)
+        Base.show(io, MIME"text/plain", cb)
     end
 end
 
