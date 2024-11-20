@@ -48,7 +48,7 @@ initial fluid size, tank size and fluid density.
 gravity = 9.81
 tspan = (0.0, 1.0)
 initial_fluid_size = (1.0, 0.5)
-tank_size = (1.0, 1.0)
+tank_size = (2.0, 1.0)
 fluid_density = 1000.0
 nothing # hide
 ```
