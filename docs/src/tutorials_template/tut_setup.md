@@ -208,9 +208,8 @@ respective simulation.
 You can find both approaches in our [example files](@ref examples).
 Here, we just use the method with the default parameters, and only disable
 `save_everystep` to avoid expensive saving of the solution in every time step.
-```@example tut_setup
+```@cast tut_setup; width=100, height=50, delay=0.25
 sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);
-nothing # hide
 ```
 
 See [Visualization](@ref) for how to visualize the final solution.
@@ -315,8 +314,7 @@ In order to use our kernel in a pre-defined example file, we can use the functio
 The following will run the example simulation
 `examples/fluid/hydrostatic_water_column_2d.jl` with our custom kernel and the corresponding
 smoothing length.
-```@example tut_setup
+```@cast tut_setup; width=100, height=50, delay=0.1
 trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
               smoothing_kernel=MyGaussianKernel(), smoothing_length=smoothing_length_gauss);
-nothing # hide
 ```
