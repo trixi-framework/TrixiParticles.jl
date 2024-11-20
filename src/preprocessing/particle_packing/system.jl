@@ -1,7 +1,7 @@
 """
     ParticlePackingSystem(shape::Union{InitialCondition, ComplexShape};
                           smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
-                          smoothing_length=1.2shape.particle_spacing,
+                          smoothing_length=1.2 * shape.particle_spacing,
                           signed_distance_field::SignedDistanceField=shape.signed_distance_field,
                           is_boundary=false, boundary_compress_factor=1.0,
                           boundary::Union{Polygon, TriangleMesh}=shape.geometry,
@@ -50,7 +50,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
 
     function ParticlePackingSystem(shape::Union{InitialCondition, ComplexShape};
                                    smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
-                                   smoothing_length=1.2shape.particle_spacing,
+                                   smoothing_length=1.2 * shape.particle_spacing,
                                    signed_distance_field::SignedDistanceField=shape.signed_distance_field,
                                    is_boundary=false, boundary_compress_factor=1.0,
                                    boundary::Union{Polygon, TriangleMesh}=shape.geometry,
