@@ -126,7 +126,7 @@ function upate_smoothing_lengths!(system::FluidSystem, semi, u)
     upate_smoothing_lengths!(system, system.particle_refinement, semi, u)
 end
 
-upate_smoothing_lengths!(system, ::Nothing, semi, u) = system
+upate_smoothing_lengths!(system::FluidSystem, ::Nothing, semi, u) = system
 
 function upate_smoothing_lengths!(system::FluidSystem, refinement, semi, u)
     (; smoothing_length, smoothing_length_factor) = system.cache
