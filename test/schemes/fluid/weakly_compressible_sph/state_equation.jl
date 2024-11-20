@@ -120,7 +120,7 @@
             StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
                               background_pressure=0.0),
             StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
-                              background_pressure=-100_000.0),
+                              background_pressure=-100_000.0)
         ]
 
         densities = [100.0, 500.0, 900.0, 990.0, 1000.0, 1005.0, 1100.0, 1600.0]
