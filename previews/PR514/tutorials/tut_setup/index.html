@@ -95,13 +95,13 @@ callbacks = CallbackSet(info_callback, saving_callback)</code></pre><p>Finally, 
 │ #threads: ……………………………………………………… 1                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-#timesteps:     50 │ Δt: 2.5053e-03 │ sim. time: 1.2546e-01 (12.546%)  │ run time: 2.8088e+00 s
-#timesteps:    100 │ Δt: 3.8392e-03 │ sim. time: 2.8384e-01 (28.384%)  │ run time: 3.2049e+00 s
-#timesteps:    150 │ Δt: 1.5738e-03 │ sim. time: 4.0157e-01 (40.157%)  │ run time: 3.5667e+00 s
-#timesteps:    200 │ Δt: 4.4805e-04 │ sim. time: 5.2067e-01 (52.067%)  │ run time: 3.9337e+00 s
-#timesteps:    250 │ Δt: 6.3596e-04 │ sim. time: 6.4000e-01 (64.000%)  │ run time: 4.2896e+00 s
-#timesteps:    300 │ Δt: 3.0892e-03 │ sim. time: 7.7483e-01 (77.483%)  │ run time: 4.6723e+00 s
-#timesteps:    350 │ Δt: 3.0438e-03 │ sim. time: 8.9218e-01 (89.218%)  │ run time: 5.0503e+00 s
+#timesteps:     50 │ Δt: 2.5053e-03 │ sim. time: 1.2546e-01 (12.546%)  │ run time: 2.9070e+00 s
+#timesteps:    100 │ Δt: 3.8392e-03 │ sim. time: 2.8384e-01 (28.384%)  │ run time: 3.3189e+00 s
+#timesteps:    150 │ Δt: 1.5738e-03 │ sim. time: 4.0157e-01 (40.157%)  │ run time: 3.6847e+00 s
+#timesteps:    200 │ Δt: 4.4805e-04 │ sim. time: 5.2067e-01 (52.067%)  │ run time: 4.0556e+00 s
+#timesteps:    250 │ Δt: 6.3596e-04 │ sim. time: 6.4000e-01 (64.000%)  │ run time: 4.4617e+00 s
+#timesteps:    300 │ Δt: 3.0892e-03 │ sim. time: 7.7483e-01 (77.483%)  │ run time: 4.8454e+00 s
+#timesteps:    350 │ Δt: 3.0438e-03 │ sim. time: 8.9218e-01 (89.218%)  │ run time: 5.6003e+00 s
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Trixi simulation finished.  Final time: 1.0  Time steps: 394 (accepted), 400 (total)
 ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -109,43 +109,43 @@ Trixi simulation finished.  Final time: 1.0  Time steps: 394 (accepted), 400 (to
 <span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span>
 <span class="sgr1">      TrixiParticles.jl       </span>         Time                    Allocations
                               ───────────────────────   ────────────────────────
-      Tot / % measured:            5.38s /  58.8%            250MiB /  58.2%
+      Tot / % measured:            5.94s /  61.0%            250MiB /  58.2%
 
 Section               ncalls     time    %tot     avg     alloc    %tot      avg
 ────────────────────────────────────────────────────────────────────────────────
-kick!                  2.00k    2.45s   77.6%  1.22ms   17.2MiB   11.8%  8.81KiB
-  system interaction   2.00k    2.02s   63.9%  1.01ms   1.88MiB    1.3%     985B
-    fluid1-fluid1      2.00k    1.68s   53.1%   838μs     0.00B    0.0%    0.00B
-    fluid1-boundary2   2.00k    333ms   10.5%   166μs     0.00B    0.0%    0.00B
-    ~system intera...  2.00k   6.70ms    0.2%  3.34μs   1.88MiB    1.3%     985B
-    boundary2-boun...  2.00k   58.6μs    0.0%  29.3ns     0.00B    0.0%    0.00B
-    boundary2-fluid1   2.00k   58.6μs    0.0%  29.3ns     0.00B    0.0%    0.00B
-  update systems a...  2.00k    431ms   13.6%   215μs   15.3MiB   10.5%  7.84KiB
-    compute bounda...  2.00k    282ms    8.9%   141μs     0.00B    0.0%    0.00B
-    update nhs         2.00k   93.1ms    2.9%  46.5μs   15.3MiB   10.5%  7.84KiB
-    inverse state ...  2.00k   28.4ms    0.9%  14.2μs     0.00B    0.0%    0.00B
-    ~update system...  2.00k   27.1ms    0.9%  13.5μs   1.55KiB    0.0%    0.79B
-    update density...  2.00k   58.5μs    0.0%  29.2ns     0.00B    0.0%    0.00B
-  source terms         2.00k   1.76ms    0.1%   876ns     0.00B    0.0%    0.00B
-  reset ∂v/∂t          2.00k    872μs    0.0%   435ns     0.00B    0.0%    0.00B
-  ~kick!~              2.00k    786μs    0.0%   392ns   1.55KiB    0.0%    0.79B
-save solution             50    704ms   22.3%  14.1ms    128MiB   88.2%  2.57MiB
-  write to vtk           100    493ms   15.6%  4.93ms    116MiB   79.6%  1.16MiB
-  ~save solution~         50    201ms    6.3%  4.01ms   12.1MiB    8.3%   247KiB
-  update systems          50   10.4ms    0.3%   208μs    384KiB    0.3%  7.68KiB
-    compute bounda...     50   6.94ms    0.2%   139μs     0.00B    0.0%    0.00B
-    update nhs            50   2.09ms    0.1%  41.8μs    382KiB    0.3%  7.64KiB
-    inverse state ...     50    702μs    0.0%  14.0μs     0.00B    0.0%    0.00B
-    ~update systems~      50    683μs    0.0%  13.7μs   1.55KiB    0.0%    31.7B
-    update density...     50   1.52μs    0.0%  30.5ns     0.00B    0.0%    0.00B
-drift!                 2.00k   3.85ms    0.1%  1.92μs      976B    0.0%    0.49B
-  velocity             2.00k   2.62ms    0.1%  1.31μs     0.00B    0.0%    0.00B
-  reset ∂u/∂t          2.00k    799μs    0.0%   399ns     0.00B    0.0%    0.00B
-  ~drift!~             2.00k    432μs    0.0%   215ns      976B    0.0%    0.49B
-compute boundary p...      1    136μs    0.0%   136μs     0.00B    0.0%    0.00B
-update nhs                 1    130μs    0.0%   130μs   7.38KiB    0.0%  7.38KiB
-inverse state equa...      1   14.8μs    0.0%  14.8μs     0.00B    0.0%    0.00B
-update density dif...      1   30.0ns    0.0%  30.0ns     0.00B    0.0%    0.00B
+kick!                  2.00k    2.47s   68.4%  1.24ms   17.2MiB   11.8%  8.81KiB
+  system interaction   2.00k    2.03s   56.1%  1.01ms   1.88MiB    1.3%     985B
+    fluid1-fluid1      2.00k    1.69s   46.7%   845μs     0.00B    0.0%    0.00B
+    fluid1-boundary2   2.00k    331ms    9.1%   165μs     0.00B    0.0%    0.00B
+    ~system intera...  2.00k   6.87ms    0.2%  3.43μs   1.88MiB    1.3%     985B
+    boundary2-fluid1   2.00k   66.3μs    0.0%  33.1ns     0.00B    0.0%    0.00B
+    boundary2-boun...  2.00k   60.4μs    0.0%  30.1ns     0.00B    0.0%    0.00B
+  update systems a...  2.00k    441ms   12.2%   220μs   15.3MiB   10.5%  7.84KiB
+    compute bounda...  2.00k    286ms    7.9%   143μs     0.00B    0.0%    0.00B
+    update nhs         2.00k   99.4ms    2.7%  49.6μs   15.3MiB   10.5%  7.84KiB
+    inverse state ...  2.00k   28.4ms    0.8%  14.2μs     0.00B    0.0%    0.00B
+    ~update system...  2.00k   27.8ms    0.8%  13.9μs   1.55KiB    0.0%    0.79B
+    update density...  2.00k   58.4μs    0.0%  29.2ns     0.00B    0.0%    0.00B
+  source terms         2.00k   1.79ms    0.0%   891ns     0.00B    0.0%    0.00B
+  ~kick!~              2.00k    844μs    0.0%   421ns   1.55KiB    0.0%    0.79B
+  reset ∂v/∂t          2.00k    779μs    0.0%   389ns     0.00B    0.0%    0.00B
+save solution             50    1.14s   31.5%  22.8ms    128MiB   88.2%  2.57MiB
+  write to vtk           100    908ms   25.1%  9.08ms    116MiB   79.6%  1.16MiB
+  ~save solution~         50    222ms    6.1%  4.44ms   12.1MiB    8.3%   247KiB
+  update systems          50   10.8ms    0.3%   217μs    384KiB    0.3%  7.68KiB
+    compute bounda...     50   7.14ms    0.2%   143μs     0.00B    0.0%    0.00B
+    update nhs            50   2.23ms    0.1%  44.6μs    382KiB    0.3%  7.64KiB
+    ~update systems~      50    751μs    0.0%  15.0μs   1.55KiB    0.0%    31.7B
+    inverse state ...     50    711μs    0.0%  14.2μs     0.00B    0.0%    0.00B
+    update density...     50   3.70μs    0.0%  73.9ns     0.00B    0.0%    0.00B
+drift!                 2.00k   3.53ms    0.1%  1.76μs      976B    0.0%    0.49B
+  velocity             2.00k   2.30ms    0.1%  1.15μs     0.00B    0.0%    0.00B
+  reset ∂u/∂t          2.00k    805μs    0.0%   402ns     0.00B    0.0%    0.00B
+  ~drift!~             2.00k    419μs    0.0%   209ns      976B    0.0%    0.49B
+compute boundary p...      1    173μs    0.0%   173μs     0.00B    0.0%    0.00B
+update nhs                 1    144μs    0.0%   144μs   7.38KiB    0.0%  7.38KiB
+inverse state equa...      1   15.4μs    0.0%  15.4μs     0.00B    0.0%    0.00B
+update density dif...      1   40.0ns    0.0%  40.0ns     0.00B    0.0%    0.00B
 <span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span></code></pre><p>See <a href="../../visualization/#Visualization">Visualization</a> for how to visualize the final solution. For the simplest visualization, we can use <a href="https://docs.juliaplots.org/stable/">Plots.jl</a>:</p><pre><code class="language-julia hljs">using Plots
 plot(sol)</code></pre><p><img src="../tut_setup_plot.png" alt="plot"/></p><h2 id="Replacing-components-with-custom-implementations"><a class="docs-heading-anchor" href="#Replacing-components-with-custom-implementations">Replacing components with custom implementations</a><a id="Replacing-components-with-custom-implementations-1"></a><a class="docs-heading-anchor-permalink" href="#Replacing-components-with-custom-implementations" title="Permalink"></a></h2><p>If we would like to use an implementation of a component that is not available in TrixiParticles.jl, we can implement it ourselves within the simulation file, without ever cloning the TrixiParticles.jl repository. A good starting point is to check out the available implementations in TrixiParticles.jl, then copy the relevant functions to the simulation file and modify them as needed.</p><h3 id="Custom-smoothing-kernel"><a class="docs-heading-anchor" href="#Custom-smoothing-kernel">Custom smoothing kernel</a><a id="Custom-smoothing-kernel-1"></a><a class="docs-heading-anchor-permalink" href="#Custom-smoothing-kernel" title="Permalink"></a></h3><p>To implement a custom smoothing kernel, we define a struct extending <code>TrixiParticles.SmoothingKernel</code>. This abstract struct has a type parameter for the number of dimensions, which we set to 2 in this case.</p><pre><code class="language-julia hljs">struct MyGaussianKernel &lt;: TrixiParticles.SmoothingKernel{2} end</code></pre><p>This kernel is going to be an implementation of the Gaussian kernel with a cutoff for compact support, which reads</p><p class="math-container">\[W(r, h) =
 \begin{cases}
@@ -248,78 +248,78 @@ plot!(x, r -&gt; TrixiParticles.kernel(MyGaussianKernel(), abs(r), smoothing_len
 │ #threads: ……………………………………………………… 1                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-#timesteps:     50 │ Δt: 6.1910e-06 │ sim. time: 5.9170e-02 (5.917%)   │ run time: 2.5569e+00 s
-#timesteps:    100 │ Δt: 1.4707e-03 │ sim. time: 7.2515e-02 (7.252%)   │ run time: 2.6250e+00 s
-#timesteps:    150 │ Δt: 4.0904e-09 │ sim. time: 9.9948e-02 (9.995%)   │ run time: 2.7156e+00 s
-#timesteps:    200 │ Δt: 2.3603e-04 │ sim. time: 1.2341e-01 (12.341%)  │ run time: 2.7825e+00 s
-#timesteps:    250 │ Δt: 8.2561e-10 │ sim. time: 1.5356e-01 (15.356%)  │ run time: 2.8701e+00 s
-#timesteps:    300 │ Δt: 4.3083e-04 │ sim. time: 1.6893e-01 (16.893%)  │ run time: 2.9376e+00 s
-#timesteps:    350 │ Δt: 6.0293e-05 │ sim. time: 1.9254e-01 (19.254%)  │ run time: 3.0157e+00 s
-#timesteps:    400 │ Δt: 9.7599e-05 │ sim. time: 2.1603e-01 (21.603%)  │ run time: 3.0879e+00 s
-#timesteps:    450 │ Δt: 6.9181e-04 │ sim. time: 2.4069e-01 (24.069%)  │ run time: 3.1931e+00 s
-#timesteps:    500 │ Δt: 1.7270e-04 │ sim. time: 2.6780e-01 (26.780%)  │ run time: 3.2576e+00 s
-#timesteps:    550 │ Δt: 5.9986e-05 │ sim. time: 2.7738e-01 (27.738%)  │ run time: 3.3213e+00 s
-#timesteps:    600 │ Δt: 1.8625e-10 │ sim. time: 2.8051e-01 (28.051%)  │ run time: 3.4255e+00 s
-#timesteps:    650 │ Δt: 4.1411e-04 │ sim. time: 2.8914e-01 (28.914%)  │ run time: 3.4748e+00 s
-#timesteps:    700 │ Δt: 2.7909e-04 │ sim. time: 3.0439e-01 (30.439%)  │ run time: 3.5314e+00 s
-#timesteps:    750 │ Δt: 4.8999e-04 │ sim. time: 3.2484e-01 (32.484%)  │ run time: 3.5844e+00 s
-#timesteps:    800 │ Δt: 3.2316e-04 │ sim. time: 3.4093e-01 (34.093%)  │ run time: 3.6405e+00 s
-#timesteps:    850 │ Δt: 3.6381e-04 │ sim. time: 3.5488e-01 (35.488%)  │ run time: 3.6908e+00 s
-#timesteps:    900 │ Δt: 1.3935e-04 │ sim. time: 3.6928e-01 (36.928%)  │ run time: 3.7484e+00 s
-#timesteps:    950 │ Δt: 2.9122e-04 │ sim. time: 3.8265e-01 (38.265%)  │ run time: 3.8116e+00 s
-#timesteps:   1000 │ Δt: 3.9265e-04 │ sim. time: 4.0287e-01 (40.287%)  │ run time: 3.8595e+00 s
-#timesteps:   1050 │ Δt: 3.0121e-04 │ sim. time: 4.1765e-01 (41.765%)  │ run time: 3.9264e+00 s
-#timesteps:   1100 │ Δt: 3.6827e-04 │ sim. time: 4.3071e-01 (43.071%)  │ run time: 3.9835e+00 s
-#timesteps:   1150 │ Δt: 5.0946e-04 │ sim. time: 4.4505e-01 (44.505%)  │ run time: 4.0402e+00 s
-#timesteps:   1200 │ Δt: 2.8520e-04 │ sim. time: 4.6113e-01 (46.113%)  │ run time: 4.0944e+00 s
-#timesteps:   1250 │ Δt: 3.5300e-04 │ sim. time: 4.7955e-01 (47.955%)  │ run time: 4.1428e+00 s
-#timesteps:   1300 │ Δt: 3.5639e-04 │ sim. time: 4.9061e-01 (49.061%)  │ run time: 4.2046e+00 s
-#timesteps:   1350 │ Δt: 3.1861e-04 │ sim. time: 5.0449e-01 (50.449%)  │ run time: 4.2576e+00 s
-#timesteps:   1400 │ Δt: 3.4023e-04 │ sim. time: 5.1706e-01 (51.706%)  │ run time: 4.3115e+00 s
-#timesteps:   1450 │ Δt: 3.5477e-04 │ sim. time: 5.3042e-01 (53.042%)  │ run time: 4.3732e+00 s
-#timesteps:   1500 │ Δt: 3.5992e-04 │ sim. time: 5.4408e-01 (54.408%)  │ run time: 4.4295e+00 s
-#timesteps:   1550 │ Δt: 3.5594e-04 │ sim. time: 5.5812e-01 (55.812%)  │ run time: 4.4839e+00 s
-#timesteps:   1600 │ Δt: 1.4553e-04 │ sim. time: 5.7286e-01 (57.286%)  │ run time: 4.5461e+00 s
-#timesteps:   1650 │ Δt: 3.2888e-04 │ sim. time: 5.8380e-01 (58.380%)  │ run time: 4.6042e+00 s
-#timesteps:   1700 │ Δt: 2.9151e-04 │ sim. time: 5.9640e-01 (59.640%)  │ run time: 4.6530e+00 s
-#timesteps:   1750 │ Δt: 7.8861e-05 │ sim. time: 6.0694e-01 (60.694%)  │ run time: 4.7156e+00 s
-#timesteps:   1800 │ Δt: 2.4776e-04 │ sim. time: 6.1820e-01 (61.820%)  │ run time: 4.7694e+00 s
-#timesteps:   1850 │ Δt: 2.3715e-04 │ sim. time: 6.2783e-01 (62.783%)  │ run time: 4.8303e+00 s
-#timesteps:   1900 │ Δt: 1.9097e-04 │ sim. time: 6.4041e-01 (64.041%)  │ run time: 4.8852e+00 s
-#timesteps:   1950 │ Δt: 2.2910e-04 │ sim. time: 6.4947e-01 (64.947%)  │ run time: 4.9470e+00 s
-#timesteps:   2000 │ Δt: 3.0552e-04 │ sim. time: 6.5919e-01 (65.919%)  │ run time: 5.0013e+00 s
-#timesteps:   2050 │ Δt: 2.3880e-04 │ sim. time: 6.7015e-01 (67.015%)  │ run time: 5.0612e+00 s
-#timesteps:   2100 │ Δt: 1.0975e-04 │ sim. time: 6.7924e-01 (67.924%)  │ run time: 5.1237e+00 s
-#timesteps:   2150 │ Δt: 1.8457e-04 │ sim. time: 6.8890e-01 (68.890%)  │ run time: 5.1831e+00 s
-#timesteps:   2200 │ Δt: 2.1626e-04 │ sim. time: 6.9965e-01 (69.965%)  │ run time: 5.2382e+00 s
-#timesteps:   2250 │ Δt: 2.1010e-04 │ sim. time: 7.0758e-01 (70.758%)  │ run time: 5.3019e+00 s
-#timesteps:   2300 │ Δt: 2.6005e-04 │ sim. time: 7.1723e-01 (71.723%)  │ run time: 5.3558e+00 s
-#timesteps:   2350 │ Δt: 1.7561e-04 │ sim. time: 7.2655e-01 (72.655%)  │ run time: 5.4173e+00 s
-#timesteps:   2400 │ Δt: 1.9188e-04 │ sim. time: 7.3465e-01 (73.465%)  │ run time: 5.4755e+00 s
-#timesteps:   2450 │ Δt: 1.8705e-04 │ sim. time: 7.4595e-01 (74.595%)  │ run time: 5.5326e+00 s
-#timesteps:   2500 │ Δt: 1.5304e-04 │ sim. time: 7.5819e-01 (75.819%)  │ run time: 5.5869e+00 s
-#timesteps:   2550 │ Δt: 2.3839e-04 │ sim. time: 7.6917e-01 (76.917%)  │ run time: 5.6475e+00 s
-#timesteps:   2600 │ Δt: 1.4023e-05 │ sim. time: 7.8001e-01 (78.001%)  │ run time: 5.7045e+00 s
-#timesteps:   2650 │ Δt: 1.7156e-04 │ sim. time: 7.8759e-01 (78.759%)  │ run time: 5.7635e+00 s
-#timesteps:   2700 │ Δt: 1.6517e-04 │ sim. time: 7.9737e-01 (79.737%)  │ run time: 5.8222e+00 s
-#timesteps:   2750 │ Δt: 2.0952e-04 │ sim. time: 8.0875e-01 (80.875%)  │ run time: 5.8788e+00 s
-#timesteps:   2800 │ Δt: 1.8624e-04 │ sim. time: 8.1723e-01 (81.723%)  │ run time: 5.9401e+00 s
-#timesteps:   2850 │ Δt: 2.2248e-04 │ sim. time: 8.2787e-01 (82.787%)  │ run time: 6.0009e+00 s
-#timesteps:   2900 │ Δt: 1.3659e-04 │ sim. time: 8.3563e-01 (83.563%)  │ run time: 6.0650e+00 s
-#timesteps:   2950 │ Δt: 2.4461e-04 │ sim. time: 8.4472e-01 (84.472%)  │ run time: 6.1238e+00 s
-#timesteps:   3000 │ Δt: 3.0482e-04 │ sim. time: 8.5723e-01 (85.723%)  │ run time: 6.1749e+00 s
-#timesteps:   3050 │ Δt: 2.5103e-04 │ sim. time: 8.6980e-01 (86.980%)  │ run time: 6.2329e+00 s
-#timesteps:   3100 │ Δt: 2.4685e-04 │ sim. time: 8.8217e-01 (88.217%)  │ run time: 6.2885e+00 s
-#timesteps:   3150 │ Δt: 3.1694e-04 │ sim. time: 8.9459e-01 (89.459%)  │ run time: 6.3398e+00 s
-#timesteps:   3200 │ Δt: 2.9580e-04 │ sim. time: 9.0587e-01 (90.587%)  │ run time: 6.3948e+00 s
-#timesteps:   3250 │ Δt: 2.4739e-04 │ sim. time: 9.1647e-01 (91.647%)  │ run time: 6.4505e+00 s
-#timesteps:   3300 │ Δt: 2.7100e-04 │ sim. time: 9.2760e-01 (92.760%)  │ run time: 6.5135e+00 s
-#timesteps:   3350 │ Δt: 3.2485e-04 │ sim. time: 9.3869e-01 (93.869%)  │ run time: 6.5702e+00 s
-#timesteps:   3400 │ Δt: 3.3051e-04 │ sim. time: 9.5006e-01 (95.006%)  │ run time: 6.6340e+00 s
-#timesteps:   3450 │ Δt: 2.2418e-04 │ sim. time: 9.6292e-01 (96.292%)  │ run time: 6.6937e+00 s
-#timesteps:   3500 │ Δt: 3.7471e-04 │ sim. time: 9.7439e-01 (97.439%)  │ run time: 6.7494e+00 s
-#timesteps:   3550 │ Δt: 2.5104e-04 │ sim. time: 9.8649e-01 (98.649%)  │ run time: 6.8129e+00 s
-#timesteps:   3600 │ Δt: 2.1778e-04 │ sim. time: 9.9921e-01 (99.921%)  │ run time: 6.8690e+00 s
+#timesteps:     50 │ Δt: 6.1910e-06 │ sim. time: 5.9170e-02 (5.917%)   │ run time: 2.7479e+00 s
+#timesteps:    100 │ Δt: 1.4707e-03 │ sim. time: 7.2515e-02 (7.252%)   │ run time: 2.8464e+00 s
+#timesteps:    150 │ Δt: 4.0904e-09 │ sim. time: 9.9948e-02 (9.995%)   │ run time: 2.9388e+00 s
+#timesteps:    200 │ Δt: 2.3603e-04 │ sim. time: 1.2341e-01 (12.341%)  │ run time: 3.0079e+00 s
+#timesteps:    250 │ Δt: 8.2561e-10 │ sim. time: 1.5356e-01 (15.356%)  │ run time: 3.0917e+00 s
+#timesteps:    300 │ Δt: 4.3083e-04 │ sim. time: 1.6893e-01 (16.893%)  │ run time: 3.1577e+00 s
+#timesteps:    350 │ Δt: 6.0293e-05 │ sim. time: 1.9254e-01 (19.254%)  │ run time: 3.2337e+00 s
+#timesteps:    400 │ Δt: 9.7599e-05 │ sim. time: 2.1603e-01 (21.603%)  │ run time: 3.3138e+00 s
+#timesteps:    450 │ Δt: 6.9181e-04 │ sim. time: 2.4069e-01 (24.069%)  │ run time: 3.3863e+00 s
+#timesteps:    500 │ Δt: 1.7270e-04 │ sim. time: 2.6780e-01 (26.780%)  │ run time: 3.4511e+00 s
+#timesteps:    550 │ Δt: 5.9986e-05 │ sim. time: 2.7738e-01 (27.738%)  │ run time: 3.5166e+00 s
+#timesteps:    600 │ Δt: 1.8625e-10 │ sim. time: 2.8051e-01 (28.051%)  │ run time: 3.6218e+00 s
+#timesteps:    650 │ Δt: 4.1411e-04 │ sim. time: 2.8914e-01 (28.914%)  │ run time: 3.6711e+00 s
+#timesteps:    700 │ Δt: 2.7909e-04 │ sim. time: 3.0439e-01 (30.439%)  │ run time: 3.7319e+00 s
+#timesteps:    750 │ Δt: 4.8999e-04 │ sim. time: 3.2484e-01 (32.484%)  │ run time: 3.7836e+00 s
+#timesteps:    800 │ Δt: 3.2316e-04 │ sim. time: 3.4093e-01 (34.093%)  │ run time: 3.8393e+00 s
+#timesteps:    850 │ Δt: 3.6381e-04 │ sim. time: 3.5488e-01 (35.488%)  │ run time: 3.8895e+00 s
+#timesteps:    900 │ Δt: 1.3935e-04 │ sim. time: 3.6928e-01 (36.928%)  │ run time: 3.9469e+00 s
+#timesteps:    950 │ Δt: 2.9122e-04 │ sim. time: 3.8265e-01 (38.265%)  │ run time: 4.0130e+00 s
+#timesteps:   1000 │ Δt: 3.9265e-04 │ sim. time: 4.0287e-01 (40.287%)  │ run time: 4.0610e+00 s
+#timesteps:   1050 │ Δt: 3.0121e-04 │ sim. time: 4.1765e-01 (41.765%)  │ run time: 4.1147e+00 s
+#timesteps:   1100 │ Δt: 3.6827e-04 │ sim. time: 4.3071e-01 (43.071%)  │ run time: 4.1739e+00 s
+#timesteps:   1150 │ Δt: 5.0946e-04 │ sim. time: 4.4505e-01 (44.505%)  │ run time: 4.2312e+00 s
+#timesteps:   1200 │ Δt: 2.8520e-04 │ sim. time: 4.6113e-01 (46.113%)  │ run time: 4.2896e+00 s
+#timesteps:   1250 │ Δt: 3.5300e-04 │ sim. time: 4.7955e-01 (47.955%)  │ run time: 4.3396e+00 s
+#timesteps:   1300 │ Δt: 3.5639e-04 │ sim. time: 4.9061e-01 (49.061%)  │ run time: 4.4016e+00 s
+#timesteps:   1350 │ Δt: 3.1861e-04 │ sim. time: 5.0449e-01 (50.449%)  │ run time: 4.4585e+00 s
+#timesteps:   1400 │ Δt: 3.4023e-04 │ sim. time: 5.1706e-01 (51.706%)  │ run time: 4.5128e+00 s
+#timesteps:   1450 │ Δt: 3.5477e-04 │ sim. time: 5.3042e-01 (53.042%)  │ run time: 4.5749e+00 s
+#timesteps:   1500 │ Δt: 3.5992e-04 │ sim. time: 5.4408e-01 (54.408%)  │ run time: 4.6314e+00 s
+#timesteps:   1550 │ Δt: 3.5594e-04 │ sim. time: 5.5812e-01 (55.812%)  │ run time: 4.6892e+00 s
+#timesteps:   1600 │ Δt: 1.4553e-04 │ sim. time: 5.7286e-01 (57.286%)  │ run time: 4.7469e+00 s
+#timesteps:   1650 │ Δt: 3.2888e-04 │ sim. time: 5.8380e-01 (58.380%)  │ run time: 4.8039e+00 s
+#timesteps:   1700 │ Δt: 2.9151e-04 │ sim. time: 5.9640e-01 (59.640%)  │ run time: 4.8532e+00 s
+#timesteps:   1750 │ Δt: 7.8861e-05 │ sim. time: 6.0694e-01 (60.694%)  │ run time: 4.9185e+00 s
+#timesteps:   1800 │ Δt: 2.4776e-04 │ sim. time: 6.1820e-01 (61.820%)  │ run time: 4.9715e+00 s
+#timesteps:   1850 │ Δt: 2.3715e-04 │ sim. time: 6.2783e-01 (62.783%)  │ run time: 5.0328e+00 s
+#timesteps:   1900 │ Δt: 1.9097e-04 │ sim. time: 6.4041e-01 (64.041%)  │ run time: 5.0876e+00 s
+#timesteps:   1950 │ Δt: 2.2910e-04 │ sim. time: 6.4947e-01 (64.947%)  │ run time: 5.1490e+00 s
+#timesteps:   2000 │ Δt: 3.0552e-04 │ sim. time: 6.5919e-01 (65.919%)  │ run time: 5.2060e+00 s
+#timesteps:   2050 │ Δt: 2.3880e-04 │ sim. time: 6.7015e-01 (67.015%)  │ run time: 5.2658e+00 s
+#timesteps:   2100 │ Δt: 1.0975e-04 │ sim. time: 6.7924e-01 (67.924%)  │ run time: 5.3233e+00 s
+#timesteps:   2150 │ Δt: 1.8457e-04 │ sim. time: 6.8890e-01 (68.890%)  │ run time: 5.3821e+00 s
+#timesteps:   2200 │ Δt: 2.1626e-04 │ sim. time: 6.9965e-01 (69.965%)  │ run time: 5.4367e+00 s
+#timesteps:   2250 │ Δt: 2.1010e-04 │ sim. time: 7.0758e-01 (70.758%)  │ run time: 5.5026e+00 s
+#timesteps:   2300 │ Δt: 2.6005e-04 │ sim. time: 7.1723e-01 (71.723%)  │ run time: 5.5563e+00 s
+#timesteps:   2350 │ Δt: 1.7561e-04 │ sim. time: 7.2655e-01 (72.655%)  │ run time: 5.6174e+00 s
+#timesteps:   2400 │ Δt: 1.9188e-04 │ sim. time: 7.3465e-01 (73.465%)  │ run time: 5.6821e+00 s
+#timesteps:   2450 │ Δt: 1.8705e-04 │ sim. time: 7.4595e-01 (74.595%)  │ run time: 5.7408e+00 s
+#timesteps:   2500 │ Δt: 1.5304e-04 │ sim. time: 7.5819e-01 (75.819%)  │ run time: 5.7930e+00 s
+#timesteps:   2550 │ Δt: 2.3839e-04 │ sim. time: 7.6917e-01 (76.917%)  │ run time: 5.8496e+00 s
+#timesteps:   2600 │ Δt: 1.4023e-05 │ sim. time: 7.8001e-01 (78.001%)  │ run time: 5.9064e+00 s
+#timesteps:   2650 │ Δt: 1.7156e-04 │ sim. time: 7.8759e-01 (78.759%)  │ run time: 5.9650e+00 s
+#timesteps:   2700 │ Δt: 1.6517e-04 │ sim. time: 7.9737e-01 (79.737%)  │ run time: 6.0264e+00 s
+#timesteps:   2750 │ Δt: 2.0952e-04 │ sim. time: 8.0875e-01 (80.875%)  │ run time: 6.0832e+00 s
+#timesteps:   2800 │ Δt: 1.8624e-04 │ sim. time: 8.1723e-01 (81.723%)  │ run time: 6.1448e+00 s
+#timesteps:   2850 │ Δt: 2.2248e-04 │ sim. time: 8.2787e-01 (82.787%)  │ run time: 6.2032e+00 s
+#timesteps:   2900 │ Δt: 1.3659e-04 │ sim. time: 8.3563e-01 (83.563%)  │ run time: 6.2696e+00 s
+#timesteps:   2950 │ Δt: 2.4461e-04 │ sim. time: 8.4472e-01 (84.472%)  │ run time: 6.3283e+00 s
+#timesteps:   3000 │ Δt: 3.0482e-04 │ sim. time: 8.5723e-01 (85.723%)  │ run time: 6.3787e+00 s
+#timesteps:   3050 │ Δt: 2.5103e-04 │ sim. time: 8.6980e-01 (86.980%)  │ run time: 6.4368e+00 s
+#timesteps:   3100 │ Δt: 2.4685e-04 │ sim. time: 8.8217e-01 (88.217%)  │ run time: 6.4928e+00 s
+#timesteps:   3150 │ Δt: 3.1694e-04 │ sim. time: 8.9459e-01 (89.459%)  │ run time: 6.5448e+00 s
+#timesteps:   3200 │ Δt: 2.9580e-04 │ sim. time: 9.0587e-01 (90.587%)  │ run time: 6.5995e+00 s
+#timesteps:   3250 │ Δt: 2.4739e-04 │ sim. time: 9.1647e-01 (91.647%)  │ run time: 6.6548e+00 s
+#timesteps:   3300 │ Δt: 2.7100e-04 │ sim. time: 9.2760e-01 (92.760%)  │ run time: 6.7187e+00 s
+#timesteps:   3350 │ Δt: 3.2485e-04 │ sim. time: 9.3869e-01 (93.869%)  │ run time: 6.7724e+00 s
+#timesteps:   3400 │ Δt: 3.3051e-04 │ sim. time: 9.5006e-01 (95.006%)  │ run time: 6.8351e+00 s
+#timesteps:   3450 │ Δt: 2.2418e-04 │ sim. time: 9.6292e-01 (96.292%)  │ run time: 6.8943e+00 s
+#timesteps:   3500 │ Δt: 3.7471e-04 │ sim. time: 9.7439e-01 (97.439%)  │ run time: 6.9515e+00 s
+#timesteps:   3550 │ Δt: 2.5104e-04 │ sim. time: 9.8649e-01 (98.649%)  │ run time: 7.0119e+00 s
+#timesteps:   3600 │ Δt: 2.1778e-04 │ sim. time: 9.9921e-01 (99.921%)  │ run time: 7.0679e+00 s
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Trixi simulation finished.  Final time: 1.0  Time steps: 3603 (accepted), 4623 (total)
 ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -327,41 +327,41 @@ Trixi simulation finished.  Final time: 1.0  Time steps: 3603 (accepted), 4623 (
 <span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span>
 <span class="sgr1">      TrixiParticles.jl       </span>         Time                    Allocations
                               ───────────────────────   ────────────────────────
-      Tot / % measured:            6.87s /  66.6%            480MiB /  76.3%
+      Tot / % measured:            7.07s /  65.2%            480MiB /  76.3%
 
 Section               ncalls     time    %tot     avg     alloc    %tot      avg
 ────────────────────────────────────────────────────────────────────────────────
-kick!                  23.1k    4.03s   88.1%   174μs    267MiB   73.0%  11.8KiB
-  system interaction   23.1k    2.54s   55.4%   110μs   21.7MiB    5.9%     984B
-    fluid1-fluid1      23.1k    1.60s   35.0%  69.2μs     0.00B    0.0%    0.00B
-    fluid1-boundary2   23.1k    869ms   19.0%  37.6μs     0.00B    0.0%    0.00B
-    ~system intera...  23.1k   65.6ms    1.4%  2.84μs   21.7MiB    5.9%     984B
-    boundary2-fluid1   23.1k    702μs    0.0%  30.4ns     0.00B    0.0%    0.00B
-    boundary2-boun...  23.1k    688μs    0.0%  29.8ns     0.00B    0.0%    0.00B
-  update systems a...  23.1k    1.48s   32.3%  63.9μs    245MiB   67.0%  10.9KiB
-    compute bounda...  23.1k    717ms   15.7%  31.0μs     0.00B    0.0%    0.00B
-    update nhs         23.1k    599ms   13.1%  25.9μs    245MiB   67.0%  10.9KiB
-    ~update system...  23.1k    101ms    2.2%  4.35μs   1.55KiB    0.0%    0.07B
-    inverse state ...  23.1k   60.0ms    1.3%  2.60μs     0.00B    0.0%    0.00B
-    update density...  23.1k    673μs    0.0%  29.1ns     0.00B    0.0%    0.00B
-  source terms         23.1k   10.1ms    0.2%   435ns     0.00B    0.0%    0.00B
-  ~kick!~              23.1k   7.72ms    0.2%   334ns   1.55KiB    0.0%    0.07B
-  reset ∂v/∂t          23.1k   3.17ms    0.1%   137ns     0.00B    0.0%    0.00B
-save solution             50    525ms   11.5%  10.5ms   99.1MiB   27.0%  1.98MiB
-  write to vtk           100    285ms    6.2%  2.85ms   86.4MiB   23.6%   885KiB
-  ~save solution~         50    237ms    5.2%  4.74ms   12.1MiB    3.3%   248KiB
+kick!                  23.1k    3.99s   86.5%   172μs    267MiB   73.0%  11.8KiB
+  system interaction   23.1k    2.52s   54.7%   109μs   21.7MiB    5.9%     984B
+    fluid1-fluid1      23.1k    1.58s   34.2%  68.2μs     0.00B    0.0%    0.00B
+    fluid1-boundary2   23.1k    878ms   19.0%  38.0μs     0.00B    0.0%    0.00B
+    ~system intera...  23.1k   68.0ms    1.5%  2.94μs   21.7MiB    5.9%     984B
+    boundary2-fluid1   23.1k    717μs    0.0%  31.0ns     0.00B    0.0%    0.00B
+    boundary2-boun...  23.1k    673μs    0.0%  29.1ns     0.00B    0.0%    0.00B
+  update systems a...  23.1k    1.44s   31.3%  62.5μs    245MiB   67.0%  10.9KiB
+    compute bounda...  23.1k    727ms   15.8%  31.4μs     0.00B    0.0%    0.00B
+    update nhs         23.1k    554ms   12.0%  24.0μs    245MiB   67.0%  10.9KiB
+    ~update system...  23.1k    102ms    2.2%  4.39μs   1.55KiB    0.0%    0.07B
+    inverse state ...  23.1k   60.8ms    1.3%  2.63μs     0.00B    0.0%    0.00B
+    update density...  23.1k    683μs    0.0%  29.5ns     0.00B    0.0%    0.00B
+  source terms         23.1k   9.05ms    0.2%   391ns     0.00B    0.0%    0.00B
+  ~kick!~              23.1k   7.46ms    0.2%   323ns   1.55KiB    0.0%    0.07B
+  reset ∂v/∂t          23.1k   2.96ms    0.1%   128ns     0.00B    0.0%    0.00B
+save solution             50    607ms   13.2%  12.1ms   99.1MiB   27.0%  1.98MiB
+  write to vtk           100    346ms    7.5%  3.46ms   86.4MiB   23.6%   885KiB
+  ~save solution~         50    258ms    5.6%  5.15ms   12.1MiB    3.3%   248KiB
   update systems          50   3.13ms    0.1%  62.7μs    544KiB    0.1%  10.9KiB
-    compute bounda...     50   1.55ms    0.0%  30.9μs     0.00B    0.0%    0.00B
-    update nhs            50   1.22ms    0.0%  24.5μs    542KiB    0.1%  10.8KiB
-    ~update systems~      50    231μs    0.0%  4.62μs   1.55KiB    0.0%    31.7B
-    inverse state ...     50    131μs    0.0%  2.62μs     0.00B    0.0%    0.00B
-    update density...     50   1.49μs    0.0%  29.8ns     0.00B    0.0%    0.00B
-drift!                 23.1k   17.6ms    0.4%   762ns      976B    0.0%    0.04B
-  velocity             23.1k   10.4ms    0.2%   449ns     0.00B    0.0%    0.00B
-  ~drift!~             23.1k   4.12ms    0.1%   178ns      976B    0.0%    0.04B
-  reset ∂u/∂t          23.1k   3.13ms    0.1%   135ns     0.00B    0.0%    0.00B
-update nhs                 1   80.3μs    0.0%  80.3μs   11.4KiB    0.0%  11.4KiB
-compute boundary p...      1   63.2μs    0.0%  63.2μs     0.00B    0.0%    0.00B
-inverse state equa...      1   2.85μs    0.0%  2.85μs     0.00B    0.0%    0.00B
-update density dif...      1   40.0ns    0.0%  40.0ns     0.00B    0.0%    0.00B
-<span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span></code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Wednesday 20 November 2024 12:56">Wednesday 20 November 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+    compute bounda...     50   1.58ms    0.0%  31.5μs     0.00B    0.0%    0.00B
+    update nhs            50   1.18ms    0.0%  23.5μs    542KiB    0.1%  10.8KiB
+    ~update systems~      50    245μs    0.0%  4.90μs   1.55KiB    0.0%    31.7B
+    inverse state ...     50    131μs    0.0%  2.61μs     0.00B    0.0%    0.00B
+    update density...     50   5.49μs    0.0%   110ns     0.00B    0.0%    0.00B
+drift!                 23.1k   17.4ms    0.4%   754ns      976B    0.0%    0.04B
+  velocity             23.1k   10.7ms    0.2%   462ns     0.00B    0.0%    0.00B
+  ~drift!~             23.1k   4.10ms    0.1%   177ns      976B    0.0%    0.04B
+  reset ∂u/∂t          23.1k   2.66ms    0.1%   115ns     0.00B    0.0%    0.00B
+update nhs                 1   76.6μs    0.0%  76.6μs   11.4KiB    0.0%  11.4KiB
+compute boundary p...      1   62.8μs    0.0%  62.8μs     0.00B    0.0%    0.00B
+inverse state equa...      1   3.06μs    0.0%  3.06μs     0.00B    0.0%    0.00B
+update density dif...      1   30.0ns    0.0%  30.0ns     0.00B    0.0%    0.00B
+<span class="sgr1">────────────────────────────────────────────────────────────────────────────────</span></code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Wednesday 20 November 2024 15:15">Wednesday 20 November 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
