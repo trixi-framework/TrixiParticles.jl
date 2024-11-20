@@ -251,14 +251,11 @@ function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback)
 end
 
 function get_solution_saving_callback(cb::DiscreteCallback)
-    # Check if cb.affect! is a SolutionSavingCallback
     if isa(cb.affect!, SolutionSavingCallback)
         return cb.affect!
-        # Check if cb.affect! has an :affect! field (e.g., for PeriodicCallbackAffect)
-    elseif hasfield(cb.affect!, :affect!) &&
-           isa(getfield(cb.affect!, :affect!), SolutionSavingCallback)
-        return getfield(cb.affect!, :affect!)
-        # Check if cb.finalize is a SolutionSavingCallback (for PresetTimeCallback case)
+    elseif hasproperty(cb.affect!, :affect!) &&
+           isa(cb.affect!.affect!, SolutionSavingCallback)
+        return cb.affect!.affect!
     elseif isa(cb.finalize, SolutionSavingCallback)
         return cb.finalize
     else
