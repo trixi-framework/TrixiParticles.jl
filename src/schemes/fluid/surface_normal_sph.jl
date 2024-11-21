@@ -89,7 +89,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
                            nhs) do particle, neighbor, pos_diff, distance
         colorfield[neighbor] += hydrodynamic_mass(system, particle) /
                                 particle_density(v, system, particle) * system.color *
-                                kernel(smoothing_kernel, distance, smoothing_length)
+                                smoothing_kernel(system, distance)
     end
 
     maximum_colorfield = maximum(colorfield)
