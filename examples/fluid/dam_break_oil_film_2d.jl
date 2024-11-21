@@ -60,6 +60,8 @@ for i in axes(oil.coordinates, 2)
     oil.coordinates[:, i] .+= [0.0, H]
 end
 
+oil_state_equation = StateEquationCole(; sound_speed, reference_density=oil_density,
+                                       exponent=1, clip_negative_pressure=false)
 oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
                                          oil_eos, smoothing_kernel,
                                          smoothing_length, viscosity=oil_viscosity,
