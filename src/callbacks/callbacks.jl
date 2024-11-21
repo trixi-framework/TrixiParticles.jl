@@ -25,6 +25,58 @@ end
             (save_final_solution && isfinished(integrator)))
 end
 
+function validate_interval_and_dt(interval, dt)
+    if interval == 0 && dt == 0.0
+        throw(ArgumentError("Both interval and dt cannot be zero. Specify at least one."))
+    end
+    if interval < 0 || dt < 0
+        throw(ArgumentError("Negative interval or dt values are not supported."))
+    end
+    if dt > 0 && interval > 0
+        throw(ArgumentError("Setting both interval and dt is not supported."))
+    end
+end
+
+mutable struct OutputConfig
+    output_directory::String
+    filename::String
+    prefix::String
+    append_timestamp::Bool
+    verbose::Bool
+
+    function OutputConfig(;
+                          output_directory::String="out",
+                          filename::String="output",
+                          prefix::String="",
+                          append_timestamp::Bool=false,
+                          verbose::Bool=false)
+        new(output_directory, filename, prefix, append_timestamp, verbose)
+    end
+end
+
+function build_filepath(config::OutputConfig; extension::String="")
+    # Prepare output directory
+    output_directory = config.output_directory
+
+    # Add timestamp subdirectory if required
+    if config.append_timestamp
+        timestamp = Dates.format(Dates.now(), "YY-mm-ddTHHMMSS")
+        output_directory = joinpath(output_directory, timestamp)
+        mkpath(output_directory)
+    end
+
+    # Combine prefix and filename
+    base_filename = config.prefix * config.filename
+
+    # Add file extension if provided
+    if !isempty(extension)
+        base_filename *= "." * extension
+    end
+
+    # Construct the full path
+    return joinpath(output_directory, base_filename)
+end
+
 include("info.jl")
 include("solution_saving.jl")
 include("density_reinit.jl")

@@ -68,25 +68,21 @@ struct PostprocessCallback{I, F}
     times               :: Array{Float64, 1}
     exclude_boundary    :: Bool
     func                :: F
-    filename            :: String
-    output_directory    :: String
-    append_timestamp    :: Bool
+    config              :: OutputConfig
     write_csv           :: Bool
     write_json          :: Bool
     git_hash            :: Ref{String}
 end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
-                             output_directory="out", filename="values",
-                             append_timestamp=false, write_csv=true, write_json=true,
+                             output_config=OutputConfig(filename="values"), write_csv=true,
+                             write_json=true,
                              write_file_interval::Integer=1, funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
     end
 
-    if dt > 0 && interval > 0
-        throw(ArgumentError("setting both `interval` and `dt` is not supported"))
-    end
+    validate_interval_and_dt(interval, dt)
 
     if dt > 0
         interval = Float64(dt)
@@ -94,9 +90,8 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
 
     post_callback = PostprocessCallback(interval, write_file_interval,
                                         Dict{String, Vector{Any}}(), Float64[],
-                                        exclude_boundary, funcs, filename, output_directory,
-                                        append_timestamp, write_csv, write_json,
-                                        Ref("UnknownVersion"))
+                                        exclude_boundary, funcs, output_config, write_csv,
+                                        write_json, Ref("UnknownVersion"))
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(post_callback, dt,
@@ -283,32 +278,25 @@ end
 function write_postprocess_callback(pp::PostprocessCallback)
     isempty(pp.data) && return
 
-    mkpath(pp.output_directory)
+    # Ensure the output directory exists
+    mkpath(pp.config.output_directory)
 
+    # Prepare data
     data = Dict{String, Any}()
     write_meta_data!(data, pp.git_hash[])
     prepare_series_data!(data, pp)
 
-    time_stamp = ""
-    if pp.append_timestamp
-        time_stamp = string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
-    end
-
-    filename_json = pp.filename * time_stamp * ".json"
-    filename_csv = pp.filename * time_stamp * ".csv"
-
     if pp.write_json
-        abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
-
-        open(abs_file_path, "w") do file
+        filename_json = build_filepath(pp.config; extension="json")
+        open(filename_json, "w") do file
             # Indent by 4 spaces
             JSON.print(file, data, 4)
         end
     end
-    if pp.write_csv
-        abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
 
-        write_csv(abs_file_path, data)
+    if pp.write_csv
+        filename_csv = build_filepath(pp.config; extension="csv")
+        write_csv(filename_csv, data)
     end
 end
 
