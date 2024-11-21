@@ -75,7 +75,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              viscosity=ViscosityAdami(nu=wall_viscosity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    adhesion_coefficient=1.0)
+                                    adhesion_coefficient=1.0, surface_normal_method=StaticNormals((0, 1)))
 
 # ==========================================================================================
 # ==== Simulation

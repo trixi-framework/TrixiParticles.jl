@@ -5,7 +5,7 @@ using OrdinaryDiffEq
 
 fluid_density = 1000.0
 
-particle_spacing = 0.05
+particle_spacing = 0.025
 # Use a higher resolution for a better result
 # particle_spacing = 0.025
 
@@ -49,8 +49,8 @@ fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
                                            density_calculator=ContinuityDensity(),
                                            reference_particle_spacing=particle_spacing,
                                            acceleration=zeros(length(fluid_size)),
-                                           surface_normal_method=ColorfieldSurfaceNormal(),
-                                           surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
+                                           surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1),
+                                           surface_tension=SurfaceTensionMorris(surface_tension_coefficient=5 *
                                                                                                             0.0728))
 
 # fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,

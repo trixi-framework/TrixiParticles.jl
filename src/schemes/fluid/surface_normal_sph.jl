@@ -1,3 +1,12 @@
+struct StaticNormals{NDIMS, ELTYPE <: Real}
+    normal_vectors :: SVector{NDIMS, ELTYPE}
+end
+
+function StaticNormals(normal_vectors::SVector{NDIMS, ELTYPE}) where {NDIMS, ELTYPE <: Real}
+    return StaticNormals{NDIMS, ELTYPE}(normal_vectors)
+end
+
+
 @doc raw"""
     ColorfieldSurfaceNormal()
 
