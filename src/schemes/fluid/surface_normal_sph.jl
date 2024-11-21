@@ -101,7 +101,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
         if colorfield[neighbor] / maximum_colorfield > boundary_contact_threshold
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
-            grad_kernel = smoothing_kernel_grad(pos_diff, distance)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
             for i in 1:ndims(system)
                 cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
             end
