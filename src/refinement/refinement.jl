@@ -4,15 +4,14 @@ include("split.jl")
 include("merge.jl")
 
 struct ParticleRefinement{SP, RC, ELTYPE}
-    refinement_pattern        :: SP
-    refinement_criteria       :: RC
-    max_spacing_ratio         :: ELTYPE
-    mass_ref                  :: Vector{ELTYPE} # length(mass_ref) == nparticles
-    merge_candidates          :: Vector{Int}    # length(merge_candidates) == nparticles
-    delete_candidates         :: Vector{Bool}   # length(delete_candidates) == nparticles
-    split_candidates          :: Vector{Int}    # variable length
-    n_particles_before_resize :: Ref{Int}
-    n_new_particles           :: Ref{Int}
+    refinement_pattern  :: SP
+    refinement_criteria :: RC
+    max_spacing_ratio   :: ELTYPE
+    mass_ref            :: Vector{ELTYPE} # length(mass_ref) == nparticles
+    merge_candidates    :: Vector{Int}    # length(merge_candidates) == nparticles
+    delete_candidates   :: Vector{Bool}   # length(delete_candidates) == nparticles
+    split_candidates    :: Vector{Int}    # variable length
+    n_new_particles     :: Ref{Int}
 end
 
 function ParticleRefinement(; refinement_pattern, max_spacing_ratio,
@@ -25,7 +24,7 @@ function ParticleRefinement(; refinement_pattern, max_spacing_ratio,
     end
 
     return ParticleRefinement(refinement_pattern, refinement_criteria, max_spacing_ratio,
-                              mass_ref, Int[], delete_candidates, Int[], Ref(0), Ref(0))
+                              mass_ref, Int[], delete_candidates, Int[], Ref(0))
 end
 
 resize_refinement!(system) = system
@@ -41,29 +40,35 @@ function resize_refinement!(system, particle_refinement)
     resize!(particle_refinement.delete_candidates, nparticles(system))
     resize!(particle_refinement.merge_candidates, nparticles(system))
 
+    particle_refinement.mass_ref .= system.mass
+
     return system
 end
 
 function refinement!(semi, v_ode, u_ode, v_tmp, u_tmp, t)
+    # Check refinement criteria
     check_refinement_criteria!(semi, v_ode, u_ode)
 
-    # Update the spacing of particles (Algorthm 1)
+    # Update spacing of particles (Algorthm 1)
     update_particle_spacing(semi, v_ode, u_ode)
 
-    # Split the particles (Algorithm 2)
+    # Split particles (Algorithm 2)
     split_particles!(semi, v_ode, u_ode, v_tmp, u_tmp)
 
-    # Merge the particles (Algorithm 3)
+    # Merge particles (Algorithm 3)
     merge_particles!(semi, v_ode, u_ode, v_tmp, u_tmp)
 
-    # Shift the particles
+    # Shift particles
+    # TODO
 
-    # Correct the particles
+    # Correct particles
+    # TODO
 
     # Update smoothing lengths
     upate_smoothing_lengths!(semi, u_ode)
 
     # Resize neighborhood search
+    # TODO
 
     return semi
 end
@@ -160,9 +165,9 @@ function upate_smoothing_lengths!(system::FluidSystem, refinement, semi, u)
 end
 
 @inline function min_max_avg_spacing(system, semi, u_ode, system_coords, particle)
-    dp_min = Inf
-    dp_max = zero(eltype(system))
-    dp_avg = zero(eltype(system))
+    dp_min = particle_spacing(system, particle)
+    dp_max = particle_spacing(system, particle)
+    dp_avg = particle_spacing(system, particle)
     counter_neighbors = 0
 
     foreach_system(semi) do neighbor_system
@@ -183,7 +188,7 @@ end
         end
     end
 
-    dp_avg / counter_neighbors
+    dp_avg = counter_neighbors == 0 ? dp_avg : dp_avg / counter_neighbors
 
     return dp_min, dp_max, dp_avg
 end

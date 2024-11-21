@@ -26,6 +26,7 @@ end
 
 @inline function collect_split_candidates!(system::FluidSystem, particle_refinement, v, u)
     (; mass_ref, max_spacing_ratio, split_candidates, refinement_pattern) = particle_refinement
+    (; n_children, center_particle) = refinement_pattern
 
     resize!(split_candidates, 0)
 
@@ -38,10 +39,8 @@ end
         end
     end
 
-    n_childs_exclude_center = nchilds(system, refinement_pattern) - 1
-
     particle_refinement.n_new_particles[] = length(split_candidates) *
-                                            n_childs_exclude_center
+                                            (n_children - center_particle)
 
     return system
 end
@@ -56,14 +55,15 @@ end
 
 @inline function split_particles!(system::FluidSystem, particle_refinement, v, u)
     (; smoothing_length) = system.cache
-    (; split_candidates, refinement_pattern, n_particles_before_resize) = particle_refinement
-    (; alpha, relative_position) = refinement_pattern
+    (; split_candidates, refinement_pattern, n_new_particles) = particle_refinement
+    (; alpha, relative_position, n_children, center_particle) = refinement_pattern
 
+    child_id_global = nparticles(system) - n_new_particles[]
     for particle in split_candidates
         smoothing_length_old = smoothing_length[particle]
         mass_old = system.mass[particle]
 
-        system.mass[particle] = mass_old / nchilds(system, refinement_pattern)
+        system.mass[particle] = mass_old / n_children
 
         p_a = particle_pressure(v, system, particle)
         rho_a = particle_density(v, system, particle)
@@ -73,23 +73,23 @@ end
         pos_center = current_coords(u, system, particle)
         vel_center = current_velocity(v, system, particle)
 
-        for child_id_local in 1:(nchilds(system, refinement_pattern) - 1)
-            child = n_particles_before_resize[] + child_id_local
+        for child_id_local in 1:(n_children - center_particle)
+            child_id_global += 1
 
-            system.mass[child] = mass_old / nchilds(system, refinement_pattern)
+            system.mass[child_id_global] = mass_old / n_children
 
-            set_particle_pressure!(v, system, child, p_a)
+            set_particle_pressure!(v, system, child_id_global, p_a)
 
-            set_particle_density!(v, system, child, rho_a)
+            set_particle_density!(v, system, child_id_global, rho_a)
 
-            smoothing_length[child] = alpha * smoothing_length_old
+            smoothing_length[child_id_global] = alpha * smoothing_length_old
 
             rel_pos = smoothing_length_old * relative_position[child_id_local]
             new_pos = pos_center + rel_pos
 
             for dim in 1:ndims(system)
-                u[dim, child] = new_pos[dim]
-                v[dim, child] = vel_center[dim]
+                u[dim, child_id_global] = new_pos[dim]
+                v[dim, child_id_global] = vel_center[dim]
             end
         end
     end

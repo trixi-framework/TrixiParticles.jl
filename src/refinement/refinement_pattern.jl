@@ -3,6 +3,7 @@ struct CubicSplitting{ELTYPE}
     alpha             :: ELTYPE
     center_particle   :: Bool
     relative_position :: Vector{SVector{2, ELTYPE}}
+    n_children        :: Int
 
     function CubicSplitting(; epsilon=0.5, alpha=0.5, center_particle=true)
         ELTYPE = typeof(epsilon)
@@ -21,12 +22,8 @@ struct CubicSplitting{ELTYPE}
             push!(relative_position, SVector(zero(ELTYPE), zero(ELTYPE)))
         end
 
-        new{ELTYPE}(epsilon, alpha, center_particle, relative_position)
+        new{ELTYPE}(epsilon, alpha, center_particle, relative_position, 4 + center_particle)
     end
-end
-
-@inline function nchilds(system, refinement_pattern::CubicSplitting)
-    return 4 + refinement_pattern.center_particle
 end
 
 struct TriangularSplitting{ELTYPE}
@@ -34,6 +31,7 @@ struct TriangularSplitting{ELTYPE}
     alpha             :: ELTYPE
     center_particle   :: Bool
     relative_position :: Vector{SVector{2, ELTYPE}}
+    n_children        :: Int
 
     function TriangularSplitting(; epsilon=0.5, alpha=0.5, center_particle=true)
         ELTYPE = typeof(epsilon)
@@ -49,12 +47,8 @@ struct TriangularSplitting{ELTYPE}
             push!(relative_position, SVector(zero(ELTYPE), zero(ELTYPE)))
         end
 
-        new{ELTYPE}(epsilon, alpha, center_particle, relative_position)
+        new{ELTYPE}(epsilon, alpha, center_particle, relative_position, 3 + center_particle)
     end
-end
-
-@inline function nchilds(system::System{2}, refinement_pattern::TriangularSplitting)
-    return 3 + refinement_pattern.center_particle
 end
 
 struct HexagonalSplitting{ELTYPE}
@@ -62,6 +56,7 @@ struct HexagonalSplitting{ELTYPE}
     alpha             :: ELTYPE
     center_particle   :: Bool
     relative_position :: Vector{SVector{2, ELTYPE}}
+    n_children        :: Int
 
     function HexagonalSplitting(; epsilon=0.4, alpha=0.9, center_particle=true)
         ELTYPE = typeof(epsilon)
@@ -84,10 +79,6 @@ struct HexagonalSplitting{ELTYPE}
             push!(relative_position, SVector(zero(ELTYPE), zero(ELTYPE)))
         end
 
-        new{ELTYPE}(epsilon, alpha, center_particle, relative_position)
+        new{ELTYPE}(epsilon, alpha, center_particle, relative_position, 6 + center_particle)
     end
-end
-
-@inline function nchilds(system::System{2}, refinement_pattern::HexagonalSplitting)
-    return 6 + refinement_pattern.center_particle
 end
