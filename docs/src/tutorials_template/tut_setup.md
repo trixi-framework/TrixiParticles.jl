@@ -316,5 +316,5 @@ The following will run the example simulation
 smoothing length.
 ```@cast tut_setup; width=100, height=50, delay=0.1
 trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              smoothing_kernel=MyGaussianKernel(), smoothing_length=smoothing_length_gauss);
+              smoothing_kernel=MyGaussianKernel());
 ```
