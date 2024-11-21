@@ -39,6 +39,24 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
+@doc raw"""
+    SurfaceTensionMorris(surface_tension_coefficient=1.0)
+
+This model implements the surface tension approach described by [Morris2000](@cite).
+It calculates surface tension forces based on the curvature of the fluid interface
+using particle normals and their divergence, making it suitable for simulating
+phenomena like droplet formation and capillary wave dynamics.
+
+# Details
+The method estimates curvature by combining particle color gradients and smoothing
+functions to derive surface normals. The curvature is then used to compute forces
+acting perpendicular to the interface. While this method provides accurate
+surface tension forces, it does not conserve momentum explicitly.
+
+# Keywords
+- `surface_tension_coefficient=1.0`: Adjusts the magnitude of the surface tension
+   forces, enabling tuning of fluid surface behaviors in simulations.
+"""
 struct SurfaceTensionMorris{ELTYPE} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
 
@@ -56,6 +74,25 @@ function create_cache_surface_tension(::SurfaceTensionMorris, ELTYPE, NDIMS, npa
     return (; curvature)
 end
 
+@doc raw"""
+    SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)
+
+This model implements the momentum-conserving surface tension approach outlined by
+[Morris2000](@cite). It calculates surface tension forces using the gradient of a stress
+tensor, ensuring exact conservation of linear momentum. This method is particularly
+useful for simulations where momentum conservation is critical, though it may require
+numerical adjustments at higher resolutions.
+
+# Details
+The stress tensor approach replaces explicit curvature calculations, avoiding the
+singularities associated with resolution increases. However, the method is computationally
+intensive and may require stabilization techniques to handle tensile instability at high
+particle densities.
+
+# Keywords
+- `surface_tension_coefficient=1.0`: A parameter to adjust the strength of surface tension
+   forces, allowing fine-tuning to replicate physical behavior.
+"""
 struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
 
