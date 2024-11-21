@@ -100,6 +100,11 @@ copy_file("NEWS.md")
 # Define module-wide setups such that the respective modules are available in doctests
 DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recursive=true)
 
+# Define environment variables to create plots without warnings
+# https://discourse.julialang.org/t/test-plots-on-travis-gks-cant-open-display/9465/2
+ENV["PLOTS_TEST"] = "true"
+ENV["GKSwstype"] = "100"
+
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 makedocs(sitename="TrixiParticles.jl",
