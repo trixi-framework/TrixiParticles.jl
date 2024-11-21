@@ -112,7 +112,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     return system
 end
 
-function remove_invalid_normals!(system::FluidSystem, surface_tension)
+function remove_invalid_normals!(system::FluidSystem, surface_tension, surfn)
     (; cache) = system
 
     # We remove invalid normals (too few neighbors) to reduce the impact of underdefined normals
@@ -129,9 +129,10 @@ end
 # see Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function remove_invalid_normals!(system::FluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
-                                                        SurfaceTensionMomentumMorris})
-    (; cache, smoothing_length, smoothing_kernel, number_density) = system
-    (; ideal_density_threshold) = surface_tension
+                                                        SurfaceTensionMomentumMorris},
+                                 surfn::ColorfieldSurfaceNormal)
+    (; cache, smoothing_length, smoothing_kernel, ideal_neighbor_count) = system
+    (; ideal_density_threshold, interface_threshold) = surfn
 
     # We remove invalid normals i.e. they have a small norm (eq. 20)
     normal_condition2 = (interface_threshold /
@@ -141,7 +142,7 @@ function remove_invalid_normals!(system::FluidSystem,
 
         # heuristic condition if there is no gas phase to find the free surface
         if ideal_density_threshold > 0 &&
-           ideal_density_threshold * number_density < cache.neighbor_count[particle]
+           ideal_density_threshold * ideal_neighbor_count < cache.neighbor_count[particle]
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
@@ -183,7 +184,7 @@ function compute_surface_normal!(system::FluidSystem,
                      u_neighbor_system, semi, surface_normal_method_,
                      surface_normal_method(neighbor_system))
     end
-    remove_invalid_normals!(system, surface_tension)
+    remove_invalid_normals!(system, surface_tension, surface_normal_method_)
 
     return system
 end
@@ -197,7 +198,6 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
                          v_neighbor_system, u_neighbor_system, semi,
                          surfn::ColorfieldSurfaceNormal, nsurfn::ColorfieldSurfaceNormal)
     (; cache) = system
-    (; smoothing_length) = surfn
     (; curvature) = cache
 
     system_coords = current_coordinates(u_system, system)
