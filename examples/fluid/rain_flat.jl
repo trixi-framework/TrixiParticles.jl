@@ -29,12 +29,13 @@ boundary_thickness = 4 * boundary_particle_spacing
 plate_size = (plate_length, plate_width, boundary_thickness)
 
 plate = RectangularShape(boundary_particle_spacing,
-                        round.(Int, plate_size ./ boundary_particle_spacing),
-                        (0.0, 0.0, 0.0), density=fluid_density)
+                         round.(Int, plate_size ./ boundary_particle_spacing),
+                         (0.0, 0.0, 0.0), density=fluid_density)
 
 sphere1_center = (0.005, 0.005, sphere_radius + boundary_thickness)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
-                        fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, 0.0, -terminal_velocity))
+                      fluid_density, sphere_type=VoxelSphere(),
+                      velocity=(0.0, 0.0, -terminal_velocity))
 
 # box = RectangularTank(fluid_particle_spacing, (0.3, 0.125, 0.0), (0.35, 0.075, 0.2), fluid_density,
 # n_layers=8, spacing_ratio=spacing_ratio, acceleration=(0.0, -gravity, 0.0), state_equation=state_equation,
@@ -60,7 +61,7 @@ nu_water = 8.9E-7
 
 # Morris has a higher velocity with same viscosity.
 # viscosity = ViscosityMorris(nu=75*nu_water)
-viscosity = ViscosityAdami(nu=20*nu_water)
+viscosity = ViscosityAdami(nu=20 * nu_water)
 
 density_diffusion = DensityDiffusionAntuono(sphere1, delta=0.1)
 
@@ -73,11 +74,11 @@ fluid_system = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, 0.0, -gravity),
                                            surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728,
-                                           free_surface_threshold=0.6), # 0.55 too many # 0.8 even more
+                                                                                free_surface_threshold=0.6), # 0.55 too many # 0.8 even more
                                            reference_particle_spacing=fluid_particle_spacing,
                                            surface_normal_method=ColorfieldSurfaceNormal(smoothing_kernel,
-                                           smoothing_length, boundary_contact_threshold=1.0))
-
+                                                                                         smoothing_length,
+                                                                                         boundary_contact_threshold=1.0))
 
 # fluid_system = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
 #                                            state_equation, smoothing_kernel,
@@ -110,7 +111,8 @@ semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.00005, prefix="rainfall_morris_alpha001_h40micro_nu20_lowerdt")
+saving_callback = SolutionSavingCallback(dt=0.00005,
+                                         prefix="rainfall_morris_alpha001_h40micro_nu20_lowerdt")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.

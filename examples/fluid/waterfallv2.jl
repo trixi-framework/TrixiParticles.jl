@@ -103,11 +103,12 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity, 0.0),
-                                           surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50*0.0728,
-                                           free_surface_threshold=0.7),
+                                           surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
+                                                                                                            0.0728,
+                                                                                free_surface_threshold=0.7),
                                            reference_particle_spacing=fluid_particle_spacing,
                                            surface_normal_method=ColorfieldSurfaceNormal(smoothing_kernel,
-                                           smoothing_length,
+                                                                                         smoothing_length,
                                                                                          boundary_contact_threshold=0.1))
 
 # fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,

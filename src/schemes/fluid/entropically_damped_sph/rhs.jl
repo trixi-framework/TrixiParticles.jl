@@ -18,8 +18,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
-        rho_a = particle_density(v_particle_system, particle_system, particle)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = @inbounds particle_density(v_particle_system, particle_system, particle)
+        rho_b = @inbounds particle_density(v_neighbor_system, neighbor_system, neighbor)
 
         p_a = particle_pressure(v_particle_system, particle_system, particle)
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
@@ -30,8 +30,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Note that the return value is zero when not using EDAC with TVF.
         p_avg = average_pressure(particle_system, particle)
 
-        m_a = hydrodynamic_mass(particle_system, particle)
-        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+        m_a = @inbounds hydrodynamic_mass(particle_system, particle)
+        m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
@@ -59,10 +59,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)
 
+        dv_contact_force = contact_force()
+
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_convection[i] +
-                               dv_surface_tension[i] +
-                               dv_adhesion[i]
+            @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] +
+                                         dv_convection[i] + dv_surface_tension[i]
+            dv_adhesion[i] + dv_contact_force[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
@@ -81,10 +83,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     return dv
 end
+@inline
 
-@inline function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
-                                     pos_diff, distance, sound_speed, m_a, m_b,
-                                     p_a, p_b, rho_a, rho_b)
+function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
+                             pos_diff, distance, sound_speed, m_a, m_b,
+                             p_a, p_b, rho_a, rho_b)
     (; smoothing_length) = particle_system
 
     volume_a = m_a / rho_a
@@ -122,19 +125,20 @@ end
     return dv
 end
 
-# We need a separate method for EDAC since the density is stored in `v[end-1,:]`.
-@inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
-                                      vdiff, particle, m_b, rho_a, rho_b,
-                                      particle_system::EntropicallyDampedSPHSystem,
-                                      grad_kernel)
+@inline# We need a separate method for EDAC since the density is stored in `v[end-1,:]`.
+function continuity_equation!(dv, density_calculator::ContinuityDensity,
+                              vdiff, particle, m_b, rho_a, rho_b,
+                              particle_system::EntropicallyDampedSPHSystem,
+                              grad_kernel)
     dv[end - 1, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
 
     return dv
 end
+@inline
 
-@inline function continuity_equation!(dv, density_calculator,
-                                      vdiff, particle, m_b, rho_a, rho_b,
-                                      particle_system::EntropicallyDampedSPHSystem,
-                                      grad_kernel)
+function continuity_equation!(dv, density_calculator,
+                              vdiff, particle, m_b, rho_a, rho_b,
+                              particle_system::EntropicallyDampedSPHSystem,
+                              grad_kernel)
     return dv
 end
