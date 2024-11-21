@@ -80,8 +80,6 @@ Base.resize!(system, ::Nothing, capacity_system) = system
 function Base.resize!(system::WeaklyCompressibleSPHSystem, refinement, capacity_system::Int)
     (; mass, pressure, density_calculator) = system
 
-    refinement.n_particles_before_resize[] = nparticles(system)
-
     resize!(mass, capacity_system)
     resize!(pressure, capacity_system)
 
@@ -96,8 +94,6 @@ end
 
 function Base.resize!(system::EntropicallyDampedSPHSystem, refinement, capacity_system::Int)
     (; mass, density_calculator) = system
-
-    refinement.n_particles_before_resize[] = nparticles(system)
 
     resize!(mass, capacity_system)
 
