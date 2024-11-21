@@ -1,5 +1,3 @@
-include("../../../test_util.jl")
-
 @testset verbose=true "Dummy Particles" begin
     @testset "show" begin
         boundary_model = BoundaryModelDummyParticles(
