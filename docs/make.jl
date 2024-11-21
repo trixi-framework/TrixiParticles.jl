@@ -112,9 +112,7 @@ makedocs(sitename="TrixiParticles.jl",
          plugins=[bib],
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles],
-         format=Documenter.HTML(;
-             assets=Asciicast.assets(),
-         ),
+         format=Documenter.HTML(; assets=Asciicast.assets()),
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",
