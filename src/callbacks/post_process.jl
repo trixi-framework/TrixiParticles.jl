@@ -201,51 +201,64 @@ function (pp::PostprocessCallback)(u, t, integrator)
 end
 
 # `affect!`
-function (pp::PostprocessCallback)(integrator)
-    # Extract solution arrays and parameters
+function (postprocess_callback::PostprocessCallback)(integrator)
+    # Extract the current solution state and parameters from the integrator
     vu_ode = integrator.u
     v_ode, u_ode = vu_ode.x
     semi = integrator.p
     t = integrator.t
-    filenames = system_names(semi.systems)
-    new_data_collected = false
+    system_names_list = system_names(semi.systems)
+    data_collected = false
 
-    # Update systems to compute quantities (e.g., density, pressure)
-    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
+    # Update the systems to compute derived quantities (e.g., density, pressure)
+    update_systems_and_nhs(
+        v_ode,
+        u_ode,
+        semi_discrete_problem,
+        t;
+        update_from_callback = true
+    )
 
-    # Loop over each system in the simulation
-    foreach_system(semi) do system
-        # Skip boundary systems if exclude_boundary is true
-        if system isa BoundarySystem && pp.exclude_boundary
+    # Iterate over each system in the simulation
+    foreach_system(semi_discrete_problem) do system
+        # Skip boundary systems if 'exclude_boundary' is true
+        if system isa BoundarySystem && postprocess_callback.exclude_boundary
             return
         end
 
-        # Get the index and name of the current system
-        system_index = system_indices(system, semi)
+        # Get the index of the current system
+        system_index = system_indices(system, semi_discrete_problem)
 
-        # Wrap solution arrays for the current system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
+        # Extract the solution arrays specific to the current system
+        v_system = wrap_v(v_ode, system, semi_discrete_problem)
+        u_system = wrap_u(u_ode, system, semi_discrete_problem)
 
-        # Apply each function in pp.funcs to the current system
-        for (key, f) in pp.funcs
-            result = f(v, u, t, system)
+        # Apply each user-defined function to the current system
+        for (func_name, func) in postprocess_callback.funcs
+            # Call the function with the current system's data
+            result = func(v_system, u_system, t, system)
             if result !== nothing
                 # Add the result to the data collection
-                add_entry!(pp, string(key), t, result, filenames[system_index])
-                new_data_collected = true
+                add_entry!(
+                    postprocess_callback,
+                    string(func_name),
+                    t,
+                    result,
+                    system_names_list[system_index]
+                )
+                data_collected = true
             end
         end
     end
 
     # Record the time if new data was collected
-    if new_data_collected
-        push!(pp.times, t)
+    if data_collected
+        push!(postprocess_callback.times, t)
     end
 
     # Write data to files if necessary
-    if isfinished(integrator) || should_write_files(pp, integrator)
-        write_postprocess_data(pp)
+    if isfinished(integrator) || should_write_files(postprocess_callback, integrator)
+        write_postprocess_data(postprocess_callback)
     end
 
     # Indicate that the integrator's `u` has not been modified
@@ -253,94 +266,109 @@ function (pp::PostprocessCallback)(integrator)
 end
 
 # Helper function to determine if it's time to write output files
-function should_write_files(pp::PostprocessCallback, integrator)
-    # Check if we should write files based on the write_file_interval
-    if pp.interval isa Integer
+function should_write_files(postprocess_callback::PostprocessCallback, integrator)
+    # Decide based on whether the interval is defined by steps or time
+    if postprocess_callback.interval isa Integer
         # Interval is based on step count
-        return integrator.stats.naccept > 0 &&
-               (integrator.stats.naccept ÷ pp.interval) % pp.write_file_interval == 0
+        steps_completed = integrator.stats.naccept
+        intervals_completed = steps_completed ÷ postprocess_callback.interval
+        # Check if it's time to write files
+        return steps_completed > 0 &&
+               (intervals_completed % postprocess_callback.write_file_interval == 0)
     else
         # Interval is based on simulation time
+        time_elapsed = integrator.t
+        intervals_completed = floor(Int, time_elapsed / postprocess_callback.interval)
+        # Check if it's time to write files
         return integrator.stats.naccept > 0 &&
-               (floor(Int, integrator.t / pp.interval) % pp.write_file_interval == 0)
+               (intervals_completed % postprocess_callback.write_file_interval == 0)
     end
 end
 
 # Function to write the collected post-processing data to files
-function write_postprocess_data(pp::PostprocessCallback)
+function write_postprocess_data(postprocess_callback::PostprocessCallback)
     # Return early if there's no data to write
-    isempty(pp.data) && return
+    isempty(postprocess_callback.data) && return
 
     # Ensure the output directory exists
-    mkpath(pp.config.output_directory)
+    mkpath(postprocess_callback.config.output_directory)
 
-    # Prepare data for output
+    # Prepare the data dictionary for output
     data = Dict{String, Any}()
-    write_meta_data!(data, pp.git_hash[])
-    prepare_series_data!(data, pp)
+    # Add meta-data to the data dictionary
+    write_meta_data!(data, postprocess_callback.git_hash[])
+    # Organize the collected data into series format
+    prepare_series_data!(data, postprocess_callback)
 
     # Write JSON file if enabled
-    if pp.write_json
-        filename_json = build_filepath(pp.config; extension="json")
-        open(filename_json, "w") do file
+    if postprocess_callback.write_json
+        json_filename = build_filepath(postprocess_callback.config; extension = "json")
+        open(json_filename, "w") do file
             JSON.print(file, data, 4)  # Indent by 4 spaces
         end
     end
 
     # Write CSV file if enabled
-    if pp.write_csv
-        filename_csv = build_filepath(pp.config; extension="csv")
-        write_csv_file(filename_csv, data)
+    if postprocess_callback.write_csv
+        csv_filename = build_filepath(postprocess_callback.config; extension = "csv")
+        write_csv_file(csv_filename, data)
     end
 end
 
 # Prepare series data for output by organizing it into a structured dictionary
-function prepare_series_data!(data, pp::PostprocessCallback)
-    for (key, data_array) in pp.data
+function prepare_series_data!(data_dict::Dict{String, Any}, postprocess_callback::PostprocessCallback)
+    for (key, data_array) in postprocess_callback.data
+        # Extract collected values
         data_values = [value for value in data_array]
 
-        # Extract system name from the key (assumes key format "function_systemname")
-        system_name = split(key, '_')[end - 1]
+        # Extract system name from the key (assumes key format "functionname_systemname")
+        key_parts = split(key, '_')
+        system_name = key_parts[end - 1]  # Assuming system name is the penultimate part
 
-        data[key] = create_series_dict(data_values, pp.times, system_name)
+        # Create a series dictionary for this data series
+        data_dict[key] = create_series_dict(data_values, postprocess_callback.times, system_name)
     end
-    return data
+    return data_dict
 end
 
 # Helper function to create a series dictionary for each data series
-function create_series_dict(values, times, system_name="")
-    return Dict("type" => "series",
-                "datatype" => eltype(values),
-                "n_values" => length(values),
-                "system_name" => system_name,
-                "values" => values,
-                "time" => times)
+function create_series_dict(values::Vector{Any}, times::Vector{Float64}, system_name::String = "")
+    return Dict(
+        "type" => "series",
+        "datatype" => eltype(values),
+        "n_values" => length(values),
+        "system_name" => system_name,
+        "values" => values,
+        "time" => times
+    )
 end
 
 # Write meta-data to the output data dictionary
-function write_meta_data!(data, git_hash)
-    meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => git_hash,
-                     "julia_version" => string(VERSION))
+function write_meta_data!(data_dict::Dict{String, Any}, git_hash::String)
+    meta_data = Dict(
+        "solver_name" => "TrixiParticles.jl",
+        "solver_version" => git_hash,
+        "julia_version" => string(VERSION)
+    )
 
-    data["meta"] = meta_data
-    return data
+    data_dict["meta"] = meta_data
+    return data_dict
 end
 
 # Function to write the data to a CSV file
-function write_csv_file(file_path, data)
+function write_csv_file(file_path::String, data::Dict{String, Any})
     times = Float64[]
 
     # Find the time series from the data
-    for val in values(data)
-        if haskey(val, "time")
-            times = val["time"]
+    for series_data in values(data)
+        if haskey(series_data, "time")
+            times = series_data["time"]
             break
         end
     end
 
     # Initialize DataFrame with the time column
-    df = DataFrame(time=times)
+    df = DataFrame(time = times)
 
     # Add data series to the DataFrame
     for (key, series) in data
@@ -356,13 +384,19 @@ function write_csv_file(file_path, data)
 end
 
 # Add a new entry to the data collection
-function add_entry!(pp::PostprocessCallback, entry_key::String, t::Float64, value, system_name::String)
-    # Construct the full key by combining the entry key and system name
+function add_entry!(
+    postprocess_callback::PostprocessCallback,
+    entry_key::String,
+    time::Float64,
+    value::Any,
+    system_name::String
+)
+    # Construct the full key by combining the function name and system name
     full_key = entry_key * "_" * system_name
 
     # Get or initialize the data vector for this key
-    entries = get!(pp.data, full_key, Any[])
+    data_entries = get!(postprocess_callback.data, full_key, Any[])
 
-    # Add the new value to the entries
-    push!(entries, value)
+    # Add the new value to the data entries
+    push!(data_entries, value)
 end
