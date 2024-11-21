@@ -129,7 +129,8 @@ end
 # see Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function remove_invalid_normals!(system::FluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
-                                                        SurfaceTensionMomentumMorris}, surfn::ColorfieldSurfaceNormal)
+                                                        SurfaceTensionMomentumMorris},
+                                 surfn::ColorfieldSurfaceNormal)
     (; cache, smoothing_length, smoothing_kernel, ideal_neighbor_count) = system
     (; ideal_density_threshold, interface_threshold) = surfn
 
