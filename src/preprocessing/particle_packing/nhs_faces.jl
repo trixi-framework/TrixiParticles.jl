@@ -125,8 +125,7 @@ function cell_intersection(face, geometry, cell,
         # For 3D,  Check if triangle plane intersects cell (for very large triangles)
         normal = face_normal(face, geometry)
 
-        return triangle_plane_intersection(ray_origin, normal, min_corner, max_corner,
-                                           cell_size)
+        return triangle_plane_intersection(ray_origin, normal, min_corner, cell_size)
     end
 
     return false
@@ -155,66 +154,26 @@ end
 
 # Check if each cell vertex is located on the same side of the plane.
 # Otherwise the plane intersects the cell.
-function triangle_plane_intersection(point, plane_normal, min_corner, max_corner, cell_size)
-    dirx = SVector(cell_size[1], zero(eltype(point)), zero(eltype(point)))
-    diry = SVector(zero(eltype(point)), cell_size[2], zero(eltype(point)))
-    dirz = SVector(zero(eltype(point)), zero(eltype(point)), cell_size[3])
+function triangle_plane_intersection(point_on_plane, plane_normal, cell_min_corner,
+                                     cell_size)
+    cell_center = cell_min_corner .+ cell_size ./ 2
 
-    cell_vertex_1 = min_corner
-    cell_vertex_2 = min_corner + dirx
+    # `corner1` is the corner that is furthest in the direction of `plane_normal`.
+    # When the plane is not intersecting the cell, this corner is the one closest
+    # to the plane when the normal is pointing away from the cell or furthest from the plane
+    # when the normal is pointing towards the cell.
+    # Note that this could also be a face or edge midpoint when the plane is axis-aligned.
+    normal_unit = sign.(plane_normal)
+    corner1 = cell_center + normal_unit .* cell_size / 2
+    corner2 = cell_center - normal_unit .* cell_size / 2
 
-    pos_diff_1 = cell_vertex_1 - point
-    pos_diff_2 = cell_vertex_2 - point
+    # These two vectors are on the same side of the plane
+    # if and only if the plane intersects the cell
+    plane_to_corner1 = corner1 - point_on_plane
+    plane_to_corner2 = corner2 - point_on_plane
 
-    # Corners: bottom north-west and bottom north-east
-    dot1 = sign(dot(pos_diff_1, plane_normal))
-    dot2 = sign(dot(pos_diff_2, plane_normal))
-    !(dot1 == dot2) && return true
-
-    cell_vertex_3 = min_corner + diry
-    pos_diff_3 = cell_vertex_3 - point
-
-    # Corners: bottom north-east and top north-west
-    dot3 = sign(dot(pos_diff_3, plane_normal))
-    !(dot2 == dot3) && return true
-
-    cell_vertex_4 = min_corner + dirz
-    pos_diff_4 = cell_vertex_4 - point
-
-    # Corners: top north-west and bottom south-west
-    dot4 = sign(dot(pos_diff_4, plane_normal))
-    !(dot3 == dot4) && return true
-
-    cell_vertex_5 = max_corner
-    pos_diff_5 = cell_vertex_5 - point
-
-    # Corners: bottom south-west and top south-east
-    dot5 = sign(dot(pos_diff_5, plane_normal))
-    !(dot4 == dot5) && return true
-
-    cell_vertex_6 = max_corner - dirx
-    pos_diff_6 = cell_vertex_6 - point
-
-    # Corners: top south-east and top south-west
-    dot6 = sign(dot(pos_diff_6, plane_normal))
-    !(dot5 == dot6) && return true
-
-    cell_vertex_7 = max_corner - diry
-    pos_diff_7 = cell_vertex_7 - point
-
-    # Corners: top south-west and bottom south-east
-    dot7 = sign(dot(pos_diff_7, plane_normal))
-    !(dot6 == dot7) && return true
-
-    cell_vertex_8 = max_corner - dirz
-    pos_diff_8 = cell_vertex_8 - point
-
-    # Corners: bottom south-east and top north-east
-    dot8 = sign(dot(pos_diff_8, plane_normal))
-    !(dot7 == dot8) && return true
-
-    # All edge vertices are on one side of the plane
-    return false
+    # Return true if the two vectors are on different sides of the plane
+    return dot(plane_normal, plane_to_corner1) * dot(plane_normal, plane_to_corner2) < 0
 end
 
 @inline function cell_grid(face, geometry,
