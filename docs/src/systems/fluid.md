@@ -126,9 +126,70 @@ with:
 
 While momentum conservation makes this model attractive, it requires additional computational effort and stabilization techniques to address instabilities in high-density regions.
 
+# [Huber Model](@id huber_model)
+
+## Introduction to the Huber Contact Force Model
+
+The **Huber Model**, introduced in [Huber2016](@cite), provides a physically-based approach for simulating surface tension and contact line dynamics in Smoothed Particle Hydrodynamics (SPH). It is specifically designed to address challenges in modeling wetting phenomena, including dynamic contact angles and their influence on fluid behavior.
+
+The Huber Model introduces a **Contact Line Force (CLF)** that complements the **Continuum Surface Force (CSF)** model, allowing for accurate representation of fluid-fluid and fluid-solid interactions. The dynamic evolution of contact angles emerges naturally from the force balance without requiring artificial adjustments or fitting parameters.
+
+---
+
+## Key Features of the Huber Model
+
+1. **Dynamic Contact Angles**:
+   - Captures the transition between static and dynamic contact angles based on interfacial forces and contact line velocities.
+   - Removes the need for predefined constitutive equations, as the contact angle is derived from the system's dynamics.
+
+2. **Volume Reformulation**:
+   - Transforms line-based forces (e.g., those acting at the contact line) into volume-based forces for compatibility with SPH formulations.
+   - Ensures smooth force distribution near the contact line, reducing numerical artifacts.
+
+3. **Momentum Balance**:
+   - Extends the Navier-Stokes equations to include contributions from the contact line, ensuring accurate modeling of wetting and spreading dynamics.
+
+4. **No Fitting Parameters**:
+   - Fully physics-driven, requiring only measurable inputs like surface tension coefficients and static contact angles.
+
+---
+
+## Mathematical Formulation
+
+### Contact Line Force (CLF)
+
+The force acting along the contact line is derived from the unbalanced Young Force:
+```math
+f_{\text{CLF}} = \sigma_{\text{wn}} [\cos(\alpha_s) - \cos(\alpha_d)] \hat{\nu},
+```
+where:
+- \( \sigma_{\text{wn}} \): Surface tension coefficient of the fluid-fluid interface,
+- \( \alpha_s \): Static contact angle,
+- \( \alpha_d \): Dynamic contact angle,
+- \( \hat{\nu} \): Tangential unit vector along the fluid-solid interface.
+
+### Volume Reformulation
+
+To incorporate the CLF into SPH, it is reformulated as a volume force:
+```math
+F_{\text{CLF}} = f_{\text{CLF}} \delta_{\text{CL}},
+```
+where \( \delta_{\text{CL}} \) is a Dirac delta function approximated by SPH kernels, ensuring the force is applied locally near the contact line.
+
+---
+
+## Applications
+
+1. **Droplet Dynamics**:
+   - Simulates droplet spreading, recoiling, and merging with accurate contact line evolution.
+
+2. **Capillary Action**:
+   - Models fluid behavior in porous media and confined geometries, where contact lines play a critical role.
+
+3. **Wetting Phenomena**:
+   - Predicts equilibrium shapes and transient states of droplets and films on solid surfaces.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "surface_tension.jl")]
 ```
-
-This extended documentation provides a comprehensive view of the theoretical foundations and practical implementations of surface tension and surface normal calculations in SPH models.

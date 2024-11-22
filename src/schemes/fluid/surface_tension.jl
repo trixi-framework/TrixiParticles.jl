@@ -262,6 +262,18 @@ end
     return zero(pos_diff)
 end
 
+@doc raw"""
+    HuberContactModel{ELTYPE}
+
+Represents the contact force model inspired by [Huber2016](@cite). This model is
+designed to calculate physically accurate surface tension and contact line
+forces in fluid simulations, specifically those involving Smoothed Particle
+Hydrodynamics (SPH).
+
+The model enables the simulation of wetting phenomena, including dynamic contact
+angles and their influence on the system's dynamics, using physically-based
+parameters without introducing fitting coefficients.
+"""
 struct HuberContactModel{ELTYPE} end
 
 @inline function contact_force(contact_model::HuberContactModel,
