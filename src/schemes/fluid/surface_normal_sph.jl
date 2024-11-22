@@ -75,9 +75,20 @@ function wall_tangential(::BoundarySystem, particle, surface_normal_method::Stat
 end
 
 @doc raw"""
-    ColorfieldSurfaceNormal()
+    ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
+                             ideal_density_threshold=0.0)
 
-Color field based computation of the interface normals.
+Implements a model for computing surface normals based on a color field representation.
+This approach is commonly used in fluid simulations to determine interface normals
+for multiphase flows or free surfaces.
+
+# Keywords
+- `boundary_contact_threshold=0.1`: The threshold value used to determine contact with boundaries.
+   Adjust this to refine the detection of surface interfaces near boundaries.
+- `interface_threshold=0.01`: The threshold value that defines the presence of an interface.
+   Lower values can improve sensitivity but may introduce noise.
+- `ideal_density_threshold=0.0`: The ideal density threshold used for interface calculations.
+   This value can be tuned based on the density variations in the simulation.
 """
 struct ColorfieldSurfaceNormal{ELTYPE}
     boundary_contact_threshold::ELTYPE
