@@ -42,8 +42,9 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                     [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
                     The keyword argument `acceleration` should be used instead for
                     gravity-like source terms.
+- `correction`:     Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV, COR,
                                    PF, ST, SRFT, SRFN, B, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
@@ -127,6 +128,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
 
         cache = create_cache_density(initial_condition, density_calculator)
         cache = (;
+                 create_cache_correction(correction, initial_condition.density, NDIMS,
+                                         n_particles)...,
                  create_cache_edac(initial_condition, transport_velocity)...,
                  create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                              n_particles)...,
@@ -136,7 +139,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
 
         new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
             typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
-            typeof(transport_velocity), typeof(pressure_acceleration), typeof(source_terms),
+            typeof(transport_velocity), typeof(correction), typeof(pressure_acceleration),
+            typeof(source_terms),
             typeof(surface_tension), typeof(surface_normal_method),
             typeof(buffer), typeof(cache)}(initial_condition, mass, density_calculator,
                                            smoothing_kernel, smoothing_length,
@@ -256,6 +260,15 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
 end
 
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
+    (; density_calculator, correction) = system
+
+    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
+
+    compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
+
+    # `kernel_correct_density!` only performed for `SummationDensity`
+    kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
+                            density_calculator)
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
     compute_surface_delta_function!(system, system.surface_tension)

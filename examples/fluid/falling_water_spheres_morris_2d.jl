@@ -65,8 +65,7 @@ sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      density_calculator=ContinuityDensity(),
                                      acceleration=(0.0, -gravity),
                                      reference_particle_spacing=fluid_particle_spacing,
-                                     surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
-                                                                                   fluid_smoothing_length))
+                                     surface_normal_method=ColorfieldSurfaceNormal())
 
 # ==========================================================================================
 # ==== Boundary

@@ -107,6 +107,15 @@ end
     return nothing
 end
 
+@inline function correction_matrix(system::FluidSystem, particle)
+    extract_smatrix(system.cache.correction_matrix, system, particle)
+end
+
+@inline function curvature(particle_system::FluidSystem, particle)
+    (; cache) = particle_system
+    return cache.curvature[particle]
+end
+
 include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("transport_velocity.jl")

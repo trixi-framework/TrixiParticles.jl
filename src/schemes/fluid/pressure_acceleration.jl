@@ -58,6 +58,20 @@ end
     return -volume_term * pressure_tilde * W_a
 end
 
+# TODO: some one please check this that this correct...
+@inline function inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b)
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
+
+    # Inter-particle averaged pressure
+    pressure_tilde = (rho_b * p_a * W_a + rho_a * p_b * W_b) /
+                     (rho_a * W_a + rho_b * W_b)
+
+    return -volume_term * pressure_tilde
+end
+
+
 function choose_pressure_acceleration_formulation(pressure_acceleration,
                                                   density_calculator, NDIMS, ELTYPE,
                                                   correction)
@@ -90,8 +104,7 @@ end
 
 function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing,
                                                   density_calculator::SummationDensity,
-                                                  NDIMS, ELTYPE,
-                                                  correction)
+                                                  NDIMS, ELTYPE, correction)
 
     # Choose the pressure acceleration formulation corresponding to the density calculator.
     return pressure_acceleration_summation_density
@@ -99,8 +112,7 @@ end
 
 function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing,
                                                   density_calculator::ContinuityDensity,
-                                                  NDIMS, ELTYPE,
-                                                  correction)
+                                                  NDIMS, ELTYPE, correction)
 
     # Choose the pressure acceleration formulation corresponding to the density calculator.
     return pressure_acceleration_continuity_density

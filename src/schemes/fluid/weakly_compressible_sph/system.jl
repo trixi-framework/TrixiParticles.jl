@@ -131,9 +131,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     cache = create_cache_density(initial_condition, density_calculator)
     cache = (;
-             create_cache_wcsph(correction, initial_condition.density, NDIMS,
-                                n_particles)..., cache...)
-    cache = (;
+             create_cache_correction(correction, initial_condition.density, NDIMS,
+                                     n_particles)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
@@ -149,30 +148,6 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        pressure_acceleration, nothing,
                                        source_terms, surface_tension, surface_normal_method,
                                        buffer, cache)
-end
-
-create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
-
-function create_cache_wcsph(::ShepardKernelCorrection, density, NDIMS, n_particles)
-    return (; kernel_correction_coefficient=similar(density))
-end
-
-function create_cache_wcsph(::KernelCorrection, density, NDIMS, n_particles)
-    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
-    return (; kernel_correction_coefficient=similar(density), dw_gamma)
-end
-
-function create_cache_wcsph(::Union{GradientCorrection, BlendedGradientCorrection}, density,
-                            NDIMS, n_particles)
-    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
-    return (; correction_matrix)
-end
-
-function create_cache_wcsph(::MixedKernelGradientCorrection, density, NDIMS, n_particles)
-    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
-    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
-
-    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -248,7 +223,7 @@ end
 
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    (; density_calculator, density_diffusion, correction) = system
+    (; density_calculator, density_diffusion) = system
 
     compute_density!(system, u, u_ode, semi, density_calculator)
 
@@ -282,71 +257,6 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-end
-
-function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
-                                 semi, correction, density_calculator)
-    return system
-end
-
-function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
-                                 semi, corr::ShepardKernelCorrection, ::SummationDensity)
-    system.cache.density ./= system.cache.kernel_correction_coefficient
-end
-
-function compute_gradient_correction_matrix!(correction,
-                                             system::WeaklyCompressibleSPHSystem, u,
-                                             v_ode, u_ode, semi)
-    return system
-end
-
-function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
-                                                         BlendedGradientCorrection,
-                                                         MixedKernelGradientCorrection},
-                                             system::WeaklyCompressibleSPHSystem, u,
-                                             v_ode, u_ode, semi)
-    (; cache, correction, smoothing_kernel, smoothing_length) = system
-    (; correction_matrix) = cache
-
-    system_coords = current_coordinates(u, system)
-
-    compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_length,
-                                        smoothing_kernel)
-end
-
-function reinit_density!(vu_ode, semi)
-    v_ode, u_ode = vu_ode.x
-
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
-        reinit_density!(system, v, u, v_ode, u_ode, semi)
-    end
-
-    return vu_ode
-end
-
-function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
-                         v_ode, u_ode, semi)
-    # Compute density with `SummationDensity` and store the result in `v`,
-    # overwriting the previous integrated density.
-    summation_density!(system, semi, u, u_ode, v[end, :])
-
-    # Apply `ShepardKernelCorrection`
-    kernel_correction_coefficient = zeros(size(v[end, :]))
-    compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
-                           kernel_correction_coefficient)
-    v[end, :] ./= kernel_correction_coefficient
-
-    compute_pressure!(system, v)
-
-    return system
-end
-
-function reinit_density!(system, v, u, v_ode, u_ode, semi)
-    return system
 end
 
 function compute_pressure!(system, v)
@@ -389,13 +299,4 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     end
 
     return system
-end
-
-@inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
-    extract_smatrix(system.cache.correction_matrix, system, particle)
-end
-
-@inline function curvature(particle_system::FluidSystem, particle)
-    (; cache) = particle_system
-    return cache.curvature[particle]
 end
