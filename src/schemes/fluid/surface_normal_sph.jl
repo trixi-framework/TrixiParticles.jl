@@ -1,11 +1,18 @@
+# TODO: handle corners with StaticNormals
+# TODO: add method that determines local static normals
+# TODO: add method for TLSPH
 struct StaticNormals{NDIMS, ELTYPE <: Real}
     normal_vectors :: SVector{NDIMS, ELTYPE}
 end
 
-function StaticNormals(normal_vectors::SVector{NDIMS, ELTYPE}) where {NDIMS, ELTYPE <: Real}
-    return StaticNormals{NDIMS, ELTYPE}(normal_vectors)
+function StaticNormals(normal_vectors::Tuple{Vararg{ELTYPE, NDIMS}}) where {NDIMS, ELTYPE <: Real}
+    norm_value = norm(normal_vectors)
+    if norm_value == 0
+        throw(ArgumentError("Normal vector cannot be zero-length."))
+    end
+    normalized_vector = SVector{NDIMS, ELTYPE}(normal_vectors) / norm_value
+    return StaticNormals(normalized_vector)
 end
-
 
 @doc raw"""
     ColorfieldSurfaceNormal()
@@ -38,6 +45,19 @@ end
 @inline function surface_normal(particle_system::FluidSystem, particle)
     (; cache) = particle_system
     return extract_svector(cache.surface_normal, particle_system, particle)
+end
+
+@inline function surface_normal(particle_system::BoundarySystem, particle)
+    (; surface_normal_method) = particle_system
+    return surface_normal(particle_system::BoundarySystem, particle, surface_normal_method)
+end
+
+@inline function surface_normal(particle_system::BoundarySystem, particle, surface_normal_method)
+    return zero(SVector{ndims(particle_system), eltype(particle_system)})
+end
+
+@inline function surface_normal(::BoundarySystem, particle, surface_normal_method::StaticNormals)
+    return surface_normal_method.normal_vectors
 end
 
 function calc_normal!(system, neighbor_system, u_system, v, v_neighbor_system,

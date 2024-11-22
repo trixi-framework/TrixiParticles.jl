@@ -262,22 +262,15 @@ end
     return zero(pos_diff)
 end
 
-struct HuberContactModel{ELTYPE} <: AkinciTypeSurfaceTension
-    static_contact_angle::ELTYPE # sometimes named equilibrium contact angle
-
-    function HuberContactModel(; static_contact_angle=90)
-        new{typeof(static_contact_angle)}(static_contact_angle)
-    end
-end
+struct HuberContactModel{ELTYPE} end
 
 @inline function contact_force(contact_model::HuberContactModel,
-                                particle_system::FluidSystem,
-                                neighbor_system::BoundarySystem, particle, neighbor,
-                                pos_diff, distance)
-
+                               particle_system::FluidSystem,
+                               neighbor_system::BoundarySystem, particle, neighbor,
+                               pos_diff, distance)
 end
 
 @inline function contact_force(surface_tension, particle_system, neighbor_system, particle,
-                                neighbor, pos_diff, distance)
+                               neighbor, pos_diff, distance)
     return zero(pos_diff)
 end

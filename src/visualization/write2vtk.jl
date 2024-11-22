@@ -432,6 +432,12 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
     end
+
+    if !(system.surface_normal_method isa Nothing)
+        vtk["normal"] = [surface_normal(system, particle)
+        for particle in eachparticle(system)]
+    end
+
 end
 
 function write2vtk!(vtk, v, u, t, system::BoundaryDEMSystem; write_meta_data=true)

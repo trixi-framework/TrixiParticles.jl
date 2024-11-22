@@ -13,33 +13,39 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM, SRFN,
                          CA} <: BoundarySystem{NDIMS, IC}
-    initial_condition    :: IC
-    coordinates          :: CO # Array{ELTYPE, 2}
-    boundary_model       :: BM
-    movement             :: M
-    ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
-    adhesion_coefficient :: ELTYPE
-    color                :: Int64
-    cache                :: CA
-    buffer               :: Nothing
+    initial_condition     :: IC
+    coordinates           :: CO # Array{ELTYPE, 2}
+    boundary_model        :: BM
+    movement              :: M
+    ismoving              :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
+    adhesion_coefficient  :: ELTYPE
+    static_contact_angle  :: ELTYPE # sometimes named equilibrium contact angle
+    surface_normal_method :: SRFN
+    color                 :: Int
+    cache                 :: CA
+    buffer                :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, color, cache, buffer)
+                               ismoving, adhesion_coefficient, static_contact_angle,
+                               surface_normal_method, color_value, cache, buffer)
         ELTYPE = eltype(coordinates)
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
             typeof(coordinates), typeof(movement), typeof(ismoving),
+            typeof(surface_normal_method),
             typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
-                           ismoving, adhesion_coefficient, color, cache, buffer)
+                           ismoving, adhesion_coefficient, static_contact_angle,
+                           surface_normal_method, color_value, cache, buffer)
     end
 end
 
 function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                           adhesion_coefficient=0.0, color_value=0)
+                           adhesion_coefficient=0.0, static_contact_angle=0.0,
+                           surface_normal_method=nothing, color_value=0)
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(movement))
@@ -55,7 +61,8 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
 
     # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, color_value, cache, nothing)
+                             ismoving, adhesion_coefficient, static_contact_angle,
+                             surface_normal_method, color_value, cache, nothing)
 end
 
 function Base.show(io::IO, system::BoundarySPHSystem)

@@ -89,6 +89,6 @@ export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_pl
        interpolate_plane_2d_vtk
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
-export ColorfieldSurfaceNormal
+export ColorfieldSurfaceNormal, StaticNormals
 
 end # module

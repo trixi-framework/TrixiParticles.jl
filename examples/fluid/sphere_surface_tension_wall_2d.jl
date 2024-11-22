@@ -62,7 +62,9 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0),
                                                      reference_particle_spacing=fluid_particle_spacing,
-                                                     surface_normal_method=ColorfieldSurfaceNormal(boundary_contact_threshold=0.05, ideal_density_threshold = 0.8, interface_threshold=0.1))
+                                                     surface_normal_method=ColorfieldSurfaceNormal(boundary_contact_threshold=0.05,
+                                                                                                   ideal_density_threshold=0.8,
+                                                                                                   interface_threshold=0.1))
 
 # sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(),
 #                                                      state_equation, fluid_smoothing_kernel,
