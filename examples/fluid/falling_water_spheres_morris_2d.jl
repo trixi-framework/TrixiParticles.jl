@@ -48,7 +48,6 @@ fluid_density_calculator = ContinuityDensity()
 nu = 0.005
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-# density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
 sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
@@ -65,7 +64,7 @@ sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      density_calculator=ContinuityDensity(),
                                      acceleration=(0.0, -gravity),
                                      reference_particle_spacing=fluid_particle_spacing,
-                                     surface_normal_method=ColorfieldSurfaceNormal())
+                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
 
 # ==========================================================================================
 # ==== Boundary
