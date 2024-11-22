@@ -22,45 +22,30 @@ function vtk2trixi(file, system_type)
         coordinates = coordinates[1:2, :]
     end
 
-    if system_type == "fluid"
+    # Define required fields based on system type
+    required_fields, density_key = system_type == "fluid" ?
+                                   (["density", "pressure", "velocity"], "density") :
+                                   (["hydrodynamic_density", "pressure"],
+                                    "hydrodynamic_density")
 
-        # Required fields
-        required_fields = ["density", "pressure", "velocity"] #, "mass"]
-        missing_fields = [field for field in required_fields if field ∉ keys(point_data)]
-
-        # Throw an error if any required field is missing
-        if !isempty(missing_fields)
-            throw(ArgumentError("The following required fields are missing in the VTK file: $(missing_fields)"))
-        end
-
-        # Retrieve required field
-        density = get_data(point_data["density"])
-        pressure = get_data(point_data["pressure"])
-        velocity = get_data(point_data["velocity"])
-        # TODO: Read out mass correctly as soon as mass is written out in vtu-file by Trixi
-
-        return InitialCondition(; coordinates, velocity, mass=ones(size(coordinates, 2)),
-                                density,
-                                pressure)
-
-    else
-        # Required fields
-        required_fields = ["hydrodynamic_density", "pressure"] #, "mass"]
-        missing_fields = [field for field in required_fields if field ∉ keys(point_data)]
-
-        # Throw an error if any required field is missing
-        if !isempty(missing_fields)
-            throw(ArgumentError("The following required fields are missing in the VTK file: $(missing_fields)"))
-        end
-
-        # Retrieve required field
-        hydrodynamic_density = get_data(point_data["hydrodynamic_density"])
-        pressure = get_data(point_data["pressure"])
-        # TODO: Read out mass correctly as soon as mass is written out in vtu-file by Trixi
-
-        return InitialCondition(; coordinates, velocity=zeros(size(coordinates)),
-                                mass=ones(size(coordinates, 2)),
-                                density=hydrodynamic_density,
-                                pressure)
+    # Check for missing fields
+    missing_fields = [field for field in required_fields if field ∉ keys(point_data)]
+    if !isempty(missing_fields)
+        throw(ArgumentError("The following required fields are missing in the VTK file: $(missing_fields)"))
     end
+
+    # Retrieve fields
+    density = get_data(point_data[density_key])
+    pressure = get_data(point_data["pressure"])
+    velocity = system_type == "fluid" ? get_data(point_data["velocity"]) :
+               zeros(size(coordinates))
+
+    # TODO: Read out mass correctly as soon as mass is written out in vtu-file by Trixi
+
+    return InitialCondition(
+                            ; coordinates,
+                            velocity,
+                            mass=ones(size(coordinates, 2)),
+                            density,
+                            pressure)
 end
