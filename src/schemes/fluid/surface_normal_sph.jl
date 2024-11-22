@@ -1,17 +1,76 @@
 # TODO: handle corners with StaticNormals
 # TODO: add method that determines local static normals
 # TODO: add method for TLSPH
+@doc raw"""
+    StaticNormals(normal_vectors::Tuple{Vararg{ELTYPE, NDIMS}}) where {NDIMS, ELTYPE <: Real}
+
+Represents a unit normal vector and its corresponding unit tangential vector in
+2D or 3D space. The input normal vector is normalized to ensure it has a length
+of 1, and the tangential vector is computed as a vector perpendicular to the
+normal vector.
+
+# Keywords
+- `normal_vectors::Tuple{Vararg{ELTYPE, NDIMS}}`: A tuple representing the normal
+  vector in NDIMS-dimensional space. It will be normalized internally.
+
+# Tangential Vector Calculation
+- In 2D: The tangential vector is calculated as `[-n[2], n[1]]`, ensuring
+  it is perpendicular to the normal vector.
+- In 3D: The tangential vector is computed using a cross product with a
+  reference vector that is not parallel to the normal vector. The result is
+  normalized to ensure unit length.
+
+# Errors
+- Throws `ArgumentError` if the provided normal vector has a length of 0.
+
+# Example
+```julia
+sn2d = StaticNormals((3.0, 4.0))  # Normalizes to (0.6, 0.8) and computes tangential (-0.8, 0.6)
+sn3d = StaticNormals((0.0, 1.0, 0.0))  # Computes normal and tangential vectors in 3D
+```
+"""
 struct StaticNormals{NDIMS, ELTYPE <: Real}
     normal_vectors :: SVector{NDIMS, ELTYPE}
+    tangential_vectors :: SVector{NDIMS, ELTYPE}
 end
 
 function StaticNormals(normal_vectors::Tuple{Vararg{ELTYPE, NDIMS}}) where {NDIMS, ELTYPE <: Real}
-    norm_value = norm(normal_vectors)
+    norm_value = sqrt(dot(normal_vectors, normal_vectors))
     if norm_value == 0
         throw(ArgumentError("Normal vector cannot be zero-length."))
     end
     normalized_vector = SVector{NDIMS, ELTYPE}(normal_vectors) / norm_value
-    return StaticNormals(normalized_vector)
+    tangential_vector = calculate_tangential_vector(normalized_vector)
+    return StaticNormals(normalized_vector, tangential_vector)
+end
+
+# Helper function to calculate tangential vector
+function calculate_tangential_vector(n::SVector{2, ELTYPE}) where ELTYPE
+    # Perpendicular vector in 2D
+    return SVector(-n[2], n[1])
+end
+
+function calculate_tangential_vector(n::SVector{3, ELTYPE}) where ELTYPE
+    # Cross product with a reference vector to get a perpendicular vector in 3D
+    ref = abs(n[1]) < abs(n[2]) ? SVector(1.0, 0.0, 0.0) : SVector(0.0, 1.0, 0.0)
+    t = cross(ref, n)  # Perpendicular to 'n'
+    t_norm = norm(t)
+    if t_norm == 0
+        throw(ArgumentError("Cannot compute tangential vector; invalid input normal vector."))
+    end
+    return t / t_norm  # Normalize
+end
+
+function wall_tangential(particle_system::BoundarySystem, particle)
+    wall_tangential(particle_system, particle, particle_system.surface_normal_method)
+end
+
+function wall_tangential(particle_system::BoundarySystem, particle, surface_normal_method)
+    return zero(SVector{ndims(particle_system), eltype(particle_system)})
+end
+
+function wall_tangential(::BoundarySystem, particle, surface_normal_method::StaticNormals)
+    return surface_normal_method.tangential_vectors
 end
 
 @doc raw"""
