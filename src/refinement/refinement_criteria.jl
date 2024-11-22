@@ -59,8 +59,8 @@ end
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
+        dp_particle = particle_spacing(particle_system, particle)
         dp_neighbor = particle_spacing(neighbor_system, neighbor)
-        dp_particle = smoothing_length[particle] / smoothing_length_factor
 
         smoothing_length[particle] = smoothing_length_factor * min(dp_neighbor, dp_particle)
     end

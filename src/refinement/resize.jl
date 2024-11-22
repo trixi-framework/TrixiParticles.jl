@@ -138,7 +138,7 @@ function Base.deleteat!(system::FluidSystem, refinement, v, u)
     delete_counter = 0
 
     for particle in eachparticle(system)
-        if !iszero(delete_candidates[particle])
+        if delete_candidates[particle]
             # swap particles (keep -> delete)
             dump_id = nparticles(system) - delete_counter
 
@@ -148,9 +148,8 @@ function Base.deleteat!(system::FluidSystem, refinement, v, u)
             mass_keep = hydrodynamic_mass(system, dump_id)
             density_keep = particle_density(v, system, dump_id)
             pressure_keep = particle_pressure(v, system, dump_id)
-            #TODO
-            # smoothing_length_keep = smoothing_length(system, dump_id)
-            # system.cache.smoothing_length[particle] = smoothing_length_keep
+
+            system.cache.smoothing_length[particle] = smoothing_length(system, dump_id)
 
             system.mass[particle] = mass_keep
 

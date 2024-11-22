@@ -150,7 +150,7 @@ function upate_smoothing_lengths!(system::FluidSystem, refinement, semi, u)
 
         PointNeighbors.foreach_neighbor(system_coords, system_coords, neighborhood_search,
                                         particle) do particle, neighbor, pos_diff, distance
-            mass_avg += system.mass[neighbor]
+            mass_avg += hydrodynamic_mass(system, neighbor)
 
             counter_neighbors += 1
         end
