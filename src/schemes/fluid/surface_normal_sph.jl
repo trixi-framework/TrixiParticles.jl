@@ -30,11 +30,12 @@ sn3d = StaticNormals((0.0, 1.0, 0.0))  # Computes normal and tangential vectors 
 ```
 """
 struct StaticNormals{NDIMS, ELTYPE <: Real}
-    normal_vectors :: SVector{NDIMS, ELTYPE}
-    tangential_vectors :: SVector{NDIMS, ELTYPE}
+    normal_vectors::SVector{NDIMS, ELTYPE}
+    tangential_vectors::SVector{NDIMS, ELTYPE}
 end
 
-function StaticNormals(normal_vectors::Tuple{Vararg{ELTYPE, NDIMS}}) where {NDIMS, ELTYPE <: Real}
+function StaticNormals(normal_vectors::Tuple{Vararg{ELTYPE, NDIMS}}) where {NDIMS,
+                                                                            ELTYPE <: Real}
     norm_value = sqrt(dot(normal_vectors, normal_vectors))
     if norm_value == 0
         throw(ArgumentError("Normal vector cannot be zero-length."))
@@ -45,12 +46,12 @@ function StaticNormals(normal_vectors::Tuple{Vararg{ELTYPE, NDIMS}}) where {NDIM
 end
 
 # Helper function to calculate tangential vector
-function calculate_tangential_vector(n::SVector{2, ELTYPE}) where ELTYPE
+function calculate_tangential_vector(n::SVector{2, ELTYPE}) where {ELTYPE}
     # Perpendicular vector in 2D
     return SVector(-n[2], n[1])
 end
 
-function calculate_tangential_vector(n::SVector{3, ELTYPE}) where ELTYPE
+function calculate_tangential_vector(n::SVector{3, ELTYPE}) where {ELTYPE}
     # Cross product with a reference vector to get a perpendicular vector in 3D
     ref = abs(n[1]) < abs(n[2]) ? SVector(1.0, 0.0, 0.0) : SVector(0.0, 1.0, 0.0)
     t = cross(ref, n)  # Perpendicular to 'n'
@@ -111,11 +112,13 @@ end
     return surface_normal(particle_system::BoundarySystem, particle, surface_normal_method)
 end
 
-@inline function surface_normal(particle_system::BoundarySystem, particle, surface_normal_method)
+@inline function surface_normal(particle_system::BoundarySystem, particle,
+                                surface_normal_method)
     return zero(SVector{ndims(particle_system), eltype(particle_system)})
 end
 
-@inline function surface_normal(::BoundarySystem, particle, surface_normal_method::StaticNormals)
+@inline function surface_normal(::BoundarySystem, particle,
+                                surface_normal_method::StaticNormals)
     return surface_normal_method.normal_vectors
 end
 

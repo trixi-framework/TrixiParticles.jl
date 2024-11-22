@@ -435,11 +435,10 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
 
     if !(system.surface_normal_method isa Nothing)
         vtk["normal"] = [surface_normal(system, particle)
-        for particle in eachparticle(system)]
+                         for particle in eachparticle(system)]
         vtk["tangential"] = [wall_tangential(system, particle)
-        for particle in eachparticle(system)]
+                             for particle in eachparticle(system)]
     end
-
 end
 
 function write2vtk!(vtk, v, u, t, system::BoundaryDEMSystem; write_meta_data=true)
