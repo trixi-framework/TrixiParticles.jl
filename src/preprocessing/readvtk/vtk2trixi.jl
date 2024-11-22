@@ -1,32 +1,51 @@
 """
     Convert data from VTK-file to InitialCondition 
 """
-# TODO: write documentation
-# TODO: write tests
+# TODO: Write documentation
+# TODO: Write tests
 
-function vtk2trixi(file)
+function vtk2trixi(file, system_type)
+    # Validate the system type
+    if !(system_type in ["fluid", "boundary"])
+        throw(ArgumentError("Invalid system_type argument. Must be 'fluid' or 'boundary'."))
+    end
+
     vtk_file = VTKFile(file)
 
-    # retrieve point data fields (e.g., pressure, velocity, ...)
-    vtk_point_data = get_point_data(vtk_file)
+    # Retrieve point data fields (e.g., pressure, velocity, ...)
+    point_data = get_point_data(vtk_file)
 
-    # create field data arrays
-    density = get_data(vtk_point_data["density"])
+    coordinates = get_points(vtk_file)
+    # Check for 2D or 3D coordinates
+    if all(coordinates[3, :] .== 0)
+        # If the third row is all zeros, reduce to 2xN
+        coordinates = coordinates[1:2, :]
+    end
 
-    pressure = get_data(vtk_point_data["pressure"])
+    # Define required fields based on system type
+    required_fields, density_key = system_type == "fluid" ?
+                                   (["density", "pressure", "velocity"], "density") :
+                                   (["hydrodynamic_density", "pressure"],
+                                    "hydrodynamic_density")
 
-    velocity = get_data(vtk_point_data["velocity"])
+    # Check for missing fields
+    missing_fields = [field for field in required_fields if field ∉ keys(point_data)]
+    if !isempty(missing_fields)
+        throw(ArgumentError("The following required fields are missing in the VTK file: $(missing_fields)"))
+    end
 
-    # retrieve particle coordinates
-    # point coordinates are stored in a 3xN matrix, but velocity can be stored either as 3xN or 2xN matrix
-    coordinates = get_points(vtk_file)[axes(velocity, 1), :]
+    # Retrieve fields
+    density = get_data(point_data[density_key])
+    pressure = get_data(point_data["pressure"])
+    velocity = system_type == "fluid" ? get_data(point_data["velocity"]) :
+               zeros(size(coordinates))
 
-    mass = ones(size(coordinates, 2))
-    # TODO: read out mass as soon as mass is written out in vtu-file by Trixi
+    # TODO: Read out mass correctly as soon as mass is written out in vtu-file by Trixi
 
-    # TODO: get custom_quantities from vtk file
-
-    # TODO: include the cases, that flieds like velocity are not stored in the vtk file
-
-    return InitialCondition(; coordinates, velocity, mass, density, pressure)
+    return InitialCondition(
+                            ; coordinates,
+                            velocity,
+                            mass=ones(size(coordinates, 2)),
+                            density,
+                            pressure)
 end

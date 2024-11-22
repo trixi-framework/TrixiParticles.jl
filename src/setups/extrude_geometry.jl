@@ -177,8 +177,8 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph=nothing)
     edge2 = point3_ - point1_
 
     # Check if the points are collinear
-    if norm(cross(edge1, edge2)) == 0
-        throw(ArgumentError("the points must not be collinear"))
+    if isapprox(norm(cross(edge1, edge2)), 0.0; atol=eps())
+        throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
     end
 
     # Determine the number of points along each edge
