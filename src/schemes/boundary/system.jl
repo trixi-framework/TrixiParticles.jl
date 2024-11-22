@@ -9,9 +9,19 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `boundary_model`: Boundary model (see [Boundary Models](@ref boundary_models))
 
 # Keyword Arguments
-- `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
-- `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
-   Note: currently it is assumed that all fluids have the same adhesion coefficient.
+- `movement`             : For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
+- `adhesion_coefficient` : Coefficient specifying the adhesion of a fluid to the surface.
+                           Note: currently it is assumed that all fluids have the same adhesion coefficient.
+- `static_contact_angle` : The static contact or also sometimes equilibrium contact angle is
+                           used by the wetting model in connection with a surface tension model
+                           to model the correct contact mechanics between a fluid and a solid.
+                           The contact angle should be provided in degrees.
+                           Note: currently it is assumed that all fluids have the same adhesion coefficient.
+- `surface_normal_method`: The surface normal method is used to calculate the surface normals for the boundary.
+                           Currently available are the following models: `StaticNormals`
+- `color`                : The color is used to differentiate different phases/materials/fluids.
+                           Typically all boundaries should have the same value. (By default boundaries::color=0 fluids::color=1)
+
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM, SRFN,
                          CA} <: BoundarySystem{NDIMS, IC}
@@ -59,9 +69,16 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
         movement.moving_particles .= collect(1:nparticles(initial_condition))
     end
 
+    if static_contact_angle < 0 || static_contact_angle > 180
+        throw(ArgumentError("The `static_contact_angle` must be between 0 and 180."))
+    end
+
+    # convert degrees to radians
+    static_contact_rad = static_contact_angle * pi / 180
+
     # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, static_contact_angle,
+                             ismoving, adhesion_coefficient, static_contact_rad,
                              surface_normal_method, color_value, cache, nothing)
 end
 
