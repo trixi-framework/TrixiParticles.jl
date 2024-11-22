@@ -56,7 +56,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     viscosity                         :: V
     nu_edac                           :: ELTYPE
     acceleration                      :: SVector{NDIMS, ELTYPE}
-    correction                        :: Nothing
+    correction                        :: COR
     pressure_acceleration_formulation :: PF
     transport_velocity                :: TV
     source_terms                      :: ST
@@ -73,6 +73,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
                                          alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
+                                         correction=nothing,
                                          source_terms=nothing, surface_tension=nothing,
                                          surface_normal_method=nothing, buffer_size=nothing,
                                          reference_particle_spacing=0.0, color_value=1)
@@ -104,6 +105,11 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
             throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
         end
 
+        if correction isa ShepardKernelCorrection &&
+           density_calculator isa ContinuityDensity
+            throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
+        end
+
         ideal_neighbor_count_ = 0
         if reference_particle_spacing > 0.0
             ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS),
@@ -115,7 +121,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
         pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                          density_calculator,
                                                                          NDIMS, ELTYPE,
-                                                                         nothing)
+                                                                         correction)
 
         nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
@@ -137,7 +143,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
                                            ideal_neighbor_count_,
                                            color_value, sound_speed, viscosity, nu_edac,
                                            acceleration_,
-                                           nothing, pressure_acceleration,
+                                           correction, pressure_acceleration,
                                            transport_velocity, source_terms,
                                            surface_tension, surface_normal_method, buffer,
                                            cache)
@@ -149,6 +155,7 @@ function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
 
     print(io, "EntropicallyDampedSPHSystem{", ndims(system), "}(")
     print(io, system.density_calculator)
+    print(io, ", ", system.correction)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
@@ -172,6 +179,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         end
         summary_line(io, "density calculator",
                      system.density_calculator |> typeof |> nameof)
+        summary_line(io, "correction method",
+                     system.correction |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity |> typeof |> nameof)
         summary_line(io, "ν₍EDAC₎", "≈ $(round(system.nu_edac; digits=3))")
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
