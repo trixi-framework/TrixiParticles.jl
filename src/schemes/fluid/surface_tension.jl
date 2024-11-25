@@ -74,8 +74,10 @@ end
 function create_cache_surface_tension(st::SurfaceTensionMorris, ELTYPE, NDIMS, nparticles)
     curvature = Array{ELTYPE, 1}(undef, nparticles)
     if st.contact_model isa Nothing
+        println("test2!!!!!!!!!!!!!!!!!!!!")
         return (; curvature)
     else
+        println("test3!!!!!!!!!!!!!!!!!!!!")
         return (;
                 create_cache_contact_model(st.contact_model, ELTYPE, NDIMS, nparticles)...,
                 curvature)
@@ -101,7 +103,7 @@ particle densities.
 - `surface_tension_coefficient=1.0`: A parameter to adjust the strength of surface tension
    forces, allowing fine-tuning to replicate physical behavior.
 """
-struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTension
+struct SurfaceTensionMomentumMorris{ELTYPE, CM} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
     contact_model::CM
 
@@ -292,16 +294,23 @@ The model enables the simulation of wetting phenomena, including dynamic contact
 angles and their influence on the system's dynamics, using physically-based
 parameters without introducing fitting coefficients.
 """
-struct HuberContactModel{ELTYPE} end
+struct HuberContactModel end
 
 function create_cache_contact_model(contact_model, ELTYPE, NDIMS, nparticles)
+    println("wronnnnnnnnnnnnnnnnnnnnnnnnng")
     return (;)
 end
 
 function create_cache_contact_model(::HuberContactModel, ELTYPE, NDIMS, nparticles)
+    println("test!!!!!!!!!!!!!!!!!!!!")
     d_hat = Array{ELTYPE}(undef, NDIMS, nparticles)
     delta_wns = Array{ELTYPE}(undef, nparticles)
     return (; d_hat, delta_wns)
+end
+
+@inline function contact_force(contact_model, particle_system, neighbor_system, particle,
+    neighbor, pos_diff, distance, rho_a, rho_b)
+    return zero(pos_diff)
 end
 
 @inline function contact_force(::HuberContactModel,
@@ -343,10 +352,10 @@ end
     cos_term = cos_static_contact_angle + dot_d_n
     f_wns_a = sigma * cos_term
 
-    return 2 * f_wns_a * dot_d_gradW * V_b * v_hat_particle
-end
 
-@inline function contact_force(surface_tension, particle_system, neighbor_system, particle,
-                               neighbor, pos_diff, distance, rho_a, rho_b)
+    println(2 * f_wns_a * dot_d_gradW * V_b * v_hat_particle)
+
     return zero(pos_diff)
+
+    #return 2 * f_wns_a * dot_d_gradW * V_b * v_hat_particle
 end

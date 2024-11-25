@@ -287,6 +287,12 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         if system.surface_tension isa SurfaceTensionMomentumMorris
             vtk["surface_stress_tensor"] = system.cache.stress_tensor
         end
+        if system.surface_tension isa SurfaceTensionMorris || system.surface_tension isa SurfaceTensionMomentumMorris
+            if !(system.surface_tension.contact_model isa Nothing)
+                vtk["d_hat"] = system.cache.d_hat
+                vtk["delta_wns"] = system.cache.delta_wns
+            end
+        end
     end
 
     if write_meta_data

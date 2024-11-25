@@ -490,7 +490,7 @@ function calc_wall_contact_values!(system::FluidSystem, neighbor_system::Boundar
 
         # Compute delta gradient (∇δ_{wn_b} = 0 for boundary particles)
         # Hence this is positive
-        delta_wns[particle] += 2 * V_b * delta_grad * dot_product
+        delta_wns[particle] += 2 * V_b *  dot_product
     end
 
     return system

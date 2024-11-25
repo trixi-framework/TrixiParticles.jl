@@ -5,8 +5,8 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.001
-
+# fluid_particle_spacing = 0.001
+fluid_particle_spacing = 0.002
 boundary_layers = 3
 spacing_ratio = 1
 
@@ -50,22 +50,42 @@ alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 # density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
-sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
+sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, state_equation,
+                                                     fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
-                                                     sound_speed, viscosity=viscosity,
-                                                     density_calculator=ContinuityDensity(),
+                                                     viscosity=viscosity,
+                                                     density_calculator=SummationDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      reference_particle_spacing=fluid_particle_spacing,
-                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728,
-                                                                                          contact_model=HuberContactModel))
+                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728, contact_model=HuberContactModel()),
+                                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
+                                                                                                   interface_threshold=0.001))
 
-sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
+sphere = WeaklyCompressibleSPHSystem(sphere2, state_equation, fluid_smoothing_kernel,
                                      fluid_smoothing_length,
-                                     sound_speed, viscosity=viscosity,
-                                     density_calculator=ContinuityDensity(),
+                                     viscosity=viscosity,
+                                     density_calculator=SummationDensity(),
                                      acceleration=(0.0, -gravity),
                                      reference_particle_spacing=fluid_particle_spacing,
-                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
+                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
+                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
+                                                                                   interface_threshold=0.001))
+
+# sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
+#                                                      fluid_smoothing_length,
+#                                                      sound_speed, viscosity=viscosity,
+#                                                      density_calculator=ContinuityDensity(),
+#                                                      acceleration=(0.0, -gravity),
+#                                                      reference_particle_spacing=fluid_particle_spacing,
+#                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728, contact_model=HuberContactModel()))
+
+# sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
+#                                      fluid_smoothing_length,
+#                                      sound_speed, viscosity=viscosity,
+#                                      density_calculator=ContinuityDensity(),
+#                                      acceleration=(0.0, -gravity),
+#                                      reference_particle_spacing=fluid_particle_spacing,
+#                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
 
 # ==========================================================================================
 # ==== Boundary
