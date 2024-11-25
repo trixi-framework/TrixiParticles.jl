@@ -1,7 +1,7 @@
 """
     SignedDistanceField(geometry, particle_spacing;
                         point_grid=nothing,
-                        max_signed_distance=4particle_spacing,
+                        max_signed_distance=4 * particle_spacing,
                         use_for_boundary_packing=false)
 
 Generate particles along a surface of a complex geometry holding the signed distances and normals
@@ -12,12 +12,12 @@ to this surface.
 - `particle_spacing`: Spacing between the particles.
 
 # Keywords
-- `max_signed_distance`: Maximum signed distance to be stored. That is, only particles with a
-                         distance of `abs(max_signed_distance)` to the surface of the shape
-                         will be sampled.
-- `point_grid`: Point grid in which the signed distance field is computed.
-                When set to `nothing` (default), the bounding box of the shape will be
-                sampled with a cartesian point grid.
+- `max_signed_distance`:      Maximum signed distance to be stored. That is, only particles with a
+                              distance of `abs(max_signed_distance)` to the surface of the shape
+                              will be sampled.
+- `points`:                   Points on which the signed distance is computed.
+                              When set to `nothing` (default), the bounding box of the shape will be
+                              sampled with a uniform grid of points.
 - `use_for_boundary_packing`: Set to `true` if [`SignedDistanceField`] is used to pack
                               a boundary [`ParticlePackingSystem`](@ref).
 """
@@ -29,7 +29,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
     boundary_packing    :: Bool
 
     function SignedDistanceField(geometry, particle_spacing;
-                                 point_grid=nothing,
+                                 points=nothing,
                                  max_signed_distance=4 * particle_spacing,
                                  use_for_boundary_packing=false)
         NDIMS = ndims(geometry)
@@ -37,13 +37,15 @@ struct SignedDistanceField{NDIMS, ELTYPE}
 
         sdf_factor = use_for_boundary_packing ? 2 : 1
 
-        nhs = FaceNeighborhoodSearch{NDIMS}(sdf_factor * max_signed_distance)
+        search_radius = sdf_factor * max_signed_distance
+
+        nhs = FaceNeighborhoodSearch{NDIMS}(search_radius)
 
         initialize!(nhs, geometry)
 
-        if isnothing(point_grid)
-            min_corner = geometry.min_corner .- sdf_factor * max_signed_distance
-            max_corner = geometry.max_corner .+ sdf_factor * max_signed_distance
+        if isnothing(points)
+            min_corner = geometry.min_corner .- search_radius
+            max_corner = geometry.max_corner .+ search_radius
 
             n_particles_per_dimension = Tuple(ceil.(Int,
                                                     (max_corner .- min_corner) ./
@@ -52,12 +54,12 @@ struct SignedDistanceField{NDIMS, ELTYPE}
             grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                             min_corner; tlsph=true)
 
-            point_grid = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
+            points = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
         end
 
-        positions = [SVector(position) for position in point_grid]
-        normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(point_grid))
-        distances = fill(Inf, length(point_grid))
+        positions = [SVector(position) for position in points]
+        normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(points))
+        distances = fill(Inf, length(points))
 
         calculate_signed_distances!(positions, distances, normals,
                                     geometry, sdf_factor, max_signed_distance, nhs)
@@ -102,27 +104,21 @@ function calculate_signed_distances!(positions, distances, normals,
         point_coords = positions[point]
 
         for face in eachneighbor(point_coords, nhs)
-            # `sdf = (sign, distance, normal)`
-            sdf = signed_point_face_distance(point_coords, boundary, face)
+            sign_bit, distance, normal = signed_point_face_distance(point_coords, boundary,
+                                                                    face)
 
-            if sdf[2] < distances[point]^2
-                distances[point] = sdf[1] ? -sqrt(sdf[2]) : sqrt(sdf[2])
-                normals[point] = sdf[3]
+            if distance < distances[point]^2
+                # Found a face closer than the previous closest face
+                distances[point] = sign_bit * sqrt(distance)
+                normals[point] = normal
             end
         end
     end
 
-    # Distances to remove:
-    cond_1 = distances .== Inf
-
-    # Maximum inner distances
-    cond_2 = distances .< -max_signed_distance
-
     # Keep "larger" signed distance field outside `boundary` to guarantee
     # compact support for boundary particles.
-    cond_3 = distances .> sdf_factor * max_signed_distance
-
-    delete_indices = (cond_1 .|| cond_2 .|| cond_3)
+    keep = -max_signed_distance .< distances .< sdf_factor * max_signed_distance
+    delete_indices = .!keep
 
     deleteat!(distances, delete_indices)
     deleteat!(normals, delete_indices)
