@@ -56,7 +56,8 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_ke
                                                      density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      reference_particle_spacing=fluid_particle_spacing,
-                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
+                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728,
+                                                                                          contact_model=HuberContactModel))
 
 sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      fluid_smoothing_length,
@@ -64,8 +65,7 @@ sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      density_calculator=ContinuityDensity(),
                                      acceleration=(0.0, -gravity),
                                      reference_particle_spacing=fluid_particle_spacing,
-                                     surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
-                                                                                   fluid_smoothing_length))
+                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
 
 # ==========================================================================================
 # ==== Boundary
@@ -77,7 +77,9 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              fluid_smoothing_kernel, fluid_smoothing_length,
                                              viscosity=ViscosityAdami(nu=wall_viscosity))
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
+                                    surface_normal_method=StaticNormals((0.0, 1.0)),
+                                    static_contact_angle=90)
 
 # ==========================================================================================
 # ==== Simulation

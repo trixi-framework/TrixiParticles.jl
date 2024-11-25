@@ -57,11 +57,13 @@ surface tension forces, it does not conserve momentum explicitly.
 - `surface_tension_coefficient=1.0`: Adjusts the magnitude of the surface tension
    forces, enabling tuning of fluid surface behaviors in simulations.
 """
-struct SurfaceTensionMorris{ELTYPE} <: SurfaceTension
-    surface_tension_coefficient::ELTYPE
+struct SurfaceTensionMorris{ELTYPE, CM} <: SurfaceTension
+    surface_tension_coefficient :: ELTYPE
+    contact_model               :: CM
 
-    function SurfaceTensionMorris(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    function SurfaceTensionMorris(; surface_tension_coefficient=1.0, contact_model=nothing)
+        new{typeof(surface_tension_coefficient), typeof(contact_model)}(surface_tension_coefficient,
+                                                                        contact_model)
     end
 end
 
@@ -69,9 +71,15 @@ function create_cache_surface_tension(surface_tension, ELTYPE, NDIMS, nparticles
     return (;)
 end
 
-function create_cache_surface_tension(::SurfaceTensionMorris, ELTYPE, NDIMS, nparticles)
+function create_cache_surface_tension(st::SurfaceTensionMorris, ELTYPE, NDIMS, nparticles)
     curvature = Array{ELTYPE, 1}(undef, nparticles)
-    return (; curvature)
+    if st.contact_model isa Nothing
+        return (; curvature)
+    else
+        return (;
+                create_cache_contact_model(st.contact_model, ELTYPE, NDIMS, nparticles)...,
+                curvature)
+    end
 end
 
 @doc raw"""
@@ -95,9 +103,12 @@ particle densities.
 """
 struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
+    contact_model::CM
 
-    function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0,
+                                          contact_model=nothing)
+        new{typeof(surface_tension_coefficient), typeof(contact_model)}(surface_tension_coefficient,
+                                                                        contact_model)
     end
 end
 
@@ -106,7 +117,14 @@ function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, ND
     # Allocate stress tensor for each particle: NDIMS x NDIMS x nparticles
     delta_s = Array{ELTYPE, 1}(undef, nparticles)
     stress_tensor = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-    return (; stress_tensor, delta_s)
+
+    if st.contact_model isa Nothing
+        return (; stress_tensor, delta_s)
+    else
+        return (;
+                create_cache_contact_model(st.contact_model, ELTYPE, NDIMS, nparticles)...,
+                delta_s, stress_tensor)
+    end
 end
 
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
@@ -276,13 +294,59 @@ parameters without introducing fitting coefficients.
 """
 struct HuberContactModel{ELTYPE} end
 
-@inline function contact_force(contact_model::HuberContactModel,
+function create_cache_contact_model(contact_model, ELTYPE, NDIMS, nparticles)
+    return (;)
+end
+
+function create_cache_contact_model(::HuberContactModel, ELTYPE, NDIMS, nparticles)
+    d_hat = Array{ELTYPE}(undef, NDIMS, nparticles)
+    delta_wns = Array{ELTYPE}(undef, nparticles)
+    return (; d_hat, delta_wns)
+end
+
+@inline function contact_force(::HuberContactModel,
                                particle_system::FluidSystem,
                                neighbor_system::BoundarySystem, particle, neighbor,
-                               pos_diff, distance)
+                               pos_diff, distance, rho_a, rho_b)
+    # Unpack necessary variables
+    cache = particle_system.cache
+    NDIMS = ndims(particle_system)
+    d_hat_particle = @view cache.d_hat[:, particle]
+    n_hat_particle = surface_normal(particle_system, particle)
+    v_hat_particle = tangential_vector(particle_system, particle)
+
+    # Volume of neighbor particle
+    # For boundary particles, V_b can be assumed to be a constant or set to 1.0
+    # If boundary particles have mass and density, compute V_b accordingly
+    V_b = hydrodynamic_mass(neighbor_system, neighbor) / rho_b
+
+    # Gradient of kernel
+    grad_W_ab = smoothing_kernel_grad(particle_system, pos_diff, distance)
+
+    # Compute dot product between d_hat and grad_W_ab
+    dot_d_gradW = 0.0
+    for i in 1:NDIMS
+        dot_d_gradW += d_hat_particle[i] * grad_W_ab[i]
+    end
+
+    sigma = particle_system.surface_tension.surface_tension_coefficient
+    static_contact_angle = neighbor_system.static_contact_angle
+    cos_static_contact_angle = cos(static_contact_angle)
+
+    # Compute dot product between d_hat and n_hat
+    dot_d_n = 0.0
+    for i in 1:NDIMS
+        dot_d_n += d_hat_particle[i] * n_hat_particle[i]
+    end
+
+    # Compute f_{wns_a}
+    cos_term = cos_static_contact_angle + dot_d_n
+    f_wns_a = sigma * cos_term
+
+    return 2 * f_wns_a * dot_d_gradW * V_b * v_hat_particle
 end
 
 @inline function contact_force(surface_tension, particle_system, neighbor_system, particle,
-                               neighbor, pos_diff, distance)
+                               neighbor, pos_diff, distance, rho_a, rho_b)
     return zero(pos_diff)
 end

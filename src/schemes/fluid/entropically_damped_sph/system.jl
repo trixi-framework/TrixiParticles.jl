@@ -69,7 +69,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV, C
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
                                          pressure_acceleration=inter_particle_averaged_pressure,
-                                         density_calculator=SummationDensity(),
+                                         density_calculator=ContinuityDensity(),
                                          transport_velocity=nothing,
                                          alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
@@ -272,6 +272,8 @@ function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_od
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
     compute_surface_delta_function!(system, system.surface_tension)
+    compute_wall_contact_values!(system, system.surface_tension.contact_model, v, u, v_ode,
+                                 u_ode, semi, t)
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;

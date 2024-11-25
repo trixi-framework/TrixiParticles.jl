@@ -71,9 +71,9 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function WeaklyCompressibleSPHSystem(initial_condition,
-                                     density_calculator, state_equation,
+function WeaklyCompressibleSPHSystem(initial_condition, state_equation,
                                      smoothing_kernel, smoothing_length;
+                                     density_calculator=ContinuityDensity(),
                                      pressure_acceleration=nothing,
                                      buffer_size=nothing,
                                      viscosity=nothing, density_diffusion=nothing,
@@ -247,6 +247,8 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     compute_pressure!(system, v)
     compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
     compute_surface_delta_function!(system, surface_tension)
+    compute_wall_contact_values!(system, system.surface_tension.contact_model, v,
+                                 u, v_ode, u_ode, semi, t)
     return system
 end
 

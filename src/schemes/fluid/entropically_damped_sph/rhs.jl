@@ -59,12 +59,15 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)
 
-        #dv_contact_force = contact_force()
+        dv_contact_force = contact_force(surface_tension_a.contact_model,
+                                         particle_system, neighbor_system, particle,
+                                         neighbor,
+                                         pos_diff, distance, rho_a, rho_b)
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] +
                                          dv_convection[i] + dv_surface_tension[i]
-            dv_adhesion[i] #+ dv_contact_force[i]
+            dv_adhesion[i] + dv_contact_force[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -

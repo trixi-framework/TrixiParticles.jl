@@ -7,7 +7,7 @@ using OrdinaryDiffEq
 # ==== Resolution
 fluid_particle_spacing = 0.001
 
-boundary_layers = 3
+boundary_layers = 4
 spacing_ratio = 1
 
 # ==========================================================================================
@@ -43,28 +43,33 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 fluid_smoothing_length = 3.5 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
-fluid_density_calculator = ContinuityDensity()
-
 nu = 0.005
-alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
-viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+viscosity = ViscosityMorris(nu=nu)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=1)
 
-sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
+# TODO: sinks into wall with EDAC and MixedKernelGradientCorrection
+sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, state_equation,
+                                                     fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
-                                                     sound_speed, viscosity=viscosity,
-                                                     density_calculator=ContinuityDensity(),
+                                                     viscosity=viscosity,
+                                                     density_calculator=SummationDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      reference_particle_spacing=fluid_particle_spacing,
                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
-                                                     correction=MixedKernelGradientCorrection())
+                                                     correction=MixedKernelGradientCorrection(),
+                                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
+                                                                                                   interface_threshold=0.001))
 
-sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
+sphere = WeaklyCompressibleSPHSystem(sphere2, state_equation, fluid_smoothing_kernel,
                                      fluid_smoothing_length,
-                                     sound_speed, viscosity=viscosity,
-                                     density_calculator=ContinuityDensity(),
+                                     viscosity=viscosity,
+                                     density_calculator=SummationDensity(),
                                      acceleration=(0.0, -gravity),
                                      reference_particle_spacing=fluid_particle_spacing,
-                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
+                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
+                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
+                                                                                   interface_threshold=0.001))
 
 # ==========================================================================================
 # ==== Boundary
@@ -74,9 +79,11 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=wall_viscosity))
+                                             viscosity=ViscosityAdami(nu=wall_viscosity),
+                                             correction=MixedKernelGradientCorrection())
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
+                                    surface_normal_method=StaticNormals((0.0, 1.0)))
 
 # ==========================================================================================
 # ==== Simulation
@@ -91,7 +98,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-7, # Default abstol is 1e-6
+            abstol=1e-6, # Default abstol is 1e-6
             reltol=1e-4, # Default reltol is 1e-3
             dt=1e-6,
             save_everystep=false, callback=callbacks);
