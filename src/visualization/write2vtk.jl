@@ -123,7 +123,7 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         # Store particle index
         vtk["index"] = active_particles(system)
         vtk["time"] = t
-        vtk["ndims"] = ndims(system)
+        vtk["ndmis"] = ndims(system)
 
         if write_meta_data
             vtk["solver_version"] = git_hash

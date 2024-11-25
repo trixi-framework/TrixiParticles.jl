@@ -9,26 +9,18 @@ function vtk2trixi(file; iter=0, input_directory="out", prefix="")
     # Retrieve point data fields (e.g., pressure, velocity, ...)
     point_data = get_point_data(vtk_file)
     meta_data = get_field_data(vtk_file)
-    # TODO: Shapes created directly with write2vtk do not have 'meta_data'. Add this feature
 
+    # Meta data only written out in simulations
     NDIMS = get_data(meta_data["ndims"])
     coordinates = get_points(vtk_file)[1:NDIMS[1], :]
 
-    # Retrieve fields 
+    # Retrieve fields
+    pressure = get_data(point_data["pressure"])
+
     density = try
         get_data(point_data["density"])
     catch
-        try
-            get_data(point_data["hydrodynamic_density"])
-        catch
-            zeros(size(coordinates, 2))
-        end
-    end
-
-    pressure = try
-        get_data(point_data["pressure"])
-    catch
-        zeros(size(coordinates, 2))
+        get_data(point_data["hydrodynamic_density"])
     end
 
     velocity = try
@@ -37,7 +29,12 @@ function vtk2trixi(file; iter=0, input_directory="out", prefix="")
         try
             get_data(point_data["initial_velocity"])
         catch
-            zeros(size(coordinates))
+            try
+                get_data(point_data["wall_velocity"])
+            catch
+                # Case is only used for 'boundary_systems' in simulations where velocity is not written out
+                zeros(size(coordinates))
+            end
         end
     end
 
