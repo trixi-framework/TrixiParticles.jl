@@ -8,14 +8,10 @@ function vtk2trixi(file; iter=0, input_directory="out", prefix="")
 
     # Retrieve point data fields (e.g., pressure, velocity, ...)
     point_data = get_point_data(vtk_file)
-    meta_data = get_field_data(vtk_file)
-
-    # Meta data only written out in simulations
-    NDIMS = get_data(meta_data["ndims"])
-    coordinates = get_points(vtk_file)[1:NDIMS[1], :]
 
     # Retrieve fields
     pressure = get_data(point_data["pressure"])
+    # mass = get_data(point_data["mass"]) # TODO: Read out mass correctly as soon as mass is written out in vtu-file by Trixi
 
     density = try
         get_data(point_data["density"])
@@ -27,28 +23,20 @@ function vtk2trixi(file; iter=0, input_directory="out", prefix="")
         get_data(point_data["velocity"])
     catch
         try
-            get_data(point_data["initial_velocity"])
+            get_data(point_data["wall_velocity"])
         catch
-            try
-                get_data(point_data["wall_velocity"])
-            catch
-                # Case is only used for 'boundary_systems' in simulations where velocity is not written out
-                zeros(size(coordinates))
-            end
+            get_data(point_data["initial_velocity"])
         end
     end
 
-    # TODO: Read out mass correctly as soon as mass is written out in vtu-file by Trixi
-    # mass = try
-    #     get_data(point_data["mass"])
-    # catch
-    #     zeros(size(coordinates, 2))
-    # end
+    # Coordinates are stored as a 3xN array
+    # Adjust the dimension of coordinates to match the velocity field
+    coordinates = get_points(vtk_file)[axes(velocity, 1), :]
 
     return InitialCondition(
                             ; coordinates,
                             velocity,
-                            mass=ones(size(coordinates, 2)),
+                            mass=zeros(size(coordinates, 2)),
                             density,
                             pressure)
 end
