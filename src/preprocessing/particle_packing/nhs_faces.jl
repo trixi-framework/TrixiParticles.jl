@@ -95,10 +95,10 @@ function cell_intersection(face, geometry, cell,
                            neighborhood_search::FaceNeighborhoodSearch{NDIMS}) where {NDIMS}
     (; cell_size) = neighborhood_search
 
-    vertice_list = face_vertices(face, geometry)
+    vertices_list = face_vertices(face, geometry)
 
     # Check if one of the vertices is inside cell
-    for v in vertice_list
+    for v in vertices_list
         cell == PointNeighbors.cell_coords(v, neighborhood_search) && return true
     end
 
@@ -106,19 +106,19 @@ function cell_intersection(face, geometry, cell,
     min_corner = SVector(cell .* cell_size...)
     max_corner = min_corner + SVector(cell_size...)
 
-    ray_direction = vertice_list[2] - vertice_list[1]
-    ray_origin = vertice_list[1]
+    ray_direction = vertices_list[2] - vertices_list[1]
+    ray_origin = vertices_list[1]
 
     ray_intersection(min_corner, max_corner, ray_origin, ray_direction) && return true
 
     if NDIMS == 3
-        ray_direction = vertice_list[2] - vertice_list[3]
-        ray_origin = vertice_list[3]
+        ray_direction = vertices_list[2] - vertices_list[3]
+        ray_origin = vertices_list[3]
 
         ray_intersection(min_corner, max_corner, ray_origin, ray_direction) && return true
 
-        ray_direction = vertice_list[3] - vertice_list[1]
-        ray_origin = vertice_list[1]
+        ray_direction = vertices_list[3] - vertices_list[1]
+        ray_origin = vertices_list[1]
 
         ray_intersection(min_corner, max_corner, ray_origin, ray_direction) && return true
 

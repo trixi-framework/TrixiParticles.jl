@@ -291,8 +291,8 @@ end
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
 function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
-                          max_particle_distance=0.25 *
-                                                system.initial_condition.particle_spacing)
+                          max_particle_distance=system.initial_condition.particle_spacing /
+                                                4)
     ic = system.initial_condition
 
     v_ode, u_ode = sol.u[end].x
