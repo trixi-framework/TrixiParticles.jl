@@ -57,7 +57,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
             points = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
         end
 
-        positions = [SVector(position) for position in points]
+        positions = copy(points)
         normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(points))
         distances = fill(Inf, length(points))
 
@@ -109,7 +109,7 @@ function calculate_signed_distances!(positions, distances, normals,
 
             if distance < distances[point]^2
                 # Found a face closer than the previous closest face
-                distances[point] = sign_bit * sqrt(distance)
+                distances[point] = sign_bit ? -sqrt(distance) : sqrt(distance)
                 normals[point] = normal
             end
         end
