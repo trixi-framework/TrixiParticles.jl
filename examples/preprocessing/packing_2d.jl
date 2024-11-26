@@ -6,7 +6,6 @@ file = joinpath("examples", "preprocessing", "data", filename * ".asc")
 
 # ==========================================================================================
 # ==== Packing parameters
-maxiters = 200
 save_intervals = false
 tlsph = true
 
@@ -68,13 +67,19 @@ semi = Semidiscretization(packing_system, boundary_system)
 tspan = (0, 10.0)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=50)
-saving_callback = save_intervals ? SolutionSavingCallback(interval=10, prefix="") : nothing
+steady_state = SteadyStateReachedCallback(; interval=1, interval_size=10,
+                                          abstol=1.0e-5, reltol=1.0e-3)
 
-callbacks = CallbackSet(UpdateCallback(), saving_callback, info_callback)
+info_callback = InfoCallback(interval=50)
+
+saving_callback = save_intervals ?
+                  SolutionSavingCallback(interval=10, prefix="", ekin=kinetic_energy) :
+                  nothing
+
+callbacks = CallbackSet(UpdateCallback(), saving_callback, info_callback, steady_state)
 
 sol = solve(ode, RK4();
-            save_everystep=false, maxiters=maxiters, callback=callbacks, dtmax=1e-2)
+            save_everystep=false, maxiters=1000, callback=callbacks, dtmax=1e-2)
 
 packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)

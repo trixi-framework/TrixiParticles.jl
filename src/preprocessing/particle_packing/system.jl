@@ -138,6 +138,19 @@ end
 
 write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
 
+function kinetic_energy(v, u, t, system::ParticlePackingSystem)
+    (; initial_condition, is_boundary) = system
+
+    # Exclude boundary packing system
+    is_boundary && return zero(eltype(system))
+
+    # If `each_moving_particle` is empty (no moving particles), return zero
+    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
+        velocity = extract_svector(initial_condition.velocity, system, particle)
+        return 0.5 * initial_condition.mass[particle] * dot(velocity, velocity)
+    end
+end
+
 @inline source_terms(system::ParticlePackingSystem) = nothing
 @inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
 

@@ -7,7 +7,6 @@ file = joinpath("examples", "preprocessing", "data", filename * ".stl")
 # ==========================================================================================
 # ==== Packing parameters
 tlsph = true
-maxiters = 100
 save_intervals = false
 
 # ==========================================================================================
