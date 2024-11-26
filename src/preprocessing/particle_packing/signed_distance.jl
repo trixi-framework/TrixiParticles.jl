@@ -20,6 +20,7 @@ to this surface.
                               sampled with a uniform grid of points.
 - `use_for_boundary_packing`: Set to `true` if [`SignedDistanceField`] is used to pack
                               a boundary [`ParticlePackingSystem`](@ref).
+                              Use the default of `false` when packing without a boundary.
 """
 struct SignedDistanceField{NDIMS, ELTYPE}
     positions           :: Vector{SVector{NDIMS, ELTYPE}}
