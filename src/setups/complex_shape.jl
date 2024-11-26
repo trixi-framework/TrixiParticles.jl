@@ -82,7 +82,7 @@ function ComplexShape(geometry; particle_spacing, density,
 
     if create_signed_distance_field
         signed_distance_field = SignedDistanceField(geometry, particle_spacing;
-                                                    point_grid=grid,
+                                                    points=grid,
                                                     max_signed_distance=boundary_thickness,
                                                     use_for_boundary_packing=sample_boundary)
     else
