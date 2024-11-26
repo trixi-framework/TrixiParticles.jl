@@ -41,25 +41,13 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct ComplexShape{S, IC, ICB, SDF, IG, WN, ELTYPE}
-    geometry                   :: S
-    initial_condition          :: IC
-    initial_condition_boundary :: ICB
-    signed_distance_field      :: SDF
-    initial_grid               :: IG
-    winding_number             :: WN
-    particle_spacing           :: ELTYPE
-end
-
 function ComplexShape(geometry; particle_spacing, density,
                       pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
-                      sample_boundary=false, boundary_thickness=6particle_spacing,
-                      create_signed_distance_field=false, tlsph=true,
                       point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
                                                                         hierarchical_winding=false,
                                                                         winding_number_factor=sqrt(eps())),
                       store_winding_number=false, grid_offset::Real=0.0,
-                      max_nparticles=10^7)
+                      max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
     if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHormann
         throw(ArgumentError("`WindingNumberHormann` only supports 2D geometries"))
     end
@@ -68,9 +56,8 @@ function ComplexShape(geometry; particle_spacing, density,
         throw(ArgumentError("only a positive `grid_offset` is supported"))
     end
 
-    padding = sample_boundary ? 2boundary_thickness : 2particle_spacing
-
-    grid = particle_grid(geometry, particle_spacing; padding, grid_offset, max_nparticles)
+    grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
+                         grid_offset, max_nparticles)
 
     inpoly, winding_numbers = point_in_geometry_algorithm(geometry, grid;
                                                           store_winding_number)
@@ -80,54 +67,54 @@ function ComplexShape(geometry; particle_spacing, density,
     initial_condition = InitialCondition(; coordinates, density, mass, velocity, pressure,
                                          particle_spacing)
 
-    if create_signed_distance_field
-        signed_distance_field = SignedDistanceField(geometry, particle_spacing;
-                                                    points=grid,
-                                                    max_signed_distance=boundary_thickness,
-                                                    use_for_boundary_packing=sample_boundary)
-    else
-        signed_distance_field = nothing
-    end
-
-    if sample_boundary
-        # Use the particles outside the object as boundary particles.
-        (; positions, distances, max_signed_distance) = signed_distance_field
-
-        # Delete unnecessary large signed distance field
-        distance_to_boundary = tlsph ? particle_spacing : 0.5 * particle_spacing
-        keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
-
-        boundary_coordinates = stack(positions[keep_indices])
-        initial_condition_boundary = InitialCondition(; coordinates=boundary_coordinates,
-                                                      density, particle_spacing)
-    else
-        initial_condition_boundary = nothing
-    end
-
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
-        initial_grid = stack(grid)
-    else
-        initial_grid = nothing
+        return (initial_condition=initial_condition, winding_numbers=winding_numbers,
+                grid=stack(grid))
     end
 
-    IC = typeof(initial_condition)
-    ICB = typeof(initial_condition_boundary)
-    IG = typeof(initial_grid)
-    WN = typeof(winding_numbers)
-    SDF = typeof(signed_distance_field)
-    S = typeof(geometry)
-    ELTYPE = eltype(initial_condition)
-
-    return ComplexShape{S, IC, ICB, SDF, IG, WN, ELTYPE}(geometry, initial_condition,
-                                                         initial_condition_boundary,
-                                                         signed_distance_field,
-                                                         initial_grid, winding_numbers,
-                                                         particle_spacing)
+    return initial_condition
 end
 
-Base.ndims(cs::ComplexShape) = ndims(cs.initial_condition)
-Base.eltype(cs::ComplexShape) = eltype(cs.initial_condition)
+"""
+    sample_boundary(signed_distance_field::SignedDistanceField;
+                    boundary_thickness::Real, tlsph=true)
+
+Sample boundary particles of a complex geometry by using the [`SignedDistanceField`](@ref)
+of the complex geometry.
+
+# Arguments
+- `signed_distance_field`: The signed distance field of a geometry (see [`SignedDistanceField`](@ref)).
+
+# Keywords
+- `boundary_thickness`: Thickness of the boundary
+- `tlsph`             : When `tlsph=true`, boundary particles will be placed
+                        one particle spacing from the surface of the geometry.
+                        Otherwise when `tlsph=true` (simulating fluid particles),
+                        boundary particles will be placed half particle spacing away from the surface.
+"""
+function sample_boundary(signed_distance_field;
+                         boundary_density, boundary_thickness, tlsph=true)
+    (; max_signed_distance, boundary_packing,
+    positions, distances, particle_spacing) = signed_distance_field
+
+    if !(boundary_packing)
+        throw(ArgumentError("`SignedDistanceField` is not generated with `use_for_boundary_packing`"))
+    end
+
+    if boundary_thickness > max_signed_distance
+        throw(ArgumentError("`boundary_thickness` is greater than `max_signed_distance` of `SignedDistanceField`. " *
+                            "Please generate a `SignedDistanceField` with higher `max_signed_distance`"))
+    end
+
+    # Delete unnecessary large signed distance field
+    distance_to_boundary = tlsph ? particle_spacing : 0.5 * particle_spacing
+    keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
+
+    boundary_coordinates = stack(positions[keep_indices])
+    return InitialCondition(; coordinates=boundary_coordinates, density=boundary_density,
+                            particle_spacing)
+end
 
 function particle_grid(geometry, particle_spacing;
                        padding=2particle_spacing, grid_offset=0.0, max_nparticles=10^7)

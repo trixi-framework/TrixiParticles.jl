@@ -79,7 +79,8 @@ export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
+       sample_boundary
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection

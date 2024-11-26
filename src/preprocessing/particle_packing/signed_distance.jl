@@ -28,6 +28,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
     distances           :: Vector{ELTYPE}
     max_signed_distance :: ELTYPE
     boundary_packing    :: Bool
+    particle_spacing    :: ELTYPE
 
     function SignedDistanceField(geometry, particle_spacing;
                                  points=nothing,
@@ -66,7 +67,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
                                     geometry, sdf_factor, max_signed_distance, nhs)
 
         return new{NDIMS, ELTYPE}(positions, normals, distances, max_signed_distance,
-                                  use_for_boundary_packing)
+                                  use_for_boundary_packing, particle_spacing)
     end
 end
 

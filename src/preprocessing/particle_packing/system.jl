@@ -1,17 +1,17 @@
 """
-    ParticlePackingSystem(shape::Union{InitialCondition, ComplexShape};
+    ParticlePackingSystem(shape::InitialCondition;
+                          boundary::Union{Polygon, TriangleMesh},
+                          signed_distance_field::SignedDistanceField,
                           smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
                           smoothing_length=1.2 * shape.particle_spacing,
-                          signed_distance_field::SignedDistanceField=shape.signed_distance_field,
                           is_boundary=false, boundary_compress_factor=1.0,
-                          boundary::Union{Polygon, TriangleMesh}=shape.geometry,
                           neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
                           background_pressure, tlsph=true)
 System to generate body fitted particles for complex shapes.
 For more information about the methods, see description below.
 
 # Arguments
-- `initial_condition`: [`InitialCondition`](@ref) or [`ComplexShape`](@ref) to be packed.
+- `initial_condition`: [`InitialCondition`](@ref) to be packed.
 
 # Keywords
 - `boundary`:              Geometry returned by [`load_geometry`](@ref).
@@ -53,12 +53,12 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
     buffer                :: Nothing
     update_callback_used  :: Ref{Bool}
 
-    function ParticlePackingSystem(shape::Union{InitialCondition, ComplexShape};
+    function ParticlePackingSystem(shape::InitialCondition;
+                                   boundary::Union{Polygon, TriangleMesh},
+                                   signed_distance_field::SignedDistanceField,
                                    smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
                                    smoothing_length=1.2 * shape.particle_spacing,
-                                   signed_distance_field::SignedDistanceField=shape.signed_distance_field,
                                    is_boundary=false, boundary_compress_factor=1.0,
-                                   boundary::Union{Polygon, TriangleMesh}=shape.geometry,
                                    neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
                                    background_pressure, tlsph=true)
         NDIMS = ndims(shape)
@@ -85,14 +85,12 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
             tlsph ? zero(ELTYPE) : 0.5shape.particle_spacing
         end
 
-        initial_condition_ = InitialCondition(shape; is_boundary)
-
-        return new{NDIMS, ELTYPE, typeof(initial_condition_), typeof(boundary),
+        return new{NDIMS, ELTYPE, typeof(shape), typeof(boundary),
                    typeof(smoothing_kernel), typeof(signed_distance_field),
-                   typeof(nhs)}(initial_condition_, boundary, smoothing_kernel,
+                   typeof(nhs)}(shape, boundary, smoothing_kernel,
                                 smoothing_length, background_pressure, tlsph,
                                 signed_distance_field, is_boundary, shift_condition,
-                                nhs, fill(zero(ELTYPE), nparticles(initial_condition_)),
+                                nhs, fill(zero(ELTYPE), nparticles(shape)),
                                 nothing, false)
     end
 end
@@ -123,16 +121,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
         summary_footer(io)
     end
 end
-
-function InitialCondition(ic::ComplexShape; is_boundary=false)
-    if is_boundary
-        return ic.initial_condition_boundary
-    end
-
-    return ic.initial_condition
-end
-
-InitialCondition(ic::InitialCondition; is_boundary=false) = ic
 
 function reset_callback_flag!(system::ParticlePackingSystem)
     system.update_callback_used[] = false
