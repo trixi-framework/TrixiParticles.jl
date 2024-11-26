@@ -20,22 +20,28 @@ particle_spacing = 0.03
 boundary_thickness = 8particle_spacing
 
 # ==========================================================================================
-# ==== Load complex shape
+# ==== Load complex geometry
+density = 1000.0
+
 geometry = load_geometry(file)
+
+signed_distance_field = SignedDistanceField(geometry, particle_spacing;
+                                            use_for_boundary_packing=true,
+                                            max_signed_distance=boundary_thickness)
 
 point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
                                                     winding_number_factor=0.4,
                                                     hierarchical_winding=true)
 # Returns `InitialCondition`
-shape_sampled = ComplexShape(geometry; particle_spacing, density=1000.0,
-                             store_winding_number=true, sample_boundary=true,
-                             boundary_thickness, tlsph=tlsph,
-                             create_signed_distance_field=true,
-                             grid_offset=0.25 * particle_spacing,
+shape_sampled = ComplexShape(geometry; particle_spacing, density,
                              point_in_geometry_algorithm)
 
-trixi2vtk(shape_sampled.initial_condition)
-trixi2vtk(shape_sampled.initial_condition_boundary, filename="initial_condition_boundary")
+# Returns `InitialCondition`
+boundary_sampled = sample_boundary(signed_distance_field; boundary_density=density,
+                                   boundary_thickness, tlsph)
+
+trixi2vtk(shape_sampled)
+trixi2vtk(boundary_sampled, filename="boundary")
 
 # ==========================================================================================
 # ==== Packing
@@ -43,14 +49,15 @@ trixi2vtk(shape_sampled.initial_condition_boundary, filename="initial_condition_
 # Large `background_pressure` can cause high accelerations. That is, the adaptive
 # time-stepsize will be adjusted properly. We found that the following order of
 # `background_pressure` result in appropriate time-stepsizes.
-background_pressure = 1e6 * particle_spacing^2
+background_pressure = 1e6 * particle_spacing^ndims(geometry)
 
-packing_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
+packing_system = ParticlePackingSystem(shape_sampled; boundary=geometry,
+                                       signed_distance_field, tlsph=tlsph,
                                        background_pressure)
 
-boundary_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
-                                        is_boundary=true,
-                                        boundary_compress_factor=0.8,
+boundary_system = ParticlePackingSystem(boundary_sampled; boundary=geometry,
+                                        is_boundary=true, signed_distance_field,
+                                        tlsph=tlsph, boundary_compress_factor=0.8,
                                         background_pressure)
 
 # ==========================================================================================
@@ -71,14 +78,6 @@ sol = solve(ode, RK4();
 
 packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
-
-v_ode, u_ode = sol.u[end].x
-u = TrixiParticles.wrap_u(u_ode, packing_system, semi)
-TrixiParticles.summation_density!(packing_system, semi, u, u_ode, packed_ic.density)
-
-u = TrixiParticles.wrap_u(u_ode, boundary_system, semi)
-TrixiParticles.summation_density!(boundary_system, semi, u, u_ode,
-                                  packed_boundary_ic.density)
 
 trixi2vtk(packed_ic, filename="initial_condition_packed")
 trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary_packed")
