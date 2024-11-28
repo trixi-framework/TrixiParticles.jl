@@ -74,10 +74,8 @@ end
 function create_cache_surface_tension(st::SurfaceTensionMorris, ELTYPE, NDIMS, nparticles)
     curvature = Array{ELTYPE, 1}(undef, nparticles)
     if st.contact_model isa Nothing
-        println("test2!!!!!!!!!!!!!!!!!!!!")
         return (; curvature)
     else
-        println("test3!!!!!!!!!!!!!!!!!!!!")
         return (;
                 create_cache_contact_model(st.contact_model, ELTYPE, NDIMS, nparticles)...,
                 curvature)
@@ -297,12 +295,10 @@ parameters without introducing fitting coefficients.
 struct HuberContactModel end
 
 function create_cache_contact_model(contact_model, ELTYPE, NDIMS, nparticles)
-    println("wronnnnnnnnnnnnnnnnnnnnnnnnng")
     return (;)
 end
 
 function create_cache_contact_model(::HuberContactModel, ELTYPE, NDIMS, nparticles)
-    println("test!!!!!!!!!!!!!!!!!!!!")
     d_hat = Array{ELTYPE}(undef, NDIMS, nparticles)
     delta_wns = Array{ELTYPE}(undef, nparticles)
     return (; d_hat, delta_wns)
@@ -317,10 +313,9 @@ end
                                particle_system::FluidSystem,
                                neighbor_system::BoundarySystem, particle, neighbor,
                                pos_diff, distance, rho_a, rho_b)
-    # Unpack necessary variables
     cache = particle_system.cache
     NDIMS = ndims(particle_system)
-    d_hat_particle = @view cache.d_hat[:, particle]
+    d_hat_particle = cache.d_hat[:, particle]
     n_hat_particle = surface_normal(particle_system, particle)
     v_hat_particle = tangential_vector(particle_system, particle)
 

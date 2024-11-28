@@ -133,6 +133,21 @@ end
     return surface_normal_method.normal_vectors
 end
 
+@inline function tangential_vector(particle_system::BoundarySystem, particle)
+    (; surface_normal_method) = particle_system
+    return surface_normal(particle_system::BoundarySystem, particle, surface_normal_method)
+end
+
+@inline function tangential_vector(particle_system::BoundarySystem, particle,
+                                surface_normal_method)
+    return zero(SVector{ndims(particle_system), eltype(particle_system)})
+end
+
+@inline function tangential_vector(::BoundarySystem, particle,
+                                surface_normal_method::StaticNormals)
+    return surface_normal_method.tangential_vectors
+end
+
 function calc_normal!(system, neighbor_system, u_system, v, v_neighbor_system,
                       u_neighbor_system, semi, surfn, nsurfn)
     # Normal not needed
@@ -459,8 +474,7 @@ function calc_wall_contact_values!(system::FluidSystem, neighbor_system::Boundar
                                    ncontact_model::HuberContactModel)
     # Unpack necessary variables
     cache = system.cache
-    d_hat = cache.d_hat
-    delta_wns = cache.delta_wns
+    (; d_hat, delta_wns) = cache
     NDIMS = ndims(system)
 
     # Get particle positions
@@ -501,7 +515,7 @@ end
 
 function compute_wall_contact_values!(system::FluidSystem, contact_model::HuberContactModel,
                                       v, u, v_ode, u_ode, semi, t)
-    (; cache) = system
+    cache = system.cache
     (; d_hat, delta_wns) = cache
     NDIMS = ndims(system)
 
