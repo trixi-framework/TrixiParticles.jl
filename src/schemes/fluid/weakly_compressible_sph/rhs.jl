@@ -75,14 +75,14 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)
 
-        dv_contact_force = contact_force(surface_tension_a.contact_model,
-                                         particle_system, neighbor_system, particle,
-                                         neighbor, pos_diff, distance, rho_a, rho_b)
+        # dv_contact_force = contact_force(surface_tension_a.contact_model,
+        #                                  particle_system, neighbor_system, particle,
+        #                                  neighbor, pos_diff, distance, rho_a, rho_b)
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] +
                                          dv_surface_tension[i] + dv_adhesion[i]
-            +dv_contact_force[i]
+            # + dv_contact_force[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
@@ -100,6 +100,14 @@ function interact!(dv, v_particle_system, u_particle_system,
     # if !@isdefined iter; iter = 0; end
     # TODO: This call should use public API. This requires some additional changes to simplify the calls.
     # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug", iter=iter += 1)
+
+    for particle in each_moving_particle(particle_system)
+        F = contact_force(particle_system.surface_tension.contact_model,
+                          particle_system, particle)
+        for i in 1:ndims(particle_system)
+            @inbounds dv[i, particle] += F[i]
+        end
+    end
 
     return dv
 end

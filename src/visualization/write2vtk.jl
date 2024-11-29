@@ -290,8 +290,19 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         if system.surface_tension isa SurfaceTensionMorris ||
            system.surface_tension isa SurfaceTensionMomentumMorris
             if !(system.surface_tension.contact_model isa Nothing)
+                clf = zeros((ndims(system), n_moving_particles(system)))
+                for particle in each_moving_particle(system)
+                    clf[:, particle] .= contact_force(system.surface_tension.contact_model,
+                                                     system, particle)
+                end
+
+                vtk["clf"] = clf
+
                 vtk["d_hat"] = system.cache.d_hat
                 vtk["delta_wns"] = system.cache.delta_wns
+                vtk["nu_hat"] = system.cache.nu_hat
+                vtk["normal_v"] = system.cache.normal_v
+                vtk["d_vec"] = system.cache.d_vec
             end
         end
     end

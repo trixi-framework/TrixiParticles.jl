@@ -246,6 +246,9 @@ function remove_invalid_normals!(system::FluidSystem,
         # heuristic condition if there is no gas phase to find the free surface
         if ideal_density_threshold > 0 &&
            ideal_density_threshold * ideal_neighbor_count < cache.neighbor_count[particle]
+            if surface_tension.contact_model isa HuberContactModel
+                cache.normal_v[1:ndims(system), particle] .= 0
+            end
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
@@ -256,12 +259,15 @@ function remove_invalid_normals!(system::FluidSystem,
         # see eq. 21
         if norm2 > normal_condition2
             if surface_tension.contact_model isa HuberContactModel
-                cache.normal_v = particle_surface_normal
+                cache.normal_v[1:ndims(system), particle] = particle_surface_normal
             end
 
             cache.surface_normal[1:ndims(system), particle] = particle_surface_normal /
                                                               sqrt(norm2)
         else
+            if surface_tension.contact_model isa HuberContactModel
+                cache.normal_v[1:ndims(system), particle] .= 0
+            end
             cache.surface_normal[1:ndims(system), particle] .= 0
         end
     end
@@ -465,7 +471,7 @@ function calc_wall_contact_values!(system::FluidSystem, neighbor_system::Boundar
                                    ncontact_model::HuberContactModel)
     # Unpack necessary variables
     cache = system.cache
-    (; d_hat, delta_wns, normal_v) = cache
+    (; d_hat, d_vec) = cache
     NDIMS = ndims(system)
 
     # Get particle positions
@@ -473,10 +479,11 @@ function calc_wall_contact_values!(system::FluidSystem, neighbor_system::Boundar
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-    # Loop over fluid-wall interactions
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_coords,
                            nhs) do particle, neighbor, pos_diff, distance
+        V_b = hydrodynamic_mass(neighbor_system, neighbor) /
+              particle_density(v_neighbor_system, neighbor_system, neighbor)
         W_ab = smoothing_kernel(system, distance)
 
         # equation 51
@@ -485,26 +492,80 @@ function calc_wall_contact_values!(system::FluidSystem, neighbor_system::Boundar
         end
     end
 
+    for particle in each_moving_particle(system)
+        d_vec[:, particle] = d_hat[:, particle]
+        norm_d = sqrt(sum(d_hat[i, particle]^2 for i in 1:NDIMS))
+        if norm_d > eps()
+            for i in 1:NDIMS
+                d_hat[i, particle] /= norm_d
+            end
+        else
+            # If norm is zero, set d_hat to zero vector
+            for i in 1:NDIMS
+                d_hat[i, particle] = 0.0
+            end
+        end
+    end
+
+    return system
+end
+
+function calc_wall_contact_values2!(system, neighbor_system,
+                                    v, u, v_neighbor_system, u_neighbor_system,
+                                    semi, contact_model, ncontact_model)
+end
+
+function calc_wall_contact_values2!(system::FluidSystem, neighbor_system::BoundarySystem,
+                                    v, u, v_neighbor_system, u_neighbor_system,
+                                    semi, contact_model::HuberContactModel,
+                                    ncontact_model::HuberContactModel)
+    # Unpack necessary variables
+    cache = system.cache
+    (; d_hat, delta_wns, normal_v, nu_hat, d_vec) = cache
+    NDIMS = ndims(system)
+
+    # Get particle positions
+    system_coords = current_coordinates(u, system)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    nhs = get_neighborhood_search(system, neighbor_system, semi)
+
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_coords,
                            nhs) do particle, neighbor, pos_diff, distance
         V_b = hydrodynamic_mass(neighbor_system, neighbor) /
               particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-        grad_W_ab = smoothing_kernel_grad(particle_system, pos_diff, distance)
+        grad_W_ab = smoothing_kernel_grad(system, pos_diff, distance)
 
         # equation 53
-        nu = 0
         for i in 1:NDIMS
-          nu = d_hat[i, particle]^2*normal_v[i, particle] - (d_hat[i, particle]*normal_v[i, particle])*d_hat[i, particle]
+            nu_hat[i, particle] = dot(d_vec[:, particle], d_vec[:, particle]) *
+                                  normal_v[i, particle] -
+                                  (d_vec[i, particle] * normal_v[i, particle]) *
+                                  d_vec[i, particle]
         end
-        nu_hat = ?
 
-        # equation 54 sum
-        delta_wns[particle] += V_b * nu_hat * normal_v[i, particle] * grad_W_ab[i]
+        # println("test4")
+        # println(nu_hat[:, particle])
+        # println("test5")
+
+        nu_norm = norm(nu_hat[:, particle])
+        if nu_norm > eps()
+            for i in 1:NDIMS
+                nu_hat[i, particle] /= nu_norm
+            end
+        else
+            for i in 1:NDIMS
+                nu_hat[i, particle] = 0.0
+            end
+        end
+
+        # equation 54
+        dot_nu_n = sum(nu_hat[i, particle] * normal_v[i, particle] for i in 1:NDIMS)
+        dot_d_gradW = sum(d_hat[i, particle] * grad_W_ab[i] for i in 1:NDIMS)
+
+        delta_wns[particle] += 2 * V_b * dot_d_gradW * dot_nu_n
     end
-    # equation 54 continued
-    delta_wns[particle] *= 2 * d_hat[i, particle]
 
     return system
 end
@@ -516,11 +577,21 @@ function compute_wall_contact_values!(system::FluidSystem, contact_model::HuberC
                                       v, u, v_ode, u_ode, semi, t)
     cache = system.cache
     (; d_hat, delta_wns) = cache
-    NDIMS = ndims(system)
 
     # Reset d_hat and delta_wns_partial
     set_zero!(d_hat)
     set_zero!(delta_wns)
+
+    # Loop over boundary neighbor systems
+    @trixi_timeit timer() "compute wall contact values" foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+
+        # Call calc_wall_contact_values!
+        calc_wall_contact_values!(system, neighbor_system, v, u,
+                                  v_neighbor_system, u_neighbor_system, semi,
+                                  contact_model, contact_model)
+    end
 
     # Loop over boundary neighbor systems
     @trixi_timeit timer() "compute wall contact values" foreach_system(semi) do neighbor_system
@@ -529,25 +600,9 @@ function compute_wall_contact_values!(system::FluidSystem, contact_model::HuberC
             v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
             # Call calc_wall_contact_values!
-            calc_wall_contact_values!(system, neighbor_system, v, u,
-                                      v_neighbor_system, u_neighbor_system, semi,
-                                      contact_model, contact_model)
-        end
-    end
-
-    # Normalize d_hat and compute delta_wns
-    for particle in each_moving_particle(system)
-        # Normalize d_hat
-        norm_d = sqrt(sum(d_hat[i, particle]^2 for i in 1:NDIMS))
-        if norm_d > eps()
-            for i in 1:NDIMS
-                d_hat[i, particle] /= norm_d
-            end
-        else
-            # If norm is zero, set d_hat to zero vector
-            for i in 1:NDIMS
-                d_hat[i, particle] = 0.0
-            end
+            calc_wall_contact_values2!(system, neighbor_system, v, u,
+                                       v_neighbor_system, u_neighbor_system, semi,
+                                       contact_model, contact_model)
         end
     end
 

@@ -230,7 +230,6 @@ end
 
     # This force only applies to itself
     !(particle == neighbor) && return zero(pos_diff)
-    println("yesh")
 
     n_a = surface_normal(particle_system, particle)
     curvature_a = curvature(particle_system, particle)
@@ -300,16 +299,18 @@ function create_cache_contact_model(contact_model, ELTYPE, NDIMS, nparticles)
 end
 
 function create_cache_contact_model(::HuberContactModel, ELTYPE, NDIMS, nparticles)
+    d_vec = Array{ELTYPE}(undef, NDIMS, nparticles)
     d_hat = Array{ELTYPE}(undef, NDIMS, nparticles)
+    nu_hat = Array{ELTYPE}(undef, NDIMS, nparticles)
+    nu_hat .= 0.0
     delta_wns = Array{ELTYPE}(undef, nparticles)
     # non-normal vector
     normal_v = Array{ELTYPE}(undef, NDIMS, nparticles)
-    return (; d_hat, delta_wns)
+    return (; d_hat, delta_wns, normal_v, nu_hat, d_vec)
 end
 
-@inline function contact_force(contact_model, particle_system, neighbor_system, particle,
-                               neighbor, pos_diff, distance, rho_a, rho_b)
-    return zero(pos_diff)
+@inline function contact_force(contact_model, particle_system, particle)
+    return zero(ndims(particle_system))
 end
 
 # function compute_tangential_vector(d_hat_particle, n_hat_particle)
@@ -329,37 +330,29 @@ end
 #     return nu_hat_a
 # end
 
-@inline function contact_force(::HuberContactModel, particle_system::FluidSystem,
-                               neighbor_system::BoundarySystem, particle, neighbor,
-                               pos_diff, distance, rho_a, rho_b)
-
-    # This force only applies to itself
-    !(particle == neighbor) && return zero(pos_diff)
-
+@inline function contact_force(::HuberContactModel, particle_system::FluidSystem, particle)
     cache = particle_system.cache
     sigma = particle_system.surface_tension.surface_tension_coefficient
 
+    # Retrieve the normalized dynamic direction vector d̂ₐ for particle 'a' (Equation 51, normalized)
     d_hat_particle = cache.d_hat[:, particle]
+
+    if norm(d_hat_particle) < eps()
+        return zero(ndims(particle_system))
+    end
+
+    nu_hat_particle = cache.nu_hat[:, particle]
+    delta_wns_particle = cache.delta_wns[particle]
     n_hat_particle = surface_normal(particle_system, particle)
 
-    # Compute the tangential vector ν̂ₐ
-    nu_hat_particle = compute_tangential_vector(d_hat_particle, n_hat_particle)
-
-    # Gradient of kernel
-    grad_W_ab = smoothing_kernel_grad(particle_system, pos_diff, distance)
-
-    # Compute dot product between d_hat and n_hat
     dot_d_n = dot(d_hat_particle, n_hat_particle)
 
-    # Equation 52: Compute f_{wns_a} (vector)
-    f_wns_a = sigma * (cos(neighbor_system.static_contact_angle) + dot_d_n) *
-              nu_hat_particle
+    # Equation 52
+    static_contact_angle = 1.5708 #neighbor_system.static_contact_angle #TODO: FIX
+    f_wns_a = sigma * (cos(static_contact_angle) + dot_d_n) .* nu_hat_particle
 
-    # Retrieve delta_wns[particle] from cache
-    delta_wns_a = cache.delta_wns[particle]
+    # Compute the force contribution (Equation 57) (needs to be in acceleration form)
+    F_a = f_wns_a * delta_wns_particle / hydrodynamic_mass(particle_system, particle)
 
-    # Compute the force contribution
-    F_ab = f_wns_a * delta_wns_a
-
-    return F_ab
+    return F_a
 end
