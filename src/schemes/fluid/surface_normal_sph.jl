@@ -120,7 +120,7 @@ end
 
 @inline function surface_normal(particle_system::BoundarySystem, particle)
     (; surface_normal_method) = particle_system
-    return surface_normal(particle_system::BoundarySystem, particle, surface_normal_method)
+    return surface_normal(particle_system, particle, surface_normal_method)
 end
 
 @inline function surface_normal(particle_system::BoundarySystem, particle,
@@ -131,21 +131,6 @@ end
 @inline function surface_normal(::BoundarySystem, particle,
                                 surface_normal_method::StaticNormals)
     return surface_normal_method.normal_vectors
-end
-
-@inline function tangential_vector(particle_system::BoundarySystem, particle)
-    (; surface_normal_method) = particle_system
-    return surface_normal(particle_system::BoundarySystem, particle, surface_normal_method)
-end
-
-@inline function tangential_vector(particle_system::BoundarySystem, particle,
-                                surface_normal_method)
-    return zero(SVector{ndims(particle_system), eltype(particle_system)})
-end
-
-@inline function tangential_vector(::BoundarySystem, particle,
-                                surface_normal_method::StaticNormals)
-    return surface_normal_method.tangential_vectors
 end
 
 function calc_normal!(system, neighbor_system, u_system, v, v_neighbor_system,
@@ -244,6 +229,7 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension, surfn)
 end
 
 # see Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
+# Note: this also normalizes the normals
 function remove_invalid_normals!(system::FluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
                                                         SurfaceTensionMomentumMorris},
@@ -269,6 +255,10 @@ function remove_invalid_normals!(system::FluidSystem,
 
         # see eq. 21
         if norm2 > normal_condition2
+            if surface_tension.contact_model isa HuberContactModel
+                cache.normal_v = particle_surface_normal
+            end
+
             cache.surface_normal[1:ndims(system), particle] = particle_surface_normal /
                                                               sqrt(norm2)
         else
@@ -463,6 +453,7 @@ function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris)
     end
     return system
 end
+
 function calc_wall_contact_values!(system, neighbor_system,
                                    v, u, v_neighbor_system, u_neighbor_system,
                                    semi, contact_model, ncontact_model)
@@ -474,7 +465,7 @@ function calc_wall_contact_values!(system::FluidSystem, neighbor_system::Boundar
                                    ncontact_model::HuberContactModel)
     # Unpack necessary variables
     cache = system.cache
-    (; d_hat, delta_wns) = cache
+    (; d_hat, delta_wns, normal_v) = cache
     NDIMS = ndims(system)
 
     # Get particle positions
@@ -486,26 +477,34 @@ function calc_wall_contact_values!(system::FluidSystem, neighbor_system::Boundar
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_coords,
                            nhs) do particle, neighbor, pos_diff, distance
-        V_b = hydrodynamic_mass(neighbor_system, neighbor) /
-              particle_density(v_neighbor_system, neighbor_system, neighbor)
         W_ab = smoothing_kernel(system, distance)
-        grad_W_ab = smoothing_kernel_grad(system, pos_diff, distance)
 
-        # Accumulate dynamic direction vector (d_hat)
+        # equation 51
         for i in 1:NDIMS
             d_hat[i, particle] += V_b * pos_diff[i] * W_ab
         end
-
-        # Compute dot product between d_hat and grad_W_ab
-        dot_product = 0.0
-        for i in 1:NDIMS
-            dot_product += d_hat[i, particle] * grad_W_ab[i]
-        end
-
-        # Compute delta gradient (∇δ_{wn_b} = 0 for boundary particles)
-        # Hence this is positive
-        delta_wns[particle] += 2 * V_b *  dot_product
     end
+
+    foreach_point_neighbor(system, neighbor_system,
+                           system_coords, neighbor_coords,
+                           nhs) do particle, neighbor, pos_diff, distance
+        V_b = hydrodynamic_mass(neighbor_system, neighbor) /
+              particle_density(v_neighbor_system, neighbor_system, neighbor)
+
+        grad_W_ab = smoothing_kernel_grad(particle_system, pos_diff, distance)
+
+        # equation 53
+        nu = 0
+        for i in 1:NDIMS
+          nu = d_hat[i, particle]^2*normal_v[i, particle] - (d_hat[i, particle]*normal_v[i, particle])*d_hat[i, particle]
+        end
+        nu_hat = ?
+
+        # equation 54 sum
+        delta_wns[particle] += V_b * nu_hat * normal_v[i, particle] * grad_W_ab[i]
+    end
+    # equation 54 continued
+    delta_wns[particle] *= 2 * d_hat[i, particle]
 
     return system
 end
@@ -519,7 +518,7 @@ function compute_wall_contact_values!(system::FluidSystem, contact_model::HuberC
     (; d_hat, delta_wns) = cache
     NDIMS = ndims(system)
 
-    # Reset d_hat and delta_wns
+    # Reset d_hat and delta_wns_partial
     set_zero!(d_hat)
     set_zero!(delta_wns)
 
@@ -536,8 +535,9 @@ function compute_wall_contact_values!(system::FluidSystem, contact_model::HuberC
         end
     end
 
-    # Normalize d_hat
+    # Normalize d_hat and compute delta_wns
     for particle in each_moving_particle(system)
+        # Normalize d_hat
         norm_d = sqrt(sum(d_hat[i, particle]^2 for i in 1:NDIMS))
         if norm_d > eps()
             for i in 1:NDIMS

@@ -65,6 +65,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                sound_speed, m_a, m_b, rho_a, rho_b,
                                                grad_kernel)
 
+        # TODO: only applies to fluids with the same color
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
@@ -81,7 +82,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] +
                                          dv_surface_tension[i] + dv_adhesion[i]
-                                         + dv_contact_force[i]
+            +dv_contact_force[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end

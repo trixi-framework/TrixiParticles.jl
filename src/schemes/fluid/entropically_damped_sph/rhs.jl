@@ -51,6 +51,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             rho_a, rho_b, m_a, m_b,
                                             particle, neighbor, grad_kernel)
 
+        # TODO: only applies to fluids with the same color
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
                                                    particle, neighbor, pos_diff, distance,

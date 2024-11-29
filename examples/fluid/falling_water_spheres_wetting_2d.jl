@@ -57,7 +57,8 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, state_equation,
                                                      density_calculator=SummationDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      reference_particle_spacing=fluid_particle_spacing,
-                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728, contact_model=HuberContactModel()),
+                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728,
+                                                                                          contact_model=HuberContactModel()),
                                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
                                                                                                    interface_threshold=0.001))
 
