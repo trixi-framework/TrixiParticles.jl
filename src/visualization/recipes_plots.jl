@@ -11,7 +11,7 @@ end
 
 RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
                                size=(600, 400), # Default size
-                               xlims=(Inf, Inf), ylims=(Inf, Inf))
+                               xlims=(-Inf, Inf), ylims=(-Inf, Inf))
     systems_data = map(semi.systems) do system
         u = wrap_u(u_ode, system, semi)
         coordinates = active_coordinates(u, system)
@@ -26,6 +26,8 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
         x_min, y_min = minimum(coordinates, dims=2) .- 0.5particle_spacing
         x_max, y_max = maximum(coordinates, dims=2) .+ 0.5particle_spacing
 
+        # `x_min`, `x_max`, etc. are used to automatically set the marker size.
+        # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
         isfinite(first(xlims)) && (x_min = xlims[1])
         isfinite(last(xlims)) && (x_max = xlims[2])
 
@@ -54,6 +56,8 @@ RecipesBase.@recipe function f((initial_conditions::InitialCondition)...;
         x_min, y_min = minimum(ic.coordinates, dims=2) .- 0.5particle_spacing
         x_max, y_max = maximum(ic.coordinates, dims=2) .+ 0.5particle_spacing
 
+        # `x_min`, `x_max`, etc. are used to automatically set the marker size.
+        # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
         isfinite(first(xlims)) && (x_min = xlims[1])
         isfinite(last(xlims)) && (x_max = xlims[2])
 
@@ -75,11 +79,13 @@ RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
     x_min = minimum(obj.x_min for obj in data)
     x_max = maximum(obj.x_max for obj in data)
 
-    isfinite(first(xlims)) && (x_min = xlims[1])
-    isfinite(last(xlims)) && (x_max = xlims[2])
-
     y_min = minimum(obj.y_min for obj in data)
     y_max = maximum(obj.y_max for obj in data)
+
+    # `x_min`, `x_max`, etc. are used to automatically set the marker size.
+    # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
+    isfinite(first(xlims)) && (x_min = xlims[1])
+    isfinite(last(xlims)) && (x_max = xlims[2])
 
     isfinite(first(ylims)) && (y_min = ylims[1])
     isfinite(last(ylims)) && (y_max = ylims[2])
