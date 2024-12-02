@@ -117,7 +117,7 @@
                                    v_wall)
                 end
 
-                scales = [1.0, 0.5, 0.7, 1.8, 67.5]
+                scale_factors = [1.0, 0.5, 0.7, 1.8, 67.5]
 
                 @testset "Wall Velocity Staggered: Factor $scale" for scale in scales
                     viscosity = boundary_system.boundary_model.viscosity
