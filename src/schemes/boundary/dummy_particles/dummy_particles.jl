@@ -22,7 +22,7 @@ Boundary model for `BoundarySPHSystem`.
 - `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
-- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary.
+- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary, which currently is only needed when using surface tension.
 # Examples
 ```jldoctest; output = false, setup = :(densities = [1.0, 2.0, 3.0]; masses = [0.1, 0.2, 0.3]; smoothing_kernel = SchoenbergCubicSplineKernel{2}(); smoothing_length = 0.1)
 # Free-slip condition
@@ -71,7 +71,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
               colorfield=zeros(ELTYPE, n_particles),
               neighbor_count=zeros(ELTYPE, n_particles))...)
 
-    # If the `reference_density_spacing`` is set calculate the `ideal_neighbor_count``.
+    # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     ideal_neighbor_count_ = 0
     if reference_particle_spacing > 0.0
         ideal_neighbor_count_ = ideal_neighbor_count(Val(ndims(boundary_model)),
