@@ -460,21 +460,20 @@ function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris)
     return system
 end
 
-function calc_wall_contact_values!(system, neighbor_system,
+function calc_wall_distance_vector!(system, neighbor_system,
                                    v, u, v_neighbor_system, u_neighbor_system,
-                                   semi, contact_model, ncontact_model)
+                                   semi, contact_model)
 end
 
-function calc_wall_contact_values!(system::FluidSystem, neighbor_system::BoundarySystem,
+# Computes the wall distance vector \( \mathbf{d}_a \) and its normalized version \( \hat{\mathbf{d}}_a \) for each particle in the fluid system.
+# The distance vector \( \mathbf{d}_a \) is used to calculate dynamic contact angles and the delta function in wall-contact models.
+function calc_wall_distance_vector!(system::FluidSystem, neighbor_system::BoundarySystem,
                                    v, u, v_neighbor_system, u_neighbor_system,
-                                   semi, contact_model::HuberContactModel,
-                                   ncontact_model::HuberContactModel)
-    # Unpack necessary variables
+                                   semi, contact_model::HuberContactModel)
     cache = system.cache
     (; d_hat, d_vec) = cache
     NDIMS = ndims(system)
 
-    # Get particle positions
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
@@ -488,19 +487,18 @@ function calc_wall_contact_values!(system::FluidSystem, neighbor_system::Boundar
 
         # equation 51
         for i in 1:NDIMS
-            d_hat[i, particle] += V_b * pos_diff[i] * W_ab
+            d_vec[i, particle] += V_b * pos_diff[i] * W_ab
         end
     end
 
+    # d_hat is the unit version of d_vec
     for particle in each_moving_particle(system)
-        d_vec[:, particle] = d_hat[:, particle]
-        norm_d = sqrt(sum(d_hat[i, particle]^2 for i in 1:NDIMS))
+        norm_d = sqrt(sum(d_vec[i, particle]^2 for i in 1:NDIMS))
         if norm_d > eps()
             for i in 1:NDIMS
-                d_hat[i, particle] /= norm_d
+                d_hat[i, particle] = d_vec[i, particle]/norm_d
             end
         else
-            # If norm is zero, set d_hat to zero vector
             for i in 1:NDIMS
                 d_hat[i, particle] = 0.0
             end
@@ -510,21 +508,18 @@ function calc_wall_contact_values!(system::FluidSystem, neighbor_system::Boundar
     return system
 end
 
-function calc_wall_contact_values2!(system, neighbor_system,
+function calc_wall_contact_values!(system, neighbor_system,
                                     v, u, v_neighbor_system, u_neighbor_system,
-                                    semi, contact_model, ncontact_model)
+                                    semi, contact_model)
 end
 
-function calc_wall_contact_values2!(system::FluidSystem, neighbor_system::BoundarySystem,
+function calc_wall_contact_values!(system::FluidSystem, neighbor_system::BoundarySystem,
                                     v, u, v_neighbor_system, u_neighbor_system,
-                                    semi, contact_model::HuberContactModel,
-                                    ncontact_model::HuberContactModel)
-    # Unpack necessary variables
+                                    semi, contact_model::HuberContactModel)
     cache = system.cache
     (; d_hat, delta_wns, normal_v, nu_hat, d_vec) = cache
     NDIMS = ndims(system)
 
-    # Get particle positions
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
@@ -537,17 +532,13 @@ function calc_wall_contact_values2!(system::FluidSystem, neighbor_system::Bounda
 
         grad_W_ab = smoothing_kernel_grad(system, pos_diff, distance)
 
-        # equation 53
+        # equation 53 computing the tangential direction vector
         for i in 1:NDIMS
             nu_hat[i, particle] = dot(d_vec[:, particle], d_vec[:, particle]) *
                                   normal_v[i, particle] -
                                   (d_vec[i, particle] * normal_v[i, particle]) *
                                   d_vec[i, particle]
         end
-
-        # println("test4")
-        # println(nu_hat[:, particle])
-        # println("test5")
 
         nu_norm = norm(nu_hat[:, particle])
         if nu_norm > eps()
@@ -560,7 +551,7 @@ function calc_wall_contact_values2!(system::FluidSystem, neighbor_system::Bounda
             end
         end
 
-        # equation 54
+        # equation 54 delta function
         dot_nu_n = sum(nu_hat[i, particle] * normal_v[i, particle] for i in 1:NDIMS)
         dot_d_gradW = sum(d_hat[i, particle] * grad_W_ab[i] for i in 1:NDIMS)
 
@@ -587,23 +578,20 @@ function compute_wall_contact_values!(system::FluidSystem, contact_model::HuberC
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
-        # Call calc_wall_contact_values!
-        calc_wall_contact_values!(system, neighbor_system, v, u,
+        calc_wall_distance_vector!(system, neighbor_system, v, u,
                                   v_neighbor_system, u_neighbor_system, semi,
-                                  contact_model, contact_model)
+                                  contact_model)
     end
 
     # Loop over boundary neighbor systems
     @trixi_timeit timer() "compute wall contact values" foreach_system(semi) do neighbor_system
-        if isa(neighbor_system, BoundarySystem)
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
             v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
-            # Call calc_wall_contact_values!
-            calc_wall_contact_values2!(system, neighbor_system, v, u,
+            # Call calc_wall_distance_vector!
+            calc_wall_contact_values!(system, neighbor_system, v, u,
                                        v_neighbor_system, u_neighbor_system, semi,
-                                       contact_model, contact_model)
-        end
+                                       contact_model)
     end
 
     return system
