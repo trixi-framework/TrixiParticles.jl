@@ -81,7 +81,7 @@ end
                     boundary_thickness::Real, tlsph=true)
 
 Sample boundary particles of a complex geometry by using the [`SignedDistanceField`](@ref)
-of the complex geometry.
+of the geometry.
 
 # Arguments
 - `signed_distance_field`: The signed distance field of a geometry (see [`SignedDistanceField`](@ref)).
@@ -99,15 +99,15 @@ function sample_boundary(signed_distance_field;
     positions, distances, particle_spacing) = signed_distance_field
 
     if !(boundary_packing)
-        throw(ArgumentError("`SignedDistanceField` is not generated with `use_for_boundary_packing`"))
+        throw(ArgumentError("`SignedDistanceField` was not generated with `use_for_boundary_packing`"))
     end
 
     if boundary_thickness > max_signed_distance
         throw(ArgumentError("`boundary_thickness` is greater than `max_signed_distance` of `SignedDistanceField`. " *
-                            "Please generate a `SignedDistanceField` with higher `max_signed_distance`"))
+                            "Please generate a `SignedDistanceField` with higher `max_signed_distance`."))
     end
 
-    # Delete unnecessary large signed distance field
+    # Only keep the required part of the signed distance field
     distance_to_boundary = tlsph ? particle_spacing : 0.5 * particle_spacing
     keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
 

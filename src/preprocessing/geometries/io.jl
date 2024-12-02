@@ -86,7 +86,7 @@ function trixi2vtk(geometry::Polygon; output_directory="out", prefix="",
     vertices = Vector{SVector{2, eltype(geometry)}}()
 
     # Add each vertex twice (once at the end of an edge and once at the start of the next edge)
-    # with corresponding normals to make ParaView work
+    # with corresponding normals to make ParaView work.
     for edge in eachface(geometry)
         push!(vertex_normals, geometry.vertex_normals[edge][1])
         push!(vertex_normals, geometry.vertex_normals[edge][2])

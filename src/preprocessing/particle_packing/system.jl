@@ -7,8 +7,9 @@
                           is_boundary=false, boundary_compress_factor=1.0,
                           neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
                           background_pressure, tlsph=true)
-System to generate body fitted particles for complex shapes.
-For more information about the methods, see description below.
+
+System to generate body-fitted particles for complex shapes.
+For more information on the methods, see description below.
 
 # Arguments
 - `initial_condition`: [`InitialCondition`](@ref) to be packed.
@@ -17,9 +18,9 @@ For more information about the methods, see description below.
 - `boundary`:              Geometry returned by [`load_geometry`](@ref).
 - `background_pressure`:   Constant background pressure to physically pack the particles.
                            A large `background_pressure` can cause high accelerations
-                           which requires a properly adjusted time-step criterion.
+                           which requires a properly adjusted time step.
 - `tlsph`:                 With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
-                           on the boundary of the shape and not one particle radius away,
+                           on the boundary of the shape and not half a particle spacing away,
                            as for fluids. When `tlsph=true`, particles will be placed
                            on the boundary of the shape.
 - `is_boundary`:           When `is_boundary=true`, boundary particles will be sampled
@@ -122,6 +123,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
     end
 end
 
+@inline function v_nvariables(system::ParticlePackingSystem)
+    return ndims(system) * 2
+end
+
 function reset_callback_flag!(system::ParticlePackingSystem)
     system.update_callback_used[] = false
 
@@ -146,8 +151,8 @@ function kinetic_energy(v, u, t, system::ParticlePackingSystem)
 
     # If `each_moving_particle` is empty (no moving particles), return zero
     return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
-        velocity = extract_svector(initial_condition.velocity, system, particle)
-        return 0.5 * initial_condition.mass[particle] * dot(velocity, velocity)
+        velocity = advection_velocity(v, system, particle)
+        return initial_condition.mass[particle] * dot(velocity, velocity) / 2
     end
 end
 
@@ -222,14 +227,14 @@ function constrain_particles_onto_surface!(u, system::ParticlePackingSystem)
             # Store signed distance for visualization
             system.signed_distances[particle] = distance_signed
 
-            constrain_particles!(u, system, particle, distance_signed, normal_vector)
+            constrain_particle!(u, system, particle, distance_signed, normal_vector)
         end
     end
 
     return u
 end
 
-function constrain_particles!(u, system, particle, distance_signed, normal_vector)
+function constrain_particle!(u, system, particle, distance_signed, normal_vector)
     (; shift_condition) = system
 
     if distance_signed >= -shift_condition
@@ -259,10 +264,9 @@ end
 
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
     v = wrap_v(v_ode, system, semi)
-    for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         for i in 1:ndims(system)
-            # Use the initial condition to store the evolved velocity
-            system.initial_condition.velocity[i, particle] = v[i, particle]
+            v[ndims(system) + i, particle] = v[i, particle]
 
             # The particle velocity is set to zero at the beginning of each time step to
             # achieve a fully stationary state.
@@ -273,10 +277,10 @@ end
     return system
 end
 
-# Evolved velocity is stored in `initial_condition`
+# Add advection velocity.
 @inline function add_velocity!(du, v, particle, system::ParticlePackingSystem)
     for i in 1:ndims(system)
-        du[i, particle] = system.initial_condition.velocity[i, particle]
+        du[i, particle] = v[ndims(system) + i, particle]
     end
 
     return du
