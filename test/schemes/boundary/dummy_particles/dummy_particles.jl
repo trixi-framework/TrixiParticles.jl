@@ -119,6 +119,10 @@
 
                 scale_factors = [1.0, 0.5, 0.7, 1.8, 67.5]
 
+                # For a constant velocity profile (each fluid particle has the same velocity),
+                # the wall velocity is `v_wall = -v_fluid` (see eq. 22 in Adami_2012).
+                # With a staggered velocity profile, we can test the smoothed velocity field
+                # for a variable velocity profile.
                 @testset "Wall Velocity Staggered: Factor $scale" for scale in scales
                     viscosity = boundary_system.boundary_model.viscosity
                     volume = boundary_system.boundary_model.cache.volume
