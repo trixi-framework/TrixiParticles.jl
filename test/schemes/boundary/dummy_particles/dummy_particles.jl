@@ -71,7 +71,6 @@
                                                            smoothing_kernel,
                                                            smoothing_length)
 
-                # Neighborhood search
                 neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=1.0,
                                                                                   eachpoint=TrixiParticles.eachparticle(fluid_system))
 
