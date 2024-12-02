@@ -313,23 +313,6 @@ end
     return zero(ndims(particle_system))
 end
 
-# function compute_tangential_vector(d_hat_particle, n_hat_particle)
-#     norm_d_hat_sq = dot(d_hat_particle, d_hat_particle)
-#     dot_d_n = dot(d_hat_particle, n_hat_particle)
-
-#     # |d_hat|^2 * n_hat - (d_hat ⋅ n_hat) * d_hat
-#     nu_a = norm_d_hat_sq * n_hat_particle .- dot_d_n * d_hat_particle
-#     norm_nu = norm(nu_a)
-
-#     if norm_nu > eps()
-#         nu_hat_a = nu_a ./ norm_nu
-#     else
-#         nu_hat_a = zeros(size(d_hat_particle))
-#     end
-
-#     return nu_hat_a
-# end
-
 @inline function contact_force(::HuberContactModel, particle_system::FluidSystem, particle)
     cache = particle_system.cache
     sigma = particle_system.surface_tension.surface_tension_coefficient

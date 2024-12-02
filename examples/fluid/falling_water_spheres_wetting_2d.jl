@@ -31,8 +31,8 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 sphere_radius = 0.05
 
-sphere1_center = (0.5, 0.051)
-sphere2_center = (1.5, 0.051)
+sphere1_center = (0.5, sphere_radius)
+sphere2_center = (1.5, sphere_radius)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -0.0))
 sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
@@ -52,45 +52,45 @@ nu = 0.005
 viscosity = ViscosityMorris(nu=nu)
 # density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
-sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, state_equation,
-                                                     fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,
-                                                     viscosity=viscosity,
-                                                     density_calculator=SummationDensity(),
-                                                     acceleration=(0.0, -gravity),
-                                                     reference_particle_spacing=fluid_particle_spacing,
-                                                     correction=MixedKernelGradientCorrection(),
-                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.02,
-                                                                                          contact_model=HuberContactModel()),
-                                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
-                                                                                                   interface_threshold=0.001))
-
-sphere = WeaklyCompressibleSPHSystem(sphere2, state_equation, fluid_smoothing_kernel,
-                                     fluid_smoothing_length,
-                                     viscosity=viscosity,
-                                     density_calculator=SummationDensity(),
-                                     acceleration=(0.0, -gravity),
-                                     reference_particle_spacing=fluid_particle_spacing,
-                                     correction=MixedKernelGradientCorrection(),
-                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.02),
-                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
-                                                                                   interface_threshold=0.001))
-
-# sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
+# sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, state_equation,
+#                                                      fluid_smoothing_kernel,
 #                                                      fluid_smoothing_length,
-#                                                      sound_speed, viscosity=viscosity,
-#                                                      density_calculator=ContinuityDensity(),
+#                                                      viscosity=viscosity,
+#                                                      density_calculator=SummationDensity(),
 #                                                      acceleration=(0.0, -gravity),
 #                                                      reference_particle_spacing=fluid_particle_spacing,
-#                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728, contact_model=HuberContactModel()))
+#                                                      correction=MixedKernelGradientCorrection(),
+#                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.02,
+#                                                                                           contact_model=HuberContactModel()),
+#                                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
+#                                                                                                    interface_threshold=0.001))
 
-# sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
+# sphere = WeaklyCompressibleSPHSystem(sphere2, state_equation, fluid_smoothing_kernel,
 #                                      fluid_smoothing_length,
-#                                      sound_speed, viscosity=viscosity,
-#                                      density_calculator=ContinuityDensity(),
+#                                      viscosity=viscosity,
+#                                      density_calculator=SummationDensity(),
 #                                      acceleration=(0.0, -gravity),
 #                                      reference_particle_spacing=fluid_particle_spacing,
-#                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
+#                                      correction=MixedKernelGradientCorrection(),
+#                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.02),
+#                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
+#                                                                                    interface_threshold=0.001))
+
+sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
+                                                     fluid_smoothing_length,
+                                                     sound_speed, viscosity=viscosity,
+                                                     density_calculator=ContinuityDensity(),
+                                                     acceleration=(0.0, -gravity),
+                                                     reference_particle_spacing=fluid_particle_spacing,
+                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728, contact_model=HuberContactModel()))
+
+sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
+                                     fluid_smoothing_length,
+                                     sound_speed, viscosity=viscosity,
+                                     density_calculator=ContinuityDensity(),
+                                     acceleration=(0.0, -gravity),
+                                     reference_particle_spacing=fluid_particle_spacing,
+                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
 
 # ==========================================================================================
 # ==== Boundary
