@@ -44,12 +44,11 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                     gravity-like source terms.
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
-                                   PF, ST, B, C} <: FluidSystem{NDIMS, IC}
+                                   PF, ST, B, PR, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
     smoothing_kernel                  :: K
-    smoothing_length                  :: ELTYPE
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -59,55 +58,57 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     transport_velocity                :: TV
     source_terms                      :: ST
     buffer                            :: B
+    particle_refinement               :: PR
     cache                             :: C
+end
 
-    function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                         smoothing_length, sound_speed;
-                                         pressure_acceleration=inter_particle_averaged_pressure,
-                                         density_calculator=SummationDensity(),
-                                         transport_velocity=nothing,
-                                         alpha=0.5, viscosity=nothing,
-                                         acceleration=ntuple(_ -> 0.0,
-                                                             ndims(smoothing_kernel)),
-                                         source_terms=nothing, buffer_size=nothing)
-        buffer = isnothing(buffer_size) ? nothing :
-                 SystemBuffer(nparticles(initial_condition), buffer_size)
+function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+                                     smoothing_length, sound_speed;
+                                     pressure_acceleration=inter_particle_averaged_pressure,
+                                     density_calculator=SummationDensity(),
+                                     transport_velocity=nothing,
+                                     alpha=0.5, viscosity=nothing,
+                                     acceleration=ntuple(_ -> 0.0,
+                                                         ndims(smoothing_kernel)),
+                                     particle_refinement=nothing,
+                                     source_terms=nothing, buffer_size=nothing)
+    buffer = isnothing(buffer_size) ? nothing :
+             SystemBuffer(nparticles(initial_condition), buffer_size)
 
-        initial_condition = allocate_buffer(initial_condition, buffer)
+    initial_condition = allocate_buffer(initial_condition, buffer)
 
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
 
-        mass = copy(initial_condition.mass)
+    mass = copy(initial_condition.mass)
 
-        if ndims(smoothing_kernel) != NDIMS
-            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        acceleration_ = SVector(acceleration...)
-        if length(acceleration_) != NDIMS
-            throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
-                                                                         density_calculator,
-                                                                         NDIMS, ELTYPE,
-                                                                         nothing)
-
-        nu_edac = (alpha * smoothing_length * sound_speed) / 8
-
-        cache = create_cache_density(initial_condition, density_calculator)
-        cache = (; create_cache_edac(initial_condition, transport_velocity)..., cache...)
-
-        new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
-            typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
-            typeof(transport_velocity), typeof(pressure_acceleration), typeof(source_terms),
-            typeof(buffer),
-            typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
-                           smoothing_length, sound_speed, viscosity, nu_edac, acceleration_,
-                           nothing, pressure_acceleration, transport_velocity, source_terms,
-                           buffer, cache)
+    if ndims(smoothing_kernel) != NDIMS
+        throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
     end
+
+    acceleration_ = SVector(acceleration...)
+    if length(acceleration_) != NDIMS
+        throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
+                                                                     density_calculator,
+                                                                     NDIMS, ELTYPE,
+                                                                     nothing)
+
+    nu_edac = (alpha * smoothing_length * sound_speed) / 8
+
+    cache = create_cache_density(initial_condition, density_calculator)
+    cache = (; create_cache_edac(initial_condition, transport_velocity)..., cache...)
+    cache = (;
+             create_cache_refinement(initial_condition, particle_refinement,
+                                     smoothing_length)..., cache...)
+
+    return EntropicallyDampedSPHSystem(initial_condition, mass, density_calculator,
+                                       smoothing_kernel, sound_speed, viscosity, nu_edac,
+                                       acceleration_, nothing, pressure_acceleration,
+                                       transport_velocity, source_terms, buffer,
+                                       particle_refinement, cache)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
