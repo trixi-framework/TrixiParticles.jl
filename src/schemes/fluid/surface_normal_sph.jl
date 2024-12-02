@@ -3,7 +3,7 @@
 
 Color field based computation of the interface normals.
 """
-struct ColorfieldSurfaceNormal{} end
+struct ColorfieldSurfaceNormal end
 
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
     return (;)
