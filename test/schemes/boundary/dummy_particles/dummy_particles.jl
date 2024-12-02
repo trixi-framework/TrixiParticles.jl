@@ -123,7 +123,7 @@
                 # the wall velocity is `v_wall = -v_fluid` (see eq. 22 in Adami_2012).
                 # With a staggered velocity profile, we can test the smoothed velocity field
                 # for a variable velocity profile.
-                @testset "Wall Velocity Staggered: Factor $scale" for scale in scales
+                @testset "Wall Velocity Staggered: Factor $scale" for scale in scale_factors
                     viscosity = boundary_system.boundary_model.viscosity
                     volume = boundary_system.boundary_model.cache.volume
 
