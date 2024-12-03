@@ -19,6 +19,7 @@ using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
+using ReadVTK: VTKFile, get_data, get_field_data, get_point_data, get_points
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
@@ -65,7 +66,7 @@ export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
-export StateEquationCole
+export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
@@ -75,7 +76,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
-export trixi2vtk
+export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export WindingNumberHormann, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry

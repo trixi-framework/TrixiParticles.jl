@@ -123,6 +123,7 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         # Store particle index
         vtk["index"] = active_particles(system)
         vtk["time"] = t
+        vtk["ndims"] = ndims(system)
 
         if write_meta_data
             vtk["solver_version"] = git_hash
@@ -260,12 +261,19 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             if system.correction isa AkinciFreeSurfaceCorrection
                 vtk["correction_rho0"] = system.correction.rho0
             end
+
+            if system.state_equation isa StateEquationCole
+                vtk["state_equation_exponent"] = system.state_equation.exponent
+            end
+
+            if system.state_equation isa StateEquationIdealGas
+                vtk["state_equation_gamma"] = system.state_equation.gamma
+            end
+
             vtk["state_equation"] = type2string(system.state_equation)
             vtk["state_equation_rho0"] = system.state_equation.reference_density
             vtk["state_equation_pa"] = system.state_equation.background_pressure
             vtk["state_equation_c"] = system.state_equation.sound_speed
-            vtk["state_equation_exponent"] = system.state_equation.exponent
-
             vtk["solver"] = "WCSPH"
         else
             vtk["solver"] = "EDAC"

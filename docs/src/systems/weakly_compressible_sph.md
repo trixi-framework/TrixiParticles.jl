@@ -53,7 +53,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 ```
 
-## Density Diffusion
+## [Density Diffusion](@id density_diffusion)
 
 Density diffusion can be used with [`ContinuityDensity`](@ref) to remove the noise in the
 pressure field. It is highly recommended to use density diffusion when using WCSPH.
