@@ -123,6 +123,7 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         # Store particle index
         vtk["index"] = active_particles(system)
         vtk["time"] = t
+        vtk["ndims"] = ndims(system)
 
         if write_meta_data
             vtk["solver_version"] = git_hash
@@ -384,9 +385,6 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
 
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
-    else
-        vtk["velocity"] = [current_velocity(v, system, particle)
-                           for particle in active_particles(system)]
     end
 end
 
