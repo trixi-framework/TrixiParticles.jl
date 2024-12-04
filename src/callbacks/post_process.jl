@@ -68,25 +68,21 @@ struct PostprocessCallback{I, F}
     times               :: Array{Float64, 1}
     exclude_boundary    :: Bool
     func                :: F
-    filename            :: String
-    output_directory    :: String
-    append_timestamp    :: Bool
+    config              :: OutputConfig
     write_csv           :: Bool
     write_json          :: Bool
     git_hash            :: Ref{String}
 end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
-                             output_directory="out", filename="values",
-                             append_timestamp=false, write_csv=true, write_json=true,
+                             output_config=OutputConfig(filename="values"), write_csv=true,
+                             write_json=true,
                              write_file_interval::Integer=1, funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
     end
 
-    if dt > 0 && interval > 0
-        throw(ArgumentError("setting both `interval` and `dt` is not supported"))
-    end
+    validate_interval_and_dt(interval, dt)
 
     if dt > 0
         interval = Float64(dt)
@@ -94,9 +90,8 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
 
     post_callback = PostprocessCallback(interval, write_file_interval,
                                         Dict{String, Vector{Any}}(), Float64[],
-                                        exclude_boundary, funcs, filename, output_directory,
-                                        append_timestamp, write_csv, write_json,
-                                        Ref("UnknownVersion"))
+                                        exclude_boundary, funcs, output_config, write_csv,
+                                        write_json, Ref("UnknownVersion"))
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(post_callback, dt,
@@ -130,77 +125,58 @@ function Base.show(io::IO,
     print(io, "])")
 end
 
+# Detailed display function for PostprocessCallback within DiscreteCallback
 function Base.show(io::IO, ::MIME"text/plain",
                    cb::DiscreteCallback{<:Any, <:PostprocessCallback})
-    @nospecialize cb # reduce precompilation time
     if get(io, :compact, false)
         show(io, cb)
     else
         callback = cb.affect!
-
-        function write_file_interval(interval)
-            if interval > 1
-                return "every $(interval) * interval"
-            elseif interval == 1
-                return "always"
-            elseif interval == 0
-                return "no"
-            end
-        end
-
-        setup = [
-            "interval" => string(callback.interval),
-            "write file" => write_file_interval(callback.write_file_interval),
-            "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
-            "filename" => callback.filename,
-            "output directory" => callback.output_directory,
-            "append timestamp" => callback.append_timestamp ? "yes" : "no",
-            "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no"
-        ]
-
-        for (i, key) in enumerate(keys(callback.func))
-            push!(setup, "function$i" => string(key))
-        end
+        setup = collect_callback_setup(callback, "interval")
         summary_box(io, "PostprocessCallback", setup)
     end
 end
 
+# Detailed display function for PostprocessCallback within PeriodicCallback
 function Base.show(io::IO, ::MIME"text/plain",
                    cb::DiscreteCallback{<:Any,
                                         <:PeriodicCallbackAffect{<:PostprocessCallback}})
-    @nospecialize cb # reduce precompilation time
     if get(io, :compact, false)
         show(io, cb)
     else
         callback = cb.affect!.affect!
-
-        function write_file_interval(interval)
-            if interval > 1
-                return "every $(interval) * dt"
-            elseif interval == 1
-                return "always"
-            elseif interval == 0
-                return "no"
-            end
-        end
-
-        setup = [
-            "dt" => string(callback.interval),
-            "write file" => write_file_interval(callback.write_file_interval),
-            "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
-            "filename" => callback.filename,
-            "output directory" => callback.output_directory,
-            "append timestamp" => callback.append_timestamp ? "yes" : "no",
-            "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no"
-        ]
-
-        for (i, key) in enumerate(keys(callback.func))
-            push!(setup, "function$i" => string(key))
-        end
+        setup = collect_callback_setup(callback, "dt")
         summary_box(io, "PostprocessCallback", setup)
     end
+end
+
+# Helper function to collect callback setup information for display
+function collect_callback_setup(callback, interval_label)
+    function write_file_interval_desc(interval)
+        if interval > 1
+            return "every $(interval) * $interval_label"
+        elseif interval == 1
+            return "always"
+        elseif interval == 0
+            return "no"
+        end
+    end
+
+    setup = [
+        interval_label => string(callback.interval),
+        "write file" => write_file_interval_desc(callback.write_file_interval),
+        "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
+        "filename" => callback.config.filename,
+        "output directory" => callback.config.output_directory,
+        "append timestamp" => callback.config.append_timestamp ? "yes" : "no",
+        "write json file" => callback.write_json ? "yes" : "no",
+        "write csv file" => callback.write_csv ? "yes" : "no"
+    ]
+
+    for (i, key) in enumerate(keys(callback.funcs))
+        push!(setup, "function$i" => string(key))
+    end
+    return setup
 end
 
 function initialize_postprocess_callback!(cb, u, t, integrator)
@@ -221,161 +197,206 @@ end
 
 # `condition` with interval
 function (pp::PostprocessCallback)(u, t, integrator)
-    (; interval) = pp
-
-    return condition_integrator_interval(integrator, interval)
+    return condition_integrator_interval(integrator, pp.interval)
 end
 
 # `affect!`
-function (pp::PostprocessCallback)(integrator)
+function (postprocess_callback::PostprocessCallback)(integrator)
+    # Extract the current solution state and parameters from the integrator
     vu_ode = integrator.u
     v_ode, u_ode = vu_ode.x
     semi = integrator.p
     t = integrator.t
-    filenames = system_names(semi.systems)
-    new_data = false
+    system_names_list = system_names(semi.systems)
+    data_collected = false
 
-    # Update systems to compute quantities like density and pressure
-    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
+    # Update the systems to compute derived quantities (e.g., density, pressure)
+    update_systems_and_nhs(
+        v_ode,
+        u_ode,
+        semi_discrete_problem,
+        t;
+        update_from_callback = true
+    )
 
-    foreach_system(semi) do system
-        if system isa BoundarySystem && pp.exclude_boundary
+    # Iterate over each system in the simulation
+    foreach_system(semi_discrete_problem) do system
+        # Skip boundary systems if 'exclude_boundary' is true
+        if system isa BoundarySystem && postprocess_callback.exclude_boundary
             return
         end
 
-        system_index = system_indices(system, semi)
+        # Get the index of the current system
+        system_index = system_indices(system, semi_discrete_problem)
 
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-        for (key, f) in pp.func
-            result = f(v, u, t, system)
+        # Extract the solution arrays specific to the current system
+        v_system = wrap_v(v_ode, system, semi_discrete_problem)
+        u_system = wrap_u(u_ode, system, semi_discrete_problem)
+
+        # Apply each user-defined function to the current system
+        for (func_name, func) in postprocess_callback.funcs
+            # Call the function with the current system's data
+            result = func(v_system, u_system, t, system)
             if result !== nothing
-                add_entry!(pp, string(key), t, result, filenames[system_index])
-                new_data = true
+                # Add the result to the data collection
+                add_entry!(
+                    postprocess_callback,
+                    string(func_name),
+                    t,
+                    result,
+                    system_names_list[system_index]
+                )
+                data_collected = true
             end
         end
     end
 
-    if new_data
-        push!(pp.times, t)
+    # Record the time if new data was collected
+    if data_collected
+        push!(postprocess_callback.times, t)
     end
 
-    if isfinished(integrator) ||
-       (pp.write_file_interval > 0 && backup_condition(pp, integrator))
-        write_postprocess_callback(pp)
+    # Write data to files if necessary
+    if isfinished(integrator) || should_write_files(postprocess_callback, integrator)
+        write_postprocess_data(postprocess_callback)
     end
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
+    # Indicate that the integrator's `u` has not been modified
     u_modified!(integrator, false)
 end
 
-@inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
-    return integrator.stats.naccept > 0 &&
-           round(integrator.stats.naccept / cb.interval) % cb.write_file_interval == 0
-end
-
-@inline function backup_condition(cb::PostprocessCallback, integrator)
-    return integrator.stats.naccept > 0 &&
-           round(Int, integrator.t / cb.interval) % cb.write_file_interval == 0
-end
-
-# After the simulation has finished, this function is called to write the data to a JSON file
-function write_postprocess_callback(pp::PostprocessCallback)
-    isempty(pp.data) && return
-
-    mkpath(pp.output_directory)
-
-    data = Dict{String, Any}()
-    write_meta_data!(data, pp.git_hash[])
-    prepare_series_data!(data, pp)
-
-    time_stamp = ""
-    if pp.append_timestamp
-        time_stamp = string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
+# Helper function to determine if it's time to write output files
+function should_write_files(postprocess_callback::PostprocessCallback, integrator)
+    # Decide based on whether the interval is defined by steps or time
+    if postprocess_callback.interval isa Integer
+        # Interval is based on step count
+        steps_completed = integrator.stats.naccept
+        intervals_completed = steps_completed ÷ postprocess_callback.interval
+        # Check if it's time to write files
+        return steps_completed > 0 &&
+               (intervals_completed % postprocess_callback.write_file_interval == 0)
+    else
+        # Interval is based on simulation time
+        time_elapsed = integrator.t
+        intervals_completed = floor(Int, time_elapsed / postprocess_callback.interval)
+        # Check if it's time to write files
+        return integrator.stats.naccept > 0 &&
+               (intervals_completed % postprocess_callback.write_file_interval == 0)
     end
+end
 
-    filename_json = pp.filename * time_stamp * ".json"
-    filename_csv = pp.filename * time_stamp * ".csv"
+# Function to write the collected post-processing data to files
+function write_postprocess_data(postprocess_callback::PostprocessCallback)
+    # Return early if there's no data to write
+    isempty(postprocess_callback.data) && return
 
-    if pp.write_json
-        abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
+    # Ensure the output directory exists
+    mkpath(postprocess_callback.config.output_directory)
 
-        open(abs_file_path, "w") do file
-            # Indent by 4 spaces
-            JSON.print(file, data, 4)
+    # Prepare the data dictionary for output
+    data = Dict{String, Any}()
+    # Add meta-data to the data dictionary
+    write_meta_data!(data, postprocess_callback.git_hash[])
+    # Organize the collected data into series format
+    prepare_series_data!(data, postprocess_callback)
+
+    # Write JSON file if enabled
+    if postprocess_callback.write_json
+        json_filename = build_filepath(postprocess_callback.config; extension = "json")
+        open(json_filename, "w") do file
+            JSON.print(file, data, 4)  # Indent by 4 spaces
         end
     end
-    if pp.write_csv
-        abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
 
-        write_csv(abs_file_path, data)
+    # Write CSV file if enabled
+    if postprocess_callback.write_csv
+        csv_filename = build_filepath(postprocess_callback.config; extension = "csv")
+        write_csv_file(csv_filename, data)
     end
 end
 
-# This function prepares the data for writing to a JSON file by creating a dictionary
-# that maps each key to separate arrays of times and values, sorted by time, and includes system name.
-function prepare_series_data!(data, post_callback)
-    for (key, data_array) in post_callback.data
+# Prepare series data for output by organizing it into a structured dictionary
+function prepare_series_data!(data_dict::Dict{String, Any}, postprocess_callback::PostprocessCallback)
+    for (key, data_array) in postprocess_callback.data
+        # Extract collected values
         data_values = [value for value in data_array]
 
-        # The penultimate string in the key is the system_name
-        system_name = split(key, '_')[end - 1]
+        # Extract system name from the key (assumes key format "functionname_systemname")
+        key_parts = split(key, '_')
+        system_name = key_parts[end - 1]  # Assuming system name is the penultimate part
 
-        data[key] = create_series_dict(data_values, post_callback.times, system_name)
+        # Create a series dictionary for this data series
+        data_dict[key] = create_series_dict(data_values, postprocess_callback.times, system_name)
     end
-
-    return data
+    return data_dict
 end
 
-function create_series_dict(values, times, system_name="")
-    return Dict("type" => "series",
-                "datatype" => eltype(values),
-                "n_values" => length(values),
-                "system_name" => system_name,
-                "values" => values,
-                "time" => times)
+# Helper function to create a series dictionary for each data series
+function create_series_dict(values::Vector{Any}, times::Vector{Float64}, system_name::String = "")
+    return Dict(
+        "type" => "series",
+        "datatype" => eltype(values),
+        "n_values" => length(values),
+        "system_name" => system_name,
+        "values" => values,
+        "time" => times
+    )
 end
 
-function write_meta_data!(data, git_hash)
-    meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => git_hash,
-                     "julia_version" => string(VERSION))
+# Write meta-data to the output data dictionary
+function write_meta_data!(data_dict::Dict{String, Any}, git_hash::String)
+    meta_data = Dict(
+        "solver_name" => "TrixiParticles.jl",
+        "solver_version" => git_hash,
+        "julia_version" => string(VERSION)
+    )
 
-    data["meta"] = meta_data
-    return data
+    data_dict["meta"] = meta_data
+    return data_dict
 end
 
-function write_csv(abs_file_path, data)
+# Function to write the data to a CSV file
+function write_csv_file(file_path::String, data::Dict{String, Any})
     times = Float64[]
 
-    for val in values(data)
-        if haskey(val, "time")
-            times = val["time"]
+    # Find the time series from the data
+    for series_data in values(data)
+        if haskey(series_data, "time")
+            times = series_data["time"]
             break
         end
     end
 
-    # Initialize DataFrame with time column
-    df = DataFrame(time=times)
+    # Initialize DataFrame with the time column
+    df = DataFrame(time = times)
 
+    # Add data series to the DataFrame
     for (key, series) in data
-        # Ensure we only process data entries, excluding any meta data or non-data entries.
-        # Metadata is stored as `data["meta"]`, while data entries contain `_$(system_name)`
+        # Skip meta-data entries
         if occursin("_", key)
             values = series["values"]
-            # Add a new column to the DataFrame for each series of values
             df[!, Symbol(key)] = values
         end
     end
 
     # Write the DataFrame to a CSV file
-    CSV.write(abs_file_path, df)
+    CSV.write(file_path, df)
 end
 
-function add_entry!(pp, entry_key, t, value, system_name)
-    # Get the list of data entries for the system, or initialize it if it doesn't exist
-    entries = get!(pp.data, entry_key * "_" * system_name, Any[])
+# Add a new entry to the data collection
+function add_entry!(
+    postprocess_callback::PostprocessCallback,
+    entry_key::String,
+    time::Float64,
+    value::Any,
+    system_name::String
+)
+    # Construct the full key by combining the function name and system name
+    full_key = entry_key * "_" * system_name
 
-    # Add the new entry to the list
-    push!(entries, value)
+    # Get or initialize the data vector for this key
+    data_entries = get!(postprocess_callback.data, full_key, Any[])
+
+    # Add the new value to the data entries
+    push!(data_entries, value)
 end

@@ -28,9 +28,7 @@ function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
                                     interval_size::Integer=10, abstol=1.0e-8, reltol=1.0e-6)
     abstol, reltol = promote(abstol, reltol)
 
-    if dt > 0 && interval > 0
-        throw(ArgumentError("setting both `interval` and `dt` is not supported"))
-    end
+    validate_interval_and_dt(interval, dt)
 
     if dt > 0
         interval = Float64(dt)

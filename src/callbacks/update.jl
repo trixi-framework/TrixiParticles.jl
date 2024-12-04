@@ -15,9 +15,7 @@ in intervals of `dt` in terms of integration time by adding additional `tstops`
         by adding additional `tstops` (note that this may change the solution).
 """
 function UpdateCallback(; interval::Integer=-1, dt=0.0)
-    if dt > 0 && interval !== -1
-        throw(ArgumentError("Setting both interval and dt is not supported!"))
-    end
+    validate_interval_and_dt(interval, dt)
 
     # Update in intervals in terms of simulation time
     if dt > 0
