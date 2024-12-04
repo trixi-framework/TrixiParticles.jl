@@ -137,8 +137,8 @@ end
         end
     end
 
-    for i in surface_particles
-        @test isapprox(computed_normals[:, i], expected_normals[:, i], atol=0.05)
+        for i in surface_particles
+        @test isapprox(computed_normals[:, i][:, i], expected_normals[:, i][:, i], atol=0.04)
     end
 
     # Optionally, check that normals for interior particles are zero
