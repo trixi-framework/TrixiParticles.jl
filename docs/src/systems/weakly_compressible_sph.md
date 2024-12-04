@@ -44,15 +44,6 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "state_equations.jl")]
 ```
 
-## [Viscosity](@id viscosity_wcsph)
-
-TODO: Explain viscosity.
-
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
-```
-
 ## [Density Diffusion](@id density_diffusion)
 
 Density diffusion can be used with [`ContinuityDensity`](@ref) to remove the noise in the
@@ -118,11 +109,3 @@ term is very expensive and adds about 40--50% of computational cost.
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "density_diffusion.jl")]
 ```
-
-## [Corrections](@id corrections)
-
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("general", "corrections.jl")]
-```
-
