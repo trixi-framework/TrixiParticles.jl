@@ -1,3 +1,4 @@
+include("../../test_util.jl")
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing;
                              NDIMS=2, smoothing_length=1.0)
     tspan = (0.0, 0.01)
@@ -72,7 +73,7 @@ end
 
     system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
                                             particle_spacing;
-                                            buffer_size=0, NDIMS=NDIMS)
+                                            NDIMS=NDIMS)
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
 end
@@ -95,7 +96,7 @@ end
     # To get somewhat accurate normals we increase the smoothing length unrealistically
     system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
                                             particle_spacing;
-                                            buffer_size=0, NDIMS=NDIMS,
+                                            NDIMS=NDIMS,
                                             smoothing_length=3.0 * particle_spacing)
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
@@ -130,8 +131,9 @@ end
     end
 
     # Compare computed normals to expected normals for surface particles
-    @test isapprox(computed_normals, expected_normals, atol=0.05)
-
+    for i in surface_particles
+        @test isapprox(computed_normals[:, i], expected_normals[:, i], atol=0.04)
+    end
     # Optionally, check that normals for interior particles are zero
     # for i in setdiff(1:nparticles, surface_particles)
     #     @test isapprox(norm(system.cache.surface_normal[:, i]), 0.0, atol=1e-4)
