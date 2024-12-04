@@ -1,7 +1,7 @@
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
                              surface_tension;
-                             surface_normal_method=ColorfieldSurfaceNormal(), NDIMS=2,
-                             smoothing_length=1.0)
+                             surface_normal_method=ColorfieldSurfaceNormal(),
+                             NDIMS=2, smoothing_length=1.0)
     tspan = (0.0, 0.01)
 
     fluid = InitialCondition(coordinates=coordinates, velocity=velocity, mass=mass,
