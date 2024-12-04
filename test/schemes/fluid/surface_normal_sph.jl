@@ -1,4 +1,3 @@
-include("../../test_util.jl")
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing;
                              NDIMS=2, smoothing_length=1.0)
     tspan = (0.0, 0.01)
