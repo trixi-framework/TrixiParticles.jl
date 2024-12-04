@@ -1,7 +1,24 @@
 
 # [Fluid Models](@id fluid_models)
+Currently available fluid methods are the [weakly compressible SPH method](@ref wcsph) and the [entropically damped artificial compressibility for SPH](@ref edac).  
+This page lists models and techniques that apply to both of these methods.  
 
-Below are common models for fluid effects used by both EDAC and WCSPH.
+## [Viscosity](@id viscosity_wcsph)
+
+TODO: Explain viscosity.
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
+```
+
+## [Corrections](@id corrections)
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "corrections.jl")]
+```
+
 
 ---
 
