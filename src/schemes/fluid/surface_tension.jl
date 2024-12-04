@@ -1,4 +1,5 @@
-abstract type AkinciTypeSurfaceTension end
+abstract type SurfaceTension end
+abstract type AkinciTypeSurfaceTension <: SurfaceTension end
 
 @doc raw"""
     CohesionForceAkinci(surface_tension_coefficient=1.0)
@@ -35,6 +36,94 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
 
     function SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
         new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    end
+end
+
+@doc raw"""
+    SurfaceTensionMorris(surface_tension_coefficient=1.0)
+
+This model implements the surface tension approach described by [Morris2000](@cite).
+It calculates surface tension forces based on the curvature of the fluid interface
+using particle normals and their divergence, making it suitable for simulating
+phenomena like droplet formation and capillary wave dynamics.
+
+# Details
+The method estimates curvature by combining particle color gradients and smoothing
+functions to derive surface normals. The curvature is then used to compute forces
+acting perpendicular to the interface. While this method provides accurate
+surface tension forces, it does not conserve momentum explicitly.
+
+# Keywords
+- `surface_tension_coefficient=1.0`: Adjusts the magnitude of the surface tension
+   forces, enabling tuning of fluid surface behaviors in simulations.
+"""
+struct SurfaceTensionMorris{ELTYPE, CM} <: SurfaceTension
+    surface_tension_coefficient :: ELTYPE
+    contact_model               :: CM
+
+    function SurfaceTensionMorris(; surface_tension_coefficient=1.0, contact_model=nothing)
+        new{typeof(surface_tension_coefficient), typeof(contact_model)}(surface_tension_coefficient,
+                                                                        contact_model)
+    end
+end
+
+function create_cache_surface_tension(surface_tension, ELTYPE, NDIMS, nparticles)
+    return (;)
+end
+
+function create_cache_surface_tension(st::SurfaceTensionMorris, ELTYPE, NDIMS, nparticles)
+    curvature = Array{ELTYPE, 1}(undef, nparticles)
+    if st.contact_model isa Nothing
+        return (; curvature)
+    else
+        return (;
+                create_cache_contact_model(st.contact_model, ELTYPE, NDIMS, nparticles)...,
+                curvature)
+    end
+end
+
+@doc raw"""
+    SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)
+
+This model implements the momentum-conserving surface tension approach outlined by
+[Morris2000](@cite). It calculates surface tension forces using the gradient of a stress
+tensor, ensuring exact conservation of linear momentum. This method is particularly
+useful for simulations where momentum conservation is critical, though it may require
+numerical adjustments at higher resolutions.
+
+# Details
+The stress tensor approach replaces explicit curvature calculations, avoiding the
+singularities associated with resolution increases. However, the method is computationally
+intensive and may require stabilization techniques to handle tensile instability at high
+particle densities.
+
+# Keywords
+- `surface_tension_coefficient=1.0`: A parameter to adjust the strength of surface tension
+   forces, allowing fine-tuning to replicate physical behavior.
+"""
+struct SurfaceTensionMomentumMorris{ELTYPE, CM} <: SurfaceTension
+    surface_tension_coefficient::ELTYPE
+    contact_model::CM
+
+    function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0,
+                                          contact_model=nothing)
+        new{typeof(surface_tension_coefficient), typeof(contact_model)}(surface_tension_coefficient,
+                                                                        contact_model)
+    end
+end
+
+function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
+                                      nparticles)
+    # Allocate stress tensor for each particle: NDIMS x NDIMS x nparticles
+    delta_s = Array{ELTYPE, 1}(undef, nparticles)
+    stress_tensor = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+
+    if st.contact_model isa Nothing
+        return (; stress_tensor, delta_s)
+    else
+        return (;
+                create_cache_contact_model(st.contact_model, ELTYPE, NDIMS, nparticles)...,
+                delta_s, stress_tensor)
     end
 end
 
@@ -89,47 +178,18 @@ end
     return adhesion_force
 end
 
-# Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
-# Note: most of the time this only leads to an approximation of the surface normal
-
-function calc_normal_akinci!(system, neighbor_system::FluidSystem,
-                             surface_tension::SurfaceTensionAkinci, u_system,
-                             v_neighbor_system, u_neighbor_system,
-                             neighborhood_search)
-    (; smoothing_length, cache) = system
-
-    system_coords = current_coordinates(u_system, system)
-    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-    foreach_point_neighbor(system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           neighborhood_search) do particle, neighbor, pos_diff, distance
-        m_b = hydrodynamic_mass(neighbor_system, neighbor)
-        density_neighbor = particle_density(v_neighbor_system,
-                                            neighbor_system, neighbor)
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance,
-                                            particle)
-        for i in 1:ndims(system)
-            cache.surface_normal[i, particle] += m_b / density_neighbor *
-                                                 grad_kernel[i] * smoothing_length
-        end
-    end
-
-    return system
-end
-
-function calc_normal_akinci!(system, neighbor_system, surface_tension, u_system,
-                             v_neighbor_system, u_neighbor_system,
-                             neighborhood_search)
-    # Normal not needed
-    return system
+# Skip
+@inline function surface_tension_force(surface_tension_a, surface_tension_b,
+                                       particle_system, neighbor_system, particle, neighbor,
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+    return zero(pos_diff)
 end
 
 @inline function surface_tension_force(surface_tension_a::CohesionForceAkinci,
                                        surface_tension_b::CohesionForceAkinci,
                                        particle_system::FluidSystem,
                                        neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance)
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
     (; smoothing_length) = particle_system
     # No cohesion with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
@@ -144,7 +204,7 @@ end
                                        surface_tension_b::SurfaceTensionAkinci,
                                        particle_system::FluidSystem,
                                        neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance)
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
     (; smoothing_length, smoothing_kernel) = particle_system
     (; surface_tension_coefficient) = surface_tension_a
 
@@ -152,20 +212,47 @@ end
     distance < sqrt(eps()) && return zero(pos_diff)
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
-    n_a = surface_normal(surface_tension_a, particle_system, particle)
-    n_b = surface_normal(surface_tension_b, neighbor_system, neighbor)
+    n_a = surface_normal(particle_system, particle)
+    n_b = surface_normal(neighbor_system, neighbor)
     support_radius = compact_support(smoothing_kernel, smoothing_length)
 
     return cohesion_force_akinci(surface_tension_a, support_radius, m_b,
                                  pos_diff, distance) .-
-           (surface_tension_coefficient * (n_a - n_b))
+           (surface_tension_coefficient * (n_a - n_b) * smoothing_length)
 end
 
-# Skip
-@inline function surface_tension_force(surface_tension_a, surface_tension_b,
-                                       particle_system, neighbor_system, particle, neighbor,
-                                       pos_diff, distance)
-    return zero(pos_diff)
+@inline function surface_tension_force(surface_tension_a::SurfaceTensionMorris,
+                                       surface_tension_b::SurfaceTensionMorris,
+                                       particle_system::FluidSystem,
+                                       neighbor_system::FluidSystem, particle, neighbor,
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+    (; surface_tension_coefficient) = surface_tension_a
+
+    # This force only applies to itself
+    !(particle == neighbor) && return zero(pos_diff)
+
+    n_a = surface_normal(particle_system, particle)
+    curvature_a = curvature(particle_system, particle)
+
+    return -surface_tension_coefficient / rho_a * curvature_a * n_a
+end
+
+@inline function surface_tension_force(surface_tension_a::SurfaceTensionMomentumMorris,
+                                       surface_tension_b::SurfaceTensionMomentumMorris,
+                                       particle_system::FluidSystem,
+                                       neighbor_system::FluidSystem, particle, neighbor,
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+    (; surface_tension_coefficient) = surface_tension_a
+
+    # No surface tension with oneself
+    distance < sqrt(eps()) && return zero(pos_diff)
+
+    S_a = particle_system.cache.stress_tensor[:, :, particle]
+    S_b = neighbor_system.cache.stress_tensor[:, :, neighbor]
+
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+    return surface_tension_coefficient * m_b * (S_a + S_b) / (rho_a * rho_b) * grad_kernel
 end
 
 @inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,
@@ -191,4 +278,64 @@ end
 @inline function adhesion_force(surface_tension, particle_system, neighbor_system, particle,
                                 neighbor, pos_diff, distance)
     return zero(pos_diff)
+end
+
+@doc raw"""
+    HuberContactModel{ELTYPE}
+
+Represents the contact force model inspired by [Huber2016](@cite). This model is
+designed to calculate physically accurate surface tension and contact line
+forces in fluid simulations, specifically those involving Smoothed Particle
+Hydrodynamics (SPH).
+
+The model enables the simulation of wetting phenomena, including dynamic contact
+angles and their influence on the system's dynamics, using physically-based
+parameters without introducing fitting coefficients.
+"""
+struct HuberContactModel end
+
+function create_cache_contact_model(contact_model, ELTYPE, NDIMS, nparticles)
+    return (;)
+end
+
+function create_cache_contact_model(::HuberContactModel, ELTYPE, NDIMS, nparticles)
+    d_vec = Array{ELTYPE}(undef, NDIMS, nparticles)
+    d_hat = Array{ELTYPE}(undef, NDIMS, nparticles)
+    nu_hat = Array{ELTYPE}(undef, NDIMS, nparticles)
+    nu_hat .= 0.0
+    delta_wns = Array{ELTYPE}(undef, nparticles)
+    # non-normal vector
+    normal_v = Array{ELTYPE}(undef, NDIMS, nparticles)
+    return (; d_hat, delta_wns, normal_v, nu_hat, d_vec)
+end
+
+@inline function contact_force(contact_model, particle_system, particle)
+    return zero(ndims(particle_system))
+end
+
+@inline function contact_force(::HuberContactModel, particle_system::FluidSystem, particle)
+    cache = particle_system.cache
+    sigma = particle_system.surface_tension.surface_tension_coefficient
+
+    # Retrieve the normalized dynamic direction vector d̂ₐ for particle 'a' (Equation 51, normalized)
+    d_hat_particle = cache.d_hat[:, particle]
+
+    if norm(d_hat_particle) < eps()
+        return zero(ndims(particle_system))
+    end
+
+    nu_hat_particle = cache.nu_hat[:, particle]
+    delta_wns_particle = cache.delta_wns[particle]
+    n_hat_particle = surface_normal(particle_system, particle)
+
+    dot_d_n = dot(d_hat_particle, n_hat_particle)
+
+    # Equation 52
+    static_contact_angle = 1.5708 #neighbor_system.static_contact_angle #TODO: FIX
+    f_wns_a = sigma * (cos(static_contact_angle) + dot_d_n) .* nu_hat_particle
+
+    # Compute the force contribution (Equation 57) (needs to be in acceleration form)
+    F_a = f_wns_a * delta_wns_particle / hydrodynamic_mass(particle_system, particle)
+
+    return F_a
 end
