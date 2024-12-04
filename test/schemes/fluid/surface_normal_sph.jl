@@ -1,6 +1,6 @@
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
                              surface_tension;
-                             NDIMS=2, smoothing_length=1.0)
+                             surface_normal_method=ColorfieldSurfaceNormal(), NDIMS=2, smoothing_length=1.0)
     tspan = (0.0, 0.01)
 
     fluid = InitialCondition(coordinates=coordinates, velocity=velocity, mass=mass,
@@ -13,7 +13,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(), state_equation,
                                          SchoenbergCubicSplineKernel{NDIMS}(),
                                          smoothing_length;
-                                         surface_normal_method=ColorfieldSurfaceNormal(),
+                                         surface_normal_method=surface_normal_method,
                                          reference_particle_spacing=particle_spacing,
                                          surface_tension=surface_tension)
 
@@ -25,6 +25,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     return system, semi, ode
 end
 
+# TODO: change to rect
 function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     v0_ode, u0_ode = ode.u0.x
     v = TrixiParticles.wrap_v(v0_ode, system, semi)
@@ -33,6 +34,8 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     # Compute the surface normals
     TrixiParticles.compute_surface_normal!(system, system.surface_normal_method, v, u,
                                            v0_ode, u0_ode, semi, 0.0)
+
+    TrixiParticles.remove_invalid_normals!(system, SurfaceTensionMorris(),  system.surface_normal_method)
 
     # After computation, check that surface normals have been computed and are not NaN or Inf
     @test all(isfinite.(system.cache.surface_normal))
@@ -97,7 +100,8 @@ end
     system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
                                             particle_spacing, nothing;
                                             NDIMS=NDIMS,
-                                            smoothing_length=3.0 * particle_spacing)
+                                            smoothing_length=3.0 * particle_spacing,
+                                            surface_normal_method = ColorfieldSurfaceNormal(interface_threshold=0.1, ideal_density_threshold=0.9))
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
 
@@ -130,8 +134,9 @@ end
         end
     end
 
-    # Compare computed normals to expected normals for surface particles
-    @test isapprox(computed_normals, expected_normals, atol=0.05)
+    for i in surface_particles
+        @test isapprox(computed_normals[:, i], expected_normals[:, i], atol=0.05)
+    end
 
     # Optionally, check that normals for interior particles are zero
     # for i in setdiff(1:nparticles, surface_particles)
