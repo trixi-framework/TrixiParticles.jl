@@ -1,4 +1,3 @@
-include("../../test_util.jl")
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
                              surface_tension;
                              surface_normal_method=ColorfieldSurfaceNormal(),
