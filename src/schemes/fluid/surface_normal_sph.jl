@@ -248,6 +248,7 @@ function remove_invalid_normals!(system::FluidSystem,
     for particle in each_moving_particle(system)
 
         # heuristic condition if there is no gas phase to find the free surface
+        # We remove normals for particles which have alot of support e.g. they are in the inside
         if ideal_density_threshold > 0 &&
            ideal_density_threshold * ideal_neighbor_count < cache.neighbor_count[particle]
             if surface_tension.contact_model isa HuberContactModel
