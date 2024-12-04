@@ -73,7 +73,7 @@ end
 
     system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
                                             particle_spacing, nothing;
-                                            buffer_size=0, NDIMS=NDIMS)
+                                            NDIMS=NDIMS)
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
 end
@@ -96,7 +96,7 @@ end
     # To get somewhat accurate normals we increase the smoothing length unrealistically
     system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
                                             particle_spacing, nothing;
-                                            buffer_size=0, NDIMS=NDIMS,
+                                            NDIMS=NDIMS,
                                             smoothing_length=3.0 * particle_spacing)
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
