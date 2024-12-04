@@ -5,7 +5,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.001
+fluid_particle_spacing = 0.002
 
 boundary_layers = 4
 spacing_ratio = 1
@@ -43,33 +43,55 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 fluid_smoothing_length = 3.5 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
-nu = 0.005
+nu = 0.01
 viscosity = ViscosityMorris(nu=nu)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
 # TODO: sinks into wall with EDAC and MixedKernelGradientCorrection
-sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, state_equation,
-                                                     fluid_smoothing_kernel,
+# sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, state_equation,
+#                                                      fluid_smoothing_kernel,
+#                                                      fluid_smoothing_length,
+#                                                      viscosity=viscosity,
+#                                                      density_calculator=SummationDensity(),
+#                                                      acceleration=(0.0, -gravity),
+#                                                      reference_particle_spacing=fluid_particle_spacing,
+#                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
+#                                                      correction=MixedKernelGradientCorrection(),
+#                                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.0,
+#                                                                                                    interface_threshold=0.025))
+
+# sphere = WeaklyCompressibleSPHSystem(sphere2, state_equation, fluid_smoothing_kernel,
+#                                      fluid_smoothing_length,
+#                                      viscosity=viscosity,
+#                                      density_calculator=SummationDensity(),
+#                                      acceleration=(0.0, -gravity),
+#                                      reference_particle_spacing=fluid_particle_spacing,
+#                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
+#                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.0,
+#                                                                                    interface_threshold=0.025))
+
+
+
+sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
-                                                     viscosity=viscosity,
-                                                     density_calculator=SummationDensity(),
+                                                     sound_speed, viscosity=viscosity,
+                                                     density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      reference_particle_spacing=fluid_particle_spacing,
                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
-                                                     correction=MixedKernelGradientCorrection(),
-                                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
-                                                                                                   interface_threshold=0.001))
+                                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.9,
+                                                                                    interface_threshold=0.001))
 
-sphere = WeaklyCompressibleSPHSystem(sphere2, state_equation, fluid_smoothing_kernel,
+sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      fluid_smoothing_length,
-                                     viscosity=viscosity,
+                                     sound_speed, viscosity=viscosity,
                                      density_calculator=SummationDensity(),
                                      acceleration=(0.0, -gravity),
                                      reference_particle_spacing=fluid_particle_spacing,
                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
-                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.95,
-                                                                                   interface_threshold=0.001))
+                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.0,
+                                                                    interface_threshold=0.025))
 
 # ==========================================================================================
 # ==== Boundary

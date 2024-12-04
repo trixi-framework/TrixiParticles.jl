@@ -83,7 +83,7 @@ This approach is commonly used in fluid simulations to determine interface norma
 for multiphase flows or free surfaces.
 
 # Keywords
-- `boundary_contact_threshold=0.1`: The threshold value used to determine contact with boundaries.
+- `boundary_contact_threshold=0.0`: The threshold value used to determine contact with boundaries.
    Adjust this to refine the detection of surface interfaces near boundaries.
 - `interface_threshold=0.01`: The threshold value that defines the presence of an interface.
    Lower values can improve sensitivity but may introduce noise.
@@ -96,7 +96,7 @@ struct ColorfieldSurfaceNormal{ELTYPE}
     ideal_density_threshold::ELTYPE
 end
 
-function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
+function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.0, interface_threshold=0.01,
                                  ideal_density_threshold=0.0)
     return ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold,
                                    ideal_density_threshold)
@@ -192,6 +192,10 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
         colorfield[neighbor] += hydrodynamic_mass(system, particle) /
                                 particle_density(v, system, particle) * system.color *
                                 smoothing_kernel(system, distance)
+    end
+
+    if boundary_contact_threshold < eps()
+        return system
     end
 
     maximum_colorfield = maximum(colorfield)
