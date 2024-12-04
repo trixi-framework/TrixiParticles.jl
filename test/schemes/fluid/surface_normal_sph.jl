@@ -1,3 +1,4 @@
+include("../../test_util.jl")
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
                              surface_tension;
                              surface_normal_method=ColorfieldSurfaceNormal(),
@@ -138,8 +139,7 @@ end
     end
 
     for i in surface_particles
-        @test isapprox(computed_normals[:, i][:, i], expected_normals[:, i][:, i],
-                       atol=0.04)
+        @test isapprox(computed_normals[:, i], expected_normals[:, i], atol=0.04)
     end
 
     # Optionally, check that normals for interior particles are zero
