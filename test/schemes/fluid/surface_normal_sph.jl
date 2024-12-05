@@ -1,7 +1,8 @@
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
                              surface_tension;
                              surface_normal_method=ColorfieldSurfaceNormal(),
-                             NDIMS=2, smoothing_length=1.0)
+                             NDIMS=2, smoothing_length=1.0,
+                             smoothing_kernel=SchoenbergCubicSplineKernel{NDIMS}())
     tspan = (0.0, 0.01)
 
     fluid = InitialCondition(coordinates=coordinates, velocity=velocity, mass=mass,
@@ -12,8 +13,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
                                        exponent=1)
 
     system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(), state_equation,
-                                         SchoenbergCubicSplineKernel{NDIMS}(),
-                                         smoothing_length;
+                                         smoothing_kernel, smoothing_length;
                                          surface_normal_method=surface_normal_method,
                                          reference_particle_spacing=particle_spacing,
                                          surface_tension=surface_tension)
@@ -85,10 +85,19 @@ end
 
 @testset "Sphere Surface Normals" begin
     # Test case 2: Particles arranged in a circle
-    particle_spacing = 0.25
+    NDIMS = 2
+    smoothing_kernel = SchoenbergCubicSplineKernel{NDIMS}()
+    particle_spacing = 0.25 # 0.1
+    smoothing_length = 3.0 * particle_spacing # 3.5
     radius = 1.0
     center = (0.0, 0.0)
-    NDIMS = 2
+
+    # NDIMS = 2
+    # smoothing_kernel = WendlandC2Kernel{NDIMS}()
+    # particle_spacing = 0.3 # 0.1
+    # smoothing_length = 3.0 * particle_spacing # 3.5
+    # radius = 1.0
+    # center = (0.0, 0.0)
 
     # Create a `SphereShape`, which is a circle in 2D
     sphere_ic = SphereShape(particle_spacing, radius, center, 1000.0)
@@ -103,6 +112,7 @@ end
                                             particle_spacing, nothing;
                                             NDIMS=NDIMS,
                                             smoothing_length=3.0 * particle_spacing,
+                                            smoothing_kernel=smoothing_kernel,
                                             surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
                                                                                           ideal_density_threshold=0.9))
 
