@@ -40,11 +40,11 @@ end
     k = correction.rho0 / rho_mean
 
     # Viscosity, pressure, surface_tension
-    return k, 1.0, k
+    return k, 1, k
 end
 
 @inline function free_surface_correction(correction, particle_system, rho_mean)
-    return 1.0, 1.0, 1.0
+    return 1, 1, 1
 end
 
 @doc raw"""
