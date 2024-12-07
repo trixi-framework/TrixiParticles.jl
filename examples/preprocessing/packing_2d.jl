@@ -50,11 +50,11 @@ trixi2vtk(boundary_sampled, filename="boundary")
 # `background_pressure` result in appropriate time-stepsizes.
 background_pressure = 1e6 * particle_spacing^ndims(geometry)
 
-packing_system = ParticlePackingSystem(shape_sampled; boundary=geometry,
+packing_system = ParticlePackingSystem(shape_sampled;
                                        signed_distance_field, tlsph=tlsph,
                                        background_pressure)
 
-boundary_system = ParticlePackingSystem(boundary_sampled; boundary=geometry,
+boundary_system = ParticlePackingSystem(boundary_sampled;
                                         is_boundary=true, signed_distance_field,
                                         tlsph=tlsph, boundary_compress_factor=0.8,
                                         background_pressure)

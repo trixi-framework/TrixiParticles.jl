@@ -1,6 +1,5 @@
 """
     ParticlePackingSystem(shape::InitialCondition;
-                          boundary::Union{Polygon, TriangleMesh},
                           signed_distance_field::SignedDistanceField,
                           smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
                           smoothing_length=1.2 * shape.particle_spacing,
@@ -15,7 +14,6 @@ For more information on the methods, see description below.
 - `initial_condition`: [`InitialCondition`](@ref) to be packed.
 
 # Keywords
-- `boundary`:              Geometry returned by [`load_geometry`](@ref).
 - `background_pressure`:   Constant background pressure to physically pack the particles.
                            A large `background_pressure` can cause high accelerations
                            which requires a properly adjusted time step.
@@ -38,10 +36,9 @@ For more information on the methods, see description below.
 - `smoothing_length`:      Smoothing length to be used for this system.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
+struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
                              S, N} <: FluidSystem{NDIMS, IC}
     initial_condition     :: IC
-    boundary              :: B
     smoothing_kernel      :: K
     smoothing_length      :: ELTYPE
     background_pressure   :: ELTYPE
@@ -55,7 +52,6 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
     update_callback_used  :: Ref{Bool}
 
     function ParticlePackingSystem(shape::InitialCondition;
-                                   boundary::Union{Polygon, TriangleMesh},
                                    signed_distance_field::SignedDistanceField,
                                    smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
                                    smoothing_length=1.2 * shape.particle_spacing,
@@ -86,13 +82,12 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
             tlsph ? zero(ELTYPE) : 0.5shape.particle_spacing
         end
 
-        return new{NDIMS, ELTYPE, typeof(shape), typeof(boundary),
-                   typeof(smoothing_kernel), typeof(signed_distance_field),
-                   typeof(nhs)}(shape, boundary, smoothing_kernel,
-                                smoothing_length, background_pressure, tlsph,
-                                signed_distance_field, is_boundary, shift_condition,
-                                nhs, fill(zero(ELTYPE), nparticles(shape)),
-                                nothing, false)
+        return new{NDIMS, ELTYPE, typeof(shape), typeof(smoothing_kernel),
+                   typeof(signed_distance_field),
+                   typeof(nhs)}(shape, smoothing_kernel, smoothing_length,
+                                background_pressure, tlsph, signed_distance_field,
+                                is_boundary, shift_condition, nhs,
+                                fill(zero(ELTYPE), nparticles(shape)), nothing, false)
     end
 end
 
@@ -114,9 +109,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
         summary_line(io, "neighborhood search",
                      system.neighborhood_search |> typeof |> nameof)
         summary_line(io, "#particles", nparticles(system))
-        summary_line(io, "#faces", nfaces(system.boundary))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "mesh", system.boundary |> typeof |> nameof)
         summary_line(io, "tlsph", system.tlsph ? "yes" : "no")
         summary_line(io, "boundary", system.is_boundary ? "yes" : "no")
         summary_footer(io)
