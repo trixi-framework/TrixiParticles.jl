@@ -119,3 +119,5 @@ end
 
     return v1, v2
 end
+
+@inline face_normal(edge, geometry::Polygon) = geometry.edge_normals[edge]
