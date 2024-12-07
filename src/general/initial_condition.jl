@@ -312,7 +312,9 @@ function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=fal
     density = ic.density[not_too_close]
     pressure = ic.pressure[not_too_close]
 
-    @info "Removed $(length(too_close)) particles that are too close together"
+    if length(too_close) > 0
+        @info "Removed $(length(too_close)) particles that are too close together"
+    end
 
     return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
                                        ic.particle_spacing)
