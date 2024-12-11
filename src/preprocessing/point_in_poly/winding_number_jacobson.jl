@@ -86,15 +86,15 @@ function (point_in_poly::WindingNumberJacobson)(geometry, points;
     (; winding_number_factor, winding) = point_in_poly
 
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
-    inpoly = fill(false, size(points, 2))
+    inpoly = fill(false, length(points))
 
     winding_numbers = Float64[]
     store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
 
     divisor = ndims(geometry) == 2 ? 2pi : 4pi
 
-    @threaded points for query_point in axes(points, 2)
-        p = point_position(points, geometry, query_point)
+    @threaded points for query_point in eachindex(points)
+        p = points[query_point]
 
         winding_number = winding(geometry, p) / divisor
 
