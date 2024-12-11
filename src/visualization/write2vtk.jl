@@ -195,6 +195,7 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     vtk_grid(file, points, cells) do vtk
         # Store particle index.
         vtk["index"] = [i for i in axes(coordinates, 2)]
+        vtk["ndims"] = size(coordinates, 1)
 
         # Extract custom quantities for this system.
         for (key, quantity) in custom_quantities
@@ -203,7 +204,6 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
             end
         end
     end
-
     return file
 end
 

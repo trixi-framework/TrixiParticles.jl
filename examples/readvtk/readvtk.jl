@@ -8,7 +8,7 @@ rectangle = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0, 
 trixi2vtk(rectangle; filename="rectangle", output_directory="out",
           custom_quantity=nothing)
 
-filename = "rectangle"
+filename = "open_boundary_1_0"
 file = joinpath("out", filename * ".vtu")
 
 # Read the vtk file and convert it to an 'InitialCondition'
