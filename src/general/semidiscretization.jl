@@ -134,8 +134,8 @@ function create_neighborhood_search(neighborhood_search, system, neighbor)
 end
 
 @inline function compact_support(system, neighbor)
-    (; smoothing_kernel, smoothing_length) = system
-    return compact_support(smoothing_kernel, smoothing_length)
+    (; smoothing_kernel) = system
+    return compact_support(smoothing_kernel, smoothing_length(system, 1)) # TODO
 end
 
 @inline function compact_support(system::OpenBoundarySPHSystem, neighbor)
@@ -407,7 +407,9 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
-    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system), systems)
+    return 1.0
+    # TODO
+    # return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system), systems)
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
