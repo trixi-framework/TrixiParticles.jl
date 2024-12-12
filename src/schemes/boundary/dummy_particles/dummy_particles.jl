@@ -377,19 +377,17 @@ function compute_pressure!(boundary_model,
         if allow_loop_flipping &&
            nparticles(system) > div(Threads.nthreads(), 2) * nparticles(neighbor_system)
 
-            nhs = get_neighborhood_search(neighbor_system, system, semi)
-
             # Loop over fluid particles and then the neighboring boundary particles
             # to extrapolate fluid pressure to the boundaries.
+            nhs = get_neighborhood_search(neighbor_system, system, semi)
             boundary_pressure_extrapolation_neighbor!(boundary_model, system,
                                                       neighbor_system,
                                                       system_coords, neighbor_coords, v,
                                                       v_neighbor_system, nhs)
         else
-            nhs = get_neighborhood_search(system, neighbor_system, semi)
-
             # Loop over boundary particles and then the neighboring fluid particles
             # to extrapolate fluid pressure to the boundaries.
+            nhs = get_neighborhood_search(system, neighbor_system, semi)
             boundary_pressure_extrapolation!(boundary_model, system,
                                              neighbor_system,
                                              system_coords, neighbor_coords, v,
