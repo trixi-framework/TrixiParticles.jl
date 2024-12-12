@@ -46,7 +46,7 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
 
     nparticles = size(u, 2)
 
-    # check the threshold has been applied correctly
+    # Check that the threshold has been applied correctly
     threshold = 2^ndims(system) + 1
 
     # Test the surface normals based on validity conditions
