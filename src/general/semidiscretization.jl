@@ -189,6 +189,22 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function compact_support(system::EnergyCalculatorSystem, neighbor)
+    # This NHS is never used
+    return 0.0
+end
+
+@inline function compact_support(system, neighbor::EnergyCalculatorSystem)
+    # This NHS is never used
+    return 0.0
+end
+
+@inline function compact_support(system::EnergyCalculatorSystem,
+                                 neighbor::EnergyCalculatorSystem)
+    # This NHS is never used
+    return 0.0
+end
+
 @inline function get_neighborhood_search(system, semi)
     (; neighborhood_searches) = semi
 
@@ -440,6 +456,7 @@ end
 end
 
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
+@inline add_velocity!(du, v, particle, system::EnergyCalculatorSystem) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "kick!" begin
@@ -815,6 +832,24 @@ end
 function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(true, false))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving,
                            parallelization_backend=KernelAbstractions.get_backend(system))
+end
+
+function nhs_coords(system::EnergyCalculatorSystem,
+                    neighbor, u)
+    # Don't update
+    return nothing
+end
+
+function nhs_coords(system,
+                    neighbor::EnergyCalculatorSystem, u)
+    # Don't update
+    return nothing
+end
+
+function nhs_coords(system::EnergyCalculatorSystem,
+                    neighbor::EnergyCalculatorSystem, u)
+    # Don't update
+    return nothing
 end
 
 function check_configuration(systems)

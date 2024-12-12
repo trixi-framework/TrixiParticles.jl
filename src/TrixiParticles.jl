@@ -34,7 +34,7 @@ using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
                                 ParallelUpdate, SemiParallelUpdate, SerialUpdate
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
                       @threaded
-using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
+using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save, VTKFieldData
 
 # `util.jl` depends on the `GPUSystem` type defined in `system.jl`
 include("general/system.jl")
