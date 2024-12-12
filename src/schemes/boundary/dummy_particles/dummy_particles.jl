@@ -111,14 +111,29 @@ end
                          to prevent penetration, which is possible by increasing this value.
 - `factor=1.0`         : Setting `factor` allows to just increase the strength of the dynamic
                          pressure part.
+- `allow_loop_flipping=true`: Allow to flip the loop order for the pressure extrapolation.
+                              Disable to prevent error variations between simulations with
+                              different numbers of threads.
+                              Usually, the first (multithreaded) loop is over the boundary
+                              particles and the second loop over the fluid neighbors.
+                              When the number of boundary particles is larger than
+                              `ceil(0.5 * nthreads())` times the number of fluid particles,
+                              it is usually more efficient to flip the loop order and loop
+                              over the fluid particles first.
+                              The factor depends on the number of threads, as the flipped
+                              loop is not thread parallelizable.
+                              This can cause error variations between simulations with
+                              different numbers of threads.
 
 """
 struct BernoulliPressureExtrapolation{ELTYPE}
-    pressure_offset :: ELTYPE
-    factor          :: ELTYPE
+    pressure_offset     :: ELTYPE
+    factor              :: ELTYPE
+    allow_loop_flipping :: Bool
 
-    function BernoulliPressureExtrapolation(; pressure_offset=0.0, factor=0.0)
-        return new{eltype(pressure_offset)}(pressure_offset, factor)
+    function BernoulliPressureExtrapolation(; pressure_offset=0.0, factor=0.0,
+                                            allow_loop_flipping=true)
+        return new{eltype(pressure_offset)}(pressure_offset, factor, allow_loop_flipping)
     end
 end
 
@@ -353,7 +368,7 @@ function compute_pressure!(boundary_model,
                                    BernoulliPressureExtrapolation},
                            system, v, u, v_ode, u_ode, semi)
     (; pressure, cache, viscosity) = boundary_model
-    (; allow_loop_flipping) = bnd_density_calc
+    (; allow_loop_flipping) = boundary_model.density_calculator
 
     set_zero!(pressure)
 
