@@ -78,13 +78,13 @@ end
 end
 
 @testset "Sphere Surface Normals" begin
-    # Test case 2: Particles arranged in a circle
+    # Test case 2: Particles arranged in a disk
     particle_spacing = 0.25
     radius = 1.0
     center = (0.0, 0.0)
     NDIMS = 2
 
-    # Create a `SphereShape`, which is a circle in 2D
+    # Create a `SphereShape`, which is a disk in 2D
     sphere_ic = SphereShape(particle_spacing, radius, center, 1000.0)
 
     coordinates = sphere_ic.coordinates
@@ -133,6 +133,7 @@ end
     for i in surface_particles
         @test isapprox(computed_normals[:, i], expected_normals[:, i], atol=0.04)
     end
+
     # Optionally, check that normals for interior particles are zero
     # for i in setdiff(1:nparticles, surface_particles)
     #     @test isapprox(norm(system.cache.surface_normal[:, i]), 0.0, atol=1e-4)
