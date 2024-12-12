@@ -84,75 +84,76 @@ end
 end
 
 @testset "Sphere Surface Normals" begin
-    # Test case 2: Particles arranged in a circle
-    NDIMS = 2
-    smoothing_kernel = SchoenbergCubicSplineKernel{NDIMS}()
-    particle_spacing = 0.25 # 0.1
-    smoothing_length = 3.0 * particle_spacing # 3.5
-    radius = 1.0
-    center = (0.0, 0.0)
+    # Define each variation as a tuple of parameters:
+    # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center)
+    variations = [
+        (2, SchoenbergCubicSplineKernel{2}(), 0.25, 3.0, 1.0, (0.0, 0.0)),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0)),
+        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0)),
+        (2, WendlandC2Kernel{2}(),            0.3, 3.0, 1.0, (0.0, 0.0)),
+        (3, WendlandC2Kernel{3}(),            0.3, 3.0, 1.0, (0.0, 0.0, 0.0))
+    ]
 
-    # NDIMS = 2
-    # smoothing_kernel = WendlandC2Kernel{NDIMS}()
-    # particle_spacing = 0.3 # 0.1
-    # smoothing_length = 3.0 * particle_spacing # 3.5
-    # radius = 1.0
-    # center = (0.0, 0.0)
+    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center) in variations
+        @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
+            smoothing_length = smoothing_length_mult * particle_spacing
 
-    # Create a `SphereShape`, which is a circle in 2D
-    sphere_ic = SphereShape(particle_spacing, radius, center, 1000.0)
+            # Create a `SphereShape`, which is a disk in 2D
+            sphere_ic = SphereShape(particle_spacing, radius, center, 1000.0)
 
-    coordinates = sphere_ic.coordinates
-    velocity = zeros(NDIMS, size(coordinates, 2))
-    mass = sphere_ic.mass
-    density = sphere_ic.density
+            coordinates = sphere_ic.coordinates
+            velocity = zeros(NDIMS, size(coordinates, 2))
+            mass = sphere_ic.mass
+            density = sphere_ic.density
 
-    # To get somewhat accurate normals we increase the smoothing length unrealistically
-    system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
-                                            particle_spacing, nothing;
-                                            NDIMS=NDIMS,
-                                            smoothing_length=3.0 * particle_spacing,
-                                            smoothing_kernel=smoothing_kernel,
-                                            surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                          ideal_density_threshold=0.9))
+            # Create fluid system with chosen parameters
+            system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
+                                                    particle_spacing, nothing;
+                                                    NDIMS=NDIMS,
+                                                    smoothing_length=smoothing_length,
+                                                    smoothing_kernel=smoothing_kernel,
+                                                    surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                                                  ideal_density_threshold=0.9))
 
-    compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
+            compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
 
-    nparticles = size(coordinates, 2)
-    expected_normals = zeros(NDIMS, nparticles)
-    surface_particles = Int[]
+            nparticles = size(coordinates, 2)
+            expected_normals = zeros(NDIMS, nparticles)
+            surface_particles = Int[]
 
-    # Compute expected normals and identify surface particles
-    for i in 1:nparticles
-        pos = coordinates[:, i]
-        r = pos .- center
-        norm_r = norm(r)
+            # Compute expected normals and identify surface particles
+            for i in 1:nparticles
+                pos = coordinates[:, i]
+                r = pos .- center
+                norm_r = norm(r)
 
-        # If particle is on the circumference of the circle
-        if abs(norm_r - radius) < particle_spacing
-            expected_normals[:, i] = -r / norm_r
+                # If particle is on the circumference of the circle
+                if abs(norm_r - radius) < particle_spacing
+                    expected_normals[:, i] = -r / norm_r
+                    push!(surface_particles, i)
+                else
+                    expected_normals[:, i] .= 0.0
+                end
+            end
 
-            push!(surface_particles, i)
-        else
-            expected_normals[:, i] .= 0.0
+            # Normalize computed normals
+            computed_normals = copy(system.cache.surface_normal)
+            for i in surface_particles
+                norm_computed = norm(computed_normals[:, i])
+                if norm_computed > 0
+                    computed_normals[:, i] /= norm_computed
+                end
+            end
+
+            # Test that computed normals match expected normals
+            for i in surface_particles
+                @test isapprox(computed_normals[:, i], expected_normals[:, i], atol=0.04)
+            end
+
+            # Optionally, test that interior particles have near-zero normals
+            # for i in setdiff(1:nparticles, surface_particles)
+            #     @test isapprox(norm(system.cache.surface_normal[:, i]), 0.0, atol=1e-4)
+            # end
         end
     end
-
-    # Normalize computed normals
-    computed_normals = copy(system.cache.surface_normal)
-    for i in surface_particles
-        norm_computed = norm(computed_normals[:, i])
-        if norm_computed > 0
-            computed_normals[:, i] /= norm_computed
-        end
-    end
-
-    for i in surface_particles
-        @test isapprox(computed_normals[:, i], expected_normals[:, i], atol=0.04)
-    end
-
-    # Optionally, check that normals for interior particles are zero
-    # for i in setdiff(1:nparticles, surface_particles)
-    #     @test isapprox(norm(system.cache.surface_normal[:, i]), 0.0, atol=1e-4)
-    # end
 end
