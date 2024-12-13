@@ -110,7 +110,7 @@ function create_cache_surface_normal(::ColorfieldSurfaceNormal, ELTYPE, NDIMS, n
     surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
     neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
     colorfield = Array{ELTYPE, 1}(undef, nparticles)
-    return (; surface_normal, neighbor_count)
+    return (; surface_normal, neighbor_count, colorfield)
 end
 
 @inline function surface_normal(particle_system::FluidSystem, particle)

@@ -101,8 +101,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=wall_viscosity),
-                                             correction=MixedKernelGradientCorrection())
+                                             viscosity=ViscosityAdami(nu=wall_viscosity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
                                     surface_normal_method=StaticNormals((0.0, 1.0)))

@@ -280,6 +280,8 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
                                                                        grad_kernel)
         end
         vtk["surface_tension"] = surft
+        vtk["colorfield"] = system.cache.colorfield
+
 
         if system.surface_tension isa SurfaceTensionMorris
             vtk["curvature"] = system.cache.curvature
