@@ -71,12 +71,13 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
         semi = Semidiscretization(system, boundary_system)
     else
         semi = Semidiscretization(system)
+        boundary_system = nothing
     end
 
     ode = semidiscretize(semi, tspan)
     TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
 
-    return system, semi, ode
+    return system, boundary_system, semi, ode
 end
 
 function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
@@ -126,7 +127,7 @@ end
     fluid_density = 1000.0
     density = fill(fluid_density, nparticles)
 
-    system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
+    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
                                             particle_spacing;
                                             NDIMS=NDIMS)
 
@@ -149,7 +150,7 @@ end
     density = sphere_ic.density
 
     # To get somewhat accurate normals we increase the smoothing length unrealistically
-    system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
+    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
                                             particle_spacing;
                                             NDIMS=NDIMS,
                                             smoothing_length=3.0 * particle_spacing,
@@ -185,6 +186,11 @@ end
             computed_normals[:, i] /= norm_computed
         end
     end
+
+    # Boundary system
+    bnd_color = bnd_system.boundary_model.cache.colorfield_bnd
+    # this is only true since it assumed that the color is 1
+    @test all(bnd_color .>= 0.0)
 
     # Compare computed normals to expected normals for surface particles
     for i in surface_particles
