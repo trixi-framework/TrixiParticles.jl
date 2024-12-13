@@ -36,7 +36,7 @@ function vtk2trixi(file)
             else
                 results[field] = zero(coordinates)
             end
-            @info "No '$field' field found in VTK file. Is set to zero."
+            @info "No '$field' field found in VTK file. Will be set to zero."
         end
     end
 
