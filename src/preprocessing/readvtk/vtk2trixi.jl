@@ -23,7 +23,7 @@ function vtk2trixi(file)
     for field in fields
         found = false
         for k in keys(point_data)
-            if match(Regex("$field"), k) !== nothing
+            if !isnothing(match(Regex("$field"), k))
                 results[field] = get_data(point_data[k])
                 found = true
                 break
