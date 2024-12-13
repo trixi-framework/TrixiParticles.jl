@@ -1,3 +1,4 @@
+include("../../test_util.jl")
 function create_boundary_system(coordinates, particle_spacing, state_equation, kernel,
                                 smoothing_length, NDIMS, walldistance)
     # Compute bounding box of fluid particles
@@ -63,7 +64,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
 
     if wall
         boundary_system = create_boundary_system(coordinates, particle_spacing,
-                                                 state_equation, kernel, smoothing_length,
+                                                 state_equation, smoothing_kernel, smoothing_length,
                                                  NDIMS, walldistance)
         semi = Semidiscretization(system, boundary_system)
     else
