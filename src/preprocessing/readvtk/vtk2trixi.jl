@@ -1,5 +1,5 @@
 """
-    vtk2trixi(file)
+    vtk2trixi(file::String)
 
 Convert data from VTK-file to InitialCondition 
 """
