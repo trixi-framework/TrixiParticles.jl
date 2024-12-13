@@ -60,8 +60,12 @@ struct SignedDistanceField{NDIMS, ELTYPE}
         end
 
         positions = copy(points)
-        normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(points))
-        distances = fill(Inf, length(points))
+
+        # This gives a performance boost for large geometries
+        delete_positions_in_empty_cells!(positions, nhs)
+
+        normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(positions))
+        distances = fill(Inf, length(positions))
 
         calculate_signed_distances!(positions, distances, normals,
                                     geometry, sdf_factor, max_signed_distance, nhs)
@@ -98,6 +102,23 @@ function trixi2vtk(signed_distance_field::SignedDistanceField)
 
     trixi2vtk(positions, signed_distances=distances, normals=normals,
               filename="signed_distance_field")
+end
+
+function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch)
+    (; neighbor_iterator) = nhs
+
+    delete_positions = fill(true, length(positions))
+
+    @threaded positions for point in eachindex(positions)
+        cell = PointNeighbors.cell_coords(positions[point], nhs)
+        if haskey(neighbor_iterator, cell)
+            delete_positions[point] = false
+        end
+    end
+
+    deleteat!(positions, delete_positions)
+
+    return positions
 end
 
 function calculate_signed_distances!(positions, distances, normals,
