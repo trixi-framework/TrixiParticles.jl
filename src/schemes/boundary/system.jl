@@ -9,36 +9,53 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `boundary_model`: Boundary model (see [Boundary Models](@ref boundary_models))
 
 # Keyword Arguments
-- `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
-- `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
-   Note: currently it is assumed that all fluids have the same adhesion coefficient.
+- `movement`             : For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
+- `adhesion_coefficient` : Coefficient specifying the adhesion of a fluid to the surface.
+                           Note: currently it is assumed that all fluids have the same adhesion coefficient.
+- `static_contact_angle` : The static contact or also sometimes equilibrium contact angle is
+                           used by the wetting model in connection with a surface tension model
+                           to model the correct contact mechanics between a fluid and a solid.
+                           The contact angle should be provided in degrees.
+                           Note: currently it is assumed that all fluids have the same adhesion coefficient.
+- `surface_normal_method`: The surface normal method is used to calculate the surface normals for the boundary.
+                           Currently available are the following models: `StaticNormals`
+- `color`                : The color is used to differentiate different phases/materials/fluids.
+                           Typically all boundaries should have the same value. (By default boundaries::color=0 fluids::color=1)
+
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM, SRFN,
                          CA} <: BoundarySystem{NDIMS, IC}
-    initial_condition    :: IC
-    coordinates          :: CO # Array{ELTYPE, 2}
-    boundary_model       :: BM
-    movement             :: M
-    ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
-    adhesion_coefficient :: ELTYPE
-    cache                :: CA
-    buffer               :: Nothing
+    initial_condition     :: IC
+    coordinates           :: CO # Array{ELTYPE, 2}
+    boundary_model        :: BM
+    movement              :: M
+    ismoving              :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
+    adhesion_coefficient  :: ELTYPE
+    static_contact_angle  :: ELTYPE # sometimes named equilibrium contact angle
+    surface_normal_method :: SRFN
+    color                 :: Int
+    cache                 :: CA
+    buffer                :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, cache, buffer)
+                               ismoving, adhesion_coefficient, static_contact_angle,
+                               surface_normal_method, color_value, cache, buffer)
         ELTYPE = eltype(coordinates)
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
             typeof(coordinates), typeof(movement), typeof(ismoving),
+            typeof(surface_normal_method),
             typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
-                           ismoving, adhesion_coefficient, cache, buffer)
+                           ismoving, adhesion_coefficient, static_contact_angle,
+                           surface_normal_method, color_value, cache, buffer)
     end
 end
 
 function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                           adhesion_coefficient=0.0)
+                           adhesion_coefficient=0.0, static_contact_angle=0.0,
+                           surface_normal_method=nothing, color_value=0)
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(movement))
@@ -52,9 +69,46 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
         movement.moving_particles .= collect(1:nparticles(initial_condition))
     end
 
+    if static_contact_angle < 0 || static_contact_angle > 180
+        throw(ArgumentError("The `static_contact_angle` must be between 0 and 180."))
+    end
+
+    # convert degrees to radians
+    static_contact_rad = static_contact_angle * pi / 180
+
     # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, cache, nothing)
+                             ismoving, adhesion_coefficient, static_contact_rad,
+                             surface_normal_method, color_value, cache, nothing)
+end
+
+function Base.show(io::IO, system::BoundarySPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    print(io, "BoundarySPHSystem{", ndims(system), "}(")
+    print(io, system.boundary_model)
+    print(io, ", ", system.movement)
+    print(io, ", ", system.adhesion_coefficient)
+    print(io, ", ", system.color)
+    print(io, ") with ", nparticles(system), " particles")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "BoundarySPHSystem{$(ndims(system))}")
+        summary_line(io, "#particles", nparticles(system))
+        summary_line(io, "boundary model", system.boundary_model)
+        summary_line(io, "movement function",
+                     isnothing(system.movement) ? "nothing" :
+                     string(system.movement.movement_function))
+        summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
+        summary_line(io, "color", system.color)
+        summary_footer(io)
+    end
 end
 
 """
@@ -160,33 +214,6 @@ function create_cache_boundary(::BoundaryMovement, initial_condition)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)
     return (; velocity, acceleration, initial_coordinates)
-end
-
-function Base.show(io::IO, system::BoundarySPHSystem)
-    @nospecialize system # reduce precompilation time
-
-    print(io, "BoundarySPHSystem{", ndims(system), "}(")
-    print(io, system.boundary_model)
-    print(io, ", ", system.movement)
-    print(io, ", ", system.adhesion_coefficient)
-    print(io, ") with ", nparticles(system), " particles")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
-    @nospecialize system # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, system)
-    else
-        summary_header(io, "BoundarySPHSystem{$(ndims(system))}")
-        summary_line(io, "#particles", nparticles(system))
-        summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "movement function",
-                     isnothing(system.movement) ? "nothing" :
-                     string(system.movement.movement_function))
-        summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
-        summary_footer(io)
-    end
 end
 
 timer_name(::Union{BoundarySPHSystem, BoundaryDEMSystem}) = "boundary"
@@ -395,6 +422,35 @@ end
 # viscosity model has to be used.
 @inline viscosity_model(system::BoundarySPHSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
+function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf
+end
+
+function initialize!(system::BoundarySPHSystem, neighborhood_search)
+    initialize_colorfield!(system, system.boundary_model, neighborhood_search)
+    return system
+end
+
+function initialize_colorfield!(system, boundary_model, neighborhood_search)
+    return system
+end
+
+function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborhood_search)
+    system_coords = system.coordinates
+    (; smoothing_kernel, smoothing_length) = system.boundary_model
+
+    foreach_point_neighbor(system, system,
+                           system_coords, system_coords,
+                           neighborhood_search,
+                           points=eachparticle(system)) do particle, neighbor, pos_diff,
+                                                           distance
+        system.boundary_model.cache.colorfield_bnd[particle] += system.initial_condition.mass[particle] /
+                                                                system.initial_condition.density[particle] *
+                                                                system.color *
+                                                                kernel(smoothing_kernel,
+                                                                       distance,
+                                                                       smoothing_length)
+        system.boundary_model.cache.neighbor_count[particle] += 1
+    end
+    return system
 end
