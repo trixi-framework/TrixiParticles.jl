@@ -34,7 +34,7 @@ function vtk2trixi(file)
             if field in ["density", "pressure", "mass"]
                 results[field] = zeros(size(coordinates, 2))
             else
-                results[field] = zeros(size(coordinates))
+                results[field] = zero(coordinates)
             end
             @info "No '$field' field found in VTK file. $field is set to zero."
         end
