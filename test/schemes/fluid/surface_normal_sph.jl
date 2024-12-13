@@ -142,8 +142,8 @@ end
         (2, SchoenbergCubicSplineKernel{2}(), 0.25, 3.0, 1.0, (0.0, 0.0)),
         (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0)),
         (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0)),
-        (2, WendlandC2Kernel{2}(),            0.3, 3.0, 1.0, (0.0, 0.0)),
-        (3, WendlandC2Kernel{3}(),            0.3, 3.0, 1.0, (0.0, 0.0, 0.0))
+        (2, WendlandC2Kernel{2}(), 0.3, 3.0, 1.0, (0.0, 0.0)),
+        (3, WendlandC2Kernel{3}(), 0.3, 3.0, 1.0, (0.0, 0.0, 0.0))
     ]
 
     for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center) in variations
@@ -165,7 +165,7 @@ end
                                                     smoothing_kernel=smoothing_kernel,
                                                     surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
                                                                                                   ideal_density_threshold=0.9),
-                                                                                                  wall=true, walldistance=2.0)
+                                                    wall=true, walldistance=2.0)
 
             compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
 
@@ -197,10 +197,10 @@ end
                 end
             end
 
-    # Boundary system
-    bnd_color = bnd_system.boundary_model.cache.colorfield_bnd
-    # this is only true since it assumed that the color is 1
-    @test all(bnd_color .>= 0.0)
+            # Boundary system
+            bnd_color = bnd_system.boundary_model.cache.colorfield_bnd
+            # this is only true since it assumed that the color is 1
+            @test all(bnd_color .>= 0.0)
 
             # Test that computed normals match expected normals
             for i in surface_particles
