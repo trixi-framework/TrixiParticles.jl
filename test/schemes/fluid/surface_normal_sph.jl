@@ -9,12 +9,10 @@ function create_boundary_system(coordinates, particle_spacing, state_equation, k
     wall_thickness = 4 * particle_spacing
 
     if NDIMS == 2
-        # In 2D: The wall extends in x-direction and has a thickness in y.
         wall_width = xmax - xmin
         wall_size = (wall_width, wall_thickness)
         wall_coord = (xmin, ymin - walldistance)
     elseif NDIMS == 3
-        # In 3D: The wall extends in x and z directions, and has thickness in y.
         zmin = minimum(coordinates[3, :])
         wall_width_x = xmax - xmin
         wall_width_y = ymax - ymin
