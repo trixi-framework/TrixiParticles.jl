@@ -125,9 +125,10 @@ end
     fluid_density = 1000.0
     density = fill(fluid_density, nparticles)
 
-    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
-                                            particle_spacing;
-                                            NDIMS=NDIMS)
+    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
+                                                        density,
+                                                        particle_spacing;
+                                                        NDIMS=NDIMS)
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
 end
@@ -148,11 +149,13 @@ end
     density = sphere_ic.density
 
     # To get somewhat accurate normals we increase the smoothing length unrealistically
-    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass, density,
-                                            particle_spacing;
-                                            NDIMS=NDIMS,
-                                            smoothing_length=3.0 * particle_spacing,
-                                            wall=true, walldistance=2.0)
+    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
+                                                        density,
+                                                        particle_spacing;
+                                                        NDIMS=NDIMS,
+                                                        smoothing_length=3.0 *
+                                                                         particle_spacing,
+                                                        wall=true, walldistance=2.0)
 
     compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
 
