@@ -2,7 +2,7 @@
     @testset verbose=true "Functionality Check - 2D" begin
 
         # 'InitialCondition'-Files
-        saved_ic = RectangularShape(0.1, (10, 20),
+        saved_ic = RectangularShape(0.1, (2, 2),
                                     (0, 0), density=1.5,
                                     velocity=(1.0, 2.0), pressure=1000.0)
         filename = "is_write_out"
@@ -23,7 +23,7 @@
                                                    ContinuityDensity(), state_equation,
                                                    WendlandC2Kernel{2}(), 0.2)
 
-        trixi2vtk(zeros(), zeros(), 0.0, fluid_system, nothing;)
+        trixi2vtk(saved_ic.velocity, saved_ic.coordinates, 0.0, fluid_system, nothing;)
         # trixi2vtk(sol.u[end], semi, 0.0, iter=1, output_directory="output",
         #           prefix="solution")
 
