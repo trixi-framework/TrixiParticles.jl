@@ -63,9 +63,9 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                           system_coords, neighbor_coords,
                                           neighborhood_search;
                                           points=TrixiParticles.each_moving_particle(particle_system)) do particle,
-                                                                                  neighbor,
-                                                                                  pos_diff,
-                                                                                  distance
+                                                                                                          neighbor,
+                                                                                                          pos_diff,
+                                                                                                          distance
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
