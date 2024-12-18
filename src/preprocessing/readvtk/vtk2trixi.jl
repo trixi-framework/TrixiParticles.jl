@@ -10,7 +10,7 @@ function vtk2trixi(file)
     vtk_file = VTKFile(file)
 
     # Retrieve data fields (e.g., pressure, velocity, ...)
-    point_data = get_point_data(vtk_file)
+    point_data = ReadVTK.get_point_data(vtk_file)
     field_data = get_field_data(vtk_file)
 
     # Retrieve fields
