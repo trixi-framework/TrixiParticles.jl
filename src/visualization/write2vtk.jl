@@ -282,7 +282,6 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["surface_tension"] = surft
         vtk["colorfield"] = system.cache.colorfield
 
-
         if system.surface_tension isa SurfaceTensionMorris
             vtk["curvature"] = system.cache.curvature
         end
@@ -295,7 +294,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
                 clf = zeros((ndims(system), n_moving_particles(system)))
                 for particle in each_moving_particle(system)
                     clf[:, particle] .= contact_force(system.surface_tension.contact_model,
-                                                     system, particle)
+                                                      system, particle)
                 end
 
                 vtk["clf"] = clf

@@ -141,12 +141,14 @@ end
 
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # and Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_system, v,
+function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, v, u,
                       v_neighbor_system, u_neighbor_system, semi, surfn,
                       ::ColorfieldSurfaceNormal)
     (; cache) = system
 
-    system_coords = current_coordinates(u_system, system)
+    # TODO: actually calculate if there is more than one colored fluid
+    cache.colorfield .= system.color
+    system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
 
@@ -169,28 +171,28 @@ end
 
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # and Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_system, v,
+function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, v, u,
                       v_neighbor_system, u_neighbor_system, semi, surfn, nsurfn)
     (; cache) = system
     (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surfn
 
-    system_coords = current_coordinates(u_system, system)
+    system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
+    nhs = get_neighborhood_search(neighbor_system, system, semi)
 
     # First we need to calculate the smoothed colorfield values of the boundary
     # TODO: move colorfield to extra step
     # TODO: this is only correct for a single fluid
 
-    # Reset to the constant boundary interpolated color values
-    colorfield .= colorfield_bnd
+    # # Reset to the constant boundary interpolated color values
+    # colorfield .= colorfield_bnd
 
     # Accumulate fluid neighbors
     foreach_point_neighbor(neighbor_system, system, neighbor_system_coords, system_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
-        colorfield[particle] += hydrodynamic_mass(system, particle) /
-                                particle_density(v, system, particle) * system.color *
+                           nhs, points=eachparticle(neighbor_system)) do particle, neighbor, pos_diff, distance
+        colorfield[particle] += hydrodynamic_mass(system, neighbor) /
+                                particle_density(v, system, neighbor) * system.color *
                                 smoothing_kernel(system, distance)
     end
 
@@ -298,7 +300,7 @@ function compute_surface_normal!(system::FluidSystem,
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
-        calc_normal!(system, neighbor_system, u, v, v_neighbor_system,
+        calc_normal!(system, neighbor_system, v, u, v_neighbor_system,
                      u_neighbor_system, semi, surface_normal_method_,
                      surface_normal_method(neighbor_system))
     end
@@ -466,15 +468,15 @@ function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris)
 end
 
 function calc_wall_distance_vector!(system, neighbor_system,
-                                   v, u, v_neighbor_system, u_neighbor_system,
-                                   semi, contact_model)
+                                    v, u, v_neighbor_system, u_neighbor_system,
+                                    semi, contact_model)
 end
 
 # Computes the wall distance vector \( \mathbf{d}_a \) and its normalized version \( \hat{\mathbf{d}}_a \) for each particle in the fluid system.
 # The distance vector \( \mathbf{d}_a \) is used to calculate dynamic contact angles and the delta function in wall-contact models.
 function calc_wall_distance_vector!(system::FluidSystem, neighbor_system::BoundarySystem,
-                                   v, u, v_neighbor_system, u_neighbor_system,
-                                   semi, contact_model::HuberContactModel)
+                                    v, u, v_neighbor_system, u_neighbor_system,
+                                    semi, contact_model::HuberContactModel)
     cache = system.cache
     (; d_hat, d_vec) = cache
     NDIMS = ndims(system)
@@ -501,7 +503,7 @@ function calc_wall_distance_vector!(system::FluidSystem, neighbor_system::Bounda
         norm_d = sqrt(sum(d_vec[i, particle]^2 for i in 1:NDIMS))
         if norm_d > eps()
             for i in 1:NDIMS
-                d_hat[i, particle] = d_vec[i, particle]/norm_d
+                d_hat[i, particle] = d_vec[i, particle] / norm_d
             end
         else
             for i in 1:NDIMS
@@ -514,13 +516,13 @@ function calc_wall_distance_vector!(system::FluidSystem, neighbor_system::Bounda
 end
 
 function calc_wall_contact_values!(system, neighbor_system,
-                                    v, u, v_neighbor_system, u_neighbor_system,
-                                    semi, contact_model)
+                                   v, u, v_neighbor_system, u_neighbor_system,
+                                   semi, contact_model)
 end
 
 function calc_wall_contact_values!(system::FluidSystem, neighbor_system::BoundarySystem,
-                                    v, u, v_neighbor_system, u_neighbor_system,
-                                    semi, contact_model::HuberContactModel)
+                                   v, u, v_neighbor_system, u_neighbor_system,
+                                   semi, contact_model::HuberContactModel)
     cache = system.cache
     (; d_hat, delta_wns, normal_v, nu_hat, d_vec) = cache
     NDIMS = ndims(system)
@@ -584,19 +586,19 @@ function compute_wall_contact_values!(system::FluidSystem, contact_model::HuberC
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         calc_wall_distance_vector!(system, neighbor_system, v, u,
-                                  v_neighbor_system, u_neighbor_system, semi,
-                                  contact_model)
+                                   v_neighbor_system, u_neighbor_system, semi,
+                                   contact_model)
     end
 
     # Loop over boundary neighbor systems
     @trixi_timeit timer() "compute wall contact values" foreach_system(semi) do neighbor_system
-            u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-            v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
-            # Call calc_wall_distance_vector!
-            calc_wall_contact_values!(system, neighbor_system, v, u,
-                                       v_neighbor_system, u_neighbor_system, semi,
-                                       contact_model)
+        # Call calc_wall_distance_vector!
+        calc_wall_contact_values!(system, neighbor_system, v, u,
+                                  v_neighbor_system, u_neighbor_system, semi,
+                                  contact_model)
     end
 
     return system

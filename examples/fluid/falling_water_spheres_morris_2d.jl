@@ -5,7 +5,8 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.002
+#fluid_particle_spacing = 0.002
+fluid_particle_spacing = 0.01
 
 boundary_layers = 4
 spacing_ratio = 1
@@ -13,7 +14,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 1.0)
+tspan = (0.0, 0.2)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
@@ -71,8 +72,6 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 #                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.0,
 #                                                                                    interface_threshold=0.025))
 
-
-
 sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
                                                      sound_speed, viscosity=viscosity,
@@ -81,7 +80,7 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_ke
                                                      reference_particle_spacing=fluid_particle_spacing,
                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
                                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.9,
-                                                                                    interface_threshold=0.001))
+                                                                                                   interface_threshold=0.001))
 
 sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      fluid_smoothing_length,
@@ -91,7 +90,7 @@ sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      reference_particle_spacing=fluid_particle_spacing,
                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.0,
-                                                                    interface_threshold=0.025))
+                                                                                   interface_threshold=0.025))
 
 # ==========================================================================================
 # ==== Boundary
@@ -108,6 +107,12 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
 
 # ==========================================================================================
 # ==== Simulation
+
+# min_corner = (-1.0, -1.0)
+# max_corner = (2.5, 1.0)
+# cell_list = TrixiParticles.PointNeighbors.FullGridCellList(; min_corner, max_corner)
+# semi = Semidiscretization(sphere_surface_tension, sphere, boundary_system,
+#                           neighborhood_search=TrivialNeighborhoodSearch{2}())
 semi = Semidiscretization(sphere_surface_tension, sphere, boundary_system)
 ode = semidiscretize(semi, tspan)
 
