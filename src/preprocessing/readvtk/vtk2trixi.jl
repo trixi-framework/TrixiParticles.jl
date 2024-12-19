@@ -7,24 +7,24 @@ Convert data from VTK-file to InitialCondition
 - `file`: Name of the file to be loaded. 
 """
 function vtk2trixi(file)
-    vtk_file = VTKFile(file)
+    vtk_file = ReadVTK.VTKFile(file)
 
     # Retrieve data fields (e.g., pressure, velocity, ...)
     point_data = ReadVTK.get_point_data(vtk_file)
-    field_data = get_field_data(vtk_file)
+    field_data = ReadVTK.get_field_data(vtk_file)
 
     # Retrieve fields
-    ndims = get_data(field_data["ndims"])
-    coordinates = get_points(vtk_file)[1:ndims[1], :]
+    ndims = ReadVTK.get_data(field_data["ndims"])
+    coordinates = ReadVTK.get_points(vtk_file)[1:ndims[1], :]
 
     fields = ["velocity", "density", "pressure", "mass"]
     results = Dict{String, Array{Float64}}()
 
     for field in fields
         found = false
-        for k in keys(point_data)
+        for k in ReadVTK.keys(point_data)
             if !isnothing(match(Regex("$field"), k))
-                results[field] = get_data(point_data[k])
+                results[field] = ReadVTK.get_data(point_data[k])
                 found = true
                 break
             end
