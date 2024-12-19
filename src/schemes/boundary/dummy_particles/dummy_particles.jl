@@ -277,11 +277,7 @@ end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, v, u, v_ode, u_ode, semi)
-    (; correction, density_calculator, cache) = boundary_model
-    (; colorfield, colorfield_bnd) = cache
-
-    # Reset to the constant boundary interpolated color values
-    #colorfield .= colorfield_bnd
+    (; correction, density_calculator) = boundary_model
 
     compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
 
