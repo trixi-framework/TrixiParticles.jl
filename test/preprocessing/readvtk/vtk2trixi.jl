@@ -2,19 +2,21 @@
     @testset verbose=true "Functionality Check - 2D" begin
 
         # 'InitialCondition'-Files
-        saved_ic = RectangularShape(0.1, (2, 2),
+        saved_ic = RectangularShape(0.1, (10, 20),
                                     (0, 0), density=1.5,
                                     velocity=(1.0, 2.0), pressure=1000.0)
-        filename = "is_write_out"
-        file = trixi2vtk(saved_ic; filename=filename)
 
-        loaded_ic = vtk2trixi(joinpath("out", filename * ".vtu"))
+        file = trixi2vtk(saved_ic; output_directory="test/preprocessing/readvtk",
+                         filename="initial_condition")
 
-        @test saved_ic.coordinates == loaded_ic.coordinates
-        @test saved_ic.velocity == loaded_ic.velocity
-        @test saved_ic.density == loaded_ic.density
-        @test saved_ic.pressure == loaded_ic.pressure
-        @test saved_ic.mass == loaded_ic.mass
+        loaded_ic = vtk2trixi(joinpath("test/preprocessing/readvtk",
+                                       "initial_condition.vtu"))
+
+        @test isapprox(saved_ic.coordinates, loaded_ic.coordinates)
+        @test isapprox(saved_ic.velocity, loaded_ic.velocity)
+        @test isapprox(saved_ic.density, loaded_ic.density)
+        @test isapprox(saved_ic.pressure, loaded_ic.pressure)
+        @test isapprox(saved_ic.mass, loaded_ic.mass)
 
         # 'Fluidsystem'-Files
         state_equation = StateEquationCole(; sound_speed=1.0, reference_density=1.0,
