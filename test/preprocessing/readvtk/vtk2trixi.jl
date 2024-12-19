@@ -22,12 +22,19 @@
         state_equation = StateEquationCole(; sound_speed=1.0, reference_density=1.0,
                                            exponent=1, clip_negative_pressure=false)
         fluid_system = WeaklyCompressibleSPHSystem(saved_ic,
-                                                   ContinuityDensity(), state_equation,
+                                                   SummationDensity(), state_equation,
                                                    WendlandC2Kernel{2}(), 0.2)
 
-        trixi2vtk(saved_ic.velocity, saved_ic.coordinates, 0.0, fluid_system, nothing;)
-        # trixi2vtk(sol.u[end], semi, 0.0, iter=1, output_directory="output",
-        #           prefix="solution")
+        saved_fs = trixi2vtk(saved_ic.velocity, saved_ic.coordinates, 0.0, fluid_system,
+                             nothing;
+                             output_directory="test/preprocessing/readvtk", iter=1)
 
+        loaded_fs = vtk2trixi(joinpath("test/preprocessing/readvtk", "fluid_1.vtu"))
+
+        @test isapprox(saved_fs.coordinates, loaded_fs.coordinates)
+        @test isapprox(saved_fs.velocity, loaded_fs.velocity)
+        @test isapprox(saved_fs.density, loaded_fs.density)
+        @test isapprox(saved_fs.pressure, loaded_fs.pressure)
+        @test isapprox(saved_fs.mass, loaded_fs.mass)
     end
 end
