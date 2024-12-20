@@ -41,7 +41,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
 
         search_radius = sdf_factor * max_signed_distance
 
-        nhs = FaceNeighborhoodSearch{NDIMS}(search_radius)
+        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
 
         initialize!(nhs, geometry)
 
@@ -105,14 +105,13 @@ function trixi2vtk(signed_distance_field::SignedDistanceField)
 end
 
 function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch)
-    (; neighbor_iterator) = nhs
-
-    delete_positions = fill(true, length(positions))
+    delete_positions = fill(false, length(positions))
 
     @threaded positions for point in eachindex(positions)
         cell = PointNeighbors.cell_coords(positions[point], nhs)
-        if haskey(neighbor_iterator, cell)
-            delete_positions[point] = false
+
+        if isempty(faces_in_cell(cell, nhs))
+            delete_positions[point] = true
         end
     end
 

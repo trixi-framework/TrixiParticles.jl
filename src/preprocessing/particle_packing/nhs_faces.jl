@@ -1,50 +1,34 @@
-struct FaceNeighborhoodSearch{NDIMS, ELTYPE, PB}
-    cell_list         :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
-    cell_size         :: NTuple{NDIMS, ELTYPE}
-    neighbor_iterator :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
-    empty_vector      :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
-    n_cells           :: NTuple{NDIMS, Int}
-    periodic_box      :: Nothing
-    search_radius     :: ELTYPE
+struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
+       PointNeighbors.AbstractNeighborhoodSearch
+    cell_list     :: CL
+    search_radius :: ELTYPE
+    periodic_box  :: Nothing
+    n_cells       :: NTuple{NDIMS, Int}
+    cell_size     :: NTuple{NDIMS, ELTYPE} # Required to calculate cell index
+end
 
-    function FaceNeighborhoodSearch{NDIMS}(search_radius) where {NDIMS}
-        ELTYPE = eltype(search_radius)
+function FaceNeighborhoodSearch{NDIMS}(; search_radius,
+                                       cell_list=PointNeighbors.DictionaryCellList{NDIMS}()) where {NDIMS}
+    cell_size = ntuple(_ -> search_radius, Val(NDIMS))
+    n_cells = ntuple(_ -> -1, Val(NDIMS))
 
-        cell_list = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
-        neighbor_iterator = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
-
-        cell_size = ntuple(dim -> search_radius, NDIMS)
-        empty_vector = Int[]
-
-        n_cells = ntuple(_ -> -1, Val(NDIMS))
-
-        new{NDIMS, ELTYPE, Nothing}(cell_list, cell_size, neighbor_iterator, empty_vector,
-                                    n_cells, nothing, search_radius)
-    end
+    return FaceNeighborhoodSearch(cell_list, search_radius, nothing, n_cells, cell_size)
 end
 
 @inline Base.ndims(::FaceNeighborhoodSearch{NDIMS}) where {NDIMS} = NDIMS
 
-@inline function eachneighbor(coords, neighborhood_search::FaceNeighborhoodSearch)
-    (; neighbor_iterator, empty_vector) = neighborhood_search
-    cell = PointNeighbors.cell_coords(coords, neighborhood_search)
-
-    haskey(neighbor_iterator, cell) && return neighbor_iterator[cell]
-
-    return empty_vector
+function faces_in_cell(cell, neighborhood_search)
+    return PointNeighbors.points_in_cell(cell, neighborhood_search)
 end
 
-function faces_in_cell(cell, neighborhood_search)
-    (; cell_list, empty_vector) = neighborhood_search
-
-    haskey(cell_list, cell) && return cell_list[cell]
-
-    return empty_vector
+@inline function eachneighbor(coords, neighborhood_search::FaceNeighborhoodSearch)
+    cell = PointNeighbors.cell_coords(coords, neighborhood_search)
+    return faces_in_cell(cell, neighborhood_search)
 end
 
 function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
                      pad=ntuple(_ -> 1, ndims(geometry)))
-    (; cell_list, neighbor_iterator, search_radius) = neighborhood_search
+    (; cell_list, search_radius) = neighborhood_search
 
     empty!(cell_list)
 
@@ -54,18 +38,10 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
         # Check if any face intersects a cell in the face-embedding cell grid
         for cell in cell_grid(face, geometry, neighborhood_search)
             if cell_intersection(face, geometry, cell, neighborhood_search)
-                if haskey(cell_list, cell) && !(face in cell_list[cell])
-                    # Add face to corresponding cell
-                    append!(cell_list[cell], face)
-                else
-                    # Create cell
-                    cell_list[cell] = [face]
-                end
+                PointNeighbors.push_cell!(cell_list, cell, face)
             end
         end
     end
-
-    empty!(neighbor_iterator)
 
     min_cell = PointNeighbors.cell_coords(geometry.min_corner, neighborhood_search) .- pad
     max_cell = PointNeighbors.cell_coords(geometry.max_corner, neighborhood_search) .+ pad
@@ -74,18 +50,19 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
     face_ids = Int[]
     for cell_runner in meshgrid(min_cell, max_cell)
         resize!(face_ids, 0)
-        for neighbor in PointNeighbors.neighboring_cells(cell_runner, neighborhood_search,
-                                                         search_radius)
+        for neighbor in PointNeighbors.neighboring_cells(cell_runner, neighborhood_search)
             append!(face_ids, faces_in_cell(Tuple(neighbor), neighborhood_search))
         end
-
-        unique!(face_ids)
 
         if isempty(face_ids)
             continue
         end
 
-        neighbor_iterator[cell_runner] = copy(face_ids)
+        for i in face_ids
+            PointNeighbors.push_cell!(cell_list, cell_runner, i)
+        end
+
+        unique!(faces_in_cell(cell_runner, neighborhood_search))
     end
 
     return neighborhood_search
