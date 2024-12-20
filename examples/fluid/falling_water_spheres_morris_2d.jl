@@ -79,7 +79,7 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_ke
                                                      reference_particle_spacing=fluid_particle_spacing,
                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
                                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.9,
-                                                                                                   interface_threshold=0.001))
+                                                                                                   interface_threshold=0.001, boundary_contact_threshold=0.1))
 
 sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      fluid_smoothing_length,

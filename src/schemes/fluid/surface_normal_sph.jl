@@ -200,13 +200,11 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, v, u
         return system
     end
 
-    maximum_colorfield = maximum(colorfield)
-
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
         # we assume that we are in contact with the boundary if the color of the boundary particle is larger than the threshold
-        if colorfield[neighbor] / maximum_colorfield > boundary_contact_threshold
+        if colorfield[neighbor] > boundary_contact_threshold
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
