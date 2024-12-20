@@ -1,5 +1,5 @@
-struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
-       PointNeighbors.AbstractNeighborhoodSearch
+mutable struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
+               PointNeighbors.AbstractNeighborhoodSearch
     cell_list     :: CL
     search_radius :: ELTYPE
     periodic_box  :: Nothing
@@ -43,6 +43,9 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
         end
     end
 
+    neighbor_iterator = PointNeighbors.copy_cell_list(cell_list, search_radius, nothing)
+    empty!(neighbor_iterator)
+
     min_cell = PointNeighbors.cell_coords(geometry.min_corner, neighborhood_search) .- pad
     max_cell = PointNeighbors.cell_coords(geometry.max_corner, neighborhood_search) .+ pad
 
@@ -58,12 +61,14 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
             continue
         end
 
-        for i in face_ids
-            PointNeighbors.push_cell!(cell_list, cell_runner, i)
-        end
+        unique!(face_ids)
 
-        unique!(faces_in_cell(cell_runner, neighborhood_search))
+        for i in face_ids
+            PointNeighbors.push_cell!(neighbor_iterator, cell_runner, i)
+        end
     end
+
+    neighborhood_search.cell_list = deepcopy(neighbor_iterator)
 
     return neighborhood_search
 end
