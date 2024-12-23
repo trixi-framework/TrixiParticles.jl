@@ -134,3 +134,26 @@ function compute_git_hash()
         return "UnknownVersion"
     end
 end
+
+function trixi_include_changeprecision(T, mod::Module, filename::AbstractString; kwargs...)
+    trixi_include(expr -> ChangePrecision.changeprecision(T, replace_trixi_include(T, expr)),
+                  mod, filename; kwargs...)
+end
+
+function trixi_include_changeprecision(T, filename::AbstractString; kwargs...)
+    trixi_include_changeprecision(T, Main, filename; kwargs...)
+end
+
+function replace_trixi_include(T, expr)
+    expr = TrixiBase.walkexpr(expr) do x
+        if x isa Expr
+            if x.head === :call && x.args[1] === :trixi_include
+                x.args[1] = :trixi_include_changeprecision
+                insert!(x.args, 2, :($T))
+            end
+        end
+        return x
+    end
+
+    return expr
+end
