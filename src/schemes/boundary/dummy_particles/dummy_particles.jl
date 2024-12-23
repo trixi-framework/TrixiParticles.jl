@@ -70,32 +70,32 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 end
 
 @doc raw"""
-    AdamiPressureExtrapolation(; pressure_offset=0.0)
+    AdamiPressureExtrapolation(; pressure_offset=0)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
-- `pressure_offset=0.0`: Sometimes it is necessary to artificially increase the boundary pressure
-                         to prevent penetration, which is possible by increasing this value.
+- `pressure_offset=0`: Sometimes it is necessary to artificially increase the boundary pressure
+                       to prevent penetration, which is possible by increasing this value.
 
 """
 struct AdamiPressureExtrapolation{ELTYPE}
     pressure_offset::ELTYPE
 
-    function AdamiPressureExtrapolation(; pressure_offset=0.0)
+    function AdamiPressureExtrapolation(; pressure_offset=0)
         return new{eltype(pressure_offset)}(pressure_offset)
     end
 end
 
 @doc raw"""
-    BernoulliPressureExtrapolation(; pressure_offset=0.0, factor=1.0)
+    BernoulliPressureExtrapolation(; pressure_offset=0, factor=1)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
-- `pressure_offset=0.0`: Sometimes it is necessary to artificially increase the boundary pressure
+- `pressure_offset=0`:   Sometimes it is necessary to artificially increase the boundary pressure
                          to prevent penetration, which is possible by increasing this value.
-- `factor=1.0`         : Setting `factor` allows to just increase the strength of the dynamic
+- `factor=1`         :   Setting `factor` allows to just increase the strength of the dynamic
                          pressure part.
 
 """
@@ -103,7 +103,7 @@ struct BernoulliPressureExtrapolation{ELTYPE}
     pressure_offset :: ELTYPE
     factor          :: ELTYPE
 
-    function BernoulliPressureExtrapolation(; pressure_offset=0.0, factor=0.0)
+    function BernoulliPressureExtrapolation(; pressure_offset=0, factor=1)
         return new{eltype(pressure_offset)}(pressure_offset, factor)
     end
 end
@@ -331,7 +331,7 @@ end
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function apply_state_equation!(boundary_model, density, particle)
-    boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0.0)
+    boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0)
 end
 
 function compute_pressure!(boundary_model,
@@ -360,7 +360,7 @@ function compute_pressure!(boundary_model,
         # Note: The version iterating neighbors first is not thread parallelizable.
         # The factor is based on the achievable speed-up of the thread parallelizable version.
         if nparticles(system) >
-           ceil(Int, 0.5 * Threads.nthreads()) * nparticles(neighbor_system)
+           ceil(Int, Threads.nthreads() / 2) * nparticles(neighbor_system)
             nhs = get_neighborhood_search(neighbor_system, system, semi)
 
             # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
@@ -381,7 +381,7 @@ function compute_pressure!(boundary_model,
         @threaded system for particle in eachparticle(system)
             # Limit pressure to be non-negative to avoid attractive forces between fluid and
             # boundary particles at free surfaces (sticking artifacts).
-            pressure[particle] = max(pressure[particle], 0.0)
+            pressure[particle] = max(pressure[particle], 0)
         end
     end
 
@@ -515,8 +515,8 @@ end
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
         normal_velocity = dot(relative_velocity, pos_diff)
 
-        return 0.5 * boundary_density_calculator.factor * density_neighbor *
-               normal_velocity^2 / distance
+        return boundary_density_calculator.factor * density_neighbor *
+               normal_velocity^2 / distance / 2
     end
     return zero(density_neighbor)
 end
