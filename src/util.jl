@@ -135,6 +135,28 @@ function compute_git_hash()
     end
 end
 
+"""
+    trixi_include_changeprecision(T, [mod::Module=Main,] file::AbstractString; kwargs...)
+
+`include` the file `file` and evaluate its content in the global scope of module `mod`.
+You can override specific assignments in `elixir` by supplying keyword arguments,
+similar to [`trixi_include`](@ref).
+
+The only difference to [`trixi_include`](@ref) is that the precision of floating-point
+numbers in the included file is changed to `T`.
+More precisely, the package [ChangePrecision.jl](https://github.com/JuliaMath/ChangePrecision.jl)
+is used to convert all `Float64` literals, operations like `/` that produce `Float64` results,
+and functions like `ones` that return `Float64` arrays by default, to the desired type `T`.
+See the documentation of ChangePrecision.jl for more details.
+
+The purpose of this function is to conveniently run a full simulation with `Float32`,
+which is orders of magnitude faster on most GPUs than `Float64`, by just including
+the simulation file with `trixi_include_changeprecision(Float32, file)`.
+TrixiParticles code is written in a way that changing all floating-point numbers in the
+example file to `Float32` manually will run the full simulation with single precision.
+
+See [the docs on GPU support](@ref gpu_support) for more information.
+"""
 function trixi_include_changeprecision(T, mod::Module, filename::AbstractString; kwargs...)
     trixi_include(expr -> ChangePrecision.changeprecision(T, replace_trixi_include(T, expr)),
                   mod, filename; kwargs...)
