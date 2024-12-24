@@ -35,7 +35,7 @@ end
     eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
-    f = 0.5 * penalty_force.alpha * volume_particle * volume_neighbor *
+    f = (penalty_force.alpha / 2) * volume_particle * volume_neighbor *
         kernel_weight / initial_distance^2 * young_modulus * delta_sum *
         current_pos_diff / current_distance
 

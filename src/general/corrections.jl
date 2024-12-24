@@ -399,7 +399,7 @@ function correction_matrix_inversion_step!(corr_matrix, system)
         # so `L` is singular if and only if the position vectors X_ab don't span the
         # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
         # or plane (in 3D).
-        if abs(det(L)) < 1e-9
+        if abs(det(L)) < 1f-9
             L_inv = I
         else
             L_inv = inv(L)
