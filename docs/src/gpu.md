@@ -21,7 +21,7 @@ max_corner = maximum(tank.boundary.coordinates, dims=2)
 cell_list = TrixiParticles.PointNeighbors.FullGridCellList(; min_corner, max_corner)
 
 # output
-PointNeighbors.FullGridCellList{PointNeighbors.DynamicVectorOfVectors{Int32, Matrix{Int32}, Vector{Int32}, Base.RefValue{Int32}}, Nothing, SVector{2, Float64}, SVector{2, Float64}}(Vector{Int32}[], nothing, [-0.24500000000000002, -0.24500000000000002], [1.245, 1.245])
+PointNeighbors.FullGridCellList{PointNeighbors.DynamicVectorOfVectors{Int32, Matrix{Int32}, Vector{Int32}, Base.RefValue{Int32}}, Nothing, SVector{2, Float64}, SVector{2, Float64}}(Vector{Int32}[], nothing, [-0.12500000000000003, -0.12500000000000003], [1.125, 1.125])
 ```
 
 We then need to pass this cell list to the neighborhood search and the neighborhood search
@@ -74,7 +74,7 @@ Then, a GPU-compatible neighborhood search is defined, and the original example 
 is included with the new neighborhood search.
 This requires the assignments `neighborhood_search = ...` and `data_type = ...` in the
 original example file.
-In `examples/fluid/dam_break_2d.jl`, we specifically set `data_type=nothing`, even though
+Note that in `examples/fluid/dam_break_2d.jl`, we specifically set `data_type=nothing`, even though
 this is the default value, so that we can use `trixi_include` to replace this value.
 
 To now run this simulation on a GPU, all we have to do is change `data_type` to the
