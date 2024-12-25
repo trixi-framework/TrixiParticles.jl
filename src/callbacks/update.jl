@@ -85,6 +85,10 @@ function (update_callback!::UpdateCallback)(integrator)
         update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
     end
 
+    @trixi_timeit timer() "update particle packing" foreach_system(semi) do system
+        update_particle_packing(system, v_ode, u_ode, semi, integrator)
+    end
+
     @trixi_timeit timer() "update TVF" foreach_system(semi) do system
         update_transport_velocity!(system, v_ode, semi)
     end
