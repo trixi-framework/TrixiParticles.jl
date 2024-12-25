@@ -38,7 +38,7 @@
         end
     end
 
-    # Tested with Paraview and `save("trinagle.stl", triangle)`, `trixi2vtk(stack([min_corner, max_corner]))`
+    # Tested with Paraview and `save("triangle.stl", triangle)`, `trixi2vtk(stack([min_corner, max_corner]))`
     @testset verbose=true "3D Cell Intersection" begin
         # Axis aligned triangle
         A = SVector(0.0, 1.0, 0.0)
