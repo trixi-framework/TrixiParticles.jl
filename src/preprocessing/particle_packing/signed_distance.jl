@@ -96,12 +96,13 @@ function Base.show(io::IO, ::MIME"text/plain", system::SignedDistanceField)
     end
 end
 
-function trixi2vtk(signed_distance_field::SignedDistanceField)
+function trixi2vtk(signed_distance_field::SignedDistanceField;
+                   filename="signed_distance_field", output_directory)
     (; positions, distances, normals) = signed_distance_field
     positions = stack(signed_distance_field.positions)
 
     trixi2vtk(positions, signed_distances=distances, normals=normals,
-              filename="signed_distance_field")
+              filename=filename, output_directory=output_directory)
 end
 
 function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch)
