@@ -55,7 +55,7 @@
 
             signed_distance_field = SignedDistanceField(geometry, 0.1)
 
-            nhs = TrixiParticles.FaceNeighborhoodSearch{ndims(geometry)}(0.1)
+            nhs = TrixiParticles.FaceNeighborhoodSearch{ndims(geometry)}(search_radius=0.1)
 
             TrixiParticles.initialize!(nhs, geometry)
 
