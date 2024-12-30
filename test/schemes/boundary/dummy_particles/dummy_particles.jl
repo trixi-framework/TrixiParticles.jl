@@ -135,6 +135,164 @@
             @test isapprox(boundary_system.boundary_model.cache.wall_velocity, v_wall)
         end
     end
+    @testset "Pressure Extrapolation Adami" begin
+        @testset "Pressure Extrapolation Adami: Constant Pressure" begin
+            #=
+            Test whether the pressure is constant and 0.0, if the density of the state equation and in the tank are the same.
+            =#
+            particle_spacing = 0.1
+            n_particles = 4
+            n_layers = 3
+            width = particle_spacing * n_particles
+            height = particle_spacing * n_particles
+
+            density = 257
+            tank1 = RectangularTank(particle_spacing, (width, height), (width, height),
+                                    density, n_layers=n_layers,
+                                    faces=(true, true, true, false))
+
+            smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+            smoothing_length = 1.2 * particle_spacing
+            viscosity = ViscosityAdami(nu=1e-6)
+            state_equation = StateEquationCole(sound_speed=10, reference_density=257,
+                                               exponent=7)
+
+            boundary_model = BoundaryModelDummyParticles(tank1.boundary.density,
+                                                         tank1.boundary.mass,
+                                                         state_equation=state_equation,
+                                                         AdamiPressureExtrapolation(),
+                                                         smoothing_kernel, smoothing_length,
+                                                         viscosity=viscosity)
+
+            boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
+
+            fluid_system = WeaklyCompressibleSPHSystem(tank1.fluid, SummationDensity(),
+                                                       state_equation,
+                                                       smoothing_kernel, smoothing_length)
+            fluid_system.cache.density .= tank1.fluid.density
+            v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system))
+
+            TrixiParticles.compute_pressure!(fluid_system, v_fluid)
+
+            neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=TrixiParticles.compact_support(smoothing_kernel,
+                                                                                                                           smoothing_length),
+                                                                              eachpoint=TrixiParticles.eachparticle(fluid_system))
+
+            viscosity = boundary_system.boundary_model.viscosity
+            TrixiParticles.set_zero!(boundary_model.pressure)
+            TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
+                                        viscosity)
+
+            TrixiParticles.adami_pressure_extrapolation!(boundary_model, boundary_system,
+                                                         fluid_system,
+                                                         tank1.boundary.coordinates,
+                                                         tank1.fluid.coordinates,
+                                                         v_fluid,
+                                                         neighborhood_search)
+
+            @test all(boundary_system.boundary_model.pressure .== 0.0) &
+                  all(fluid_system.pressure .== 0.0)
+
+            #=
+            Test whether the pressure is constant, if the density of the state equation and in the tank are not the same.
+            =#
+            tank2 = RectangularTank(particle_spacing, (width, height), (width, height),
+                                    density, n_layers=n_layers,
+                                    faces=(true, true, true, false))
+
+            fluid_system2 = WeaklyCompressibleSPHSystem(tank2.fluid, SummationDensity(),
+                                                        state_equation,
+                                                        smoothing_kernel, smoothing_length)
+            fluid_system2.cache.density .= tank2.fluid.density
+            v_fluid2 = zeros(2, TrixiParticles.nparticles(fluid_system2))
+            TrixiParticles.compute_pressure!(fluid_system2, v_fluid2)
+
+            @test all(boundary_system.boundary_model.pressure .==
+                      boundary_system.boundary_model.pressure[1]) &
+                  all(fluid_system.pressure .== fluid_system.pressure[1])
+        end
+
+        @testset "Pressure Extrapolation Adami: Linear Pressure" begin
+            #=
+            Test whether ...
+            =#
+            particle_spacing = 0.1
+            n_particles = 2
+            n_layers = 1
+            width = particle_spacing * n_particles
+            height = particle_spacing * n_particles
+
+            density = 257
+
+            state_equation = StateEquationCole(sound_speed=10, reference_density=257,
+                                               exponent=7)
+
+            tank1 = RectangularTank(particle_spacing, (width, height), (width, height),
+                                    density, acceleration=[0.0, -9.81],
+                                    state_equation=state_equation, n_layers=n_layers,
+                                    faces=(true, true, true, false))
+
+            smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+            smoothing_length = 1.2 * particle_spacing
+            viscosity = ViscosityAdami(nu=1e-6)
+
+            boundary_model = BoundaryModelDummyParticles(tank1.boundary.density,
+                                                         tank1.boundary.mass,
+                                                         state_equation=state_equation,
+                                                         AdamiPressureExtrapolation(),
+                                                         smoothing_kernel, smoothing_length,
+                                                         viscosity=viscosity)
+
+            boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
+
+            fluid_system1 = WeaklyCompressibleSPHSystem(tank1.fluid, SummationDensity(),
+                                                        state_equation,
+                                                        smoothing_kernel, smoothing_length)
+            fluid_system1.cache.density .= tank1.fluid.density
+            v_fluid1 = zeros(2, TrixiParticles.nparticles(fluid_system1))
+            TrixiParticles.compute_pressure!(fluid_system1, v_fluid1)
+
+            neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=TrixiParticles.compact_support(smoothing_kernel,
+                                                                                                                           smoothing_length),
+                                                                              eachpoint=TrixiParticles.eachparticle(fluid_system1))
+
+            viscosity = boundary_system.boundary_model.viscosity
+
+            TrixiParticles.set_zero!(boundary_model.pressure)
+            TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
+                                        viscosity)
+
+            TrixiParticles.adami_pressure_extrapolation!(boundary_model, boundary_system,
+                                                         fluid_system1,
+                                                         tank1.boundary.coordinates,
+                                                         tank1.fluid.coordinates,
+                                                         v_fluid1,
+                                                         neighborhood_search)
+
+            width2 = particle_spacing * (n_particles + 2 * n_layers)
+            height2 = particle_spacing * (n_particles + n_layers)
+
+            tank2 = RectangularTank(particle_spacing, (width2, height2), (width2, height2),
+                                    density, acceleration=[0.0, -9.81],
+                                    state_equation=state_equation, n_layers=0,
+                                    faces=(true, true, true, false))
+
+            fluid_system2 = WeaklyCompressibleSPHSystem(tank2.fluid, SummationDensity(),
+                                                        state_equation,
+                                                        smoothing_kernel, smoothing_length)
+
+            fluid_system2.cache.density .= tank2.fluid.density
+            v_fluid2 = zeros(2, TrixiParticles.nparticles(fluid_system2))
+            TrixiParticles.compute_pressure!(fluid_system2, v_fluid2)
+
+            # CHECK IF SLICING IS CORRECT
+            press1 = transpose(reshape(fluid_system1.pressure, (n_particles, n_particles)))
+            press2 = transpose(reshape(fluid_system2.pressure,
+                                       (n_particles + 2 * n_layers, n_particles + n_layers)))[(1 + n_layers):(n_layers + n_particles),
+                                                                                              (1 + n_layers):(n_particles + n_layers)]
+            @test press1 == press2
+        end
+    end
 end
 
 include("rhs.jl")
