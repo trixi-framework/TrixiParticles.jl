@@ -139,4 +139,37 @@
             end
         end
     end
+    @testset verbose=true "StateEquationIdealGas" begin
+        # This is the classical ideal gas equation giving a linear relationship
+        # between density and pressure.
+        @testset "Physical Properties of Water" begin
+            # Standard speed of sound for air at 20°C and 1 atm
+            sound_speed = 343.3
+
+            # Density of air at 20°C and 1 atm
+            rest_density = 1.205
+
+            # Heat capacity ratio of air
+            gamma = 1.4
+
+            # Work with pressures in ATM
+            ATM = 101_325.0
+
+            state_equation = StateEquationIdealGas(; sound_speed, gamma=gamma,
+                                                   reference_density=rest_density,
+                                                   background_pressure=1ATM)
+
+            # Results by manual calculation
+            @test TrixiParticles.inverse_state_equation(state_equation, 1ATM) ==
+                  rest_density
+            @test TrixiParticles.inverse_state_equation(state_equation, 100ATM) ==
+                  120.36547777058719
+            @test TrixiParticles.inverse_state_equation(state_equation, 500ATM) ==
+                  601.8219536113436
+
+            @test state_equation(rest_density) == 1ATM
+            @test state_equation(120.36547777058719) == 100ATM
+            @test state_equation(601.8219536113436) == 500ATM
+        end
+    end
 end

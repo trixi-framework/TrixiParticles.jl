@@ -11,7 +11,7 @@ Currently, the following formulations are available:
 | [`DensityDiffusionFerrari`](@ref)           | ❌                                    | ✅                     |
 | [`DensityDiffusionAntuono`](@ref)           | ✅                                    | ❌                     |
 
-See [Density Diffusion](@ref) for a comparison and more details.
+See [Density Diffusion](@ref density_diffusion) for a comparison and more details.
 """
 abstract type DensityDiffusion end
 

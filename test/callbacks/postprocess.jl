@@ -1,4 +1,16 @@
 @testset verbose=true "PostprocessCallback" begin
+    @testset verbose=true "errors" begin
+        error_str1 = "`funcs` cannot be empty"
+        @test_throws ArgumentError(error_str1) PostprocessCallback(interval=10,
+                                                                   write_file_interval=0)
+
+        error_str2 = "setting both `interval` and `dt` is not supported"
+        @test_throws ArgumentError(error_str2) PostprocessCallback(interval=10,
+                                                                   write_file_interval=0,
+                                                                   dt=0.1,
+                                                                   another_function=(v, u, t, system) -> 1)
+    end
+
     @testset verbose=true "show" begin
         function example_function(v, u, t, system)
             return 0
