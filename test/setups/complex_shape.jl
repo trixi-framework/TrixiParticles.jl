@@ -4,7 +4,10 @@
 
     @testset verbose=true "2D" begin
         @testset verbose=true "Shifted Rectangle" begin
-            algorithms = [WindingNumberHormann(), WindingNumberJacobson()]
+            algorithms = [
+                WindingNumberHormann(),
+                WindingNumberJacobson(; hierarchical_winding=false)
+            ]
             shifts = [-0.5, 0.0, 0.5]
             particle_spacings = [0.03, 0.05]
 
@@ -39,7 +42,10 @@
 
         @testset verbose=true "Real World Data" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
-            algorithms = [WindingNumberHormann(), WindingNumberJacobson()]
+            algorithms = [
+                WindingNumberHormann(),
+                WindingNumberJacobson(; hierarchical_winding=false)
+            ]
             algorithm_names = ["hormann", "jacobson"]
 
             @testset verbose=true "Algorithm: $(TrixiParticles.type2string(algorithms[i]))" for i in 1:2
@@ -49,6 +55,7 @@
                     # Relaxed inside-outside segmentation for open geometry
                     if (i == 2 && j == 3)
                         point_in_geometry_algorithm = WindingNumberJacobson(;
+                                                                            hierarchical_winding=false,
                                                                             winding_number_factor=0.4)
                     end
 
