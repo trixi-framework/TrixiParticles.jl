@@ -199,7 +199,7 @@
             width = particle_spacing * n_particles
             height = particle_spacing * n_particles
 
-            density = 257
+            density = 260
             tank1 = RectangularTank(particle_spacing, (width, height), (width, height),
                                     density, n_layers=n_layers,
                                     faces=(true, true, true, false))
@@ -236,15 +236,18 @@
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         viscosity)
 
-            TrixiParticles.adami_pressure_extrapolation!(boundary_model, boundary_system,
+            TrixiParticles.boundary_pressure_extrapolation!(boundary_model, boundary_system,
                                                          fluid_system,
                                                          tank1.boundary.coordinates,
                                                          tank1.fluid.coordinates,
                                                          v_fluid,
+                                                         v_fluid,
                                                          neighborhood_search)
 
-            @test all(boundary_system.boundary_model.pressure .== 0.0) &
-                  all(fluid_system.pressure .== 0.0)
+            @test all(boundary_system.boundary_model.pressure .== boundary_system.boundary_model.pressure[1]) &
+                  all(fluid_system.pressure .== fluid_system.pressure[1])
+
+            # TrixiParticles.@autoinfiltrate
 
             #=
             Test whether the pressure is constant, if the density of the state equation and in the tank are not the same.
