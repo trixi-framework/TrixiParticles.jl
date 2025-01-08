@@ -13,6 +13,8 @@ The following setups return `InitialCondition`s for commonly used setups:
 
 `InitialCondition`s support the set operations `union`, `setdiff` and `intersect` in order
 to build more complex geometries.
+`InitialCondition`s also support the set operations `setdiff` and `intersect` together
+with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`load_geometry`](@ref).
 
 # Arguments
 - `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
@@ -57,6 +59,14 @@ initial_condition = setdiff(shape1, shape2)
 shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0)
 shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 initial_condition = intersect(shape1, shape2)
+
+# Set operations with geometries loaded from files
+shape = RectangularShape(0.05, (20, 20), (0.0, 0.0), density=1.0)
+file =  pkgdir(TrixiParticles, "examples", "preprocessing", "data", "circle.asc")
+geometry = load_geometry(file)
+
+initial_condition_1 = intersect(shape, geometry)
+initial_condition_2 = setdiff(shape, geometry)
 
 # Build `InitialCondition` manually
 coordinates = [0.0 1.0 1.0
