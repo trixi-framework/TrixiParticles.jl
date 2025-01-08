@@ -47,7 +47,8 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
                                                                         hierarchical_winding=true,
                                                                         winding_number_factor=sqrt(eps())),
                       store_winding_number=false, grid_offset::Real=0.0,
-                      max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
+                      max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing,
+                      exclude_geometry=())
     if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHormann
         throw(ArgumentError("`WindingNumberHormann` only supports 2D geometries"))
     end
@@ -58,7 +59,7 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
 
     return sample(geometry; particle_spacing, density, pressure, mass, velocity,
                   point_in_geometry_algorithm, store_winding_number, grid_offset,
-                  max_nparticles, padding=pad_initial_particle_grid)
+                  max_nparticles, padding=pad_initial_particle_grid, exclude_geometry)
 end
 
 function sample(geometry; particle_spacing, density, pressure=0.0, mass=nothing,
@@ -67,12 +68,20 @@ function sample(geometry; particle_spacing, density, pressure=0.0, mass=nothing,
                                                                   hierarchical_winding=false,
                                                                   winding_number_factor=sqrt(eps())),
                 store_winding_number=false, grid_offset::Real=0.0, max_nparticles=10^7,
-                padding=2particle_spacing)
+                padding=2particle_spacing, exclude_geometry)
+    exclude_geometry = exclude_geometry isa Tuple ? exclude_geometry : (exclude_geometry,)
+
     grid = particle_grid(geometry, particle_spacing; padding, grid_offset, max_nparticles)
 
     inpoly, winding_numbers = point_in_geometry_algorithm(geometry, grid;
                                                           store_winding_number)
     coordinates = grid[:, inpoly]
+
+    for mesh in exclude_geometry
+        delete_indices, _ = WindingNumberJacobson(; geometry=mesh)(mesh, coordinates)
+
+        coordinates = coordinates[:, .!delete_indices]
+    end
 
     ic = InitialCondition(; coordinates, density, mass, velocity, pressure,
                           particle_spacing)
