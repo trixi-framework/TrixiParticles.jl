@@ -82,9 +82,17 @@ end
 
 function trixi2vtk(geometry::Polygon; output_directory="out", prefix="",
                    filename="points", custom_quantities...)
-    vertex_normals = stack([geometry.vertex_normals[edge][1] for edge in eachface(geometry)])
+    vertex_normals = Vector{SVector{2, eltype(geometry)}}()
+    vertices = Vector{SVector{2, eltype(geometry)}}()
 
-    return trixi2vtk(stack(geometry.vertices); output_directory, filename, prefix,
+    for edge in eachface(geometry)
+        push!(vertex_normals, geometry.vertex_normals[edge][1])
+        push!(vertex_normals, geometry.vertex_normals[edge][2])
+        push!(vertices, geometry.vertices[geometry.edge_vertices_ids[edge][1]])
+        push!(vertices, geometry.vertices[geometry.edge_vertices_ids[edge][2]])
+    end
+
+    return trixi2vtk(stack(vertices); output_directory, filename, prefix,
                      vertex_normals=vertex_normals, custom_quantities...)
 end
 

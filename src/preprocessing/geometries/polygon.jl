@@ -29,12 +29,7 @@ struct Polygon{NDIMS, ELTYPE}
         # To do so, we compute the signed area of the polygon by the shoelace formula, which
         # is positive for counter-clockwise ordering and negative for clockwise ordering of the vertices.
         # https://en.wikipedia.org/wiki/Polygon
-        polygon_area = 0.0
-        for i in 1:(n_vertices - 1)
-            v1 = vertices[i]
-            v2 = vertices[i + 1]
-            polygon_area += (v1[1] * v2[2] - v2[1] * v1[2])
-        end
+        polygon_area = calculate_polygon_area(vertices)
 
         if polygon_area == 0.0
             throw(ArgumentError("polygon is not correctly defined"))
@@ -97,9 +92,80 @@ struct Polygon{NDIMS, ELTYPE}
     end
 end
 
+@inline function calculate_polygon_area(vertices)
+    polygon_area = 0.0
+
+    for i in eachindex(vertices)[1:(end - 1)]
+        v1 = vertices[i]
+        v2 = vertices[i + 1]
+        polygon_area += (v1[1] * v2[2] - v2[1] * v1[2])
+    end
+
+    return polygon_area
+end
+
 @inline Base.ndims(::Polygon{NDIMS}) where {NDIMS} = NDIMS
 
 @inline Base.eltype(::Polygon{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
+
+@inline function Base.setdiff!(geometry::Polygon, geometries...)
+    (; vertices, edge_vertices, vertex_normals, edge_normals, edge_vertices_ids) = geometry
+    geometry_diff = first(geometries)
+
+    # Check orientation
+    polygon_area = calculate_polygon_area(vertices)
+    polygon_area_diff = calculate_polygon_area(geometry_diff.vertices)
+
+    if signbit(polygon_area_diff) == signbit(polygon_area)
+        # Change orientation
+        vertices_diff = reverse(geometry_diff.vertices)
+    end
+
+    start_edge = length(edge_vertices) + 1
+    start_vertex = length(vertices) + 1
+    append!(vertices, vertices_diff)
+
+    for i in eachindex(vertices)[start_vertex:(end - 1)]
+        v1 = vertices[i]
+        v2 = vertices[i + 1]
+        if isapprox(v1, v2)
+            continue
+        end
+
+        edge = v2 - v1
+
+        edge_normal = SVector{2}(normalize([-edge[2], edge[1]]))
+
+        push!(edge_vertices, (v1, v2))
+        push!(edge_vertices_ids, (i, i + 1))
+        push!(edge_normals, edge_normal)
+    end
+
+    for i in start_edge:length(edge_vertices)
+        if i == start_edge
+            edge_normal_1 = edge_normals[end]
+        else
+            edge_normal_1 = edge_normals[i - 1]
+        end
+
+        edge_normal_2 = edge_normals[i]
+
+        if i == length(edge_vertices)
+            edge_normal_3 = edge_normals[1]
+        else
+            edge_normal_3 = edge_normals[i + 1]
+        end
+
+        vortex_normal_1 = normalize(edge_normal_1 + edge_normal_2)
+        vortex_normal_2 = normalize(edge_normal_2 + edge_normal_3)
+
+        push!(vertex_normals, (vortex_normal_1, vortex_normal_2))
+    end
+
+    return setdiff!(geometry, Base.tail(geometries)...)
+end
+
+Base.setdiff!(geometry::Polygon) = geometry
 
 @inline function Base.deleteat!(polygon::Polygon, indices)
     (; edge_vertices, edge_normals, edge_vertices_ids) = polygon
