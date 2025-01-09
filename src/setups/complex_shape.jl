@@ -44,7 +44,7 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 function ComplexShape(geometry; particle_spacing, density,
                       pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
                       point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
-                                                                        hierarchical_winding=false,
+                                                                        hierarchical_winding=true,
                                                                         winding_number_factor=sqrt(eps())),
                       store_winding_number=false, grid_offset::Real=0.0,
                       max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
@@ -136,4 +136,52 @@ function particle_grid(geometry, particle_spacing;
     grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                     min_corner; tlsph=true)
     return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
+end
+
+function Base.setdiff(initial_condition::InitialCondition,
+                      geometries::Union{Polygon, TriangleMesh}...)
+    geometry = first(geometries)
+
+    if ndims(geometry) != ndims(initial_condition)
+        throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
+    end
+
+    delete_indices, _ = WindingNumberJacobson(; geometry)(geometry,
+                                                          initial_condition.coordinates)
+
+    coordinates = initial_condition.coordinates[:, .!delete_indices]
+    velocity = initial_condition.velocity[:, .!delete_indices]
+    mass = initial_condition.mass[.!delete_indices]
+    density = initial_condition.density[.!delete_indices]
+    pressure = initial_condition.pressure[.!delete_indices]
+
+    result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
+                                                        density, pressure,
+                                                        initial_condition.particle_spacing)
+
+    return setdiff(result, Base.tail(geometries)...)
+end
+
+function Base.intersect(initial_condition::InitialCondition,
+                        geometries::Union{Polygon, TriangleMesh}...)
+    geometry = first(geometries)
+
+    if ndims(geometry) != ndims(initial_condition)
+        throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
+    end
+
+    keep_indices, _ = WindingNumberJacobson(; geometry)(geometry,
+                                                        initial_condition.coordinates)
+
+    coordinates = initial_condition.coordinates[:, keep_indices]
+    velocity = initial_condition.velocity[:, keep_indices]
+    mass = initial_condition.mass[keep_indices]
+    density = initial_condition.density[keep_indices]
+    pressure = initial_condition.pressure[keep_indices]
+
+    result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
+                                                        density, pressure,
+                                                        initial_condition.particle_spacing)
+
+    return intersect(result, Base.tail(geometries)...)
 end
