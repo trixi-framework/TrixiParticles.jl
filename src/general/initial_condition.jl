@@ -183,6 +183,27 @@ struct InitialCondition{ELTYPE}
     end
 end
 
+function Base.show(io::IO, ic::InitialCondition)
+    @nospecialize ic # reduce precompilation time
+
+    print(io, "InitialCondition{$(eltype(ic))}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
+    @nospecialize ic # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "InitialCondition{$(eltype(ic))}")
+        summary_line(io, "ndims", "$(ndims(ic))")
+        summary_line(io, "number of particles", "$(nparticles(ic))")
+        summary_line(io, "particle spacing", "$(ic.particle_spacing)")
+        summary_footer(io)
+    end
+end
+
+
 function wrap_function(function_::Function, ::Val)
     # Already a function
     return function_
