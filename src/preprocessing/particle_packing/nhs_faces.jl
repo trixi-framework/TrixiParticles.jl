@@ -2,7 +2,7 @@ mutable struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
                PointNeighbors.AbstractNeighborhoodSearch
     cell_list     :: CL
     search_radius :: ELTYPE
-    periodic_box  :: Nothing
+    periodic_box  :: Nothing # Required by internals of PointNeighbors.jl
     n_cells       :: NTuple{NDIMS, Int}
     cell_size     :: NTuple{NDIMS, ELTYPE} # Required to calculate cell index
 end
@@ -36,9 +36,9 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
     for face in eachface(geometry)
 
         # Check if any face intersects a cell in the face-embedding cell grid
-        for cell in cell_grid(face, geometry, neighborhood_search)
-            if cell_intersection(face, geometry, cell, neighborhood_search)
-                PointNeighbors.push_cell!(cell_list, cell, face)
+        for cell in intersecting_cells(face, geometry, neighborhood_search)
+            if cell_intersection(face, geometry, Tuple(cell), neighborhood_search)
+                PointNeighbors.push_cell!(cell_list, Tuple(cell), face)
             end
         end
     end
@@ -64,7 +64,7 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
         unique!(face_ids)
 
         for i in face_ids
-            PointNeighbors.push_cell!(neighbor_iterator, cell_runner, i)
+            PointNeighbors.push_cell!(neighbor_iterator, Tuple(cell_runner), i)
         end
     end
 
@@ -158,12 +158,12 @@ function triangle_plane_intersection(point_on_plane, plane_normal, cell_min_corn
     return dot(plane_normal, plane_to_corner1) * dot(plane_normal, plane_to_corner2) < 0
 end
 
-@inline function cell_grid(face, geometry,
-                           neighborhood_search::FaceNeighborhoodSearch{NDIMS}) where {NDIMS}
-    vertice_list = face_vertices(face, geometry)
+@inline function intersecting_cells(face, geometry,
+                                    neighborhood_search::FaceNeighborhoodSearch{NDIMS}) where {NDIMS}
+    vertices = face_vertices(face, geometry)
 
     # Compute the cell coordinates for each vertex
-    cells = [PointNeighbors.cell_coords(v, neighborhood_search) for v in vertice_list]
+    cells = (PointNeighbors.cell_coords(v, neighborhood_search) for v in vertices)
 
     # Compute the element-wise minimum and maximum cell coordinates across all vertices
     mins = reduce((a, b) -> min.(a, b), cells)
@@ -172,11 +172,8 @@ end
     return meshgrid(mins, maxs)
 end
 
-@inline function meshgrid(min_corner, max_corner; increment=1)
-    min_ = collect(min_corner)
-    max_ = collect(max_corner)
-
-    ranges = ntuple(dim -> (min_[dim]:increment:max_[dim]), length(min_corner))
-
-    return Iterators.product(ranges...)
+@inline function meshgrid(min_corner::NTuple{NDIMS}, max_corner) where {NDIMS}
+    # In 2D, this returns Cartesian indices
+    # {min_corner[1], ..., max_corner[1]} × {min_corner[2], ..., max_corner[2]}.
+    return CartesianIndices(ntuple(i -> (min_corner[i]):(max_corner[i]), NDIMS))
 end

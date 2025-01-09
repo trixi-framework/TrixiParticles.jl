@@ -301,7 +301,7 @@ end
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
 function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
-                          max_particle_distance=system.initial_condition.particle_spacing /
+                          min_particle_distance=system.initial_condition.particle_spacing /
                                                 4)
     ic = system.initial_condition
 
@@ -310,7 +310,7 @@ function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=fal
     u = wrap_u(u_ode, system, semi)
     v = wrap_u(v_ode, system, semi)
 
-    too_close = find_too_close_particles(u, max_particle_distance)
+    too_close = find_too_close_particles(u, min_particle_distance)
 
     velocity_ = use_final_velocity ? view(v, 1:ndims(system), :) : ic.velocity
 
