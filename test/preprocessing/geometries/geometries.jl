@@ -88,8 +88,8 @@
         end
         @testset verbose=true "3D" begin
             files = ["sphere", "bar", "gear"]
-            n_faces = [192, 12, 12406]
-            n_vertices = [98, 8, 6203]
+            n_faces = [3072, 12, 12406]
+            n_vertices = [1538, 8, 6203]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(geometry)`
