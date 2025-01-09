@@ -51,7 +51,7 @@
         # Define pressure extrapolation methods to test
         pressure_extrapolations = [
             AdamiPressureExtrapolation(),
-            BernoulliPressureExtrapolation()
+            BernoulliPressureExtrapolation(),
         ]
 
         for pressure_extrapolation in pressure_extrapolations
@@ -79,7 +79,7 @@
                     [1.0; 1.0],
                     [-1.0; 0.0],
                     [0.7; 0.2],
-                    [0.3; 0.8]
+                    [0.3; 0.8],
                 ]
 
                 @testset "Wall Velocity $v_fluid" for v_fluid in velocities
