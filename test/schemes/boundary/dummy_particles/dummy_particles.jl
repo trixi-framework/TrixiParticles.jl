@@ -294,6 +294,9 @@
             @test all(isapprox.(boundary_system.boundary_model.pressure,
                                 boundary_system.boundary_model.pressure[1])) &&
                   all(isapprox.(fluid_system2.pressure, fluid_system2.pressure[1]))
+
+            # add smallest a_tol for smallest pertubation to trigger the test
+
         end
 
         @testset "Hydrostatic Pressure Gradient" begin
@@ -352,8 +355,9 @@
             # CHECK IF SLICING IS CORRECT
             press3 = transpose(reshape(fluid_system3.pressure, (n_particles, n_particles)))
             press_ref = transpose(reshape(fluid_system_ref.pressure,
-                                       (n_particles + 2 * n_layers, n_particles + n_layers)))[(1 + n_layers):(n_layers + n_particles),
-                                                                                              (1 + n_layers):(n_particles + n_layers)]
+                                          (n_particles + 2 * n_layers,
+                                           n_particles + n_layers)))[(1 + n_layers):(n_layers + n_particles),
+                                                                     (1 + n_layers):(n_particles + n_layers)]
             @test press3 == press_ref
             # TrixiParticles.@autoinfiltrate
         end
