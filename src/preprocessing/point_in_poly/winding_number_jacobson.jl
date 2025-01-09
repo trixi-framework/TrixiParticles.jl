@@ -94,7 +94,8 @@ function Base.show(io::IO, ::MIME"text/plain", winding::WindingNumberJacobson)
         show(io, system)
     else
         summary_header(io, "WindingNumberJacobson")
-        summary_line(io, "winding number factor", "$(round(winding.winding_number_factor; digits=3))")
+        summary_line(io, "winding number factor",
+                     "$(round(winding.winding_number_factor; digits=3))")
         summary_line(io, "winding", "$(type2string(winding.winding))")
         summary_footer(io)
     end

@@ -20,7 +20,6 @@
                                     SphereShape(0.1, 0.5, (1.0, 0.5), 1000.0,
                                                 sphere_type=RoundSphere())))
 
-
     @testset verbose=true "Show" begin
         shape = RectangularShape(0.05, (20, 20), (0.0, 0.0), density=1.0)
 
@@ -35,7 +34,6 @@
         │ number of particles: ………………………… 400                                                              │
         │ particle spacing: ………………………………… 0.05                                                             │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
-
     end
 
     @testset verbose=true "Constructors" begin

@@ -155,7 +155,6 @@ function Base.show(io::IO, ::MIME"text/plain", geometry::TriangleMesh)
     end
 end
 
-
 @inline Base.ndims(::TriangleMesh{NDIMS}) where {NDIMS} = NDIMS
 
 @inline Base.eltype(::TriangleMesh{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE

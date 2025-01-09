@@ -80,7 +80,13 @@ initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, density=1000.0)
 
 # output
-InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0])
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition{Float64}                                                                        │
+│ ═════════════════════════                                                                        │
+│ ndims: ……………………………………………………………… 2                                                                │
+│ number of particles: ………………………… 3                                                                │
+│ particle spacing: ………………………………… -1.0                                                             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct InitialCondition{ELTYPE}
@@ -202,7 +208,6 @@ function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
         summary_footer(io)
     end
 end
-
 
 function wrap_function(function_::Function, ::Val)
     # Already a function
