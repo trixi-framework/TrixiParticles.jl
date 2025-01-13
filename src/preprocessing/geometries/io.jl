@@ -55,20 +55,29 @@ function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
     vertices = fill(fill(zero(ELTYPE), SVector{3}), 3n_faces)
     normals = fill(fill(zero(ELTYPE), SVector{3}), n_faces)
 
+    load_data!(face_vertices, vertices, normals, io)
+
+    return TriangleMesh(face_vertices, normals, vertices)
+end
+
+function load_data!(face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},
+                                                SVector{3, T}}},
+                    vertices, normals, io) where {T}
     i = 0
     while !eof(io)
-        normals[i + 1] = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32),
-                                            read(io, Float32))
+        normal = (read(io, Float32), read(io, Float32), read(io, Float32))
+        normals[i + 1] = SVector{3, T}(normal...)
 
-        v1 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
-        v2 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
-        v3 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v1 = (read(io, Float32), read(io, Float32), read(io, Float32))
+        v2 = (read(io, Float32), read(io, Float32), read(io, Float32))
+        v3 = (read(io, Float32), read(io, Float32), read(io, Float32))
 
-        face_vertices[i + 1] = (v1, v2, v3)
+        face_vertices[i + 1] = (SVector{3, T}(v1...), SVector{3, T}(v2...),
+                                SVector{3, T}(v3...))
 
-        vertices[3 * i + 1] = v1
-        vertices[3 * i + 2] = v2
-        vertices[3 * i + 3] = v3
+        vertices[3 * i + 1] = face_vertices[i + 1][1]
+        vertices[3 * i + 2] = face_vertices[i + 1][2]
+        vertices[3 * i + 3] = face_vertices[i + 1][3]
 
         # After the 48 bytes of the normal and the vertices follows a 2-byte unsigned integer
         # that is the "attribute byte count" – in the standard format, this should be zero
@@ -76,8 +85,6 @@ function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
         skip(io, 2) # Skip attribute byte count
         i += 1
     end
-
-    return TriangleMesh(face_vertices, normals, vertices)
 end
 
 function trixi2vtk(geometry::Polygon; output_directory="out", prefix="",
