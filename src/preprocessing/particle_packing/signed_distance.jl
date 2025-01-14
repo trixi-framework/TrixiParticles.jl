@@ -97,7 +97,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::SignedDistanceField)
 end
 
 function trixi2vtk(signed_distance_field::SignedDistanceField;
-                   filename="signed_distance_field", output_directory)
+                   filename="signed_distance_field", output_directory="out")
     (; positions, distances, normals) = signed_distance_field
     positions = stack(signed_distance_field.positions)
 
