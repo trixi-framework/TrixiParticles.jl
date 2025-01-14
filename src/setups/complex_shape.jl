@@ -92,6 +92,24 @@ of the geometry.
                         one particle spacing from the surface of the geometry.
                         Otherwise when `tlsph=true` (simulating fluid particles),
                         boundary particles will be placed half particle spacing away from the surface.
+
+
+# Examples
+```jldoctest; output = false
+data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
+
+geometry = load_geometry(joinpath(data_dir, "circle.asc"))
+
+particle_spacing = 0.03
+boundary_thickness = 4 * particle_spacing
+
+signed_distance_field = SignedDistanceField(geometry, particle_spacing;
+                                            use_for_boundary_packing=true,
+                                            max_signed_distance=boundary_thickness)
+
+boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
+                                   boundary_thickness)
+```
 """
 function sample_boundary(signed_distance_field;
                          boundary_density, boundary_thickness, tlsph=true)
