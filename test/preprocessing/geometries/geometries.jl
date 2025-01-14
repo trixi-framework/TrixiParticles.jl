@@ -123,6 +123,36 @@
         end
     end
 
+    @testset verbose=true "Show" begin
+        data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
+        geometry = load_geometry(joinpath(data_dir, "circle.asc"))
+
+        show_compact = "Polygon{2, Float64}()"
+        @test repr(geometry) == show_compact
+
+        show_box = """
+            ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+            │ Polygon{2, Float64}                                                                              │
+            │ ═══════════════════                                                                              │
+            │ #edges: …………………………………………………………… 63                                                               │
+            └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", geometry) == show_box
+
+        geometry = load_geometry(joinpath(data_dir, "sphere.stl"))
+
+        show_compact = "TriangleMesh{3, Float64}()"
+        @test repr(geometry) == show_compact
+
+        show_box = """
+            ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+            │ TriangleMesh{3, Float64}                                                                         │
+            │ ════════════════════════                                                                         │
+            │ #faces: …………………………………………………………… 3072                                                             │
+            │ #vertices: …………………………………………………… 1538                                                             │
+            └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", geometry) == show_box
+    end
+
     @testset verbose=true "Unique Sort" begin
         # Fixed seed to ensure reproducibility
         Random.seed!(1)

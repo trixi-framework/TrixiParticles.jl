@@ -97,6 +97,24 @@ struct Polygon{NDIMS, ELTYPE}
     end
 end
 
+function Base.show(io::IO, geometry::Polygon)
+    @nospecialize geometry # reduce precompilation time
+
+    print(io, "Polygon{$(ndims(geometry)), $(eltype(geometry))}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", geometry::Polygon)
+    @nospecialize geometry # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "Polygon{$(ndims(geometry)), $(eltype(geometry))}")
+        summary_line(io, "#edges", "$(nfaces(geometry))")
+        summary_footer(io)
+    end
+end
+
 @inline Base.ndims(::Polygon{NDIMS}) where {NDIMS} = NDIMS
 
 @inline Base.eltype(::Polygon{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
