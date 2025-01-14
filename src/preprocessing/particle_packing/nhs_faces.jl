@@ -1,6 +1,7 @@
-mutable struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
-               PointNeighbors.AbstractNeighborhoodSearch
+struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
+       PointNeighbors.AbstractNeighborhoodSearch
     cell_list     :: CL
+    neighbors     :: CL
     search_radius :: ELTYPE
     periodic_box  :: Nothing # Required by internals of PointNeighbors.jl
     n_cells       :: NTuple{NDIMS, Int}
@@ -11,8 +12,10 @@ function FaceNeighborhoodSearch{NDIMS}(; search_radius,
                                        cell_list=PointNeighbors.DictionaryCellList{NDIMS}()) where {NDIMS}
     cell_size = ntuple(_ -> search_radius, Val(NDIMS))
     n_cells = ntuple(_ -> -1, Val(NDIMS))
+    neighbors = PointNeighbors.copy_cell_list(cell_list, search_radius, nothing)
 
-    return FaceNeighborhoodSearch(cell_list, search_radius, nothing, n_cells, cell_size)
+    return FaceNeighborhoodSearch(cell_list, neighbors, search_radius, nothing, n_cells,
+                                  cell_size)
 end
 
 @inline Base.ndims(::FaceNeighborhoodSearch{NDIMS}) where {NDIMS} = NDIMS
@@ -23,12 +26,12 @@ end
 
 @inline function eachneighbor(coords, neighborhood_search::FaceNeighborhoodSearch)
     cell = PointNeighbors.cell_coords(coords, neighborhood_search)
-    return faces_in_cell(cell, neighborhood_search)
+    return neighborhood_search.neighbors[cell]
 end
 
 function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
                      pad=ntuple(_ -> 1, ndims(geometry)))
-    (; cell_list, search_radius) = neighborhood_search
+    (; cell_list, neighbors) = neighborhood_search
 
     empty!(cell_list)
 
@@ -43,9 +46,7 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
         end
     end
 
-    neighbor_iterator = PointNeighbors.copy_cell_list(cell_list, search_radius, nothing)
-    empty!(neighbor_iterator)
-
+    empty!(neighbors)
     min_cell = PointNeighbors.cell_coords(geometry.min_corner, neighborhood_search) .- pad
     max_cell = PointNeighbors.cell_coords(geometry.max_corner, neighborhood_search) .+ pad
 
@@ -64,11 +65,11 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
         unique!(face_ids)
 
         for i in face_ids
-            PointNeighbors.push_cell!(neighbor_iterator, Tuple(cell_runner), i)
+            PointNeighbors.push_cell!(neighbors, Tuple(cell_runner), i)
         end
     end
 
-    neighborhood_search.cell_list = deepcopy(neighbor_iterator)
+    empty!(cell_list)
 
     return neighborhood_search
 end
