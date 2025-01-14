@@ -110,7 +110,7 @@ function Base.show(io::IO, ::MIME"text/plain", geometry::Polygon)
         show(io, system)
     else
         summary_header(io, "Polygon{$(ndims(geometry)), $(eltype(geometry))}")
-        summary_line(io, "number of edges", "$(nfaces(geometry))")
+        summary_line(io, "#edges", "$(nfaces(geometry))")
         summary_footer(io)
     end
 end

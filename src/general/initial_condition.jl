@@ -83,8 +83,8 @@ initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, 
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ InitialCondition{Float64}                                                                        │
 │ ═════════════════════════                                                                        │
-│ ndims: ……………………………………………………………… 2                                                                │
-│ number of particles: ………………………… 3                                                                │
+│ dimensions: ………………………………………………… 2                                                                │
+│ #particles: ………………………………………………… 3                                                                │
 │ particle spacing: ………………………………… -1.0                                                             │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -202,8 +202,8 @@ function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
         show(io, system)
     else
         summary_header(io, "InitialCondition{$(eltype(ic))}")
-        summary_line(io, "ndims", "$(ndims(ic))")
-        summary_line(io, "number of particles", "$(nparticles(ic))")
+        summary_line(io, "dimensions", "$(ndims(ic))")
+        summary_line(io, "#particles", "$(nparticles(ic))")
         summary_line(io, "particle spacing", "$(ic.particle_spacing)")
         summary_footer(io)
     end

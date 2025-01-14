@@ -149,8 +149,8 @@ function Base.show(io::IO, ::MIME"text/plain", geometry::TriangleMesh)
         show(io, system)
     else
         summary_header(io, "TriangleMesh{$(ndims(geometry)), $(eltype(geometry))}")
-        summary_line(io, "number of faces", "$(nfaces(geometry))")
-        summary_line(io, "number of vertices", "$(length(geometry.vertices))")
+        summary_line(io, "#faces", "$(nfaces(geometry))")
+        summary_line(io, "#vertices", "$(length(geometry.vertices))")
         summary_footer(io)
     end
 end
