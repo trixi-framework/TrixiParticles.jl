@@ -68,12 +68,11 @@ function load_data!(face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},
         normal = (read(io, Float32), read(io, Float32), read(io, Float32))
         normals[i + 1] = SVector{3, T}(normal...)
 
-        v1 = (read(io, Float32), read(io, Float32), read(io, Float32))
-        v2 = (read(io, Float32), read(io, Float32), read(io, Float32))
-        v3 = (read(io, Float32), read(io, Float32), read(io, Float32))
+        v1 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v2 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v3 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
 
-        face_vertices[i + 1] = (SVector{3, T}(v1...), SVector{3, T}(v2...),
-                                SVector{3, T}(v3...))
+        face_vertices[i + 1] = (v1, v2, v3)
 
         vertices[3 * i + 1] = face_vertices[i + 1][1]
         vertices[3 * i + 2] = face_vertices[i + 1][2]
