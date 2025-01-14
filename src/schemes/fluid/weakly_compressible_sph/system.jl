@@ -58,6 +58,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     density_diffusion                 :: DD
     correction                        :: COR
     pressure_acceleration_formulation :: PF
+    transport_velocity                :: Nothing # TODO
     source_terms                      :: ST
     surface_tension                   :: SRFT
     buffer                            :: B
@@ -121,7 +122,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        smoothing_kernel, smoothing_length,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
-                                       pressure_acceleration,
+                                       pressure_acceleration, nothing,
                                        source_terms, surface_tension, buffer, cache)
 end
 
@@ -210,7 +211,8 @@ end
     return ndims(system) + 1
 end
 
-@inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
+@propagate_inbounds function particle_pressure(v, system::WeaklyCompressibleSPHSystem,
+                                               particle)
     return system.pressure[particle]
 end
 

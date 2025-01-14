@@ -17,7 +17,7 @@
                 rot([-1.0, 0.0], rot_angle),
                 rot([0.0, 1.0], rot_angle),
                 rot([1.0, 0.0], rot_angle),
-                rot([0.0, -1.0], rot_angle),
+                rot([0.0, -1.0], rot_angle)
             ]
 
             sqrt2 = sqrt(2)
@@ -25,7 +25,7 @@
                 rot.([[-sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, sqrt2 / 2]], rot_angle), # edge 1
                 rot.([[-sqrt2 / 2, sqrt2 / 2], [sqrt2 / 2, sqrt2 / 2]], rot_angle),   # edge 2
                 rot.([[sqrt2 / 2, sqrt2 / 2], [sqrt2 / 2, -sqrt2 / 2]], rot_angle),   # edge 3
-                rot.([[sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, -sqrt2 / 2]], rot_angle), # edge 4
+                rot.([[sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, -sqrt2 / 2]], rot_angle) # edge 4
             ]
 
             geometry_clockwise = TrixiParticles.Polygon(points_rectangular_clockwise)
@@ -88,8 +88,8 @@
         end
         @testset verbose=true "3D" begin
             files = ["sphere", "bar", "gear"]
-            n_faces = [192, 12, 12406]
-            n_vertices = [98, 8, 6203]
+            n_faces = [3072, 12, 12406]
+            n_vertices = [1538, 8, 6203]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(geometry)`
