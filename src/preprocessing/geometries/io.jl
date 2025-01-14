@@ -65,8 +65,8 @@ function load_data!(face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},
                     vertices, normals, io) where {T}
     i = 0
     while !eof(io)
-        normal = (read(io, Float32), read(io, Float32), read(io, Float32))
-        normals[i + 1] = SVector{3, T}(normal...)
+        normals[i + 1] = SVector{3, T}(read(io, Float32), read(io, Float32),
+                                       read(io, Float32))
 
         v1 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
         v2 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
@@ -74,9 +74,9 @@ function load_data!(face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},
 
         face_vertices[i + 1] = (v1, v2, v3)
 
-        vertices[3 * i + 1] = face_vertices[i + 1][1]
-        vertices[3 * i + 2] = face_vertices[i + 1][2]
-        vertices[3 * i + 3] = face_vertices[i + 1][3]
+        vertices[3 * i + 1] = v1
+        vertices[3 * i + 2] = v2
+        vertices[3 * i + 3] = v3
 
         # After the 48 bytes of the normal and the vertices follows a 2-byte unsigned integer
         # that is the "attribute byte count" – in the standard format, this should be zero
