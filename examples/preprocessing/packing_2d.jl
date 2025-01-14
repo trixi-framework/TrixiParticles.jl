@@ -47,7 +47,7 @@ trixi2vtk(boundary_sampled, filename="boundary")
 
 # Large `background_pressure` can cause high accelerations. That is, the adaptive
 # time-stepsize will be adjusted properly. We found that the following order of
-# `background_pressure` result in appropriate time-stepsizes.
+# `background_pressure` result in appropriate stepsizes.
 background_pressure = 1e6 * particle_spacing^ndims(geometry)
 
 packing_system = ParticlePackingSystem(shape_sampled;
@@ -67,6 +67,7 @@ semi = Semidiscretization(packing_system, boundary_system)
 tspan = (0, 10.0)
 ode = semidiscretize(semi, tspan)
 
+# Use this callback to stop the simulation when it is sufficiently close to a steady state
 steady_state = SteadyStateReachedCallback(; interval=1, interval_size=10,
                                           abstol=1.0e-5, reltol=1.0e-3)
 
@@ -78,7 +79,7 @@ saving_callback = save_intervals ?
 
 callbacks = CallbackSet(UpdateCallback(), saving_callback, info_callback, steady_state)
 
-sol = solve(ode, RK4();
+sol = solve(ode, RDPK3SpFSAL35();
             save_everystep=false, maxiters=1000, callback=callbacks, dtmax=1e-2)
 
 packed_ic = InitialCondition(sol, packing_system, semi)

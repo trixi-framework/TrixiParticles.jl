@@ -349,12 +349,12 @@ function find_too_close_particles(coords1, coords2, max_distance)
     return result
 end
 
-# Find particles in `coords` that are closer than `max_distance` to any other particle in `coords`
-function find_too_close_particles(coords, max_distance)
+# Find particles in `coords` that are closer than `min_distance` to any other particle in `coords`
+function find_too_close_particles(coords, min_distance)
     NDIMS = size(coords, 1)
     result = Int[]
 
-    nhs = GridNeighborhoodSearch{NDIMS}(search_radius=max_distance,
+    nhs = GridNeighborhoodSearch{NDIMS}(search_radius=min_distance,
                                         n_points=size(coords, 2))
     TrixiParticles.initialize!(nhs, coords)
 

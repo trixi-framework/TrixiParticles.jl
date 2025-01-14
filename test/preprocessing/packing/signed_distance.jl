@@ -1,6 +1,6 @@
 
 @testset verbose=true "Signed Distance Field" begin
-    @testset verbose=true "show" begin
+    @testset verbose=true "`show`" begin
         data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
 
         geometry = load_geometry(joinpath(data_dir, "hexagon.asc"))
