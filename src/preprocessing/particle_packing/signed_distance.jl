@@ -31,7 +31,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
     particle_spacing    :: ELTYPE
 
     function SignedDistanceField(geometry, particle_spacing;
-                                 points=nothing,
+                                 points=nothing, always_true=false,
                                  max_signed_distance=4 * particle_spacing,
                                  use_for_boundary_packing=false)
         NDIMS = ndims(geometry)
@@ -43,7 +43,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
 
         nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
 
-        initialize!(nhs, geometry)
+        initialize!(nhs, geometry; always_true)
 
         if isnothing(points)
             min_corner = geometry.min_corner .- search_radius

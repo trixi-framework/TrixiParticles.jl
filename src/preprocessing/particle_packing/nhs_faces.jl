@@ -30,7 +30,7 @@ end
 end
 
 function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
-                     pad=ntuple(_ -> 1, ndims(geometry)))
+                     pad=ntuple(_ -> 1, ndims(geometry)), always_true=false)
     (; cell_list, neighbors) = neighborhood_search
 
     empty!(cell_list)
@@ -40,7 +40,9 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
 
         # Check if any face intersects a cell in the face-embedding cell grid
         for cell in bounding_box(face, geometry, neighborhood_search)
-            if face_intersects_cell(face, geometry, Tuple(cell), neighborhood_search)
+            cond = always_true ? true : face_intersects_cell(face, geometry, Tuple(cell), neighborhood_search)
+
+            if cond
                 PointNeighbors.push_cell!(cell_list, Tuple(cell), face)
             end
         end
