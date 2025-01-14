@@ -81,6 +81,26 @@ struct WindingNumberJacobson{ELTYPE, W}
     end
 end
 
+function Base.show(io::IO, winding::WindingNumberJacobson)
+    @nospecialize winding # reduce precompilation time
+
+    print(io, "WindingNumberJacobson{$(type2string(winding.winding))}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", winding::WindingNumberJacobson)
+    @nospecialize winding # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "WindingNumberJacobson")
+        summary_line(io, "winding number factor",
+                     "$(round(winding.winding_number_factor; digits=3))")
+        summary_line(io, "winding", "$(type2string(winding.winding))")
+        summary_footer(io)
+    end
+end
+
 function (point_in_poly::WindingNumberJacobson)(geometry, points;
                                                 store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
