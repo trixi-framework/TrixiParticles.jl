@@ -109,9 +109,7 @@ function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch
     delete_positions = fill(false, length(positions))
 
     @threaded positions for point in eachindex(positions)
-        cell = PointNeighbors.cell_coords(positions[point], nhs)
-
-        if isempty(faces_in_cell(cell, nhs))
+        if isempty(eachneighbor(positions[point], nhs))
             delete_positions[point] = true
         end
     end
