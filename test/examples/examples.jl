@@ -189,6 +189,18 @@
                     @test count_rhs_allocations(sol, semi) == 0
                 end
             end
+
+            @testset "Float32" begin
+                @test_nowarn_mod trixi_include_changeprecision(Float32,
+                                                               @__MODULE__,
+                                                               joinpath(examples_dir(),
+                                                                        "fluid",
+                                                                        "dam_break_2d.jl"),
+                                                               tspan=(0, 0.1))
+                @test sol.retcode == ReturnCode.Success
+                @test count_rhs_allocations(sol, semi) == 0
+                @test eltype(sol) == Float32
+            end
         end
 
         @trixi_testset "fluid/dam_break_oil_film_2d.jl" begin
