@@ -2,7 +2,7 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 filename = "sphere"
-file = joinpath("examples", "preprocessing", "data", filename * ".stl")
+file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".stl")
 
 # ==========================================================================================
 # ==== Packing parameters

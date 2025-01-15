@@ -2,7 +2,7 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 filename = "circle"
-file = joinpath("examples", "preprocessing", "data", filename * ".asc")
+file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".asc")
 
 # ==========================================================================================
 # ==== Packing parameters
