@@ -161,10 +161,10 @@ end
     return system.initial_condition.mass[particle]
 end
 
-# Update from `UpdateCallback`
+# Update from `UpdateCallback` (between time steps)
 update_particle_packing(system, v_ode, u_ode, semi, integrator) = system
 
-# Update from `UpdateCallback`
+# Update from `UpdateCallback` (between time steps)
 function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
                                  semi, integrator)
     u = wrap_u(u_ode, system, semi)
@@ -260,7 +260,7 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
     return u
 end
 
-# Update from `UpdateCallback`
+# Update from `UpdateCallback` (between time steps)
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
     v = wrap_v(v_ode, system, semi)
     @threaded system for particle in each_moving_particle(system)

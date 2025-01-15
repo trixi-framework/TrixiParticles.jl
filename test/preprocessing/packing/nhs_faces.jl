@@ -10,6 +10,7 @@
         cell_sizes = [1.0 + sqrt(eps()), 0.1]
 
         expected_ncells_bbox = [(1, 1), (11, 1)]
+        # One padding layer in each direction around the bounding box
         expected_ncells_filled = map(x -> prod(x .+ 2), expected_ncells_bbox)
 
         @testset verbose=true "Axis Aligned Edge: cell size $(cell_size)" for (i, cell_size) in enumerate(cell_sizes)
@@ -28,6 +29,7 @@
         edge_id = 1 # Only one edge in `Polygon`
 
         expected_ncells_bbox = [(1, 1), (6, 7)]
+        # One padding layer in each direction around the bounding box
         expected_ncells_filled = map(x -> prod(x .+ 2), expected_ncells_bbox)
 
         @testset verbose=true "Arbitrary Edge: cell size $(cell_size)" for (i, cell_size) in enumerate(cell_sizes)
@@ -57,6 +59,7 @@
         cell_sizes = [1.0 + sqrt(eps()), 0.1]
 
         expected_ncells_bbox = [(1, 1, 1), (11, 11, 1)]
+        # One padding layer in each direction around the bounding box
         expected_ncells_filled = map(x -> prod(x .+ 2), expected_ncells_bbox)
 
         @testset verbose=true "Axis Aligned Triangle: cell size $(cell_size)" for (i, cell_size) in enumerate(cell_sizes)
@@ -83,6 +86,7 @@
         cell_sizes = [1.0 + sqrt(eps()), 0.1]
 
         expected_ncells_bbox = [(2, 3, 2), (15, 13, 10)]
+        # One padding layer in each direction around the bounding box
         expected_ncells_filled = map(x -> prod(x .+ 2), expected_ncells_bbox)
 
         @testset verbose=true "Arbitrary Triangle: cell size $(cell_size)" for (i, cell_size) in enumerate(cell_sizes)
