@@ -262,10 +262,5 @@ TODO
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("preprocessing", "particle_packing", "system.jl")]
-```
-
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("preprocessing", "particle_packing", "signed_distance.jl")]
+Pages = map(file -> joinpath("preprocessing", "particle_packing", file), readdir(joinpath("..", "src", "preprocessing", "particle_packing")))
 ```
