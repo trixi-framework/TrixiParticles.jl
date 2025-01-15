@@ -95,13 +95,8 @@ of the geometry.
 
 
 # Examples
-```jldoctest; output = false
-data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
-
-geometry = load_geometry(joinpath(data_dir, "circle.asc"))
-
-particle_spacing = 0.03
-boundary_thickness = 4 * particle_spacing
+```jldoctest; output = false, setup = :(particle_spacing = 0.03; boundary_thickness = 4 * particle_spacing; file = joinpath(pkgdir(TrixiParticles, "examples", "preprocessing", "data"), "circle.asc"))
+geometry = load_geometry(file)
 
 signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             use_for_boundary_packing=true,
@@ -109,6 +104,15 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
 
 boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
                                    boundary_thickness)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition{Float64}                                                                        │
+│ ═════════════════════════                                                                        │
+│ #dimensions: ……………………………………………… 2                                                                │
+│ #particles: ………………………………………………… 677                                                              │
+│ particle spacing: ………………………………… 0.03                                                             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 function sample_boundary(signed_distance_field;
