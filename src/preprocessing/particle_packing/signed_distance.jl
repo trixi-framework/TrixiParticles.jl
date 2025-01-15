@@ -1,6 +1,6 @@
 """
     SignedDistanceField(geometry, particle_spacing;
-                        point_grid=nothing,
+                        points=nothing,
                         max_signed_distance=4 * particle_spacing,
                         use_for_boundary_packing=false)
 

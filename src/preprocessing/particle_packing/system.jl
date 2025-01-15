@@ -11,7 +11,7 @@ System to generate body-fitted particles for complex shapes.
 For more information on the methods, see description below.
 
 # Arguments
-- `initial_condition`: [`InitialCondition`](@ref) to be packed.
+- `shape`: [`InitialCondition`](@ref) to be packed.
 
 # Keywords
 - `background_pressure`:   Constant background pressure to physically pack the particles.
@@ -21,12 +21,14 @@ For more information on the methods, see description below.
                            on the boundary of the shape and not half a particle spacing away,
                            as for fluids. When `tlsph=true`, particles will be placed
                            on the boundary of the shape.
-- `is_boundary`:           When `is_boundary=true`, boundary particles will be sampled
-                           and packed in an offset surface of the `boundary`.
-                           The thickness of the boundary is specified by passing the
-                           [`SignedDistanceField`](@ref) of `boundary` with:
+- `is_boundary`:           When `shape` is inside the geometry that was used to create
+                           `signed_distance_field, set `is_boundary=false`.
+                           Otherwise (`shape` is the sampled boundary), set `is_boundary=true`.
+                           The thickness of the boundary is specified by creating
+                           `signed_distance_field` with:
                               - `use_for_boundary_packing=true`
                               - `max_signed_distance=boundary_thickness`
+                           See [`SignedDistanceField`](@ref).
 - `signed_distance_field`: To constrain particles onto the surface, the information about
                            the signed distance from a particle to a face is required.
                            The precalculated signed distances will be interpolated
@@ -232,6 +234,7 @@ end
 function constrain_particle!(u, system, particle, distance_signed, normal_vector)
     (; shift_condition) = system
 
+    #
     if distance_signed >= -shift_condition
         # Constrain outside particles onto surface
         shift = (distance_signed + shift_condition) * normal_vector
