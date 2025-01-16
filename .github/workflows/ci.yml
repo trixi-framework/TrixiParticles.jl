@@ -64,6 +64,9 @@ jobs:
         with:
           version: ${{ matrix.version }}
 
+      - name: Display Julia version
+        run: julia -e 'using InteractiveUtils; versioninfo(verbose=true)'
+
       - uses: julia-actions/cache@v2
 
       - name: Build package
