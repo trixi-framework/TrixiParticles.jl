@@ -47,7 +47,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
     tlsph                 :: Bool
     signed_distance_field :: S
     is_boundary           :: Bool
-    shift_condition       :: ELTYPE
+    shift_length          :: ELTYPE
     neighborhood_search   :: N
     signed_distances      :: Vector{ELTYPE} # Only for visualization
     buffer                :: Nothing
@@ -78,7 +78,15 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
         # Initialize neighborhood search with signed distances
         PointNeighbors.initialize_grid!(nhs, stack(signed_distance_field.positions))
 
-        shift_condition = if is_boundary
+        # If `distance_signed >= -shift_length`, the particle position is modified
+        # by a surface bounding:
+        # `particle_position -= (distance_signed + shift_length) * normal_vector`,
+        # where `normal_vector` is the normal vector to the surface of the geometry
+        # and `distance_signed` is the level-set value at the particle position,
+        # which means the signed distance to the surface.
+        # Its value is negative if the particle is inside the geometry.
+        # Otherwise (if outside), the value is positive.
+        shift_length = if is_boundary
             -boundary_compress_factor * signed_distance_field.max_signed_distance
         else
             tlsph ? zero(ELTYPE) : 0.5shape.particle_spacing
@@ -88,7 +96,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
                    typeof(signed_distance_field),
                    typeof(nhs)}(shape, smoothing_kernel, smoothing_length,
                                 background_pressure, tlsph, signed_distance_field,
-                                is_boundary, shift_condition, nhs,
+                                is_boundary, shift_length, nhs,
                                 fill(zero(ELTYPE), nparticles(shape)), nothing, false)
     end
 end
@@ -232,12 +240,16 @@ function constrain_particles_onto_surface!(u, system::ParticlePackingSystem)
 end
 
 function constrain_particle!(u, system, particle, distance_signed, normal_vector)
-    (; shift_condition) = system
+    (; shift_length) = system
 
-    #
-    if distance_signed >= -shift_condition
+    # For fluid particles:
+    # - `tlsph = true`: `shift_length = 0.0`
+    # - `tlsph = false`: `shift_length = 0.5 * particle_spacing`
+    # For boundary particles:
+    # `shift_length` is the thickness of the boundary.
+    if distance_signed >= -shift_length
         # Constrain outside particles onto surface
-        shift = (distance_signed + shift_condition) * normal_vector
+        shift = (distance_signed + shift_length) * normal_vector
 
         for dim in 1:ndims(system)
             u[dim, particle] -= shift[dim]
@@ -247,10 +259,10 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
     system.is_boundary || return u
 
     particle_spacing = system.initial_condition.particle_spacing
-    shift_condition_inner = system.tlsph ? particle_spacing : 0.5 * particle_spacing
+    shift_length_inner = system.tlsph ? particle_spacing : 0.5 * particle_spacing
 
-    if distance_signed < shift_condition_inner
-        shift = (distance_signed - shift_condition_inner) * normal_vector
+    if distance_signed < shift_length_inner
+        shift = (distance_signed - shift_length_inner) * normal_vector
 
         for dim in 1:ndims(system)
             u[dim, particle] -= shift[dim]
