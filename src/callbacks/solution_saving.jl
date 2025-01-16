@@ -297,7 +297,7 @@ end
 
 # With `save_times`. See comments above.
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:Any, <:Any, <:SolutionSavingCallback})
+                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
