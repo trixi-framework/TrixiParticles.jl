@@ -73,6 +73,20 @@ function Semidiscretization(systems...;
     # Other checks might be added here later.
     check_configuration(systems)
 
+    # Create a tuple of n neighborhood searches for each of the n systems.
+    # We will need one neighborhood search for each pair of systems.
+    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
+                                                      system, neighbor)
+                           for neighbor in systems)
+                     for system in systems)
+
+    systems = partition(systems, searches)
+
+    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
+                                                      system, neighbor)
+                           for neighbor in systems)
+                     for system in systems)
+
     sizes_u = [u_nvariables(system) * n_moving_particles(system)
                for system in systems]
     ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -81,13 +95,6 @@ function Semidiscretization(systems...;
                for system in systems]
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
-
-    # Create a tuple of n neighborhood searches for each of the n systems.
-    # We will need one neighborhood search for each pair of systems.
-    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
-                                                      system, neighbor)
-                           for neighbor in systems)
-                     for system in systems)
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches)
 end
@@ -178,7 +185,7 @@ end
 @inline function compact_support(system, model::BoundaryModelMonaghanKajtar,
                                  neighbor::BoundarySPHSystem)
     # This NHS is never used
-    return 0.0
+    return 1.0
 end
 
 @inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
@@ -206,10 +213,14 @@ end
     return neighborhood_searches[system_index][neighbor_index]
 end
 
-@inline function system_indices(system, semi)
+@inline function system_indices(system, semi::Semidiscretization)
+    system_indices(system, semi.systems)
+end
+
+@inline function system_indices(system, systems)
     # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
     # is ~30x slower because `hash(::System)` is very slow.
-    index = findfirst(==(system), semi.systems)
+    index = findfirst(==(system), systems)
 
     if isnothing(index)
         throw(ArgumentError("system is not in the semidiscretization"))
@@ -472,6 +483,16 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
     # Update NHS
     @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
 
+    # foreach_system(semi) do system
+    #     v = wrap_v(v_ode, system, semi)
+    #     u = wrap_u(u_ode, system, semi)
+
+    #     mpi_communication1!(system, v, u, v_ode, u_ode, semi, t)
+    # end
+
+    # TODO update NHS for ghost systems
+    # @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
+
     # Second update step.
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
@@ -483,12 +504,21 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
+    # TODO MPI communication 2 if correction is used
+
     # Perform correction and pressure calculation
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        mpi_communication3!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
@@ -815,6 +845,12 @@ end
 function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(true, false))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving,
                            parallelization_backend=KernelAbstractions.get_backend(system))
+end
+
+function partition(systems, searches)
+    return map(systems) do system
+        return partition(system, searches[system_indices(system, systems)][system_indices(system, systems)])
+    end
 end
 
 function check_configuration(systems)
