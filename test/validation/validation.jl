@@ -49,8 +49,16 @@
 
         @test isapprox(error_edac_P1, 0, atol=eps())
         @test isapprox(error_edac_P2, 0, atol=eps())
-        @test isapprox(error_wcsph_P1, 0, atol=eps())
-        @test isapprox(error_wcsph_P2, 0, atol=eps())
+
+        if VERSION == v"1.10"
+            # Reference values are computed with 1.10
+            @test isapprox(error_wcsph_P1, 0, atol=eps())
+            @test isapprox(error_wcsph_P2, 0, atol=eps())
+        else
+            # 1.11 produces slightly different pressure values than 1.10
+            @test isapprox(error_wcsph_P1, 0, atol=0.07)
+            @test isapprox(error_wcsph_P2, 0, atol=8.0e-6)
+        end
 
         # Ignore method redefinitions from duplicate `include("../validation_util.jl")`
         @test_nowarn_mod trixi_include(@__MODULE__,
