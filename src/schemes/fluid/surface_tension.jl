@@ -103,7 +103,9 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem,
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
-                           neighborhood_search) do particle, neighbor, pos_diff, distance
+                           neighborhood_search;
+                           points=each_moving_particle(system)) do particle, neighbor,
+                                                                   pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = particle_density(v_neighbor_system,
                                             neighbor_system, neighbor)
