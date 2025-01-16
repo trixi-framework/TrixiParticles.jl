@@ -40,9 +40,8 @@ jobs:
       fail-fast: false
       matrix:
           version:
-            - 'lts' # long-term support release
-            - 'pre' # latest stable prerelease
-            - '1'   # latest stable 1.x release
+            - '1.10'
+            - '1'
           os:
             - ubuntu-latest
           arch:
