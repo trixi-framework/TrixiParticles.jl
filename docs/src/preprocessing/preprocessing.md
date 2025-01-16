@@ -255,3 +255,17 @@ Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_jacobson.jl"
 Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "geometries", "io.jl")]
 ```
+
+# Particle Packing
+
+TODO
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("preprocessing", "particle_packing", "system.jl")]
+```
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("preprocessing", "particle_packing", "signed_distance.jl")]
+```

@@ -41,7 +41,7 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, density,
+function ComplexShape(geometry; particle_spacing, density,
                       pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
                       point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
                                                                         hierarchical_winding=true,
@@ -56,33 +56,82 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
         throw(ArgumentError("only a positive `grid_offset` is supported"))
     end
 
-    return sample(geometry; particle_spacing, density, pressure, mass, velocity,
-                  point_in_geometry_algorithm, store_winding_number, grid_offset,
-                  max_nparticles, padding=pad_initial_particle_grid)
-end
-
-function sample(geometry; particle_spacing, density, pressure=0.0, mass=nothing,
-                velocity=zeros(ndims(geometry)),
-                point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
-                                                                  hierarchical_winding=false,
-                                                                  winding_number_factor=sqrt(eps())),
-                store_winding_number=false, grid_offset::Real=0.0, max_nparticles=10^7,
-                padding=2particle_spacing)
-    grid = particle_grid(geometry, particle_spacing; padding, grid_offset, max_nparticles)
+    grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
+                         grid_offset, max_nparticles)
 
     inpoly, winding_numbers = point_in_geometry_algorithm(geometry, grid;
                                                           store_winding_number)
-    coordinates = grid[:, inpoly]
 
-    ic = InitialCondition(; coordinates, density, mass, velocity, pressure,
-                          particle_spacing)
+    coordinates = stack(grid[inpoly])
+
+    initial_condition = InitialCondition(; coordinates, density, mass, velocity, pressure,
+                                         particle_spacing)
 
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
-        return (initial_condition=ic, winding_numbers=winding_numbers, grid=grid)
+        return (initial_condition=initial_condition, winding_numbers=winding_numbers,
+                grid=stack(grid))
     end
 
-    return ic
+    return initial_condition
+end
+
+"""
+    sample_boundary(signed_distance_field::SignedDistanceField;
+                    boundary_thickness::Real, tlsph=true)
+
+Sample boundary particles of a complex geometry by using the [`SignedDistanceField`](@ref)
+of the geometry.
+
+# Arguments
+- `signed_distance_field`: The signed distance field of a geometry (see [`SignedDistanceField`](@ref)).
+
+# Keywords
+- `boundary_thickness`: Thickness of the boundary
+- `tlsph`             : When `tlsph=true`, boundary particles will be placed
+                        one particle spacing from the surface of the geometry.
+                        Otherwise when `tlsph=true` (simulating fluid particles),
+                        boundary particles will be placed half particle spacing away from the surface.
+
+
+# Examples
+```jldoctest; output = false
+data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
+
+geometry = load_geometry(joinpath(data_dir, "circle.asc"))
+
+particle_spacing = 0.03
+boundary_thickness = 4 * particle_spacing
+
+signed_distance_field = SignedDistanceField(geometry, particle_spacing;
+                                            use_for_boundary_packing=true,
+                                            max_signed_distance=boundary_thickness)
+
+boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
+                                   boundary_thickness)
+```
+"""
+function sample_boundary(signed_distance_field;
+                         boundary_density, boundary_thickness, tlsph=true)
+    (; max_signed_distance, boundary_packing,
+    positions, distances, particle_spacing) = signed_distance_field
+
+    if !(boundary_packing)
+        throw(ArgumentError("`SignedDistanceField` was not generated with `use_for_boundary_packing`"))
+    end
+
+    if boundary_thickness > max_signed_distance
+        throw(ArgumentError("`boundary_thickness` is greater than `max_signed_distance` of `SignedDistanceField`. " *
+                            "Please generate a `SignedDistanceField` with higher `max_signed_distance`."))
+    end
+
+    # Only keep the required part of the signed distance field
+    distance_to_boundary = tlsph ? particle_spacing : 0.5 * particle_spacing
+    keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
+
+    boundary_coordinates = stack(positions[keep_indices])
+    return InitialCondition(; coordinates=boundary_coordinates, density=boundary_density,
+                            particle_spacing)
 end
 
 function particle_grid(geometry, particle_spacing;
@@ -102,54 +151,7 @@ function particle_grid(geometry, particle_spacing;
                             "`max_nparticles` = $max_nparticles"))
     end
 
-    return rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
+    grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                     min_corner; tlsph=true)
-end
-
-function Base.setdiff(initial_condition::InitialCondition,
-                      geometries::Union{Polygon, TriangleMesh}...)
-    geometry = first(geometries)
-
-    if ndims(geometry) != ndims(initial_condition)
-        throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
-    end
-
-    delete_indices, _ = WindingNumberJacobson(; geometry)(geometry,
-                                                          initial_condition.coordinates)
-
-    coordinates = initial_condition.coordinates[:, .!delete_indices]
-    velocity = initial_condition.velocity[:, .!delete_indices]
-    mass = initial_condition.mass[.!delete_indices]
-    density = initial_condition.density[.!delete_indices]
-    pressure = initial_condition.pressure[.!delete_indices]
-
-    result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
-                                                        density, pressure,
-                                                        initial_condition.particle_spacing)
-
-    return setdiff(result, Base.tail(geometries)...)
-end
-
-function Base.intersect(initial_condition::InitialCondition,
-                        geometries::Union{Polygon, TriangleMesh}...)
-    geometry = first(geometries)
-
-    if ndims(geometry) != ndims(initial_condition)
-        throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
-    end
-
-    keep_indices, _ = WindingNumberJacobson(; geometry)(geometry,
-                                                        initial_condition.coordinates)
-
-    coordinates = initial_condition.coordinates[:, keep_indices]
-    velocity = initial_condition.velocity[:, keep_indices]
-    mass = initial_condition.mass[keep_indices]
-    density = initial_condition.density[keep_indices]
-    pressure = initial_condition.pressure[keep_indices]
-
-    result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
-                                                        density, pressure,
-                                                        initial_condition.particle_spacing)
-
-    return intersect(result, Base.tail(geometries)...)
+    return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
 end
