@@ -3,7 +3,7 @@
 TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
-## Version 0.2.4
+## Version 0.2.5
 
 ### Features
 - Add Particle Packing based on STLs (#529)
