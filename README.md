@@ -21,7 +21,7 @@ TrixiParticles.jl focuses on the following use cases:
 - Development of new particle-based methods and models.
 - Easy setup of accessible simulations for educational purposes, including student projects, coursework, and thesis work.
 
-It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU-support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl). 
+It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU-support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
 
 [![YouTube](https://github.com/user-attachments/assets/dc2be627-a799-4bfd-9226-2077f737c4b0)](https://www.youtube.com/watch?v=V7FWl4YumcA&t=4667s)
 
@@ -66,7 +66,7 @@ We provide several example simulation setups in the `examples` folder (which can
 ## Installation
 If you have not yet installed Julia, please [follow the instructions for your
 operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl works
-with Julia v1.9 and newer. We recommend using the latest stable release of Julia.
+with Julia v1.10 and newer. We recommend using the latest stable release of Julia.
 
 ### For users
 TrixiParticles.jl is a registered Julia package.

@@ -3,7 +3,7 @@
 ## Setting up Julia
 If you have not yet installed Julia, please [follow the instructions on the
 official website](https://julialang.org/downloads/). TrixiParticles.jl works
-with Julia v1.9 and newer. We recommend using the latest stable release of Julia.
+with Julia v1.10 and newer. We recommend using the latest stable release of Julia.
 
 ## For users
 TrixiParticles.jl is a registered Julia package.
