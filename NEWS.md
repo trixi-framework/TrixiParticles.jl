@@ -8,7 +8,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Features
 - Add Particle Packing based on STLs (#529)
 
-### Compatability Changes
+### Compatibility Changes
 - Dropped support for Julia 1.9
 
 ## Version 0.2.4
