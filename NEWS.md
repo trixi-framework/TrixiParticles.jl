@@ -6,7 +6,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ## Version 0.2.5
 
 ### Features
-- Add Particle Packing based on STLs (#529)
+- Add particle packing based on STLs (#529)
 
 ### Compatibility Changes
 - Dropped support for Julia 1.9
@@ -17,17 +17,15 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - A method to prevent penetration of fast moving particles with solids was added (#498)
 - Added the callback `SteadyStateReachedCallback` to detect convergence of static simulations (#601)  
-- Added Ideal Gas State Equation (#607)
+- Added ideal gas state equation (#607)
+- Simulations can be run with `Float32` (#662)
 
 ### Documentation
 
-- GPU Support Documentation was added (#660)
+- Documentation for GPU support was added (#660)
 - A new user tutorial was added (#514)
+- Several docs fixes (#663, #659, #637, #658, #664)
 
-### Fixes
-
-- Diverse Doc fixes (#663, #659, #637, #658, #664)
-- Simulations can be run with `Float32` (#662)
 
 ## Version 0.2.3
 
