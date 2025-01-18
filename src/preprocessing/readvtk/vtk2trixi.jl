@@ -5,6 +5,27 @@ Convert data from VTK-file to InitialCondition
 
 # Arguments
 - `file`: Name of the file to be loaded.
+
+# Example
+```jldoctest; output = false
+# Create a rectangular shape
+rectangular = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0, -2.0),
+                               pressure=1000.0)
+
+# Write the `InitialCondition` to a vtk file
+trixi2vtk(rectangular; filename="rectangular", output_directory="out")
+
+# Read the vtk file and convert it to 'InitialCondition'
+ic = vtk2trixi(joinpath("out", "rectangular.vtu")
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition{Float64}                                                                        │
+│ ═════════════════════════                                                                        │
+│ #dimensions: ……………………………………………… 2                                                                │
+│ #particles: ………………………………………………… 100                                                              │
+│ particle spacing: ………………………………… 0.1                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 """
 function vtk2trixi(file)
     vtk_file = ReadVTK.VTKFile(file)

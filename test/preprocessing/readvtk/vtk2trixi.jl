@@ -3,12 +3,11 @@
 
     Random.seed!(1)
     expected_ic = InitialCondition(; coordinates=rand(2, 12), velocity=rand(2, 12),
-                                   density=1.0, mass=2.0,
-                                   pressure=3.0)
+                                   density=1.0, mass=2.0, pressure=3.0)
 
     # `InitialCondition`-Files
     trixi2vtk(expected_ic; output_directory,
-              filename="test_initial_condition")
+              filename=joinpath("test_initial_condition"))
 
     test_ic = vtk2trixi(joinpath("test/preprocessing/readvtk",
                                  "test_initial_condition.vtu"))
@@ -34,9 +33,7 @@
 
     # Write out `fluid_system` Simulation-File
     trixi2vtk(v, expected_ic.coordinates, 0.0, fluid_system,
-              nothing;
-              output_directory,
-              system_name="test_fluid_system", iter=1)
+              nothing; output_directory, system_name=joinpath("test_fluid_system"), iter=1)
     # Load `fluid_system` Simulation-File
     test_fluid = vtk2trixi(joinpath("test/preprocessing/readvtk",
                                     "test_fluid_system_1.vtu"))
@@ -48,11 +45,8 @@
     #@test isapprox(expected_ic.test_fluid.mass, test_fluid.mass, rtol=1e-5) #TODO: wait until mass is written out with `write2vtk`
 
     # ==== Boundary System
-    boundary_model = BoundaryModelDummyParticles(expected_ic.density,
-                                                 expected_ic.mass,
-                                                 SummationDensity(),
-                                                 smoothing_kernel,
-                                                 1.0)
+    boundary_model = BoundaryModelDummyParticles(expected_ic.density, expected_ic.mass,
+                                                 SummationDensity(), smoothing_kernel, 1.0)
 
     # Overwrite values because we skip the update step
     boundary_model.pressure .= expected_ic.pressure
@@ -62,9 +56,9 @@
 
     # Write out `boundary_system` Simulation-File
     trixi2vtk(expected_ic.velocity, expected_ic.coordinates, 0.0, boundary_system,
-              nothing;
-              output_directory,
-              system_name="test_boundary_system", iter=1)
+              nothing; output_directory, system_name=joinpath("test_boundary_system"),
+              iter=1)
+
     # Load `boundary_system` Simulation-File
     test_boundary = vtk2trixi(joinpath("test/preprocessing/readvtk",
                                        "test_boundary_system_1.vtu"))
