@@ -191,7 +191,7 @@
 
     @testset "Pressure Extrapolation Adami" begin
         particle_spacing = 0.1
-        n_particles = 2
+        n_particles = 10
         n_layers = 2
         width = particle_spacing * n_particles
         height = particle_spacing * n_particles
@@ -215,7 +215,7 @@
         boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
         viscosity = boundary_system.boundary_model.viscosity
 
-        # In this testset, we verify that pressures in a static tank are extrapolated correctly
+        # In this testset, we verify that pressures in a static tank are extrapolated correctly.
         # Use constant density equal to the reference density of the state equation,
         # so that the pressure is constant zero. Then we test that the extrapolation also yields zero.
         @testset "Constant Zero Pressure" begin
@@ -248,12 +248,13 @@
                                                       tank1.boundary.coordinates, particle)
             end
 
-            @test all(boundary_system.boundary_model.pressure .== 0.0) &&
-                  all(fluid_system1.pressure .== 0.0)
+            @test all(boundary_system.boundary_model.pressure .== 0.0)
+            @test all(fluid_system1.pressure .== 0.0)
         end
 
         # Test whether the pressure is constant if the density of the state equation
-        # and in the tank are not the same. Then we test that the extrapolation yields some constant value.
+        # and in the tank are not the same.
+        # Then we test that the extrapolation yields some constant value.
         @testset "Constant Non-Zero Pressure" begin
             density = 260
             tank2 = RectangularTank(particle_spacing, (width, height), (width, height),
@@ -290,13 +291,12 @@
             end
 
             @test all(isapprox.(boundary_system.boundary_model.pressure,
-                                boundary_system.boundary_model.pressure[1])) &&
-                  all(isapprox.(fluid_system2.pressure, fluid_system2.pressure[1]))
-
-            # add smallest a_tol for smallest perturbation to trigger the test
-
+                                boundary_system.boundary_model.pressure[1], atol=1.0e-12))
+            @test all(isapprox.(fluid_system2.pressure, fluid_system2.pressure[1]))
         end
 
+        # In this test, we initialize a fluid with a hydrostatic pressure gradient
+        # and check that this gradient is extrapolated correctly.
         @testset "Hydrostatic Pressure Gradient" begin
             tank3 = RectangularTank(particle_spacing, (width, height), (width, height),
                                     density, acceleration=[0.0, -9.81],
@@ -305,7 +305,8 @@
 
             fluid_system3 = WeaklyCompressibleSPHSystem(tank3.fluid, SummationDensity(),
                                                         state_equation,
-                                                        smoothing_kernel, smoothing_length)
+                                                        smoothing_kernel, smoothing_length,
+                                                        acceleration=[0.0, -9.81])
             fluid_system3.cache.density .= tank3.fluid.density
             v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system3))
             TrixiParticles.compute_pressure!(fluid_system3, v_fluid)
@@ -334,21 +335,15 @@
             width_ref = particle_spacing * (n_particles + 2 * n_layers)
             height_ref = particle_spacing * (n_particles + n_layers)
 
+            # Define another tank without a boundary, where the fluid has the same size
+            # as fluid plus boundary in the other tank.
+            # The pressure gradient of this fluid should be the same as the extrapolated pressure
+            # of the boundary in the first tank.
             tank_ref = RectangularTank(particle_spacing, (width_ref, height_ref),
                                        (width_ref, height_ref),
                                        density, acceleration=[0.0, -9.81],
                                        state_equation=state_equation, n_layers=0,
                                        faces=(true, true, true, false))
-
-            fluid_system_ref = WeaklyCompressibleSPHSystem(tank_ref.fluid,
-                                                           SummationDensity(),
-                                                           state_equation,
-                                                           smoothing_kernel,
-                                                           smoothing_length)
-
-            fluid_system_ref.cache.density .= tank_ref.fluid.density
-            v_fluid_ref = zeros(2, TrixiParticles.nparticles(fluid_system_ref))
-            TrixiParticles.compute_pressure!(fluid_system_ref, v_fluid_ref)
 
             #=
             Because it is a pain to deal with the indices of the pressure arrays,
@@ -361,36 +356,13 @@
             B B F F F B B
             B B B B B B B
             B B B B B B B
-
-            We then use regular indexing on matrices in Julia,
-            i.e. the top-left entry has coordinates (1, 1).
-
-            Variables:
-            - `coor`: Coordinates of the boundary system.
-            - `n_cols`: Number of columns in the pressure matrix, calculated as the number of particles plus twice the number of layers.
-            - `n_rows`: Number of rows in the pressure matrix, calculated as the number of particles plus the number of layers.
-
-            Functions:
-            - `coordinates_to_indices(coor)`: Maps physical coordinates to corresponding indices in an array.
-              - Returns: Array of indices corresponding to the input coordinates.
-
-            Main Operations:
-            - `boundary_x_idx, boundary_y_idx`: Arrays of indices for the x and y coordinates of the boundary system.
-            - `press`: Zero-initialized matrix to store pressure values.
-            - Loop through the boundary system's pressure values and assign them to the `press` matrix using the boundary indices.
-            - Reverse the `press` matrix along the first dimension.
-            - `press_fluid`: Matrix containing the pressure of fluid3, reshaped and transposed.
-            - Reverse the `press_fluid` matrix along the first dimension.
-            - Assign the `press_fluid` matrix to the corresponding section of the `press` matrix.
-            - `press_ref`: Matrix containing the reference fluid pressure, reshaped and transposed.
-            - Reverse the `press_ref` matrix along the first dimension.
             =#
 
             coor = boundary_system.coordinates
             n_cols = n_particles + 2 * n_layers
             n_rows = n_particles + n_layers
 
-            # Function that maps physical coordinates to the corresponding
+            # Map physical coordinates to the corresponding
             # indices in an array.
             function coordinates_to_indices(coor)
                 unique_vals = sort(unique(coor))  # Sorted unique values
@@ -407,10 +379,10 @@
             press = zeros(n_rows, n_cols)
 
             # Assign the boundary pressure values to the pressure matrix using the boundary indices.
+            # To keep the orientation consistent, reverse the pressure matrix along the first dimension.
             for i in 1:length(boundary_system.boundary_model.pressure)
                 press[boundary_y_idx[i], boundary_x_idx[i]] = boundary_system.boundary_model.pressure[i]
             end
-            # To keep the orientation consistent, reverse the pressure matrix along the first dimension.
             press = reverse(press, dims=1)
 
             # Extract the fluid pressure matrix. while keeping the orientation consistent.
@@ -422,10 +394,10 @@
             press[begin:n_particles, (n_layers + 1):(n_particles + n_layers)] .= press_fluid
 
             # Extract the reference fluid pressure matrix. while keeping the orientation consistent.
-            press_ref = transpose(reshape(fluid_system_ref.pressure, (n_cols, n_rows)))
+            press_ref = transpose(reshape(tank_ref.fluid.pressure, (n_cols, n_rows)))
             press_ref = reverse(press_ref, dims=1)
 
-            # TrixiParticles.@autoinfiltrate
+            @test all(isapprox.(press, press_ref, atol=4.0))
         end
     end
 end
