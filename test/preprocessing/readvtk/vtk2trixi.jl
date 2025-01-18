@@ -2,8 +2,9 @@
     output_directory = joinpath("test/preprocessing/readvtk")
 
     Random.seed!(1)
+
     expected_ic = InitialCondition(; coordinates=rand(2, 12), velocity=rand(2, 12),
-                                   density=1.0, mass=2.0, pressure=3.0)
+                                   density=rand(), pressure=rand(), mass=rand())
 
     # `InitialCondition`-Files
     trixi2vtk(expected_ic; output_directory,
@@ -29,10 +30,15 @@
 
     # Overwrite values because we skip the update step
     fluid_system.cache.density .= expected_ic.density
-    v = [expected_ic.velocity; expected_ic.pressure']
+
+    # Create random ODE solutions
+    Random.seed!(1)
+    u_fluid = rand(TrixiParticles.u_nvariables(fluid_system),
+                   TrixiParticles.n_moving_particles(fluid_system))
+    v_fluid = [expected_ic.velocity; expected_ic.pressure']
 
     # Write out `fluid_system` Simulation-File
-    trixi2vtk(v, expected_ic.coordinates, 0.0, fluid_system,
+    trixi2vtk(v_fluid, u_fluid, 0.0, fluid_system,
               nothing; output_directory, system_name=joinpath("test_fluid_system"), iter=1)
     # Load `fluid_system` Simulation-File
     test_fluid = vtk2trixi(joinpath("test/preprocessing/readvtk",
@@ -42,7 +48,7 @@
     @test isapprox(expected_ic.velocity, test_fluid.velocity, rtol=1e-5)
     @test isapprox(expected_ic.density, test_fluid.density, rtol=1e-5)
     @test isapprox(expected_ic.pressure, test_fluid.pressure, rtol=1e-5)
-    #@test isapprox(expected_ic.test_fluid.mass, test_fluid.mass, rtol=1e-5) #TODO: wait until mass is written out with `write2vtk`
+    # TODO: Test the mass once it is written out with `write2vtk`.
 
     # ==== Boundary System
     boundary_model = BoundaryModelDummyParticles(expected_ic.density, expected_ic.mass,
@@ -54,8 +60,15 @@
 
     boundary_system = BoundarySPHSystem(expected_ic, boundary_model)
 
+    # Create random ODE solutions
+    Random.seed!(1)
+    u_boundary = rand(TrixiParticles.u_nvariables(boundary_system),
+                      TrixiParticles.n_moving_particles(boundary_system))
+    v_boundary = rand(TrixiParticles.v_nvariables(boundary_system),
+                      TrixiParticles.n_moving_particles(boundary_system))
+
     # Write out `boundary_system` Simulation-File
-    trixi2vtk(expected_ic.velocity, expected_ic.coordinates, 0.0, boundary_system,
+    trixi2vtk(v_boundary, u_boundary, 0.0, boundary_system,
               nothing; output_directory, system_name=joinpath("test_boundary_system"),
               iter=1)
 
@@ -64,8 +77,8 @@
                                        "test_boundary_system_1.vtu"))
 
     @test isapprox(expected_ic.coordinates, test_boundary.coordinates, rtol=1e-5)
-    @test isapprox(zeros(2, 12), test_boundary.velocity, rtol=1e-5)
+    @test isapprox(zeros(size(expected_ic.velocity)), test_boundary.velocity, rtol=1e-5)
     @test isapprox(expected_ic.density, test_boundary.density, rtol=1e-5)
     @test isapprox(expected_ic.pressure, test_boundary.pressure, rtol=1e-5)
-    #@test isapprox(expected_ic.mass, test_boundary.mass, rtol=1e-5) #TODO: wait until mass is written out with `write2vtk`
+    # TODO: Test the mass once it is written out with `write2vtk`.
 end
