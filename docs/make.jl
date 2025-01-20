@@ -2,6 +2,7 @@ using Documenter, DocumenterCitations
 using TrixiParticles
 using TrixiBase
 using PointNeighbors
+using Asciicast: Asciicast
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
@@ -111,7 +112,7 @@ makedocs(sitename="TrixiParticles.jl",
          plugins=[bib],
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles],
-         format=Documenter.HTML(),
+         format=Documenter.HTML(; assets=Asciicast.assets()),
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",

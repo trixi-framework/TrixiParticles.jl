@@ -13,6 +13,8 @@ The following setups return `InitialCondition`s for commonly used setups:
 
 `InitialCondition`s support the set operations `union`, `setdiff` and `intersect` in order
 to build more complex geometries.
+`InitialCondition`s also support the set operations `setdiff` and `intersect` together
+with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`load_geometry`](@ref).
 
 # Arguments
 - `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
@@ -58,6 +60,14 @@ shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0)
 shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 initial_condition = intersect(shape1, shape2)
 
+# Set operations with geometries loaded from files
+shape = RectangularShape(0.05, (20, 20), (0.0, 0.0), density=1.0)
+file =  pkgdir(TrixiParticles, "examples", "preprocessing", "data", "circle.asc")
+geometry = load_geometry(file)
+
+initial_condition_1 = intersect(shape, geometry)
+initial_condition_2 = setdiff(shape, geometry)
+
 # Build `InitialCondition` manually
 coordinates = [0.0 1.0 1.0
                0.0 0.0 1.0]
@@ -70,7 +80,13 @@ initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, density=1000.0)
 
 # output
-InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0])
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition{Float64}                                                                        │
+│ ═════════════════════════                                                                        │
+│ #dimensions: ……………………………………………… 2                                                                │
+│ #particles: ………………………………………………… 3                                                                │
+│ particle spacing: ………………………………… -1.0                                                             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct InitialCondition{ELTYPE}
@@ -170,6 +186,26 @@ struct InitialCondition{ELTYPE}
 
         return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
                            densities, pressures)
+    end
+end
+
+function Base.show(io::IO, ic::InitialCondition)
+    @nospecialize ic # reduce precompilation time
+
+    print(io, "InitialCondition{$(eltype(ic))}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
+    @nospecialize ic # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "InitialCondition{$(eltype(ic))}")
+        summary_line(io, "#dimensions", "$(ndims(ic))")
+        summary_line(io, "#particles", "$(nparticles(ic))")
+        summary_line(io, "particle spacing", "$(ic.particle_spacing)")
+        summary_footer(io)
     end
 end
 
