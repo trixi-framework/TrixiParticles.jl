@@ -363,6 +363,11 @@ end
 
 function update_quantities!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
+    (; colorfield, colorfield_bnd) = boundary_model.cache
+
+    # Reset to the constant boundary interpolated color values
+    colorfield .= colorfield_bnd
+
 
     update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
 

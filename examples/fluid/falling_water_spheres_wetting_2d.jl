@@ -19,7 +19,7 @@ tspan = (0.0, 1.0)
 initial_fluid_size = (0.0, 0.0)
 sphere_radius = 0.01
 
-tank_size = (40*sphere_radius, 0.5)
+tank_size = (40 * sphere_radius, 0.5)
 
 fluid_density = 1000.0
 sound_speed = 100
@@ -31,8 +31,8 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        faces=(true, true, true, false),
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
-sphere1_center = (tank_size[1]/4, sphere_radius)
-sphere2_center = (3*tank_size[1]/4, sphere_radius)
+sphere1_center = (tank_size[1] / 4, sphere_radius)
+sphere2_center = (3 * tank_size[1] / 4, sphere_radius)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -0.0))
 sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
@@ -82,9 +82,10 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_ke
                                                      density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      reference_particle_spacing=fluid_particle_spacing,
-                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728, contact_model=HuberContactModel()),
-                                                                                          surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.0,
-                                                                                                                         interface_threshold=0.025))
+                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728,
+                                                                                          contact_model=HuberContactModel()),
+                                                     surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.0,
+                                                                                                   interface_threshold=0.025))
 
 sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      fluid_smoothing_length,
@@ -94,7 +95,7 @@ sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      reference_particle_spacing=fluid_particle_spacing,
                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.0,
-                                                                    interface_threshold=0.025))
+                                                                                   interface_threshold=0.025))
 
 # ==========================================================================================
 # ==== Boundary
