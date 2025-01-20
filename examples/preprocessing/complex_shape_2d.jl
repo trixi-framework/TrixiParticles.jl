@@ -21,6 +21,7 @@ shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0,
 
 trixi2vtk(shape_sampled.initial_condition)
 
+# trixi2vtk(shape_sampled.signed_distance_field)
 # trixi2vtk(shape_sampled.grid, w=shape_sampled.winding_numbers)
 
 # Plot the winding number field
