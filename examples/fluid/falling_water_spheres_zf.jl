@@ -28,7 +28,9 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        faces=(true, true, true, false),
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
-box = RectangularShape(fluid_particle_spacing, (Int(0.25/fluid_particle_spacing), Int(0.1/fluid_particle_spacing)), (0.5*tank_size[1], 0.0),
+box = RectangularShape(fluid_particle_spacing,
+                       (Int(0.25 / fluid_particle_spacing),
+                        Int(0.1 / fluid_particle_spacing)), (0.5 * tank_size[1], 0.0),
                        density=fluid_density)
 
 # Sphere radius range
@@ -41,7 +43,7 @@ Random.seed!(1234)
 
 # Define the tank boundaries to avoid placing spheres too close to the walls
 x_range = (0.0, tank_size[1])
-y_range = (0.1, tank_size[2]+0.1)
+y_range = (0.1, tank_size[2] + 0.1)
 
 # Function to generate non-overlapping spheres with random radii
 function generate_non_overlapping_spheres(num_spheres, radius_range, x_range, y_range)
@@ -67,7 +69,8 @@ function generate_non_overlapping_spheres(num_spheres, radius_range, x_range, y_
         # Check for overlap with existing spheres
         no_overlap = true
         for (pos_existing, radius_existing) in positions_radii
-            dist = sqrt((position[1] - pos_existing[1])^2 + (position[2] - pos_existing[2])^2)
+            dist = sqrt((position[1] - pos_existing[1])^2 +
+                        (position[2] - pos_existing[2])^2)
             if dist < (radius + radius_existing) + 0.01  # Add small buffer
                 no_overlap = false
                 break
@@ -76,7 +79,8 @@ function generate_non_overlapping_spheres(num_spheres, radius_range, x_range, y_
         if no_overlap
             # Create the sphere
             sphere = SphereShape(fluid_particle_spacing, radius, position,
-                                 fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -1.0))
+                                 fluid_density, sphere_type=VoxelSphere(),
+                                 velocity=(0.0, -1.0))
             push!(spheres, sphere)
             push!(positions_radii, (position, radius))
         end
@@ -88,7 +92,8 @@ function generate_non_overlapping_spheres(num_spheres, radius_range, x_range, y_
 end
 
 num_spheres = 20
-spheres = generate_non_overlapping_spheres(num_spheres, sphere_radius_range, x_range, y_range)
+spheres = generate_non_overlapping_spheres(num_spheres, sphere_radius_range, x_range,
+                                           y_range)
 
 # Combine all spheres using the union function
 combined_spheres = reduce(union, spheres)
@@ -103,7 +108,8 @@ viscosity = ViscosityMorris(nu=nu)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-sphere_surface_tension = EntropicallyDampedSPHSystem(combined_spheres, fluid_smoothing_kernel,
+sphere_surface_tension = EntropicallyDampedSPHSystem(combined_spheres,
+                                                     fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
                                                      sound_speed, viscosity=viscosity,
                                                      density_calculator=ContinuityDensity(),
@@ -111,7 +117,8 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(combined_spheres, fluid_smo
                                                      reference_particle_spacing=fluid_particle_spacing,
                                                      surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728),
                                                      surface_normal_method=ColorfieldSurfaceNormal(ideal_density_threshold=0.9,
-                                                                                      interface_threshold=0.001, boundary_contact_threshold=0.0))
+                                                                                                   interface_threshold=0.001,
+                                                                                                   boundary_contact_threshold=0.0))
 
 # ==========================================================================================
 # ==== Boundary
@@ -124,19 +131,18 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              viscosity=ViscosityAdami(nu=wall_viscosity),
                                              correction=MixedKernelGradientCorrection())
 
-
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
                                     surface_normal_method=StaticNormals((0.0, 1.0)))
 
 box_model = BoundaryModelDummyParticles(box.density, box.mass,
-                                    state_equation=state_equation,
-                                    boundary_density_calculator,
-                                    fluid_smoothing_kernel, fluid_smoothing_length,
-                                    viscosity=ViscosityAdami(nu=wall_viscosity),
-                                    correction=MixedKernelGradientCorrection())
+                                        state_equation=state_equation,
+                                        boundary_density_calculator,
+                                        fluid_smoothing_kernel, fluid_smoothing_length,
+                                        viscosity=ViscosityAdami(nu=wall_viscosity),
+                                        correction=MixedKernelGradientCorrection())
 
 box_system = BoundarySPHSystem(box, box_model,
-                                    surface_normal_method=StaticNormals((0.0, 1.0)))
+                               surface_normal_method=StaticNormals((0.0, 1.0)))
 
 # ==========================================================================================
 # ==== Simulation

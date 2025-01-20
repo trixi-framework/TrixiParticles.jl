@@ -69,7 +69,7 @@ struct WindingNumberJacobson{ELTYPE, W}
     winding               :: W
 
     function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                                   hierarchical_winding=false)
+                                   hierarchical_winding=true)
         if hierarchical_winding && geometry isa Nothing
             throw(ArgumentError("`geometry` must be of type `Polygon` (2D) or `TriangleMesh` (3D) when using hierarchical winding"))
         end
@@ -78,6 +78,26 @@ struct WindingNumberJacobson{ELTYPE, W}
 
         return new{typeof(winding_number_factor), typeof(winding)}(winding_number_factor,
                                                                    winding)
+    end
+end
+
+function Base.show(io::IO, winding::WindingNumberJacobson)
+    @nospecialize winding # reduce precompilation time
+
+    print(io, "WindingNumberJacobson{$(type2string(winding.winding))}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", winding::WindingNumberJacobson)
+    @nospecialize winding # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "WindingNumberJacobson")
+        summary_line(io, "winding number factor",
+                     "$(round(winding.winding_number_factor; digits=3))")
+        summary_line(io, "winding", "$(type2string(winding.winding))")
+        summary_footer(io)
     end
 end
 
