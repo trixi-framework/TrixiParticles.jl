@@ -84,14 +84,6 @@ end
     return nothing
 end
 
-@inline function surface_normal_method(system::FluidSystem)
-    return system.surface_normal_method
-end
-
-@inline function surface_normal_method(system)
-    return nothing
-end
-
 include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("transport_velocity.jl")
