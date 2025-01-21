@@ -55,7 +55,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
     ideal_neighbor_count              :: Int
-    color                             :: Int
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     density_diffusion                 :: DD
