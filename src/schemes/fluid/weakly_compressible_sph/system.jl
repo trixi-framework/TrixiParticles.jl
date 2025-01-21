@@ -80,7 +80,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                                          ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
-                                     reference_particle_spacing=0.0, color_value=0)
+                                     reference_particle_spacing=0.0)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -143,7 +143,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
                                        smoothing_kernel, smoothing_length,
-                                       ideal_neighbor_count_, color_value,
+                                       ideal_neighbor_count_,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
                                        pressure_acceleration, nothing,

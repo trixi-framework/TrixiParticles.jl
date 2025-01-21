@@ -1,3 +1,4 @@
+include("../../test_util.jl")
 function create_boundary_system(coordinates, particle_spacing, state_equation, kernel,
                                 smoothing_length, NDIMS, walldistance)
     # Compute bounding box of fluid particles
@@ -98,15 +99,12 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     # Check that the threshold has been applied correctly
     threshold = 2^ndims(system) + 1
 
-    # Test the surface normals based on neighbor counts
+    # # Test the surface normals based on neighbor counts
+    # Test that surface normals are zero when there are not enough neighbors.
+    # For the linear arrangement, surface normals may still be zero
+    # when we have more neighbors than the threshold.
     for i in 1:nparticles
-        if system.cache.neighbor_count[i] < threshold
-            @test all(system.cache.surface_normal[:, i] .== 0.0)
-        else
-            # For the linear arrangement, surface normals may still be zero
-            # Adjust the test to account for this possibility
-            @test true
-        end
+        @test system.cache.neighbor_count[i] >= threshold || all(system.cache.surface_normal[:, i] .== 0.0)
     end
 end
 
