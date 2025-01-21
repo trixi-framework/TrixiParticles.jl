@@ -190,7 +190,9 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, v, u
 
     # Accumulate fluid neighbors
     foreach_point_neighbor(neighbor_system, system, neighbor_system_coords, system_coords,
-                           nhs, points=eachparticle(neighbor_system)) do particle, neighbor, pos_diff, distance
+                           nhs,
+                           points=eachparticle(neighbor_system)) do particle, neighbor,
+                                                                    pos_diff, distance
         colorfield[particle] += hydrodynamic_mass(system, neighbor) /
                                 particle_density(v, system, neighbor) * system.color *
                                 smoothing_kernel(system, distance)
