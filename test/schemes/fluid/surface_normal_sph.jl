@@ -204,8 +204,9 @@ end
             @test all(bnd_color .>= 0.0)
 
             # Test that computed normals match expected normals
-            @test isapprox(computed_normals[:, surface_particles], expected_normals[:, surface_particles], norm=x -> norm(x, Inf), atol=0.04)
-
+            @test isapprox(computed_normals[:, surface_particles],
+                           expected_normals[:, surface_particles], norm=x -> norm(x, Inf),
+                           atol=0.04)
 
             # Optionally, test that interior particles have near-zero normals
             # for i in setdiff(1:nparticles, surface_particles)
