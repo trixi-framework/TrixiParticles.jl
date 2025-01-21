@@ -107,7 +107,8 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     # For the linear arrangement, surface normals may still be zero
     # when we have more neighbors than the threshold.
     for i in 1:nparticles
-        @test system.cache.neighbor_count[i] >= threshold || all(system.cache.surface_normal[:, i] .== 0.0)
+        @test system.cache.neighbor_count[i] >= threshold ||
+              all(system.cache.surface_normal[:, i] .== 0.0)
     end
 end
 
