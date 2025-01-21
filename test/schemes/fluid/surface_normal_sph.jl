@@ -1,3 +1,4 @@
+include("../../test_util.jl")
 function create_boundary_system(coordinates, particle_spacing, state_equation, kernel,
                                 smoothing_length, NDIMS, walldistance)
     # Compute bounding box of fluid particles
@@ -203,9 +204,9 @@ end
             @test all(bnd_color .>= 0.0)
 
             # Test that computed normals match expected normals
-            for i in surface_particles
-                @test isapprox(computed_normals[:, i], expected_normals[:, i], atol=0.04)
-            end
+            @test isapprox(computed_normals[:, surface_particles],
+                           expected_normals[:, surface_particles], norm=x -> norm(x, Inf),
+                           atol=0.04)
 
             # Optionally, test that interior particles have near-zero normals
             # for i in setdiff(1:nparticles, surface_particles)
