@@ -89,8 +89,8 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
                            nhs,
                            particles=eachparticle(neighbor_system)) do particle, neighbor,
                                                                        pos_diff, distance
-        colorfield[particle] += hydrodynamic_mass(system, particle) /
-                                particle_density(v, system, particle) * system.color *
+        colorfield[particle] += hydrodynamic_mass(system, neighbor) /
+                                particle_density(v, system, neighbor) * system.color *
                                 smoothing_kernel(system, distance)
     end
 
