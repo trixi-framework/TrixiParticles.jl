@@ -51,14 +51,15 @@ end
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: This is the simplest form of normal approximation commonly used in SPH and comes
 # with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
-function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, v,
+function calc_normal_akinci!(system::FluidSystem, neighbor_system::BoundarySystem, u_system,
+                             v,
                              v_neighbor_system, u_neighbor_system, semi, surfn)
     (; cache) = system
     (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
+    nhs = get_neighborhood_search(neighbor_system, system, semi)
 
     # First we need to calculate the smoothed colorfield values
     # TODO: move colorfield to extra step
