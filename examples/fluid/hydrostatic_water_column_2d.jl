@@ -1,12 +1,14 @@
 using TrixiParticles
 using OrdinaryDiffEq
+using P4estTypes, PointNeighbors
+using MPI; MPI.Init()
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.05
+fluid_particle_spacing = 0.3
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
-boundary_layers = 3
+boundary_layers = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -14,7 +16,7 @@ gravity = 9.81
 tspan = (0.0, 1.0)
 
 # Boundary geometry and initial fluid particle positions
-initial_fluid_size = (1.0, 0.9)
+initial_fluid_size = (1.0, 1.0)
 tank_size = (1.0, 1.0)
 
 fluid_density = 1000.0
@@ -41,8 +43,15 @@ system_acceleration = (0.0, -gravity)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           acceleration=system_acceleration,
+                                        #    acceleration=system_acceleration,
                                            source_terms=nothing)
+
+fluid_system2 = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length, viscosity=viscosity,
+                                        #    acceleration=system_acceleration,
+                                           source_terms=nothing)
+ghost_system = TrixiParticles.GhostSystem(fluid_system2)
 
 # ==========================================================================================
 # ==== Boundary
@@ -51,21 +60,30 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 boundary_density_calculator = AdamiPressureExtrapolation()
 
 # This is to set wall viscosity with `trixi_include`
-viscosity_wall = nothing
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
-                                             viscosity=viscosity_wall)
+# viscosity_wall = nothing
+# boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+#                                              state_equation=state_equation,
+#                                              boundary_density_calculator,
+#                                              smoothing_kernel, smoothing_length,
+#                                              viscosity=viscosity_wall)
+k_solid = 0.2
+beta_solid = 1
+boundary_model = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
+                                                   fluid_particle_spacing,
+                                                   tank.boundary.mass)
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, movement=nothing)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system)
+min_corner = minimum(tank.fluid.coordinates, dims = 2) .- 2 * smoothing_length .- 0.2
+max_corner = maximum(tank.fluid.coordinates, dims = 2) .+ 2 * smoothing_length .- 0.2
+
+semi = Semidiscretization(fluid_system, ghost_system,
+                          neighborhood_search=GridNeighborhoodSearch{2}(cell_list=PointNeighbors.P4estCellList(; min_corner, max_corner)))
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="$(MPI.Comm_rank(MPI.COMM_WORLD))")
 
 # This is to easily add a new callback with `trixi_include`
 extra_callback = nothing

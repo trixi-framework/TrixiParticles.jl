@@ -395,3 +395,15 @@ function find_too_close_particles(coords, min_distance)
 
     return result
 end
+
+function keep_particles(initial_condition, keep)
+    NDIMS = ndims(initial_condition)
+    coordinates = initial_condition.coordinates[:, keep]
+    velocity = initial_condition.velocity[:, keep]
+    mass = initial_condition.mass[keep]
+    density = initial_condition.density[keep]
+    pressure = initial_condition.pressure[keep]
+
+    return InitialCondition{NDIMS}(coordinates, velocity, mass, density, pressure,
+                                       initial_condition.particle_spacing)
+end
