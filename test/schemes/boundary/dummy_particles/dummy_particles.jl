@@ -341,65 +341,47 @@
             # as fluid plus boundary in the other tank.
             # The pressure gradient of this fluid should be the same as the extrapolated pressure
             # of the boundary in the first tank.
-            tank_reference = RectangularTank(particle_spacing, (width_reference, height_reference),
-                                       (width_reference, height_reference),
-                                       density, acceleration=[0.0, -9.81],
-                                       state_equation=state_equation, n_layers=0,
-                                       faces=(true, true, true, false))
+            tank_reference = RectangularTank(particle_spacing,
+                                             (width_reference, height_reference),
+                                             (width_reference, height_reference),
+                                             density, acceleration=[0.0, -9.81],
+                                             state_equation=state_equation, n_layers=0,
+                                             faces=(true, true, true, false))
 
-            #=
-            Because it is a pain to deal with the indices of the pressure arrays,
-            we convert the flattened matrices back to their original shape.
-            We then transform the matrices to have the same orientation, such that
-            they have shape (n_rows, n_cols) and look like this (B = boundary, F = fluid):
-
-            B B F F F B B
-            B B F F F B B
-            B B F F F B B
-            B B B B B B B
-            B B B B B B B
-            =#
-
-            coor = boundary_system.coordinates
-            n_cols = n_particles + 2 * n_layers
-            n_rows = n_particles + n_layers
-
-            # Map physical coordinates to the corresponding
-            # indices in an array.
-            function coordinates_to_indices(coor)
-                unique_vals = sort(unique(coor))  # Sorted unique values
-                index_map = Dict(val => idx for (idx, val) in enumerate(unique_vals))
-                index_array = [index_map[x] for x in coor]
-                return index_array
+            # Because it is a pain to deal with the linear indices of the pressure arrays,
+            # we convert the matrices to Cartesian indices based on the coordinates.
+            function set_pressure!(pressure, coordinates, offset, system, system_pressure)
+                for particle in TrixiParticles.eachparticle(system)
+                    # Coordinates as integer indices
+                    coords = coordinates[:, particle] ./ particle_spacing
+                    # Move bottom left corner to (1, 1)
+                    coords .+= offset
+                    # Round to integer index
+                    index = round.(Int, coords)
+                    pressure[index...] = system_pressure[particle]
+                end
             end
 
-            # Compute the indices for the x and y coordinates of the boundary system.
-            boundary_x_idx, boundary_y_idx = [coordinates_to_indices(axis)
-                                              for axis in eachrow(boundary_system.coordinates)]
+            # Set up the combined pressure matrix to store the pressure values of fluid
+            # and boundary together.
+            pressure = zeros(n_particles + 2 * n_layers, n_particles + n_layers)
 
-            # Set up the pressure matrix to store the pressure values.
-            press = zeros(n_rows, n_cols)
+            # The fluid starts at -0.5 * particle_spacing from (0, 0),
+            # so the boundary starts at -(n_layers + 0.5) * particle_spacing
+            set_pressure!(pressure, boundary_system.coordinates, n_layers + 0.5,
+                          boundary_system, boundary_system.boundary_model.pressure)
 
-            # Assign the boundary pressure values to the pressure matrix using the boundary indices.
-            # To keep the orientation consistent, reverse the pressure matrix along the first dimension.
-            for i in 1:length(boundary_system.boundary_model.pressure)
-                press[boundary_y_idx[i], boundary_x_idx[i]] = boundary_system.boundary_model.pressure[i]
-            end
-            press = reverse(press, dims=1)
+            # The fluid starts at -0.5 * particle_spacing from (0, 0),
+            # so the boundary starts at -(n_layers + 0.5) * particle_spacing
+            set_pressure!(pressure, tank3.fluid.coordinates, n_layers + 0.5,
+                          fluid_system3, fluid_system3.pressure)
+            pressure_reference = similar(pressure)
 
-            # Extract the fluid pressure matrix. while keeping the orientation consistent.
-            press_fluid = transpose(reshape(fluid_system3.pressure,
-                                            (n_particles, n_particles))) # A matrix containing the pressure of fluid3
-            press_fluid = reverse(press_fluid, dims=1)
+            # The fluid starts at -0.5 * particle_spacing from (0, 0)
+            set_pressure!(pressure_reference, tank_reference.fluid.coordinates, 0.5,
+                          tank_reference.fluid, tank_reference.fluid.pressure)
 
-            # Assign the fluid pressure values to the corresponding section of the pressure matrix.
-            press[begin:n_particles, (n_layers + 1):(n_particles + n_layers)] .= press_fluid
-
-            # Extract the reference fluid pressure matrix. while keeping the orientation consistent.
-            press_ref = transpose(reshape(tank_reference.fluid.pressure, (n_cols, n_rows)))
-            press_ref = reverse(press_ref, dims=1)
-
-            @test all(isapprox.(press, press_ref, atol=4.0))
+            @test all(isapprox.(pressure, pressure_reference, atol=4.0))
         end
     end
 end
