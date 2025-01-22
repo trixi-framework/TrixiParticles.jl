@@ -171,7 +171,7 @@ end
 
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # and Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, v, u,
+function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, v,  u,
                       v_neighbor_system, u_neighbor_system, semi, surfn, nsurfn)
     (; cache) = system
     (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
