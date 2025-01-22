@@ -240,7 +240,7 @@
                                                             tank1.boundary.coordinates,
                                                             tank1.fluid.coordinates,
                                                             v_fluid,
-                                                            v_fluid,
+                                                            nothing, # Not used
                                                             neighborhood_search)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
@@ -282,7 +282,7 @@
                                                             tank2.boundary.coordinates,
                                                             tank2.fluid.coordinates,
                                                             v_fluid,
-                                                            v_fluid,
+                                                            nothing, # Not used
                                                             neighborhood_search)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
@@ -290,9 +290,11 @@
                                                       tank2.boundary.coordinates, particle)
             end
 
-            @test all(isapprox.(boundary_system.boundary_model.pressure,
-                                boundary_system.boundary_model.pressure[1], atol=1.0e-12))
+            # Test that pressure of the fluid is indeed constant
             @test all(isapprox.(fluid_system2.pressure, fluid_system2.pressure[1]))
+            # Test that boundary pressure equals fluid pressure
+            @test all(isapprox.(boundary_system.boundary_model.pressure,
+                                fluid_system2.pressure[1], atol=1.0e-12))
         end
 
         # In this test, we initialize a fluid with a hydrostatic pressure gradient
@@ -324,7 +326,7 @@
                                                             tank3.boundary.coordinates,
                                                             tank3.fluid.coordinates,
                                                             v_fluid,
-                                                            v_fluid,
+                                                            nothing, # Not used
                                                             neighborhood_search)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
@@ -332,15 +334,15 @@
                                                       tank3.boundary.coordinates, particle)
             end
 
-            width_ref = particle_spacing * (n_particles + 2 * n_layers)
-            height_ref = particle_spacing * (n_particles + n_layers)
+            width_reference = particle_spacing * (n_particles + 2 * n_layers)
+            height_reference = particle_spacing * (n_particles + n_layers)
 
             # Define another tank without a boundary, where the fluid has the same size
             # as fluid plus boundary in the other tank.
             # The pressure gradient of this fluid should be the same as the extrapolated pressure
             # of the boundary in the first tank.
-            tank_ref = RectangularTank(particle_spacing, (width_ref, height_ref),
-                                       (width_ref, height_ref),
+            tank_reference = RectangularTank(particle_spacing, (width_reference, height_reference),
+                                       (width_reference, height_reference),
                                        density, acceleration=[0.0, -9.81],
                                        state_equation=state_equation, n_layers=0,
                                        faces=(true, true, true, false))
@@ -394,7 +396,7 @@
             press[begin:n_particles, (n_layers + 1):(n_particles + n_layers)] .= press_fluid
 
             # Extract the reference fluid pressure matrix. while keeping the orientation consistent.
-            press_ref = transpose(reshape(tank_ref.fluid.pressure, (n_cols, n_rows)))
+            press_ref = transpose(reshape(tank_reference.fluid.pressure, (n_cols, n_rows)))
             press_ref = reverse(press_ref, dims=1)
 
             @test all(isapprox.(press, press_ref, atol=4.0))
