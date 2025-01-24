@@ -23,7 +23,7 @@ authors:
     affiliation: 2
   - name: Michael Schlottke-Lakemper
     orcid: 0000-0002-3195-2536
-    affiliation: 1, 4
+    affiliation: 4
 affiliations:
  - name: High-Performance Computing Center Stuttgart, University of Stuttgart, Germany
    index: 1
