@@ -6,7 +6,7 @@
              1.0 2.0],
             [1.0 2.0
              1.0 2.0
-             1.0 2.0],
+             1.0 2.0]
         ]
         @testset "$(i+1)D" for i in 1:2
             NDIMS = i + 1
@@ -131,7 +131,7 @@
                 Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
                 function TrixiParticles.current_coords(system::Val{:mock_system_tensor},
                                                        particle)
-                    return TrixiParticles.extract_svector(current_coordinates[i], system,
+                    return TrixiParticles.extract_svector(current_coordinates[i], Val(2),
                                                           particle)
                 end
 
@@ -154,11 +154,10 @@
                 end
 
                 TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = neighbors
+                TrixiParticles.PointNeighbors.search_radius(::Val{:nhs}) = Inf
 
                 function Base.getproperty(::Val{:nhs}, f::Symbol)
-                    if f === :search_radius
-                        return Inf
-                    elseif f === :periodic_box_size
+                    if f === :periodic_box
                         return nothing
                     end
 
@@ -172,6 +171,7 @@
                 function TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _)
                     return kernel_derivative
                 end
+                Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
 
                 # Compute deformation gradient
                 deformation_grad = ones(2, 2, 2)
@@ -216,8 +216,8 @@
                 initial_condition = InitialCondition(; coordinates, mass, density)
                 system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                                   smoothing_length, 1.0, 1.0)
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
-                                                                  TrixiParticles.eachparticle(system))
+                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=1.0,
+                                                                  eachpoint=TrixiParticles.eachparticle(system))
 
                 TrixiParticles.initialize!(system, nhs)
 
@@ -372,4 +372,4 @@
         @test isapprox(von_mises_stress[1], 1.4257267477533202, atol=1e-14)
         @test isapprox(reference_stress_tensor, cauchy_stress, atol=1e-6)
     end
-end
+end;

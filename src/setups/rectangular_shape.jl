@@ -43,6 +43,8 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 - `tlsph`:          With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
                     on the boundary of the shape and not one particle radius away, as for fluids.
                     When `tlsph=true`, particles will be placed on the boundary of the shape.
+- `coordinates_perturbation`: Add a small random displacement to the particle positions,
+                              where the amplitude is `coordinates_perturbation * particle_spacing`.
 
 # Examples
 ```jldoctest; output = false, setup = :(particle_spacing = 0.1)
@@ -59,11 +61,18 @@ rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0),
 rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), density=1000.0)
 
 # output
-InitialCondition{Float64}(0.1, [1.05 1.15 … 1.35 1.45; 2.05 2.05 … 2.35 2.35; 3.05 3.05 … 3.65 3.65], [0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0], [1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002  …  1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002], [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0  …  1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition{Float64}                                                                        │
+│ ═════════════════════════                                                                        │
+│ #dimensions: ……………………………………………… 3                                                                │
+│ #particles: ………………………………………………… 140                                                              │
+│ particle spacing: ………………………………… 0.1                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 function RectangularShape(particle_spacing, n_particles_per_dimension, min_coordinates;
                           velocity=zeros(length(n_particles_per_dimension)),
+                          coordinates_perturbation=nothing,
                           mass=nothing, density=nothing, pressure=0.0,
                           acceleration=nothing, state_equation=nothing,
                           tlsph=false, loop_order=nothing)
@@ -88,6 +97,13 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
     coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                            min_coordinates, tlsph=tlsph,
                                            loop_order=loop_order)
+
+    if !isnothing(coordinates_perturbation)
+        seed!(1)
+        amplitude = coordinates_perturbation * particle_spacing
+        coordinates .+= rand((-amplitude):(particle_spacing * 1e-3):(amplitude),
+                             NDIMS, n_particles)
+    end
 
     # Allow zero acceleration with state equation, but interpret `nothing` acceleration
     # with state equation as a likely mistake.

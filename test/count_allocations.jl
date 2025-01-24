@@ -1,9 +1,11 @@
-# Wrapper for any neighborhood search that forwards `for_particle_neighbor` to the wrapped
+# Wrapper for any neighborhood search that forwards `foreach_point_neighbor` to the wrapped
 # neighborhood search, but doesn't do anything in the update step.
 # This is used in the example tests to test for zero allocations in the `kick!` function.
 struct NoUpdateNeighborhoodSearch{NHS}
     nhs::NHS
 end
+
+@inline Base.ndims(nhs::NoUpdateNeighborhoodSearch) = ndims(nhs.nhs)
 
 # Copy a `Semidiscretization`, but wrap the neighborhood searches with
 # `NoUpdateNeighborhoodSearch`.
@@ -17,20 +19,19 @@ function copy_semi_with_no_update_nhs(semi)
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search
-@inline function TrixiParticles.PointNeighbors.foreach_neighbor(f, system_coords,
-                                                                neighbor_coords,
-                                                                neighborhood_search::NoUpdateNeighborhoodSearch,
-                                                                particle;
-                                                                search_radius=neighborhood_search.nhs.search_radius)
-    TrixiParticles.PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
-                                                   neighborhood_search.nhs, particle,
-                                                   search_radius=search_radius)
+@inline function PointNeighbors.foreach_neighbor(f, system_coords,
+                                                 neighbor_coords,
+                                                 neighborhood_search::NoUpdateNeighborhoodSearch,
+                                                 particle;
+                                                 search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
+    PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
+                                    neighborhood_search.nhs, particle,
+                                    search_radius=search_radius)
 end
 
 # No update
-@inline function TrixiParticles.PointNeighbors.update!(search::NoUpdateNeighborhoodSearch,
-                                                       x, y;
-                                                       particles_moving=(true, true))
+@inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
+                                        points_moving=(true, true))
     return search
 end
 

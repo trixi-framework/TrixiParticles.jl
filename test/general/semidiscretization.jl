@@ -32,10 +32,14 @@
         @test semi.ranges_u == (1:6, 7:18)
         @test semi.ranges_v == (1:6, 7:12)
 
-        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(2)),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(3))),
-               (TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(2)),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(3))))
+        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                            eachpoint=1:2),
+                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                            eachpoint=1:3)),
+               (TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                            eachpoint=1:2),
+                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                            eachpoint=1:3)))
         @test semi.neighborhood_searches == nhs
     end
 
@@ -140,7 +144,7 @@
         # Avoid `SystemBuffer` barrier
         TrixiParticles.each_moving_particle(system::Union{System1, System2}) = TrixiParticles.eachparticle(system)
 
-        TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi)
+        TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi, 0.0)
 
         dv1 = TrixiParticles.wrap_v(dv_ode, system1, semi)
         @test dv1 == -0.1 * v1

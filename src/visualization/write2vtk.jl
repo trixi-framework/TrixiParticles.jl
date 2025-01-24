@@ -75,11 +75,19 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 end
 
 # Convert data for a single TrixiParticle system to VTK format
-function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
-                   iter=nothing, system_name=vtkname(system), write_meta_data=true,
+function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", prefix="",
+                   iter=nothing, system_name=vtkname(system_), write_meta_data=true,
                    max_coordinates=Inf, git_hash=compute_git_hash(),
                    custom_quantities...)
     mkpath(output_directory)
+
+    # Skip empty systems
+    if nparticles(system_) == 0
+        return
+    end
+
+    # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
+    v, u, system = transfer2cpu(v_, u_, system_)
 
     # handle "_" on optional pre/postfix strings
     add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
@@ -133,6 +141,18 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         pvd[t] = vtk
     end
     vtk_save(pvd)
+end
+
+function transfer2cpu(v_, u_, system_::GPUSystem)
+    v = Adapt.adapt(Array, v_)
+    u = Adapt.adapt(Array, u_)
+    system = Adapt.adapt(Array, system_)
+
+    return v, u, system
+end
+
+function transfer2cpu(v_, u_, system_)
+    return v_, u_, system_
 end
 
 function custom_quantity(quantity::AbstractArray, v, u, t, system)
@@ -240,16 +260,26 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             if system.correction isa AkinciFreeSurfaceCorrection
                 vtk["correction_rho0"] = system.correction.rho0
             end
+
+            if system.state_equation isa StateEquationCole
+                vtk["state_equation_exponent"] = system.state_equation.exponent
+            end
+
+            if system.state_equation isa StateEquationIdealGas
+                vtk["state_equation_gamma"] = system.state_equation.gamma
+            end
+
             vtk["state_equation"] = type2string(system.state_equation)
             vtk["state_equation_rho0"] = system.state_equation.reference_density
             vtk["state_equation_pa"] = system.state_equation.background_pressure
             vtk["state_equation_c"] = system.state_equation.sound_speed
-            vtk["state_equation_exponent"] = system.state_equation.exponent
-
             vtk["solver"] = "WCSPH"
         else
             vtk["solver"] = "EDAC"
             vtk["sound_speed"] = system.sound_speed
+            vtk["background_pressure_TVF"] = system.transport_velocity isa Nothing ?
+                                             "-" :
+                                             system.transport_velocity.background_pressure
         end
     end
 
@@ -301,8 +331,6 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 end
 
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
-    (; reference_velocity, reference_pressure, reference_density) = system
-
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
     vtk["density"] = [particle_density(v, system, particle)
@@ -310,22 +338,13 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in active_particles(system)]
 
-    NDIMS = ndims(system)
-    ELTYPE = eltype(system)
-    coords = reinterpret(reshape, SVector{NDIMS, ELTYPE}, active_coordinates(u, system))
-
-    vtk["prescribed_velocity"] = stack(reference_velocity.(coords, t))
-    vtk["prescribed_density"] = reference_density.(coords, t)
-    vtk["prescribed_pressure"] = reference_pressure.(coords, t)
-
     if write_meta_data
         vtk["boundary_zone"] = type2string(system.boundary_zone)
-        vtk["sound_speed"] = system.sound_speed
         vtk["width"] = round(system.boundary_zone.zone_width, digits=3)
         vtk["flow_direction"] = system.flow_direction
-        vtk["velocity_function"] = string(nameof(system.reference_velocity))
-        vtk["pressure_function"] = string(nameof(system.reference_pressure))
-        vtk["density_function"] = string(nameof(system.reference_density))
+        vtk["velocity_function"] = type2string(system.reference_velocity)
+        vtk["pressure_function"] = type2string(system.reference_pressure)
+        vtk["density_function"] = type2string(system.reference_density)
     end
 
     return vtk
@@ -366,4 +385,8 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
     end
+end
+
+function write2vtk!(vtk, v, u, t, system::BoundaryDEMSystem; write_meta_data=true)
+    return vtk
 end

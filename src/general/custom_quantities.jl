@@ -5,7 +5,7 @@ Returns the total kinetic energy of all particles in a system.
 """
 function kinetic_energy(v, u, t, system)
     # If `each_moving_particle` is empty (no moving particles), return zero
-    return sum(each_moving_particle(system), init=0.0) do particle
+    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
         velocity = current_velocity(v, system, particle)
         return 0.5 * system.mass[particle] * dot(velocity, velocity)
     end

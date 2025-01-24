@@ -3,13 +3,16 @@ module TrixiParticles
 using Reexport: @reexport
 
 using Adapt: Adapt
+using Base: @propagate_inbounds
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
+using DelimitedFiles: DelimitedFiles
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
+using FileIO: FileIO
 using ForwardDiff: ForwardDiff
-using GPUArrays: AbstractGPUArray
+using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
@@ -17,16 +20,20 @@ using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using RecipesBase: RecipesBase, @series
+using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings
-@reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch
-using PointNeighbors: PointNeighbors, for_particle_neighbor
+@reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
+                                PrecomputedNeighborhoodSearch, PeriodicBox,
+                                ParallelUpdate, SemiParallelUpdate, SerialUpdate
+using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
+                      @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # `util.jl` depends on the `GPUSystem` type defined in `system.jl`
@@ -44,6 +51,7 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
+include("preprocessing/preprocessing.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -51,23 +59,28 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
        BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem, InFlow,
        OutFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       PostprocessCallback, StepsizeCallback, UpdateCallback
+       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback
 export ContinuityDensity, SummationDensity
-export PenaltyForceGanzenmueller
+export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
-export StateEquationCole
+export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing
+       PressureMirroring, PressureZeroing, BoundaryModelLastiwka,
+       BernoulliPressureExtrapolation
+
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
-export RectangularTank, RectangularShape, SphereShape
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry
+export RectangularTank, RectangularShape, SphereShape, ComplexShape
+export ParticlePackingSystem, SignedDistanceField
+export WindingNumberHormann, WindingNumberJacobson
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
+       sample_boundary
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection

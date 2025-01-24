@@ -90,7 +90,7 @@
                 "Fluid-Fluid" => second_fluid_system,
                 "Fluid-BoundaryDummyPressureZeroing" => boundary_system_zeroing,
                 "Fluid-BoundaryDummyContinuityDensity" => boundary_system_continuity,
-                "Fluid-TLSPH" => solid_system,
+                "Fluid-TLSPH" => solid_system
             )
 
             if density_calculator isa SummationDensity
@@ -105,7 +105,7 @@
                 "Fluid-BoundaryDummyContinuityDensity" => (v_boundary_continuity,
                                                            u_boundary),
                 "Fluid-BoundaryDummySummationDensity" => (v_boundary, u_boundary),
-                "Fluid-TLSPH" => (v_solid, u_solid),
+                "Fluid-TLSPH" => (v_solid, u_solid)
             )
 
             return systems, vu
@@ -170,15 +170,15 @@
                                              state_equation,
                                              smoothing_kernel, smoothing_length)
 
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius,
-                                                                  TrixiParticles.eachparticle(fluid_system))
+                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
+                                                                  eachpoint=TrixiParticles.eachparticle(fluid_system))
 
                 @testset "$key" for key in keys(systems)
                     neighbor_system = systems[key]
                     v_neighbor, u_neighbor = vu[key]
 
-                    nhs2 = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius,
-                                                                       TrixiParticles.eachparticle(neighbor_system))
+                    nhs2 = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
+                                                                       eachpoint=TrixiParticles.eachparticle(neighbor_system))
 
                     # Compute interactions
                     dv = zero(v)

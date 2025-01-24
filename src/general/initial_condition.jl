@@ -8,9 +8,13 @@ The following setups return `InitialCondition`s for commonly used setups:
 - [`RectangularShape`](@ref)
 - [`SphereShape`](@ref)
 - [`RectangularTank`](@ref)
+- [`ComplexShape`](@ref)
+- [`extrude_geometry`](@ref)
 
 `InitialCondition`s support the set operations `union`, `setdiff` and `intersect` in order
 to build more complex geometries.
+`InitialCondition`s also support the set operations `setdiff` and `intersect` together
+with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`load_geometry`](@ref).
 
 # Arguments
 - `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
@@ -56,6 +60,14 @@ shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0)
 shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 initial_condition = intersect(shape1, shape2)
 
+# Set operations with geometries loaded from files
+shape = RectangularShape(0.05, (20, 20), (0.0, 0.0), density=1.0)
+file =  pkgdir(TrixiParticles, "examples", "preprocessing", "data", "circle.asc")
+geometry = load_geometry(file)
+
+initial_condition_1 = intersect(shape, geometry)
+initial_condition_2 = setdiff(shape, geometry)
+
 # Build `InitialCondition` manually
 coordinates = [0.0 1.0 1.0
                0.0 0.0 1.0]
@@ -68,7 +80,13 @@ initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, density=1000.0)
 
 # output
-InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0])
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition{Float64}                                                                        │
+│ ═════════════════════════                                                                        │
+│ #dimensions: ……………………………………………… 2                                                                │
+│ #particles: ………………………………………………… 3                                                                │
+│ particle spacing: ………………………………… -1.0                                                             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct InitialCondition{ELTYPE}
@@ -98,8 +116,11 @@ struct InitialCondition{ELTYPE}
                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
         end
 
-        # SVector of coordinates to pass to functions
-        coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+        # SVector of coordinates to pass to functions.
+        # This will return a vector of SVectors in 2D and 3D, but an 1×n matrix in 1D.
+        coordinates_svector_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+        # In 1D, this will reshape the 1×n matrix to a vector, in 2D/3D it will do nothing
+        coordinates_svector = reshape(coordinates_svector_, length(coordinates_svector_))
 
         if velocity isa AbstractMatrix
             velocities = velocity
@@ -165,6 +186,26 @@ struct InitialCondition{ELTYPE}
 
         return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
                            densities, pressures)
+    end
+end
+
+function Base.show(io::IO, ic::InitialCondition)
+    @nospecialize ic # reduce precompilation time
+
+    print(io, "InitialCondition{$(eltype(ic))}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
+    @nospecialize ic # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "InitialCondition{$(eltype(ic))}")
+        summary_line(io, "#dimensions", "$(ndims(ic))")
+        summary_line(io, "#particles", "$(nparticles(ic))")
+        summary_line(io, "particle spacing", "$(ic.particle_spacing)")
+        summary_footer(io)
     end
 end
 
@@ -285,18 +326,70 @@ end
 
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
+function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
+                          min_particle_distance=system.initial_condition.particle_spacing /
+                                                4)
+    ic = system.initial_condition
+
+    v_ode, u_ode = sol.u[end].x
+
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_u(v_ode, system, semi)
+
+    # Check if particles come too close especially when the surface exhibits large curvature
+    too_close = find_too_close_particles(u, min_particle_distance)
+
+    velocity_ = use_final_velocity ? view(v, 1:ndims(system), :) : ic.velocity
+
+    not_too_close = setdiff(eachparticle(system), too_close)
+
+    coordinates = u[:, not_too_close]
+    velocity = velocity_[:, not_too_close]
+    mass = ic.mass[not_too_close]
+    density = ic.density[not_too_close]
+    pressure = ic.pressure[not_too_close]
+
+    if length(too_close) > 0
+        @info "Removed $(length(too_close)) particles that are too close together"
+    end
+
+    return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
+                                       ic.particle_spacing)
+end
+
 # Find particles in `coords1` that are closer than `max_distance` to any particle in `coords2`
 function find_too_close_particles(coords1, coords2, max_distance)
     NDIMS = size(coords1, 1)
     result = Int[]
 
-    nhs = GridNeighborhoodSearch{NDIMS}(max_distance, size(coords2, 2))
+    nhs = GridNeighborhoodSearch{NDIMS}(search_radius=max_distance,
+                                        n_points=size(coords2, 2))
     PointNeighbors.initialize!(nhs, coords1, coords2)
 
     # We are modifying the vector `result`, so this cannot be parallel
-    for_particle_neighbor(coords1, coords2, nhs, parallel=false) do particle, _, _, _
+    foreach_point_neighbor(coords1, coords2, nhs, parallel=false) do particle, _, _, _
         if !(particle in result)
-            append!(result, particle)
+            push!(result, particle)
+        end
+    end
+
+    return result
+end
+
+# Find particles in `coords` that are closer than `min_distance` to any other particle in `coords`
+function find_too_close_particles(coords, min_distance)
+    NDIMS = size(coords, 1)
+    result = Int[]
+
+    nhs = GridNeighborhoodSearch{NDIMS}(search_radius=min_distance,
+                                        n_points=size(coords, 2))
+    TrixiParticles.initialize!(nhs, coords)
+
+    # We are modifying the vector `result`, so this cannot be parallel
+    foreach_point_neighbor(coords, coords, nhs, parallel=false) do particle, neighbor, _, _
+        # Only consider particles with neighbors that are not to be removed
+        if particle != neighbor && !(particle in result) && !(neighbor in result)
+            push!(result, particle)
         end
     end
 

@@ -19,7 +19,7 @@ sigma = 0.5
 # Make this a constant because global variables in the source terms are slow
 const OMEGA = 1.0
 
-source_terms = (coords, velocity, density, pressure) -> -OMEGA^2 * coords
+source_terms = (coords, velocity, density, pressure, t) -> -OMEGA^2 * coords
 
 # 1 period in the exact solution as computed below (but integrated with a small timestep)
 period = 4.567375
