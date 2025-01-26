@@ -46,7 +46,7 @@ Finally, exemplary results and implemented features are briefly presented.
 
 # Statement of need
 
-Numerical simulations, such as CFD, structural mechanics, thermodynamics, or magnetohydrodynamics, pose several challenges when simulating real-world problems.
+Numerical simulations, such as CFD, structural mechanics, thermodynamics, and magnetohydrodynamics, pose several challenges when simulating real-world problems.
 For example, they involve complex geometries, free surfaces,
 deformable boundaries, and moving material interfaces, as well as the coupling of multiple systems with different mathematical models.
 
@@ -64,7 +64,7 @@ In addition, particle-based methods are inherently suited to simulating free sur
 
 There are several open-source software projects specialized for SPH methods, including DualSPHysics [@Dominguez:2021], SPlisHSPlasH [@Bender], and SPHinXsys [@Zhang:2021],
 written in C++, and  PySPH [@Ramachandran:2021], written in Python.
-These softwares utilize the advantages of the SPH methods to simulate problems such as FSI and free surfaces [@O_Connor:2021] or complex geometries [@Laha:2024].
+These software packages utilize the advantages of the SPH methods to simulate problems such as FSI and free surfaces [@O_Connor:2021] or complex geometries [@Laha:2024].
 
 TrixiParticles.jl is written in the Julia programming language and combines the advantage of easy and rapid prototyping
 with the ability for high-performance computing using multicore parallelization and hardware accelerators.
@@ -74,7 +74,7 @@ Since simulations are configured and set up using only Julia code, custom method
 
 # Overview of particle-based simulation
 
-In TrixiParticles.jl, particles of a single particle-based method, e.g. SPH or DEM, are grouped into a \emph{system}.
+In TrixiParticles.jl, particles of a single particle-based method, e.g., SPH or DEM, are grouped into a \emph{system}.
 The interaction between two particles is defined entirely by the types of their systems. This approach makes it easy to support new methods and different physics
 by adding a new system and defining its pairwise interaction with other systems.
 
@@ -105,7 +105,7 @@ At the time of writing, the following feature highlights are available in TrixiP
 
 * *Fluid Systems*
     + Weakly compressible SPH (WCSPH): Standard SPH method originally developed by @Monaghan:1977 to simulate astrophysics applications.
-    + Entropically damped artificial compressibility (EDAC) for SPH: As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure, which is derived by @Clausen:2013 and adapted to SPH by @Ramachandran:2019.
+    + Entropically damped artificial compressibility (EDAC) for SPH: As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure, which was derived by @Clausen:2013 and adapted to SPH by @Ramachandran:2019.
 
 * *Structure Systems*
     + Total lagrangian SPH (TLSPH): Method to simulate elastic structures where all quantities are calculated with respect to the initial configuration [@O_Connor:2021].
