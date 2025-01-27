@@ -98,6 +98,7 @@ function calc_normal_akinci!(system::FluidSystem, neighbor_system::BoundarySyste
 
     maximum_colorfield = maximum(colorfield)
 
+    nhs = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
