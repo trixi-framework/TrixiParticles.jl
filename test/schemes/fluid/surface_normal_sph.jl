@@ -1,3 +1,4 @@
+# Create a platform below the fluid (at a distance `walldistance`)
 function create_boundary_system(coordinates, particle_spacing, state_equation, kernel,
                                 smoothing_length, NDIMS, walldistance)
     # Compute bounding box of fluid particles
