@@ -9,6 +9,7 @@
 [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](https://opensource.org/licenses/MIT)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10797541.svg)](https://zenodo.org/doi/10.5281/zenodo.10797541)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.07044/status.svg)](https://doi.org/10.21105/joss.07044)
 
 <p align="center">
   <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/479ff0c6-3c65-44fe-b3e0-2ed653e7e3a5" alt="TrixiP_logo" width="40%"/>
