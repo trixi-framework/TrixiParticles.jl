@@ -137,6 +137,22 @@ with the help of TrixiParticles.jl, please cite it as
   doi={10.5281/zenodo.10797541}
 }
 ```
+and
+```bibtex
+@article{neher2025trixiparticles,
+  author       = {Niklas S. Neher and Erik Faulhaber and Sven Berger and Gregor J. Gassner and Michael Schlottke-Lakemper},
+  title        = {TrixiParticles.jl: Particle-based multiphysics simulation in Julia},
+  journal      = {Journal of Open Source Software},
+  volume       = {10},
+  number       = {105},
+  pages        = {7044},
+  year         = {2025},
+  publisher    = {Open Journals},
+  doi          = {10.21105/joss.07044},
+  url          = {https://joss.theoj.org/papers/10.21105/joss.07044},
+  issn         = {2475-9066}
+}
+```
 
 ## Authors
 Erik Faulhaber (University of Cologne) and Niklas Neher (HLRS) implemented the foundations
