@@ -28,8 +28,9 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
+using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings, TrixiBase
+@reexport using TrixiBase: trixi_include, trixi_include_changeprecision
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
                                 PrecomputedNeighborhoodSearch, PeriodicBox,
                                 ParallelUpdate, SemiParallelUpdate, SerialUpdate
@@ -75,7 +76,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        BernoulliPressureExtrapolation
 
 export BoundaryMovement
-export examples_dir, validation_dir, trixi_include, trixi_include_changeprecision
+export examples_dir, validation_dir
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export WindingNumberHormann, WindingNumberJacobson
