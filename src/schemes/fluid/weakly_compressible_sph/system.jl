@@ -117,6 +117,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
     end
 
+
     ideal_neighbor_count_ = 0
     if reference_particle_spacing > 0.0
         ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS), reference_particle_spacing,
