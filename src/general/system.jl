@@ -151,17 +151,3 @@ end
 
 # Only for systems requiring a mandatory callback
 reset_callback_flag!(system) = system
-
-# Assuming a constant particle spacing one can calculate the number of neighbors within the
-# compact support for an undisturbed particle distribution.
-function ideal_neighbor_count(::Val{D}, particle_spacing, compact_support) where {D}
-    throw(ArgumentError("Unsupported dimension: $D"))
-end
-
-@inline function ideal_neighbor_count(::Val{2}, particle_spacing, compact_support)
-    return floor(Int, pi * compact_support^2 / particle_spacing^2)
-end
-
-@inline @fastpow function ideal_neighbor_count(::Val{3}, particle_spacing, compact_support)
-    return floor(Int, 4.0 / 3.0 * pi * compact_support^3 / particle_spacing^3)
-end
