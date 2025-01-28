@@ -40,15 +40,15 @@ BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
 struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
-    pressure             :: VECTOR # Vector{ELTYPE}
-    hydrodynamic_mass    :: VECTOR # Vector{ELTYPE}
-    state_equation       :: SE
-    density_calculator   :: DC
-    smoothing_kernel     :: K
-    smoothing_length     :: ELTYPE
-    viscosity            :: V
-    correction           :: COR
-    cache                :: C
+    pressure           :: VECTOR # Vector{ELTYPE}
+    hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
+    state_equation     :: SE
+    density_calculator :: DC
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    viscosity          :: V
+    correction         :: COR
+    cache              :: C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.

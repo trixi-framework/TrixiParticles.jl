@@ -115,8 +115,6 @@ function WeaklyCompressibleSPHSystem(initial_condition,
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
     end
 
-
-
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
