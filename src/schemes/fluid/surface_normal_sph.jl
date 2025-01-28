@@ -50,7 +50,9 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
+                           nhs,
+                           points=each_moving_particle(system)) do particle, neighbor,
+                                                                   pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = particle_density(v_neighbor_system,
                                             neighbor_system, neighbor)

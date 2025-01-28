@@ -102,7 +102,7 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     # Check that the threshold has been applied correctly
     threshold = 2^ndims(system) + 1
 
-    # Test the surface normals based on neighbor counts
+    # Test the surface normals based on neighbor counts.
     # Test that surface normals are zero when there are not enough neighbors.
     # For the linear arrangement, surface normals may still be zero
     # when we have more neighbors than the threshold.

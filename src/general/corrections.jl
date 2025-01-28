@@ -148,9 +148,9 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         foreach_point_neighbor(system, neighbor_system, system_coords,
-                               neighbor_coords, neighborhood_search,
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
+                               neighbor_coords,
+                               neighborhood_search) do particle, neighbor,
+                                                       pos_diff, distance
             rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
@@ -210,9 +210,9 @@ function compute_correction_values!(system,
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         foreach_point_neighbor(system, neighbor_system, system_coords,
-                               neighbor_coords, neighborhood_search,
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
+                               neighbor_coords,
+                               neighborhood_search) do particle, neighbor,
+                                                       pos_diff, distance
             rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
@@ -306,9 +306,9 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    foreach_point_neighbor(system, system, coordinates, coordinates, neighborhood_search;
-                           points=eachparticle(system)) do particle, neighbor,
-                                                           pos_diff, distance
+    foreach_point_neighbor(system, system, coordinates, coordinates,
+                           neighborhood_search) do particle, neighbor,
+                                                   pos_diff, distance
         volume = mass[neighbor] / density_fun(neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
@@ -341,9 +341,8 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
         foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
-                               neighborhood_search;
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
+                               neighborhood_search) do particle, neighbor,
+                                                       pos_diff, distance
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      particle_density(v_neighbor_system, neighbor_system, neighbor)
 
