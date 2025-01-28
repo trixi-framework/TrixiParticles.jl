@@ -99,7 +99,7 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     # Check that the threshold has been applied correctly
     threshold = 2^ndims(system) + 1
 
-    # Test the surface normals based on neighbor counts
+    # Test the surface normals based on neighbor counts.
     # Test that surface normals are zero when there are not enough neighbors.
     # For the linear arrangement, surface normals may still be zero
     # when we have more neighbors than the threshold.
@@ -162,11 +162,10 @@ end
     end
 
     # Compare computed normals to expected normals for surface particles
-    @test isapprox(computed_normals[:, surface_particles],
-                   expected_normals[:, surface_particles], norm=x -> norm(x, Inf),
-                   atol=0.05)
+    @test all(isapprox.(computed_normals[:, surface_particles],
+    expected_normals[:, surface_particles], atol=0.05))
 
-    # Optionally, check that normals for interior particles are zero
+    # Optionally, check that normals for interior particles are zero.
     # This will always trigger since the outer layer which has normals set is usually 2-3 particles thick.
     # The thickness of the normal layers cannot be controlled with the method currently implemented.
     # for i in setdiff(1:nparticles, surface_particles)
@@ -236,11 +235,10 @@ end
     @test all(bnd_color .>= 0.0)
 
     # Compare computed normals to expected normals for surface particles (with wall we have a larger error)
-    @test isapprox(computed_normals[:, surface_particles],
-                   expected_normals[:, surface_particles], norm=x -> norm(x, Inf),
-                   atol=0.5)
+    @test all(isapprox.(computed_normals[:, surface_particles],
+                    expected_normals[:, surface_particles], atol=0.5))
 
-    # Optionally, check that normals for interior particles are zero
+    # Optionally, check that normals for interior particles are zero.
     # This will always trigger since the outer layer which has normals set is usually 2-3 particles thick.
     # The thickness of the normal layers cannot be controlled with the method currently implemented.
     # for i in setdiff(1:nparticles, surface_particles)
