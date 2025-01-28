@@ -93,8 +93,8 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
                                            system.surface_normal_method)
 
     # After computation, check that surface normals have been computed and are not NaN or Inf
-    @test all(isfinite.(system.cache.surface_normal))
-    @test all(isfinite.(system.cache.neighbor_count))
+    @test all(isfinite, system.cache.surface_normal)
+    @test all(isfinite, system.cache.neighbor_count)
     @test size(system.cache.surface_normal, 1) == NDIMS
 
     nparticles = size(u, 2)
@@ -102,14 +102,12 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     # Check that the threshold has been applied correctly
     threshold = 2^ndims(system) + 1
 
-    # # Test the surface normals based on neighbor counts
+    # Test the surface normals based on neighbor counts
     # Test that surface normals are zero when there are not enough neighbors.
     # For the linear arrangement, surface normals may still be zero
     # when we have more neighbors than the threshold.
-    for i in 1:nparticles
-        @test system.cache.neighbor_count[i] >= threshold ||
-              all(system.cache.surface_normal[:, i] .== 0.0)
-    end
+    @test all(i -> system.cache.neighbor_count[i] >= threshold ||
+    iszero(system.cache.surface_normal[:, i]), 1:nparticles)
 end
 
 @testset "Surface Normal Computation" begin
