@@ -314,8 +314,9 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               neighborhood_search) do particle, neighbor,
-                                                       pos_diff, distance
+                               neighborhood_search;
+                               points=each_moving_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
             pressure_average[particle] += particle_pressure(v_neighbor_system,
                                                             neighbor_system,
                                                             neighbor)
