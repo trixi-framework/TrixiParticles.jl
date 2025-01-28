@@ -163,7 +163,7 @@ end
 
     # Compare computed normals to expected normals for surface particles
     @test all(isapprox.(computed_normals[:, surface_particles],
-    expected_normals[:, surface_particles], atol=0.05))
+                        expected_normals[:, surface_particles], atol=0.05))
 
     # Optionally, check that normals for interior particles are zero.
     # This will always trigger since the outer layer which has normals set is usually 2-3 particles thick.
@@ -236,7 +236,7 @@ end
 
     # Compare computed normals to expected normals for surface particles (with wall we have a larger error)
     @test all(isapprox.(computed_normals[:, surface_particles],
-                    expected_normals[:, surface_particles], atol=0.5))
+                        expected_normals[:, surface_particles], atol=0.5))
 
     # Optionally, check that normals for interior particles are zero.
     # This will always trigger since the outer layer which has normals set is usually 2-3 particles thick.
