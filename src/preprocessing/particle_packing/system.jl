@@ -297,7 +297,6 @@ end
     return du
 end
 
-
 function write_u0!(u0, system::ParticlePackingSystem)
     (; initial_condition) = system
 
