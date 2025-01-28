@@ -452,7 +452,7 @@ end
     (; pressure_offset) = density_calculator
 
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords,
-                           neighborhood_search; points=eachparticle(neighbor_system),
+                           neighborhood_search;
                            parallel=false) do neighbor, particle, pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
