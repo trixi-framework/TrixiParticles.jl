@@ -4,7 +4,6 @@ using Reexport: @reexport
 
 using Adapt: Adapt
 using Base: @propagate_inbounds
-using ChangePrecision: ChangePrecision
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
