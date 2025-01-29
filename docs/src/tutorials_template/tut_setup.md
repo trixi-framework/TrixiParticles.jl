@@ -71,6 +71,11 @@ in water would lead to prohibitively small time steps.
 The speed of sound in Weakly Compressible SPH should be chosen as small as
 possible for numerical efficiency, but large enough to limit density fluctuations
 to about 1%.
+We usually choose the speed of sound as ``10 v_max``, where ``v_max`` is the largest
+velocity in the simulation.
+In dam break simulations, the speed of sound is often chosen as ``10 \sqrt{gH}``,
+where ``H`` is the initial height of the water column and ``g`` is the gravitational
+acceleration(@cite Adami2012).
 
 TrixiParticles.jl requires the initial particle positions and quantities in
 form of an [`InitialCondition`](@ref).
