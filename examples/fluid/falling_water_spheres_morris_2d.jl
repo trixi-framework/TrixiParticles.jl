@@ -5,7 +5,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.001
+fluid_particle_spacing = 0.005
 
 boundary_layers = 3
 spacing_ratio = 1
@@ -64,8 +64,7 @@ sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      density_calculator=ContinuityDensity(),
                                      acceleration=(0.0, -gravity),
                                      reference_particle_spacing=fluid_particle_spacing,
-                                     surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
-                                                                                   fluid_smoothing_length))
+                                     surface_normal_method=ColorfieldSurfaceNormal())
 
 # ==========================================================================================
 # ==== Boundary
