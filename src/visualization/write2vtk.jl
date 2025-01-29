@@ -444,9 +444,12 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
-    vtk["colorfield_bnd"] = model.cache.colorfield_bnd
-    vtk["colorfield"] = model.cache.colorfield
-    vtk["neighbor_count"] = model.cache.neighbor_count
+
+    if haskey(model.cache, :colorfield_bnd)
+        vtk["colorfield_bnd"] = model.cache.colorfield_bnd
+        vtk["colorfield"] = model.cache.colorfield
+        vtk["neighbor_count"] = model.cache.neighbor_count
+    end
 
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
