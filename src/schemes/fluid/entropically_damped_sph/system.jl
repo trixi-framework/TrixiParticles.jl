@@ -5,8 +5,9 @@
                                 density_calculator=SummationDensity(),
                                 transport_velocity=nothing,
                                 alpha=0.5, viscosity=nothing,
-                                acceleration=ntuple(_ -> 0.0, NDIMS), buffer_size=nothing,
-                                source_terms=nothing)
+                                acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
+                                surface_normal_method=nothing, buffer_size=nothing,
+                                reference_particle_spacing=0.0, source_terms=nothing)
 
 System for particles of a fluid.
 As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an equation of state,
@@ -22,26 +23,32 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
-- `viscosity`:      Viscosity model for this system (default: no viscosity).
-                    Recommended: [`ViscosityAdami`](@ref).
-- `acceleration`:   Acceleration vector for the system. (default: zero vector)
-- `pressure_acceleration`: Pressure acceleration formulation (default: inter-particle averaged pressure).
-                        When set to `nothing`, the pressure acceleration formulation for the
-                        corresponding [density calculator](@ref density_calculator) is chosen.
-- `density_calculator`: [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
-- `transport_velocity`: [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
-- `buffer_size`:    Number of buffer particles.
-                    This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
-- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
-                    (by default), or a function of `(coords, velocity, density, pressure, t)`
-                    (which are the quantities of a single particle), returning a `Tuple`
-                    or `SVector` that is to be added to the acceleration of that particle.
-                    See, for example, [`SourceTermDamping`](@ref).
-                    Note that these source terms will not be used in the calculation of the
-                    boundary pressure when using a boundary with
-                    [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
-                    The keyword argument `acceleration` should be used instead for
-                    gravity-like source terms.
+- `viscosity`:                  Viscosity model for this system (default: no viscosity).
+                                Recommended: [`ViscosityAdami`](@ref).
+- `acceleration`:               Acceleration vector for the system. (default: zero vector)
+- `pressure_acceleration`:      Pressure acceleration formulation (default: inter-particle averaged pressure).
+                                When set to `nothing`, the pressure acceleration formulation for the
+                                corresponding [density calculator](@ref density_calculator) is chosen.
+- `density_calculator`:         [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
+- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
+- `buffer_size`:                Number of buffer particles.
+                                This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+- `source_terms`:               Additional source terms for this system. Has to be either `nothing`
+                                (by default), or a function of `(coords, velocity, density, pressure, t)`
+                                (which are the quantities of a single particle), returning a `Tuple`
+                                or `SVector` that is to be added to the acceleration of that particle.
+                                See, for example, [`SourceTermDamping`](@ref).
+                                Note that these source terms will not be used in the calculation of the
+                                boundary pressure when using a boundary with
+                                [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
+                                The keyword argument `acceleration` should be used instead for
+                                gravity-like source terms.
+- `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
+- `surface_normal_method`:      The surface normal method to be used for this SPH system.
+                                (default: no surface normal method or ColorfieldSurfaceNormal() if a surface_tension model is used)
+- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
+                                which currently is only needed when using surface tension.
+
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
                                    PF, ST, SRFT, SRFN, B, C} <: FluidSystem{NDIMS, IC}
@@ -50,7 +57,6 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
-    ideal_neighbor_count              :: Int
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -103,14 +109,6 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
             throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
         end
 
-        ideal_neighbor_count_ = 0
-        if reference_particle_spacing > 0.0
-            ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS),
-                                                         reference_particle_spacing,
-                                                         compact_support(smoothing_kernel,
-                                                                         smoothing_length))
-        end
-
         pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                          density_calculator,
                                                                          NDIMS, ELTYPE,
@@ -133,7 +131,6 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
             typeof(surface_tension), typeof(surface_normal_method),
             typeof(buffer), typeof(cache)}(initial_condition, mass, density_calculator,
                                            smoothing_kernel, smoothing_length,
-                                           ideal_neighbor_count_,
                                            sound_speed, viscosity, nu_edac,
                                            acceleration_, nothing, pressure_acceleration,
                                            transport_velocity, source_terms,
@@ -274,8 +271,9 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               neighborhood_search) do particle, neighbor,
-                                                       pos_diff, distance
+                               neighborhood_search;
+                               points=each_moving_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
             pressure_average[particle] += particle_pressure(v_neighbor_system,
                                                             neighbor_system,
                                                             neighbor)

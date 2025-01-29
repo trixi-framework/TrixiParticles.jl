@@ -22,7 +22,8 @@ Boundary model for `BoundarySPHSystem`.
 - `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
-- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary, which currently is only needed when using surface tension.
+- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
+                                which currently is only needed when using surface tension.
 # Examples
 ```jldoctest; output = false, setup = :(densities = [1.0, 2.0, 3.0]; masses = [0.1, 0.2, 0.3]; smoothing_kernel = SchoenbergCubicSplineKernel{2}(); smoothing_length = 0.1)
 # Free-slip condition
@@ -39,16 +40,15 @@ BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
 struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
-    pressure             :: VECTOR # Vector{ELTYPE}
-    hydrodynamic_mass    :: VECTOR # Vector{ELTYPE}
-    state_equation       :: SE
-    density_calculator   :: DC
-    smoothing_kernel     :: K
-    smoothing_length     :: ELTYPE
-    ideal_neighbor_count :: Int
-    viscosity            :: V
-    correction           :: COR
-    cache                :: C
+    pressure           :: VECTOR # Vector{ELTYPE}
+    hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
+    state_equation     :: SE
+    density_calculator :: DC
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    viscosity          :: V
+    correction         :: COR
+    cache              :: C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -68,14 +68,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
              create_cache_model(initial_density, density_calculator)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
-    # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
-    ideal_neighbor_count_ = 0
     if reference_particle_spacing > 0.0
-        ideal_neighbor_count_ = ideal_neighbor_count(Val(ndims(boundary_model)),
-                                                     reference_particle_spacing,
-                                                     compact_support(smoothing_kernel,
-                                                                     smoothing_length))
-
         # since reference_particle_spacing has to be set for surface normals to be determined we can do this here
         cache = (;
                  cache...,  # Existing cache fields
@@ -86,7 +79,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, ideal_neighbor_count_, viscosity,
+                                       smoothing_length, viscosity,
                                        correction, cache)
 end
 
@@ -455,7 +448,7 @@ end
     (; pressure_offset) = density_calculator
 
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords,
-                           neighborhood_search; points=eachparticle(neighbor_system),
+                           neighborhood_search;
                            parallel=false) do neighbor, particle, pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff

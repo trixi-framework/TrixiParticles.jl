@@ -6,7 +6,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
-    (; density_calculator, state_equation, correction, surface_tension) = particle_system
+    (; density_calculator, state_equation, correction) = particle_system
     (; sound_speed) = state_equation
 
     surface_tension_a = surface_tension_model(particle_system)
@@ -22,7 +22,11 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_system_coords,
-                           neighborhood_search) do particle, neighbor, pos_diff, distance
+                           neighborhood_search;
+                           points=each_moving_particle(particle_system)) do particle,
+                                                                            neighbor,
+                                                                            pos_diff,
+                                                                            distance
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.

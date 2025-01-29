@@ -37,10 +37,10 @@ The work by Akinci proposes three forces:
 The classical model is composed of the curvature minimization and cohesion force.
 
 #### Cohesion force
-The model calculates the cohesion force based on the distance between particles and the support radius ``h_c``.
+The model calculates the cohesion force based on the support radius ``h_c`` and the distance between particles.
 This force is determined using two distinct regimes within the support radius:
 - For particles closer than half the support radius,
-  a repulsive force is calculated to prevent particle clustering too tightly,
+  a repulsive force is calculated to prevent particles from clustering too tightly,
   enhancing the simulation's stability and realism.
 - Beyond half the support radius and within the full support radius,
   an attractive force is computed, simulating the effects of surface tension that draw particles together.

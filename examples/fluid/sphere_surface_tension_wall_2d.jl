@@ -29,6 +29,9 @@ sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
 
 # ==========================================================================================
 # ==== Fluid
+
+# Using a smoothing_length of exactly 1.0 * fluid_particle is necessary for this model to be accurate.
+# This yields some numerical issues though which can be circumvented by subtracting eps().
 fluid_smoothing_length = 1.0 * fluid_particle_spacing - eps()
 fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
