@@ -1,9 +1,9 @@
 
 # Unpack the neighboring systems viscosity to dispatch on the viscosity type
-@inline function dv_viscosity(particle_system, neighbor_system,
-                              v_particle_system, v_neighbor_system,
-                              particle, neighbor, pos_diff, distance,
-                              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+@propagate_inbounds function dv_viscosity(particle_system, neighbor_system,
+                                          v_particle_system, v_neighbor_system,
+                                          particle, neighbor, pos_diff, distance,
+                                          sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     viscosity = viscosity_model(particle_system, neighbor_system)
 
     return dv_viscosity(viscosity, particle_system, neighbor_system,
@@ -12,10 +12,10 @@
                         sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
-@inline function dv_viscosity(viscosity, particle_system, neighbor_system,
-                              v_particle_system, v_neighbor_system,
-                              particle, neighbor, pos_diff, distance,
-                              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+@propagate_inbounds function dv_viscosity(viscosity, particle_system, neighbor_system,
+                                          v_particle_system, v_neighbor_system,
+                                          particle, neighbor, pos_diff, distance,
+                                          sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     return viscosity(particle_system, neighbor_system,
                      v_particle_system, v_neighbor_system,
                      particle, neighbor, pos_diff, distance,
@@ -32,7 +32,7 @@ end
 @doc raw"""
     ArtificialViscosityMonaghan(; alpha, beta=0.0, epsilon=0.01)
 
-Artificial viscosity by Monaghan (Monaghan 1992, Monaghan 1989), given by
+Artificial viscosity by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite)), given by
 ```math
 \Pi_{ab} =
 \begin{cases}
@@ -50,7 +50,7 @@ where ``\alpha, \beta, \epsilon`` are parameters, ``c`` is the speed of sound, `
 and ``\bar{\rho}_{ab}`` is the arithmetic mean of their densities.
 
 Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
-To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
+To do so, [Monaghan (2005)](@cite Monaghan2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
 ```math
     \nu = \frac{\alpha h c }{2d + 4},
 ```
@@ -64,17 +64,6 @@ where ``d`` is the dimension.
               very high, eg. astrophysical calculation, good results can be obtained by
               choosing a value of `beta=2.0` and `alpha=1.0`.
 - `epsilon=0.01`: Parameter to prevent singularities.
-
-## References
-- Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
-  In: Annual Review of Astronomy and Astrophysics 30.1 (1992), pages 543-574.
-  [doi: 10.1146/ANNUREV.AA.30.090192.002551](https://doi.org/10.1146/ANNUREV.AA.30.090192.002551)
-- Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
-  In: Reports on Progress in Physics (2005), pages 1703-1759.
-  [doi: 10.1088/0034-4885/68/8/r01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
-- Joseph J. Monaghan. "On the Problem of Penetration in Particle Methods".
-  In: Journal of Computational Physics 82.1, pages 1–15.
-  [doi: 10.1016/0021-9991(89)90032-6](https://doi.org/10.1016/0021-9991(89)90032-6)
 """
 struct ArtificialViscosityMonaghan{ELTYPE}
     alpha   :: ELTYPE
@@ -89,7 +78,7 @@ end
 @doc raw"""
     ViscosityMorris(; nu, epsilon=0.01)
 
-Viscosity by Morris et al. (1997).
+Viscosity by [Morris (1997)](@cite Morris1997) also used by [Fourtakas (2019)](@cite Fourtakas2019).
 
 To the force ``f_{ab}`` between two particles ``a`` and ``b`` due to pressure gradients,
 an additional force term ``\tilde{f}_{ab}`` is added with
@@ -102,17 +91,6 @@ of particle ``a`` and ``b`` respectively, and ``\nu`` is the kinematic viscosity
 # Keywords
 - `nu`: Kinematic viscosity
 - `epsilon=0.01`: Parameter to prevent singularities
-
-## References
-- Joseph P. Morris, Patrick J. Fox, Yi Zhu.
-  "Modeling Low Reynolds Number Incompressible Flows Using SPH".
-  In: Journal of Computational Physics, Volume 136, Issue 1 (1997), pages 214--226.
-  [doi: doi.org/10.1006/jcph.1997.5776](https://doi.org/10.1006/jcph.1997.5776)
-- Georgios Fourtakas, Jose M. Dominguez, Renato Vacondio, Benedict D. Rogers.
-  "Local uniform stencil (LUST) boundary condition for arbitrary
-  3-D boundaries in parallel smoothed particle hydrodynamics (SPH) models".
-  In: Computers & Fluids, Volume 190 (2019), pages 346--361.
-  [doi: 10.1016/j.compfluid.2019.06.009](https://doi.org/10.1016/j.compfluid.2019.06.009)
 """
 struct ViscosityMorris{ELTYPE}
     nu::ELTYPE
@@ -127,15 +105,19 @@ function kinematic_viscosity(system, viscosity::ViscosityMorris)
     return viscosity.nu
 end
 
-@inline function (viscosity::Union{ArtificialViscosityMonaghan,
-                                   ViscosityMorris})(particle_system, neighbor_system,
-                                                     v_particle_system, v_neighbor_system,
-                                                     particle, neighbor, pos_diff,
-                                                     distance, sound_speed, m_a, m_b,
-                                                     rho_a, rho_b, grad_kernel)
+@propagate_inbounds function (viscosity::Union{ArtificialViscosityMonaghan,
+                                               ViscosityMorris})(particle_system,
+                                                                 neighbor_system,
+                                                                 v_particle_system,
+                                                                 v_neighbor_system,
+                                                                 particle, neighbor,
+                                                                 pos_diff, distance,
+                                                                 sound_speed,
+                                                                 m_a, m_b, rho_a, rho_b,
+                                                                 grad_kernel)
     (; smoothing_length) = particle_system
 
-    rho_mean = 0.5 * (rho_a + rho_b)
+    rho_mean = (rho_a + rho_b) / 2
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -199,14 +181,14 @@ end
 @doc raw"""
     ViscosityAdami(; nu, epsilon=0.01)
 
-Viscosity by Adami (Adami et al. 2012).
+Viscosity by [Adami (2012)](@cite Adami2012).
 The viscous interaction is calculated with the shear force for incompressible flows given by
 ```math
 f_{ab} = \sum_w \bar{\eta}_{ab} \left( V_a^2 + V_b^2 \right) \frac{v_{ab}}{||r_{ab}||^2+\epsilon h_{ab}^2}  \nabla W_{ab} \cdot r_{ab},
 ```
 where ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``,
 ``v_{ab} = v_a - v_b`` is the difference of their velocities, ``h`` is the smoothing length and ``V`` is the particle volume.
-The parameter ``\epsilon`` prevents singularities (see Ramachandran et al. 2019).
+The parameter ``\epsilon`` prevents singularities (see [Ramachandran (2019)](@cite Ramachandran2019)).
 The inter-particle-averaged shear stress  is
 ```math
     \bar{\eta}_{ab} =\frac{2 \eta_a \eta_b}{\eta_a + \eta_b},
@@ -216,14 +198,6 @@ where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
 # Keywords
 - `nu`: Kinematic viscosity
 - `epsilon=0.01`: Parameter to prevent singularities
-
-## References
-- S. Adami et al. "A generalized wall boundary condition for smoothed particle hydrodynamics".
-  In: Journal of Computational Physics 231 (2012), pages 7057-7075.
-  [doi: 10.1016/j.jcp.2012.05.005](http://dx.doi.org/10.1016/j.jcp.2012.05.005)
-- P. Ramachandran et al. "Entropically damped artificial compressibility for SPH".
-  In: Journal of Computers and Fluids 179 (2019), pages 579-594.
-  [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
 struct ViscosityAdami{ELTYPE}
     nu::ELTYPE
@@ -280,4 +254,6 @@ function kinematic_viscosity(system, viscosity::ViscosityAdami)
     return viscosity.nu
 end
 
-@inline viscous_velocity(v, system, particle) = current_velocity(v, system, particle)
+@propagate_inbounds function viscous_velocity(v, system, particle)
+    return current_velocity(v, system, particle)
+end

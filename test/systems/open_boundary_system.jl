@@ -15,7 +15,7 @@
                     "or, for a constant fluid velocity, a vector of length 2 for a 2D problem holding this velocity"
 
         reference_velocity = 1.0
-        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow; sound_speed=1.0,
+        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow;
                                                                     boundary_model=BoundaryModelLastiwka(),
                                                                     buffer_size=0,
                                                                     fluid_system=FluidSystemMock2(),
@@ -28,7 +28,7 @@
                     "a vector holding the pressure of each particle, or a scalar"
 
         reference_pressure = [1.0, 1.0]
-        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow; sound_speed=1.0,
+        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow;
                                                                     boundary_model=BoundaryModelLastiwka(),
                                                                     buffer_size=0,
                                                                     fluid_system=FluidSystemMock2(),
@@ -42,7 +42,7 @@
                     "a vector holding the density of each particle, or a scalar"
 
         reference_density = [1.0, 1.0]
-        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow; sound_speed=1.0,
+        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow;
                                                                     boundary_model=BoundaryModelLastiwka(),
                                                                     buffer_size=0,
                                                                     fluid_system=FluidSystemMock2(),
@@ -54,7 +54,7 @@
     @testset "`show`" begin
         inflow = InFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
                         flow_direction=(1.0, 0.0), density=1.0, open_boundary_layers=4)
-        system = OpenBoundarySPHSystem(inflow; sound_speed=1.0, buffer_size=0,
+        system = OpenBoundarySPHSystem(inflow; buffer_size=0,
                                        boundary_model=BoundaryModelLastiwka(),
                                        reference_density=0.0,
                                        reference_pressure=0.0,
@@ -83,7 +83,7 @@
 
         outflow = OutFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
                           flow_direction=(1.0, 0.0), density=1.0, open_boundary_layers=4)
-        system = OpenBoundarySPHSystem(outflow; sound_speed=1.0, buffer_size=0,
+        system = OpenBoundarySPHSystem(outflow; buffer_size=0,
                                        boundary_model=BoundaryModelLastiwka(),
                                        reference_density=0.0,
                                        reference_pressure=0.0,

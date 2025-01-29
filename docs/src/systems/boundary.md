@@ -35,8 +35,8 @@ To sum over neighboring particles, a `smoothing_kernel` and `smoothing_length` n
 This should be the same as for the adjacent fluid system with the largest smoothing length.
 
 In the literature, this kind of boundary particles is referred to as
-"dummy particles" (Adami et al., 2012 and Valizadeh & Monaghan, 2015),
-"frozen fluid particles" (Akinci et al., 2012) or "dynamic boundaries (Crespo et al., 2007).
+"dummy particles" ([Adami et al., 2012](@cite Adami2012) and [Valizadeh & Monaghan, 2015](@cite Valizadeh2015)),
+"frozen fluid particles" ([Akinci et al., 2012](@cite Akinci2012)) or "dynamic boundaries [Crespo et al., 2007](@cite Crespo2007).
 The key detail of this boundary condition and the only difference between the boundary models
 in these references is the way the density and pressure of boundary particles is computed.
 
@@ -55,13 +55,17 @@ of the boundary particle ``b``.
 
 ### Hydrodynamic density of dummy particles
 
-We provide five options to compute the boundary density and pressure, determined by the `density_calculator`:
+We provide six options to compute the boundary density and pressure, determined by the `density_calculator`:
 1. (Recommended) With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
-   fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
+   fluid according to [Adami et al., 2012](@cite Adami2012), and the density is obtained by applying the inverse of the state equation.
    This option usually yields the best results of the options listed here.
-2. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
+2. (Only relevant for FSI) With [`BernoulliPressureExtrapolation`](@ref), the pressure is extrapolated from the 
+   pressure similar to the [`AdamiPressureExtrapolation`](@ref), but a relative velocity-dependent pressure part
+   is calculated between moving solids and fluids, which increases the boundary pressure in areas prone to 
+   penetrations.
+3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
-3. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
+4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
    Note that this causes a gap between fluid and boundary where the boundary is initialized
    without any contact to the fluid. This is due to overestimation of the boundary density
@@ -69,10 +73,10 @@ We provide five options to compute the boundary density and pressure, determined
    contact to the fluid.
    Therefore, in dam break simulations, there is a visible "step", even though the boundary is supposed to be flat.
    See also [dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
-4. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
+5. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
    is computed from the density with the state equation.
    This option is not recommended. The other options yield significantly better results.
-5. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
+6. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
    is not used. Instead, the fluid pressure is mirrored as boundary pressure in the
    momentum equation.
    This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
@@ -81,7 +85,7 @@ We provide five options to compute the boundary density and pressure, determined
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
 The pressure of the boundary particles is obtained by extrapolating the pressure of the fluid
-according to (Adami et al., 2012).
+according to [Adami et al., 2012](@cite Adami2012).
 The pressure of a boundary particle ``b`` is given by
 ```math
 p_b = \frac{\sum_f (p_f + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
@@ -93,7 +97,20 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
     AdamiPressureExtrapolation
 ```
 
-#### 4. [`PressureZeroing`](@ref)
+#### 2. [`BernoulliPressureExtrapolation`](@ref)
+Identical to the pressure ``p_b `` calculated via [`AdamiPressureExtrapolation`](@ref), but it adds the dynamic pressure component of the Bernoulli equation:
+```math
+p_b = \frac{\sum_f (p_f + \frac{1}{2} \, \rho_{\text{neighbor}} \left( \frac{ (\mathbf{v}_f - \mathbf{v}_{\text{body}}) \cdot (\mathbf{x}_f - \mathbf{x}_{\text{neighbor}}) }{ \left\| \mathbf{x}_f - \mathbf{x}_{\text{neighbor}} \right\| } \right)^2 \times \text{factor} +\rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)} 
+```
+where ``\mathbf{v}_f`` is the velocity of the fluid and ``\mathbf{v}_{\text{body}}`` is the velocity of the body.
+This adjustment provides a higher boundary pressure for solid bodies moving with a relative velocity to the fluid to prevent penetration.
+This modification is original and not derived from any literature source.
+
+```@docs
+    BernoulliPressureExtrapolation
+```
+
+#### 5. [`PressureZeroing`](@ref)
 
 This is the simplest way to implement dummy boundary particles.
 The density of each particle is set to the reference density and the pressure to the
@@ -102,7 +119,7 @@ reference pressure (the corresponding pressure to the reference density by the s
     PressureZeroing
 ```
 
-#### 5. [`PressureMirroring`](@ref)
+#### 6. [`PressureMirroring`](@ref)
 
 Instead of calculating density and pressure for each boundary particle, we modify the
 momentum equation,
@@ -119,15 +136,15 @@ The momentum equation therefore becomes
 ```
 where the first sum is over all fluid particles and the second over all boundary particles.
 
-This approach was first mentioned by Akinci et al. (2012) and written down in this form
-by Band et al. (2018).
+This approach was first mentioned by [Akinci et al. (2012)](@cite Akinci2012) and written down in this form
+by [Band et al. (2018)](@cite Band2018).
 ```@docs
     PressureMirroring
 ```
 
 ### No-slip conditions
 
-For the interaction of dummy particles and fluid particles, Adami et al. (2012)
+For the interaction of dummy particles and fluid particles, [Adami et al. (2012)](@cite Adami2012)
 impose a no-slip boundary condition by assigning a wall velocity ``v_w`` to the dummy particle.
 
 The wall velocity of particle ``a`` is calculated from the prescribed boundary particle
@@ -148,31 +165,9 @@ condition is applied.
     The viscosity model [`ArtificialViscosityMonaghan`](@ref) for [`BoundaryModelDummyParticles`](@ref)
     has not been verified yet.
 
-### References
-- S. Adami, X. Y. Hu, N. A. Adams.
-  "A generalized wall boundary condition for smoothed particle hydrodynamics".
-  In: Journal of Computational Physics 231, 21 (2012), pages 7057–7075.
-  [doi: 10.1016/J.JCP.2012.05.005](https://doi.org/10.1016/J.JCP.2012.05.005)
-- Alireza Valizadeh, Joseph J. Monaghan.
-  "A study of solid wall models for weakly compressible SPH".
-  In: Journal of Computational Physics 300 (2015), pages 5–19.
-  [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
-- Nadir Akinci, Markus Ihmsen, Gizem Akinci, Barbara Solenthaler, Matthias Teschner.
-  "Versatile rigid-fluid coupling for incompressible SPH".
-  ACM Transactions on Graphics 31, 4 (2012), pages 1–8.
-  [doi: 10.1145/2185520.2185558](https://doi.org/10.1145/2185520.2185558)
-- A. J. C. Crespo, M. Gómez-Gesteira, R. A. Dalrymple.
-  "Boundary conditions generated by dynamic particles in SPH methods"
-  In: Computers, Materials and Continua 5 (2007), pages 173-184.
-  [doi: 10.3970/cmc.2007.005.173](https://doi.org/10.3970/cmc.2007.005.173)
-- Stefan Band, Christoph Gissler, Andreas Peer, and Matthias Teschner.
-  "MLS Pressure Boundaries for Divergence-Free and Viscous SPH Fluids."
-  In: Computers & Graphics 76 (2018), pages 37–46.
-  [doi: 10.1016/j.cag.2018.08.001](https://doi.org/10.1016/j.cag.2018.08.001)
-
 ## Repulsive Particles
 
-Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
+Boundaries modeled as boundary particles which exert forces on the fluid particles ([Monaghan, Kajtar, 2009](@cite Monaghan2009)).
 The force on fluid particle ``a`` due to boundary particle ``b`` is given by
 ```math
 f_{ab} = m_a \left(\tilde{f}_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
@@ -185,11 +180,11 @@ with
 where ``m_a`` and ``m_b`` are the masses of fluid particle ``a`` and boundary particle ``b``
 respectively, ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles
 ``a`` and ``b``, ``d`` denotes the boundary particle spacing and ``n`` denotes the number of
-dimensions (see (Monaghan, Kajtar, 2009, Equation (3.1)) and (Valizadeh, Monaghan, 2015)).
+dimensions (see [Monaghan & Kajtar, 2009](@cite Monaghan2009), Equation (3.1) and [Valizadeh & Monaghan, 2015](@cite Valizadeh2015)).
 Note that the repulsive acceleration $\tilde{f}_{ab}$ does not depend on the masses of
 the boundary particles.
 Here, ``\Phi`` denotes the 1D Wendland C4 kernel, normalized to ``1.77`` for ``q=0``
-(Monaghan, Kajtar, 2009, Section 4), with ``\Phi(r, h) = w(r/h)`` and
+([Monaghan & Kajtar, 2009](@cite Monaghan2009), Section 4), with ``\Phi(r, h) = w(r/h)`` and
 ```math
 w(q) =
 \begin{cases}
@@ -202,11 +197,11 @@ The boundary particles are assumed to have uniform spacing by the factor ``\beta
 than the expected fluid particle spacing.
 For example, if the fluid particles have an expected spacing of ``0.3`` and the boundary particles
 have a uniform spacing of ``0.1``, then this parameter should be set to ``\beta = 3``.
-According to (Monaghan, Kajtar, 2009), a value of ``\beta = 3`` for the Wendland C4 that
+According to [Monaghan & Kajtar (2009)](@cite Monaghan2009), a value of ``\beta = 3`` for the Wendland C4 that
 we use here is reasonable for most computing purposes.
 
 The parameter ``K`` is used to scale the force exerted by the boundary particles.
-In (Monaghan, Kajtar, 2009), a value of ``gD`` is used for static tank simulations,
+In [Monaghan & Kajtar (2009)](@cite Monaghan2009), a value of ``gD`` is used for static tank simulations,
 where ``g`` is the gravitational acceleration and ``D`` is the depth of the fluid.
 
 The viscosity ``\Pi_{ab}`` is calculated according to the viscosity used in the
@@ -226,14 +221,6 @@ a no-slip condition is imposed. When omitting the viscous interaction
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "monaghan_kajtar", "monaghan_kajtar.jl")]
 ```
-
-### References
-- Joseph J. Monaghan, Jules B. Kajtar. "SPH particle boundary forces for arbitrary boundaries".
-  In: Computer Physics Communications 180.10 (2009), pages 1811–1820.
-  [doi: 10.1016/j.cpc.2009.05.008](https://doi.org/10.1016/j.cpc.2009.05.008)
-- Alireza Valizadeh, Joseph J. Monaghan. "A study of solid wall models for weakly compressible SPH."
-  In: Journal of Computational Physics 300 (2015), pages 5–19.
-  [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 
 # [Open Boundaries](@id open_boundary)
 
@@ -265,7 +252,7 @@ and free of shock waves and significant viscous effects, it can be shown that th
 - ``J_2``, downstream-running characteristics,
 - ``J_3``, upstream-running characteristics.
 
-Giles (1990) derived those variables based on a linearized set of governing equations:
+[Giles (1990)](@cite Giles1990) derived those variables based on a linearized set of governing equations:
 ```math
 J_1 = -c_s^2 (\rho - \rho_{\text{ref}}) + (p - p_{\text{ref}})
 ```
@@ -280,7 +267,7 @@ where the subscript "ref" denotes the reference flow near the boundaries, which 
 Specifying the reference variables is **not** equivalent to prescription of ``\rho``, ``v`` and ``p``
 directly, since the perturbation from the reference flow is allowed.
 
-Lastiwka et al. (2009) applied the method of characteristic to SPH and determined the number of variables that should be
+[Lastiwka et al. (2009)](@cite Lastiwka2008) applied the method of characteristic to SPH and determined the number of variables that should be
 **prescribed** at the boundary and the number which should be **propagated** from the fluid domain to the boundary:
 
 - For an **inflow** boundary:
@@ -292,7 +279,7 @@ Lastiwka et al. (2009) applied the method of characteristic to SPH and determine
     - Transmit ``J_1`` and ``J_2`` from the fluid domain.
 
 Prescribing is done by simply setting the characteristics to zero. To transmit the characteristics from the fluid
-domain, or in other words, to carry the information of the fluid to the boundaries, Negi et al. (2020) use a Shepard Interpolation
+domain, or in other words, to carry the information of the fluid to the boundaries, [Negi et al. (2020)](@cite Negi2020) use a Shepard Interpolation
 ```math
 f_i = \frac{\sum_j^N f_j W_{ij}}{\sum_j^N W_{ij}},
 ```
@@ -311,16 +298,3 @@ u - u_{\text{ref}}= \frac{1}{2\rho c_s} \left( J_2 - J_3 \right),
 p - p_{\text{ref}} = \frac{1}{2} \left( J_2 + J_3 \right).
 ```
 With ``J_1``, ``J_2`` and ``J_3`` determined, we can easily solve for the actual variables for each particle.
-
-### References
-- M. B. Giles. "Nonreflecting boundary conditions for Euler equation calculations".
-  In: AIAA Journal, 28.12 pages 2050--2058.
-  [doi: 10.2514/3.10521](https://doi.org/10.2514/3.10521)
-- M. Lastiwka, M. Basa, N. J. Quinlan.
-  "Permeable and non-reflecting boundary conditions in SPH".
-  In: International Journal for Numerical Methods in Fluids 61, (2009), pages 709--724.
-  [doi: 10.1002/fld.1971](https://doi.org/10.1002/fld.1971)
-- P. Negi, P. Ramachandran, A. Haftu.
-  "An improved non-reflecting outlet boundary condition for weakly-compressible SPH".
-  In: Computer Methods in Applied Mechanics and Engineering 367, (2020), pages 113--119.
-  [doi: 10.1016/j.cma.2020.113119](https://doi.org/10.1016/j.cma.2020.113119)
