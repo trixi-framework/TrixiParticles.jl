@@ -50,7 +50,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, B, SRFT, SRFN, C} <:
+                                   V, DD, COR, PF, ST, SRFT, SRFN, B, C} <:
        FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
@@ -76,9 +76,8 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function WeaklyCompressibleSPHSystem(initial_condition, state_equation,
+function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
-                                     density_calculator=ContinuityDensity(),
                                      pressure_acceleration=nothing,
                                      buffer_size=nothing,
                                      viscosity=nothing, density_diffusion=nothing,
