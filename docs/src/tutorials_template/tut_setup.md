@@ -73,9 +73,6 @@ possible for numerical efficiency, but large enough to limit density fluctuation
 to about 1%.
 We usually choose the speed of sound as ``10 v_\text{max}``, where ``v_\text{max}``
 is the largest velocity in the simulation.
-In dam break simulations, the speed of sound is often chosen as ``10 \sqrt{gH}``,
-where ``H`` is the initial height of the water column and ``g`` is the gravitational
-acceleration(@cite Adami2012).
 This can also be done by approximating the expected maximum velocity.
 For example, in dam break simulations, the speed of sound is often chosen as ``10 \sqrt{gH}``,
 where ``H`` is the initial height of the water column and ``g`` is the gravitational
