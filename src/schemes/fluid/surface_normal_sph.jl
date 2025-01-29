@@ -386,39 +386,6 @@ function compute_curvature!(system::FluidSystem, surface_tension::SurfaceTension
     return system
 end
 
-function calc_stress_tensors!(system::FluidSystem, neighbor_system::FluidSystem, u_system,
-                              v,
-                              v_neighbor_system, u_neighbor_system, semi,
-                              surfn::ColorfieldSurfaceNormal,
-                              nsurfn::ColorfieldSurfaceNormal)
-    (; cache) = system
-    (; smoothing_kernel, smoothing_length) = surfn
-    (; stress_tensor, delta_s) = cache
-
-    neighbor_cache = neighbor_system.cache
-    neighbor_delta_s = neighbor_cache.delta_s
-
-    NDIMS = ndims(system)
-    max_delta_s = max(maximum(delta_s), maximum(neighbor_delta_s))
-
-    for particle in each_moving_particle(system)
-        normal = surface_normal(system, particle)
-        delta_s_particle = delta_s[particle]
-        if delta_s_particle > eps()
-            for i in 1:NDIMS
-                for j in 1:NDIMS
-                    delta_ij = (i == j) ? 1.0 : 0.0
-                    stress_tensor[i, j, particle] = delta_s_particle *
-                                                    (delta_ij - normal[i] * normal[j]) -
-                                                    delta_ij * max_delta_s
-                end
-            end
-        end
-    end
-
-    return system
-end
-
 function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     return system
 end
