@@ -40,11 +40,17 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 !!! note
     The fixed particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
-    ```jldoctest; output = false, filter = r"InitialCondition{Float64}.*", setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
+    ```jldoctest; output = false, setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
     solid = union(beam, fixed_particles)
 
     # output
-    InitialCondition{Float64}(...) *the rest of this line is ignored by filter*
+    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+    │ InitialCondition{Float64}                                                                        │
+    │ ═════════════════════════                                                                        │
+    │ #dimensions: ……………………………………………… 2                                                                │
+    │ #particles: ………………………………………………… 16                                                               │
+    │ particle spacing: ………………………………… 0.1                                                              │
+    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
@@ -275,10 +281,9 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
-                           neighborhood_search;
-                           points=eachparticle(system)) do particle, neighbor,
-                                                           initial_pos_diff,
-                                                           initial_distance
+                           neighborhood_search) do particle, neighbor,
+                                                   initial_pos_diff,
+                                                   initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 

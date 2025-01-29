@@ -491,6 +491,20 @@
             @test sol.retcode == ReturnCode.Success
         end
     end
+
+    @testset verbose=true "Preprocessing" begin
+        @trixi_testset "preprocessing/packing_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "preprocessing",
+                                                    "packing_2d.jl"))
+            @test sol.retcode == ReturnCode.Terminated
+        end
+        @trixi_testset "preprocessing/packing_3d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "preprocessing",
+                                                    "packing_3d.jl"))
+        end
+    end
 end
 
 @testset verbose=true "DEM" begin
