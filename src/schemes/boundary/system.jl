@@ -441,20 +441,22 @@ end
 
 function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborhood_search)
     system_coords = system.coordinates
-    (; smoothing_kernel, smoothing_length) = system.boundary_model
+    (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
 
-    foreach_point_neighbor(system, system,
-                           system_coords, system_coords,
-                           neighborhood_search,
-                           points=eachparticle(system)) do particle, neighbor, pos_diff,
-                                                           distance
-        system.boundary_model.cache.colorfield_bnd[particle] += system.initial_condition.mass[particle] /
+    if haskey(cache, :colorfield_bnd)
+        foreach_point_neighbor(system, system,
+                               system_coords, system_coords,
+                               neighborhood_search,
+                               points=eachparticle(system)) do particle, neighbor, pos_diff,
+                                                               distance
+            system.boundary_model.cache.colorfield_bnd[particle] += system.initial_condition.mass[particle] /
                                                                 system.initial_condition.density[particle] *
                                                                 system.color *
                                                                 kernel(smoothing_kernel,
-                                                                       distance,
-                                                                       smoothing_length)
-        system.boundary_model.cache.neighbor_count[particle] += 1
+                                                                           distance,
+                                                                           smoothing_length)
+            system.boundary_model.cache.neighbor_count[particle] += 1
+        end
     end
     return system
 end
