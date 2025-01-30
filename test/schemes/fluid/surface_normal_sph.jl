@@ -1,3 +1,4 @@
+include("../../test_util.jl")
 # Create a platform below the fluid (at a distance `walldistance`)
 function create_boundary_system(coordinates, particle_spacing, state_equation, kernel,
                                 smoothing_length, NDIMS, walldistance)
@@ -211,6 +212,118 @@ end
             # for i in setdiff(1:nparticles, surface_particles)
             #     @test isapprox(norm(system.cache.surface_normal[:, i]), 0.0, atol=1e-4)
             # end
+        end
+    end
+end
+
+@testset "Rectangular Fluid with Corner Normal Check" begin
+    using LinearAlgebra: norm
+
+    # Domain dimensions
+    width = 2.0
+    height = 1.0
+    particle_spacing = 0.1
+    NDIMS = 2
+
+    # Generate a rectangular grid of coordinates from (0,0) to (width,height)
+    x_vals = 0.0:particle_spacing:width
+    y_vals = 0.0:particle_spacing:height
+
+    coords_list = []
+    for y in y_vals
+        for x in x_vals
+            push!(coords_list, [x, y])
+        end
+    end
+    coordinates = hcat(coords_list...)   # size(coordinates) == (2, N)
+    nparticles = size(coordinates, 2)
+
+    # Initialize velocity, mass, density
+    velocity = zeros(NDIMS, nparticles)
+    mass = fill(1.0, nparticles)
+    fluid_density = 1000.0
+    density = fill(fluid_density, nparticles)
+
+    # Create fluid system (no wall)
+    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
+                                                        density,
+                                                        particle_spacing, nothing;             # no surface tension
+                                                        NDIMS=NDIMS,
+                                                        smoothing_length=3.0 *
+                                                                         particle_spacing,
+                                                        wall=false,
+                                                        walldistance=0.0)
+
+    # Compute surface normals
+    compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
+
+    # Threshold to decide if a particle is "on" a boundary
+    # (half the spacing is typical, adjust as needed)
+    surface_threshold = 0.5 * particle_spacing
+
+    # Function to compute the "expected" outward normal of the rectangle
+    function expected_rect_normal(pos, w, h, surface_threshold)
+        x, y = pos
+        is_left = (x ≤ surface_threshold)
+        is_right = (x ≥ w - surface_threshold)
+        is_bottom = (y ≤ surface_threshold)
+        is_top = (y ≥ h - surface_threshold)
+
+        # 1) Corners
+        if is_left && is_bottom
+            # bottom-left corner: diagonal out is (-1, -1), normalized
+            return [-sqrt(0.5), -sqrt(0.5)]
+        elseif is_left && is_top
+            # top-left corner
+            return [-sqrt(0.5), sqrt(0.5)]
+        elseif is_right && is_bottom
+            # bottom-right corner
+            return [sqrt(0.5), -sqrt(0.5)]
+        elseif is_right && is_top
+            # top-right corner
+            return [sqrt(0.5), sqrt(0.5)]
+        end
+
+        # 2) Single edges
+        if is_left
+            return [-1.0, 0.0]
+        elseif is_right
+            return [1.0, 0.0]
+        elseif is_bottom
+            return [0.0, -1.0]
+        elseif is_top
+            return [0.0, 1.0]
+        end
+
+        # 3) Interior
+        return [0.0, 0.0]
+    end
+
+    computed_normals = copy(system.cache.surface_normal)
+
+    # Normalize computed normals for any particle where it's nonzero
+    for i in 1:nparticles
+        nc = norm(computed_normals[:, i])
+        if nc > eps()
+            computed_normals[:, i] /= nc
+        end
+    end
+
+    # Compare computed normals vs. expected normals
+    for i in 1:nparticles
+        pos = coordinates[:, i]
+        exp_normal = expected_rect_normal(pos, width, height, surface_threshold)
+        nexp = norm(exp_normal)
+        ncmp = norm(computed_normals[:, i])
+
+        # ignore interior values
+        if nexp > 0.1
+            # Expected = nonzero => direction check
+            # Dot product approach or direct difference
+            dot_val = dot(exp_normal, -computed_normals[:, i])
+            # They should be close to parallel and same direction => dot ~ 1.0
+            # Relax tolerance as needed
+            @test isapprox(dot_val, 1.0; atol=0.1)
         end
     end
 end
