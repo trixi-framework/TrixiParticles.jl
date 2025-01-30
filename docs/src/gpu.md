@@ -94,7 +94,7 @@ To run a simulation with single precision, all `Float64` literals in an example 
 have to be changed to `Float32` (e.g. `0.0` to `0.0f0`).
 TrixiParticles provides a function to do this conveniently:
 ```@docs
-TrixiBase.trixi_include_changeprecision
+trixi_include_changeprecision
 ```
 
 All we have to do to run the previous example with single precision is the following.

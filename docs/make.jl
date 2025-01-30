@@ -111,7 +111,7 @@ bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 makedocs(sitename="TrixiParticles.jl",
          plugins=[bib],
          # Run doctests and check docs for the following modules
-         modules=[TrixiParticles],
+         modules=[TrixiParticles, TrixiBase],
          format=Documenter.HTML(; assets=Asciicast.assets()),
          # Explicitly specify documentation structure
          pages=[
