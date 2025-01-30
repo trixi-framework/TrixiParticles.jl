@@ -4,9 +4,7 @@ GPU support is still an experimental feature that is actively being worked on.
 As of now, the [`WeaklyCompressibleSPHSystem`](@ref), the [`TotalLagrangianSPHSystem`](@ref)
 and the [`BoundarySPHSystem`](@ref) are supported on GPUs.
 We have tested this on GPUs by Nvidia, AMD and Apple.
-Note that Apple GPUs currently require the development version of
-[GPUCompiler.jl](https://github.com/JuliaGPU/GPUCompiler.jl) and most of them
-do not support `Float64`.
+Note that most Apple GPUs do not support `Float64`.
 See [below on how to run single precision simulations](@ref single_precision).
 
 To run a simulation on a GPU, we need to use the [`FullGridCellList`](@ref)
