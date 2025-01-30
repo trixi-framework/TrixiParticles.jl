@@ -44,7 +44,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 gravity-like source terms.
 - `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
 - `surface_normal_method`:      The surface normal method to be used for this SPH system.
-                                (default: no surface normal method or ColorfieldSurfaceNormal() if a surface_tension model is used)
+                                (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
 
