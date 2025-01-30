@@ -88,14 +88,13 @@ trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), data_typ
 ## [Single precision simulations](@id single_precision)
 
 All features that currently support GPUs can also be used with single precision.
-This is orders of magnitude faster on most GPUs and required to run code
-on Metal (Apple GPUs).
+This is orders of magnitude faster on most GPUs and required on many Apple GPUs.
 
 To run a simulation with single precision, all `Float64` literals in an example file
 have to be changed to `Float32` (e.g. `0.0` to `0.0f0`).
 TrixiParticles provides a function to do this conveniently:
 ```@docs
-    trixi_include_changeprecision
+TrixiBase.trixi_include_changeprecision
 ```
 
 All we have to do to run the previous example with single precision is the following.
