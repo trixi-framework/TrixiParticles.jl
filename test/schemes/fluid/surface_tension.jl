@@ -1,5 +1,4 @@
 
-include("../../test_util.jl")
 @testset verbose=true "Surface Tension" begin
     @testset verbose=true "`cohesion_force_akinci`" begin
         surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=1.0)
@@ -92,42 +91,36 @@ include("../../test_util.jl")
     end
     @testset "compute_stress_tensors! (MomentumMorris)" begin
         # 1. Define Minimal Initial Condition with 2 Particles in 2D
-        coords = [0.0  1.0;
-                  0.0  0.0]
+        coords = [0.0 1.0;
+                  0.0 0.0]
         velocity = zeros(2, 2)
         mass = ones(2)
         density = ones(2)
 
-        ic = InitialCondition(
-            coordinates       = coords,
-            velocity          = velocity,
-            mass              = mass,
-            density           = density,
-            particle_spacing  = 1.0,
-        )
+        ic = InitialCondition(coordinates=coords,
+                              velocity=velocity,
+                              mass=mass,
+                              density=density,
+                              particle_spacing=1.0)
 
         # 2. Define Density Calculator, State Equation, and Kernel
         density_calc = SummationDensity()
-        eq_state = StateEquationCole(
-            sound_speed       = 10.0,
-            reference_density = 1.0,
-            exponent          = 1,
-        )
+        eq_state = StateEquationCole(sound_speed=10.0,
+                                     reference_density=1.0,
+                                     exponent=1)
         kernel = WendlandC2Kernel{2}()
         smoothing_length = 1.0
 
         # 3. Create the WeaklyCompressibleSPHSystem with Surface Tension
-        system = WeaklyCompressibleSPHSystem(
-            ic,
-            density_calc,
-            eq_state,
-            kernel,
-            smoothing_length;
-            surface_tension = SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0),
-            surface_normal_method = ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                            ideal_density_threshold=0.9),
-            reference_particle_spacing = 1.0,  # Ensures proper cache initialization
-        )
+        system = WeaklyCompressibleSPHSystem(ic,
+                                             density_calc,
+                                             eq_state,
+                                             kernel,
+                                             smoothing_length;
+                                             surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0),
+                                             surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                                           ideal_density_threshold=0.9),
+                                             reference_particle_spacing=1.0,)
 
         # 4. Verify Cache Contains Necessary Fields
         @test haskey(system.cache, :delta_s)
@@ -136,18 +129,16 @@ include("../../test_util.jl")
 
         # 5. Manually Populate `delta_s` and `surface_normal`
         system.cache.delta_s .= [1.0, 2.0]
-        system.cache.surface_normal .= hcat([1.0, 0.0], [1/sqrt(2), 1/sqrt(2)])
+        system.cache.surface_normal .= hcat([1.0, 0.0], [1 / sqrt(2), 1 / sqrt(2)])
         system.cache.stress_tensor .= zeros(2, 2, 2)  # Reset to zero before computation
 
         # 6. Call `compute_stress_tensors!` with `SurfaceTensionMomentumMorris`
-        TrixiParticles.compute_stress_tensors!(
-            system,
-            SurfaceTensionMomentumMorris(),
-            nothing, nothing,  # v, u (not needed for stress computation)
-            nothing, nothing,  # v_ode, u_ode (not needed)
-            nothing,           # semi (not needed)
-            0.0                # time (not needed)
-        )
+        TrixiParticles.compute_stress_tensors!(system,
+                                               SurfaceTensionMomentumMorris(),
+                                               nothing, nothing,  # v, u (not needed for stress computation)
+                                               nothing, nothing,  # v_ode, u_ode (not needed)
+                                               nothing,           # semi (not needed)
+                                               0.0)
 
         # 7. Define Reference Stress Tensors by Hand
         #
@@ -180,7 +171,7 @@ include("../../test_util.jl")
         # [-1.0 -1.0
         #  -1.0 -1.0]
 
-        ref_particle_1 = [-2.0  0.0;
+        ref_particle_1 = [-2.0 0.0;
                           0.0 -1.0]
         ref_particle_2 = [-1.0 -1.0;
                           -1.0 -1.0]
@@ -191,7 +182,7 @@ include("../../test_util.jl")
         # 9. Perform Assertions
         @test all(isfinite, computed)
 
-        @test isapprox(computed[:,:,1], ref_particle_1; atol=1e-14)
-        @test isapprox(computed[:,:,2], ref_particle_2; atol=1e-14)
+        @test isapprox(computed[:, :, 1], ref_particle_1; atol=1e-14)
+        @test isapprox(computed[:, :, 2], ref_particle_2; atol=1e-14)
     end
 end
