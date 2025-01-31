@@ -219,6 +219,57 @@ end
     return -surface_tension_coefficient / rho_a * curvature_a * n_a
 end
 
+function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+# Section 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
+function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMorris,
+                                 v, u, v_ode, u_ode, semi, t)
+    (; cache) = system
+    (; delta_s, stress_tensor) = cache
+
+    # Reset surface stress_tensor
+    set_zero!(stress_tensor)
+
+    max_delta_s = maximum(delta_s)
+    NDIMS = ndims(system)
+
+    @trixi_timeit timer() "compute surface stress tensor" for particle in each_moving_particle(system)
+        normal = surface_normal(system, particle)
+        delta_s_particle = delta_s[particle]
+        if delta_s_particle > eps()
+            for i in 1:NDIMS
+                for j in 1:NDIMS
+                    delta_ij = (i == j) ? 1.0 : 0.0
+                    stress_tensor[i, j, particle] = delta_s_particle *
+                                                    (delta_ij - normal[i] * normal[j]) -
+                                                    delta_ij * max_delta_s
+                end
+            end
+        end
+    end
+
+    return system
+end
+
+function compute_surface_delta_function!(system, surface_tension)
+    return system
+end
+
+# eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
+function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris)
+    (; cache) = system
+    (; delta_s) = cache
+
+    set_zero!(delta_s)
+
+    for particle in each_moving_particle(system)
+        delta_s[particle] = norm(surface_normal(system, particle))
+    end
+    return system
+end
+
 @inline function surface_tension_force(surface_tension_a::SurfaceTensionMomentumMorris,
                                        surface_tension_b::SurfaceTensionMomentumMorris,
                                        particle_system::FluidSystem,
