@@ -81,8 +81,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     return system, boundary_system, semi, ode
 end
 
-# TODO: change to rect
-function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
+function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     v0_ode, u0_ode = ode.u0.x
     v = TrixiParticles.wrap_v(v0_ode, system, semi)
     u = TrixiParticles.wrap_u(u0_ode, system, semi)
@@ -110,43 +109,26 @@ function compute_and_test_surface_normals(system, semi, ode; NDIMS=2)
     # when we have more neighbors than the threshold.
     @test all(i -> system.cache.neighbor_count[i] >= threshold ||
                   iszero(system.cache.surface_normal[:, i]), 1:nparticles)
+
+    TrixiParticles.compute_curvature!(system, system.surface_tension,
+                                      v, u, v0_ode, u0_ode, semi, 0.0)
+
+    # Check that curvature is finite
+    @test all(isfinite, system.cache.curvature)
 end
 
-@testset "Surface Normal Computation" begin
-    # Test case 1: Simple linear arrangement of particles
-    nparticles = 5
-    particle_spacing = 1.0
-    NDIMS = 2
-
-    coordinates = zeros(NDIMS, nparticles)
-    for i in 1:nparticles
-        coordinates[:, i] = [i * particle_spacing, 0.0]
-    end
-    velocity = zeros(NDIMS, nparticles)
-    mass = fill(1.0, nparticles)
-    fluid_density = 1000.0
-    density = fill(fluid_density, nparticles)
-
-    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
-                                                        density,
-                                                        particle_spacing, nothing;
-                                                        NDIMS=NDIMS)
-
-    compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
-end
-
-@testset "Sphere Surface Normals" begin
+@testset verbose=true "Sphere Surface Normals" begin
     # Define each variation as a tuple of parameters:
-    # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center)
+    # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
-        (2, SchoenbergCubicSplineKernel{2}(), 0.25, 3.0, 1.0, (0.0, 0.0)),
-        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0)),
-        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0)),
-        (2, WendlandC2Kernel{2}(), 0.3, 3.0, 1.0, (0.0, 0.0)),
-        (3, WendlandC2Kernel{3}(), 0.3, 3.0, 1.0, (0.0, 0.0, 0.0))
+        (2, SchoenbergCubicSplineKernel{2}(), 0.25, 3.0, 1.0, (0.0, 0.0), 0.8),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
+        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
+        (2, WendlandC2Kernel{2}(), 0.3, 2.0, 1.0, (0.0, 0.0), 1.4),
+        (3, WendlandC2Kernel{3}(), 0.3, 3.0, 1.0, (0.0, 0.0, 0.0), 0.6)
     ]
 
-    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center) in variations
+    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center, relative_curvature_error) in variations
         @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
             smoothing_length = smoothing_length_mult * particle_spacing
 
@@ -160,7 +142,8 @@ end
 
             system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
                                                                 density,
-                                                                particle_spacing, nothing;
+                                                                particle_spacing,
+                                                                SurfaceTensionMorris(surface_tension_coefficient=0.072);
                                                                 NDIMS=NDIMS,
                                                                 smoothing_length=smoothing_length,
                                                                 smoothing_kernel=smoothing_kernel,
@@ -168,7 +151,7 @@ end
                                                                                                               ideal_density_threshold=0.9),
                                                                 wall=true, walldistance=2.0)
 
-            compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
+            compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
 
             nparticles = size(coordinates, 2)
             expected_normals = zeros(NDIMS, nparticles)
@@ -207,6 +190,21 @@ end
             @test isapprox(computed_normals[:, surface_particles],
                            expected_normals[:, surface_particles], norm=x -> norm(x, Inf),
                            atol=0.04)
+
+            # Theoretical curvature magnitude
+            #  - circle (2D):  1 / radius
+            #  - sphere (3D):  2 / radius
+            expected_curv = (NDIMS == 2) ? (1.0 / radius) : (2.0 / radius)
+            curvature = system.cache.curvature
+
+            # Compare absolute value of computed curvature vs. expected
+            for i in surface_particles
+                @test isapprox(
+                    abs(curvature[i]),
+                    expected_curv;
+                    atol=relative_curvature_error * expected_curv
+                )
+            end
 
             # Optionally, test that interior particles have near-zero normals
             # for i in setdiff(1:nparticles, surface_particles)
@@ -247,7 +245,7 @@ end
     # Create fluid system (no wall)
     system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
                                                         density,
-                                                        particle_spacing, nothing;             # no surface tension
+                                                        particle_spacing, SurfaceTensionMorris(surface_tension_coefficient=0.072);
                                                         NDIMS=NDIMS,
                                                         smoothing_length=3.0 *
                                                                          particle_spacing,
@@ -255,7 +253,7 @@ end
                                                         walldistance=0.0)
 
     # Compute surface normals
-    compute_and_test_surface_normals(system, semi, ode; NDIMS=NDIMS)
+    compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
 
     # Threshold to decide if a particle is "on" a boundary
     # (half the spacing is typical, adjust as needed)
@@ -314,16 +312,38 @@ end
         pos = coordinates[:, i]
         exp_normal = expected_rect_normal(pos, width, height, surface_threshold)
         nexp = norm(exp_normal)
-        ncmp = norm(computed_normals[:, i])
 
         # ignore interior values
         if nexp > 0.1
             # Expected = nonzero => direction check
-            # Dot product approach or direct difference
             dot_val = dot(exp_normal, -computed_normals[:, i])
             # They should be close to parallel and same direction => dot ~ 1.0
-            # Relax tolerance as needed
             @test isapprox(dot_val, 1.0; atol=0.1)
+        end
+    end
+
+    function is_corner(x, y; tol=0.5*particle_spacing)
+        isleft   = (x ≤ tol)
+        isright  = (x ≥ width - tol)
+        isbottom = (y ≤ tol)
+        istop    = (y ≥ height - tol)
+        return (isleft || isright) && (isbottom || istop)
+    end
+
+    curvature = system.cache.curvature
+
+    for i in 1:nparticles
+        x, y = coordinates[:, i]
+
+        # Skip corners, which are theoretically infinite curvature
+        if is_corner(x, y)
+            continue
+        end
+
+        # All other points (edges + interior) => near-zero curvature
+        # We ignore most points since the normal calculation is not accurate in the interior
+        if norm(computed_normals[:, i]) < 0.1
+          @test isapprox(curvature[i], 0.0; atol=1e-2)
         end
     end
 end
