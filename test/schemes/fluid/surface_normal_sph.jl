@@ -199,11 +199,9 @@ end
 
             # Compare absolute value of computed curvature vs. expected
             for i in surface_particles
-                @test isapprox(
-                    abs(curvature[i]),
-                    expected_curv;
-                    atol=relative_curvature_error * expected_curv
-                )
+                @test isapprox(abs(curvature[i]),
+                               expected_curv;
+                               atol=relative_curvature_error * expected_curv)
             end
 
             # Optionally, test that interior particles have near-zero normals
@@ -245,7 +243,8 @@ end
     # Create fluid system (no wall)
     system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
                                                         density,
-                                                        particle_spacing, SurfaceTensionMorris(surface_tension_coefficient=0.072);
+                                                        particle_spacing,
+                                                        SurfaceTensionMorris(surface_tension_coefficient=0.072);
                                                         NDIMS=NDIMS,
                                                         smoothing_length=3.0 *
                                                                          particle_spacing,
@@ -322,11 +321,11 @@ end
         end
     end
 
-    function is_corner(x, y; tol=0.5*particle_spacing)
-        isleft   = (x ≤ tol)
-        isright  = (x ≥ width - tol)
+    function is_corner(x, y; tol=0.5 * particle_spacing)
+        isleft = (x ≤ tol)
+        isright = (x ≥ width - tol)
         isbottom = (y ≤ tol)
-        istop    = (y ≥ height - tol)
+        istop = (y ≥ height - tol)
         return (isleft || isright) && (isbottom || istop)
     end
 
@@ -343,7 +342,7 @@ end
         # All other points (edges + interior) => near-zero curvature
         # We ignore most points since the normal calculation is not accurate in the interior
         if norm(computed_normals[:, i]) < 0.1
-          @test isapprox(curvature[i], 0.0; atol=1e-2)
+            @test isapprox(curvature[i], 0.0; atol=1e-2)
         end
     end
 end
