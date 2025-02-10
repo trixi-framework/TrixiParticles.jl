@@ -243,9 +243,9 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
 
     # eq. 23
     # if valid_neighbor
-        for i in 1:n_moving_particles(system)
-            curvature[i] /= (correction_factor[i] + eps())
-        end
+    for i in 1:n_moving_particles(system)
+        curvature[i] /= (correction_factor[i] + eps())
+    end
     # end
 
     return system
