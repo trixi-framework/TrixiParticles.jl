@@ -23,7 +23,8 @@ function create_cache_surface_normal(::ColorfieldSurfaceNormal, ELTYPE, NDIMS, n
     surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
     neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
     colorfield = Array{ELTYPE, 1}(undef, nparticles)
-    return (; surface_normal, neighbor_count)
+    correction_factor = Array{ELTYPE, 1}(undef, nparticles)
+    return (; surface_normal, neighbor_count, colorfield, correction_factor)
 end
 
 @inline function surface_normal(particle_system::FluidSystem, particle)
@@ -155,7 +156,7 @@ function remove_invalid_normals!(system::FluidSystem,
             continue
         end
 
-        particle_surface_normal = cache.surface_normal[1:ndims(system), particle]
+        particle_surface_normal = surface_normal(system, particle)
         norm2 = dot(particle_surface_normal, particle_surface_normal)
 
         # see eq. 21
@@ -206,14 +207,15 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
                          v_neighbor_system, u_neighbor_system, semi,
                          surfn::ColorfieldSurfaceNormal, nsurfn::ColorfieldSurfaceNormal)
     (; cache) = system
-    (; curvature) = cache
+    (; curvature, correction_factor) = cache
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
-    correction_factor = fill(eps(eltype(system)), n_moving_particles(system))
 
-    no_valid_neighbors = 0
+    set_zero!(correction_factor)
+
+    # valid_neighbor = false
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
@@ -235,16 +237,16 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
             # eq. 24
             correction_factor[particle] += v_b * w
             # prevent NaNs from systems that are entirely skipped
-            no_valid_neighbors += 1
+            # valid_neighbor = true
         end
     end
 
     # eq. 23
-    if no_valid_neighbors > 0
+    # if valid_neighbor
         for i in 1:n_moving_particles(system)
-            curvature[i] /= correction_factor[i]
+            curvature[i] /= (correction_factor[i] + eps())
         end
-    end
+    # end
 
     return system
 end
