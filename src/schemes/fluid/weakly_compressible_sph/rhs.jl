@@ -6,7 +6,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
-    (; density_calculator, state_equation, correction, surface_tension) = particle_system
+    (; density_calculator, state_equation, correction) = particle_system
     (; sound_speed) = state_equation
 
     surface_tension_a = surface_tension_model(particle_system)
@@ -74,7 +74,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                    particle_system, neighbor_system,
                                                    particle, neighbor, pos_diff, distance)
 
-        dv_adhesion = adhesion_force(surface_tension, particle_system, neighbor_system,
+        dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
