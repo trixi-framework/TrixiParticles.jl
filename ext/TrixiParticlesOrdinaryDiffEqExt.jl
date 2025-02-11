@@ -1,18 +1,25 @@
 module TrixiParticlesOrdinaryDiffEqExt
 
-using TrixiParticles
+using TrixiParticles: TrixiParticles, @threaded, each_moving_particle
 
-# This is needed because `TrixiParticles.@threaded` translates
+# This is needed because `@threaded` translates
 # to `PointNeighbors.parallel_foreach`, so `PointNeighbors` must be available.
-const PointNeighbors = TrixiParticles.PointNeighbors
+using TrixiParticles.PointNeighbors: PointNeighbors
 
-using OrdinaryDiffEqCore: @.., @muladd, @cache, OrdinaryDiffEqCore,
-                          OrdinaryDiffEqPartitionedAlgorithm, OrdinaryDiffEqMutableCache
+using OrdinaryDiffEq.OrdinaryDiffEqCore: @.., @muladd, @cache, OrdinaryDiffEqCore,
+                                         OrdinaryDiffEqPartitionedAlgorithm,
+                                         OrdinaryDiffEqMutableCache
 
+using OrdinaryDiffEq: alloc_symp_state, load_symp_state, store_symp_state!
+
+# Define a new struct for the SymplecticPositionVerlet scheme
 struct SymplecticPositionVerlet <: OrdinaryDiffEqPartitionedAlgorithm end
 
+# Overwrite the function in TrixiParticles to use the new scheme
 TrixiParticles.SymplecticPositionVerlet() = SymplecticPositionVerlet()
 
+# The following is similar to the definition of the `VerletLeapfrog` scheme
+# and the corresponding cache in OrdinaryDiffEq.jl.
 OrdinaryDiffEqCore.default_linear_interpolation(alg::SymplecticPositionVerlet, prob) = true
 
 @cache struct SymplecticPositionVerletCache{uType, rateType, uEltypeNoUnits} <:
@@ -29,33 +36,10 @@ function OrdinaryDiffEqCore.get_fsalfirstlast(cache::SymplecticPositionVerletCac
     return (cache.fsalfirst, cache.k)
 end
 
-# Copied from OrdinaryDiffEqSymplecticRK
-#
-# provide the mutable uninitialized objects to keep state and derivative in case of mutable caches
-# no such objects are required for constant caches
-function alloc_symp_state(integrator)
-    (integrator.u.x..., integrator.cache.tmp.x...)
-end
-
-# load state and derivatives at begin of symplectic iteration steps
-function load_symp_state(integrator)
-    (integrator.uprev.x..., integrator.fsallast.x...)
-end
-
-# store state and derivatives at the end of symplectic iteration steps
-function store_symp_state!(integrator, cache, kdu, ku)
-    copyto!(integrator.k[1].x[1], integrator.k[2].x[1])
-    copyto!(integrator.k[1].x[2], integrator.k[2].x[2])
-    copyto!(integrator.k[2].x[2], ku)
-    copyto!(integrator.k[2].x[1], kdu)
-    nothing
-end
-
 function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_prototype,
                                       ::Type{uEltypeNoUnits},
                                       ::Type{uBottomEltypeNoUnits}, ::Type{tTypeNoUnits},
-                                      uprev,
-                                      uprev2, f, t,
+                                      uprev, uprev2, f, t,
                                       dt, reltol, p, calck,
                                       ::Val{true}) where {uEltypeNoUnits,
                                                           uBottomEltypeNoUnits,
@@ -70,12 +54,13 @@ end
 function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_prototype,
                                       ::Type{uEltypeNoUnits},
                                       ::Type{uBottomEltypeNoUnits}, ::Type{tTypeNoUnits},
-                                      uprev,
-                                      uprev2, f, t,
+                                      uprev, uprev2, f, t,
                                       dt, reltol, p, calck,
                                       ::Val{false}) where {uEltypeNoUnits,
                                                            uBottomEltypeNoUnits,
                                                            tTypeNoUnits}
+    # We only use inplace functions in TrixiParticles, so there is no point
+    # in implementing the non-inplace version.
     error("`SymplecticPositionVerlet` only supports inplace functions")
 end
 
@@ -112,6 +97,7 @@ end
 
     # update velocity (add to previous full step velocity)
     f.f1(kdu, du, u, p, t + half * dt)
+
     # The following is equivalent to `du = duprev + dt * kdu` for the velocity, but when
     # the density is integrated, a different update is used for the density.
     semi = p
@@ -143,7 +129,7 @@ end
 
 @muladd function update_velocity!(du_system, kdu_system, duprev_system,
                                   system::WeaklyCompressibleSPHSystem, dt)
-    TrixiParticles.@threaded system for particle in TrixiParticles.each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             du_system[i, particle] = duprev_system[i, particle] +
                                      dt * kdu_system[i, particle]
@@ -159,12 +145,14 @@ end
 
 @inline function update_density!(du_system, kdu_system, duprev_system,
                                  density_calculator, system, dt)
+    # Don't do anything when the density is not integrated.
+    # This scheme is then equivalent to the `LeapfrogDriftKickDrift` scheme.
     return du_system
 end
 
 @muladd function update_density!(du_system, kdu_system, duprev_system,
                                  ::ContinuityDensity, system, dt)
-    TrixiParticles.@threaded system for particle in TrixiParticles.each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         density_prev = duprev_system[end, particle]
         density_half = du_system[end, particle]
         epsilon = -kdu_system[end, particle] / density_half * dt
