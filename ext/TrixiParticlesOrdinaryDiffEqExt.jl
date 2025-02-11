@@ -1,16 +1,23 @@
 module TrixiParticlesOrdinaryDiffEqExt
 
-using TrixiParticles: TrixiParticles, @threaded, each_moving_particle
+# This package extension defines the `SymplecticPositionVerlet` scheme from DualSPHysics.
+# The scheme is similar to the `LeapfrogDriftKickDrift` scheme, but with a different
+# update for the density.
+# See https://github.com/DualSPHysics/DualSPHysics/wiki/3.-SPH-formulation#372-symplectic-position-verlet-scheme
+# and the TrixiParticles.jl docs on time integration for more details.
 
-# This is needed because `@threaded` translates
+# We need to load the name `PointNeighbors` because `@threaded` translates
 # to `PointNeighbors.parallel_foreach`, so `PointNeighbors` must be available.
-using TrixiParticles.PointNeighbors: PointNeighbors
+using TrixiParticles: TrixiParticles, @threaded, each_moving_particle,
+                      WeaklyCompressibleSPHSystem, ContinuityDensity,
+                      PointNeighbors
 
-using OrdinaryDiffEq.OrdinaryDiffEqCore: @.., @muladd, @cache, OrdinaryDiffEqCore,
-                                         OrdinaryDiffEqPartitionedAlgorithm,
-                                         OrdinaryDiffEqMutableCache
+using OrdinaryDiffEq.OrdinaryDiffEqSymplecticRK: alloc_symp_state, load_symp_state,
+                                                 store_symp_state!
 
-using OrdinaryDiffEq: alloc_symp_state, load_symp_state, store_symp_state!
+using OrdinaryDiffEqCore: OrdinaryDiffEqCore, @.., @muladd, @cache,
+                          OrdinaryDiffEqPartitionedAlgorithm,
+                          OrdinaryDiffEqMutableCache
 
 # Define a new struct for the SymplecticPositionVerlet scheme
 struct SymplecticPositionVerlet <: OrdinaryDiffEqPartitionedAlgorithm end
