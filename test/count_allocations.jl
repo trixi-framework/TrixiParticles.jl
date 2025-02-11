@@ -5,6 +5,8 @@ struct NoUpdateNeighborhoodSearch{NHS}
     nhs::NHS
 end
 
+@inline Base.ndims(nhs::NoUpdateNeighborhoodSearch) = ndims(nhs.nhs)
+
 # Copy a `Semidiscretization`, but wrap the neighborhood searches with
 # `NoUpdateNeighborhoodSearch`.
 function copy_semi_with_no_update_nhs(semi)
