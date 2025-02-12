@@ -37,15 +37,15 @@ The surface normal at a particle is derived from the color field, a scalar field
 to distinguish between different fluid phases or between fluid and air. The color field gradients point
 towards the interface, and the normalized gradient defines the surface normal direction.
 
-The simplest SPH formulation for surface normal, \( n_a \), is given as:
+The simplest SPH formulation for a surface normal, ``n_a`` is given as
 ```math
 n_a = \sum_b m_b \frac{c_b}{\rho_b} \nabla_a W_{ab},
 ```
 where:
-- \( c_b \) is the color field value for particle \( b \),
-- \( m_b \) is the mass of particle \( b \),
-- \( \rho_b \) is the density of particle \( b \),
-- \( \nabla_a W_{ab} \) is the gradient of the smoothing kernel \( W_{ab} \) with respect to particle \( a \).
+- ``c_b`` is the color field value for particle ``b``,
+- ``m_b`` is the mass of particle ``b``,
+- ``\rho_b`` is the density of particle ``b``,
+- ``\nabla_a W_{ab}`` is the gradient of the smoothing kernel ``W_{ab}`` with respect to particle ``a``.
 
 #### Normalization of surface normals
 
