@@ -189,8 +189,13 @@ A(r) = \frac{0.007}{h_c^{3.25}}
 
 ### Morris Surface Tension Model
 
-In the Morris model, surface tension is computed based on local interface curvature ``\kappa`` and the unit surface normal ``n``.
-By estimating ``n`` and ``\kappa`` at each particle near the interface, the surface tension force for particle a can be written as:
+The method estimates curvature by combining particle color gradients and smoothing functions to derive surface normals.
+The computed curvature is then used to determine forces acting perpendicular to the interface.
+While this method provides accurate surface tension forces, it does not explicitly conserve momentum.
+
+In the Morris model, surface tension is computed based on local interface curvature ``\kappa`` and the unit surface normal ``\hat{n}``.
+By estimating ``\hat{n}`` and ``\kappa`` at each particle near the interface, the surface tension force for particle a can be written as:
+
 ```math
 F_{\text{surface tension}} = - \sigma \frac{\kappa_a}{\rho_a}\hat{n}_a
 ```

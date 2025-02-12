@@ -4,7 +4,7 @@ abstract type AkinciTypeSurfaceTension <: SurfaceTension end
 @doc raw"""
     CohesionForceAkinci(surface_tension_coefficient=1.0)
 
-This model only implements the cohesion force of the [Akinci2013](@cite) surface tension model.
+This model only implements the cohesion force of the Akinci [Akinci2013](@cite) surface tension model.
 
 # Keywords
 - `surface_tension_coefficient=1.0`: Modifies the intensity of the surface tension-induced force,
@@ -22,7 +22,7 @@ end
     SurfaceTensionAkinci(surface_tension_coefficient=1.0)
 
 Implements a model for surface tension and adhesion effects drawing upon the
-principles outlined by [Akinci2013](@cite). This model is instrumental in capturing the nuanced
+principles outlined by Akinci [Akinci2013](@cite). This model is instrumental in capturing the nuanced
 behaviors of fluid surfaces, such as droplet formation and the dynamics of merging or
 separation, by utilizing intra-particle forces.
 
@@ -42,7 +42,7 @@ end
 @doc raw"""
     SurfaceTensionMorris(surface_tension_coefficient=1.0)
 
-This model implements the surface tension approach described by [Morris2000](@cite).
+This model implements the surface tension approach described by Morris [Morris2000](@cite).
 It calculates surface tension forces based on the curvature of the fluid interface
 using particle normals and their divergence, making it suitable for simulating
 phenomena like droplet formation and capillary wave dynamics.
@@ -77,17 +77,11 @@ end
 @doc raw"""
     SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)
 
-This model implements the momentum-conserving surface tension approach outlined by
-[Morris2000](@cite). It calculates surface tension forces using the gradient of a stress
+This model implements the momentum-conserving surface tension approach outlined by Morris
+[Morris2000](@cite). It calculates surface tension forces using the divergence of a stress
 tensor, ensuring exact conservation of linear momentum. This method is particularly
 useful for simulations where momentum conservation is critical, though it may require
 numerical adjustments at higher resolutions.
-
-# Details
-The stress tensor approach replaces explicit curvature calculations, avoiding the
-singularities associated with resolution increases. However, the method is computationally
-intensive and may require stabilization techniques to handle tensile instability at high
-particle densities.
 
 # Keywords
 - `surface_tension_coefficient=1.0`: A parameter to adjust the strength of surface tension
