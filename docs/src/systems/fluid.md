@@ -29,7 +29,7 @@ Pages = [joinpath("general", "corrections.jl")]
 
 Surface normals are essential for modeling surface tension as they provide the directionalit
 of forces acting at the fluid interface. They are calculated based on the particle properties and
-their spatial distribution within the smoothed particle hydrodynamics (SPH) framework.
+their spatial distribution.
 
 #### Color field and gradient-based surface normals
 
