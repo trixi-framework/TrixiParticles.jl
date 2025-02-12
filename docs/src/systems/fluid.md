@@ -6,7 +6,46 @@ This page lists models and techniques that apply to both of these methods.
 
 ## [Viscosity](@id viscosity_wcsph)
 
-TODO: Explain viscosity.
+Viscosity is a critical physical property governing momentum diffusion within a fluid.
+In the context of SPH, viscosity determines how rapidly velocity gradients are smoothed out,
+influencing key flow characteristics such as boundary layer formation, vorticity diffusion,
+and dissipation of kinetic energy. It also helps determine whether a flow is laminar or turbulent
+under a given set of conditions.
+
+Implementing viscosity correctly in SPH is essential for producing physically accurate results,
+and different methods exist to capture both numerical stabilization and true viscous effects.
+
+### Artificial (numerical) viscosity
+
+- Goal: Stabilize the simulation, capture shocks, and prevent unphysical particle interpenetration.
+- Method: Adds a dissipative (artificial) term to the momentum equations.
+- Typical Use: High-speed flows with strong shocks, astrophysical simulations, or situations where numerical damping is needed for stability.
+
+### Physical (real) viscosity
+
+- Goal: Model the actual viscous stresses of a fluid, aligned with a target Reynolds number or experimentally measured fluid properties.
+- Method: Introduces a force consistent with the Navier–Stokes viscous stress term.
+- Typical Use: Low-speed, incompressible or weakly compressible flows where matching real fluid behavior is important.
+
+### Model comparison
+
+#### ArtificialViscosityMonaghan
+
+- Best For: Compressible/high-speed flows, shock capturing, general purpose damping.
+- If you need: Stability in challenging flow regimes with potentially large density/pressure variations.
+
+#### ViscosityMorris
+
+- Best For: Moderate to low Mach number flows where realistic viscous behavior is desired.
+- If you need: Straightforward approach to physical viscosity that still works well in weakly compressible scenarios.
+
+#### ViscosityAdami
+
+- Best For: Incompressible or weakly compressible flows requiring accurate shear stress treatment.
+- If you need: Good boundary layer representation and accurate laminar flow with minimal compressibility effects.
+
+
+### API
 
 ```@autodocs
 Modules = [TrixiParticles]
@@ -155,28 +194,32 @@ This model uses stress tensors to ensure exact conservation of linear momentum, 
 
 #### Stress Tensor Formulation
 
-The force is calculated as:
+The surface tension force can be seen as a divergence of a stress tensor ``S``
 ```math
 F_{\text{surface tension}} = \nabla \cdot S,
 ```
-where \( S \) is the stress tensor:
+with ``S`` defined as
 ```math
 S = \sigma \delta_s (I - \hat{n} \otimes \hat{n}),
 ```
 with:
-- \( \delta_s \): Surface delta function,
-- \( \hat{n} \): Unit normal vector,
-- \( I \): Identity matrix.
+- ``\delta_s``: Surface delta function,
+- ``\hat{n}``: Unit normal vector,
+- ``I``: Identity matrix.
+
+That can be calculated as
+```math 
+\sum_b \frac{m_b}{\rho_a \rho_b} (S_a + S_b) \nabla W_{ab} 
+```
 
 #### Advantages and Limitations
 
 While momentum conservation makes this model attractive, it requires additional computational effort and stabilization
 techniques to address instabilities in high-density regions.
 
+### API
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "surface_tension.jl")]
 ```
-
-This extended documentation provides a comprehensive view of the theoretical foundations and practical
-implementations of surface tension and surface normal calculations in SPH models.
