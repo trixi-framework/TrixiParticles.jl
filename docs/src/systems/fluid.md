@@ -1,6 +1,7 @@
 
 # [Fluid Models](@id fluid_models)
-Currently available fluid methods are the [weakly compressible SPH method](@ref wcsph) and the [entropically damped artificial compressibility for SPH](@ref edac).  
+Currently available fluid methods are the [weakly compressible SPH method](@ref wcsph) and the 
+[entropically damped artificial compressibility for SPH](@ref edac).  
 This page lists models and techniques that apply to both of these methods.  
 
 ## [Viscosity](@id viscosity_wcsph)
@@ -26,11 +27,15 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ### Overview of surface normal calculation in SPH
 
-Surface normals are essential for modeling surface tension as they provide the directionality of forces acting at the fluid interface. They are calculated based on the particle properties and their spatial distribution within the smoothed particle hydrodynamics (SPH) framework.
+Surface normals are essential for modeling surface tension as they provide the directionalit
+of forces acting at the fluid interface. They are calculated based on the particle properties and
+their spatial distribution within the smoothed particle hydrodynamics (SPH) framework.
 
 #### Color field and gradient-based surface normals
 
-The surface normal at a particle is derived from the color field, a scalar field assigned to particles to distinguish between different fluid phases or between fluid and air. The color field gradients point towards the interface, and the normalized gradient defines the surface normal direction.
+The surface normal at a particle is derived from the color field, a scalar field assigned to particles
+to distinguish between different fluid phases or between fluid and air. The color field gradients point
+towards the interface, and the normalized gradient defines the surface normal direction.
 
 The simplest SPH formulation for surface normal, \( n_a \), is given as:
 ```math
@@ -52,7 +57,8 @@ Normalization ensures that the magnitude of the normals does not bias the curvat
 
 #### Handling noise and errors in normal calculation
 
-In regions distant from the interface, the calculated normals may be small or inaccurate due to the smoothing kernel's support radius. To mitigate this:
+In regions distant from the interface, the calculated normals may be small or inaccurate due to the
+smoothing kernel's support radius. To mitigate this:
 1. Normals below a threshold are excluded from further calculations.
 2. Curvature calculations use a corrected formulation to reduce errors near interface fringes.
 
@@ -67,7 +73,9 @@ Pages = [joinpath("schemes", "fluid", "surface_normal_sph.jl")]
 
 ### Introduction to Surface Tension in SPH
 
-Surface tension is a key phenomenon in fluid dynamics, influencing the behavior of droplets, bubbles, and fluid interfaces. In SPH, surface tension is modeled as forces arising due to surface curvature and particle interactions, ensuring realistic simulation of capillary effects, droplet coalescence, and fragmentation.
+Surface tension is a key phenomenon in fluid dynamics, influencing the behavior of droplets, bubbles, and fluid interfaces.
+In SPH, surface tension is modeled as forces arising due to surface curvature and particle interactions,
+ensuring realistic simulation of capillary effects, droplet coalescence, and fragmentation.
 
 ### Akinci-Based Intra-Particle Force Surface Tension and Wall Adhesion Model
 
@@ -75,7 +83,8 @@ The Akinci model divides surface tension into distinct force components:
 
 #### Cohesion Force
 
-The cohesion force captures the attraction between particles at the fluid interface, creating the effect of surface tension. It is defined by the distance between particles and the support radius \( h_c \), using a kernel-based formulation.
+The cohesion force captures the attraction between particles at the fluid interface, creating the effect of surface tension.
+It is defined by the distance between particles and the support radius \( h_c \), using a kernel-based formulation.
 
 **Key Features:**
 - Particles within half the support radius experience a repulsive force to prevent clustering.
@@ -97,7 +106,8 @@ C(r)=\frac{32}{\pi h_c^9}
 
 #### Surface Area Minimization Force
 
-The surface area minimization force models the curvature reduction effects, aligning particle motion to reduce the interface's total area. It acts based on the difference in surface normals:
+The surface area minimization force models the curvature reduction effects, aligning particle motion to reduce the interface's total area.
+It acts based on the difference in surface normals:
 ```math
 F_{\text{curvature}} = -\sigma (n_a - n_b),
 ```
@@ -105,7 +115,8 @@ where \( n_a \) and \( n_b \) are the surface normals of the interacting particl
 
 #### Wall Adhesion Force
 
-This force models the interaction between fluid and solid boundaries, simulating adhesion effects at walls. It uses a custom kernel with a peak at 0.75 times the support radius:
+This force models the interaction between fluid and solid boundaries, simulating adhesion effects at walls.
+It uses a custom kernel with a peak at 0.75 times the support radius:
 ```math
 F_{\text{adhesion}} = -\beta m_b A(r) \frac{r}{\Vert r \Vert},
 ```
@@ -122,7 +133,8 @@ A(r) = \frac{0.007}{h_c^{3.25}}
 
 ### Morris-Based Momentum-Conserving Surface Tension Model
 
-In addition to the Akinci model, Morris (2000) introduced a momentum-conserving approach to surface tension. This model uses stress tensors to ensure exact conservation of linear momentum, providing a robust method for high-resolution simulations.
+In addition to the Akinci model, Morris (2000) introduced a momentum-conserving approach to surface tension.
+This model uses stress tensors to ensure exact conservation of linear momentum, providing a robust method for high-resolution simulations.
 
 #### Stress Tensor Formulation
 
@@ -141,11 +153,13 @@ with:
 
 #### Advantages and Limitations
 
-While momentum conservation makes this model attractive, it requires additional computational effort and stabilization techniques to address instabilities in high-density regions.
+While momentum conservation makes this model attractive, it requires additional computational effort and stabilization
+techniques to address instabilities in high-density regions.
 
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "surface_tension.jl")]
 ```
 
-This extended documentation provides a comprehensive view of the theoretical foundations and practical implementations of surface tension and surface normal calculations in SPH models.
+This extended documentation provides a comprehensive view of the theoretical foundations and practical
+implementations of surface tension and surface normal calculations in SPH models.
