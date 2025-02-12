@@ -187,10 +187,23 @@ A(r) = \frac{0.007}{h_c^{3.25}}
 
 ---
 
+### Morris Surface Tension Model
+
+In the Morris model, surface tension is computed based on local interface curvature ``\kappa`` and the unit surface normal ``n``.
+By estimating ``n`` and ``\kappa`` at each particle near the interface, the surface tension force for particle a can be written as:
+```math
+F_{\text{surface tension}} = - \sigma \frac{\kappa_a}{\rho_a}\hat{n}_a
+```
+This formulation focuses directly on geometric properties of the interface, making it relatively straightforward to implement when a reliable interface detection 
+(e.g., a color function) is available. However, accurately estimating ``\kappa`` and ``n`` may require fine resolutions.
+---
+
 ### Morris-Based Momentum-Conserving Surface Tension Model
 
-In addition to the Akinci model, Morris (2000) introduced a momentum-conserving approach to surface tension.
-This model uses stress tensors to ensure exact conservation of linear momentum, providing a robust method for high-resolution simulations.
+In addition to the simpler curvature-based formulation, Morris (2000) introduced a momentum-conserving approach.
+This method treats surface tension forces as arising from the divergence of a stress tensor, ensuring exact conservation
+of linear momentum and offering more robust behavior for high-resolution or long-duration simulations
+where accumulated numerical error can be significant.
 
 #### Stress Tensor Formulation
 
