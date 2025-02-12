@@ -329,7 +329,6 @@
         end
 
         @trixi_testset "fluid/falling_water_spheres_2d.jl" begin
-
             surface_tension_models = Dict(
                 "SurfaceTensionAkinci" => SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                 "SurfaceTensionMorris" => SurfaceTensionMorris(surface_tension_coefficient=0.05),
@@ -343,8 +342,9 @@
                     println("Running falling_water_spheres_2d.jl with $model_name")
 
                     # Prepare keyword arguments
-                    kwargs = model_name == "SurfaceTensionNone" ? (surface_tension=nothing,) :
-                                                               (surface_tension=surface_tension,)
+                    kwargs = model_name == "SurfaceTensionNone" ?
+                             (surface_tension=nothing,) :
+                             (surface_tension=surface_tension,)
 
                     # Execute the example script with the current surface tension model
                     @test_nowarn_mod trixi_include(@__MODULE__,
@@ -362,7 +362,6 @@
         end
 
         @trixi_testset "fluid/falling_water_spheres_3d.jl" begin
-
             surface_tension_models = Dict(
                 "SurfaceTensionAkinci" => SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                 "SurfaceTensionMorris" => SurfaceTensionMorris(surface_tension_coefficient=0.05),
@@ -376,8 +375,9 @@
                     println("Running falling_water_spheres_3d.jl with $model_name")
 
                     # Prepare keyword arguments
-                    kwargs = model_name == "SurfaceTensionNone" ? (surface_tension=nothing,) :
-                                                               (surface_tension=surface_tension,)
+                    kwargs = model_name == "SurfaceTensionNone" ?
+                             (surface_tension=nothing,) :
+                             (surface_tension=surface_tension,)
 
                     # Execute the example script with the current surface tension model
                     @test_nowarn_mod trixi_include(@__MODULE__,
