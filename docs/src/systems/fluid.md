@@ -24,11 +24,11 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ## [Surface Normals](@id surface_normal)
 
-### Overview of Surface Normal Calculation in SPH
+### Overview of surface normal calculation in SPH
 
 Surface normals are essential for modeling surface tension as they provide the directionality of forces acting at the fluid interface. They are calculated based on the particle properties and their spatial distribution within the smoothed particle hydrodynamics (SPH) framework.
 
-#### Color Field and Gradient-Based Surface Normals
+#### Color field and gradient-based surface normals
 
 The surface normal at a particle is derived from the color field, a scalar field assigned to particles to distinguish between different fluid phases or between fluid and air. The color field gradients point towards the interface, and the normalized gradient defines the surface normal direction.
 
@@ -42,7 +42,7 @@ where:
 - \( \rho_b \) is the density of particle \( b \),
 - \( \nabla_a W_{ab} \) is the gradient of the smoothing kernel \( W_{ab} \) with respect to particle \( a \).
 
-#### Normalization of Surface Normals
+#### Normalization of surface normals
 
 The calculated normals are normalized to unit vectors:
 ```math
@@ -50,7 +50,7 @@ The calculated normals are normalized to unit vectors:
 ```
 Normalization ensures that the magnitude of the normals does not bias the curvature calculations or the resulting surface tension forces.
 
-#### Handling Noise and Errors in Normal Calculation
+#### Handling noise and errors in normal calculation
 
 In regions distant from the interface, the calculated normals may be small or inaccurate due to the smoothing kernel's support radius. To mitigate this:
 1. Normals below a threshold are excluded from further calculations.

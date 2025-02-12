@@ -329,26 +329,77 @@
         end
 
         @trixi_testset "fluid/falling_water_spheres_2d.jl" begin
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "fluid",
-                                                    "falling_water_spheres_2d.jl"))
-            @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+
+            surface_tension_models = Dict(
+                "SurfaceTensionAkinci" => SurfaceTensionAkinci(surface_tension_coefficient=0.05),
+                "SurfaceTensionMorris" => SurfaceTensionMorris(surface_tension_coefficient=0.05),
+                "SurfaceTensionMomentumMorris" => SurfaceTensionMomentumMorris(surface_tension_coefficient=0.05),
+                "SurfaceTensionNone" => nothing  # For cases without surface tension
+            )
+
+            for (model_name, surface_tension) in surface_tension_models
+                @testset "$model_name" begin
+                    println("═"^100)
+                    println("Running falling_water_spheres_2d.jl with $model_name")
+
+                    # Prepare keyword arguments
+                    kwargs = model_name == "SurfaceTensionNone" ? (surface_tension=nothing,) :
+                                                               (surface_tension=surface_tension,)
+
+                    # Execute the example script with the current surface tension model
+                    @test_nowarn_mod trixi_include(@__MODULE__,
+                                                   joinpath(examples_dir(), "fluid",
+                                                            "falling_water_spheres_2d.jl");
+                                                   kwargs...)
+
+                    # Assert that the simulation ran successfully
+                    @test sol.retcode == ReturnCode.Success
+
+                    # Optionally, verify no unexpected RHS allocations
+                    @test count_rhs_allocations(sol, semi) == 0
+                end
+            end
         end
 
         @trixi_testset "fluid/falling_water_spheres_3d.jl" begin
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "fluid",
-                                                    "falling_water_spheres_3d.jl")) [
-                r"┌ Info: The desired tank length in x-direction .*\n",
-                r"└ New tank length in x-direction.*\n",
-                r"┌ Info: The desired tank length in y-direction .*\n",
-                r"└ New tank length in y-direction.*\n",
-                r"┌ Info: The desired tank length in z-direction .*\n",
-                r"└ New tank length in z-direction.*\n"
-            ]
-            @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+
+            surface_tension_models = Dict(
+                "SurfaceTensionAkinci" => SurfaceTensionAkinci(surface_tension_coefficient=0.05),
+                "SurfaceTensionMorris" => SurfaceTensionMorris(surface_tension_coefficient=0.05),
+                "SurfaceTensionMomentumMorris" => SurfaceTensionMomentumMorris(surface_tension_coefficient=0.05),
+                "SurfaceTensionNone" => nothing  # For cases without surface tension
+            )
+
+            for (model_name, surface_tension) in surface_tension_models
+                @testset "$model_name" begin
+                    println("═"^100)
+                    println("Running falling_water_spheres_3d.jl with $model_name")
+
+                    # Prepare keyword arguments
+                    kwargs = model_name == "SurfaceTensionNone" ? (surface_tension=nothing,) :
+                                                               (surface_tension=surface_tension,)
+
+                    # Execute the example script with the current surface tension model
+                    @test_nowarn_mod trixi_include(@__MODULE__,
+                                                   joinpath(examples_dir(), "fluid",
+                                                            "falling_water_spheres_3d.jl");
+                                                   kwargs...) [
+                        # Optional: Add regex patterns to ignore specific warnings or logs
+                        r"┌ Info: The desired tank length in x-direction .*\n",
+                        r"└ New tank length in x-direction.*\n",
+                        r"┌ Info: The desired tank length in y-direction .*\n",
+                        r"└ New tank length in y-direction.*\n",
+                        r"┌ Info: The desired tank length in z-direction .*\n",
+                        r"└ New tank length in z-direction.*\n"
+                    ]
+
+                    # Assert that the simulation ran successfully
+                    @test sol.retcode == ReturnCode.Success
+
+                    # Optionally, verify no unexpected RHS allocations
+                    @test count_rhs_allocations(sol, semi) == 0
+                end
+            end
         end
 
         @trixi_testset "fluid/sphere_surface_tension_wall_2d.jl" begin
