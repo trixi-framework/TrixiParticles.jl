@@ -20,7 +20,6 @@ Modules = [TrixiParticles]
 Pages = [joinpath("general", "corrections.jl")]
 ```
 
-
 ---
 
 ## [Surface Normals](@id surface_normal)
@@ -71,11 +70,29 @@ Pages = [joinpath("schemes", "fluid", "surface_normal_sph.jl")]
 
 ## [Surface Tension](@id surface_tension)
 
-### Introduction to Surface Tension in SPH
-
 Surface tension is a key phenomenon in fluid dynamics, influencing the behavior of droplets, bubbles, and fluid interfaces.
-In SPH, surface tension is modeled as forces arising due to surface curvature and particle interactions,
-ensuring realistic simulation of capillary effects, droplet coalescence, and fragmentation.
+In SPH, surface tension is modeled as forces arising due to surface curvature and particle interactions, ensuring realistic
+simulation of capillary effects, droplet coalescence, and fragmentation.
+
+The surface tension coefficient ``\sigma`` is a physical parameter that quantifies the energy required to increase the surface area
+of a fluid by a unit amount. A higher value of ``\sigma`` indicates that the fluid resists changes to its surface area more strongly,
+causing droplets or bubbles to assume shapes (often spherical) that minimize their surface. In practice, ``\sigma`` can be measured
+experimentally through techniques such as the pendant drop method, the Wilhelmy plate method, or the du Noüy ring method,
+each of which relates a measurable force or change in shape to the fluid’s surface tension. For pure substances,
+tabulated reference values of ``\sigma`` at given temperatures are commonly used, while for mixtures or complex fluids,
+direct experimental measurements or specialized equations of state may be necessary.
+
+| **Fluid**    | **Surface Tension (``\sigma``) [N/m at 20°C]** |
+|--------------|----------------------------------------------:|
+| **Water**    | 0.0728                                        |
+| **Mercury**  | 0.485                                         |
+| **Ethanol**  | 0.0221                                        |
+| **Acetone**  | 0.0237                                        |
+| **Glycerol** | 0.0634                                        |
+| **Olive Oil**| ~0.032                                        |
+| **Gasoline** | ~0.022                                        |
+| **Mineral Oil** | ~0.030                                     |
+
 
 ### Akinci-Based Intra-Particle Force Surface Tension and Wall Adhesion Model
 
@@ -84,7 +101,7 @@ The Akinci model divides surface tension into distinct force components:
 #### Cohesion Force
 
 The cohesion force captures the attraction between particles at the fluid interface, creating the effect of surface tension.
-It is defined by the distance between particles and the support radius \( h_c \), using a kernel-based formulation.
+It is defined by the distance between particles and the support radius ``h_c``, using a kernel-based formulation.
 
 **Key Features:**
 - Particles within half the support radius experience a repulsive force to prevent clustering.
