@@ -97,15 +97,14 @@ end
 
 function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
                                       nparticles)
-    # Allocate stress tensor for each particle: NDIMS x NDIMS x nparticles
     delta_s = Array{ELTYPE, 1}(undef, nparticles)
+    # Allocate stress tensor for each particle: NDIMS x NDIMS x nparticles
     stress_tensor = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
     return (; stress_tensor, delta_s)
 end
 
 @inline function stress_tensor(particle_system::FluidSystem, particle)
-    (; cache) = particle_system
-    return extract_svector(cache.stress_tensor, particle_system, particle)
+    return extract_smatrix(particle_system.cache.stress_tensor, particle_system, particle)
 end
 
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
