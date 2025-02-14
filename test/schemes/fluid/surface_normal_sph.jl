@@ -89,7 +89,7 @@ function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     TrixiParticles.compute_surface_normal!(system, system.surface_normal_method, v, u,
                                            v0_ode, u0_ode, semi, 0.0)
 
-    TrixiParticles.remove_invalid_normals!(system, SurfaceTensionMorris(),
+    TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
                                            system.surface_normal_method)
 
     # After computation, check that surface normals have been computed and are not NaN or Inf
@@ -142,6 +142,7 @@ end
             mass = sphere_ic.mass
             density = sphere_ic.density
 
+            # wall is placed 2.0 away so that it doesn't have much influence on the result
             system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
                                                                 density,
                                                                 particle_spacing,
