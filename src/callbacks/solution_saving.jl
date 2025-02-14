@@ -72,8 +72,7 @@ mutable struct SolutionSavingCallback{I, CQ}
     save_final_solution   :: Bool
     write_meta_data       :: Bool
     verbose               :: Bool
-    output_directory      :: String
-    prefix                :: String
+    config                :: OutputConfig
     max_coordinates       :: Float64
     custom_quantities     :: CQ
     latest_saved_iter     :: Int
@@ -83,39 +82,38 @@ end
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_times=Array{Float64, 1}([]),
                                 save_initial_solution=true, save_final_solution=true,
-                                output_directory="out", append_timestamp=false,
-                                prefix="", verbose=false, write_meta_data=true,
-                                max_coordinates=Float64(2^15), custom_quantities...)
+                                config=OutputConfig(), verbose=false,
+                                write_meta_data=true, max_coordinates=Float64(2^15),
+                                custom_quantities...)
+    # Validate parameter consistency
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
         throw(ArgumentError("Setting multiple save times for the same solution " *
-                            "callback is not possible. Use either `dt`, `interval` or `save_times`."))
+                            "callback is not possible. Use either `dt`, `interval`, or `save_times`."))
     end
 
-    if dt > 0
-        interval = Float64(dt)
-    end
+    # Update interval if `dt` is provided
+    interval = dt > 0 ? Float64(dt) : interval
 
-    if append_timestamp
-        output_directory *= string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
-    end
-
-    solution_callback = SolutionSavingCallback(interval, save_times,
-                                               save_initial_solution, save_final_solution,
-                                               write_meta_data, verbose, output_directory,
-                                               prefix, max_coordinates, custom_quantities,
+    # Create the `SolutionSavingCallback` instance
+    solution_callback = SolutionSavingCallback(interval, save_times, save_initial_solution,
+                                               save_final_solution,
+                                               write_meta_data, verbose, config,
+                                               max_coordinates, custom_quantities,
                                                -1, Ref("UnknownVersion"))
 
     if length(save_times) > 0
         return PresetTimeCallback(save_times, solution_callback)
     elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution
-        return PeriodicCallback(solution_callback, dt,
+        return PeriodicCallback(solution_callback,
+                                dt,
                                 initialize=initialize_save_cb!,
                                 save_positions=(false, false),
                                 final_affect=save_final_solution)
     else
         # The first one is the `condition`, the second the `affect!`
-        return DiscreteCallback(solution_callback, solution_callback,
+        return DiscreteCallback(solution_callback,
+                                solution_callback,  # `affect!` and `condition` are the same
                                 save_positions=(false, false),
                                 initialize=initialize_save_cb!)
     end
@@ -157,34 +155,31 @@ end
 
 # `affect!`
 function (solution_callback::SolutionSavingCallback)(integrator)
-    (; interval, output_directory, custom_quantities, write_meta_data, git_hash,
-    verbose, prefix, latest_saved_iter, max_coordinates) = solution_callback
+    (; interval, config, custom_quantities, write_meta_data, git_hash,
+    verbose, latest_saved_iter, max_coordinates) = solution_callback
 
     vu_ode = integrator.u
     semi = integrator.p
     iter = get_iter(interval, integrator)
 
     if iter == latest_saved_iter
-        # This should only happen at the end of the simulation when using `dt` and the
-        # final time is not a multiple of the saving interval.
         @assert isfinished(integrator)
-
-        # Avoid overwriting the previous file
-        iter += 1
+        iter += 1  # Avoid overwriting the previous file
     end
 
-    latest_saved_iter = iter
+    solution_callback.latest_saved_iter = iter
 
     if verbose
-        println("Writing solution to $output_directory at t = $(integrator.t)")
+        println("Writing solution to $(config.output_directory) at t = $(integrator.t)")
     end
 
-    @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t;
-                                                    iter, output_directory, prefix,
-                                                    write_meta_data, git_hash=git_hash[],
-                                                    max_coordinates, custom_quantities...)
+    # Use the updated build_filepath for handling subdirectory creation
+    filepath = build_filepath(config; extension="vtk")
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
+    @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t;
+                                                    iter, filepath, write_meta_data,
+                                                    git_hash=git_hash[],
+                                                    max_coordinates, custom_quantities...)
     u_modified!(integrator, false)
 
     return nothing
@@ -262,7 +257,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
-            "output directory" => abspath(solution_saving.output_directory),
+            "output directory" => abspath(solution_saving.config.output_directory),
             "prefix" => solution_saving.prefix
         ]
         summary_box(io, "SolutionSavingCallback", setup)

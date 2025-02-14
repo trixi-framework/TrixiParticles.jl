@@ -39,9 +39,7 @@ end
 
 function DensityReinitializationCallback(particle_system; interval::Integer=0, dt=0.0,
                                          reinit_initial_solution=true)
-    if dt > 0 && interval > 0
-        error("Setting both interval and dt is not supported!")
-    end
+    validate_interval_and_dt(interval, dt)
 
     if dt > 0
         interval = Float64(dt)
