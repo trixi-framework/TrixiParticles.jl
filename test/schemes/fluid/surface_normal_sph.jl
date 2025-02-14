@@ -108,15 +108,18 @@ function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     # when we have more neighbors than the threshold.
     @test all(i -> system.cache.neighbor_count[i] >= threshold ||
                   iszero(system.cache.surface_normal[:, i]), 1:nparticles)
-
-    TrixiParticles.compute_curvature!(system, system.surface_tension,
-                                      v, u, v0_ode, u0_ode, semi, 0.0)
-
-    # Check that curvature is finite
-    @test all(isfinite, system.cache.curvature)
 end
 
-@testset verbose=true "Sphere Surface Normals" begin
+function compute_curvature!(system, semi, ode)
+    v0_ode, u0_ode = ode.u0.x
+    v = TrixiParticles.wrap_v(v0_ode, system, semi)
+    u = TrixiParticles.wrap_u(u0_ode, system, semi)
+
+    TrixiParticles.compute_curvature!(system, system.surface_tension,
+    v, u, v0_ode, u0_ode, semi, 0.0)
+end
+
+@testset verbose=true "CSS/CSF: Sphere Surface Normals" begin
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
@@ -190,6 +193,11 @@ end
                            expected_normals[:, surface_particles], norm=x -> norm(x, Inf),
                            atol=0.04)
 
+            compute_curvature!(system, semi, ode)
+
+            # Check that curvature is finite
+            @test all(isfinite, system.cache.curvature)
+
             # Theoretical curvature magnitude
             #  - circle (2D):  1 / radius
             #  - sphere (3D):  2 / radius
@@ -202,6 +210,88 @@ end
                                expected_curv;
                                atol=relative_curvature_error * expected_curv)
             end
+
+            # Optionally, test that interior particles have near-zero normals
+            # for i in setdiff(1:nparticles, surface_particles)
+            #     @test isapprox(norm(system.cache.surface_normal[:, i]), 0.0, atol=1e-4)
+            # end
+        end
+    end
+end
+
+@testset verbose=true "Akinci Sphere Surface Normals" begin
+    # Define each variation as a tuple of parameters:
+    # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
+    variations = [
+        (2, SchoenbergCubicSplineKernel{2}(), 0.25, 3.0, 1.0, (0.0, 0.0), 0.8),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
+        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
+        (2, WendlandC2Kernel{2}(), 0.3, 2.0, 1.0, (0.0, 0.0), 1.4),
+        (3, WendlandC2Kernel{3}(), 0.3, 3.0, 1.0, (0.0, 0.0, 0.0), 0.6)
+    ]
+
+    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center, relative_curvature_error) in variations
+        @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
+            smoothing_length = smoothing_length_mult * particle_spacing
+
+            # Create a `SphereShape`, which is a disk in 2D
+            sphere_ic = SphereShape(particle_spacing, radius, center, 1000.0)
+
+            coordinates = sphere_ic.coordinates
+            velocity = zeros(NDIMS, size(coordinates, 2))
+            mass = sphere_ic.mass
+            density = sphere_ic.density
+
+            system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
+                                                                density,
+                                                                particle_spacing,
+                                                                SurfaceTensionAkinci(surface_tension_coefficient=0.072);
+                                                                NDIMS=NDIMS,
+                                                                smoothing_length=smoothing_length,
+                                                                smoothing_kernel=smoothing_kernel,
+                                                                surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                                                              ideal_density_threshold=0.9),
+                                                                wall=true, walldistance=2.0)
+
+            compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
+
+            nparticles = size(coordinates, 2)
+            expected_normals = zeros(NDIMS, nparticles)
+            surface_particles = Int[]
+
+            # Compute expected normals and identify surface particles
+            for i in 1:nparticles
+                pos = coordinates[:, i]
+                r = pos .- center
+                norm_r = norm(r)
+
+                # If particle is on the circumference of the circle
+                if abs(norm_r - radius) < particle_spacing
+                    expected_normals[:, i] = -r / norm_r
+                    push!(surface_particles, i)
+                else
+                    expected_normals[:, i] .= 0.0
+                end
+            end
+
+            # Normalize computed normals
+            computed_normals = copy(system.cache.surface_normal)
+            for i in surface_particles
+                norm_computed = norm(computed_normals[:, i])
+                if norm_computed > 0
+                    computed_normals[:, i] /= norm_computed
+                end
+            end
+
+            # Boundary system
+            bnd_color = bnd_system.boundary_model.cache.colorfield_bnd
+            # this is only true since it assumed that the color is 1
+            @test all(bnd_color .>= 0.0)
+
+            # Test that computed normals match expected normals
+            @test isapprox(computed_normals[:, surface_particles],
+                           expected_normals[:, surface_particles], norm=x -> norm(x, Inf),
+                           atol=0.04)
 
             # Optionally, test that interior particles have near-zero normals
             # for i in setdiff(1:nparticles, surface_particles)
