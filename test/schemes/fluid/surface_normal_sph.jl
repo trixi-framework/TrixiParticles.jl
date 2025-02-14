@@ -116,7 +116,7 @@ function compute_curvature!(system, semi, ode)
     u = TrixiParticles.wrap_u(u0_ode, system, semi)
 
     TrixiParticles.compute_curvature!(system, system.surface_tension,
-    v, u, v0_ode, u0_ode, semi, 0.0)
+                                      v, u, v0_ode, u0_ode, semi, 0.0)
 end
 
 @testset verbose=true "CSS/CSF: Sphere Surface Normals" begin
