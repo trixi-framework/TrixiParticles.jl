@@ -103,6 +103,11 @@ function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, ND
     return (; stress_tensor, delta_s)
 end
 
+@inline function stress_tensor(particle_system::FluidSystem, particle)
+    (; cache) = particle_system
+    return extract_svector(cache.stress_tensor, particle_system, particle)
+end
+
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
 # Currently, specializations reducing this to simple multiplications exist only up
 # to a power of three, see
@@ -274,8 +279,8 @@ end
     # No surface tension with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
 
-    S_a = particle_system.cache.stress_tensor[:, :, particle]
-    S_b = neighbor_system.cache.stress_tensor[:, :, neighbor]
+    S_a = stress_tensor(particle_system, particle)
+    S_b = stress_tensor(neighbor_system, neighbor)
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
