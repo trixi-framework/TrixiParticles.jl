@@ -57,6 +57,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
+    ideal_neighbor_count              :: Int
+    color                             :: Int
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -80,7 +82,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
                                                              ndims(smoothing_kernel)),
                                          source_terms=nothing, surface_tension=nothing,
                                          surface_normal_method=nothing, buffer_size=nothing,
-                                         reference_particle_spacing=0.0)
+                                         reference_particle_spacing=0.0, color_value=1)
         buffer = isnothing(buffer_size) ? nothing :
                  SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -109,6 +111,14 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
             throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
         end
 
+        ideal_neighbor_count_ = 0
+        if reference_particle_spacing > 0.0
+            ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS),
+                                                         reference_particle_spacing,
+                                                         compact_support(smoothing_kernel,
+                                                                         smoothing_length))
+        end
+
         pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                          density_calculator,
                                                                          NDIMS, ELTYPE,
@@ -131,8 +141,10 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
             typeof(surface_tension), typeof(surface_normal_method),
             typeof(buffer), typeof(cache)}(initial_condition, mass, density_calculator,
                                            smoothing_kernel, smoothing_length,
-                                           sound_speed, viscosity, nu_edac,
-                                           acceleration_, nothing, pressure_acceleration,
+                                           ideal_neighbor_count_,
+                                           color_value, sound_speed, viscosity, nu_edac,
+                                           acceleration_,
+                                           nothing, pressure_acceleration,
                                            transport_velocity, source_terms,
                                            surface_tension, surface_normal_method, buffer,
                                            cache)
@@ -239,7 +251,21 @@ end
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     compute_density!(system, u, u_ode, semi, system.density_calculator)
-    compute_surface_normal!(system, system.surface_tension, v, u, v_ode, u_ode, semi, t)
+end
+
+function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
+    compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
+                            t)
+    compute_surface_delta_function!(system, system.surface_tension)
+end
+
+function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
+    (; surface_tension) = system
+
+    # Surface normal of neighbor and boundary needs to have been calculated already
+    compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
+    compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
 end
 
