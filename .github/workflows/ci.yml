@@ -44,13 +44,14 @@ jobs:
         version:
           - '1.10'
           - '1'
+          - '1.12'
         os:
           - ubuntu-latest
         include:
           # Also run tests on Windows and macOS-ARM, but only with the latest Julia release and minimum supported version
-          - version: 'min'
+          - version: '1.12'
             os: windows-latest
-          - version: 'min'
+          - version: '1.12'
             os: macos-14
           - version: '1'
             os: windows-latest
