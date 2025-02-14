@@ -1,3 +1,4 @@
+include("../../test_util.jl")
 # Create a platform below the fluid (at a distance `walldistance`)
 function create_boundary_system(coordinates, particle_spacing, state_equation, kernel,
                                 smoothing_length, NDIMS, walldistance)
@@ -123,7 +124,7 @@ end
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
-        (2, SchoenbergCubicSplineKernel{2}(), 0.25, 3.0, 1.0, (0.0, 0.0), 0.8),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 3.0, 1.0, (0.0, 0.0), 0.8),
         (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
         (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
         (2, WendlandC2Kernel{2}(), 0.3, 2.0, 1.0, (0.0, 0.0), 1.4),
@@ -224,7 +225,7 @@ end
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
-        (2, SchoenbergCubicSplineKernel{2}(), 0.25, 3.0, 1.0, (0.0, 0.0), 0.8),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 3.0, 1.0, (0.0, 0.0), 0.8),
         (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
         (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
         (2, WendlandC2Kernel{2}(), 0.3, 2.0, 1.0, (0.0, 0.0), 1.4),
