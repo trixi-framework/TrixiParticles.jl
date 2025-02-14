@@ -1,7 +1,13 @@
 @doc raw"""
-    ColorfieldSurfaceNormal()
+    ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
+                              ideal_density_threshold=0.0)
 
 Color field based computation of the interface normals.
+
+# Keyword Arguments
+- `boundary_contact_threshold`: If this threshold is reached the fluid assumed to be in contact. (default=0.1)
+- `interface_threshold`:        Threshold for normals to be removed as being invalid. (default=0.01)
+- `ideal_density_threshold`:    Relative to the ideal number of neighbors inside particles have at least this ratio. (default=0.0)
 """
 struct ColorfieldSurfaceNormal{ELTYPE}
     boundary_contact_threshold::ELTYPE
