@@ -78,8 +78,7 @@ end
 # Note: This is the simplest form of normal approximation commonly used in SPH and comes
 # with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
 function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_system,
-                      v, v_neighbor_system, u_neighbor_system, semi, surfn,
-                      ::ColorfieldSurfaceNormal)
+                      v, v_neighbor_system, u_neighbor_system, semi, surfn, nsurfn)
     (; cache) = system
     (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surfn
