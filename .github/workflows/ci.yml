@@ -78,7 +78,8 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
-          # Only run coverage in one Job (Ubuntu and latest Julia version)
+          # Disable compiled modules for Julia 1.10 (or 'min') on Windows/macOS
+          compiled_modules: ${{ ((matrix.version == '1.10' || matrix.version == 'min') && (matrix.os == 'windows-latest' || matrix.os == 'macos-14')) ? 'no' : 'yes'}}
           coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
         env:
           TRIXIPARTICLES_TEST: unit
