@@ -79,7 +79,7 @@ jobs:
         with:
           annotate: true
           # Disable compiled modules for Julia 1.10 (or 'min') on Windows/macOS
-          compiled_modules: ${{ ((matrix.version == '1.10' || matrix.version == 'min') && (matrix.os == 'windows-latest' || matrix.os == 'macos-14')) ? 'no' : 'yes'}}
+          compiled_modules: "${{ ((matrix.version == '1.10' || matrix.version == 'min') && (matrix.os == 'windows-latest' || matrix.os == 'macos-14')) ? 'no' : 'yes' }}"
           coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
         env:
           TRIXIPARTICLES_TEST: unit
