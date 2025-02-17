@@ -1,3 +1,4 @@
+using SparseArrays
 include("test_util.jl")
 
 const TRIXIPARTICLES_TEST = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
