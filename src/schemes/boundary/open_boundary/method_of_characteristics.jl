@@ -46,10 +46,13 @@ struct BoundaryModelLastiwka end
     return system
 end
 
+# Called from semidiscretization
 function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "evaluate characteristics" begin
         evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    return system
 end
 
 # ==== Characteristics
@@ -99,9 +102,16 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
                 end
             end
 
-            characteristics[1, particle] = avg_J1 / counter
-            characteristics[2, particle] = avg_J2 / counter
-            characteristics[3, particle] = avg_J3 / counter
+            # To prevent NANs here if the boundary has not been in contact before.
+            if counter > 0
+                characteristics[1, particle] = avg_J1 / counter
+                characteristics[2, particle] = avg_J2 / counter
+                characteristics[3, particle] = avg_J3 / counter
+            else
+                characteristics[1, particle] = 0
+                characteristics[2, particle] = 0
+                characteristics[3, particle] = 0
+            end
         else
             characteristics[1, particle] /= volume[particle]
             characteristics[2, particle] /= volume[particle]
@@ -131,7 +141,9 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
+                           nhs;
+                           points=each_moving_particle(system)) do particle, neighbor,
+                                                                   pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities
@@ -166,7 +178,7 @@ end
 
 @inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{OutFlow})
     # J3 is prescribed (i.e. determined from the exterior of the domain).
-    # J1 and J2 is transimtted from the domain interior.
+    # J1 and J2 is transmitted from the domain interior.
     characteristics[3, particle] = zero(eltype(characteristics))
 
     return characteristics

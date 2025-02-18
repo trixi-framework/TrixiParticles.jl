@@ -1,6 +1,6 @@
 # Solution type when running a simulation with TrixiParticles.jl and OrdinaryDiffEq.jl
 const TrixiParticlesODESolution = ODESolution{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any,
-                                              <:Any,
+                                              <:Any, <:Any,
                                               <:ODEProblem{<:Any, <:Any, <:Any,
                                                            <:Semidiscretization}}
 
@@ -10,7 +10,8 @@ RecipesBase.@recipe function f(sol::TrixiParticlesODESolution)
 end
 
 RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
-                               size=(600, 400)) # Default size
+                               size=(600, 400), # Default size
+                               xlims=(-Inf, Inf), ylims=(-Inf, Inf))
     systems_data = map(semi.systems) do system
         u = wrap_u(u_ode, system, semi)
         coordinates = active_coordinates(u, system)
@@ -25,6 +26,14 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
         x_min, y_min = minimum(coordinates, dims=2) .- 0.5particle_spacing
         x_max, y_max = maximum(coordinates, dims=2) .+ 0.5particle_spacing
 
+        # `x_min`, `x_max`, etc. are used to automatically set the marker size.
+        # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
+        isfinite(first(xlims)) && (x_min = xlims[1])
+        isfinite(last(xlims)) && (x_max = xlims[2])
+
+        isfinite(first(ylims)) && (y_min = ylims[1])
+        isfinite(last(ylims)) && (y_max = ylims[2])
+
         return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
                 label=timer_name(system))
     end
@@ -32,7 +41,8 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
     return (semi, systems_data...)
 end
 
-RecipesBase.@recipe function f((initial_conditions::InitialCondition)...)
+RecipesBase.@recipe function f((initial_conditions::InitialCondition)...;
+                               xlims=(Inf, Inf), ylims=(Inf, Inf))
     idx = 0
     ics = map(initial_conditions) do ic
         x = collect(ic.coordinates[1, :])
@@ -46,6 +56,14 @@ RecipesBase.@recipe function f((initial_conditions::InitialCondition)...)
         x_min, y_min = minimum(ic.coordinates, dims=2) .- 0.5particle_spacing
         x_max, y_max = maximum(ic.coordinates, dims=2) .+ 0.5particle_spacing
 
+        # `x_min`, `x_max`, etc. are used to automatically set the marker size.
+        # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
+        isfinite(first(xlims)) && (x_min = xlims[1])
+        isfinite(last(xlims)) && (x_max = xlims[2])
+
+        isfinite(first(ylims)) && (y_min = ylims[1])
+        isfinite(last(ylims)) && (y_max = ylims[2])
+
         idx += 1
 
         return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
@@ -56,11 +74,21 @@ RecipesBase.@recipe function f((initial_conditions::InitialCondition)...)
 end
 
 RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
-                               data...; zcolor=nothing, size=(600, 400), colorbar_title="")
+                               data...; zcolor=nothing, size=(600, 400), colorbar_title="",
+                               xlims=(Inf, Inf), ylims=(Inf, Inf))
     x_min = minimum(obj.x_min for obj in data)
     x_max = maximum(obj.x_max for obj in data)
+
     y_min = minimum(obj.y_min for obj in data)
     y_max = maximum(obj.y_max for obj in data)
+
+    # `x_min`, `x_max`, etc. are used to automatically set the marker size.
+    # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
+    isfinite(first(xlims)) && (x_min = xlims[1])
+    isfinite(last(xlims)) && (x_max = xlims[2])
+
+    isfinite(first(ylims)) && (y_min = ylims[1])
+    isfinite(last(ylims)) && (y_max = ylims[2])
 
     # Note that this assumes the plot area to be ~10% smaller than `size`,
     # which is the case when showing a single plot with the legend inside.

@@ -17,7 +17,7 @@
                 rot([-1.0, 0.0], rot_angle),
                 rot([0.0, 1.0], rot_angle),
                 rot([1.0, 0.0], rot_angle),
-                rot([0.0, -1.0], rot_angle),
+                rot([0.0, -1.0], rot_angle)
             ]
 
             sqrt2 = sqrt(2)
@@ -25,7 +25,7 @@
                 rot.([[-sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, sqrt2 / 2]], rot_angle), # edge 1
                 rot.([[-sqrt2 / 2, sqrt2 / 2], [sqrt2 / 2, sqrt2 / 2]], rot_angle),   # edge 2
                 rot.([[sqrt2 / 2, sqrt2 / 2], [sqrt2 / 2, -sqrt2 / 2]], rot_angle),   # edge 3
-                rot.([[sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, -sqrt2 / 2]], rot_angle), # edge 4
+                rot.([[sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, -sqrt2 / 2]], rot_angle) # edge 4
             ]
 
             geometry_clockwise = TrixiParticles.Polygon(points_rectangular_clockwise)
@@ -88,8 +88,8 @@
         end
         @testset verbose=true "3D" begin
             files = ["sphere", "bar", "gear"]
-            n_faces = [192, 12, 12406]
-            n_vertices = [98, 8, 6203]
+            n_faces = [3072, 12, 12406]
+            n_vertices = [1538, 8, 6203]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(geometry)`
@@ -121,6 +121,36 @@
                 end
             end
         end
+    end
+
+    @testset verbose=true "Show" begin
+        data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
+        geometry = load_geometry(joinpath(data_dir, "circle.asc"))
+
+        show_compact = "Polygon{2, Float64}()"
+        @test repr(geometry) == show_compact
+
+        show_box = """
+            ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+            │ Polygon{2, Float64}                                                                              │
+            │ ═══════════════════                                                                              │
+            │ #edges: …………………………………………………………… 63                                                               │
+            └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", geometry) == show_box
+
+        geometry = load_geometry(joinpath(data_dir, "sphere.stl"))
+
+        show_compact = "TriangleMesh{3, Float64}()"
+        @test repr(geometry) == show_compact
+
+        show_box = """
+            ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+            │ TriangleMesh{3, Float64}                                                                         │
+            │ ════════════════════════                                                                         │
+            │ #faces: …………………………………………………………… 3072                                                             │
+            │ #vertices: …………………………………………………… 1538                                                             │
+            └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", geometry) == show_box
     end
 
     @testset verbose=true "Unique Sort" begin
