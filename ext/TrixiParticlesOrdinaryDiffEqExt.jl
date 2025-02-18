@@ -46,8 +46,7 @@ end
 function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_prototype,
                                       ::Type{uEltypeNoUnits},
                                       ::Type{uBottomEltypeNoUnits}, ::Type{tTypeNoUnits},
-                                      uprev, uprev2, f, t,
-                                      dt, reltol, p, calck,
+                                      uprev, uprev2, f, t, dt, reltol, p, calck,
                                       ::Val{true}) where {uEltypeNoUnits,
                                                           uBottomEltypeNoUnits,
                                                           tTypeNoUnits}
@@ -55,7 +54,7 @@ function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_pro
     k = zero(rate_prototype)
     fsalfirst = zero(rate_prototype)
     half = uEltypeNoUnits(1 // 2)
-    SymplecticPositionVerletCache(u, uprev, k, tmp, fsalfirst, half)
+    SymplecticPositionVerletCache(u, uprev, tmp, k, fsalfirst, half)
 end
 
 function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_prototype,
@@ -68,7 +67,7 @@ function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_pro
                                                            tTypeNoUnits}
     # We only use inplace functions in TrixiParticles, so there is no point
     # in implementing the non-inplace version.
-    error("`SymplecticPositionVerlet` only supports inplace functions")
+    error("`SymplecticPositionVerlet` supports only in-place functions")
 end
 
 function OrdinaryDiffEqCore.initialize!(integrator,
@@ -80,8 +79,7 @@ function OrdinaryDiffEqCore.initialize!(integrator,
 
     duprev, uprev = integrator.uprev.x
     integrator.f.f1(integrator.k[2].x[1], duprev, uprev, integrator.p, integrator.t)
-    # verify_f2(integrator.f.f2, integrator.k[2].x[2], duprev, uprev, integrator.p,
-    #     integrator.t, integrator, cache)
+    integrator.f.f2(integrator.k[2].x[2], duprev, uprev, integrator.p, integrator.t)
     OrdinaryDiffEqCore.increment_nf!(integrator.stats, 1)
     integrator.stats.nf2 += 1
 end
