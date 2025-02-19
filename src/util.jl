@@ -134,3 +134,90 @@ function compute_git_hash()
         return "UnknownVersion"
     end
 end
+
+struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}} <: AbstractArray{T, N}
+    array::A
+
+    function ThreadedBroadcastArray(array::AbstractArray{T, N}) where {T, N}
+        new{T, N, typeof(array)}(array)
+    end
+end
+
+Base.parent(A::ThreadedBroadcastArray) = A.array
+Base.pointer(A::ThreadedBroadcastArray) = pointer(parent(A))
+Base.size(A::ThreadedBroadcastArray) = size(parent(A))
+
+function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
+    return ThreadedBroadcastArray(similar(A.array, T))
+end
+
+Base.@propagate_inbounds function Base.getindex(A::ThreadedBroadcastArray, i...)
+    return getindex(A.array, i...)
+end
+
+Base.@propagate_inbounds function Base.setindex!(A::ThreadedBroadcastArray, x...)
+    setindex!(A.array, x...)
+    return A
+end
+
+function Base.fill!(A::ThreadedBroadcastArray{T}, x) where {T}
+    xT = x isa T ? x : convert(T, x)::T
+    @threaded A.array for i in eachindex(A.array)
+        @inbounds A.array[i] = xT
+    end
+
+    return A
+end
+
+function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
+    if eachindex(dest) == eachindex(src)
+        # Shared-iterator implementation
+        @threaded dest.array for I in eachindex(dest)
+            @inbounds dest.array[I] = src[I]
+        end
+    else
+        # Dual-iterator implementation
+        @threaded dest.array for (Idest, Isrc) in zip(eachindex(dest), eachindex(src))
+            @inbounds dest.array[Idest] = src[Isrc]
+        end
+    end
+
+    return dest
+end
+
+function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A}}) where {T, N, A}
+    return Broadcast.ArrayStyle{ThreadedBroadcastArray}()
+end
+
+function Broadcast.copyto!(dest::ThreadedBroadcastArray,
+                           bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{ThreadedBroadcastArray}})
+    # Check bounds
+    axes(dest.array) == axes(bc) || Broadcast.throwdm(axes(dest.array), axes(bc))
+
+    @threaded dest.array for i in eachindex(dest.array)
+        @inbounds dest.array[i] = bc[i]
+    end
+    return dest
+end
+
+# function Base.copyto!(dest::ThreadedBroadcastArray, indices1::CartesianIndices, src::AbstractArray, indices2::CartesianIndices)
+#     copyto!(dest.array, indices1, src, indices2)
+#     return dest
+# end
+
+# function Base.copyto!(dest::AbstractArray, src::ThreadedBroadcastArray)
+#     copyto!(dest, src.array)
+#     return dest
+# end
+
+# function Base.copyto!(dest::ThreadedBroadcastArray, src::ThreadedBroadcastArray)
+#     # TODO check bounds
+#     @threaded dest for i in eachindex(dest.array)
+#         @inbounds dest.array[i] = src.array[i]
+#     end
+
+#     return dest
+# end
+
+# Base.view(m::ThreadedBroadcastArray, i) = ThreadedBroadcastArray(view(m.array, i))
+# Base.reshape(m::ThreadedBroadcastArray, dims::Base.Dims) = ThreadedBroadcastArray(reshape(m.array, dims))
