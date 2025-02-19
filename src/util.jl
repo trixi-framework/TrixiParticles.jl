@@ -135,6 +135,10 @@ function compute_git_hash()
     end
 end
 
+# This data type wraps regular arrays and redefines broadcasting and common operations
+# like `fill!` and `copyto!` to use multithreading with `@threaded`.
+# See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details
+# and benchmarks.
 struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}} <: AbstractArray{T, N}
     array::A
 
