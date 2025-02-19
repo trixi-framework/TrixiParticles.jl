@@ -35,6 +35,8 @@ wcsph_sim_files = glob("validation_result_dam_break_wcsph*.json",
 merged_files = vcat(wcsph_reference_files, wcsph_sim_files)
 wcsph_files = sort(merged_files, by=extract_number_from_filename)
 
+
+# Load reference date extracted from literature
 surge_front = CSV.read(joinpath(case_dir, "exp_surge_front.csv"), DataFrame)
 
 exp_P1 = CSV.read(joinpath(case_dir, "exp_pressure_sensor_P1.csv"), DataFrame)

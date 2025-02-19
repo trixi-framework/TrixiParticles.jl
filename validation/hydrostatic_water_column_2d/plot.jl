@@ -6,10 +6,18 @@ using Statistics
 using Printf
 using TrixiParticles
 
-edac_files = sort(glob("validation_result_hydrostatic_water_column_2d_edac*.json", "out/"),
+case_dir = joinpath(validation_dir(), "dam_break_2d")
+
+edac_files = sort(glob("validation_reference_edac*.json", case_dir),
                   by=extract_number_from_filename)
-wcsph_files = sort(glob("validation_result_hydrostatic_water_column_2d_wcsph*.json", "out/"),
+wcsph_files = sort(glob("validation_reference_wcsph*.json", case_dir),
                    by=extract_number_from_filename)
+
+
+edac_sim_files = sort(glob("validation_result_hyd_edac*.json", "out/"),
+                   by=extract_number_from_filename)
+wcsph_sim_files = sort(glob("validation_result_hyd_wcsph*.json", "out/"),
+                    by=extract_number_from_filename)
 
 # Define explicit color ranges.
 edac_range = (1, max(length(edac_files), 2))

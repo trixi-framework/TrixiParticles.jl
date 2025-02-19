@@ -131,16 +131,16 @@ for method in ["edac", "wcsph"]
     ode = semidiscretize(semi, tspan)
 
     pp = PostprocessCallback(; interval=100,
-        filename = "validation_result_hydrostatic_water_column_2d_" * method * "_" * formatted_string,
+        filename = "validation_result_hyd_" * method * "_" * formatted_string,
         y_deflection, kinetic_energy, write_file_interval=10)
-    info_callback   = InfoCallback(interval=100)
-    saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
+    info_callback   = InfoCallback(interval=1000)
+    saving_callback = SolutionSavingCallback(dt=0.5, prefix="")
     callbacks = CallbackSet(info_callback, saving_callback, pp)
 
     sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
 
     # Load the run JSON file
-    run_filename = joinpath("out", "validation_result_hydrostatic_water_column_2d_" * method * "_" * formatted_string * ".json")
+    run_filename = joinpath("out", "validation_result_hyd_" * method * "_" * formatted_string * ".json")
     run_data = JSON.parsefile(run_filename)
 
     # Add the analytical solution as a single point (at t = tspan[2])
