@@ -200,24 +200,7 @@ function Broadcast.copyto!(dest::ThreadedBroadcastArray,
     return dest
 end
 
-# function Base.copyto!(dest::ThreadedBroadcastArray, indices1::CartesianIndices, src::AbstractArray, indices2::CartesianIndices)
-#     copyto!(dest.array, indices1, src, indices2)
-#     return dest
-# end
-
-# function Base.copyto!(dest::AbstractArray, src::ThreadedBroadcastArray)
-#     copyto!(dest, src.array)
-#     return dest
-# end
-
-# function Base.copyto!(dest::ThreadedBroadcastArray, src::ThreadedBroadcastArray)
-#     # TODO check bounds
-#     @threaded dest for i in eachindex(dest.array)
-#         @inbounds dest.array[i] = src.array[i]
-#     end
-
-#     return dest
-# end
-
-# Base.view(m::ThreadedBroadcastArray, i) = ThreadedBroadcastArray(view(m.array, i))
-# Base.reshape(m::ThreadedBroadcastArray, dims::Base.Dims) = ThreadedBroadcastArray(reshape(m.array, dims))
+function Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{ThreadedBroadcastArray}},
+                      ::Type{T}, dims) where T
+    return ThreadedBroadcastArray(similar(Array{T}, dims))
+end
