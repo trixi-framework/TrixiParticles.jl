@@ -6,15 +6,9 @@ using JSON
 using Printf
 using Statistics
 
-# Case 2 as described by
-# O’Connor, Joseph, and Benedict D. Rogers.
-# "A fluid–structure interaction model for free-surface flows and flexible structures using smoothed particle hydrodynamics on a GPU."
-# Journal of Fluids and Structures 104 (2021): 103312.
-
-
 # ==========================================================================================
 # ==== Resolution and Experiment Setup
-n_particles_plate_y = 5 # paper 5 to 40
+n_particles_plate_y = 5 # 5  # paper uses 5 to 40
 boundary_layers = 3
 spacing_ratio = 1
 
@@ -44,7 +38,7 @@ D = E * plate_size[2]^3 / (12 * (1 - nu^2))
 analytical_value = -0.0026 * gravity * (fluid_density * initial_fluid_size[2] + solid_density * plate_size[2]) / D
 
 # Build a resolution string for filenames
-formatted_string = replace(string(fluid_particle_spacing), "." => "")
+formatted_string = replace(string(n_particles_plate_y), "." => "")
 
 # ==========================================================================================
 # ==== Geometry: Tank, Beam, and Fixed Particles
@@ -77,7 +71,6 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 
 # ==========================================================================================
 # ==== Sensor Functions (Postprocessing)
-
 function y_deflection(v, u, t, system::TotalLagrangianSPHSystem)
     particle_id = Int(n_particles_per_dimension[1] * (n_particles_plate_y + 1) / 2 -
                         (n_particles_per_dimension[1] + 1) / 2 + 1)
@@ -141,18 +134,34 @@ for method in ["edac", "wcsph"]
         filename = "validation_result_hydrostatic_water_column_2d_" * method * "_" * formatted_string,
         y_deflection, kinetic_energy, write_file_interval=10)
     info_callback   = InfoCallback(interval=100)
-    saving_callback = SolutionSavingCallback(dt=0.005, prefix="")
+    saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
     callbacks = CallbackSet(info_callback, saving_callback, pp)
 
     sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
 
-    # After simulation, load the run JSON file.
+    # Load the run JSON file
     run_filename = joinpath("out", "validation_result_hydrostatic_water_column_2d_" * method * "_" * formatted_string * ".json")
     run_data = JSON.parsefile(run_filename)
-    # The sensor key should start with "y_deflection"
+
+    # Add the analytical solution as a single point (at t = tspan[2])
+    run_data["analytical_solution"] = Dict(
+        "n_values" => 1,
+        "time" => [tspan[2]],
+        "values" => [analytical_value],
+        "datatype" => "Float64",
+        "type" => "point"
+    )
+    # Optionally, write back the updated JSON file:
+    open(run_filename, "w") do io
+        JSON.print(io, run_data, 2)
+    end
+
+    # Compute errors based on the simulation's y_deflection sensor.
+    # Find the sensor key (which should start with "y_deflection")
     sensor_key = first(filter(k -> startswith(k, "y_deflection"), keys(run_data)))
     time_vals = run_data[sensor_key]["time"]
     sim_vals = run_data[sensor_key]["values"]
+
     # Consider only times > 0.5.
     inds = findall(t -> t > 0.5, time_vals)
     avg_sim = mean(sim_vals[inds])
