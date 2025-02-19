@@ -205,6 +205,6 @@ function Broadcast.copyto!(dest::ThreadedBroadcastArray,
 end
 
 function Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{ThreadedBroadcastArray}},
-                      ::Type{T}, dims) where T
+                      ::Type{T}, dims) where {T}
     return ThreadedBroadcastArray(similar(Array{T}, dims))
 end
