@@ -85,6 +85,10 @@ function (update_callback!::UpdateCallback)(integrator)
         update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
     end
 
+    @trixi_timeit timer() "update particle packing" foreach_system(semi) do system
+        update_particle_packing(system, v_ode, u_ode, semi, integrator)
+    end
+
     @trixi_timeit timer() "update TVF" foreach_system(semi) do system
         update_transport_velocity!(system, v_ode, semi)
     end
@@ -116,7 +120,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!
         setup = [
-            "interval" => update_cb.interval,
+            "interval" => update_cb.interval
         ]
         summary_box(io, "UpdateCallback", setup)
     end
@@ -132,7 +136,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!.affect!
         setup = [
-            "dt" => update_cb.interval,
+            "dt" => update_cb.interval
         ]
         summary_box(io, "UpdateCallback", setup)
     end

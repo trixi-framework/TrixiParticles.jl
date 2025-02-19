@@ -2,6 +2,7 @@ using Documenter, DocumenterCitations
 using TrixiParticles
 using TrixiBase
 using PointNeighbors
+using Asciicast: Asciicast
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
@@ -19,9 +20,12 @@ function copy_file(filename, replaces...;
     content = read(source_path, String)
     content = replace(content, replaces...)
 
+    # Use `replace` to make sure the path uses forward slashes for URLs
+    filename_url = replace(filename, "\\" => "/")
+
     header = """
     ```@meta
-    EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/$filename"
+    EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/$filename_url"
     ```
     """
     content = header * content
@@ -97,13 +101,18 @@ copy_file("NEWS.md")
 # Define module-wide setups such that the respective modules are available in doctests
 DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recursive=true)
 
+# Define environment variables to create plots without warnings
+# https://discourse.julialang.org/t/test-plots-on-travis-gks-cant-open-display/9465/2
+ENV["PLOTS_TEST"] = "true"
+ENV["GKSwstype"] = "100"
+
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 makedocs(sitename="TrixiParticles.jl",
          plugins=[bib],
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles],
-         format=Documenter.HTML(),
+         format=Documenter.HTML(; assets=Asciicast.assets()),
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",
@@ -115,9 +124,10 @@ makedocs(sitename="TrixiParticles.jl",
              "Examples" => "examples.md",
              "Visualization" => "visualization.md",
              "Preprocessing" => [
-                 "Sampling of Geometries" => joinpath("preprocessing", "preprocessing.md"),
+                 "Sampling of Geometries" => joinpath("preprocessing", "preprocessing.md")
              ],
-             "Components" => [
+             "GPU Support" => "gpu.md",
+             "API Reference" => [
                  "Overview" => "overview.md",
                  "General" => [
                      "Semidiscretization" => joinpath("general", "semidiscretization.md"),
@@ -127,29 +137,31 @@ makedocs(sitename="TrixiParticles.jl",
                      "Density Calculators" => joinpath("general", "density_calculators.md"),
                      "Smoothing Kernels" => joinpath("general", "smoothing_kernels.md"),
                      "Neighborhood Search" => joinpath("general", "neighborhood_search.md"),
-                     "Util" => joinpath("general", "util.md"),
+                     "Util" => joinpath("general", "util.md")
                  ],
                  "Systems" => [
-                     "Discrete Element Method (Solid)" => joinpath("systems",
-                                                                   "dem.md"),
-                     "Weakly Compressible SPH (Fluid)" => joinpath("systems",
-                                                                   "weakly_compressible_sph.md"),
-                     "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
-                                                                                                  "entropically_damped_sph.md"),
+                     "Fluid Models" => [
+                         "Overview" => joinpath("systems", "fluid.md"),
+                         "Weakly Compressible SPH (Fluid)" => joinpath("systems",
+                                                                       "weakly_compressible_sph.md"),
+                         "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
+                                                                                                      "entropically_damped_sph.md")
+                     ],
+                     "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
                                                                             "total_lagrangian_sph.md"),
-                     "Boundary" => joinpath("systems", "boundary.md"),
+                     "Boundary" => joinpath("systems", "boundary.md")
                  ],
                  "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",
                  "TrixiBase.jl API Reference" => "reference-trixibase.md",
-                 "PointNeighbors.jl API Reference" => "reference-pointneighbors.md",
+                 "PointNeighbors.jl API Reference" => "reference-pointneighbors.md"
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",
              "Code of Conduct" => "code_of_conduct.md",
              "License" => "license.md",
-             "References" => "references.md",
+             "References" => "references.md"
          ])
 
 deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",

@@ -136,9 +136,30 @@ struct TriangleMesh{NDIMS, ELTYPE}
     end
 end
 
+function Base.show(io::IO, geometry::TriangleMesh)
+    @nospecialize geometry # reduce precompilation time
+
+    print(io, "TriangleMesh{$(ndims(geometry)), $(eltype(geometry))}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", geometry::TriangleMesh)
+    @nospecialize geometry # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "TriangleMesh{$(ndims(geometry)), $(eltype(geometry))}")
+        summary_line(io, "#faces", "$(nfaces(geometry))")
+        summary_line(io, "#vertices", "$(length(geometry.vertices))")
+        summary_footer(io)
+    end
+end
+
 @inline Base.ndims(::TriangleMesh{NDIMS}) where {NDIMS} = NDIMS
 
 @inline Base.eltype(::TriangleMesh{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
+
+@inline face_normal(triangle, geometry::TriangleMesh) = geometry.face_normals[triangle]
 
 @inline function Base.deleteat!(mesh::TriangleMesh, indices)
     (; face_vertices, face_vertices_ids, face_edges_ids, face_normals) = mesh

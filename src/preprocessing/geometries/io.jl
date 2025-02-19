@@ -55,14 +55,22 @@ function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
     vertices = fill(fill(zero(ELTYPE), SVector{3}), 3n_faces)
     normals = fill(fill(zero(ELTYPE), SVector{3}), n_faces)
 
+    load_data!(face_vertices, vertices, normals, io)
+
+    return TriangleMesh(face_vertices, normals, vertices)
+end
+
+function load_data!(face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},
+                                                SVector{3, T}}},
+                    vertices, normals, io) where {T}
     i = 0
     while !eof(io)
-        normals[i + 1] = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32),
-                                            read(io, Float32))
+        normals[i + 1] = SVector{3, T}(read(io, Float32), read(io, Float32),
+                                       read(io, Float32))
 
-        v1 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
-        v2 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
-        v3 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v1 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v2 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v3 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
 
         face_vertices[i + 1] = (v1, v2, v3)
 
@@ -76,15 +84,23 @@ function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
         skip(io, 2) # Skip attribute byte count
         i += 1
     end
-
-    return TriangleMesh(face_vertices, normals, vertices)
 end
 
 function trixi2vtk(geometry::Polygon; output_directory="out", prefix="",
                    filename="points", custom_quantities...)
-    vertex_normals = stack([geometry.vertex_normals[edge][1] for edge in eachface(geometry)])
+    vertex_normals = Vector{SVector{2, eltype(geometry)}}()
+    vertices = Vector{SVector{2, eltype(geometry)}}()
 
-    return trixi2vtk(stack(geometry.vertices); output_directory, filename, prefix,
+    # Add each vertex twice (once at the end of an edge and once at the start of the next edge)
+    # with corresponding normals to make ParaView work.
+    for edge in eachface(geometry)
+        push!(vertex_normals, geometry.vertex_normals[edge][1])
+        push!(vertex_normals, geometry.vertex_normals[edge][2])
+        push!(vertices, geometry.vertices[geometry.edge_vertices_ids[edge][1]])
+        push!(vertices, geometry.vertices[geometry.edge_vertices_ids[edge][2]])
+    end
+
+    return trixi2vtk(stack(vertices); output_directory, filename, prefix,
                      vertex_normals=vertex_normals, custom_quantities...)
 end
 
