@@ -8,7 +8,7 @@ using Statistics
 
 # ==========================================================================================
 # ==== Resolution and Experiment Setup
-n_particles_plate_y = 5 # 5  # paper uses 5 to 40
+n_particles_plate_y = 9 # 5  # paper uses 5 to 40
 boundary_layers = 3
 spacing_ratio = 1
 
