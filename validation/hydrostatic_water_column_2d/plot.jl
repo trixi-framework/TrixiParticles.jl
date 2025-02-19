@@ -6,7 +6,7 @@ using Statistics
 using Printf
 using TrixiParticles
 
-case_dir = joinpath(validation_dir(), "dam_break_2d")
+case_dir = joinpath(validation_dir(), "hydrostatic_water_column_2d")
 
 edac_files = sort(glob("validation_reference_edac*.json", case_dir),
                   by=extract_number_from_filename)
@@ -14,10 +14,10 @@ wcsph_files = sort(glob("validation_reference_wcsph*.json", case_dir),
                    by=extract_number_from_filename)
 
 
-edac_sim_files = sort(glob("validation_result_hyd_edac*.json", "out/"),
-                   by=extract_number_from_filename)
-wcsph_sim_files = sort(glob("validation_result_hyd_wcsph*.json", "out/"),
-                    by=extract_number_from_filename)
+# edac_sim_files = sort(glob("validation_result_hyd_edac*.json", "out/"),
+#                    by=extract_number_from_filename)
+# wcsph_sim_files = sort(glob("validation_result_hyd_wcsph*.json", "out/"),
+#                     by=extract_number_from_filename)
 
 # Define explicit color ranges.
 edac_range = (1, max(length(edac_files), 2))
@@ -58,10 +58,11 @@ function plot_dataset!(ax, json_file, col_range, file_number)
     lines!(ax, time_vals, sim_vals;
            label = "Simulation",
            color = :blue, linewidth = 2)
+
     # Plot analytical curve in black (it is already constant)
     lines!(ax, time_vals, anal_vals;
            label = "Analytical",
-           color = :black, linestyle = :dash, linewidth = 4)
+           color = :black, linestyle = :solid, linewidth = 4)
 
     # Plot horizontal line for simulation time-average (t > 0.5)
     lines!(ax, [time_vals[1], last(time_vals)], [avg_sim, avg_sim];
