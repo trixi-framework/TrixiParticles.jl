@@ -31,8 +31,11 @@ wcsph_files = sort(glob("validation_reference_wcsph*.json", case_dir),
 all_y = Float64[]
 for file in vcat(edac_files, wcsph_files)
     json_data = JSON.parsefile(file)
-    append!(all_y, json_data["y_deflection_solid_1"]["values"])
-    append!(all_y, json_data["analytical_solution"]["values"])
+    time_vals = json_data["y_deflection_solid_1"]["time"]
+    inds = findall(t -> t <= 0.5, time_vals)
+    append!(all_y, json_data["y_deflection_solid_1"]["values"][inds])
+    # Push the constant analytical solution value (do not index with inds)
+    push!(all_y, json_data["analytical_solution"]["values"][1])
 end
 global_ymin = minimum(all_y)
 global_ymax = maximum(all_y)
@@ -53,15 +56,15 @@ for (i, res) in enumerate(unique_res)
 end
 
 # === Compute error metrics for EDAC and WCSPH =============================
-# (Errors computed from "y_deflection_solid_1" for t > 0.5 versus constant analytical value.)
-D = 67.5e9 * (0.05)^3 / (12 * (1 - 0.3^2))   # using parameters from simulation script
+# Errors are computed using the simulation average over t in [0.25, 0.5].
+D = 67.5e9 * (0.05)^3 / (12 * (1 - 0.3^2))   # parameters from simulation script
 analytical_value = -0.0026 * 9.81 * (1000*2.0 + 2700*0.05) / D
 
 function compute_errors(json_file)
     json_data = JSON.parsefile(json_file)
     time_vals = json_data["y_deflection_solid_1"]["time"]
     sim_vals  = json_data["y_deflection_solid_1"]["values"]
-    inds = findall(t -> t > 0.5, time_vals)
+    inds = findall(t -> (0.25 <= t <= 0.5), time_vals)
     avg_sim = mean(sim_vals[inds])
     abs_err = abs(avg_sim - analytical_value)
     rel_err = abs_err / abs(analytical_value)
@@ -98,28 +101,43 @@ wcsph_rel_err_sorted = [z for (_, _, z) in wcsph_sorted]
 
 # === Create the figure and layout ==========================================
 # Layout: 4 rows, 2 columns.
-# Row 1: Simulation plots; Row 2: Simulation legend; Row 3: Error plots; Row 4: Error legend.
+# Row 1: Simulation plots (we display data only for t in [0,0.5]).
+# Row 2: Simulation legend.
+# Row 3: Error plots.
+# Row 4: Error legend.
+#
+# We set the height of row 1 (simulation axes) to 300 and row 3 (error axes) to 200.
 fig = Figure(size = (1200, 800), padding = (10, 10, 10, 10))
-# Row 1: Simulation plots.
-ax_edac   = Axis(fig[1, 1], title = "Hydrostatic Water Column: EDAC")
-ax_wcsph  = Axis(fig[1, 2], title = "Hydrostatic Water Column: WCSPH")
+ax_edac   = Axis(fig[1, 1], title = "Hydrostatic Water Column: EDAC", height = 300)
+ax_wcsph  = Axis(fig[1, 2], title = "Hydrostatic Water Column: WCSPH", height = 300)
+# Restrict x-axis for simulation plots to [0,0.5].
+xlims!(ax_edac, 0, 0.5)
+xlims!(ax_wcsph, 0, 0.5)
 
-# === Function to plot simulation datasets =================================
+# === Function to plot simulation datasets (for t in [0,0.5]) ===================
 function plot_dataset!(ax, json_file)
     json_data = JSON.parsefile(json_file)
     time_vals  = json_data["y_deflection_solid_1"]["time"]
     sim_vals   = json_data["y_deflection_solid_1"]["values"]
-    anal_vals  = json_data["analytical_solution"]["values"]
+    # Create a constant vector from the analytical solution value.
+    anal_val = json_data["analytical_solution"]["values"][1]
+
+    # Only plot data for t <= 0.5.
+    inds_plot = findall(t -> t <= 0.5, time_vals)
+    time_plot = time_vals[inds_plot]
+    sim_plot  = sim_vals[inds_plot]
+    anal_plot = fill(anal_val, length(time_plot))
 
     res = extract_resolution_from_filename(json_file)
     sim_col = sim_color_map[res]
 
-    inds = findall(t -> t > 0.5, time_vals)
-    avg_sim = mean(sim_vals[inds])
+    # Compute simulation average using data in [0.25, 0.5].
+    inds_avg = findall(t -> (0.25 <= t <= 0.5), time_vals)
+    avg_sim = mean(sim_vals[inds_avg])
 
-    lines!(ax, time_vals, sim_vals; color = sim_col, linestyle = :solid, linewidth = 2)
-    lines!(ax, time_vals, anal_vals; color = :black, linestyle = :solid, linewidth = 4)
-    lines!(ax, [time_vals[1], last(time_vals)], [avg_sim, avg_sim];
+    lines!(ax, time_plot, sim_plot; color = sim_col, linestyle = :solid, linewidth = 2)
+    lines!(ax, time_plot, anal_plot; color = :black, linestyle = :solid, linewidth = 4)
+    lines!(ax, [time_plot[1], time_plot[end]], [avg_sim, avg_sim];
            color = darken(sim_col, 0.2), linestyle = :dot, linewidth = 4)
 end
 
@@ -134,27 +152,34 @@ end
 ylims!(ax_edac, global_ymin, global_ymax)
 ylims!(ax_wcsph, global_ymin, global_ymax)
 for ax in (ax_edac, ax_wcsph)
-    ax.xlabel = "Time"
-    ax.ylabel = "Vertical Deflection"
+    ax.xlabel = "Time [s]"
+    ax.ylabel = "Vertical Deflection [m]"
 end
 
-# Row 2: Build common simulation legend.
-dummy_scene = Scene()
-analytical_ref = lines!(dummy_scene, [0.0, 1.0], [0.0, 0.0]; color = :black, linestyle = :solid, linewidth = 4)
-avg_ref = lines!(dummy_scene, [0.0, 1.0], [0.0, 0.0]; color = :black, linestyle = :dot, linewidth = 4)
-sim_refs = [ lines!(dummy_scene, [0.0, 1.0], [0.0, 0.0]; color = sim_color_map[res], linestyle = :solid, linewidth = 2)
+# === Row 2: Build common simulation legend ================================
+# Create dummy plots for the legend on a dummy scene.
+sim_dummy = Scene()
+analytical_ref = lines!(sim_dummy, [0.0, 1.0], [0.0, 0.0]; color = :black, linestyle = :solid, linewidth = 4)
+avg_ref = lines!(sim_dummy, [0.0, 1.0], [0.0, 0.0]; color = :black, linestyle = :dot, linewidth = 4)
+sim_refs = [ lines!(sim_dummy, [0.0, 1.0], [0.0, 0.0]; color = sim_color_map[res], linestyle = :solid, linewidth = 2)
              for res in unique_res ]
-
 group_entries = [ [analytical_ref], sim_refs, [avg_ref] ]
-group_labels  = [ ["Analytical"], [ "Simulation (dp=$(res))" for res in unique_res ], ["Sim avg (t>0.5)"] ]
+group_labels  = [ ["Analytical"], [ "Simulation (t/dp=$(res))" for res in unique_res ], ["Sim avg (0.25≤t≤0.5)"] ]
 group_titles  = [ "Line Style", "Color", "Mean Style" ]
-
 sim_leg = Legend(fig, group_entries, group_labels, group_titles; orientation = :horizontal, tellwidth = false)
 fig[2, 1:2] = sim_leg
 
-# Row 3: Error plots.
-ax_abs = Axis(fig[3, 1], title = "Absolute Error", xlabel = "Resolution", ylabel = "Absolute Error")
-ax_rel = Axis(fig[3, 2], title = "Relative Error", xlabel = "Resolution", ylabel = "Relative Error")
+# === Row 3: Error plots ====================================================
+ax_abs = Axis(fig[3, 1], title = "Absolute Error", xlabel = "Resolution", ylabel = "Absolute Error", height = 200)
+ax_rel = Axis(fig[3, 2], title = "Relative Error", xlabel = "Resolution", ylabel = "Relative Error", height = 200)
+
+wcsph_res_sorted = 0.05 ./ wcsph_res_sorted
+edac_res_sorted = 0.05 ./ edac_res_sorted
+
+reference_res = [0.0025, 0.005, 0.01]
+reference_error = [8E-7, 6E-6 ,1E-5]
+scatter!(ax_abs, reference_res, reference_error; marker = :diamond, markersize = 10, color = :black)
+lines!(ax_abs, reference_res, reference_error; color = :black, linestyle = :solid, linewidth = 2)
 
 scatter!(ax_abs, edac_res_sorted, edac_abs_err_sorted; marker = :circle, markersize = 10, color = :blue)
 lines!(ax_abs, edac_res_sorted, edac_abs_err_sorted; color = :blue, linestyle = :solid, linewidth = 2)
@@ -170,9 +195,10 @@ lines!(ax_rel, wcsph_res_sorted, wcsph_rel_err_sorted; color = :red, linestyle =
 dummy_err = Scene()
 edac_marker = scatter!(dummy_err, [0.0], [0.0]; marker = :circle, markersize = 10, color = :blue)
 wcsph_marker = scatter!(dummy_err, [0.0], [0.0]; marker = :xcross, markersize = 10, color = :red)
+reference_marker = scatter!(dummy_err, [0.0], [0.0]; marker = :diamond, markersize = 10, color = :black)
 
-err_group_entries = [ [edac_marker, wcsph_marker]]
-err_group_labels  = [ ["EDAC", "WCSPH"]]
+err_group_entries = [ [edac_marker, wcsph_marker, reference_marker]]
+err_group_labels  = [ ["EDAC", "WCSPH", "Reference"]]
 err_group_titles  = [ "Method"]
 err_leg = Legend(fig, err_group_entries, err_group_labels, err_group_titles; orientation = :horizontal, tellwidth = false)
 fig[4, 1:2] = err_leg

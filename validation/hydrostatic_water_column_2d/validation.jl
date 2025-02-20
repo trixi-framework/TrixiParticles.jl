@@ -8,12 +8,14 @@ using Statistics
 
 # ==========================================================================================
 # ==== Resolution and Experiment Setup
-n_particles_plate_y = 9 # 5  # paper uses 5 to 40
+# paper uses 5 to 40
+# runtime to 0.5: 3-> 0.5 coreH 5-> 4-5 coreH 9-> 20-25 coreH 40 -> 200-300 coreH
+n_particles_plate_y = 3
 boundary_layers = 3
 spacing_ratio = 1
 
 gravity = 9.81
-tspan = (0.0, 1.0)
+tspan = (0.0, 0.3) # paper uses to 1.0 and its recommended to run at least to 0.5
 
 # Geometry of the fluid and beam (plate)
 initial_fluid_size = (1.0, 2.0)
@@ -162,15 +164,13 @@ for method in ["edac", "wcsph"]
     time_vals = run_data[sensor_key]["time"]
     sim_vals = run_data[sensor_key]["values"]
 
-    # Consider only times > 0.5.
-    inds = findall(t -> t > 0.5, time_vals)
+    # Consider only times > 0.25.
+    inds = findall(t -> t > 0.25, time_vals)
     avg_sim = mean(sim_vals[inds])
     abs_error = abs(avg_sim - analytical_value)
     rel_error = abs_error / abs(analytical_value)
-    @info "Method: $method, Simulation average (t>0.5): $(round(avg_sim,digits=3)), " *
-          "Analytical value: $(round(analytical_value,digits=3)), " *
-          "Absolute error: $(round(abs_error,digits=3)), Relative error: $(round(rel_error,digits=3))"
     errors[method] = (abs_error, rel_error)
 end
 
 errors
+println(errors)
