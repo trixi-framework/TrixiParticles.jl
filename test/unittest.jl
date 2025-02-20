@@ -5,10 +5,8 @@
 
     Metal.versioninfo()
 
-    x = Metal.zeros(10)
-    display(x)
-    display(x .+ 1)
-
+    show(Metal.zeros(10))
+    
     include("callbacks/callbacks.jl")
     include("general/general.jl")
     include("setups/setups.jl")
