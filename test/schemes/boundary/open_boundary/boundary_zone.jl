@@ -20,10 +20,10 @@
             @testset verbose=true "Flow Direction $j" for j in eachindex(flow_directions)
                 inflow = BoundaryZone(; plane=(point_1, point_2), particle_spacing,
                                       plane_normal=flow_directions[j], density=1.0,
-                                      open_boundary_layers, boundary_type=:inflow)
+                                      open_boundary_layers, boundary_type=InFlow())
                 outflow = BoundaryZone(; plane=(point_1, point_2), particle_spacing,
                                        plane_normal=-flow_directions[j], density=1.0,
-                                       open_boundary_layers, boundary_type=:outflow)
+                                       open_boundary_layers, boundary_type=OutFlow())
 
                 boundary_zones = [
                     inflow,
@@ -81,11 +81,11 @@
             @testset verbose=true "Flow Direction $j" for j in eachindex(flow_directions)
                 inflow = BoundaryZone(; plane=(point_1, point_2, point_3), particle_spacing,
                                       plane_normal=flow_directions[j], density=1.0,
-                                      open_boundary_layers, boundary_type=:inflow)
+                                      open_boundary_layers, boundary_type=InFlow())
                 outflow = BoundaryZone(; plane=(point_1, point_2, point_3),
                                        particle_spacing,
                                        plane_normal=-flow_directions[j], density=1.0,
-                                       open_boundary_layers, boundary_type=:outflow)
+                                       open_boundary_layers, boundary_type=OutFlow())
 
                 boundary_zones = [
                     inflow,
@@ -120,10 +120,10 @@
 
         inflow = BoundaryZone(; plane=plane_points, particle_spacing=0.1,
                               plane_normal=flow_direction, density=1.0,
-                              open_boundary_layers=4, boundary_type=:inflow)
+                              open_boundary_layers=4, boundary_type=InFlow())
         outflow = BoundaryZone(; plane=plane_points, particle_spacing=0.1,
                                plane_normal=-flow_direction, density=1.0,
-                               open_boundary_layers=4, boundary_type=:outflow)
+                               open_boundary_layers=4, boundary_type=OutFlow())
 
         boundary_zones = [
             inflow,
@@ -164,10 +164,10 @@
 
         inflow = BoundaryZone(; plane=[point1, point2, point3], particle_spacing=0.1,
                               plane_normal=flow_direction, density=1.0,
-                              open_boundary_layers=4, boundary_type=:inflow)
+                              open_boundary_layers=4, boundary_type=InFlow())
         outflow = BoundaryZone(; plane=[point1, point2, point3], particle_spacing=0.1,
                                plane_normal=-flow_direction, density=1.0,
-                               open_boundary_layers=4, boundary_type=:outflow)
+                               open_boundary_layers=4, boundary_type=OutFlow())
 
         boundary_zones = [
             inflow,
@@ -207,13 +207,13 @@
                                                            plane_normal=flow_direction,
                                                            density=1.0,
                                                            open_boundary_layers=2,
-                                                           boundary_type=:inflow)
+                                                           boundary_type=InFlow())
         @test_throws ArgumentError(error_str) BoundaryZone(; plane=no_rectangular_plane,
                                                            particle_spacing=0.1,
                                                            plane_normal=-flow_direction,
                                                            density=1.0,
                                                            open_boundary_layers=2,
-                                                           boundary_type=:outflow)
+                                                           boundary_type=OutFlow())
 
         rectangular_plane = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
         flow_direction = [0.0, 1.0, 0.0]
@@ -225,7 +225,7 @@
                                                            plane_normal=flow_direction,
                                                            density=1.0,
                                                            open_boundary_layers=2,
-                                                           boundary_type=:inflow)
+                                                           boundary_type=InFlow())
 
         error_str = "`plane_normal` is not normal to the boundary plane"
 
@@ -234,6 +234,6 @@
                                                            plane_normal=-flow_direction,
                                                            density=1.0,
                                                            open_boundary_layers=2,
-                                                           boundary_type=:outflow)
+                                                           boundary_type=OutFlow())
     end
 end

@@ -8,7 +8,7 @@
 
         inflow = BoundaryZone(; plane, particle_spacing=0.1,
                               plane_normal=flow_direction, density=1.0,
-                              open_boundary_layers=2, boundary_type=:inflow)
+                              open_boundary_layers=2, boundary_type=InFlow())
 
         error_str = "`reference_velocity` must be either a function mapping " *
                     "each particle's coordinates and time to its velocity, " *
@@ -55,7 +55,7 @@
     @testset "`show`" begin
         inflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
                               plane_normal=(1.0, 0.0), density=1.0,
-                              open_boundary_layers=4, boundary_type=:inflow)
+                              open_boundary_layers=4, boundary_type=InFlow())
         system = OpenBoundarySPHSystem(inflow; buffer_size=0,
                                        boundary_model=BoundaryModelLastiwka(),
                                        reference_density=0.0,
@@ -74,7 +74,6 @@
         │ fluid system: …………………………………………… FluidSystemMock2                                                 │
         │ boundary model: ……………………………………… BoundaryModelLastiwka                                            │
         │ boundary type: ………………………………………… InFlow                                                           │
-        │ flow direction: ……………………………………… [1.0, 0.0]                                                       │
         │ prescribed velocity: ………………………… constant_vector                                                  │
         │ prescribed pressure: ………………………… constant_scalar                                                  │
         │ prescribed density: …………………………… constant_scalar                                                  │
@@ -85,7 +84,7 @@
 
         outflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
                                plane_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
-                               boundary_type=:outflow)
+                               boundary_type=OutFlow())
         system = OpenBoundarySPHSystem(outflow; buffer_size=0,
                                        boundary_model=BoundaryModelLastiwka(),
                                        reference_density=0.0,
@@ -104,7 +103,6 @@
         │ fluid system: …………………………………………… FluidSystemMock2                                                 │
         │ boundary model: ……………………………………… BoundaryModelLastiwka                                            │
         │ boundary type: ………………………………………… OutFlow                                                          │
-        │ flow direction: ……………………………………… [-1.0, -0.0]                                                     │
         │ prescribed velocity: ………………………… constant_vector                                                  │
         │ prescribed pressure: ………………………… constant_scalar                                                  │
         │ prescribed density: …………………………… constant_scalar                                                  │
