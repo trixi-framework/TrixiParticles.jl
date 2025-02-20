@@ -212,7 +212,7 @@
 
                 v_ode = ode.u0.x[1]
                 if isnothing(data_type)
-                    u_ode = vec(u)
+                    u_ode = TrixiParticles.ThreadedBroadcastArray(vec(u))
                 else
                     u_ode = data_type(vec(u))
                 end
