@@ -176,8 +176,19 @@ ax_rel = Axis(fig[3, 2], title = "Relative Error", xlabel = "Resolution", ylabel
 wcsph_res_sorted = 0.05 ./ wcsph_res_sorted
 edac_res_sorted = 0.05 ./ edac_res_sorted
 
+
+
+############################################################################################
+# Data extracted from Fig. 8 in
+# "A fluid–structure interaction model for free-surface flows and flexible structures
+# using smoothed particle hydrodynamics on a GPU" by J. O'Connor and B.D. Rogers
+# published in Journal of Fluids and Structures
+# https://doi.org/10.1016/j.jfluidstructs.2021.103312
+############################################################################################
 reference_res = [0.0025, 0.005, 0.01]
 reference_error = [8E-7, 6E-6 ,1E-5]
+
+
 scatter!(ax_abs, reference_res, reference_error; marker = :diamond, markersize = 10, color = :black)
 lines!(ax_abs, reference_res, reference_error; color = :black, linestyle = :solid, linewidth = 2)
 

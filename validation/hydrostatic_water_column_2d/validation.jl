@@ -1,5 +1,13 @@
 include("../validation_util.jl")
 
+############################################################################################
+# Case "Elastic plate under a hydrostatic water column" as described in
+# "A fluid–structure interaction model for free-surface flows and flexible structures
+# using smoothed particle hydrodynamics on a GPU" by J. O'Connor and B.D. Rogers
+# published in Journal of Fluids and Structures
+# https://doi.org/10.1016/j.jfluidstructs.2021.103312
+############################################################################################
+
 using TrixiParticles
 using OrdinaryDiffEq
 using JSON
@@ -172,5 +180,4 @@ for method in ["edac", "wcsph"]
     errors[method] = (abs_error, rel_error)
 end
 
-errors
-println(errors)
+# errors
