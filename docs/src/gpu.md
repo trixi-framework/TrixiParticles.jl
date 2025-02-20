@@ -1,16 +1,16 @@
 # [GPU Support](@id gpu_support)
 
 GPU support is still an experimental feature that is actively being worked on.
-As of now, the [`WeaklyCompressibleSPHSystem`](@ref), the [`TotalLagrangianSPHSystem`](@ref)
-and the [`BoundarySPHSystem`](@ref) are supported on GPUs.
-We have tested this on GPUs by Nvidia, AMD and Apple.
+Currently, the [`WeaklyCompressibleSPHSystem`](@ref), [`TotalLagrangianSPHSystem`](@ref)
+and [`BoundarySPHSystem`](@ref) support GPU execution.
+We have tested GPU support on Nvidia, AMD and Apple GPUs.
 Note that most Apple GPUs do not support `Float64`.
 See [below on how to run single precision simulations](@ref single_precision).
 
-To run a simulation on a GPU, we need to use the [`FullGridCellList`](@ref)
+To run a simulation on a GPU, use the [`FullGridCellList`](@ref)
 as cell list for the [`GridNeighborhoodSearch`](@ref).
-This cell list requires a bounding box for the domain, unlike the default cell list, which
-uses an unbounded domain.
+Unlike the default cell list, which assumes an unbounded domain,
+this cell list requires a bounding box for the domain.
 For simulations that are bounded by a closed tank, we can simply use the boundary
 of the tank to obtain the bounding box as follows.
 ```jldoctest gpu; output=false, setup=:(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing))
@@ -65,37 +65,47 @@ Data is only copied to the CPU for saving VTK files via the [`SolutionSavingCall
 
 The example file `examples/fluid/dam_break_2d_gpu.jl` demonstrates how to run an existing
 example file on a GPU.
-It first loads the variables from the example file `examples/fluid/dam_break_2d.jl`
-without running the simulation by overwriting the line that starts the simulation
+It first loads the variables from `examples/fluid/dam_break_2d.jl` without executing
+the simulation. This is achieved by overwriting the line that starts the simulation
 with `trixi_include(..., sol=nothing)`.
-Then, a GPU-compatible neighborhood search is defined, and the original example file
+Next, a GPU-compatible neighborhood search is defined, and the original example file
 is included with the new neighborhood search.
-This requires the assignments `neighborhood_search = ...` and `data_type = ...` in the
-original example file.
+This requires the assignments `neighborhood_search = ...` and `data_type = ...`
+to be present in the original example file.
 Note that in `examples/fluid/dam_break_2d.jl`, we specifically set `data_type=nothing`, even though
 this is the default value, so that we can use `trixi_include` to replace this value.
 
-To now run this simulation on a GPU, all we have to do is change `data_type` to the
+To run this simulation on a GPU, simply update `data_type` to match the
 array type of the installed GPU.
-For example, we can run this simulation on an Nvidia GPU as follows.
+We can run this simulation on an Nvidia GPU as follows.
 ```julia
 using CUDA
 trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), data_type=CuArray)
 ```
+For AMD GPUs, use
+```julia
+using AMDGPU
+trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), data_type=ROCArray)
+```
+For Apple GPUs, use
+```julia
+using Metal
+trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), data_type=MtlArray())
+```
 
 ## [Single precision simulations](@id single_precision)
 
-All features that currently support GPUs can also be used with single precision.
-This is orders of magnitude faster on most GPUs and required on many Apple GPUs.
+All GPU-supported features can also be used with single precision,
+which is significantly faster on most GPUs and required for many Apple GPUs.
 
 To run a simulation with single precision, all `Float64` literals in an example file
-have to be changed to `Float32` (e.g. `0.0` to `0.0f0`).
-TrixiParticles provides a function to do this conveniently:
+must be converted to `Float32` (e.g. `0.0` to `0.0f0`).
+TrixiParticles provides a function to automate this conversion:
 ```@docs
 trixi_include_changeprecision
 ```
 
-All we have to do to run the previous example with single precision is the following.
+To run the previous example with single precision, use the following:
 ```julia
 using CUDA
 trixi_include_changeprecision(Float32,
