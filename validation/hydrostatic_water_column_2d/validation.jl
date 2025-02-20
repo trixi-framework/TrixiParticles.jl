@@ -179,5 +179,3 @@ for method in ["edac", "wcsph"]
     rel_error = abs_error / abs(analytical_value)
     errors[method] = (abs_error, rel_error)
 end
-
-# errors
