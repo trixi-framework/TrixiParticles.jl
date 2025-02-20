@@ -289,8 +289,13 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
 
     if isnothing(data_type)
         # Use CPU vectors and the optimized CPU code
-        u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
-        v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
+        u0_ode_ = Vector{ELTYPE}(undef, sum(sizes_u))
+        v0_ode_ = Vector{ELTYPE}(undef, sum(sizes_v))
+        u0_ode = ThreadedBroadcastArray(u0_ode_)
+        v0_ode = ThreadedBroadcastArray(v0_ode_)
+
+        # u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
+        # v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
     else
         # Use the specified data type, e.g., `CuArray` or `ROCArray`
         u0_ode = data_type{ELTYPE}(undef, sum(sizes_u))
@@ -393,6 +398,10 @@ end
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(array), 2}, pointer(view(array, range)), size)
     return PtrArray(pointer(view(array, range)), size)
+end
+
+@inline function wrap_array(array::ThreadedBroadcastArray, range, size)
+    return ThreadedBroadcastArray(wrap_array(parent(array), range, size))
 end
 
 @inline function wrap_array(array, range, size)
