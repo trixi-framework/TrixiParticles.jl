@@ -859,7 +859,7 @@ function check_configuration(system::OpenBoundarySPHSystem, systems)
     (; boundary_model, boundary_zone) = system
 
     if boundary_model isa BoundaryModelLastiwka &&
-       first(typeof(boundary_zone).parameters) === BidirectionalFlow
+       boundary_zone isa BoundaryZone{BidirectionalFlow}
         throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
                             "Please specify inflow and outflow."))
     end

@@ -44,7 +44,7 @@ There are three ways to specify the actual shape of the boundary zone:
 - `boundary_type=:bidirectional_flow`: Specify the type of the boundary. Available types are
     - `:inflow` for an inflow boundary
     - `:outflow` for an outflow boundary
-    - `:bidrectional_flow` (default) for an bidirectional flow boundary
+    - `:bidirectional_flow` (default) for an bidirectional flow boundary
 - `open_boundary_layers`: Number of particle layers in upstream direction.
 - `particle_spacing`: The spacing between the particles (see [`InitialCondition`](@ref)).
 - `density`: Particle density (see [`InitialCondition`](@ref)).
@@ -155,6 +155,8 @@ function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
                                                             density,
                                                             direction=extrude_direction,
                                                             n_extrude=open_boundary_layers)
+    else
+        initial_condition = initial_condition
     end
 
     NDIMS = ndims(initial_condition)
@@ -173,19 +175,19 @@ function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
     end
 
     if boundary_type isa InFlow
-        # First vector of `spanning_vectors` is normal to the boundary plane.
+        # First vector of `spanning_vectors` is normal to the boundary plane
         dot_flow = dot(normalize(spanning_set[:, 1]), flow_direction)
 
         # The vector must point in upstream direction for an inflow boundary.
-        # Flip the normal vector to point in the opposite direction of `flow_direction`
+        # Flip the normal vector to point in the opposite direction of `flow_direction`.
         spanning_set[:, 1] .*= -sign(dot_flow)
 
     elseif boundary_type isa OutFlow
-        # First vector of `spanning_vectors` is normal to the boundary plane.
+        # First vector of `spanning_vectors` is normal to the boundary plane
         dot_flow = dot(normalize(spanning_set[:, 1]), flow_direction)
 
         # The vector must point in downstream direction for an outflow boundary.
-        # Flip the normal vector to point in `flow_direction`
+        # Flip the normal vector to point in `flow_direction`.
         spanning_set[:, 1] .*= sign(dot_flow)
 
     elseif boundary_type isa BidirectionalFlow

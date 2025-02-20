@@ -3,8 +3,9 @@
 
 Boundary model for `OpenBoundarySPHSystem`.
 This model uses the characteristic variables to propagate the appropriate values
-to the outlet or inlet and have been proposed by Lastiwka et al. (2009). For more information
-about the method see [description below](@ref method_of_characteristics).
+to the outlet or inlet and have been proposed by Lastiwka et al. (2009).
+It requires a specific flow direction to be passed to the [`BoundaryZone`](@ref).
+For more information about the method see [description below](@ref method_of_characteristics).
 """
 struct BoundaryModelLastiwka end
 
