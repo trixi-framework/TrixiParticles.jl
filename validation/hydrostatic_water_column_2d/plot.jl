@@ -70,7 +70,7 @@ function compute_errors(json_file)
     json_data = JSON.parsefile(json_file)
     time_vals = json_data["y_deflection_solid_1"]["time"]
     sim_vals = json_data["y_deflection_solid_1"]["values"]
-    inds = findall(t -> 0.25 <= t <= 0.5, time_vals)
+    inds = findall(t -> 0.25 <= t <= 1.0, time_vals)
     avg_sim = sum(sim_vals[inds]) / length(sim_vals[inds])
     abs_err = abs(avg_sim - analytical_value)
     rel_err = abs_err / abs(analytical_value)
