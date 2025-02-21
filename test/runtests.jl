@@ -11,4 +11,8 @@ const TRIXIPARTICLES_TEST = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
         include("examples/examples.jl")
         include("validation/validation.jl")
     end
+
+    if TRIXIPARTICLES_TEST in ("cuda", "amdgpu", "metal", "oneapi")
+        include("examples/gpu.jl")
+    end
 end;
