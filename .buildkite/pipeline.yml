@@ -7,7 +7,7 @@ steps:
       queue: "juliagpu"
       cuda: "*"
     command: |
-      julia --color=yes --project=test -e 'println(get(ENV, "TRIXIPARTICLES_TEST", "all")); using Pkg; Pkg.add("CUDA"); Pkg.develop(path="."); Pkg.instantiate()'
+      julia --color=yes --project=test -e 'using Pkg; Pkg.add("CUDA"); Pkg.develop(path="."); Pkg.instantiate()'
       julia --color=yes --project=test -e 'include("test/runtests.jl")'
     env:
       TRIXIPARTICLES_TEST: cuda
