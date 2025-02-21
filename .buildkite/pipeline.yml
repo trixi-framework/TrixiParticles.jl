@@ -41,7 +41,7 @@ steps:
       TRIXIPARTICLES_TEST: oneapi
     timeout_in_minutes: 60
 
-- label: "Metal"
+  - label: "Metal"
     plugins:
       - JuliaCI/julia#v1:
           version: "1"
