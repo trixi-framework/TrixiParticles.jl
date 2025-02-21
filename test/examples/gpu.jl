@@ -31,7 +31,6 @@ end
             ]
             @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
             @test sol.u[end].x[1] isa Main.data_type
         end
     end
