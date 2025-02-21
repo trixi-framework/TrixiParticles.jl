@@ -11,8 +11,6 @@ include("../validation_util.jl")
 using TrixiParticles
 using OrdinaryDiffEq
 using JSON
-using Printf
-using Statistics
 
 # ============================================================================
 # Experiment Parameters
@@ -170,7 +168,7 @@ for method in ["edac", "wcsph"]
     time_vals = run_data[sensor_key]["time"]
     sim_vals = run_data[sensor_key]["values"]
     inds = findall(t -> 0.25 <= t <= 0.5, time_vals)
-    avg_sim = mean(sim_vals[inds])
+    avg_sim = sum(sim_vals[inds]) / length(sim_vals[inds])
     abs_error = abs(avg_sim - analytical_value)
     rel_error = abs_error / abs(analytical_value)
     errors[method] = (abs_error, rel_error)

@@ -1,5 +1,9 @@
 include("../validation_util.jl")
-using CairoMakie, JSON, Glob, Statistics, Printf, TrixiParticles, Colors
+using CairoMakie
+using JSON
+using Glob
+using TrixiParticles
+using Colors
 
 # ----------------------------------------------------------------------------
 # 1. Color Adjustment Functions
@@ -67,7 +71,7 @@ function compute_errors(json_file)
     time_vals = json_data["y_deflection_solid_1"]["time"]
     sim_vals = json_data["y_deflection_solid_1"]["values"]
     inds = findall(t -> 0.25 <= t <= 0.5, time_vals)
-    avg_sim = mean(sim_vals[inds])
+    avg_sim = sum(sim_vals[inds]) / length(sim_vals[inds])
     abs_err = abs(avg_sim - analytical_value)
     rel_err = abs_err / abs(analytical_value)
     res_str = extract_resolution_from_filename(json_file)
@@ -146,7 +150,7 @@ function plot_dataset!(ax, json_file)
     sim_col = sim_color_map[res]
 
     inds_avg = findall(t -> 0.25 <= t <= 0.5, time_vals)
-    avg_sim = mean(sim_vals[inds_avg])
+    avg_sim = sum(sim_vals[inds_avg]) / length(sim_vals[inds_avg])
 
     lines!(ax, time_plot, sim_plot; color=sim_col, linestyle=:solid, linewidth=2)
     lines!(ax, time_plot, anal_plot; color=:black, linestyle=:solid, linewidth=4)
