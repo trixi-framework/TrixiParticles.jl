@@ -1,5 +1,5 @@
 steps:
-  - label: "CUDA.jl"
+  - label: "CUDA"
     plugins:
       - JuliaCI/julia#v1:
           version: "1"
@@ -11,4 +11,32 @@ steps:
       julia --color=yes --project=test -e 'include("test/runtests.jl")'
     env:
       TRIXIPARTICLES_TEST: cuda
+    timeout_in_minutes: 60
+
+  - label: "AMDGPU"
+    plugins:
+      - JuliaCI/julia#v1:
+          version: "1"
+    agents:
+      queue: "juliagpu"
+      rocm: "*"
+    command: |
+      julia --color=yes --project=test -e 'using Pkg; Pkg.add("AMDGPU"); Pkg.develop(path="."); Pkg.instantiate()'
+      julia --color=yes --project=test -e 'include("test/runtests.jl")'
+    env:
+      TRIXIPARTICLES_TEST: amdgpu
+    timeout_in_minutes: 60
+
+  - label: "oneAPI"
+    plugins:
+      - JuliaCI/julia#v1:
+          version: "1"
+    agents:
+      queue: "juliagpu"
+      intel: "*"
+    command: |
+      julia --color=yes --project=test -e 'using Pkg; Pkg.add("oneAPI"); Pkg.develop(path="."); Pkg.instantiate()'
+      julia --color=yes --project=test -e 'include("test/runtests.jl")'
+    env:
+      TRIXIPARTICLES_TEST: oneapi
     timeout_in_minutes: 60

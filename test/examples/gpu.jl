@@ -3,19 +3,19 @@ const TRIXIPARTICLES_TEST_ = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
 if TRIXIPARTICLES_TEST_ == "cuda"
     using CUDA
     CUDA.versioninfo()
-    data_type = CuArray
+    const data_type = CuArray
 elseif TRIXIPARTICLES_TEST_ == "amdgpu"
     using AMDGPU
     AMDGPU.versioninfo()
-    data_type = ROCArray
+    const data_type = ROCArray
 elseif TRIXIPARTICLES_TEST_ == "metal"
     using Metal
     Metal.versioninfo()
-    data_type = MtlArray
+    const data_type = MtlArray
 elseif TRIXIPARTICLES_TEST_ == "oneapi"
     using oneAPI
     oneAPI.versioninfo()
-    data_type = oneArray
+    const data_type = oneArray
 end
 
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
