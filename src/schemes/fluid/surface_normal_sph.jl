@@ -1,7 +1,13 @@
 @doc raw"""
-    ColorfieldSurfaceNormal()
+    ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
+                              ideal_density_threshold=0.0)
 
 Color field based computation of the interface normals.
+
+# Keyword Arguments
+- `boundary_contact_threshold`: If this threshold is reached the fluid assumed to be in contact. (default=0.1)
+- `interface_threshold`:        Threshold for normals to be removed as being invalid. (default=0.01)
+- `ideal_density_threshold`:    Relative to the ideal number of neighbors inside particles have at least this ratio. (default=0.0)
 """
 struct ColorfieldSurfaceNormal{ELTYPE}
     boundary_contact_threshold::ELTYPE
@@ -23,7 +29,8 @@ function create_cache_surface_normal(::ColorfieldSurfaceNormal, ELTYPE, NDIMS, n
     surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
     neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
     colorfield = Array{ELTYPE, 1}(undef, nparticles)
-    return (; surface_normal, neighbor_count)
+    correction_factor = Array{ELTYPE, 1}(undef, nparticles)
+    return (; surface_normal, neighbor_count, colorfield, correction_factor)
 end
 
 @inline function surface_normal(particle_system::FluidSystem, particle)
@@ -70,9 +77,8 @@ end
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: This is the simplest form of normal approximation commonly used in SPH and comes
 # with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
-function calc_normal_akinci!(system::FluidSystem, neighbor_system::BoundarySystem, u_system,
-                             v,
-                             v_neighbor_system, u_neighbor_system, semi, surfn)
+function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_system,
+                      v, v_neighbor_system, u_neighbor_system, semi, surfn, nsurfn)
     (; cache) = system
     (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surfn
@@ -155,7 +161,7 @@ function remove_invalid_normals!(system::FluidSystem,
             continue
         end
 
-        particle_surface_normal = cache.surface_normal[1:ndims(system), particle]
+        particle_surface_normal = surface_normal(system, particle)
         norm2 = dot(particle_surface_normal, particle_surface_normal)
 
         # see eq. 21
@@ -206,14 +212,15 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
                          v_neighbor_system, u_neighbor_system, semi,
                          surfn::ColorfieldSurfaceNormal, nsurfn::ColorfieldSurfaceNormal)
     (; cache) = system
-    (; curvature) = cache
+    (; curvature, correction_factor) = cache
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
-    correction_factor = fill(eps(eltype(system)), n_moving_particles(system))
 
-    no_valid_neighbors = 0
+    set_zero!(correction_factor)
+
+    # valid_neighbor = false
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
@@ -235,16 +242,16 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
             # eq. 24
             correction_factor[particle] += v_b * w
             # prevent NaNs from systems that are entirely skipped
-            no_valid_neighbors += 1
+            # valid_neighbor = true
         end
     end
 
     # eq. 23
-    if no_valid_neighbors > 0
-        for i in 1:n_moving_particles(system)
-            curvature[i] /= correction_factor[i]
-        end
+    # if valid_neighbor
+    for i in 1:n_moving_particles(system)
+        curvature[i] /= (correction_factor[i] + eps())
     end
+    # end
 
     return system
 end
@@ -267,57 +274,6 @@ function compute_curvature!(system::FluidSystem, surface_tension::SurfaceTension
         calc_curvature!(system, neighbor_system, u, v, v_neighbor_system,
                         u_neighbor_system, semi, surface_normal_method(system),
                         surface_normal_method(neighbor_system))
-    end
-    return system
-end
-
-function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    return system
-end
-
-# Section 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMorris,
-                                 v, u, v_ode, u_ode, semi, t)
-    (; cache) = system
-    (; delta_s, stress_tensor) = cache
-
-    # Reset surface stress_tensor
-    set_zero!(stress_tensor)
-
-    max_delta_s = maximum(delta_s)
-    NDIMS = ndims(system)
-
-    @trixi_timeit timer() "compute surface stress tensor" for particle in each_moving_particle(system)
-        normal = surface_normal(system, particle)
-        delta_s_particle = delta_s[particle]
-        if delta_s_particle > eps()
-            for i in 1:NDIMS
-                for j in 1:NDIMS
-                    delta_ij = (i == j) ? 1.0 : 0.0
-                    stress_tensor[i, j, particle] = delta_s_particle *
-                                                    (delta_ij - normal[i] * normal[j]) -
-                                                    delta_ij * max_delta_s
-                end
-            end
-        end
-    end
-
-    return system
-end
-
-function compute_surface_delta_function!(system, surface_tension)
-    return system
-end
-
-# eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris)
-    (; cache) = system
-    (; delta_s) = cache
-
-    set_zero!(delta_s)
-
-    for particle in each_moving_particle(system)
-        delta_s[particle] = norm(surface_normal(system, particle))
     end
     return system
 end
