@@ -49,6 +49,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
+- `color_value`:                The value used to initialize the color of particles in the system.
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV, COR,
