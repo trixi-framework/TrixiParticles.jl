@@ -16,50 +16,6 @@ under a given set of conditions.
 Implementing viscosity correctly in SPH is essential for producing physically accurate results,
 and different methods exist to capture both numerical stabilization and true viscous effects.
 
-### Artificial (numerical) viscosity
-
-Artificial (numerical) viscosity is a technique used to stabilize simulations of inviscid flows by preventing
-unphysical artificial overlap or penetration of particles that would not occur in a real fluid.
-To achieve this, a dissipative term is added to the momentum equations in a way that it
-does not significantly alter the physical behavior of the flow.
-This approach is especially useful in simulations such as high-speed flows with strong shocks or astrophysical scenarios,
-where other approaches are insufficient to stabilize the simulation.
-
-### Physical (real) viscosity
-
-Physical viscosity is essential for accurately modeling the true viscous stresses within a fluid.
-It ensures that simulations align with a target Reynolds number or adhere to experimentally measured fluid properties.
-This is achieved by incorporating forces that replicate the viscous stress term found in the Navier–Stokes equations.
-As a result, the method is particularly effective for simulating low-speed, incompressible, or weakly compressible flows,
-where it is crucial to capture the actual behavior of the fluid.
-
-### Model comparison
-
-#### ArtificialViscosityMonaghan
-
-ArtificialViscosityMonaghan is designed primarily for compressible, high-speed flows where shock capturing is critical.
-In its implementation, the method includes a dissipation term that increases when particles approach each other.
-This increase in dissipation is triggered by the relative motion between particles: as particles come closer and compress the local flow,
-the artificial viscosity term becomes stronger to damp out rapid changes and prevent unphysical clustering.
-This ensures that while the simulation remains stable in challenging flow regimes with large density or pressure variations,
-the physical behavior is not overly altered.
-
-#### ViscosityMorris
-
-ViscosityMorris is well-suited for moderate to low Mach number flows where modeling realistic viscous behavior is important.
-Unlike artificial viscosity, this approach directly simulates the physical viscous stresses encountered in fluids.
-Its implementation approximates the diffusion of momentum in a way that naturally reflects the viscous behavior observed in experiments
-or specified by a target Reynolds number. Because it mimics the actual viscous forces without introducing excessive damping,
-it works effectively in weakly compressible scenarios, allowing for a more accurate representation of the flow dynamics.
-
-#### ViscosityAdami
-
-ViscosityAdami is optimized for incompressible or weakly compressible flows, particularly where an accurate treatment of shear stress is needed.
-The method improves the representation of boundary layers by using a refined approach that better resolves shear gradients.
-In practice, this means that the method enhances the dissipation in regions with steep velocity differences (such as near solid boundaries)
-while keeping compressibility effects minimal. As a result, it delivers accurate laminar flow simulations and a more faithful depiction of the physical shear stress,
-which is essential for problems where boundary layer behavior plays a crucial role.
-
 ### API
 
 ```@autodocs
