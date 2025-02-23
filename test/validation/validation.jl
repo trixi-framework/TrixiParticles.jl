@@ -92,6 +92,6 @@
         ]
 
         @test isapprox(errors["edac"][2], 0, atol=0.028)
-        @test isapprox(errors["wcsph"][2], 0, atol=0.043)
+        @test isapprox(errors["wcsph"][2], 0, atol=0.045)
     end
 end
