@@ -139,8 +139,10 @@ for method in ["edac", "wcsph"]
     semi = Semidiscretization(solid_system, fluid_system, boundary_system)
     ode = semidiscretize(semi, tspan)
 
-    pp_filename = "validation_result_hyd_" * method * "_" * formatted_string * "_postprocess.jl"
-    pp = PostprocessCallback(; dt=0.0025, filename=pp_filename, y_deflection, kinetic_energy)
+    pp_filename = "validation_result_hyd_" * method * "_" * formatted_string *
+                  "_postprocess.jl"
+    pp = PostprocessCallback(; dt=0.0025, filename=pp_filename, y_deflection,
+                             kinetic_energy)
     info_callback = InfoCallback(interval=1000)
     saving_callback = SolutionSavingCallback(dt=0.5, prefix="")
     callbacks = CallbackSet(info_callback, saving_callback, pp)
