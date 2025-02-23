@@ -43,9 +43,6 @@ analytical_value = -0.0026 * gravity *
                    (fluid_density * initial_fluid_size[2] +
                     solid_density * plate_size[2]) / D
 
-# Filename suffix based on resolution (here, number of particles in y)
-formatted_string = replace(string(n_particles_plate_y), "." => "")
-
 # ============================================================================
 # Geometry Definitions: Tank, Beam, and Fixed Particles
 # ============================================================================
@@ -139,8 +136,7 @@ for method in ["edac", "wcsph"]
     semi = Semidiscretization(solid_system, fluid_system, boundary_system)
     ode = semidiscretize(semi, tspan)
 
-    pp_filename = "validation_result_hyd_" * method * "_" * formatted_string *
-                  "_postprocess.jl"
+    pp_filename = "validation_result_hyd_" * method * "_" * string(n_particles_plate_y)
     pp = PostprocessCallback(; dt=0.0025, filename=pp_filename, y_deflection,
                              kinetic_energy)
     info_callback = InfoCallback(interval=1000)
@@ -149,7 +145,7 @@ for method in ["edac", "wcsph"]
     sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
 
     # Load the run JSON file and add the analytical solution as a single point.
-    run_filename = joinpath("out", pp_filename)
+    run_filename = joinpath("out", pp_filename * ".json")
     run_data = JSON.parsefile(run_filename)
     run_data["analytical_solution"] = Dict(
         "n_values" => 1,
