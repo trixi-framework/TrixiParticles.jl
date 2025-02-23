@@ -1,6 +1,7 @@
 
 # [Fluid Models](@id fluid_models)
-Currently available fluid methods are the [weakly compressible SPH method](@ref wcsph) and the 
+
+Currently available fluid methods are the [weakly compressible SPH method](@ref wcsph) and the
 [entropically damped artificial compressibility for SPH](@ref edac).  
 This page lists models and techniques that apply to both of these methods.  
 
