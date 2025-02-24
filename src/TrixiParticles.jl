@@ -19,6 +19,7 @@ using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
+using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
@@ -75,7 +76,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
-export trixi2vtk
+export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
