@@ -2,7 +2,8 @@
     BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
-                                state_equation=nothing, correction=nothing)
+                                state_equation=nothing, correction=nothing,
+                                reference_particle_spacing=0.0)
 
 Boundary model for `BoundarySPHSystem`.
 
@@ -16,12 +17,13 @@ Boundary model for `BoundarySPHSystem`.
 - `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
 
 # Keywords
-- `state_equation`: This should be the same as for the adjacent fluid system
-                    (see e.g. [`StateEquationCole`](@ref)).
-- `correction`:     Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
-- `viscosity`:      Slip (default) or no-slip condition. See description below for further
-                    information.
-
+- `state_equation`:             This should be the same as for the adjacent fluid system
+                                (see e.g. [`StateEquationCole`](@ref)).
+- `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
+- `viscosity`:                  Slip (default) or no-slip condition. See description below for further
+                                information.
+- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
+                                which currently is only needed when using surface tension.
 # Examples
 ```jldoctest; output = false, setup = :(densities = [1.0, 2.0, 3.0]; masses = [0.1, 0.2, 0.3]; smoothing_kernel = SchoenbergCubicSplineKernel{2}(); smoothing_length = 0.1)
 # Free-slip condition
@@ -54,19 +56,31 @@ end
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
-                                     state_equation=nothing, correction=nothing)
+                                     state_equation=nothing, correction=nothing,
+                                     reference_particle_spacing=0.0)
     pressure = initial_boundary_pressure(initial_density, density_calculator,
                                          state_equation)
     NDIMS = ndims(smoothing_kernel)
+    ELTYPE = eltype(smoothing_length)
     n_particles = length(initial_density)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
+    if reference_particle_spacing > 0.0
+        # since reference_particle_spacing has to be set for surface normals to be determined we can do this here
+        cache = (;
+                 cache...,  # Existing cache fields
+                 colorfield_bnd=zeros(ELTYPE, n_particles),
+                 colorfield=zeros(ELTYPE, n_particles),
+                 neighbor_count=zeros(ELTYPE, n_particles))
+    end
+
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, viscosity, correction, cache)
+                                       smoothing_length, viscosity,
+                                       correction, cache)
 end
 
 @doc raw"""
@@ -434,7 +448,7 @@ end
     (; pressure_offset) = density_calculator
 
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords,
-                           neighborhood_search; points=eachparticle(neighbor_system),
+                           neighborhood_search;
                            parallel=false) do neighbor, particle, pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff

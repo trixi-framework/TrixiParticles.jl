@@ -252,6 +252,12 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in active_particles(system)]
 
+    if system.surface_normal_method !== nothing
+        vtk["surf_normal"] = [surface_normal(system, particle)
+                              for particle in eachparticle(system)]
+        vtk["neighbor_count"] = system.cache.neighbor_count
+    end
+
     if write_meta_data
         vtk["acceleration"] = system.acceleration
         vtk["viscosity"] = type2string(system.viscosity)
@@ -376,16 +382,22 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
                     write_meta_data=true)
     if write_meta_data
         vtk["boundary_model"] = "BoundaryModelDummyParticles"
-        vtk["smoothing_kernel"] = type2string(system.boundary_model.smoothing_kernel)
-        vtk["smoothing_length"] = system.boundary_model.smoothing_length
-        vtk["density_calculator"] = type2string(system.boundary_model.density_calculator)
-        vtk["state_equation"] = type2string(system.boundary_model.state_equation)
+        vtk["smoothing_kernel"] = type2string(model.smoothing_kernel)
+        vtk["smoothing_length"] = model.smoothing_length
+        vtk["density_calculator"] = type2string(model.density_calculator)
+        vtk["state_equation"] = type2string(model.state_equation)
         vtk["viscosity_model"] = type2string(model.viscosity)
     end
 
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
+
+    if haskey(model.cache, :colorfield_bnd)
+        vtk["colorfield_bnd"] = model.cache.colorfield_bnd
+        vtk["colorfield"] = model.cache.colorfield
+        vtk["neighbor_count"] = model.cache.neighbor_count
+    end
 
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
