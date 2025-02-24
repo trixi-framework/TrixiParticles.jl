@@ -1,2 +1,2 @@
 include("geometries/geometries.jl")
-include("readvtk/readvtk.jl")
+include("readvtk/vtk2trixi.jl")
