@@ -146,7 +146,11 @@ for method in ["edac", "wcsph"]
 
     # Load the run JSON file and add the analytical solution as a single point.
     run_filename = joinpath("out", pp_filename * ".json")
-    run_data = JSON.parsefile(run_filename)
+    run_data = nothing
+    open(run_filename, "r") do io
+        run_data = JSON.parse(io)
+    end
+
     run_data["analytical_solution"] = Dict(
         "n_values" => 1,
         "time" => [tspan[2]],
@@ -154,6 +158,7 @@ for method in ["edac", "wcsph"]
         "datatype" => "Float64",
         "type" => "point"
     )
+
     open(run_filename, "w") do io
         JSON.print(io, run_data, 2)
     end
