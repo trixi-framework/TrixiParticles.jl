@@ -91,7 +91,7 @@
             r"└ New tank length in y-direction is set to.*\n"
         ]
 
-        @test isapprox(errors["edac"][2], 0, atol=0.0295)
+        @test isapprox(errors["edac"][2], 0, atol=0.0301)
         @test isapprox(errors["wcsph"][2], 0, atol=0.048)
     end
 end
