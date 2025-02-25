@@ -441,19 +441,31 @@ end
 
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
-function kick!(dv_ode, v_ode, u_ode, semi, t)
-    @trixi_timeit timer() "kick!" begin
-        @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
+function test1()
+    dv = Main.Metal.zeros(4, 1)
+    dv .= 0
+    backend = KernelAbstractions.get_backend(dv)
+    mykernel(backend)(ndrange = 1) do _
+        x = SVector(5.8251f-19, 1.1650201f-18, 1.16502f-18)
 
-        @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
-                                                                              semi, t)
-
-        @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
-                                                                       semi)
-
-        @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode,
-                                                               semi, t)
+        for i in 1:3
+            dv[i] += x[i]
+        end
     end
+    KernelAbstractions.synchronize(backend)
+    if any(>(0.1f0), dv)
+        @error "" dv[:, 1]
+        sleep(5)
+    end
+end
+
+@kernel function mykernel(f)
+    i = @index(Global)
+    @inline f(i)
+end
+
+function kick!(dv_ode, v_ode, u_ode, semi, t)
+    test1()
 
     return dv_ode
 end
