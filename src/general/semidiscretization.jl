@@ -445,13 +445,7 @@ function test1()
     dv = Main.Metal.zeros(4, 1)
     dv .= 0
     backend = KernelAbstractions.get_backend(dv)
-    mykernel(backend)(ndrange = 1) do _
-        x = SVector(5.8251f-19, 1.1650201f-18, 1.16502f-18)
-
-        for i in 1:3
-            dv[i] += x[i]
-        end
-    end
+    mykernel(backend)(dv, ndrange = 1)
     KernelAbstractions.synchronize(backend)
     if any(>(0.1f0), dv)
         @error "" dv[:, 1]
@@ -459,9 +453,12 @@ function test1()
     end
 end
 
-@kernel function mykernel(f)
-    i = @index(Global)
-    @inline f(i)
+@kernel function mykernel(dv)
+    j = @index(Global)
+    x = SVector(5.8251f-19, 1.1650201f-18, 1.16502f-18)
+    for i in 1:3
+        dv[i] += x[i]
+    end
 end
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
