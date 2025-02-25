@@ -94,18 +94,19 @@ end
             max_corner = maximum(tank.boundary.coordinates, dims=2)
             cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
-                                               neighborhood_search=GridNeighborhoodSearch{3}(; cell_list))
+                                               neighborhood_search=GridNeighborhoodSearch{3}(;
+                                                                                             cell_list))
 
             # Note that this simulation only takes 36 time steps on the CPU.
             # Due to https://github.com/JuliaGPU/Metal.jl/issues/549, it doesn't work on Metal.
             trixi_include_changeprecision(Float32, @__MODULE__,
-                                                           joinpath(examples_dir(), "fluid",
-                                                                    "dam_break_3d.jl"),
-                                                           tspan=(0.0f0, 0.1f0),
-                                                           fluid_particle_spacing=0.1,
-                                                           semi=semi_fullgrid,
-                                                           data_type=Main.data_type,
-                                                           maxiters=36)
+                                          joinpath(examples_dir(), "fluid",
+                                                   "dam_break_3d.jl"),
+                                          tspan=(0.0f0, 0.1f0),
+                                          fluid_particle_spacing=0.1,
+                                          semi=semi_fullgrid,
+                                          data_type=Main.data_type,
+                                          maxiters=36)
             @test sol.retcode == ReturnCode.Success
             @test sol.u[end].x[1] isa Main.data_type
         end
