@@ -22,5 +22,6 @@ trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               neighborhood_search=neighborhood_search,
               fluid_particle_spacing=H / 40,
-              tspan=(0.0, 5.7 / sqrt(9.81)),
+              tspan=tspan,
+              density_diffusion=density_diffusion,
               data_type=nothing)
