@@ -289,18 +289,16 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::SummationDensity)
-    for particle in eachparticle(system)
-        v0[end, particle] = system.initial_condition.pressure[particle]
-    end
+    # Note that `.=` is very slightly faster, but not GPU-compatible
+    v0[end, :] = system.initial_condition.pressure
 
     return v0
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
-    for particle in eachparticle(system)
-        v0[end - 1, particle] = system.initial_condition.density[particle]
-        v0[end, particle] = system.initial_condition.pressure[particle]
-    end
+    # Note that `.=` is very slightly faster, but not GPU-compatible
+    v0[end - 1, :] = system.initial_condition.density
+    v0[end, :] = system.initial_condition.pressure
 
     return v0
 end

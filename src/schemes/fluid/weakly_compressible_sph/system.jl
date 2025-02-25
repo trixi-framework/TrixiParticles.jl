@@ -80,11 +80,11 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      pressure_acceleration=nothing,
                                      buffer_size=nothing,
                                      viscosity=nothing, density_diffusion=nothing,
-                                     acceleration=ntuple(_ -> 0.0,
+                                     acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                          ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
-                                     reference_particle_spacing=0.0)
+                                     reference_particle_spacing=0)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 

@@ -23,4 +23,5 @@ trixi_include(@__MODULE__,
               neighborhood_search=neighborhood_search,
               fluid_particle_spacing=fluid_particle_spacing,
               tspan=tspan,
+              density_diffusion=density_diffusion,
               data_type=nothing)

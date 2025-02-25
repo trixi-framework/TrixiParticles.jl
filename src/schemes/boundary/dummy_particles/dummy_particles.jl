@@ -374,7 +374,7 @@ function compute_pressure!(boundary_model,
         # Note: The version iterating neighbors first is not thread parallelizable.
         # The factor is based on the achievable speed-up of the thread parallelizable version.
         if nparticles(system) >
-           ceil(Int, Threads.nthreads() / 2) * nparticles(neighbor_system)
+           ceil(Int, Threads.nthreads() / 2) * nparticles(neighbor_system) && !(system isa GPUSystem)
             nhs = get_neighborhood_search(neighbor_system, system, semi)
 
             # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
