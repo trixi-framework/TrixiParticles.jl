@@ -47,10 +47,11 @@ jobs:
         os:
           - ubuntu-latest
         include:
-          # Also run tests on Windows and macOS-ARM, but only with the latest Julia release and minimum supported version
-          - version: 'min'
+          # Also run tests on Windows and macOS-ARM, but only with the latest Julia release and minimum supported version.
+          # Don't use 'min' version, which will ignore hotfixes, i.e. 1.10.0 will be used instead of e.g. 1.10.8.
+          - version: '1.10'
             os: windows-latest
-          - version: 'min'
+          - version: '1.10'
             os: macos-14
           - version: '1'
             os: windows-latest

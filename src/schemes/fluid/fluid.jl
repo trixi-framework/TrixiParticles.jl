@@ -58,10 +58,9 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     (; smoothing_length, viscosity, acceleration, surface_tension) = system
 
-    if !(system.viscosity isa Nothing)
-        dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity(system, viscosity)
-    else
-        dt_viscosity = 0.125 * smoothing_length^2
+    dt_viscosity = 0.125 * smoothing_length^2
+    if !isnothing(system.viscosity)
+        dt_viscosity = dt_viscosity / kinematic_viscosity(system, viscosity)
     end
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)
@@ -80,15 +79,16 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     dt_sound_speed = cfl_number * smoothing_length / system_sound_speed(system)
 
     # Eq. 28 in Morris (2000)
-    dt_surface_tension = max(dt_viscosity, dt_acceleration, dt_sound_speed)
+    dt = min(dt_viscosity, dt_acceleration, dt_sound_speed)
     if surface_tension isa SurfaceTensionMorris ||
        surface_tension isa SurfaceTensionMomentumMorris
         v = wrap_v(v_ode, system, semi)
         dt_surface_tension = sqrt(particle_density(v, system, 1) * smoothing_length^3 /
                                   (2 * pi * surface_tension.surface_tension_coefficient))
+        dt = min(dt, dt_surface_tension)
     end
 
-    return min(dt_viscosity, dt_acceleration, dt_sound_speed, dt_surface_tension)
+    return dt
 end
 
 @inline function surface_tension_model(system::FluidSystem)

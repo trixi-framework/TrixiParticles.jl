@@ -256,7 +256,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
 
     if system.surface_tension isa SurfaceTensionMorris ||
        system.surface_tension isa SurfaceTensionMomentumMorris
-        surft = zeros((ndims(system), n_moving_particles(system)))
+        surface_tension = zeros((ndims(system), n_moving_particles(system)))
         system_coords = current_coordinates(u, system)
 
         surface_tension_a = surface_tension_model(system)
@@ -271,7 +271,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             rho_b = particle_density(v, system, neighbor)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            surft[1:ndims(system), particle] .+= surface_tension_force(surface_tension_a,
+            surface_tension[1:ndims(system), particle] .+= surface_tension_force(surface_tension_a,
                                                                        surface_tension_b,
                                                                        system, system,
                                                                        particle, neighbor,
@@ -279,7 +279,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
                                                                        rho_a, rho_b,
                                                                        grad_kernel)
         end
-        vtk["surface_tension"] = surft
+        vtk["surface_tension"] = surface_tension
 
         if system.surface_tension isa SurfaceTensionMorris
             vtk["curvature"] = system.cache.curvature

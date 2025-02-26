@@ -6,6 +6,8 @@ abstract type AkinciTypeSurfaceTension <: SurfaceTension end
 
 This model only implements the cohesion force of the Akinci [Akinci2013](@cite) surface tension model.
 
+See [`surface_tension`](@ref) for more details.
+
 # Keywords
 - `surface_tension_coefficient=1.0`: Modifies the intensity of the surface tension-induced force,
    enabling the tuning of the fluid's surface tension properties within the simulation.
@@ -25,6 +27,8 @@ Implements a model for surface tension and adhesion effects drawing upon the
 principles outlined by Akinci [Akinci2013](@cite). This model is instrumental in capturing the nuanced
 behaviors of fluid surfaces, such as droplet formation and the dynamics of merging or
 separation, by utilizing intra-particle forces.
+
+See [`surface_tension`](@ref) for more details.
 
 # Keywords
 - `surface_tension_coefficient=1.0`: A parameter to adjust the magnitude of
@@ -47,11 +51,8 @@ It calculates surface tension forces based on the curvature of the fluid interfa
 using particle normals and their divergence, making it suitable for simulating
 phenomena like droplet formation and capillary wave dynamics.
 
-# Details
-The method estimates curvature by combining particle color gradients and smoothing
-functions to derive surface normals. The curvature is then used to compute forces
-acting perpendicular to the interface. While this method provides accurate
-surface tension forces, it does not conserve momentum explicitly.
+See [`surface_tension`](@ref) for more details.
+
 
 # Keywords
 - `surface_tension_coefficient=1.0`: Adjusts the magnitude of the surface tension
@@ -82,6 +83,8 @@ This model implements the momentum-conserving surface tension approach outlined 
 tensor, ensuring exact conservation of linear momentum. This method is particularly
 useful for simulations where momentum conservation is critical, though it may require
 numerical adjustments at higher resolutions.
+
+See [`surface_tension`](@ref) for more details.
 
 # Keywords
 - `surface_tension_coefficient=1.0`: A parameter to adjust the strength of surface tension
@@ -233,16 +236,18 @@ function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMo
     max_delta_s = maximum(delta_s)
     NDIMS = ndims(system)
 
-    @trixi_timeit timer() "compute surface stress tensor" for particle in each_moving_particle(system)
-        normal = surface_normal(system, particle)
-        delta_s_particle = delta_s[particle]
-        if delta_s_particle > eps()
-            for i in 1:NDIMS
-                for j in 1:NDIMS
-                    delta_ij = (i == j) ? 1.0 : 0.0
-                    stress_tensor[i, j, particle] = delta_s_particle *
-                                                    (delta_ij - normal[i] * normal[j]) -
-                                                    delta_ij * max_delta_s
+    @trixi_timeit timer() "compute surface stress tensor" begin
+        @threaded system for particle in each_moving_particle(system)
+            normal = surface_normal(system, particle)
+            delta_s_particle = delta_s[particle]
+            if delta_s_particle > eps()
+                for i in 1:NDIMS
+                    for j in 1:NDIMS
+                        delta_ij = (i == j) ? 1.0 : 0.0
+                        stress_tensor[i, j, particle] = delta_s_particle *
+                                                        (delta_ij - normal[i] * normal[j]) -
+                                                        delta_ij * max_delta_s
+                    end
                 end
             end
         end
@@ -255,14 +260,14 @@ function compute_surface_delta_function!(system, surface_tension)
     return system
 end
 
-# eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
+# Eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris)
     (; cache) = system
     (; delta_s) = cache
 
     set_zero!(delta_s)
 
-    for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         delta_s[particle] = norm(surface_normal(system, particle))
     end
     return system
