@@ -3,6 +3,18 @@
 TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.2.7
+
+### Features
+
+- Adds the classic **Continuum Surface Force (CSF)** model based on Morris 2000 (#584), which computes
+  surface tension as a **body force** proportional to curvature and directed along the interface normal.
+  This method is efficient and accurate for capillary effects but does not explicitly conserve momentum.
+
+- Added the classic **Continuum Surface Stress (CSS)** model based on Morris 2000 (#584), which is
+  a **momentum-conserving** approach that formulates surface tension as the **divergence of a stress tensor**.
+  However, it requires additional computation and stabilization to handle **high-density interfaces** and reduce numerical instabilities.
+
 ## Version 0.2.6
 
 ### Features
