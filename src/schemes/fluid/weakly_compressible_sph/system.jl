@@ -47,6 +47,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
+- `color_value`:                The value used to initialize the color of particles in the system.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
@@ -59,6 +60,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     state_equation                    :: SE
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
+    ideal_neighbor_count              :: Int
+    color                             :: Int
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     density_diffusion                 :: DD
@@ -84,7 +87,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                                          ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
-                                     reference_particle_spacing=0.0)
+                                     reference_particle_spacing=0.0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -120,6 +123,13 @@ function WeaklyCompressibleSPHSystem(initial_condition,
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
     end
 
+    ideal_neighbor_count_ = 0
+    if reference_particle_spacing > 0.0
+        ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS), reference_particle_spacing,
+                                                     compact_support(smoothing_kernel,
+                                                                     smoothing_length))
+    end
+
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
@@ -130,7 +140,6 @@ function WeaklyCompressibleSPHSystem(initial_condition,
              create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                 n_particles)..., cache...)
     cache = (;
-             create_cache_wcsph(surface_tension, ELTYPE, NDIMS, n_particles)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
@@ -140,6 +149,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
                                        smoothing_kernel, smoothing_length,
+                                       ideal_neighbor_count_, color_value,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
                                        pressure_acceleration, nothing,
@@ -183,6 +193,9 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.density_diffusion)
     print(io, ", ", system.surface_tension)
     print(io, ", ", system.surface_normal_method)
+    if system.surface_normal_method isa ColorfieldSurfaceNormal
+        print(io, ", ", system.color)
+    end
     print(io, ", ", system.acceleration)
     print(io, ", ", system.source_terms)
     print(io, ") with ", nparticles(system), " particles")
@@ -211,6 +224,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "density diffusion", system.density_diffusion)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
+        if system.surface_normal_method isa ColorfieldSurfaceNormal
+            summary_line(io, "color", system.color)
+        end
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "source terms", system.source_terms |> typeof |> nameof)
         summary_footer(io)
@@ -250,7 +266,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; density_calculator, correction, surface_tension) = system
+    (; density_calculator, correction, surface_normal_method, surface_tension) = system
 
     compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
 
@@ -260,9 +276,18 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
-    compute_surface_normal!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-
+    compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
+    compute_surface_delta_function!(system, surface_tension)
     return system
+end
+
+function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
+    (; surface_tension) = system
+
+    # Surface normal of neighbor and boundary needs to have been calculated already
+    compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
+    compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
@@ -374,4 +399,9 @@ end
 
 @inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
     extract_smatrix(system.cache.correction_matrix, system, particle)
+end
+
+@inline function curvature(particle_system::FluidSystem, particle)
+    (; cache) = particle_system
+    return cache.curvature[particle]
 end
