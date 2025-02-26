@@ -236,16 +236,18 @@ function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMo
     max_delta_s = maximum(delta_s)
     NDIMS = ndims(system)
 
-    @trixi_timeit timer() "compute surface stress tensor" for particle in each_moving_particle(system)
-        normal = surface_normal(system, particle)
-        delta_s_particle = delta_s[particle]
-        if delta_s_particle > eps()
-            for i in 1:NDIMS
-                for j in 1:NDIMS
-                    delta_ij = (i == j) ? 1.0 : 0.0
-                    stress_tensor[i, j, particle] = delta_s_particle *
-                                                    (delta_ij - normal[i] * normal[j]) -
-                                                    delta_ij * max_delta_s
+    @trixi_timeit timer() "compute surface stress tensor" begin
+        @threaded system for particle in each_moving_particle(system)
+            normal = surface_normal(system, particle)
+            delta_s_particle = delta_s[particle]
+            if delta_s_particle > eps()
+                for i in 1:NDIMS
+                    for j in 1:NDIMS
+                        delta_ij = (i == j) ? 1.0 : 0.0
+                        stress_tensor[i, j, particle] = delta_s_particle *
+                                                        (delta_ij - normal[i] * normal[j]) -
+                                                        delta_ij * max_delta_s
+                    end
                 end
             end
         end
@@ -258,14 +260,14 @@ function compute_surface_delta_function!(system, surface_tension)
     return system
 end
 
-# eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
+# Eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris)
     (; cache) = system
     (; delta_s) = cache
 
     set_zero!(delta_s)
 
-    for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         delta_s[particle] = norm(surface_normal(system, particle))
     end
     return system

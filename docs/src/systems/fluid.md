@@ -87,7 +87,7 @@ Pages = [joinpath("schemes", "fluid", "surface_normal_sph.jl")]
 ## [Surface Tension](@id surface_tension)
 
 Surface tension is a key phenomenon in fluid dynamics, influencing the behavior of droplets, bubbles, and fluid interfaces.
-In SPH, surface tension is modeled as forces arising due to surface curvature and particle relative particle movement, ensuring realistic
+In SPH, surface tension is modeled as forces arising due to surface curvature and relative particle movement, ensuring realistic
 simulation of capillary effects, droplet coalescence, and fragmentation.
 
 The surface tension coefficient ``\sigma`` is a physical parameter that quantifies the energy required to increase the surface area
