@@ -253,6 +253,7 @@ ode_problem = semidiscretize(semi, tspan)
 
 # output
 ODEProblem with uType RecursiveArrayTools.ArrayPartition{Float64, Tuple{Vector{Float64}, Vector{Float64}}} and tType Float64. In-place: true
+Non-trivial mass matrix: false
 timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
@@ -827,9 +828,8 @@ function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(tr
 end
 
 function check_configuration(systems)
-    min_color = 0
-    max_color = 0
-    no_fluid_and_bnd_systems = 0
+    color_not_zero = false
+    n_fluid_and_bnd_systems = 0
     uses_surface_tension_model = false
 
     foreach_system(systems) do system
@@ -840,19 +840,14 @@ function check_configuration(systems)
         end
 
         if system isa FluidSystem || system isa BoundarySPHSystem
-            no_fluid_and_bnd_systems += 1
-            if system.color < min_color
-                min_color = system.color
-            end
-
-            if system.color > max_color
-                max_color = system.color
+            n_fluid_and_bnd_systems += 1
+            if system.color != 0
+                color_not_zero = true
             end
         end
     end
 
-    if max_color == 0 && min_color == 0 && no_fluid_and_bnd_systems > 1 &&
-       uses_surface_tension_model
+    if color_not_zero && n_fluid_and_bnd_systems > 1 && uses_surface_tension_model
         throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
     end
 end
