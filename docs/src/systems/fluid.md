@@ -109,7 +109,7 @@ direct experimental measurements or specialized equations of state may be necess
 | **Gasoline** | ~0.022                                        |
 | **Mineral Oil** | ~0.030                                     |
 
-### Akinci-based intra-particle force surface tension and wall adhesion model (@id akinci_ipf)
+### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
 The Akinci model divides surface tension into distinct force components:
 
@@ -172,13 +172,13 @@ A(r) = \frac{0.007}{h_c^{3.25}}
 
 ---
 
-### Morris surface tension model (@id morris_csf)
+### [Morris surface tension model](@id morris_csf)
 
 The method estimates curvature by combining particle color gradients (see [`surface_normal`](@ref)) and smoothing functions to derive surface normals.
 The computed curvature is then used to determine forces acting perpendicular to the interface.
 While this method provides accurate surface tension forces, it does not explicitly conserve momentum.
 
-In the Morris model, surface tension is computed based on local interface curvature ``\kappa`` and the unit surface normal ``\hat{n}``.
+In the Morris model, surface tension is computed based on local interface curvature ``\kappa`` and the unit surface normal ``\hat{n}.``
 By estimating ``\hat{n}`` and ``\kappa`` at each particle near the interface, the surface tension force for particle a can be written as:
 
 ```math
@@ -190,7 +190,7 @@ This formulation focuses directly on geometric properties of the interface, maki
 
 ---
 
-### Morris-based momentum-conserving surface tension model (@id moriss_css)
+### [Morris-based momentum-conserving surface tension model](@id moriss_css)
 
 In addition to the simpler curvature-based formulation, Morris (2000) introduced a momentum-conserving approach.
 This method treats surface tension forces as arising from the divergence of a stress tensor, ensuring exact conservation
