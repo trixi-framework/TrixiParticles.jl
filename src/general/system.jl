@@ -163,5 +163,5 @@ end
 end
 
 @inline @fastpow function ideal_neighbor_count(::Val{3}, particle_spacing, compact_support)
-    return floor(Int, 4.0 / 3.0 * pi * compact_support^3 / particle_spacing^3)
+    return floor(Int, 4 // 3 * pi * compact_support^3 / particle_spacing^3)
 end

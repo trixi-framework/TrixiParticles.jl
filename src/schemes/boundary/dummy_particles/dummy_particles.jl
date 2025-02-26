@@ -72,7 +72,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     ideal_neighbor_count_ = 0
     if reference_particle_spacing > 0.0
-        # since reference_particle_spacing has to be set for surface normals to be determined we can do this here
+        # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
                  colorfield_bnd=zeros(ELTYPE, n_particles),
