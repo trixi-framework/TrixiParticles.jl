@@ -39,7 +39,7 @@ For more information on the methods, see description below.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 """
 struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
-                             S, N} <: FluidSystem{NDIMS, IC}
+                             S, N} <: System{NDIMS, IC}
     initial_condition     :: IC
     smoothing_kernel      :: K
     smoothing_length      :: ELTYPE
@@ -296,3 +296,15 @@ end
 
     return du
 end
+
+function write_u0!(u0, system::ParticlePackingSystem)
+    (; initial_condition) = system
+
+    # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
+    indices = CartesianIndices(initial_condition.coordinates)
+    copyto!(u0, indices, initial_condition.coordinates, indices)
+
+    return u0
+end
+
+timer_name(::ParticlePackingSystem) = "packing"
