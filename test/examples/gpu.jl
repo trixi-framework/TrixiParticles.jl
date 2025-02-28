@@ -172,7 +172,7 @@ end
                                                                                             viscosity=viscosity,
                                                                                             density_calculator=SummationDensity(),
                                                                                             acceleration=(0.0,
-                                                                                                          -gravity)))
+                                                                                                          -gravity)),)
             )
 
             for (test_description, kwargs) in hydrostatic_water_column_tests
