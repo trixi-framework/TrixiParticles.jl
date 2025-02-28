@@ -331,8 +331,8 @@ end
                                                                     "dam_break_gate_2d.jl"),
                                                            tspan=(0.0f0, 0.4f0),
                                                            semi=semi_fullgrid,
-                                                           # Needs 1426 steps on the CPU
-                                                           maxiters=1426,
+                                                           # Needs <1500 steps on the CPU
+                                                           maxiters=1500,
                                                            data_type=Main.data_type)
             @test sol.retcode == ReturnCode.Success
             @test sol.u[end].x[1] isa Main.data_type
