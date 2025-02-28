@@ -19,7 +19,8 @@ elseif TRIXIPARTICLES_TEST_ == "oneapi"
     using oneAPI
     oneAPI.versioninfo()
     data_type = oneArray
-    supports_double_precision = true
+    # The runners are using an iGPU, which does not support double precision
+    supports_double_precision = false
 else
     error("Unknown GPU backend: $TRIXIPARTICLES_TEST_")
 end
