@@ -9,7 +9,7 @@ using TrixiParticles
 # Load setup from dam break example
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              sol=nothing)
+              sol=nothing, ode=nothing)
 
 # Define a GPU-compatible neighborhood search
 min_corner = minimum(tank.boundary.coordinates, dims=2)
@@ -24,4 +24,6 @@ trixi_include(@__MODULE__,
               fluid_particle_spacing=fluid_particle_spacing,
               tspan=tspan,
               density_diffusion=density_diffusion,
+              boundary_layers=boundary_layers, spacing_ratio=spacing_ratio,
+              boundary_model=boundary_model,
               data_type=nothing)

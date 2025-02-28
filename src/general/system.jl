@@ -26,7 +26,7 @@ end
 initialize!(system, neighborhood_search) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
-@inline Base.eltype(system::System) = eltype(system.initial_condition)
+@inline Base.eltype(system::System) = error("eltype not implemented for system $system")
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(system) = ndims(system)

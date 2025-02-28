@@ -10,6 +10,7 @@
 Adapt.@adapt_structure Semidiscretization
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure DensityDiffusionAntuono
+Adapt.@adapt_structure EntropicallyDampedSPHSystem
 Adapt.@adapt_structure BoundarySPHSystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar

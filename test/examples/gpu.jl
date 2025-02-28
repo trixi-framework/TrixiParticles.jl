@@ -51,13 +51,22 @@ end
         end
 
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float32" begin
+            # Import variables into scope
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(),
+                                                   "fluid", "dam_break_2d.jl");
+                                          sol=nothing, ode=nothing)
+
             dam_break_tests = Dict(
                 "default" => (),
-                # Test that the density diffusion models work on GPUs.
-                # More models and different kernels are tested below in the hydrostatic
-                # water column test.
                 "DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1f0),),
-                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),)
+                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),),
+                "BoundaryModelMonaghanKajtar" => (boundary_layers=1, spacing_ratio=3,
+                                                  boundary_model=BoundaryModelMonaghanKajtar(gravity *
+                                                                                             H,
+                                                                                             spacing_ratio,
+                                                                                             boundary_particle_spacing,
+                                                                                             tank.boundary.mass))
             )
 
             for (test_description, kwargs) in dam_break_tests
@@ -135,6 +144,7 @@ end
                                                                      # from 0.02*10.0*1.2*0.05/8
                                                                      viscosity=ViscosityAdami(nu=0.0015f0),
                                                                      fluid_density_calculator=SummationDensity(),
+                                                                     maxiters=38, # 38 time steps on CPU
                                                                      clip_negative_pressure=true),
                 "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
                                                                smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
@@ -155,14 +165,14 @@ end
                                                                                              density_calculator=ContinuityDensity(),
                                                                                              acceleration=(0.0,
                                                                                                            -gravity))),
-                "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
-                                                                                          smoothing_kernel,
-                                                                                          smoothing_length,
-                                                                                          sound_speed,
-                                                                                          viscosity=viscosity,
-                                                                                          density_calculator=SummationDensity(),
-                                                                                          acceleration=(0.0,
-                                                                                                        -gravity)),)
+                "EDAC with SummationDensity" => (fluid_system = EntropicallyDampedSPHSystem(tank.fluid,
+                                                                                            smoothing_kernel,
+                                                                                            smoothing_length,
+                                                                                            sound_speed,
+                                                                                            viscosity=viscosity,
+                                                                                            density_calculator=SummationDensity(),
+                                                                                            acceleration=(0.0,
+                                                                                                          -gravity)))
             )
 
             for (test_description, kwargs) in hydrostatic_water_column_tests
@@ -229,35 +239,41 @@ end
         end
 
         # Test open boundaries and steady-state callback
-        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
-            # Import variables into scope
-            trixi_include_changeprecision(Float32, @__MODULE__,
-                                          joinpath(examples_dir(), "fluid",
-                                                   "pipe_flow_2d.jl"),
-                                          sol=nothing, ode=nothing)
+        @testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
+            # TODO This currently doesn't work on GPUs due to
+            # https://github.com/trixi-framework/PointNeighbors.jl/issues/20.
 
-            # Neighborhood search with `FullGridCellList` for GPU compatibility
-            min_corner = minimum(pipe.boundary.coordinates, dims=2)
-            max_corner = maximum(pipe.boundary.coordinates, dims=2)
-            cell_list = FullGridCellList(; min_corner, max_corner)
-            semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
-                                               neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                             cell_list))
+            # # Import variables into scope
+            # trixi_include_changeprecision(Float32, @__MODULE__,
+            #                               joinpath(examples_dir(), "fluid",
+            #                                        "pipe_flow_2d.jl"),
+            #                               sol=nothing, ode=nothing)
 
-            steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
+            # # Neighborhood search with `FullGridCellList` for GPU compatibility
+            # min_corner = minimum(pipe.boundary.coordinates, dims=2) .- 8 * particle_spacing
+            # max_corner = maximum(pipe.boundary.coordinates, dims=2) .+ 8 * particle_spacing
+            # cell_list = FullGridCellList(; min_corner, max_corner)
+            # semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+            #                                    neighborhood_search=GridNeighborhoodSearch{2}(;
+            #                                                                                  cell_list))
 
-            @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
-                                                           joinpath(examples_dir(), "fluid",
-                                                                    "pipe_flow_2d.jl"),
-                                                           extra_callback=steady_state_reached,
-                                                           tspan=(0.0f0, 1.5f0),
-                                                           semi=semi_fullgrid,
-                                                           data_type=Main.data_type)
+            # steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
+
+            # @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
+            #                                                joinpath(examples_dir(), "fluid",
+            #                                                         "pipe_flow_2d.jl"),
+            #                                                extra_callback=steady_state_reached,
+            #                                                tspan=(0.0f0, 1.5f0),
+            #                                                semi=semi_fullgrid,
+            #                                                data_type=Main.data_type)
+
+            # TODO This currently doesn't work on GPUs due to
+            # https://github.com/trixi-framework/PointNeighbors.jl/issues/20.
 
             # Make sure that the simulation is terminated after a reasonable amount of time
-            @test 0.1 < sol.t[end] < 1.0
-            @test sol.retcode == ReturnCode.Terminated
-            @test sol.u[end].x[1] isa Main.data_type
+            @test_skip 0.1 < sol.t[end] < 1.0
+            @test_skip sol.retcode == ReturnCode.Terminated
+            @test_skip sol.u[end].x[1] isa Main.data_type
         end
     end
 
@@ -301,9 +317,10 @@ end
             # Neighborhood search with `FullGridCellList` for GPU compatibility
             min_corner = minimum(tank.boundary.coordinates, dims=2)
             max_corner = maximum(tank.boundary.coordinates, dims=2)
+            max_corner[2] = gate_height + movement_function(0.1)[2]
             # We need a very high `max_points_per_cell` because the plate resolution
             # is much finer than the fluid resolution.
-            cell_list = FullGridCellList(; min_corner, max_corner, max_points_per_cell=500)
+            cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system_tank,
                                                boundary_system_gate, solid_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
@@ -313,8 +330,9 @@ end
                                                            joinpath(examples_dir(), "fsi",
                                                                     "dam_break_gate_2d.jl"),
                                                            tspan=(0.0f0, 0.4f0),
-                                                           dtmax=1e-3,
                                                            semi=semi_fullgrid,
+                                                           # Needs 1426 steps on the CPU
+                                                           maxiters=1426,
                                                            data_type=Main.data_type)
             @test sol.retcode == ReturnCode.Success
             @test sol.u[end].x[1] isa Main.data_type
