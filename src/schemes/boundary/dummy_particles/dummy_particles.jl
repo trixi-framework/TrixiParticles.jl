@@ -376,7 +376,6 @@ function compute_pressure!(boundary_model,
         if nparticles(system) >
            ceil(Int, Threads.nthreads() / 2) * nparticles(neighbor_system) &&
            !(system isa GPUSystem)
-           
             nhs = get_neighborhood_search(neighbor_system, system, semi)
 
             # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
