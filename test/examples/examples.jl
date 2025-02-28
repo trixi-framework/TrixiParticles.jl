@@ -14,8 +14,7 @@
                                                            smoothing_length)
             min_corner = minimum(tank.boundary.coordinates, dims=2) .- search_radius
             max_corner = maximum(tank.boundary.coordinates, dims=2) .+ search_radius
-            cell_list = TrixiParticles.PointNeighbors.FullGridCellList(; min_corner,
-                                                                       max_corner)
+            cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                              cell_list))

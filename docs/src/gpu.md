@@ -16,7 +16,7 @@ of the tank to obtain the bounding box as follows.
 ```jldoctest gpu; output=false, setup=:(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing))
 min_corner = minimum(tank.boundary.coordinates, dims=2)
 max_corner = maximum(tank.boundary.coordinates, dims=2)
-cell_list = TrixiParticles.PointNeighbors.FullGridCellList(; min_corner, max_corner)
+cell_list = FullGridCellList(; min_corner, max_corner)
 
 # output
 PointNeighbors.FullGridCellList{PointNeighbors.DynamicVectorOfVectors{Int32, Matrix{Int32}, Vector{Int32}, Base.RefValue{Int32}}, Nothing, SVector{2, Float64}, SVector{2, Float64}}(Vector{Int32}[], nothing, [-0.12500000000000003, -0.12500000000000003], [1.125, 1.125])
