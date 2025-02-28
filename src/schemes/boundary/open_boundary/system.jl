@@ -173,6 +173,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
     end
 end
 
+@inline function Base.eltype(::OpenBoundarySPHSystem{<:Any, <:Any, <:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
+end
+
 function reset_callback_flag!(system::OpenBoundarySPHSystem)
     system.update_callback_used[] = false
 
