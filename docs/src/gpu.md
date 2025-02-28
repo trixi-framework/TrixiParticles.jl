@@ -19,7 +19,7 @@ max_corner = maximum(tank.boundary.coordinates, dims=2)
 cell_list = FullGridCellList(; min_corner, max_corner)
 
 # output
-PointNeighbors.FullGridCellList{PointNeighbors.DynamicVectorOfVectors{Int32, Matrix{Int32}, Vector{Int32}, Base.RefValue{Int32}}, Nothing, SVector{2, Float64}, SVector{2, Float64}}(Vector{Int32}[], nothing, [-0.12500000000000003, -0.12500000000000003], [1.125, 1.125])
+FullGridCellList{PointNeighbors.DynamicVectorOfVectors{Int32, Matrix{Int32}, Vector{Int32}, Base.RefValue{Int32}}, Nothing, SVector{2, Float64}, SVector{2, Float64}}(Vector{Int32}[], nothing, [-0.12500000000000003, -0.12500000000000003], [1.125, 1.125])
 ```
 
 We then need to pass this cell list to the neighborhood search and the neighborhood search
