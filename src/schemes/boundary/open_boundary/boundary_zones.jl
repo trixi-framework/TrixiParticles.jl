@@ -45,7 +45,7 @@ There are three ways to specify the actual shape of the boundary zone:
     - `InFlow()` for an inflow boundary
     - `OutFlow()` for an outflow boundary
     - `BidirectionalFlow()` (default) for an bidirectional flow boundary
-- `open_boundary_layers`: Number of particle layers in upstream direction.
+- `open_boundary_layers`: Number of particle layers in the direction opposite to `plane_normal`.
 - `particle_spacing`: The spacing between the particles (see [`InitialCondition`](@ref)).
 - `density`: Particle density (see [`InitialCondition`](@ref)).
 - `initial_condition=nothing`: `InitialCondition` for the inflow particles.
