@@ -3,7 +3,7 @@
 abstract type System{NDIMS, IC} end
 
 # When using KernelAbstractions.jl, the initial condition has been replaced by `nothing`
-GPUSystem = System{<:Any, Nothing}
+const GPUSystem = System{<:Any, Nothing}
 
 abstract type FluidSystem{NDIMS, IC} <: System{NDIMS, IC} end
 timer_name(::FluidSystem) = "fluid"
