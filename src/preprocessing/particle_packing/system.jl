@@ -38,11 +38,9 @@ For more information on the methods, see description below.
 - `smoothing_length`:      Smoothing length to be used for this system.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, MA, K,
-                             S, N, SD} <: FluidSystem{NDIMS, IC}
+struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
+                             S, N} <: FluidSystem{NDIMS, IC}
     initial_condition     :: IC
-    mass                  :: MA     # Array{ELTYPE, 1}
-    particle_spacing      :: ELTYPE
     smoothing_kernel      :: K
     smoothing_length      :: ELTYPE
     background_pressure   :: ELTYPE
@@ -51,29 +49,26 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, MA, K,
     is_boundary           :: Bool
     shift_length          :: ELTYPE
     neighborhood_search   :: N
-    signed_distances      :: SD # Only for visualization
+    signed_distances      :: Vector{ELTYPE} # Only for visualization
     buffer                :: Nothing
     update_callback_used  :: Ref{Bool}
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
-    function ParticlePackingSystem(initial_condition, mass, particle_spacing,
-                                   smoothing_kernel, smoothing_length,
+    function ParticlePackingSystem(initial_condition, smoothing_kernel, smoothing_length,
                                    background_pressure, tlsph, signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
                                    signed_distances, buffer, update_callback_used)
         return new{ndims(smoothing_kernel), typeof(smoothing_length),
-                   typeof(initial_condition), typeof(mass),
-                   typeof(smoothing_kernel), typeof(signed_distance_field),
-                   typeof(neighborhood_search),
-                   typeof(signed_distances)}(initial_condition, mass, particle_spacing,
-                                             smoothing_kernel, smoothing_length,
-                                             background_pressure,
-                                             tlsph, signed_distance_field,
-                                             is_boundary, shift_length,
-                                             neighborhood_search,
-                                             signed_distances, buffer,
-                                             update_callback_used)
+                   typeof(initial_condition), typeof(smoothing_kernel),
+                   typeof(signed_distance_field),
+                   typeof(neighborhood_search)}(initial_condition, smoothing_kernel,
+                                                smoothing_length, background_pressure,
+                                                tlsph, signed_distance_field,
+                                                is_boundary, shift_length,
+                                                neighborhood_search,
+                                                signed_distances, buffer,
+                                                update_callback_used)
     end
 end
 
@@ -116,8 +111,7 @@ function ParticlePackingSystem(shape::InitialCondition;
         tlsph ? zero(ELTYPE) : 0.5shape.particle_spacing
     end
 
-    return ParticlePackingSystem(shape, shape.mass, shape.particle_spacing,
-                                 smoothing_kernel, smoothing_length,
+    return ParticlePackingSystem(shape, smoothing_kernel, smoothing_length,
                                  background_pressure, tlsph, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), nothing, false)
@@ -173,7 +167,7 @@ end
 write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
 
 function kinetic_energy(v, u, t, system::ParticlePackingSystem)
-    (; is_boundary) = system
+    (; initial_condition, is_boundary) = system
 
     # Exclude boundary packing system
     is_boundary && return zero(eltype(system))
@@ -181,12 +175,19 @@ function kinetic_energy(v, u, t, system::ParticlePackingSystem)
     # If `each_moving_particle` is empty (no moving particles), return zero
     return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
         velocity = advection_velocity(v, system, particle)
-        return system.mass[particle] * dot(velocity, velocity) / 2
+        return initial_condition.mass[particle] * dot(velocity, velocity) / 2
     end
 end
 
 @inline source_terms(system::ParticlePackingSystem) = nothing
 @inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
+
+# Number of particles in the system
+@inline nparticles(system::ParticlePackingSystem) = length(system.initial_condition.mass)
+
+@inline function hydrodynamic_mass(system::ParticlePackingSystem, particle)
+    return system.initial_condition.mass[particle]
+end
 
 # Update from `UpdateCallback` (between time steps)
 update_particle_packing(system, v_ode, u_ode, semi, integrator) = system
@@ -277,7 +278,7 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
 
     system.is_boundary || return u
 
-    particle_spacing = system.particle_spacing
+    particle_spacing = system.initial_condition.particle_spacing
     shift_length_inner = system.tlsph ? particle_spacing : 0.5 * particle_spacing
 
     if distance_signed < shift_length_inner

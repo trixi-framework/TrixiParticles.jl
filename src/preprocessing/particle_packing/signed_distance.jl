@@ -22,60 +22,60 @@ to this surface.
                               a boundary [`ParticlePackingSystem`](@ref).
                               Use the default of `false` when packing without a boundary.
 """
-struct SignedDistanceField{ELTYPE, P, D}
-    positions           :: P
-    normals             :: P
-    distances           :: D
+struct SignedDistanceField{NDIMS, ELTYPE}
+    positions           :: Vector{SVector{NDIMS, ELTYPE}}
+    normals             :: Vector{SVector{NDIMS, ELTYPE}}
+    distances           :: Vector{ELTYPE}
     max_signed_distance :: ELTYPE
     boundary_packing    :: Bool
     particle_spacing    :: ELTYPE
-end
 
-function SignedDistanceField(geometry, particle_spacing;
-                             points=nothing,
-                             max_signed_distance=4 * particle_spacing,
-                             use_for_boundary_packing=false)
-    NDIMS = ndims(geometry)
-    ELTYPE = eltype(max_signed_distance)
+    function SignedDistanceField(geometry, particle_spacing;
+                                 points=nothing,
+                                 max_signed_distance=4 * particle_spacing,
+                                 use_for_boundary_packing=false)
+        NDIMS = ndims(geometry)
+        ELTYPE = eltype(max_signed_distance)
 
-    sdf_factor = use_for_boundary_packing ? 2 : 1
+        sdf_factor = use_for_boundary_packing ? 2 : 1
 
-    search_radius = sdf_factor * max_signed_distance
+        search_radius = sdf_factor * max_signed_distance
 
-    nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
+        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
 
-    initialize!(nhs, geometry)
+        initialize!(nhs, geometry)
 
-    if isnothing(points)
-        min_corner = geometry.min_corner .- search_radius
-        max_corner = geometry.max_corner .+ search_radius
+        if isnothing(points)
+            min_corner = geometry.min_corner .- search_radius
+            max_corner = geometry.max_corner .+ search_radius
 
-        n_particles_per_dimension = Tuple(ceil.(Int,
-                                                (max_corner .- min_corner) ./
-                                                particle_spacing))
+            n_particles_per_dimension = Tuple(ceil.(Int,
+                                                    (max_corner .- min_corner) ./
+                                                    particle_spacing))
 
-        grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                        min_corner; tlsph=true)
+            grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
+                                            min_corner; tlsph=true)
 
-        points = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
+            points = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
+        end
+
+        positions = copy(points)
+
+        # This gives a performance boost for large geometries
+        delete_positions_in_empty_cells!(positions, nhs)
+
+        normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(positions))
+        distances = fill(Inf, length(positions))
+
+        calculate_signed_distances!(positions, distances, normals,
+                                    geometry, sdf_factor, max_signed_distance, nhs)
+
+        return new{NDIMS, ELTYPE}(positions, normals, distances, max_signed_distance,
+                                  use_for_boundary_packing, particle_spacing)
     end
-
-    positions = copy(points)
-
-    # This gives a performance boost for large geometries
-    delete_positions_in_empty_cells!(positions, nhs)
-
-    normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(positions))
-    distances = fill(Inf, length(positions))
-
-    calculate_signed_distances!(positions, distances, normals,
-                                geometry, sdf_factor, max_signed_distance, nhs)
-
-    return SignedDistanceField(positions, normals, distances, max_signed_distance,
-                               use_for_boundary_packing, particle_spacing)
 end
 
-@inline Base.ndims(::SignedDistanceField) = error("SignedDistanceField has no dimensionality")
+@inline Base.ndims(::SignedDistanceField{NDIMS}) where {NDIMS} = NDIMS
 
 function Base.show(io::IO, system::SignedDistanceField)
     @nospecialize system # reduce precompilation time
