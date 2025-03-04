@@ -3,6 +3,16 @@
 TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.2.7
+
+### Features
+
+- The symplectic time integration scheme from DualSPHysics was added (#716)
+
+### Documentation
+
+- Documentation for time integration was added (#716)
+
 ## Version 0.2.6
 
 ### Features
@@ -11,7 +21,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Refactored
 
-- Surface normal calculation was moved from surface_tension.jl to surface_normal_sph.jl (#539)
+- Surface normal calculation was moved from `surface_tension.jl` to `surface_normal_sph.jl` (#539)
 
 ## Version 0.2.5
 
