@@ -226,11 +226,11 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
     result = q5_2^4
-    result = result - 5 * (q < 1.5f0) * q3_2^4
-    result = result + 10 * (q < 0.5f0) * q1_2^4
+    result = result - 5 * (q < 3 // 2) * q3_2^4
+    result = result + 10 * (q < 1 // 2) * q1_2^4
 
     # Zero out result if q >= 5/2
-    result = ifelse(q < 2.5f0, normalization_factor(kernel, h) * result, zero(result))
+    result = ifelse(q < 5 // 2, normalization_factor(kernel, h) * result, zero(result))
 
     return result
 end
