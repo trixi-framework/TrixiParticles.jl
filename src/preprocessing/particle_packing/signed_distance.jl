@@ -42,7 +42,11 @@ function SignedDistanceField(geometry, particle_spacing;
 
     search_radius = sdf_factor * max_signed_distance
 
-    nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
+    min_corner = geometry.min_corner .- search_radius
+    max_corner = geometry.max_corner .+ search_radius
+    cell_list = FullGridCellList(; min_corner, max_corner, search_radius)
+
+    nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius, cell_list)
 
     initialize!(nhs, geometry)
 

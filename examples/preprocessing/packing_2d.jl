@@ -22,7 +22,7 @@ boundary_thickness = 8particle_spacing
 # ==== Load complex geometry
 density = 1000.0
 
-geometry = load_geometry(file)
+geometry = load_geometry(file; element_type=typeof(particle_spacing))
 
 signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             use_for_boundary_packing=true,
@@ -50,26 +50,33 @@ trixi2vtk(boundary_sampled, filename="boundary")
 # `background_pressure` result in appropriate stepsizes.
 background_pressure = 1e6 * particle_spacing^ndims(geometry)
 
+min_corner = minimum(stack(signed_distance_field.positions), dims=2)
+max_corner = maximum(stack(signed_distance_field.positions), dims=2)
+cell_list = FullGridCellList(; min_corner, max_corner)
+neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
+
 packing_system = ParticlePackingSystem(shape_sampled;
                                        signed_distance_field, tlsph=tlsph,
-                                       background_pressure)
+                                       background_pressure, neighborhood_search)
 
 boundary_system = ParticlePackingSystem(boundary_sampled;
                                         is_boundary=true, signed_distance_field,
                                         tlsph=tlsph, boundary_compress_factor=0.8,
-                                        background_pressure)
+                                        background_pressure, neighborhood_search)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(packing_system, boundary_system)
+
+semi = Semidiscretization(packing_system, boundary_system; neighborhood_search)
 
 # Use a high `tspan` to guarantee that the simulation runs at least for `maxiters`
 tspan = (0, 10.0)
-ode = semidiscretize(semi, tspan)
+ode = semidiscretize(semi, tspan, data_type=nothing)
 
 # Use this callback to stop the simulation when it is sufficiently close to a steady state
-steady_state = SteadyStateReachedCallback(; interval=1, interval_size=10,
-                                          abstol=1.0e-5, reltol=1.0e-3)
+# steady_state = SteadyStateReachedCallback(; interval=1, interval_size=10,
+#                                           abstol=1.0e-5, reltol=1.0e-3)
+steady_state = nothing
 
 info_callback = InfoCallback(interval=50)
 

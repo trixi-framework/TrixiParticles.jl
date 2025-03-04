@@ -39,7 +39,7 @@ For more information on the methods, see description below.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 """
 struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, MA, K,
-                             S, N, SD} <: FluidSystem{NDIMS, IC}
+                             S, N, SD, UCU} <: FluidSystem{NDIMS, IC}
     initial_condition     :: IC
     mass                  :: MA     # Array{ELTYPE, 1}
     particle_spacing      :: ELTYPE
@@ -53,7 +53,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, MA, K,
     neighborhood_search   :: N
     signed_distances      :: SD # Only for visualization
     buffer                :: Nothing
-    update_callback_used  :: Ref{Bool}
+    update_callback_used  :: UCU
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
@@ -65,15 +65,15 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, MA, K,
         return new{ndims(smoothing_kernel), typeof(smoothing_length),
                    typeof(initial_condition), typeof(mass),
                    typeof(smoothing_kernel), typeof(signed_distance_field),
-                   typeof(neighborhood_search),
-                   typeof(signed_distances)}(initial_condition, mass, particle_spacing,
-                                             smoothing_kernel, smoothing_length,
-                                             background_pressure,
-                                             tlsph, signed_distance_field,
-                                             is_boundary, shift_length,
-                                             neighborhood_search,
-                                             signed_distances, buffer,
-                                             update_callback_used)
+                   typeof(neighborhood_search), typeof(signed_distances),
+                   typeof(update_callback_used)}(initial_condition, mass, particle_spacing,
+                                                 smoothing_kernel, smoothing_length,
+                                                 background_pressure,
+                                                 tlsph, signed_distance_field,
+                                                 is_boundary, shift_length,
+                                                 neighborhood_search,
+                                                 signed_distances, buffer,
+                                                 update_callback_used)
     end
 end
 
@@ -120,7 +120,7 @@ function ParticlePackingSystem(shape::InitialCondition;
                                  smoothing_kernel, smoothing_length,
                                  background_pressure, tlsph, signed_distance_field,
                                  is_boundary, shift_length, nhs,
-                                 fill(zero(ELTYPE), nparticles(shape)), nothing, false)
+                                 fill(zero(ELTYPE), nparticles(shape)), nothing, Ref(false))
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
