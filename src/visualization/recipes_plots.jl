@@ -28,7 +28,7 @@ RecipesBase.@recipe function f(v_ode::AbstractGPUArray, u_ode, semi::Semidiscret
 end
 
 RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
-                               particle_spacings=particle_spacings(semi),
+                               particle_spacings=TrixiParticles.particle_spacings(semi),
                                size=(600, 400), # Default size
                                xlims=(-Inf, Inf), ylims=(-Inf, Inf))
     return v_ode, u_ode, semi, particle_spacings
