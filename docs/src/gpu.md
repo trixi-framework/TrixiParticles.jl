@@ -87,10 +87,12 @@ For AMD GPUs, use
 using AMDGPU
 trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), data_type=ROCArray)
 ```
-For Apple GPUs, use
+For Apple GPUs (which don't support double precision, see below), use
 ```julia
 using Metal
-trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), data_type=MtlArray())
+trixi_include_changeprecision(Float32,
+                              joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"),
+                              data_type=MtlArray)
 ```
 
 ## [Single precision simulations](@id single_precision)

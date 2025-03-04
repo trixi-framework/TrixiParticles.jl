@@ -355,6 +355,19 @@ function write_v0!(v0, model, system::TotalLagrangianSPHSystem)
     return v0
 end
 
+function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
+                   system::TotalLagrangianSPHSystem)
+    (; cache) = system.boundary_model
+    (; initial_density) = cache
+
+    for particle in each_moving_particle(system)
+        # Set particle densities
+        v0[ndims(system) + 1, particle] = initial_density[particle]
+    end
+
+    return v0
+end
+
 function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     for particle in each_moving_particle(system)
         system.current_coordinates[:, particle] .= u[:, particle]
