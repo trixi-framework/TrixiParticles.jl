@@ -53,52 +53,68 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
     buffer                :: Nothing
     update_callback_used  :: Ref{Bool}
 
-    function ParticlePackingSystem(shape::InitialCondition;
-                                   signed_distance_field::SignedDistanceField,
-                                   smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
-                                   smoothing_length=1.2 * shape.particle_spacing,
-                                   is_boundary=false, boundary_compress_factor=1.0,
-                                   neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                                   background_pressure, tlsph=true)
-        NDIMS = ndims(shape)
-        ELTYPE = eltype(shape)
-
-        if ndims(smoothing_kernel) != NDIMS
-            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        # TODO: Let `Semidiscretization` handle this?
-        # Create neighborhood search
-        nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
-               neighborhood_search
-        nhs = copy_neighborhood_search(nhs_,
-                                       compact_support(smoothing_kernel, smoothing_length),
-                                       length(signed_distance_field.positions))
-
-        # Initialize neighborhood search with signed distances
-        PointNeighbors.initialize_grid!(nhs, stack(signed_distance_field.positions))
-
-        # If `distance_signed >= -shift_length`, the particle position is modified
-        # by a surface bounding:
-        # `particle_position -= (distance_signed + shift_length) * normal_vector`,
-        # where `normal_vector` is the normal vector to the surface of the geometry
-        # and `distance_signed` is the level-set value at the particle position,
-        # which means the signed distance to the surface.
-        # Its value is negative if the particle is inside the geometry.
-        # Otherwise (if outside), the value is positive.
-        shift_length = if is_boundary
-            -boundary_compress_factor * signed_distance_field.max_signed_distance
-        else
-            tlsph ? zero(ELTYPE) : 0.5shape.particle_spacing
-        end
-
-        return new{NDIMS, ELTYPE, typeof(shape), typeof(smoothing_kernel),
+    # This constructor is necessary for Adapt.jl to work with this struct.
+    # See the comments in general/gpu.jl for more details.
+    function ParticlePackingSystem(initial_condition, smoothing_kernel, smoothing_length,
+                                   background_pressure, tlsph, signed_distance_field,
+                                   is_boundary, shift_length, neighborhood_search,
+                                   signed_distances, buffer, update_callback_used)
+        return new{ndims(smoothing_kernel), typeof(smoothing_length),
+                   typeof(initial_condition), typeof(smoothing_kernel),
                    typeof(signed_distance_field),
-                   typeof(nhs)}(shape, smoothing_kernel, smoothing_length,
-                                background_pressure, tlsph, signed_distance_field,
-                                is_boundary, shift_length, nhs,
-                                fill(zero(ELTYPE), nparticles(shape)), nothing, false)
+                   typeof(neighborhood_search)}(initial_condition, smoothing_kernel,
+                                                smoothing_length, background_pressure,
+                                                tlsph, signed_distance_field,
+                                                is_boundary, shift_length,
+                                                neighborhood_search,
+                                                signed_distances, buffer,
+                                                update_callback_used)
     end
+end
+
+function ParticlePackingSystem(shape::InitialCondition;
+                               signed_distance_field::SignedDistanceField,
+                               smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
+                               smoothing_length=1.2 * shape.particle_spacing,
+                               is_boundary=false, boundary_compress_factor=1.0,
+                               neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
+                               background_pressure, tlsph=true)
+    NDIMS = ndims(shape)
+    ELTYPE = eltype(shape)
+
+    if ndims(smoothing_kernel) != NDIMS
+        throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    # TODO: Let `Semidiscretization` handle this?
+    # Create neighborhood search
+    nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
+           neighborhood_search
+    nhs = copy_neighborhood_search(nhs_,
+                                   compact_support(smoothing_kernel, smoothing_length),
+                                   length(signed_distance_field.positions))
+
+    # Initialize neighborhood search with signed distances
+    PointNeighbors.initialize_grid!(nhs, stack(signed_distance_field.positions))
+
+    # If `distance_signed >= -shift_length`, the particle position is modified
+    # by a surface bounding:
+    # `particle_position -= (distance_signed + shift_length) * normal_vector`,
+    # where `normal_vector` is the normal vector to the surface of the geometry
+    # and `distance_signed` is the level-set value at the particle position,
+    # which means the signed distance to the surface.
+    # Its value is negative if the particle is inside the geometry.
+    # Otherwise (if outside), the value is positive.
+    shift_length = if is_boundary
+        -boundary_compress_factor * signed_distance_field.max_signed_distance
+    else
+        tlsph ? zero(ELTYPE) : 0.5shape.particle_spacing
+    end
+
+    return ParticlePackingSystem(shape, smoothing_kernel, smoothing_length,
+                                 background_pressure, tlsph, signed_distance_field,
+                                 is_boundary, shift_length, nhs,
+                                 fill(zero(ELTYPE), nparticles(shape)), nothing, false)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
@@ -124,6 +140,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
         summary_line(io, "boundary", system.is_boundary ? "yes" : "no")
         summary_footer(io)
     end
+end
+
+@inline function Base.eltype(::ParticlePackingSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
 end
 
 @inline function v_nvariables(system::ParticlePackingSystem)
