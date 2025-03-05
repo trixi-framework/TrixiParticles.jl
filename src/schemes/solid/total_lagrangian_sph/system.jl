@@ -111,7 +111,7 @@ function TotalLagrangianSPHSystem(initial_condition,
 
     lame_lambda = young_modulus * poisson_ratio /
                   ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
-    lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
+    lame_mu = (young_modulus / 2) / (1 + poisson_ratio)
 
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -233,7 +233,7 @@ end
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates) = system
 
-    for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             current_coordinates[i, particle] = u[i, particle]
         end
@@ -318,7 +318,7 @@ end
     (; lame_lambda, lame_mu) = system
 
     # Compute the Green-Lagrange strain
-    E = 0.5 * (transpose(F) * F - I)
+    E = (transpose(F) * F - I) / 2
 
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
 end
@@ -332,12 +332,9 @@ end
 function write_u0!(u0, system::TotalLagrangianSPHSystem)
     (; initial_condition) = system
 
-    for particle in each_moving_particle(system)
-        # Write particle coordinates
-        for dim in 1:ndims(system)
-            u0[dim, particle] = initial_condition.coordinates[dim, particle]
-        end
-    end
+    # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
+    indices = CartesianIndices((ndims(system), each_moving_particle(system)))
+    copyto!(u0, indices, initial_condition.coordinates, indices)
 
     return u0
 end
@@ -345,12 +342,9 @@ end
 function write_v0!(v0, system::TotalLagrangianSPHSystem)
     (; initial_condition, boundary_model) = system
 
-    for particle in each_moving_particle(system)
-        # Write particle velocities
-        for dim in 1:ndims(system)
-            v0[dim, particle] = initial_condition.velocity[dim, particle]
-        end
-    end
+    # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
+    indices = CartesianIndices((ndims(system), each_moving_particle(system)))
+    copyto!(v0, indices, initial_condition.velocity, indices)
 
     write_v0!(v0, boundary_model, system)
 
