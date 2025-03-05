@@ -62,8 +62,7 @@ end
                 "DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1f0),),
                 "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),),
                 "BoundaryModelMonaghanKajtar" => (boundary_layers=1, spacing_ratio=3,
-                                                  boundary_model=BoundaryModelMonaghanKajtar(gravity *
-                                                                                             H,
+                                                  boundary_model=BoundaryModelMonaghanKajtar(0.5f0,
                                                                                              spacing_ratio,
                                                                                              boundary_particle_spacing,
                                                                                              tank.boundary.mass))
@@ -146,8 +145,10 @@ end
                                                                      fluid_density_calculator=SummationDensity(),
                                                                      maxiters=38, # 38 time steps on CPU
                                                                      clip_negative_pressure=true),
-                "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
-                                                               smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
+                # Broken due to https://github.com/JuliaGPU/CUDA.jl/issues/2681
+                # and https://github.com/JuliaGPU/Metal.jl/issues/550.
+                # "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
+                #                                                smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
                 "WCSPH with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
                                                                smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
                 "WCSPH with WendlandC2Kernel" => (smoothing_length=3.0,
@@ -221,8 +222,9 @@ end
                                           sol=nothing, ode=nothing)
 
             # Neighborhood search with `FullGridCellList` for GPU compatibility
+            search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
             min_corner = minimum(tank.boundary.coordinates, dims=2)
-            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2) .+ 2 * search_radius
             cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
