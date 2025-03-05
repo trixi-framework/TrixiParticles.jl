@@ -253,6 +253,7 @@ ode_problem = semidiscretize(semi, tspan)
 
 # output
 ODEProblem with uType RecursiveArrayTools.ArrayPartition{Float64, Tuple{Vector{Float64}, Vector{Float64}}} and tType Float64. In-place: true
+Non-trivial mass matrix: false
 timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
