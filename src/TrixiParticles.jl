@@ -46,6 +46,7 @@ include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+include("preprocessing/preprocessing.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
@@ -53,7 +54,6 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
-include("preprocessing/preprocessing.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -91,7 +91,8 @@ export kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
 export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d,
        interpolate_plane_2d_vtk
-export SurfaceTensionAkinci, CohesionForceAkinci
-export ColorfieldSurfaceNormal
+export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
+       SurfaceTensionMomentumMorris, HuberContactModel
+export ColorfieldSurfaceNormal, StaticNormals
 
 end # module
