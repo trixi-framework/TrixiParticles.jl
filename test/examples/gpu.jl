@@ -222,7 +222,8 @@ end
                                           sol=nothing, ode=nothing)
 
             # Neighborhood search with `FullGridCellList` for GPU compatibility
-            search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
+            search_radius = TrixiParticles.compact_support(smoothing_kernel,
+                                                           smoothing_length)
             min_corner = minimum(tank.boundary.coordinates, dims=2)
             max_corner = maximum(tank.boundary.coordinates, dims=2) .+ 2 * search_radius
             cell_list = FullGridCellList(; min_corner, max_corner)
