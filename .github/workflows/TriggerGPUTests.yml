@@ -16,4 +16,3 @@ jobs:
           buildkite_api_access_token: ${{ secrets.TRIGGER_BK_BUILD_TOKEN }}
           pipeline: "julialang/trixiparticles"
           branch: refs/pull/${{ github.event.issue.number }}/head
-          message: "Triggered from PR #${{ github.event.issue.number }} comment"
