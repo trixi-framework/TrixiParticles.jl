@@ -1,10 +1,11 @@
+name: "Trigger GPU Tests"
+
 on:
   issue_comment:
     types: [created, edited]
 
 jobs:
-  trigger_buildkite:
-    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/run-gpu-tests') }}
+  trigger-buildkite:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Buildkite Pipeline
