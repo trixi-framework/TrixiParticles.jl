@@ -847,7 +847,7 @@ function check_configuration(systems)
         end
     end
 
-    if color_not_zero && n_fluid_and_bnd_systems > 1 && uses_surface_tension_model
+    if !color_not_zero && n_fluid_and_bnd_systems > 1 && uses_surface_tension_model
         throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
     end
 end
