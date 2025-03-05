@@ -60,12 +60,7 @@ end
             dam_break_tests = Dict(
                 "default" => (),
                 "DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1f0),),
-                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),),
-                "BoundaryModelMonaghanKajtar" => (boundary_layers=1, spacing_ratio=3,
-                                                  boundary_model=BoundaryModelMonaghanKajtar(0.5f0,
-                                                                                             spacing_ratio,
-                                                                                             boundary_particle_spacing,
-                                                                                             tank.boundary.mass))
+                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),)
             )
 
             for (test_description, kwargs) in dam_break_tests
@@ -88,6 +83,36 @@ end
                     @test sol.u[end].x[1] isa Main.data_type
                 end
             end
+        end
+
+        @trixi_testset "fluid/dam_break_2d_gpu.jl Float32 BoundaryModelMonaghanKajtar" begin
+            # Import variables into scope
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(),
+                                                   "fluid", "dam_break_2d.jl");
+                                          boundary_layers=1, spacing_ratio=3,
+                                          sol=nothing, ode=nothing)
+
+            boundary_model = BoundaryModelMonaghanKajtar(0.5f0,
+                                                         spacing_ratio,
+                                                         boundary_particle_spacing,
+                                                         tank.boundary.mass)
+
+            @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
+                                                           joinpath(examples_dir(),
+                                                                    "fluid",
+                                                                    "dam_break_2d_gpu.jl");
+                                                           tspan=(0.0f0, 0.1f0),
+                                                           boundary_layers=1,
+                                                           spacing_ratio=3,
+                                                           boundary_model=boundary_model,
+                                                           data_type=Main.data_type) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n"
+            ]
+            @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+            @test sol.retcode == ReturnCode.Success
+            @test sol.u[end].x[1] isa Main.data_type
         end
 
         @trixi_testset "fluid/dam_break_3d.jl" begin
