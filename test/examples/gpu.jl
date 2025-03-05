@@ -165,14 +165,14 @@ end
                                                                                              density_calculator=ContinuityDensity(),
                                                                                              acceleration=(0.0,
                                                                                                            -gravity))),
-                "EDAC with SummationDensity" => (fluid_system = EntropicallyDampedSPHSystem(tank.fluid,
-                                                                                            smoothing_kernel,
-                                                                                            smoothing_length,
-                                                                                            sound_speed,
-                                                                                            viscosity=viscosity,
-                                                                                            density_calculator=SummationDensity(),
-                                                                                            acceleration=(0.0,
-                                                                                                          -gravity)),)
+                "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                                                                                          smoothing_kernel,
+                                                                                          smoothing_length,
+                                                                                          sound_speed,
+                                                                                          viscosity=viscosity,
+                                                                                          density_calculator=SummationDensity(),
+                                                                                          acceleration=(0.0,
+                                                                                                        -gravity)),)
             )
 
             for (test_description, kwargs) in hydrostatic_water_column_tests
