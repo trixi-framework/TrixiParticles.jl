@@ -12,7 +12,6 @@ steps:
     env:
       TRIXIPARTICLES_TEST: cuda
     timeout_in_minutes: 60
-    trigger: manual
 
   - label: "AMDGPU"
     plugins:
@@ -27,7 +26,6 @@ steps:
     env:
       TRIXIPARTICLES_TEST: amdgpu
     timeout_in_minutes: 60
-    trigger: manual
 
   - label: "oneAPI"
     plugins:
@@ -42,7 +40,6 @@ steps:
     env:
       TRIXIPARTICLES_TEST: oneapi
     timeout_in_minutes: 60
-    trigger: manual
 
   - label: "Metal"
     plugins:
@@ -58,4 +55,3 @@ steps:
     env:
       TRIXIPARTICLES_TEST: metal
     timeout_in_minutes: 60
-    trigger: manual
