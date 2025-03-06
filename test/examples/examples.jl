@@ -7,13 +7,11 @@
             trixi_include(@__MODULE__,
                           joinpath(examples_dir(), "fluid",
                                    "hydrostatic_water_column_2d.jl"),
-                          fluid_system=nothing, sol=nothing, semi=nothing, ode=nothing)
+                          sol=nothing, ode=nothing)
 
             # Neighborhood search for `FullGridCellList` test below
-            search_radius = TrixiParticles.compact_support(smoothing_kernel,
-                                                           smoothing_length)
-            min_corner = minimum(tank.boundary.coordinates, dims=2) .- search_radius
-            max_corner = maximum(tank.boundary.coordinates, dims=2) .+ search_radius
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
             cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
@@ -286,7 +284,8 @@
                                            extra_callback=steady_state_reached,
                                            tspan=(0.0, 1.5))
 
-            @test sol.t[end] < 1.0
+            # Make sure that the simulation is terminated after a reasonable amount of time
+            @test 0.1 < sol.t[end] < 1.0
             @test sol.retcode == ReturnCode.Terminated
         end
 
@@ -300,7 +299,8 @@
                                            extra_callback=steady_state_reached,
                                            tspan=(0.0, 1.5))
 
-            @test sol.t[end] < 1.0
+            # Make sure that the simulation is terminated after a reasonable amount of time
+            @test 0.1 < sol.t[end] < 1.0
             @test sol.retcode == ReturnCode.Terminated
         end
 
