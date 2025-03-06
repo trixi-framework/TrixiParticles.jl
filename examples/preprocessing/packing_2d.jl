@@ -5,24 +5,20 @@ filename = "circle"
 file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".asc")
 
 # ==========================================================================================
-# ==== Packing parameters
-save_intervals = false
-tlsph = true
-
-# ==========================================================================================
 # ==== Resolution
 particle_spacing = 0.03
 
 # The following depends on the sampling of the particles. In this case `boundary_thickness`
 # means literally the thickness of the boundary packed with boundary particles and *not*
 # how many rows of boundary particles will be sampled.
-boundary_thickness = 8particle_spacing
+boundary_thickness = 8 * particle_spacing
 
 # ==========================================================================================
 # ==== Load complex geometry
 density = 1000.0
 
 geometry = load_geometry(file)
+tlsph = true
 
 signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             use_for_boundary_packing=true,
@@ -37,7 +33,7 @@ shape_sampled = ComplexShape(geometry; particle_spacing, density,
 
 # Returns `InitialCondition`
 boundary_sampled = sample_boundary(signed_distance_field; boundary_density=density,
-                                   boundary_thickness, tlsph)
+                                   boundary_thickness, tlsph=tlsph)
 
 trixi2vtk(shape_sampled)
 trixi2vtk(boundary_sampled, filename="boundary")
@@ -73,6 +69,7 @@ steady_state = SteadyStateReachedCallback(; interval=1, interval_size=10,
 
 info_callback = InfoCallback(interval=50)
 
+save_intervals = false
 saving_callback = save_intervals ?
                   SolutionSavingCallback(interval=10, prefix="", ekin=kinetic_energy) :
                   nothing
