@@ -1,7 +1,7 @@
 """
     vtk2trixi(file::String)
 
-Convert data from VTK-file to InitialCondition
+Load VTK-file and convert data to `InitialCondition`.
 
 # Arguments
 - `file`: Name of the file to be loaded.
