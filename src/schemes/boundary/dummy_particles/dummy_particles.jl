@@ -369,27 +369,38 @@ function compute_pressure!(boundary_model,
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         # This is an optimization for simulations with large and complex boundaries.
-        # Especially, in 3D simulations with large and/or complex structures outside
+        # Especially in 3D simulations with large and/or complex structures outside
         # of areas with permanent flow.
-        # Note: The version iterating neighbors first is not thread parallelizable.
+        # Note: The version iterating neighbors first is not thread-parallelizable
+        #       and thus not GPU-compatible.
         # The factor is based on the achievable speed-up of the thread parallelizable version.
-        if nparticles(system) >
-           ceil(Int, Threads.nthreads() / 2) * nparticles(neighbor_system)
-            nhs = get_neighborhood_search(neighbor_system, system, semi)
-
-            # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
-            boundary_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                      neighbor_system,
-                                                      system_coords, neighbor_coords, v,
-                                                      v_neighbor_system, nhs)
-        else
+        # Use the parallel version if the number of boundary particles is not much larger
+        # than the number of fluid particles.
+        n_boundary_particles = nparticles(system)
+        n_fluid_particles = nparticles(neighbor_system)
+        speedup = ceil(Int, Threads.nthreads() / 2)
+        parallelize = system isa GPUSystem ||
+                      n_boundary_particles < speedup * n_fluid_particles
+        if parallelize
             nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-            # Loop over boundary particles and then the neighboring fluid particles to extrapolate fluid pressure to the boundaries
+            # Loop over boundary particles and then the neighboring fluid particles
+            # to extrapolate fluid pressure to the boundaries.
             boundary_pressure_extrapolation!(boundary_model, system,
                                              neighbor_system,
                                              system_coords, neighbor_coords, v,
                                              v_neighbor_system, nhs)
+        else
+            nhs = get_neighborhood_search(neighbor_system, system, semi)
+
+            # Loop over fluid particles and then the neighboring boundary particles
+            # to extrapolate fluid pressure to the boundaries.
+            # Note that this needs to be serial, as we are writing into the same
+            # pressure entry from different loop iterations.
+            boundary_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                      neighbor_system,
+                                                      system_coords, neighbor_coords, v,
+                                                      v_neighbor_system, nhs)
         end
 
         @threaded system for particle in eachparticle(system)
@@ -472,7 +483,7 @@ end
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                            neighborhood_search;
                            points=eachparticle(system)) do particle, neighbor,

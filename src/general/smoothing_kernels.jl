@@ -257,7 +257,7 @@ end
     return result
 end
 
-@inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
+@inline compact_support(::SchoenbergQuarticSplineKernel, h) = 5 // 2 * h
 
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / 24h
 # `1199 * pi` is always `Float64`. `pi * h^2 * 1199` preserves the type of `h`.

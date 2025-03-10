@@ -125,7 +125,7 @@ boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
                           boundary_system)
 
-ode = semidiscretize(semi, tspan)
+ode = semidiscretize(semi, tspan, data_type=nothing)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
