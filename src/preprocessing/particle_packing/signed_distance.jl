@@ -31,7 +31,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
     particle_spacing    :: ELTYPE
 
     function SignedDistanceField(geometry, particle_spacing;
-                                 points=nothing,
+                                 points=nothing, neighborhood_search=true,
                                  max_signed_distance=4 * particle_spacing,
                                  use_for_boundary_packing=false)
         NDIMS = ndims(geometry)
@@ -41,7 +41,11 @@ struct SignedDistanceField{NDIMS, ELTYPE}
 
         search_radius = sdf_factor * max_signed_distance
 
-        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
+        if neighborhood_search
+            nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
+        else
+            nhs = TrivialNeighborhoodSearch{NDIMS}(eachpoint=eachface(geometry))
+        end
 
         initialize!(nhs, geometry)
 
@@ -104,6 +108,8 @@ function trixi2vtk(signed_distance_field::SignedDistanceField;
     trixi2vtk(positions, signed_distances=distances, normals=normals,
               filename=filename, output_directory=output_directory)
 end
+
+delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch) = positions
 
 function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch)
     delete_positions = fill(false, length(positions))
