@@ -83,7 +83,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real,
         # Create neighborhood search
         if isnothing(signed_distance_field)
             nhs = nothing
-            warning("No `SignedDistanceField` provided. Particles will not be constraint onto a geoemtric surface.")
+            @warn "No `SignedDistanceField` provided. Particles will not be constraint onto a geoemtric surface."
         else
             nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
                    neighborhood_search
