@@ -80,7 +80,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real,
         end
 
         # Create neighborhood search for `ParticlePackingSystem` with the positions
-        # of the `SignedDistanceField` as neigbors.
+        # of the `SignedDistanceField` as neighbors.
         # This is an intern NHS and is thus not organized by `Semidiscretization`.
         if isnothing(signed_distance_field)
             nhs = nothing
