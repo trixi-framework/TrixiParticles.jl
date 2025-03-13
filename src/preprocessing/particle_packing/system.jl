@@ -79,11 +79,12 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real,
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
-        # TODO: Let `Semidiscretization` handle this?
-        # Create neighborhood search
+        # Create neighborhood search for `ParticlePackingSystem` with the positions
+        # of the `SignedDistanceField` as neigbors.
+        # This is an intern NHS and is thus not organized by `Semidiscretization`.
         if isnothing(signed_distance_field)
             nhs = nothing
-            @warn "No `SignedDistanceField` provided. Particles will not be constraint onto a geoemtric surface."
+            @info "No `SignedDistanceField` provided. Particles will not be constraint onto a geoemtric surface."
         else
             nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
                    neighborhood_search

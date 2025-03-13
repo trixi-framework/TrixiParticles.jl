@@ -130,6 +130,10 @@ struct TriangleMesh{NDIMS, ELTYPE}
         max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
 
         for i in eachindex(edge_normals)
+            # Skip zero normals to avoid unstable packing.
+            # The edge normals are only used for the `SignedDistanceField` which is
+            # essential for the packing.
+            # Zero normals are caused by exactly or nearly duplicated faces.
             if !iszero(norm(edge_normals[i]))
                 edge_normals[i] = normalize(edge_normals[i])
             end

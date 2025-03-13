@@ -48,7 +48,7 @@ end
     return v
 end
 
-function summation_density!(system::System, semi, u, u_ode, density;
+function summation_density!(system, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
     set_zero!(density)
 
@@ -69,36 +69,4 @@ function summation_density!(system::System, semi, u, u_ode, density;
             density[particle] += mass * smoothing_kernel(system, distance)
         end
     end
-end
-
-function summation_density!(densities::Vector,
-                            positions::Vector, masses::Vector, mass_positions::Vector;
-                            smoothing_kernel, smoothing_length)
-    set_zero!(densities)
-
-    search_radius = compact_support(smoothing_kernel, smoothing_length)
-    search_radius2 = search_radius^2
-
-    coords1 = stack(positions)
-    coords2 = stack(mass_positions)
-    nhs = GridNeighborhoodSearch{ndims(smoothing_kernel)}(; search_radius,
-                                                          n_points=size(coords2, 2))
-    PointNeighbors.initialize!(nhs, coords1, coords2)
-
-    @threaded positions for point in eachindex(positions)
-        point_coords = positions[point]
-
-        for neighbor in PointNeighbors.eachneighbor(point_coords, nhs)
-            pos_diff = mass_positions[neighbor] - point_coords
-            distance2 = dot(pos_diff, pos_diff)
-            distance2 > search_radius2 && continue
-
-            distance = sqrt(distance2)
-            kernel_weight = kernel(smoothing_kernel, distance, smoothing_length)
-
-            densities[point] += masses[neighbor] * kernel_weight
-        end
-    end
-
-    return densities
 end
