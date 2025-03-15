@@ -220,7 +220,7 @@ function compute_correction_values!(system,
             kernel_correction_coefficient[particle] += volume *
                                                        smoothing_kernel(system, distance)
             if distance > sqrt(eps())
-                tmp = volume * smoothing_kernel_grad(system, pos_diff, distance)
+                tmp = volume * smoothing_kernel_grad(system, pos_diff, distance, particle)
                 for i in axes(dw_gamma, 1)
                     dw_gamma[i, particle] += tmp[i]
                 end
@@ -311,7 +311,7 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
                                                    pos_diff, distance
         volume = mass[neighbor] / density_fun(neighbor)
 
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
         iszero(grad_kernel) && return
 
@@ -348,7 +348,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
             function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance,
                                          smoothing_length, system, particle)
-                return smoothing_kernel_grad(system, pos_diff, distance)
+                return smoothing_kernel_grad(system, pos_diff, distance, particle)
             end
 
             # Compute gradient of corrected kernel

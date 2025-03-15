@@ -75,9 +75,9 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionFerrari, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
-    (; smoothing_length) = system
-
-    return ((rho_a - rho_b) / 2smoothing_length) * pos_diff / distance
+    # TODO should we use the average smoothing length here?
+    smoothing_length_particle = smoothing_length(system, particle)
+    return ((rho_a - rho_b) / (2 * smoothing_length_particle)) * pos_diff / distance
 end
 
 @doc raw"""
@@ -209,7 +209,7 @@ end
     distance < sqrt(eps(typeof(distance))) && return
 
     (; delta) = density_diffusion
-    (; smoothing_length, state_equation) = particle_system
+    (; state_equation) = particle_system
     (; sound_speed) = state_equation
 
     volume_b = m_b / rho_b
@@ -218,7 +218,10 @@ end
                                 particle_system, particle, neighbor)
     density_diffusion_term = dot(psi, grad_kernel) * volume_b
 
-    dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
+    # TODO should we use the average smoothing length here?
+    smoothing_length_particle = smoothing_length(particle_system, particle)
+    dv[end, particle] += delta * smoothing_length_particle * sound_speed *
+                         density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
