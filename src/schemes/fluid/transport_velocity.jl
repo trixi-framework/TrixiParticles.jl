@@ -73,11 +73,20 @@ end
 end
 
 @inline function advection_velocity(v, system, particle)
+    return advection_velocity(v, system, system.transport_velocity, particle)
+end
+
+@inline function advection_velocity(v, system, transport_velocity, particle)
     return SVector(ntuple(@inline(dim->v[ndims(system) + dim, particle]), ndims(system)))
 end
 
-@inline function momentum_convection(system, neighbor_system, ::Nothing, pos_diff, distance,
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+@inline function advection_velocity(v, system, ::Nothing, particle)
+    return zero(current_velocity(v, system, particle))
+end
+
+@inline function momentum_convection(system, neighbor_system, ::Nothing, refinement,
+                                     pos_diff, distance, v_particle_system,
+                                     v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     return zero(grad_kernel)
 end
