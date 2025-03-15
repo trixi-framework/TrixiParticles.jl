@@ -501,7 +501,8 @@ function shepard_interpolate!(interpolated_values, interpolated_positions,
 end
 
 function calculate_normals!(positions, value_distances, value_positions;
-                            smoothing_kernel, smoothing_length)
+                            correction=false,
+                            smoothing_kernel, smoothing_length, particle_spacing)
     search_radius = compact_support(smoothing_kernel, smoothing_length)
     search_radius2 = search_radius^2
 
@@ -513,6 +514,14 @@ function calculate_normals!(positions, value_distances, value_positions;
     normals = fill(SVector(ntuple(dim -> zero(eltype(smoothing_length)), ndims(nhs))),
                    length(positions))
 
+    volume_per_particle = particle_spacing^ndims(nhs)
+    if correction
+        corr_matrix = Array{eltype(smoothing_length), 3}(undef, ndims(nhs), ndims(nhs),
+                                                         length(positions))
+        compute_gradient_correction_matrix!(corr_matrix, nhs, positions,
+                                            volume_per_particle;
+                                            smoothing_kernel, smoothing_length)
+    end
     @threaded positions for point in eachindex(positions)
         point_coords = positions[point]
 
@@ -524,14 +533,71 @@ function calculate_normals!(positions, value_distances, value_positions;
 
             distance = sqrt(distance2)
 
+            phi_neighbor = value_distances[neighbor]
+
             grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
                                       smoothing_length)
 
-            phi_neighbor = value_distances[neighbor]
+            if correction
+                correction_matrix = extract_smatrix(corr_matrix, nhs, point)
 
-            normals[point] += -phi_neighbor * grad_kernel
+                normals[point] += -phi_neighbor * correction_matrix * grad_kernel
+            else
+                normals[point] += -phi_neighbor * grad_kernel
+            end
         end
     end
 
     return normalize.(normals)
+end
+
+function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, positions,
+                                             volume_per_particle;
+                                             smoothing_kernel, smoothing_length)
+    search_radius = compact_support(smoothing_kernel, smoothing_length)
+    search_radius2 = search_radius^2
+    set_zero!(corr_matrix)
+
+    @threaded positions for point in eachindex(positions)
+        point_coords = positions[point]
+
+        for neighbor in PointNeighbors.eachneighbor(point_coords, neighborhood_search)
+            pos_diff = positions[neighbor] - point_coords
+            distance2 = dot(pos_diff, pos_diff)
+            neighbor == point && continue
+            distance2 > search_radius2 && continue
+
+            distance = sqrt(distance2)
+
+            grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
+                                      smoothing_length)
+
+            iszero(grad_kernel) && return
+
+            result = volume_per_particle * grad_kernel * pos_diff'
+
+            @inbounds for j in 1:ndims(neighborhood_search),
+                          i in 1:ndims(neighborhood_search)
+
+                corr_matrix[i, j, point] -= result[i, j]
+            end
+        end
+    end
+
+    @threaded positions for point in eachindex(positions)
+        L = extract_smatrix(corr_matrix, neighborhood_search, point)
+
+        if abs(det(L)) < 1.0f-9
+            L_inv = I
+        else
+            L_inv = inv(L)
+        end
+
+        # Write inverse back to `corr_matrix`
+        for j in 1:ndims(neighborhood_search), i in 1:ndims(neighborhood_search)
+            @inbounds corr_matrix[i, j, point] = L_inv[i, j]
+        end
+    end
+
+    return corr_matrix
 end
