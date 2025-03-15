@@ -129,9 +129,19 @@ struct TriangleMesh{NDIMS, ELTYPE}
         min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
         max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
 
+        for i in eachindex(edge_normals)
+            # Skip zero normals to avoid unstable packing.
+            # The edge normals are only used for the `SignedDistanceField` which is
+            # essential for the packing.
+            # Zero normals are caused by exactly or nearly duplicated faces.
+            if !iszero(norm(edge_normals[i]))
+                edge_normals[i] = normalize(edge_normals[i])
+            end
+        end
+
         return new{NDIMS, ELTYPE}(vertices, face_vertices, face_vertices_ids,
                                   face_edges_ids, edge_vertices_ids,
-                                  normalize.(vertex_normals), normalize.(edge_normals),
+                                  normalize.(vertex_normals), edge_normals,
                                   face_normals, min_corner, max_corner)
     end
 end
@@ -231,4 +241,12 @@ function unique_sorted(vertices)
     end
 
     return vertices_sorted[keep]
+end
+
+function volume(mesh::TriangleMesh)
+    volume = sum(mesh.face_vertices) do vertices
+        return dot(vertices[1], cross(vertices[2], vertices[3])) / 6
+    end
+
+    return volume
 end

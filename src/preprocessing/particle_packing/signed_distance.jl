@@ -31,7 +31,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
     particle_spacing    :: ELTYPE
 
     function SignedDistanceField(geometry, particle_spacing;
-                                 points=nothing,
+                                 points=nothing, neighborhood_search=true,
                                  max_signed_distance=4 * particle_spacing,
                                  use_for_boundary_packing=false)
         NDIMS = ndims(geometry)
@@ -41,7 +41,11 @@ struct SignedDistanceField{NDIMS, ELTYPE}
 
         search_radius = sdf_factor * max_signed_distance
 
-        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
+        if neighborhood_search
+            nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
+        else
+            nhs = TrivialNeighborhoodSearch{NDIMS}(eachpoint=eachface(geometry))
+        end
 
         initialize!(nhs, geometry)
 
@@ -104,6 +108,8 @@ function trixi2vtk(signed_distance_field::SignedDistanceField;
     trixi2vtk(positions, signed_distances=distances, normals=normals,
               filename=filename, output_directory=output_directory)
 end
+
+delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch) = positions
 
 function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch)
     delete_positions = fill(false, length(positions))
@@ -287,4 +293,311 @@ function signed_point_face_distance(p::SVector{3}, boundary, face_index)
     d = p - (a + u * ab + w * ac)
 
     return signbit(dot(d, n)), dot(d, d), n
+end
+
+function identify_non_resolved_structures(signed_distance_field;
+                                          epsilon=signed_distance_field.particle_spacing,
+                                          search_radius=2 *
+                                                        signed_distance_field.particle_spacing)
+    (; particle_spacing, distances, positions) = signed_distance_field
+
+    S = Int[]
+    P = Int[]
+    N = Int[]
+
+    # Find S, P, N
+    for point_id in eachindex(positions)
+        phi = distances[point_id]
+
+        if zero_cut_region(phi, epsilon)
+            push!(S, point_id)
+        end
+
+        # The following is only for visualization purposes
+        if positive_cut_region(phi, particle_spacing, epsilon)
+            push!(P, point_id)
+        end
+
+        if negative_cut_region(phi, particle_spacing, epsilon)
+            push!(N, point_id)
+        end
+    end
+
+    nhs = copy_neighborhood_search(GridNeighborhoodSearch{ndims(signed_distance_field)}(),
+                                   search_radius, length(positions))
+
+    # Initialize neighborhood search with signed distances
+    PointNeighbors.initialize_grid!(nhs, stack(positions))
+
+    S_PN_neighbors = [[false, false] for _ in S]
+    S1 = Int[]
+
+    # Find S1
+    max_dist2 = 2 * particle_spacing^2 + sqrt(eps())
+    for i in eachindex(S)
+        for neighbor in PointNeighbors.eachneighbor(positions[S[i]], nhs)
+            neighbor == i && continue
+
+            pos_diff = positions[neighbor] - positions[S[i]]
+            distance2 = dot(pos_diff, pos_diff)
+
+            distance2 > max_dist2 && continue
+
+            phi = distances[neighbor]
+
+            if zero_cut_region(phi, particle_spacing)
+                continue
+            elseif positive_cut_region(phi, particle_spacing, epsilon)
+                S_PN_neighbors[i][1] = true
+
+            elseif negative_cut_region(phi, particle_spacing, epsilon)
+                S_PN_neighbors[i][2] = true
+            end
+        end
+        if sum(S_PN_neighbors[i]) == 1
+            push!(S1, S[i])
+        end
+    end
+
+    S2 = setdiff(S, S1)
+
+    return S, S1, S2, P, N
+end
+
+function redistancing!(signed_distance_field, S1; search_radius, epsilon)
+    (; particle_spacing, distances, positions, normals) = signed_distance_field
+    max_distance2 = 2 * particle_spacing^2 + sqrt(eps())
+
+    # TODO: Store `nhs` somewhere to avoid recompute it
+    nhs = copy_neighborhood_search(GridNeighborhoodSearch{ndims(signed_distance_field)}(),
+                                   search_radius, length(positions))
+
+    # Initialize neighborhood search with signed distances
+    PointNeighbors.initialize_grid!(nhs, stack(positions))
+
+    S1_non_P = Int[]
+    S1_non_N = Int[]
+
+    for i_SDF in S1
+        point_coords = positions[i_SDF]
+
+        test_N = false
+        test_P = false
+        for neighbor in PointNeighbors.eachneighbor(point_coords, nhs)
+            neighbor == i_SDF && continue
+
+            neighbor_coords = positions[neighbor]
+
+            pos_diff = point_coords - neighbor_coords
+            distance2 = dot(pos_diff, pos_diff)
+
+            distance2 > max_distance2 && continue
+
+            phi_neighbor = distances[neighbor]
+
+            positive_cut_region(phi_neighbor, particle_spacing, epsilon) && (test_P = true)
+
+            negative_cut_region(phi_neighbor, particle_spacing, epsilon) && (test_N = true)
+        end
+
+        if test_P && !test_N
+            push!(S1_non_N, i_SDF)
+        elseif !test_P && test_N
+            push!(S1_non_P, i_SDF)
+        end
+    end
+
+    for i_SDF in S1_non_P
+        point_coords = positions[i_SDF]
+
+        d_min = search_radius
+        for neighbor in PointNeighbors.eachneighbor(point_coords, nhs)
+            neighbor == i_SDF && continue
+
+            phi_neighbor = distances[neighbor]
+
+            n_neighbor = normals[neighbor]
+            neighbor_coords = positions[neighbor]
+
+            pos_diff = point_coords - neighbor_coords + phi_neighbor * n_neighbor
+
+            distance = norm(pos_diff)
+
+            distance < d_min && (signed_distance_field.normals[i_SDF] = n_neighbor)
+            d_min = min(d_min, distance)
+        end
+
+        signed_distance_field.distances[i_SDF] = -d_min
+    end
+
+    # S1 without any nearest neighbors in N
+    for i_SDF in S1_non_N
+        point_coords = positions[i_SDF]
+
+        d_min = search_radius
+        for neighbor in PointNeighbors.eachneighbor(point_coords, nhs)
+            neighbor == i_SDF && continue
+
+            phi_neighbor = distances[neighbor]
+            n_neighbor = normals[neighbor]
+            neighbor_coords = positions[neighbor]
+
+            pos_diff = point_coords - neighbor_coords - phi_neighbor * n_neighbor
+
+            distance = norm(pos_diff)
+
+            distance < d_min && (signed_distance_field.normals[i_SDF] = n_neighbor)
+            d_min = min(d_min, distance)
+        end
+        signed_distance_field.distances[i_SDF] = d_min
+    end
+
+    return signed_distance_field
+end
+
+# The region is defined by the radius of the "particle"
+@inline zero_cut_region(phi, epsilon) = -epsilon / 2 < phi < epsilon / 2
+@inline positive_cut_region(phi, dp, epsilon) = -epsilon / 2 < phi - epsilon < epsilon / 2
+@inline negative_cut_region(phi, dp, epsilon) = -epsilon / 2 < phi + epsilon < epsilon / 2
+
+# As defined by Shepard: https://dl.acm.org/doi/pdf/10.1145/800186.810616
+function shepard_interpolate!(interpolated_values, interpolated_positions,
+                              values, value_positions;
+                              smoothing_kernel, smoothing_length)
+    search_radius = compact_support(smoothing_kernel, smoothing_length)
+    search_radius2 = search_radius^2
+
+    coords1 = stack(interpolated_positions)
+    coords2 = stack(value_positions)
+    nhs = GridNeighborhoodSearch{ndims(smoothing_kernel)}(; search_radius,
+                                                          n_points=size(coords2, 2))
+    PointNeighbors.initialize!(nhs, coords1, coords2)
+
+    @threaded interpolated_positions for point in eachindex(interpolated_positions)
+        point_coords = interpolated_positions[point]
+
+        volume = zero(eltype(point_coords))
+        interpolated_value = zero(first(interpolated_values))
+
+        for neighbor in PointNeighbors.eachneighbor(point_coords, nhs)
+            pos_diff = value_positions[neighbor] - point_coords
+            distance2 = dot(pos_diff, pos_diff)
+            distance2 > search_radius2 && continue
+
+            distance = sqrt(distance2)
+            kernel_weight = kernel(smoothing_kernel, distance, smoothing_length)
+
+            interpolated_value += values[neighbor] * kernel_weight
+
+            volume += kernel_weight
+        end
+
+        if volume > eps()
+            interpolated_values[point] = interpolated_value / volume
+        end
+    end
+
+    return interpolated_values
+end
+
+function calculate_normals!(positions, value_distances, value_positions;
+                            correction=false,
+                            smoothing_kernel, smoothing_length, particle_spacing)
+    search_radius = compact_support(smoothing_kernel, smoothing_length)
+    search_radius2 = search_radius^2
+
+    coords1 = stack(positions)
+    coords2 = stack(value_positions)
+    nhs = GridNeighborhoodSearch{ndims(smoothing_kernel)}(; search_radius,
+                                                          n_points=size(coords2, 2))
+    PointNeighbors.initialize!(nhs, coords1, coords2)
+    normals = fill(SVector(ntuple(dim -> zero(eltype(smoothing_length)), ndims(nhs))),
+                   length(positions))
+
+    volume_per_particle = particle_spacing^ndims(nhs)
+    if correction
+        corr_matrix = Array{eltype(smoothing_length), 3}(undef, ndims(nhs), ndims(nhs),
+                                                         length(positions))
+        compute_gradient_correction_matrix!(corr_matrix, nhs, positions,
+                                            volume_per_particle;
+                                            smoothing_kernel, smoothing_length)
+    end
+    @threaded positions for point in eachindex(positions)
+        point_coords = positions[point]
+
+        for neighbor in PointNeighbors.eachneighbor(point_coords, nhs)
+            pos_diff = value_positions[neighbor] - point_coords
+            distance2 = dot(pos_diff, pos_diff)
+            neighbor == point && continue
+            distance2 > search_radius2 && continue
+
+            distance = sqrt(distance2)
+
+            phi_neighbor = value_distances[neighbor]
+
+            grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
+                                      smoothing_length)
+
+            if correction
+                correction_matrix = extract_smatrix(corr_matrix, nhs, point)
+
+                normals[point] += -phi_neighbor * correction_matrix * grad_kernel
+            else
+                normals[point] += -phi_neighbor * grad_kernel
+            end
+        end
+    end
+
+    return normalize.(normals)
+end
+
+function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, positions,
+                                             volume_per_particle;
+                                             smoothing_kernel, smoothing_length)
+    search_radius = compact_support(smoothing_kernel, smoothing_length)
+    search_radius2 = search_radius^2
+    set_zero!(corr_matrix)
+
+    @threaded positions for point in eachindex(positions)
+        point_coords = positions[point]
+
+        for neighbor in PointNeighbors.eachneighbor(point_coords, neighborhood_search)
+            pos_diff = positions[neighbor] - point_coords
+            distance2 = dot(pos_diff, pos_diff)
+            neighbor == point && continue
+            distance2 > search_radius2 && continue
+
+            distance = sqrt(distance2)
+
+            grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
+                                      smoothing_length)
+
+            iszero(grad_kernel) && return
+
+            result = volume_per_particle * grad_kernel * pos_diff'
+
+            @inbounds for j in 1:ndims(neighborhood_search),
+                          i in 1:ndims(neighborhood_search)
+
+                corr_matrix[i, j, point] -= result[i, j]
+            end
+        end
+    end
+
+    @threaded positions for point in eachindex(positions)
+        L = extract_smatrix(corr_matrix, neighborhood_search, point)
+
+        if abs(det(L)) < 1.0f-9
+            L_inv = I
+        else
+            L_inv = inv(L)
+        end
+
+        # Write inverse back to `corr_matrix`
+        for j in 1:ndims(neighborhood_search), i in 1:ndims(neighborhood_search)
+            @inbounds corr_matrix[i, j, point] = L_inv[i, j]
+        end
+    end
+
+    return corr_matrix
 end
