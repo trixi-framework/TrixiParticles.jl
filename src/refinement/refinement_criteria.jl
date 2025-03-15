@@ -20,7 +20,7 @@ end
 end
 
 @inline function check_refinement_criteria!(system::FluidSystem, ::Nothing,
-                                           v, u, v_ode, u_ode, semi)
+                                            v, u, v_ode, u_ode, semi)
     system
 end
 

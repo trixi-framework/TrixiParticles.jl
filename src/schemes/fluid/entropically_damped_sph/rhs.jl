@@ -8,10 +8,17 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
+    surface_tension_a = surface_tension_model(particle_system)
+    surface_tension_b = surface_tension_model(neighbor_system)
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords,
-                           neighborhood_search) do particle, neighbor, pos_diff, distance
+                           neighborhood_search;
+                           points=each_moving_particle(particle_system)) do particle,
+                                                                            neighbor,
+                                                                            pos_diff,
+                                                                            distance
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
@@ -50,6 +57,13 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             rho_a, rho_b, m_a, m_b,
                                             particle, neighbor, grad_kernel)
 
+        dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor, pos_diff, distance)
+
+        dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
+                                     particle, neighbor, pos_diff, distance)
+
         dv_velocity_correction = velocity_correction(particle_system, neighbor_system,
                                                      pos_diff, distance,
                                                      v_particle_system, v_neighbor_system,
@@ -58,6 +72,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_convection[i] +
+                               dv_surface_tension[i] + dv_adhesion[i] +
                                dv_velocity_correction[i]
         end
 
@@ -133,7 +148,7 @@ function pressure_damping_term(particle_system, neighbor_system, ::Nothing,
 
     smoothing_length_average = 0.5 * (smoothing_length(particle_system, particle) +
                                 smoothing_length(particle_system, particle))
-    tmp = eta_tilde / (distance^2 + 0.01 * smoothing_length_average^2)
+    tmp = eta_tilde / (distance^2 + smoothing_length_average^2 / 100)
 
     # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
     # They argued that the formulation is more flexible because of the possibility to formulate

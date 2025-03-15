@@ -118,9 +118,15 @@ end
 function resize_cache!(system::EntropicallyDampedSPHSystem, n::Int)
     resize!(system.cache.smoothing_length, n)
     resize!(system.cache.beta, n)
+    resize_cache!(system, system.transport_velocity, n)
+    return system
+end
+
+resize_cache!(system::EntropicallyDampedSPHSystem, ::Nothing, n) = system
+
+function resize_cache!(system::EntropicallyDampedSPHSystem, ::TransportVelocityAdami, n)
     resize!(system.cache.pressure_average, n)
     resize!(system.cache.neighbor_counter, n)
-
     return system
 end
 

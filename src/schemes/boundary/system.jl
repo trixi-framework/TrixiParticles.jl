@@ -130,27 +130,28 @@ is_moving(t) = t < 1.5
 movement = BoundaryMovement(movement_function, is_moving)
 
 # output
-BoundaryMovement{typeof(movement_function), typeof(is_moving)}(movement_function, is_moving, Int64[])
+BoundaryMovement{typeof(movement_function), typeof(is_moving), Vector{Int64}}(movement_function, is_moving, Int64[])
 ```
 """
-struct BoundaryMovement{MF, IM}
+struct BoundaryMovement{MF, IM, MP}
     movement_function :: MF
     is_moving         :: IM
-    moving_particles  :: Vector{Int}
+    moving_particles  :: MP # Vector{Int}
+end
 
-    function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
-        if !(movement_function(0.0) isa SVector)
-            @warn "Return value of `movement_function` is not of type `SVector`. " *
-                  "Returning regular `Vector`s causes allocations and significant performance overhead."
-        end
-
-        # Default value is an empty vector, which will be resized in the `BoundarySPHSystem`
-        # constructor to move all particles.
-        moving_particles = isnothing(moving_particles) ? [] : vec(moving_particles)
-
-        return new{typeof(movement_function),
-                   typeof(is_moving)}(movement_function, is_moving, moving_particles)
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
+    if !(movement_function(0.0) isa SVector)
+        @warn "Return value of `movement_function` is not of type `SVector`. " *
+              "Returning regular `Vector`s causes allocations and significant performance overhead."
     end
+
+    # Default value is an empty vector, which will be resized in the `BoundarySPHSystem`
+    # constructor to move all particles.
+    moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
+
+    return BoundaryMovement(movement_function, is_moving, moving_particles)
 end
 
 create_cache_boundary(::Nothing, initial_condition) = (;)
@@ -401,4 +402,32 @@ end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
     return Inf
+end
+
+function initialize!(system::BoundarySPHSystem, neighborhood_search)
+    initialize_colorfield!(system, system.boundary_model, neighborhood_search)
+    return system
+end
+
+function initialize_colorfield!(system, boundary_model, neighborhood_search)
+    return system
+end
+
+function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborhood_search)
+    system_coords = system.coordinates
+    (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
+
+    if haskey(cache, :colorfield_bnd)
+        foreach_point_neighbor(system, system,
+                               system_coords, system_coords,
+                               neighborhood_search,
+                               points=eachparticle(system)) do particle, neighbor, pos_diff,
+                                                               distance
+            system.boundary_model.cache.colorfield_bnd[particle] += kernel(smoothing_kernel,
+                                                                           distance,
+                                                                           smoothing_length)
+            system.boundary_model.cache.neighbor_count[particle] += 1
+        end
+    end
+    return system
 end

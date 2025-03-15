@@ -72,7 +72,6 @@ function merge_particles_inner!(system, particle_refinement, semi, v, u)
 
     # Merge and delete particles
     for particle in findall(!iszero, merge_candidates)
-
         candidate = merge_candidates[particle]
 
         if particle == merge_candidates[candidate]

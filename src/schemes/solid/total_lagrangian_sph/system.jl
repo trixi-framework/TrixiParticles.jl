@@ -40,11 +40,17 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 !!! note
     The fixed particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
-    ```jldoctest; output = false, filter = r"InitialCondition{Float64}.*", setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
+    ```jldoctest; output = false, setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
     solid = union(beam, fixed_particles)
 
     # output
-    InitialCondition{Float64}(...) *the rest of this line is ignored by filter*
+    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+    │ InitialCondition{Float64}                                                                        │
+    │ ═════════════════════════                                                                        │
+    │ #dimensions: ……………………………………………… 2                                                                │
+    │ #particles: ………………………………………………… 16                                                               │
+    │ particle spacing: ………………………………… 0.1                                                              │
+    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
@@ -105,7 +111,7 @@ function TotalLagrangianSPHSystem(initial_condition,
 
     lame_lambda = young_modulus * poisson_ratio /
                   ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
-    lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
+    lame_mu = (young_modulus / 2) / (1 + poisson_ratio)
 
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -148,6 +154,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_line(io, "penalty force", system.penalty_force |> typeof |> nameof)
         summary_footer(io)
     end
+end
+
+@inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
 end
 
 @inline function v_nvariables(system::TotalLagrangianSPHSystem)
@@ -227,7 +237,7 @@ end
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates) = system
 
-    for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             current_coordinates[i, particle] = u[i, particle]
         end
@@ -275,10 +285,9 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
-                           neighborhood_search;
-                           points=eachparticle(system)) do particle, neighbor,
-                                                           initial_pos_diff,
-                                                           initial_distance
+                           neighborhood_search) do particle, neighbor,
+                                                   initial_pos_diff,
+                                                   initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
@@ -313,7 +322,7 @@ end
     (; lame_lambda, lame_mu) = system
 
     # Compute the Green-Lagrange strain
-    E = 0.5 * (transpose(F) * F - I)
+    E = (transpose(F) * F - I) / 2
 
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
 end
@@ -327,12 +336,9 @@ end
 function write_u0!(u0, system::TotalLagrangianSPHSystem)
     (; initial_condition) = system
 
-    for particle in each_moving_particle(system)
-        # Write particle coordinates
-        for dim in 1:ndims(system)
-            u0[dim, particle] = initial_condition.coordinates[dim, particle]
-        end
-    end
+    # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
+    indices = CartesianIndices((ndims(system), each_moving_particle(system)))
+    copyto!(u0, indices, initial_condition.coordinates, indices)
 
     return u0
 end
@@ -340,12 +346,9 @@ end
 function write_v0!(v0, system::TotalLagrangianSPHSystem)
     (; initial_condition, boundary_model) = system
 
-    for particle in each_moving_particle(system)
-        # Write particle velocities
-        for dim in 1:ndims(system)
-            v0[dim, particle] = initial_condition.velocity[dim, particle]
-        end
-    end
+    # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
+    indices = CartesianIndices((ndims(system), each_moving_particle(system)))
+    copyto!(v0, indices, initial_condition.velocity, indices)
 
     write_v0!(v0, boundary_model, system)
 

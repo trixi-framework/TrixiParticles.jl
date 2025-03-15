@@ -3,7 +3,7 @@
 end
 
 function create_cache_density(initial_condition, ::SummationDensity)
-    density = similar(initial_condition.density)
+    density = copy(initial_condition.density)
 
     return (; density)
 end
@@ -101,10 +101,19 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
     return min(dt_viscosity, dt_acceleration, dt_sound_speed)
 end
 
+@inline function surface_tension_model(system::FluidSystem)
+    return system.surface_tension
+end
+
+@inline function surface_tension_model(system)
+    return nothing
+end
+
 include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("transport_velocity.jl")
 include("surface_tension.jl")
+include("surface_normal_sph.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
 

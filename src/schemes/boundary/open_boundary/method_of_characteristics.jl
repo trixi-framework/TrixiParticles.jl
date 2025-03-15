@@ -3,16 +3,18 @@
 
 Boundary model for `OpenBoundarySPHSystem`.
 This model uses the characteristic variables to propagate the appropriate values
-to the outlet or inlet and have been proposed by Lastiwka et al. (2009). For more information
-about the method see [description below](@ref method_of_characteristics).
+to the outlet or inlet and have been proposed by Lastiwka et al. (2009).
+It requires a specific flow direction to be passed to the [`BoundaryZone`](@ref).
+For more information about the method see [description below](@ref method_of_characteristics).
 """
 struct BoundaryModelLastiwka end
 
 # Called from update callback via `update_open_boundary_eachstep!`
 @inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, flow_direction,
+    (; density, pressure, cache, boundary_zone,
     reference_velocity, reference_pressure, reference_density) = system
+    (; flow_direction) = boundary_zone
 
     sound_speed = system_sound_speed(system.fluid_system)
 
@@ -125,8 +127,9 @@ end
 
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, flow_direction, density, pressure,
+    (; volume, cache, boundary_zone, density, pressure,
     reference_velocity, reference_pressure, reference_density) = system
+    (; flow_direction) = boundary_zone
     (; characteristics) = cache
 
     v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
@@ -140,7 +143,9 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
+                           nhs;
+                           points=each_moving_particle(system)) do particle, neighbor,
+                                                                   pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities
@@ -173,7 +178,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     return system
 end
 
-@inline function prescribe_conditions!(characteristics, particle, ::OutFlow)
+@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{OutFlow})
     # J3 is prescribed (i.e. determined from the exterior of the domain).
     # J1 and J2 is transmitted from the domain interior.
     characteristics[3, particle] = zero(eltype(characteristics))
@@ -181,7 +186,7 @@ end
     return characteristics
 end
 
-@inline function prescribe_conditions!(characteristics, particle, ::InFlow)
+@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{InFlow})
     # Allow only J3 to propagate upstream to the boundary
     characteristics[1, particle] = zero(eltype(characteristics))
     characteristics[2, particle] = zero(eltype(characteristics))
