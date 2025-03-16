@@ -48,8 +48,11 @@ For more information on the methods, see description below.
                                     The default is `smoothing_length_interpolation = smoothing_length`.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real,
-                             IC, K, N} <: FluidSystem{NDIMS, IC}
+                             IC, M, D, K, N, SD, UCU} <: FluidSystem{NDIMS, IC}
     initial_condition              :: IC
+    mass                           :: M
+    density                        :: D
+    particle_spacing               :: ELTYPE
     smoothing_kernel               :: K
     smoothing_length               :: ELTYPE
     smoothing_length_interpolation :: ELTYPE
@@ -59,66 +62,91 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real,
     is_boundary                    :: Bool
     shift_length                   :: ELTYPE
     neighborhood_search            :: N
-    signed_distances               :: Vector{ELTYPE} # Only for visualization
+    signed_distances               :: SD # Only for visualization
     buffer                         :: Nothing
-    update_callback_used           :: Ref{Bool}
+    update_callback_used           :: UCU
 
-    function ParticlePackingSystem(shape::InitialCondition;
-                                   signed_distance_field::Union{SignedDistanceField,
-                                                                Nothing},
-                                   smoothing_kernel=SchoenbergQuinticSplineKernel{ndims(shape)}(),
-                                   smoothing_length=shape.particle_spacing,
-                                   smoothing_length_interpolation=smoothing_length,
-                                   is_boundary=false, boundary_compress_factor=1,
-                                   neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                                   background_pressure, tlsph=true, fixed_system=false)
-        NDIMS = ndims(shape)
-        ELTYPE = eltype(shape)
-
-        if ndims(smoothing_kernel) != NDIMS
-            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        # Create neighborhood search for `ParticlePackingSystem` with the positions
-        # of the `SignedDistanceField` as neighbors.
-        # This is an intern NHS and is thus not organized by `Semidiscretization`.
-        if isnothing(signed_distance_field)
-            nhs = nothing
-            @info "No `SignedDistanceField` provided. Particles will not be constraint onto a geoemtric surface."
-        else
-            nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
-                   neighborhood_search
-            nhs = copy_neighborhood_search(nhs_,
-                                           compact_support(smoothing_kernel,
-                                                           smoothing_length_interpolation),
-                                           length(signed_distance_field.positions))
-
-            # Initialize neighborhood search with signed distances
-            PointNeighbors.initialize_grid!(nhs, stack(signed_distance_field.positions))
-        end
-
-        # If `distance_signed >= -shift_length`, the particle position is modified
-        # by a surface bounding:
-        # `particle_position -= (distance_signed + shift_length) * normal_vector`,
-        # where `normal_vector` is the normal vector to the surface of the geometry
-        # and `distance_signed` is the level-set value at the particle position,
-        # which means the signed distance to the surface.
-        # Its value is negative if the particle is inside the geometry.
-        # Otherwise (if outside), the value is positive.
-        shift_length = if is_boundary
-            offset = tlsph ? shape.particle_spacing : shape.particle_spacing / 2
-            -boundary_compress_factor * signed_distance_field.max_signed_distance - offset
-        else
-            tlsph ? zero(ELTYPE) : shape.particle_spacing / 2
-        end
-
-        return new{typeof(signed_distance_field), fixed_system, NDIMS, ELTYPE,
-                   typeof(shape), typeof(smoothing_kernel),
-                   typeof(nhs)}(shape, smoothing_kernel, smoothing_length,
-                                smoothing_length_interpolation, background_pressure, tlsph,
-                                signed_distance_field, is_boundary, shift_length, nhs,
-                                fill(zero(ELTYPE), nparticles(shape)), nothing, false)
+    # This constructor is necessary for Adapt.jl to work with this struct.
+    # See the comments in general/gpu.jl for more details.
+    function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
+                                   smoothing_kernel, smoothing_length,
+                                   smoothing_length_interpolation, background_pressure,
+                                   tlsph, signed_distance_field, is_boundary, shift_length,
+                                   neighborhood_search, signed_distances, buffer,
+                                   update_callback_used, fixed_system)
+        return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
+                   typeof(smoothing_length), typeof(initial_condition), typeof(mass),
+                   typeof(density), typeof(smoothing_kernel), typeof(neighborhood_search),
+                   typeof(signed_distances),
+                   typeof(update_callback_used)}(initial_condition, mass, density,
+                                                 particle_spacing, smoothing_kernel,
+                                                 smoothing_length,
+                                                 smoothing_length_interpolation,
+                                                 background_pressure, tlsph,
+                                                 signed_distance_field, is_boundary,
+                                                 shift_length, neighborhood_search,
+                                                 signed_distances, buffer,
+                                                 update_callback_used)
     end
+end
+
+function ParticlePackingSystem(shape::InitialCondition;
+                               signed_distance_field::Union{SignedDistanceField,
+                                                            Nothing},
+                               smoothing_kernel=SchoenbergQuinticSplineKernel{ndims(shape)}(),
+                               smoothing_length=shape.particle_spacing,
+                               smoothing_length_interpolation=smoothing_length,
+                               is_boundary=false, boundary_compress_factor=1,
+                               neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
+                               background_pressure, tlsph=true, fixed_system=false)
+    NDIMS = ndims(shape)
+    ELTYPE = eltype(shape)
+    mass = copy(shape.mass)
+    density = copy(shape.density)
+
+    if ndims(smoothing_kernel) != NDIMS
+        throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    # Create neighborhood search for `ParticlePackingSystem` with the positions
+    # of the `SignedDistanceField` as neighbors.
+    # This is an intern NHS and is thus not organized by `Semidiscretization`.
+    if isnothing(signed_distance_field)
+        nhs = nothing
+        @info "No `SignedDistanceField` provided. Particles will not be constraint onto a geoemtric surface."
+    else
+        nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
+               neighborhood_search
+        nhs = copy_neighborhood_search(nhs_,
+                                       compact_support(smoothing_kernel,
+                                                       smoothing_length_interpolation),
+                                       length(signed_distance_field.positions))
+
+        # Initialize neighborhood search with signed distances
+        PointNeighbors.initialize_grid!(nhs, stack(signed_distance_field.positions))
+    end
+
+    # If `distance_signed >= -shift_length`, the particle position is modified
+    # by a surface bounding:
+    # `particle_position -= (distance_signed + shift_length) * normal_vector`,
+    # where `normal_vector` is the normal vector to the surface of the geometry
+    # and `distance_signed` is the level-set value at the particle position,
+    # which means the signed distance to the surface.
+    # Its value is negative if the particle is inside the geometry.
+    # Otherwise (if outside), the value is positive.
+    shift_length = if is_boundary
+        offset = tlsph ? shape.particle_spacing : shape.particle_spacing / 2
+        -boundary_compress_factor * signed_distance_field.max_signed_distance - offset
+    else
+        tlsph ? zero(ELTYPE) : shape.particle_spacing / 2
+    end
+
+    return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
+                                 smoothing_kernel, smoothing_length,
+                                 smoothing_length_interpolation, background_pressure, tlsph,
+                                 signed_distance_field, is_boundary, shift_length, nhs,
+                                 fill(zero(ELTYPE), nparticles(shape)), nothing, Ref(false),
+                                 fixed_system)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
@@ -213,13 +241,6 @@ end
 
 @inline source_terms(system::ParticlePackingSystem) = nothing
 @inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
-
-# Number of particles in the system
-@inline nparticles(system::ParticlePackingSystem) = length(system.initial_condition.mass)
-
-@inline function hydrodynamic_mass(system::ParticlePackingSystem, particle)
-    return system.initial_condition.mass[particle]
-end
 
 # Update from `UpdateCallback` (between time steps)
 update_particle_packing(system, v_ode, u_ode, semi, integrator) = system
