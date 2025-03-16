@@ -79,12 +79,10 @@ function SignedDistanceField(geometry, particle_spacing;
                                use_for_boundary_packing, particle_spacing)
 end
 
-@inline Base.ndims(::SignedDistanceField) = error("`SignedDistanceField` has no dimensionality")
-
 function Base.show(io::IO, system::SignedDistanceField)
     @nospecialize system # reduce precompilation time
 
-    print(io, "SignedDistanceField{", ndims(system), "}()")
+    print(io, "SignedDistanceField()")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", system::SignedDistanceField)
@@ -93,7 +91,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::SignedDistanceField)
     if get(io, :compact, false)
         show(io, system)
     else
-        summary_header(io, "SignedDistanceField{$(ndims(system))}")
+        summary_header(io, "SignedDistanceField")
         summary_line(io, "#particles", length(system.distances))
         summary_line(io, "max signed distance", system.max_signed_distance)
         summary_footer(io)
