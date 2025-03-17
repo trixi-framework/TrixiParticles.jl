@@ -101,7 +101,7 @@ struct ViscosityMorris{ELTYPE}
     end
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityMorris)
+function kinematic_viscosity(system, viscosity::ViscosityMorris, _)
     return viscosity.nu
 end
 
