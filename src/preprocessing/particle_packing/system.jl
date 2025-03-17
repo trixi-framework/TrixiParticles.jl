@@ -39,7 +39,7 @@ For more information on the methods, see description below.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 """
 struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
-                             S, N} <: FluidSystem{NDIMS, IC}
+                             S, N, PR, C} <: FluidSystem{NDIMS, IC}
     initial_condition     :: IC
     smoothing_kernel      :: K
     smoothing_length      :: ELTYPE
@@ -50,8 +50,10 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
     shift_length          :: ELTYPE
     neighborhood_search   :: N
     signed_distances      :: Vector{ELTYPE} # Only for visualization
+    particle_refinement   :: PR
     buffer                :: Nothing
     update_callback_used  :: Ref{Bool}
+    cache                 :: C
 
     function ParticlePackingSystem(shape::InitialCondition;
                                    signed_distance_field::SignedDistanceField,
@@ -62,6 +64,8 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
                                    background_pressure, tlsph=true)
         NDIMS = ndims(shape)
         ELTYPE = eltype(shape)
+
+        particle_refinement = nothing
 
         if ndims(smoothing_kernel) != NDIMS
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -92,12 +96,15 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
             tlsph ? zero(ELTYPE) : 0.5shape.particle_spacing
         end
 
+        cache = (; create_cache_refinement(shape, particle_refinement, smoothing_length)...)
+
         return new{NDIMS, ELTYPE, typeof(shape), typeof(smoothing_kernel),
-                   typeof(signed_distance_field),
-                   typeof(nhs)}(shape, smoothing_kernel, smoothing_length,
-                                background_pressure, tlsph, signed_distance_field,
-                                is_boundary, shift_length, nhs,
-                                fill(zero(ELTYPE), nparticles(shape)), nothing, false)
+                   typeof(signed_distance_field), typeof(nhs), typeof(particle_refinement),
+                   typeof(cache)}(shape, smoothing_kernel, smoothing_length,
+                                  background_pressure, tlsph, signed_distance_field,
+                                  is_boundary, shift_length, nhs,
+                                  fill(zero(ELTYPE), nparticles(shape)),
+                                  particle_refinement, nothing, false, cache)
     end
 end
 
