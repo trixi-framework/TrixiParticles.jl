@@ -83,6 +83,14 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        correction, cache)
 end
 
+function smoothing_length(system, boundary_model::BoundaryModelDummyParticles, particle)
+    return boundary_model.smoothing_length
+end
+
+function smoothing_length(boundary_model::BoundaryModelDummyParticles, particle)
+    return boundary_model.smoothing_length
+end
+
 @doc raw"""
     AdamiPressureExtrapolation(; pressure_offset=0)
 
@@ -505,7 +513,7 @@ end
     resulting_acceleration = neighbor_system.acceleration -
                              current_acceleration(system, particle)
 
-    kernel_weight = smoothing_kernel(boundary_model, distance)
+    kernel_weight = smoothing_kernel(boundary_model, distance, particle)
 
     pressure[particle] += (pressure_offset
                            +
@@ -604,13 +612,6 @@ end
                                          particle)
     # The density is constant when using EDAC
     return density
-end
-
-@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance, particle)
-    (; smoothing_kernel, smoothing_length, correction) = system.boundary_model
-
-    return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                 smoothing_length, correction, system, particle)
 end
 
 @inline function correction_matrix(system::BoundarySystem, particle)

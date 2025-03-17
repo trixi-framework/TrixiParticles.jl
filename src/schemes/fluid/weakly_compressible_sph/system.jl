@@ -50,7 +50,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, B, SRFT, SRFN, C} <:
+                                   V, DD, COR, PF, ST, B, SRFT, SRFN, PR, C} <:
        FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
@@ -58,7 +58,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     density_calculator                :: DC
     state_equation                    :: SE
     smoothing_kernel                  :: K
-    smoothing_length                  :: ELTYPE
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     density_diffusion                 :: DD
@@ -69,6 +68,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
     buffer                            :: B
+    particle_refinement               :: PR # TODO
     cache                             :: C
 end
 
@@ -87,6 +87,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      reference_particle_spacing=0)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
+
+    particle_refinement = nothing # TODO
 
     initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -136,15 +138,18 @@ function WeaklyCompressibleSPHSystem(initial_condition,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
              cache...)
+    cache = (;
+             create_cache_refinement(initial_condition, particle_refinement,
+                                     smoothing_length)..., cache...)
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
-                                       smoothing_kernel, smoothing_length,
+                                       smoothing_kernel,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
                                        pressure_acceleration, nothing,
                                        source_terms, surface_tension, surface_normal_method,
-                                       buffer, cache)
+                                       buffer, particle_refinement, cache)
 end
 
 create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)

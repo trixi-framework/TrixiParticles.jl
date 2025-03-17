@@ -258,7 +258,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["viscosity"] = type2string(system.viscosity)
         write2vtk!(vtk, system.viscosity)
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
-        vtk["smoothing_length"] = system.smoothing_length
+        vtk["smoothing_length"] = smoothing_length(system, 1) # TODO
         vtk["density_calculator"] = type2string(system.density_calculator)
 
         if system isa WeaklyCompressibleSPHSystem
@@ -330,7 +330,7 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
         vtk["lame_lambda"] = system.lame_lambda
         vtk["lame_mu"] = system.lame_mu
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
-        vtk["smoothing_length"] = system.smoothing_length
+        vtk["smoothing_length"] = smoothing_length
     end
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)

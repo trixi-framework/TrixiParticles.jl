@@ -13,7 +13,19 @@ function create_cache_density(ic, ::ContinuityDensity)
     return (;)
 end
 
+function create_cache_refinement(initial_condition, ::Nothing, smoothing_length)
+    return (; smoothing_length)
+end
+
 @propagate_inbounds hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
+
+function smoothing_length(system::FluidSystem, particle)
+    return smoothing_length(system, system.particle_refinement, particle)
+end
+
+function smoothing_length(system::FluidSystem, ::Nothing, particle)
+    return system.cache.smoothing_length
+end
 
 function write_u0!(u0, system::FluidSystem)
     (; initial_condition) = system
