@@ -111,18 +111,9 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
 end
 
-@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance, particle)
-    (; smoothing_kernel, smoothing_length) = system.boundary_model
-
-    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
-end
-
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    (; smoothing_kernel) = system
-
-    return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                 smoothing_length(system, particle),
-                                 system.correction, system, particle)
+    return kernel_grad(system.smoothing_kernel, pos_diff, distance,
+                       smoothing_length(system, particle))
 end
 
 # System update orders. This can be dispatched if needed.
@@ -144,3 +135,12 @@ end
 
 # Only for systems requiring a mandatory callback
 reset_callback_flag!(system) = system
+
+function maximum_smoothing_length(system)
+    return maximum(smoothing_length(system, particle)
+                   for particle in eachparticle(system); init=smoothing_length(system, 1))
+end
+
+function smoothing_length(system, _)
+    return system.smoothing_length
+end

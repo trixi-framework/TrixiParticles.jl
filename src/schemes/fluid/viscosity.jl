@@ -101,7 +101,7 @@ struct ViscosityMorris{ELTYPE}
     end
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityMorris)
+function kinematic_viscosity(system, viscosity::ViscosityMorris, _)
     return viscosity.nu
 end
 
@@ -115,8 +115,6 @@ end
                                                                  sound_speed,
                                                                  m_a, m_b, rho_a, rho_b,
                                                                  grad_kernel)
-    (; smoothing_length) = particle_system
-
     rho_mean = (rho_a + rho_b) / 2
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
@@ -178,7 +176,7 @@ end
 # In: Reports on Progress in Physics (2005), pages 1703-1759.
 # [doi: 10.1088/0034-4885/68/8/r01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
 function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan,
-                             smoothing_length_particle)
+                             smoothing_length)
     (; alpha) = viscosity
     sound_speed = system_sound_speed(system)
 

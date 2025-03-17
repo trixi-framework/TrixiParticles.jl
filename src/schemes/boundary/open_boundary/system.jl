@@ -182,6 +182,10 @@ end
 
 update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
 
+function smoothing_length(system::OpenBoundarySPHSystem, particle)
+    return smoothing_length(system.fluid_system, particle)
+end
+
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
 
 @inline function particle_density(v, system::OpenBoundarySPHSystem, particle)

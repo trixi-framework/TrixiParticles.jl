@@ -209,7 +209,8 @@
                         distance < sqrt(eps()) && return 0.0
 
                         grad_kernel = TrixiParticles.smoothing_kernel_grad(system, pos_diff,
-                                                                           distance)
+                                                                           distance,
+                                                                           particle)
 
                         return m_b * dot(v_diff, grad_kernel)
                     end

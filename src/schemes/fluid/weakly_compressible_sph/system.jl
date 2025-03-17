@@ -89,6 +89,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
+    particle_refinement = nothing # TODO
+
     initial_condition = allocate_buffer(initial_condition, buffer)
 
     NDIMS = ndims(initial_condition)

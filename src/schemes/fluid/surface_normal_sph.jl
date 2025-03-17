@@ -39,7 +39,7 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem, u_system, v,
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = particle_density(v_neighbor_system,
                                             neighbor_system, neighbor)
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
         end
@@ -73,7 +73,7 @@ function calc_normal_akinci!(system::FluidSystem, neighbor_system::BoundarySyste
                            nhs,
                            points=eachparticle(neighbor_system)) do particle, neighbor,
                                                                     pos_diff, distance
-        colorfield[particle] += smoothing_kernel(system, distance)
+        colorfield[particle] += smoothing_kernel(system, distance, particle)
     end
 
     @threaded neighbor_system for bnd_particle in eachparticle(neighbor_system)
@@ -90,7 +90,7 @@ function calc_normal_akinci!(system::FluidSystem, neighbor_system::BoundarySyste
         if colorfield[neighbor] / maximum_colorfield > 0.1
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
             for i in 1:ndims(system)
                 cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
             end
