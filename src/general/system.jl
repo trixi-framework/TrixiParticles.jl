@@ -140,3 +140,7 @@ function maximum_smoothing_length(system)
     return maximum(smoothing_length(system, particle)
                    for particle in eachparticle(system); init=smoothing_length(system, 1))
 end
+
+function smoothing_length(system, _)
+    return system.smoothing_length
+end

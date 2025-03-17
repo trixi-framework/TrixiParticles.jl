@@ -160,10 +160,6 @@ end
     return ELTYPE
 end
 
-function smoothing_length(system::TotalLagrangianSPHSystem, particle)
-    return system.smoothing_length
-end
-
 @inline function v_nvariables(system::TotalLagrangianSPHSystem)
     return ndims(system)
 end

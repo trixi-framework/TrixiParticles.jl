@@ -68,7 +68,8 @@ function interpolated_pressure(coord_top, coord_bottom, v, u, t, system)
     n_interpolation_points = 10
     interpolated_values = interpolate_line(coord_top, coord_bottom,
                                            n_interpolation_points, semi, system, v, u,
-                                           smoothing_length=2.0 * system.smoothing_length,
+                                           smoothing_length=2.0 *
+                                                            maximum_smoothing_length(system),
                                            clip_negative_pressure=true)
     return sum(map(x -> isnan(x) ? 0.0 : x, interpolated_values.pressure)) /
            n_interpolation_points
