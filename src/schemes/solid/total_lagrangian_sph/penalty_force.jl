@@ -26,7 +26,7 @@ end
     volume_particle = m_a / rho_a
     volume_neighbor = m_b / rho_b
 
-    kernel_weight = smoothing_kernel(system, initial_distance)
+    kernel_weight = smoothing_kernel(system, initial_distance, particle)
 
     J_a = deformation_gradient(system, particle)
     J_b = deformation_gradient(system, neighbor)

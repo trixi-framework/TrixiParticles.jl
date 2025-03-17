@@ -156,7 +156,8 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
             volume = m_b / rho_b
 
             kernel_correction_coefficient[particle] += volume *
-                                                       smoothing_kernel(system, distance)
+                                                       smoothing_kernel(system, distance,
+                                                                        particle)
         end
     end
 
@@ -218,7 +219,8 @@ function compute_correction_values!(system,
             volume = m_b / rho_b
 
             kernel_correction_coefficient[particle] += volume *
-                                                       smoothing_kernel(system, distance)
+                                                       smoothing_kernel(system, distance,
+                                                                        particle)
             if distance > sqrt(eps())
                 tmp = volume * smoothing_kernel_grad(system, pos_diff, distance, particle)
                 for i in axes(dw_gamma, 1)

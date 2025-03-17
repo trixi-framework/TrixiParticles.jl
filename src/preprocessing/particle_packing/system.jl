@@ -220,7 +220,7 @@ function constrain_particles_onto_surface!(u, system::ParticlePackingSystem)
             distance2 > search_radius2 && continue
 
             distance = sqrt(distance2)
-            kernel_weight = smoothing_kernel(system, distance)
+            kernel_weight = smoothing_kernel(system, distance, particle)
 
             distance_signed += distances[neighbor] * kernel_weight
 

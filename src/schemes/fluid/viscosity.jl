@@ -218,7 +218,6 @@ end
                                              particle, neighbor, pos_diff,
                                              distance, sound_speed, m_a, m_b,
                                              rho_a, rho_b, grad_kernel)
-
     epsilon = viscosity.epsilon
 
     smoothing_length_particle = smoothing_length(particle_system, particle)

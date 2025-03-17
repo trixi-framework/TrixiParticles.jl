@@ -135,3 +135,8 @@ end
 
 # Only for systems requiring a mandatory callback
 reset_callback_flag!(system) = system
+
+function maximum_smoothing_length(system)
+    return maximum(smoothing_length(system, particle)
+                   for particle in eachparticle(system); init=smoothing_length(system, 1))
+end

@@ -23,7 +23,7 @@
                                                    smoothing_length, viscosity=viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
-                                                           distance, particle)
+                                                           distance, 1)
 
         dv = viscosity(sound_speed, v_diff, pos_diff, distance,
                        rho_mean, rho_a, rho_b, smoothing_length,
@@ -40,7 +40,7 @@
                                                    smoothing_length, viscosity=viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
-                                                           distance, particle)
+                                                           distance, 1)
 
         dv = viscosity(sound_speed, v_diff, pos_diff, distance,
                        rho_mean, rho_a, rho_b, smoothing_length,
@@ -56,7 +56,7 @@
                                                    smoothing_length, viscosity=viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
-                                                           distance, particle)
+                                                           distance, 1)
         v = fluid.velocity
 
         m_a = 0.01

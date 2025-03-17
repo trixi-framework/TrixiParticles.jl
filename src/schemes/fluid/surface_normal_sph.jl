@@ -73,7 +73,7 @@ function calc_normal_akinci!(system::FluidSystem, neighbor_system::BoundarySyste
                            nhs,
                            points=eachparticle(neighbor_system)) do particle, neighbor,
                                                                     pos_diff, distance
-        colorfield[particle] += smoothing_kernel(system, distance)
+        colorfield[particle] += smoothing_kernel(system, distance, particle)
     end
 
     @threaded neighbor_system for bnd_particle in eachparticle(neighbor_system)
