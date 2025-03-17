@@ -54,6 +54,7 @@ include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
 include("preprocessing/preprocessing.jl")
+include("general/resize.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition

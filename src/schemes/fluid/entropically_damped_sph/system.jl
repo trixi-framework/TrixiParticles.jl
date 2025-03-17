@@ -119,14 +119,13 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
 
     nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
-    cache = create_cache_density(initial_condition, density_calculator)
-    cache = (;
-             create_cache_edac(initial_condition, transport_velocity)...,
+    cache = (; create_cache_edac(initial_condition, transport_velocity)...,
+             create_cache_density(initial_condition, density_calculator)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
-             cache...)
+             create_cache_resize(n_particles)...)
 
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                                 typeof(density_calculator), typeof(smoothing_kernel),
