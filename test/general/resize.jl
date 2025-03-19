@@ -17,6 +17,8 @@
         delete_candidates = [45:49, 0:0, 78:100, 0:0, 1:15, 1:99]
         resized_nparticles = origin_nparticles .- [5, 0, 23, 0, 15, 99]
 
+        @test [95, 100, 77, 100, 85, 1] == resized_nparticles
+
         for (i, system) in enumerate(systems)
             delete_candidates[i] == 0:0 && continue
 

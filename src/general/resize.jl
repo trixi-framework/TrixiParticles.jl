@@ -16,7 +16,7 @@ function Base.resize!(semi::Semidiscretization, v_ode, u_ode, _v_ode, _u_ode)
     ranges_u_old = copy(semi.ranges_u)
 
     # Set ranges after resizing the systems
-    for i in 1:length(systems)
+    for i in eachindex(systems)
         semi.ranges_v[i] = ranges_v_new[i]
         semi.ranges_u[i] = ranges_u_new[i]
     end
