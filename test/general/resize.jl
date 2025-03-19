@@ -11,11 +11,11 @@
 
     v_ode, u_ode = ode.u0.x
 
-    resized_nparticles = [nparticles(system) for system in systems] .-
-                         [i for i in [5, 0, 23, 0, 15, 99]]
+    origin_nparticles = [nparticles(system) for system in systems]
 
     @testset verbose=true "`deleteat!`" begin
         delete_candidates = [45:49, 0:0, 78:100, 0:0, 1:15, 1:99]
+        resized_nparticles = origin_nparticles .- [5, 0, 23, 0, 15, 99]
 
         for (i, system) in enumerate(systems)
             delete_candidates[i] == 0:0 && continue
@@ -23,8 +23,6 @@
             resize!(system.cache.delete_candidates, nparticles(system))
             system.cache.delete_candidates[delete_candidates[i]] .= true
         end
-
-        deleteat!(semi, v_ode, u_ode, copy(v_ode), copy(u_ode))
 
         # We can't compare the coordinates, since the order of the particle IDs has changed.
         # However, plotting both shows that they coincide:
@@ -50,7 +48,9 @@
              2.95]
         ]
 
-        for i in eachindex(systems)
+        deleteat!(semi, v_ode, u_ode, copy(v_ode), copy(u_ode))
+
+        @testset verbose=true "`system $i" for i in eachindex(systems)
             @test nparticles(systems[i]) == resized_nparticles[i]
             @test isapprox(coords[i], TrixiParticles.wrap_u(u_ode, systems[i], semi))
         end
@@ -58,11 +58,11 @@
 
     @testset verbose=true "`resize!`" begin
         additional_capacities = [5, 0, 23, 0, 15, 99]
-        for i in eachindex(systems)
+        @testset verbose=true "`system $i" for i in eachindex(systems)
             systems[i].cache.additional_capacity[] = additional_capacities[i]
             resize!(semi, v_ode, u_ode, copy(v_ode), copy(u_ode))
 
-            @test nparticles(systems[i]) == resized_nparticles[i] + additional_capacities[i]
+            @test nparticles(systems[i]) == origin_nparticles[i]
         end
     end
 end
