@@ -150,6 +150,7 @@ end
 Base.parent(A::ThreadedBroadcastArray) = A.array
 Base.pointer(A::ThreadedBroadcastArray) = pointer(parent(A))
 Base.size(A::ThreadedBroadcastArray) = size(parent(A))
+Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
 
 function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
     return ThreadedBroadcastArray(similar(A.array, T))
@@ -193,13 +194,17 @@ function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A}}) where
     return Broadcast.ArrayStyle{ThreadedBroadcastArray}()
 end
 
+# Based on copyto!(dest::AbstractArray, bc::Broadcasted{Nothing})
+# defined in base/broadcast.jl.
 function Broadcast.copyto!(dest::ThreadedBroadcastArray,
                            bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{ThreadedBroadcastArray}})
     # Check bounds
     axes(dest.array) == axes(bc) || Broadcast.throwdm(axes(dest.array), axes(bc))
 
-    @threaded dest.array for i in eachindex(dest.array)
-        @inbounds dest.array[i] = bc[i]
+    bc_ = Base.Broadcast.preprocess(dest.array, bc)
+
+    @threaded dest.array for i in eachindex(bc_)
+        @inbounds dest.array[i] = bc_[i]
     end
     return dest
 end
