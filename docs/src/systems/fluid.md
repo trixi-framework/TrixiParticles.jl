@@ -97,6 +97,7 @@ experimentally through techniques such as the pendant drop method, the Wilhelmy 
 each of which relates a measurable force or change in shape to the fluid’s surface tension. For pure substances,
 tabulated reference values of ``\sigma`` at given temperatures are commonly used, while for mixtures or complex fluids,
 direct experimental measurements or values can be estimated from empirical equation (see [Poling](@cite Poling2001) or [Lange](@cite Lange2005)).
+In the following table some values are shown for reference. The values marked with a '~' are complex mixtures that are estimated by an empirical equation (see [Poling](@cite Poling2001)).
 
 | **Fluid**    | **Surface Tension (``\sigma``) [N/m at 20°C]** |
 |--------------|----------------------------------------------:|
