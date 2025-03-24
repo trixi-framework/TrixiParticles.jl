@@ -133,6 +133,11 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
     solution_callback.latest_saved_iter = -1
     solution_callback.git_hash[] = compute_git_hash()
 
+    # Write metadata to JSON-file
+    if integrator.iter == 0
+        trixi2json(solution_callback, integrator)
+    end
+
     # Save initial solution
     if solution_callback.save_initial_solution
         # Update systems to compute quantities like density and pressure

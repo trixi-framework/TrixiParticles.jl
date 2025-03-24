@@ -52,6 +52,7 @@ include("schemes/schemes.jl")
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
+include("visualization/write2json.jl")
 include("visualization/recipes_plots.jl")
 include("preprocessing/preprocessing.jl")
 
@@ -77,7 +78,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 
 export BoundaryMovement
 export examples_dir, validation_dir
-export trixi2vtk
+export trixi2vtk, trixi2json
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
