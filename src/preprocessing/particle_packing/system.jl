@@ -142,10 +142,8 @@ end
 
 update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
-function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
-    if write_meta_data
+function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem)
         vtk["signed_distances"] = system.signed_distances
-    end
 end
 
 write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))

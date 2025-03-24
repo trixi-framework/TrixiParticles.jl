@@ -110,7 +110,7 @@ end
 
 TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem; write_meta_data=true)
+function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
     (; mass) = system
 
     vtk["velocity"] = v
