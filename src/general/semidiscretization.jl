@@ -892,3 +892,13 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
     end
 end
+
+function check_configuration(system::OpenBoundarySPHSystem, systems)
+    (; boundary_model, boundary_zone) = system
+
+    if boundary_model isa BoundaryModelLastiwka &&
+       boundary_zone isa BoundaryZone{BidirectionalFlow}
+        throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
+                            "Please specify inflow and outflow."))
+    end
+end
