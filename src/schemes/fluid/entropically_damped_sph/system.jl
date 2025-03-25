@@ -115,13 +115,13 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
     end
 
-        ideal_neighbor_count_ = 0
-        if reference_particle_spacing > 0.0
-            ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS),
-                                                         reference_particle_spacing,
-                                                         compact_support(smoothing_kernel,
-                                                                         smoothing_length))
-        end
+    ideal_neighbor_count_ = 0
+    if reference_particle_spacing > 0.0
+        ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS),
+                                                     reference_particle_spacing,
+                                                     compact_support(smoothing_kernel,
+                                                                     smoothing_length))
+    end
 
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                      density_calculator,
@@ -148,9 +148,9 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 typeof(cache)}(initial_condition, mass, density_calculator,
                                                smoothing_kernel, smoothing_length,
                                                ideal_neighbor_count_,
-                                           color_value, sound_speed, viscosity, nu_edac,
+                                               color_value, sound_speed, viscosity, nu_edac,
                                                acceleration_,
-                                           nothing,
+                                               nothing,
                                                pressure_acceleration, transport_velocity,
                                                source_terms, surface_tension,
                                                surface_normal_method, buffer, cache)
