@@ -838,7 +838,8 @@ end
 check_configuration(system, systems) = nothing
 
 function check_system_color(systems)
-    if any(system isa FluidSystem && !(system isa ParticlePackingSystem) && !isnothing(system.surface_tension)
+    if any(system isa FluidSystem && !(system isa ParticlePackingSystem) &&
+           !isnothing(system.surface_tension)
            for system in systems)
 
         # System indices of all systems that are either a fluid or a boundary system
