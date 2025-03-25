@@ -281,7 +281,8 @@
                                        extra_callback=steady_state_reached,
                                        tspan=(0.0, 1.5))
 
-        @test sol.t[end] < 1.0
+        # Make sure that the simulation is terminated after a reasonable amount of time
+        @test 0.1 < sol.t[end] < 1.0
         @test sol.retcode == ReturnCode.Terminated
     end
 
@@ -295,7 +296,8 @@
                                        extra_callback=steady_state_reached,
                                        tspan=(0.0, 1.5))
 
-        @test sol.t[end] < 1.0
+        # Make sure that the simulation is terminated after a reasonable amount of time
+        @test 0.1 < sol.t[end] < 1.0
         @test sol.retcode == ReturnCode.Terminated
     end
 
