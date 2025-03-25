@@ -142,8 +142,7 @@ end
                                 particle_system::FluidSystem,
                                 neighbor_system::BoundarySystem, particle, neighbor,
                                 pos_diff, distance)
-    (; smoothing_length, smoothing_kernel) = particle_system
-    (; adhesion_coefficient, boundary_model) = neighbor_system
+    (; adhesion_coefficient) = neighbor_system
 
     # No adhesion with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
@@ -153,7 +152,8 @@ end
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-    support_radius = compact_support(smoothing_kernel, smoothing_length)
+    support_radius = compact_support(particle_system.smoothing_kernel,
+                                     smoothing_length(particle_system, particle))
     return adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff, distance,
                                  adhesion_coefficient)
 end
