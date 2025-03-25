@@ -20,8 +20,9 @@ end
 @inline merge_particles!(system::FluidSystem, ::Nothing, semi, v, u) = system
 
 @inline function merge_particles!(system::FluidSystem, particle_refinement, semi, v, u)
-    (; delete_candidates) = system.particle_refinement
+    (; delete_candidates) = system.cache
 
+    resize!(delete_candidates, nparticles(system))
     delete_candidates .= false
 
     # Merge particles iteratively
@@ -34,7 +35,7 @@ end
 
 function merge_particles_inner!(system, particle_refinement, semi, v, u)
     (; smoothing_kernel, cache) = system
-    (; mass_ref, max_spacing_ratio, merge_candidates, delete_candidates) = particle_refinement
+    (; mass_ref, max_spacing_ratio, merge_candidates) = particle_refinement
 
     set_zero!(merge_candidates)
 
@@ -45,7 +46,7 @@ function merge_particles_inner!(system, particle_refinement, semi, v, u)
     foreach_point_neighbor(system, system, system_coords, system_coords,
                            neighborhood_search) do particle, neighbor, pos_diff, distance
         particle == neighbor && return
-        delete_candidates[particle] && return
+        cache.delete_candidates[particle] && return
 
         m_a = hydrodynamic_mass(system, particle)
         m_b = hydrodynamic_mass(system, neighbor)
@@ -111,7 +112,7 @@ function merge_particles_inner!(system, particle_refinement, semi, v, u)
 
                 system.mass[particle] = m_merge
             else
-                delete_candidates[candidate] = true
+                cache.delete_candidates[candidate] = true
             end
         end
     end

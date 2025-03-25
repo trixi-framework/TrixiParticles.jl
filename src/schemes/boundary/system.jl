@@ -431,3 +431,9 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborh
     end
     return system
 end
+
+# TODO
+@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance, particle)
+    return kernel_grad(system.boundary_model.smoothing_kernel, pos_diff, distance,
+                       smoothing_length(system, particle))
+end

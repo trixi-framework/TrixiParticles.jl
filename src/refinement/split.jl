@@ -42,6 +42,9 @@ end
     particle_refinement.n_new_particles[] = length(split_candidates) *
                                             (n_children - center_particle)
 
+    # Set capacity for resizing
+    system.cache.additional_capacity[] = particle_refinement.n_new_particles[]
+
     return system
 end
 

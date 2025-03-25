@@ -180,7 +180,7 @@ function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan,
     (; alpha) = viscosity
     sound_speed = system_sound_speed(system)
 
-    return alpha * smoothing_length_particle * sound_speed / (2 * ndims(system) + 4)
+    return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
 end
 
 @doc raw"""

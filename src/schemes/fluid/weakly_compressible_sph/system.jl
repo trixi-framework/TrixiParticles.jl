@@ -89,8 +89,6 @@ function WeaklyCompressibleSPHSystem(initial_condition,
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
-    particle_refinement = nothing # TODO
-
     initial_condition = allocate_buffer(initial_condition, buffer)
 
     NDIMS = ndims(initial_condition)
@@ -128,20 +126,18 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                                                      NDIMS, ELTYPE,
                                                                      correction)
 
-    cache = create_cache_density(initial_condition, density_calculator)
     cache = (;
              create_cache_wcsph(correction, initial_condition.density, NDIMS,
-                                n_particles)..., cache...)
-    cache = (;
+                                n_particles)...,
+             create_cache_density(initial_condition, density_calculator)...,
              create_cache_wcsph(surface_tension, ELTYPE, NDIMS, n_particles)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
-             cache...)
-    cache = (;
              create_cache_refinement(initial_condition, particle_refinement,
-                                     smoothing_length)..., cache...)
+                                     smoothing_length)...,
+             create_cache_resize(n_particles)...)
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,

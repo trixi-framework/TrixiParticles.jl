@@ -29,8 +29,8 @@
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
         # Verification
-        @test semi.ranges_u == (1:6, 7:18)
-        @test semi.ranges_v == (1:6, 7:12)
+        @test semi.ranges_u == [1:6, 7:18]
+        @test semi.ranges_v == [1:6, 7:12]
 
         nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
                                                             eachpoint=1:2),

@@ -2,6 +2,14 @@
     set_particle_density!(v, system, system.density_calculator, particle, density)
 end
 
+function create_cache_resize(n_particles)
+    additional_capacity = Ref(0)
+    delete_candidates = Bool[]
+    values_conserved = Ref(false)
+
+    return (; additional_capacity, delete_candidates, values_conserved)
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
     density = copy(initial_condition.density)
 

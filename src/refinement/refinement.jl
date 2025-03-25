@@ -9,7 +9,6 @@ struct ParticleRefinement{SP, RC, ELTYPE}
     max_spacing_ratio   :: ELTYPE
     mass_ref            :: Vector{ELTYPE} # length(mass_ref) == nparticles
     merge_candidates    :: Vector{Int}    # length(merge_candidates) == nparticles
-    delete_candidates   :: Vector{Bool}   # length(delete_candidates) == nparticles
     split_candidates    :: Vector{Int}    # variable length
     n_new_particles     :: Ref{Int}
 end
@@ -17,14 +16,13 @@ end
 function ParticleRefinement(; refinement_pattern, max_spacing_ratio,
                             refinement_criteria=SpatialRefinementCriterion())
     mass_ref = Vector{eltype(max_spacing_ratio)}()
-    delete_candidates = Vector{Bool}()
 
     if !(refinement_criteria isa Tuple)
         refinement_criteria = (refinement_criteria,)
     end
 
     return ParticleRefinement(refinement_pattern, refinement_criteria, max_spacing_ratio,
-                              mass_ref, Int[], delete_candidates, Int[], Ref(0))
+                              mass_ref, Int[], Int[], Ref(0))
 end
 
 resize_refinement!(system) = system
@@ -37,8 +35,8 @@ resize_refinement!(system, ::Nothing) = system
 
 function resize_refinement!(system, particle_refinement)
     resize!(particle_refinement.mass_ref, nparticles(system))
-    resize!(particle_refinement.delete_candidates, nparticles(system))
     resize!(particle_refinement.merge_candidates, nparticles(system))
+    resize!(system.cache.smoothing_length, nparticles(system))
 
     particle_refinement.mass_ref .= system.mass
 

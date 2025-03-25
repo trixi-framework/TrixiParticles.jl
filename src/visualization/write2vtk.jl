@@ -123,6 +123,10 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         # Store particle index
         vtk["index"] = active_particles(system)
         vtk["time"] = t
+        vtk["particle_spacing"] = [particle_spacing(system, particle)
+                                   for particle in active_particles(system)]
+        vtk["smoothing_length"] = [smoothing_length(system, particle)
+                                   for particle in active_particles(system)]
 
         if write_meta_data
             vtk["solver_version"] = git_hash
