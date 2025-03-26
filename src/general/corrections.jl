@@ -331,7 +331,7 @@ end
 
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                              coordinates, v_ode, u_ode, semi,
-                                             correction, smoothing_length, smoothing_kernel)
+                                             correction, smoothing_kernel)
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -347,23 +347,24 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                                        pos_diff, distance
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      particle_density(v_neighbor_system, neighbor_system, neighbor)
+            smoothing_length_ = smoothing_length(system, particle)
 
             function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance,
-                                         smoothing_length, system, particle)
+                                         smoothing_length_, system, particle)
                 return smoothing_kernel_grad(system, pos_diff, distance, particle)
             end
 
             # Compute gradient of corrected kernel
             function compute_grad_kernel(correction::MixedKernelGradientCorrection,
                                          smoothing_kernel, pos_diff, distance,
-                                         smoothing_length, system, particle)
+                                         smoothing_length_, system, particle)
                 return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                             smoothing_length, KernelCorrection(), system,
+                                             smoothing_length_, KernelCorrection(), system,
                                              particle)
             end
 
             grad_kernel = compute_grad_kernel(correction, smoothing_kernel, pos_diff,
-                                              distance, smoothing_length, system, particle)
+                                              distance, smoothing_length_, system, particle)
 
             iszero(grad_kernel) && return
 
