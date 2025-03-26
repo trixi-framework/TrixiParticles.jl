@@ -828,9 +828,9 @@ function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(tr
 end
 
 function check_configuration(systems)
-    color_not_zero = false
-    n_fluid_and_bnd_systems = 0
-    uses_surface_tension_model = false
+    foreach_system(systems) do system
+        check_configuration(system, systems)
+    end
 
     check_system_color(systems)
 end
@@ -846,7 +846,7 @@ function check_system_color(systems)
         system_ids = findall(system isa Union{FluidSystem, BoundarySPHSystem}
                              for system in systems)
 
-        if length(system_ids) > 1 && sum(i -> systems[i].color, system_ids) == 0
+        if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
             throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
         end
     end

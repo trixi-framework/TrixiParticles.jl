@@ -60,7 +60,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     state_equation                    :: SE
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
-    color                             :: Int
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     density_diffusion                 :: DD
@@ -122,17 +121,6 @@ function WeaklyCompressibleSPHSystem(initial_condition,
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
     end
 
-    # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
-    if reference_particle_spacing > 0.0
-        # `reference_particle_spacing` has to be set for surface normals to be determined
-        cache = (;
-                 cache...,  # Existing cache fields
-                 ideal_neighbor_count=Int64(ideal_neighbor_count(Val(NDIMS),
-                                                                 reference_particle_spacing,
-                                                                 compact_support(smoothing_kernel,
-                                                                                 smoothing_length))))
-    end
-
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
@@ -147,12 +135,23 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             color=Int64(color_value),
              cache...)
+
+    # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
+    if reference_particle_spacing > 0.0
+        # `reference_particle_spacing` has to be set for surface normals to be determined
+        cache = (;
+                 cache...,  # Existing cache fields
+                 ideal_neighbor_count=Int64(ideal_neighbor_count(Val(NDIMS),
+                                                                 reference_particle_spacing,
+                                                                 compact_support(smoothing_kernel,
+                                                                                 smoothing_length))))
+    end
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
                                        smoothing_kernel, smoothing_length,
-                                       color_value,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
                                        pressure_acceleration, nothing,

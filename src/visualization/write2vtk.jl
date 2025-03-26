@@ -251,7 +251,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["surf_normal"] = [surface_normal(system, particle)
                               for particle in eachparticle(system)]
         vtk["neighbor_count"] = system.cache.neighbor_count
-        vtk["color"] = system.color
+        vtk["color"] = system.cache.color
     end
 
     if system.surface_tension isa SurfaceTensionMorris ||

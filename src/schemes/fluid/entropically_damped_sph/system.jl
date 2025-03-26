@@ -58,7 +58,6 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
-    color                             :: Int
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -128,6 +127,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             color=Int64(color_value),
              cache...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -149,7 +149,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 typeof(buffer),
                                 typeof(cache)}(initial_condition, mass, density_calculator,
                                                smoothing_kernel, smoothing_length,
-                                               color_value, sound_speed, viscosity, nu_edac,
+                                               sound_speed, viscosity, nu_edac,
                                                acceleration_,
                                                nothing,
                                                pressure_acceleration, transport_velocity,

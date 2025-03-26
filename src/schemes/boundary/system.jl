@@ -21,20 +21,19 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
     movement             :: M
     ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     adhesion_coefficient :: ELTYPE
-    color                :: Int64
     cache                :: CA
     buffer               :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, color, cache, buffer)
+                               ismoving, adhesion_coefficient, cache, buffer)
         ELTYPE = eltype(coordinates)
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
             typeof(coordinates), typeof(movement), typeof(ismoving),
             typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
-                           ismoving, adhesion_coefficient, color, cache, buffer)
+                           ismoving, adhesion_coefficient, cache, buffer)
     end
 end
 
@@ -45,6 +44,7 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
     ismoving = Ref(!isnothing(movement))
 
     cache = create_cache_boundary(movement, initial_condition)
+    cache = (cache..., color=Int64(color_value))
 
     if movement !== nothing && isempty(movement.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
@@ -55,7 +55,7 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
 
     # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, color_value, cache, nothing)
+                             ismoving, adhesion_coefficient, cache, nothing)
 end
 
 function Base.show(io::IO, system::BoundarySPHSystem)
@@ -65,7 +65,7 @@ function Base.show(io::IO, system::BoundarySPHSystem)
     print(io, system.boundary_model)
     print(io, ", ", system.movement)
     print(io, ", ", system.adhesion_coefficient)
-    print(io, ", ", system.color)
+    print(io, ", ", system.cache.color)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -82,7 +82,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
                      isnothing(system.movement) ? "nothing" :
                      string(system.movement.movement_function))
         summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
-        summary_line(io, "color", system.color)
+        summary_line(io, "color", system.cache.color)
         summary_footer(io)
     end
 end
@@ -422,13 +422,13 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborh
                                neighborhood_search,
                                points=eachparticle(system)) do particle, neighbor, pos_diff,
                                                                distance
-            system.boundary_model.cache.colorfield_bnd[particle] += system.initial_condition.mass[particle] /
+            cache.colorfield_bnd[particle] += system.initial_condition.mass[particle] /
                                                                     system.initial_condition.density[particle] *
-                                                                    system.color *
+                                                                    system.cache.color *
                                                                     kernel(smoothing_kernel,
                                                                            distance,
                                                                            smoothing_length)
-            system.boundary_model.cache.neighbor_count[particle] += 1
+            cache.neighbor_count[particle] += 1
         end
     end
     return system
