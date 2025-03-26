@@ -40,16 +40,15 @@ BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
 struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
-    pressure             :: VECTOR # Vector{ELTYPE}
-    hydrodynamic_mass    :: VECTOR # Vector{ELTYPE}
-    state_equation       :: SE
-    density_calculator   :: DC
-    smoothing_kernel     :: K
-    smoothing_length     :: ELTYPE
-    ideal_neighbor_count :: Int
-    viscosity            :: V
-    correction           :: COR
-    cache                :: C
+    pressure           :: VECTOR # Vector{ELTYPE}
+    hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
+    state_equation     :: SE
+    density_calculator :: DC
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    viscosity          :: V
+    correction         :: COR
+    cache              :: C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -70,25 +69,22 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
-    ideal_neighbor_count_ = 0
     if reference_particle_spacing > 0.0
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
+                 ideal_neighbor_count=Int64(ideal_neighbor_count(Val(ndims(smoothing_kernel)),
+                                                                 reference_particle_spacing,
+                                                                 compact_support(smoothing_kernel,
+                                                                                 smoothing_length))),
                  colorfield_bnd=zeros(ELTYPE, n_particles),
                  colorfield=zeros(ELTYPE, n_particles),
                  neighbor_count=zeros(ELTYPE, n_particles))
-
-        ideal_neighbor_count_ = ideal_neighbor_count(Val(ndims(smoothing_kernel)),
-                                                     reference_particle_spacing,
-                                                     compact_support(smoothing_kernel,
-                                                                     smoothing_length))
     end
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, ideal_neighbor_count_, viscosity,
-                                       correction, cache)
+                                       smoothing_length, viscosity, correction, cache)
 end
 
 @doc raw"""

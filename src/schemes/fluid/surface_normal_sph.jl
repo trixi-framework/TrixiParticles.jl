@@ -148,8 +148,9 @@ function remove_invalid_normals!(system::FluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
                                                         SurfaceTensionMomentumMorris},
                                  surface_normal_method::ColorfieldSurfaceNormal)
-    (; cache, smoothing_length, smoothing_kernel, ideal_neighbor_count) = system
+    (; cache, smoothing_length, smoothing_kernel) = system
     (; ideal_density_threshold, interface_threshold) = surface_normal_method
+    (; ideal_neighbor_count, neighbor_count) = cache
 
     # We remove invalid normals i.e. they have a small norm (eq. 20)
     normal_condition2 = (interface_threshold /
@@ -160,7 +161,7 @@ function remove_invalid_normals!(system::FluidSystem,
         # Heuristic condition if there is no gas phase to find the free surface.
         # We remove normals for particles which have a lot of support e.g. they are in the interior.
         if ideal_density_threshold > 0 &&
-           ideal_density_threshold * ideal_neighbor_count < cache.neighbor_count[particle]
+           ideal_density_threshold * ideal_neighbor_count < neighbor_count[particle]
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
