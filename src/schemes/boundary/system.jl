@@ -130,27 +130,28 @@ is_moving(t) = t < 1.5
 movement = BoundaryMovement(movement_function, is_moving)
 
 # output
-BoundaryMovement{typeof(movement_function), typeof(is_moving)}(movement_function, is_moving, Int64[])
+BoundaryMovement{typeof(movement_function), typeof(is_moving), Vector{Int64}}(movement_function, is_moving, Int64[])
 ```
 """
-struct BoundaryMovement{MF, IM}
+struct BoundaryMovement{MF, IM, MP}
     movement_function :: MF
     is_moving         :: IM
-    moving_particles  :: Vector{Int}
+    moving_particles  :: MP # Vector{Int}
+end
 
-    function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
-        if !(movement_function(0.0) isa SVector)
-            @warn "Return value of `movement_function` is not of type `SVector`. " *
-                  "Returning regular `Vector`s causes allocations and significant performance overhead."
-        end
-
-        # Default value is an empty vector, which will be resized in the `BoundarySPHSystem`
-        # constructor to move all particles.
-        moving_particles = isnothing(moving_particles) ? [] : vec(moving_particles)
-
-        return new{typeof(movement_function),
-                   typeof(is_moving)}(movement_function, is_moving, moving_particles)
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
+    if !(movement_function(0.0) isa SVector)
+        @warn "Return value of `movement_function` is not of type `SVector`. " *
+              "Returning regular `Vector`s causes allocations and significant performance overhead."
     end
+
+    # Default value is an empty vector, which will be resized in the `BoundarySPHSystem`
+    # constructor to move all particles.
+    moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
+
+    return BoundaryMovement(movement_function, is_moving, moving_particles)
 end
 
 create_cache_boundary(::Nothing, initial_condition) = (;)
