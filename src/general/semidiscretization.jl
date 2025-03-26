@@ -289,14 +289,13 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
 
     if isnothing(data_type)
-        # Use CPU vectors and the optimized CPU code
+        # Use regular CPU vectors. There are wrapped in `ThreadedBroadcastArray`s
+        # to make broadcasting (which is done by OrdinaryDiffEq.jl) multithreaded.
+        # See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details.
         u0_ode_ = Vector{ELTYPE}(undef, sum(sizes_u))
         v0_ode_ = Vector{ELTYPE}(undef, sum(sizes_v))
         u0_ode = ThreadedBroadcastArray(u0_ode_)
         v0_ode = ThreadedBroadcastArray(v0_ode_)
-
-        # u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
-        # v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
     else
         # Use the specified data type, e.g., `CuArray` or `ROCArray`
         u0_ode = data_type{ELTYPE}(undef, sum(sizes_u))
