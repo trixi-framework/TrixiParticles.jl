@@ -95,10 +95,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
     function RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
                              velocity=zeros(length(fluid_size)), fluid_mass=nothing,
-                             pressure=0.0,
+                             pressure=0,
                              acceleration=nothing, state_equation=nothing,
                              boundary_density=fluid_density,
-                             n_layers=1, spacing_ratio=1.0,
+                             n_layers=1, spacing_ratio=1,
                              min_coordinates=zeros(length(fluid_size)),
                              faces=Tuple(trues(2 * length(fluid_size))))
         NDIMS = length(fluid_size)

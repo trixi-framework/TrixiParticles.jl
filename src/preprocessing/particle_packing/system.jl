@@ -126,6 +126,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
     end
 end
 
+@inline function Base.eltype(::ParticlePackingSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
+end
+
 @inline function v_nvariables(system::ParticlePackingSystem)
     return ndims(system) * 2
 end
