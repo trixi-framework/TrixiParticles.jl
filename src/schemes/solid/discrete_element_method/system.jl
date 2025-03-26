@@ -93,6 +93,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::DEMSystem)
     end
 end
 
+@inline function Base.eltype(::DEMSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
+end
+
 timer_name(::DEMSystem) = "solid"
 
 function TrixiParticles.write_u0!(u0, system::DEMSystem)

@@ -36,6 +36,7 @@ It offers intuitive configuration, robust pre- and post-processing, and vendor-a
 - Particle sampling of complex geometries from `.stl` and `.asc` files.
 - Output formats:
   - VTK
+- Support for GPUs by Nvidia, AMD and Apple (experimental)
 
 ## Examples
 We provide several example simulation setups in the `examples` folder (which can be accessed from Julia via `examples_dir()`).

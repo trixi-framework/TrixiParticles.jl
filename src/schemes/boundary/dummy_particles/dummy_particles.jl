@@ -84,32 +84,32 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 end
 
 @doc raw"""
-    AdamiPressureExtrapolation(; pressure_offset=0.0)
+    AdamiPressureExtrapolation(; pressure_offset=0)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
-- `pressure_offset=0.0`: Sometimes it is necessary to artificially increase the boundary pressure
-                         to prevent penetration, which is possible by increasing this value.
+- `pressure_offset=0`: Sometimes it is necessary to artificially increase the boundary pressure
+                       to prevent penetration, which is possible by increasing this value.
 
 """
 struct AdamiPressureExtrapolation{ELTYPE}
     pressure_offset::ELTYPE
 
-    function AdamiPressureExtrapolation(; pressure_offset=0.0)
+    function AdamiPressureExtrapolation(; pressure_offset=0)
         return new{eltype(pressure_offset)}(pressure_offset)
     end
 end
 
 @doc raw"""
-    BernoulliPressureExtrapolation(; pressure_offset=0.0, factor=1.0)
+    BernoulliPressureExtrapolation(; pressure_offset=0, factor=1)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
-- `pressure_offset=0.0`: Sometimes it is necessary to artificially increase the boundary pressure
+- `pressure_offset=0`:   Sometimes it is necessary to artificially increase the boundary pressure
                          to prevent penetration, which is possible by increasing this value.
-- `factor=1.0`         : Setting `factor` allows to just increase the strength of the dynamic
+- `factor=1`         :   Setting `factor` allows to just increase the strength of the dynamic
                          pressure part.
 
 """
@@ -117,7 +117,7 @@ struct BernoulliPressureExtrapolation{ELTYPE}
     pressure_offset :: ELTYPE
     factor          :: ELTYPE
 
-    function BernoulliPressureExtrapolation(; pressure_offset=0.0, factor=0.0)
+    function BernoulliPressureExtrapolation(; pressure_offset=0, factor=1)
         return new{eltype(pressure_offset)}(pressure_offset, factor)
     end
 end
@@ -345,7 +345,7 @@ end
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function apply_state_equation!(boundary_model, density, particle)
-    boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0.0)
+    boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0)
 end
 
 function compute_pressure!(boundary_model,
@@ -369,33 +369,44 @@ function compute_pressure!(boundary_model,
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         # This is an optimization for simulations with large and complex boundaries.
-        # Especially, in 3D simulations with large and/or complex structures outside
+        # Especially in 3D simulations with large and/or complex structures outside
         # of areas with permanent flow.
-        # Note: The version iterating neighbors first is not thread parallelizable.
+        # Note: The version iterating neighbors first is not thread-parallelizable
+        #       and thus not GPU-compatible.
         # The factor is based on the achievable speed-up of the thread parallelizable version.
-        if nparticles(system) >
-           ceil(Int, 0.5 * Threads.nthreads()) * nparticles(neighbor_system)
-            nhs = get_neighborhood_search(neighbor_system, system, semi)
-
-            # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
-            boundary_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                      neighbor_system,
-                                                      system_coords, neighbor_coords, v,
-                                                      v_neighbor_system, nhs)
-        else
+        # Use the parallel version if the number of boundary particles is not much larger
+        # than the number of fluid particles.
+        n_boundary_particles = nparticles(system)
+        n_fluid_particles = nparticles(neighbor_system)
+        speedup = ceil(Int, Threads.nthreads() / 2)
+        parallelize = system isa GPUSystem ||
+                      n_boundary_particles < speedup * n_fluid_particles
+        if parallelize
             nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-            # Loop over boundary particles and then the neighboring fluid particles to extrapolate fluid pressure to the boundaries
+            # Loop over boundary particles and then the neighboring fluid particles
+            # to extrapolate fluid pressure to the boundaries.
             boundary_pressure_extrapolation!(boundary_model, system,
                                              neighbor_system,
                                              system_coords, neighbor_coords, v,
                                              v_neighbor_system, nhs)
+        else
+            nhs = get_neighborhood_search(neighbor_system, system, semi)
+
+            # Loop over fluid particles and then the neighboring boundary particles
+            # to extrapolate fluid pressure to the boundaries.
+            # Note that this needs to be serial, as we are writing into the same
+            # pressure entry from different loop iterations.
+            boundary_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                      neighbor_system,
+                                                      system_coords, neighbor_coords, v,
+                                                      v_neighbor_system, nhs)
         end
 
         @threaded system for particle in eachparticle(system)
             # Limit pressure to be non-negative to avoid attractive forces between fluid and
             # boundary particles at free surfaces (sticking artifacts).
-            pressure[particle] = max(pressure[particle], 0.0)
+            pressure[particle] = max(pressure[particle], 0)
         end
     end
 
@@ -472,7 +483,7 @@ end
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                            neighborhood_search;
                            points=eachparticle(system)) do particle, neighbor,
@@ -529,8 +540,8 @@ end
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
         normal_velocity = dot(relative_velocity, pos_diff)
 
-        return 0.5 * boundary_density_calculator.factor * density_neighbor *
-               normal_velocity^2 / distance
+        return boundary_density_calculator.factor * density_neighbor *
+               normal_velocity^2 / distance / 2
     end
     return zero(density_neighbor)
 end

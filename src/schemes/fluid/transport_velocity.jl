@@ -79,7 +79,7 @@ end
 @inline function momentum_convection(system, neighbor_system, ::Nothing,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(grad_kernel)
 end
 
 @inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
@@ -98,7 +98,7 @@ end
     A_a = rho_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
     A_b = rho_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'
 
-    return volume_term * (0.5 * (A_a + A_b)) * grad_kernel
+    return volume_term * ((A_a + A_b) / 2) * grad_kernel
 end
 
 @inline transport_velocity!(dv, system, rho_a, rho_b, m_a, m_b, grad_kernel, particle) = dv
