@@ -39,7 +39,7 @@ For more information on the methods, see description below.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 """
 struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
-                             S, N} <: System{NDIMS, IC}
+                             S, N} <: FluidSystem{NDIMS, IC}
     initial_condition     :: IC
     smoothing_kernel      :: K
     smoothing_length      :: ELTYPE
@@ -124,6 +124,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
         summary_line(io, "boundary", system.is_boundary ? "yes" : "no")
         summary_footer(io)
     end
+end
+
+@inline function Base.eltype(::ParticlePackingSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
 end
 
 @inline function v_nvariables(system::ParticlePackingSystem)

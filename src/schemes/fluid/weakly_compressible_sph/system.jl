@@ -60,8 +60,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     state_equation                    :: SE
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
-    ideal_neighbor_count              :: Int
-    color                             :: Int
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     density_diffusion                 :: DD
@@ -82,11 +80,11 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
                                      pressure_acceleration=nothing,
                                      buffer_size=nothing,
                                      viscosity=nothing, density_diffusion=nothing,
-                                     acceleration=ntuple(_ -> 0.0,
+                                     acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                          ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
-                                     reference_particle_spacing=0.0, color_value=1)
+                                     reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -122,13 +120,6 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
     end
 
-    ideal_neighbor_count_ = 0
-    if reference_particle_spacing > 0.0
-        ideal_neighbor_count_ = ideal_neighbor_count(Val(NDIMS), reference_particle_spacing,
-                                                     compact_support(smoothing_kernel,
-                                                                     smoothing_length))
-    end
-
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
@@ -142,12 +133,23 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             color=Int64(color_value),
              cache...)
+
+    # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
+    if reference_particle_spacing > 0.0
+        # `reference_particle_spacing` has to be set for surface normals to be determined
+        cache = (;
+                 cache...,  # Existing cache fields
+                 ideal_neighbor_count=Int64(ideal_neighbor_count(Val(NDIMS),
+                                                                 reference_particle_spacing,
+                                                                 compact_support(smoothing_kernel,
+                                                                                 smoothing_length))))
+    end
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
                                        smoothing_kernel, smoothing_length,
-                                       ideal_neighbor_count_, color_value,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
                                        pressure_acceleration, nothing,
@@ -205,6 +207,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "source terms", system.source_terms |> typeof |> nameof)
         summary_footer(io)
     end
+end
+
+@inline function Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
 end
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem)

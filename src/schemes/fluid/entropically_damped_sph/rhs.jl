@@ -115,7 +115,7 @@ end
     eta_tilde = 2 * eta_a * eta_b / (eta_a + eta_b)
 
     # TODO For variable smoothing length use average smoothing length
-    tmp = eta_tilde / (distance^2 + 0.01 * smoothing_length^2)
+    tmp = eta_tilde / (distance^2 + smoothing_length^2 / 100)
 
     # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
     # They argued that the formulation is more flexible because of the possibility to formulate
