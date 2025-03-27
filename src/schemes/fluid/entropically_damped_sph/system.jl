@@ -33,6 +33,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+- `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
                                 (which are the quantities of a single particle), returning a `Tuple`
@@ -82,6 +83,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      alpha=0.5, viscosity=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
+                                     correction=nothing,
                                      source_terms=nothing, surface_tension=nothing,
                                      surface_normal_method=nothing, buffer_size=nothing,
                                      reference_particle_spacing=0.0, color_value=1)
@@ -113,10 +115,15 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
     end
 
+    if correction isa ShepardKernelCorrection &&
+       density_calculator isa ContinuityDensity
+        throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
+    end
+
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
-                                                                     nothing)
+                                                                     correction)
 
     nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
@@ -127,6 +134,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             create_cache_correction(correction, initial_condition.density, NDIMS,
+                                     n_particles)...,
              color=Int64(color_value),
              cache...)
 
@@ -151,7 +160,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                                smoothing_kernel, smoothing_length,
                                                sound_speed, viscosity, nu_edac,
                                                acceleration_,
-                                               nothing,
+                                               correction,
                                                pressure_acceleration, transport_velocity,
                                                source_terms, surface_tension,
                                                surface_normal_method, buffer, cache)
@@ -162,6 +171,7 @@ function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
 
     print(io, "EntropicallyDampedSPHSystem{", ndims(system), "}(")
     print(io, system.density_calculator)
+    print(io, ", ", system.correction)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
@@ -185,6 +195,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         end
         summary_line(io, "density calculator",
                      system.density_calculator |> typeof |> nameof)
+        summary_line(io, "correction method",
+                     system.correction |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity |> typeof |> nameof)
         summary_line(io, "ν₍EDAC₎", "≈ $(round(system.nu_edac; digits=3))")
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
