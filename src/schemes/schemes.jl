@@ -9,6 +9,7 @@ include("solid/discrete_element_method/discrete_element_method.jl")
 include("boundary/monaghan_kajtar/monaghan_kajtar.jl")
 
 # Include rhs for all schemes
+include("fluid/implicit_incompressible_sph/rhs.jl") #New NS
 include("fluid/weakly_compressible_sph/rhs.jl")
 include("fluid/entropically_damped_sph/rhs.jl")
 include("boundary/rhs.jl")

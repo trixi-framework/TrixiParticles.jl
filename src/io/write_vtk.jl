@@ -320,8 +320,9 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         write2vtk!(vtk, system.viscosity)
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
         vtk["smoothing_length_factor"] = system.cache.smoothing_length_factor
-        vtk["density_calculator"] = type2string(system.density_calculator)
-
+        if !(system isa ImplicitIncompressibleSPHSystem)
+            vtk["density_calculator"] = type2string(system.density_calculator)
+        end
         if system isa WeaklyCompressibleSPHSystem
             vtk["solver"] = "WCSPH"
 
@@ -343,6 +344,8 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             vtk["state_equation_pa"] = system.state_equation.background_pressure
             vtk["state_equation_c"] = system.state_equation.sound_speed
             vtk["solver"] = "WCSPH"
+        elseif system isa ImplicitIncompressibleSPHSystem
+            vtk["solver"] = "EDAC" #???
         else
             vtk["solver"] = "EDAC"
             vtk["sound_speed"] = system.sound_speed

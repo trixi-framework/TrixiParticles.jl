@@ -199,6 +199,7 @@ include("surface_tension.jl")
 include("surface_normal_sph.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
+include("implicit_incompressible_sph/implicit_incompressible_sph.jl")
 
 @inline function add_velocity!(du, v, particle,
                                system::Union{EntropicallyDampedSPHSystem,
