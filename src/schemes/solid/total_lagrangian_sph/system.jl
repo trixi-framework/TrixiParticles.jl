@@ -156,6 +156,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
     end
 end
 
+@inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
+end
+
 @inline function v_nvariables(system::TotalLagrangianSPHSystem)
     return ndims(system)
 end

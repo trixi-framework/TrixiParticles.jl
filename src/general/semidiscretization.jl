@@ -828,34 +828,32 @@ function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(tr
 end
 
 function check_configuration(systems)
-    color_not_zero = false
-    n_fluid_and_bnd_systems = 0
-    uses_surface_tension_model = false
-
     foreach_system(systems) do system
         check_configuration(system, systems)
-
-        if system isa FluidSystem && !isnothing(system.surface_tension)
-            uses_surface_tension_model = true
-        end
-
-        if system isa FluidSystem || system isa BoundarySPHSystem
-            n_fluid_and_bnd_systems += 1
-            if system.color != 0
-                color_not_zero = true
-            end
-        end
     end
 
-    if !color_not_zero && n_fluid_and_bnd_systems > 1 && uses_surface_tension_model
-        throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
-    end
+    check_system_color(systems)
 end
 
 check_configuration(system, systems) = nothing
 
+function check_system_color(systems)
+    if any(system isa FluidSystem && !(system isa ParticlePackingSystem) &&
+           !isnothing(system.surface_tension)
+           for system in systems)
+
+        # System indices of all systems that are either a fluid or a boundary system
+        system_ids = findall(system isa Union{FluidSystem, BoundarySPHSystem}
+                             for system in systems)
+
+        if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
+            throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
+        end
+    end
+end
+
 function check_configuration(fluid_system::FluidSystem, systems)
-    if !isnothing(fluid_system.surface_tension)
+    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
             if neighbor isa FluidSystem && isnothing(fluid_system.surface_tension) &&
                isnothing(fluid_system.surface_normal_method)
@@ -892,5 +890,15 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+end
+
+function check_configuration(system::OpenBoundarySPHSystem, systems)
+    (; boundary_model, boundary_zone) = system
+
+    if boundary_model isa BoundaryModelLastiwka &&
+       boundary_zone isa BoundaryZone{BidirectionalFlow}
+        throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
+                            "Please specify inflow and outflow."))
     end
 end

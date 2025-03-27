@@ -124,7 +124,7 @@ function sample_plane(geometry::AbstractMatrix, particle_spacing; tlsph)
         # Extruding a 2D shape results in a 3D shape
 
         # When `tlsph=true`, particles will be placed on the x-y plane
-        coords = vcat(geometry, fill(tlsph ? 0.0 : 0.5particle_spacing, size(geometry, 2))')
+        coords = vcat(geometry, fill(tlsph ? 0 : particle_spacing / 2, size(geometry, 2))')
 
         # TODO: 2D shapes not only in x-y plane but in any user-defined plane
         return coords, particle_spacing
@@ -139,7 +139,7 @@ function sample_plane(shape::InitialCondition, particle_spacing; tlsph)
 
         # When `tlsph=true`, particles will be placed on the x-y plane
         coords = vcat(shape.coordinates,
-                      fill(tlsph ? 0.0 : 0.5particle_spacing, size(shape.coordinates, 2))')
+                      fill(tlsph ? 0 : particle_spacing / 2, size(shape.coordinates, 2))')
 
         # TODO: 2D shapes not only in x-y plane but in any user-defined plane
         return coords, particle_spacing
@@ -183,7 +183,7 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph=nothing)
     edge2 = point3_ - point1_
 
     # Check if the points are collinear
-    if isapprox(norm(cross(edge1, edge2)), 0.0; atol=eps())
+    if isapprox(norm(cross(edge1, edge2)), 0; atol=eps())
         throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
     end
 
@@ -229,8 +229,8 @@ function shift_plane_corners(plane_points::NTuple{2}, direction, particle_spacin
     plane_point2 = copy(plane_points[2])
 
     # Vectors shifting the points in the corresponding direction
-    dir1 = 0.5 * particle_spacing * direction
-    dir2 = 0.5 * particle_spacing * normalize(plane_point2 - plane_point1)
+    dir1 = particle_spacing * direction / 2
+    dir2 = particle_spacing * normalize(plane_point2 - plane_point1) / 2
 
     plane_point1 .+= dir1 + dir2
     plane_point2 .+= dir1 - dir2
@@ -251,9 +251,9 @@ function shift_plane_corners(plane_points::NTuple{3}, direction, particle_spacin
     edge2 = normalize(plane_point3 - plane_point1)
 
     # Vectors shifting the points in the corresponding direction
-    dir1 = 0.5 * particle_spacing * direction
-    dir2 = 0.5 * particle_spacing * edge1
-    dir3 = 0.5 * particle_spacing * edge2
+    dir1 = particle_spacing * direction / 2
+    dir2 = particle_spacing * edge1 / 2
+    dir3 = particle_spacing * edge2 / 2
 
     plane_point1 .+= dir1 + dir2 + dir3
     plane_point2 .+= dir1 - dir2 + dir3
