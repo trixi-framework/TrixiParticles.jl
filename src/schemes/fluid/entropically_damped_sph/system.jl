@@ -33,6 +33,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+- `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
                                 (which are the quantities of a single particle), returning a `Tuple`
@@ -83,7 +84,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      alpha=0.5, viscosity=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
-                                         correction=nothing,
+                                     correction=nothing,
                                      source_terms=nothing, surface_tension=nothing,
                                      surface_normal_method=nothing, buffer_size=nothing,
                                      reference_particle_spacing=0.0, color_value=1)
@@ -136,6 +137,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             create_cache_correction(correction, initial_condition.density, NDIMS,
+                                     n_particles)...,
              color=Int64(color_value),
              cache...)
 
