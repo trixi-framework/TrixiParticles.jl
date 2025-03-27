@@ -96,22 +96,23 @@ causing droplets or bubbles to assume shapes (often spherical) that minimize the
 experimentally through techniques such as the pendant drop method, the Wilhelmy plate method, or the du Noüy ring method,
 each of which relates a measurable force or change in shape to the fluid’s surface tension. For pure substances,
 tabulated reference values of ``\sigma`` at given temperatures are commonly used, while for mixtures or complex fluids,
-direct experimental measurements or specialized equations of state may be necessary.
+direct experimental measurements or values can be estimated from empirical equation (see [Poling](@cite Poling2001) or [Lange](@cite Lange2005)).
+In the following table some values are shown for reference. The values marked with a '~' are complex mixtures that are estimated by an empirical equation (see [Poling](@cite Poling2001)).
 
 | **Fluid**    | **Surface Tension (``\sigma``) [N/m at 20°C]** |
 |--------------|----------------------------------------------:|
-| **Water**    | 0.0728                                        |
-| **Mercury**  | 0.485                                         |
-| **Ethanol**  | 0.0221                                        |
-| **Acetone**  | 0.0237                                        |
-| **Glycerol** | 0.0634                                        |
-| **Olive Oil**| ~0.032                                        |
-| **Gasoline** | ~0.022                                        |
-| **Mineral Oil** | ~0.030                                     |
+| **Gasoline**    | ~0.022   [Poling](@cite Poling2001)             |
+| **Ethanol**     | 0.022386 [Lange](@cite Lange2005)               |
+| **Acetone**     | 0.02402  [Lange](@cite Lange2005)               |
+| **Mineral Oil** | ~0.030   [Poling](@cite Poling2001)             |
+| **Olive Oil**   | 0.03303  [Hui](@cite Hui1992), [MeloEspinosa](@cite MeloEspinosa2014) |
+| **Glycerol**    | 0.06314  [Lange](@cite Lange2005)               |
+| **Water**       | 0.07288  [Lange](@cite Lange2005)               |
+| **Mercury**     | 0.486502 [Lange](@cite Lange2005)               |
 
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
-The Akinci model divides surface tension into distinct force components:
+The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components:
 
 #### Cohesion force
 
@@ -174,7 +175,7 @@ A(r) = \frac{0.007}{h_c^{3.25}}
 
 ### [Morris surface tension model](@id morris_csf)
 
-The method estimates curvature by combining particle color gradients (see [`surface_normal`](@ref)) and smoothing functions to derive surface normals.
+The method described by [Morris](@cite Morris2000) estimates curvature by combining particle color gradients (see [`surface_normal`](@ref)) and smoothing functions to derive surface normals.
 The computed curvature is then used to determine forces acting perpendicular to the interface.
 While this method provides accurate surface tension forces, it does not explicitly conserve momentum.
 
@@ -192,7 +193,7 @@ This formulation focuses directly on geometric properties of the interface, maki
 
 ### [Morris-based momentum-conserving surface tension model](@id moriss_css)
 
-In addition to the simpler curvature-based formulation, Morris (2000) introduced a momentum-conserving approach.
+In addition to the simpler curvature-based formulation, [Morris](@cite Morris2000) introduced a momentum-conserving approach.
 This method treats surface tension forces as arising from the divergence of a stress tensor, ensuring exact conservation
 of linear momentum and offering more robust behavior for high-resolution or long-duration simulations
 where accumulated numerical error can be significant.

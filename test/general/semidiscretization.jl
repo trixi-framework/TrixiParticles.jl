@@ -51,8 +51,7 @@
             # Mock fluid system
             struct FluidSystemMock <: TrixiParticles.FluidSystem{2, Nothing}
                 surface_tension::Nothing
-                color::Int64
-                FluidSystemMock() = new(nothing, 0)
+                FluidSystemMock() = new(nothing)
             end
 
             kernel = Val(:smoothing_kernel)

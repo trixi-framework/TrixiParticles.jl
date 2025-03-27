@@ -251,7 +251,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["surf_normal"] = [surface_normal(system, particle)
                               for particle in eachparticle(system)]
         vtk["neighbor_count"] = system.cache.neighbor_count
-        vtk["color"] = system.color
+        vtk["color"] = system.cache.color
     end
 
     if system.surface_tension isa SurfaceTensionMorris ||
@@ -387,9 +387,8 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
                        for particle in active_particles(system)]
 
     if write_meta_data
-        vtk["boundary_zone"] = type2string(system.boundary_zone)
+        vtk["boundary_zone"] = type2string(first(typeof(system.boundary_zone).parameters))
         vtk["width"] = round(system.boundary_zone.zone_width, digits=3)
-        vtk["flow_direction"] = system.flow_direction
         vtk["velocity_function"] = type2string(system.reference_velocity)
         vtk["pressure_function"] = type2string(system.reference_pressure)
         vtk["density_function"] = type2string(system.reference_density)
