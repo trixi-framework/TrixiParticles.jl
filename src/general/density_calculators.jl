@@ -27,6 +27,7 @@ struct ContinuityDensity end
     particle_density(v, system.density_calculator, system, particle)
 end
 
+
 @propagate_inbounds function particle_density(v, ::SummationDensity, system, particle)
     return system.cache.density[particle]
 end
