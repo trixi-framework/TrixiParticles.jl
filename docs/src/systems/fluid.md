@@ -50,7 +50,7 @@ the physical behavior is not overly altered.
 
 ##### Mathematical Formulation
 
-The artificial viscosity between two particles \(a\) and \(b\) is given by:
+The artificial viscosity between two particles ``a`` and ``b`` is given by:
 
 ```math
 \Pi_{ab} =
@@ -62,11 +62,11 @@ The artificial viscosity between two particles \(a\) and \(b\) is given by:
 
 where:
 
-- **\(\alpha\) and \(\beta\)** are viscosity parameters,
-- **\(c\)** is the local speed of sound,
-- **\(\bar{\rho}_{ab}\)** is the arithmetic mean of the densities of particles \(a\) and \(b\).
+- **``\alpha`` and ``\beta``** are viscosity parameters,
+- **``c``** is the local speed of sound,
+- **``\bar{\rho}_{ab}``** is the arithmetic mean of the densities of particles ``a`` and ``b``.
 
-The term \(\mu_{ab}\) is defined as:
+The term ``\mu_{ab}`` is defined as:
 
 ```math
 \mu_{ab} = \frac{h \, v_{ab} \cdot r_{ab}}{\Vert r_{ab} \Vert^2 + \epsilon h^2},
@@ -74,20 +74,20 @@ The term \(\mu_{ab}\) is defined as:
 
 with:
 
-- **\(h\)** being the smoothing length,
-- **\(\epsilon\)** a small parameter to prevent singularities,
-- **\(r_{ab} = r_a - r_b\)** representing the displacement vector between particles,
-- **\(v_{ab} = v_a - v_b\)** representing the relative velocity between particles.
+- **``h``** being the smoothing length,
+- **``\epsilon``** a small parameter to prevent singularities,
+- **``r_{ab} = r_a - r_b``** representing the displacement vector between particles,
+- **``v_{ab} = v_a - v_b``** representing the relative velocity between particles.
 
 ##### Resolution Dependency and Effective Viscosity
 
-To ensure that the simulation maintains a consistent Reynolds number when the resolution changes, the parameter \(\alpha\) must be adjusted accordingly. Monaghan (2005) introduced an effective physical kinematic viscosity \(\nu\) defined as:
+To ensure that the simulation maintains a consistent Reynolds number when the resolution changes, the parameter ``\alpha`` must be adjusted accordingly. Monaghan (2005) introduced an effective physical kinematic viscosity ``\nu`` defined as:
 
 ```math
 \nu = \frac{\alpha h c}{2d + 4},
 ```
 
-where **\(d\)** is the number of spatial dimensions. This relation allows the calibration of \(\alpha\) to achieve the desired viscous behavior as the resolution or simulation conditions vary.
+where **``d``** is the number of spatial dimensions. This relation allows the calibration of ``\alpha`` to achieve the desired viscous behavior as the resolution or simulation conditions vary.
 
 #### ViscosityMorris
 
@@ -97,13 +97,13 @@ By approximating momentum diffusion based on local fluid properties, the method 
 
 ##### Mathematical Formulation
 
-An additional force term \(\tilde{f}_{ab}\) is introduced to the pressure gradient force \(f_{ab}\) between particles \(a\) and \(b\):
+An additional force term ``\tilde{f}_{ab}`` is introduced to the pressure gradient force ``f_{ab}`` between particles ``a`` and ``b``:
 
 ```math
 \tilde{f}_{ab} = m_a m_b \frac{(\mu_a + \mu_b)\, r_{ab} \cdot \nabla W_{ab}}{\rho_a \rho_b (\Vert r_{ab} \Vert^2 + \epsilon h^2)}\, v_{ab},
 ```
 
-Here, \(\mu_a = \rho_a \nu\) and \(\mu_b = \rho_b \nu\) represent the dynamic viscosities of particles \(a\) and \(b\) (with \(\nu\) being the kinematic viscosity), \(r_{ab} = r_a - r_b\) is the inter-particle distance, \(v_{ab} = v_a - v_b\) is the relative velocity, \(W_{ab}\) is the smoothing kernel, \(h\) is the smoothing length, and \(\epsilon\) prevents singularities.
+Here, ``\mu_a = \rho_a \nu`` and ``\mu_b = \rho_b \nu`` represent the dynamic viscosities of particles ``a``and ``b`` (with ``\nu`` being the kinematic viscosity), ``r_{ab} = r_a - r_b`` is the inter-particle distance, ``v_{ab} = v_a - v_b`` is the relative velocity, ``W_{ab}`` is the smoothing kernel, ``h`` is the smoothing length, and ``\epsilon`` prevents singularities.
 
 #### ViscosityAdami
 
@@ -119,12 +119,12 @@ f_{ab} = \sum_w \bar{\eta}_{ab} \left( V_a^2 + V_b^2 \right) \frac{v_{ab}}{||r_{
 
 where:
 
-- \( r_{ab} = r_a - r_b \) is the relative position between particles \(a\) and \(b\),
-- \( v_{ab} = v_a - v_b \) is their relative velocity,
-- \( V_a \) and \( V_b \) are the particle volumes,
-- \( h_{ab} \) is the smoothing length,
-- \( \nabla W_{ab} \) is the gradient of the smoothing kernel,
-- \( \epsilon \) is a small parameter that prevents singularities (see [Ramachandran (2019)](@cite Ramachandran2019)).
+- `` r_{ab} = r_a - r_b `` is the relative position between particles ``a`` and ``b``,
+- `` v_{ab} = v_a - v_b `` is their relative velocity,
+- `` V_a `` and `` V_b `` are the particle volumes,
+- `` h_{ab} `` is the smoothing length,
+- `` \nabla W_{ab} `` is the gradient of the smoothing kernel,
+- `` \epsilon `` is a small parameter that prevents singularities (see [Ramachandran (2019)](@cite Ramachandran2019)).
 
 The inter-particle-averaged shear stress is defined as:
 
@@ -132,8 +132,7 @@ The inter-particle-averaged shear stress is defined as:
 \bar{\eta}_{ab} = \frac{2 \eta_a \eta_b}{\eta_a + \eta_b},
 ```
 
-with the dynamic viscosity of each particle given by \( \eta_a = \rho_a \nu_a \), where \( \nu_a \) is the kinematic viscosity.
-
+with the dynamic viscosity of each particle given by `` \eta_a = \rho_a \nu_a ``, where `` \nu_a `` is the kinematic viscosity.
 
 ```@autodocs
 Modules = [TrixiParticles]
