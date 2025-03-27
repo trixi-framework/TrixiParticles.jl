@@ -129,7 +129,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
     cache = create_cache_density(initial_condition, density_calculator)
     cache = (;
              create_cache_correction(correction, initial_condition.density, NDIMS,
-                                n_particles)...,
+                                     n_particles)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
