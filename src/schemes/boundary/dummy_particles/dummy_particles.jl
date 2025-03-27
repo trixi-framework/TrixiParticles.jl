@@ -40,16 +40,15 @@ BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
 struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
-    pressure             :: VECTOR # Vector{ELTYPE}
-    hydrodynamic_mass    :: VECTOR # Vector{ELTYPE}
-    state_equation       :: SE
-    density_calculator   :: DC
-    smoothing_kernel     :: K
-    smoothing_length     :: ELTYPE
-    ideal_neighbor_count :: Int
-    viscosity            :: V
-    correction           :: COR
-    cache                :: C
+    pressure           :: VECTOR # Vector{ELTYPE}
+    hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
+    state_equation     :: SE
+    density_calculator :: DC
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    viscosity          :: V
+    correction         :: COR
+    cache              :: C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -70,25 +69,22 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
-    ideal_neighbor_count_ = 0
     if reference_particle_spacing > 0.0
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
+                 ideal_neighbor_count=Int64(ideal_neighbor_count(Val(ndims(smoothing_kernel)),
+                                                                 reference_particle_spacing,
+                                                                 compact_support(smoothing_kernel,
+                                                                                 smoothing_length))),
                  colorfield_bnd=zeros(ELTYPE, n_particles),
                  colorfield=zeros(ELTYPE, n_particles),
                  neighbor_count=zeros(ELTYPE, n_particles))
-
-        ideal_neighbor_count_ = ideal_neighbor_count(Val(ndims(smoothing_kernel)),
-                                                     reference_particle_spacing,
-                                                     compact_support(smoothing_kernel,
-                                                                     smoothing_length))
     end
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, ideal_neighbor_count_, viscosity,
-                                       correction, cache)
+                                       smoothing_length, viscosity, correction, cache)
 end
 
 @doc raw"""
@@ -377,27 +373,38 @@ function compute_pressure!(boundary_model,
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         # This is an optimization for simulations with large and complex boundaries.
-        # Especially, in 3D simulations with large and/or complex structures outside
+        # Especially in 3D simulations with large and/or complex structures outside
         # of areas with permanent flow.
-        # Note: The version iterating neighbors first is not thread parallelizable.
+        # Note: The version iterating neighbors first is not thread-parallelizable
+        #       and thus not GPU-compatible.
         # The factor is based on the achievable speed-up of the thread parallelizable version.
-        if nparticles(system) >
-           ceil(Int, Threads.nthreads() / 2) * nparticles(neighbor_system)
-            nhs = get_neighborhood_search(neighbor_system, system, semi)
-
-            # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
-            boundary_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                      neighbor_system,
-                                                      system_coords, neighbor_coords, v,
-                                                      v_neighbor_system, nhs)
-        else
+        # Use the parallel version if the number of boundary particles is not much larger
+        # than the number of fluid particles.
+        n_boundary_particles = nparticles(system)
+        n_fluid_particles = nparticles(neighbor_system)
+        speedup = ceil(Int, Threads.nthreads() / 2)
+        parallelize = system isa GPUSystem ||
+                      n_boundary_particles < speedup * n_fluid_particles
+        if parallelize
             nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-            # Loop over boundary particles and then the neighboring fluid particles to extrapolate fluid pressure to the boundaries
+            # Loop over boundary particles and then the neighboring fluid particles
+            # to extrapolate fluid pressure to the boundaries.
             boundary_pressure_extrapolation!(boundary_model, system,
                                              neighbor_system,
                                              system_coords, neighbor_coords, v,
                                              v_neighbor_system, nhs)
+        else
+            nhs = get_neighborhood_search(neighbor_system, system, semi)
+
+            # Loop over fluid particles and then the neighboring boundary particles
+            # to extrapolate fluid pressure to the boundaries.
+            # Note that this needs to be serial, as we are writing into the same
+            # pressure entry from different loop iterations.
+            boundary_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                      neighbor_system,
+                                                      system_coords, neighbor_coords, v,
+                                                      v_neighbor_system, nhs)
         end
 
         @threaded system for particle in eachparticle(system)
@@ -480,7 +487,7 @@ end
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                            neighborhood_search;
                            points=eachparticle(system)) do particle, neighbor,
