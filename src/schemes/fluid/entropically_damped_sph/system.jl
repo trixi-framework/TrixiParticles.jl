@@ -130,8 +130,6 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
 
     cache = create_cache_density(initial_condition, density_calculator)
     cache = (;
-                 create_cache_correction(correction, initial_condition.density, NDIMS,
-                                         n_particles)...,
              create_cache_edac(initial_condition, transport_velocity)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
