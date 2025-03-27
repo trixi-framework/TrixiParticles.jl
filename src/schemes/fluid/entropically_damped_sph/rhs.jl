@@ -94,9 +94,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     return dv
 end
-@inline
 
-function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
+@inline function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
                              pos_diff, distance, sound_speed, m_a, m_b,
                              p_a, p_b, rho_a, rho_b)
     (; smoothing_length) = particle_system
@@ -136,8 +135,8 @@ function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
     return dv
 end
 
-@inline# We need a separate method for EDAC since the density is stored in `v[end-1,:]`.
-function continuity_equation!(dv, density_calculator::ContinuityDensity,
+# We need a separate method for EDAC since the density is stored in `v[end-1,:]`.
+@inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                               vdiff, particle, m_b, rho_a, rho_b,
                               particle_system::EntropicallyDampedSPHSystem,
                               grad_kernel)
@@ -145,9 +144,8 @@ function continuity_equation!(dv, density_calculator::ContinuityDensity,
 
     return dv
 end
-@inline
 
-function continuity_equation!(dv, density_calculator,
+@inline function continuity_equation!(dv, density_calculator,
                               vdiff, particle, m_b, rho_a, rho_b,
                               particle_system::EntropicallyDampedSPHSystem,
                               grad_kernel)
