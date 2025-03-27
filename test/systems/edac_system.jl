@@ -136,6 +136,7 @@
         │ ══════════════════════════════                                                                   │
         │ #particles: ………………………………………………… 2                                                                │
         │ density calculator: …………………………… SummationDensity                                                 │
+        │ correction method: ……………………………… Nothing                                                          │
         │ viscosity: …………………………………………………… Nothing                                                          │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
