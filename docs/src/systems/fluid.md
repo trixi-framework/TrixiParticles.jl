@@ -1,4 +1,5 @@
 # [Fluid Models](@id fluid_models)
+
 Currently available fluid methods are the [weakly compressible SPH method](@ref wcsph) and the [entropically damped artificial compressibility for SPH](@ref edac).  
 This page lists models and techniques that apply to both of these methods.  
 
@@ -34,28 +35,105 @@ where it is crucial to capture the actual behavior of the fluid.
 
 #### ArtificialViscosityMonaghan
 
-ArtificialViscosityMonaghan is designed primarily for compressible, high-speed flows where shock capturing is critical.
-In its implementation, the method includes a dissipation term that increases when particles approach each other.
-This increase in dissipation is triggered by the relative motion between particles: as particles come closer and compress the local flow,
-the artificial viscosity term becomes stronger to damp out rapid changes and prevent unphysical clustering.
-This ensures that while the simulation remains stable in challenging flow regimes with large density or pressure variations,
+ArtificialViscosityMonaghan by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite))
+is designed primarily for compressible,
+high-speed flows where shock capturing is critical.
+In its implementation, the method includes a dissipation term
+that increases when particles approach each other.
+This increase in dissipation is triggered by the relative motion between particles:
+as particles come closer and compress the local flow,
+the artificial viscosity term becomes stronger to damp out rapid changes
+and prevent unphysical clustering.
+This ensures that while the simulation remains stable in challenging
+flow regimes with large density or pressure variations,
 the physical behavior is not overly altered.
+
+##### Mathematical Formulation
+
+The artificial viscosity between two particles \(a\) and \(b\) is given by:
+
+```math
+\Pi_{ab} =
+\begin{cases}
+    -\frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{if } v_{ab} \cdot r_{ab} < 0, \\
+    0 & \text{otherwise}
+\end{cases}
+```
+
+where:
+
+- **\(\alpha\) and \(\beta\)** are viscosity parameters,
+- **\(c\)** is the local speed of sound,
+- **\(\bar{\rho}_{ab}\)** is the arithmetic mean of the densities of particles \(a\) and \(b\).
+
+The term \(\mu_{ab}\) is defined as:
+
+```math
+\mu_{ab} = \frac{h \, v_{ab} \cdot r_{ab}}{\Vert r_{ab} \Vert^2 + \epsilon h^2},
+```
+
+with:
+
+- **\(h\)** being the smoothing length,
+- **\(\epsilon\)** a small parameter to prevent singularities,
+- **\(r_{ab} = r_a - r_b\)** representing the displacement vector between particles,
+- **\(v_{ab} = v_a - v_b\)** representing the relative velocity between particles.
+
+##### Resolution Dependency and Effective Viscosity
+
+To ensure that the simulation maintains a consistent Reynolds number when the resolution changes, the parameter \(\alpha\) must be adjusted accordingly. Monaghan (2005) introduced an effective physical kinematic viscosity \(\nu\) defined as:
+
+```math
+\nu = \frac{\alpha h c}{2d + 4},
+```
+
+where **\(d\)** is the number of spatial dimensions. This relation allows the calibration of \(\alpha\) to achieve the desired viscous behavior as the resolution or simulation conditions vary.
 
 #### ViscosityMorris
 
-ViscosityMorris is well-suited for moderate to low Mach number flows where modeling realistic viscous behavior is important.
-Unlike artificial viscosity, this approach directly simulates the physical viscous stresses encountered in fluids.
-Its implementation approximates the diffusion of momentum in a way that naturally reflects the viscous behavior observed in experiments
-or specified by a target Reynolds number. Because it mimics the actual viscous forces without introducing excessive damping,
-it works effectively in weakly compressible scenarios, allowing for a more accurate representation of the flow dynamics.
+ViscosityMorris is ideal for moderate to low Mach number flows where accurately modeling physical viscous behavior is essential. Developed by [Morris (1997)](@cite Morris1997) and later applied by [Fourtakas (2019)](@cite Fourtakas2019), this method directly simulates the viscous stresses found in fluids rather than relying on artificial viscosity.
+
+By approximating momentum diffusion based on local fluid properties, the method captures the actual viscous forces without excessive damping. This results in a more realistic representation of flow dynamics in weakly compressible scenarios.
+
+##### Mathematical Formulation
+
+An additional force term \(\tilde{f}_{ab}\) is introduced to the pressure gradient force \(f_{ab}\) between particles \(a\) and \(b\):
+
+```math
+\tilde{f}_{ab} = m_a m_b \frac{(\mu_a + \mu_b)\, r_{ab} \cdot \nabla W_{ab}}{\rho_a \rho_b (\Vert r_{ab} \Vert^2 + \epsilon h^2)}\, v_{ab},
+```
+
+Here, \(\mu_a = \rho_a \nu\) and \(\mu_b = \rho_b \nu\) represent the dynamic viscosities of particles \(a\) and \(b\) (with \(\nu\) being the kinematic viscosity), \(r_{ab} = r_a - r_b\) is the inter-particle distance, \(v_{ab} = v_a - v_b\) is the relative velocity, \(W_{ab}\) is the smoothing kernel, \(h\) is the smoothing length, and \(\epsilon\) prevents singularities.
 
 #### ViscosityAdami
 
-ViscosityAdami is optimized for incompressible or weakly compressible flows, particularly where an accurate treatment of shear stress is needed.
-The method improves the representation of boundary layers by using a refined approach that better resolves shear gradients.
-In practice, this means that the method enhances the dissipation in regions with steep velocity differences (such as near solid boundaries)
-while keeping compressibility effects minimal. As a result, it delivers accurate laminar flow simulations and a more faithful depiction of the physical shear stress,
-which is essential for problems where boundary layer behavior plays a crucial role.
+ViscosityAdami, introduced by [Adami (2012)](@cite Adami2012), is optimized for incompressible or weakly compressible flows where precise modeling of shear stress is critical. It enhances boundary layer representation by better resolving shear gradients, increasing dissipation in regions with steep velocity differences (e.g., near solid boundaries) while minimizing compressibility effects. This results in accurate laminar flow simulations and a faithful depiction of physical shear stresses.
+
+##### Mathematical Formulation
+
+The viscous interaction is modeled through a shear force for incompressible flows:
+
+```math
+f_{ab} = \sum_w \bar{\eta}_{ab} \left( V_a^2 + V_b^2 \right) \frac{v_{ab}}{||r_{ab}||^2 + \epsilon h_{ab}^2} \, (\nabla W_{ab} \cdot r_{ab}),
+```
+
+where:
+
+- \( r_{ab} = r_a - r_b \) is the relative position between particles \(a\) and \(b\),
+- \( v_{ab} = v_a - v_b \) is their relative velocity,
+- \( V_a \) and \( V_b \) are the particle volumes,
+- \( h_{ab} \) is the smoothing length,
+- \( \nabla W_{ab} \) is the gradient of the smoothing kernel,
+- \( \epsilon \) is a small parameter that prevents singularities (see [Ramachandran (2019)](@cite Ramachandran2019)).
+
+The inter-particle-averaged shear stress is defined as:
+
+```math
+\bar{\eta}_{ab} = \frac{2 \eta_a \eta_b}{\eta_a + \eta_b},
+```
+
+with the dynamic viscosity of each particle given by \( \eta_a = \rho_a \nu_a \), where \( \nu_a \) is the kinematic viscosity.
+
 
 ```@autodocs
 Modules = [TrixiParticles]
