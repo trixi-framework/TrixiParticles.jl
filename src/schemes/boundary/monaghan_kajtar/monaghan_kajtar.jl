@@ -59,7 +59,7 @@ end
     # In order to avoid this, we clip the force at a "large" value, large enough to prevent
     # penetration when a reasonable `K` is used, but small enough to not cause instabilites
     # or super small time steps.
-    distance_from_singularity = max(0.01 * boundary_particle_spacing,
+    distance_from_singularity = max(boundary_particle_spacing / 100,
                                     distance - boundary_particle_spacing)
 
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
@@ -72,11 +72,11 @@ end
 
     # TODO The neighborhood search fluid->boundary should use this search distance
     if q >= 2
-        return 0.0
+        return zero(eltype(r))
     end
 
     # (Monaghan, Kajtar, 2009, Section 4): The kernel should be normalized to 1.77 for q=0
-    return 1.77 / 32 * (1 + 5 / 2 * q + 2 * q^2) * (2 - q)^5
+    return (177 // 100) // 32 * (1 + 5 // 2 * q + 2 * q^2) * (2 - q)^5
 end
 
 @inline function particle_density(v, model::BoundaryModelMonaghanKajtar, system, particle)
