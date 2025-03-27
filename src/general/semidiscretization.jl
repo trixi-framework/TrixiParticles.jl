@@ -488,7 +488,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_positions!(system, v, u, v_ode, u_ode, semi, t)
+        @trixi_timeit timer() "update positions" update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Update NHS
@@ -502,7 +502,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_quantities!(system, v, u, v_ode, u_ode, semi, t)
+        @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Perform correction and pressure calculation
@@ -518,7 +518,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback)
+        @trixi_timeit timer() "update final"  update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback)
     end
 end
 
@@ -553,6 +553,7 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
 end
 
 @inline source_terms(system) = nothing
+@inline source_terms(system::ImplicitIncompressibleSPHSystem) = nothing
 @inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
 
 @inline add_acceleration!(dv, particle, system) = dv

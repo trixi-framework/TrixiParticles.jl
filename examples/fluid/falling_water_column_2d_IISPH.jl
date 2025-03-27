@@ -1,5 +1,7 @@
 using TrixiParticles
 using OrdinaryDiffEq
+using Pkg
+using Plots
 
 # ==========================================================================================
 # ==== Resolution
@@ -12,16 +14,15 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 2.5)
+tspan = (0.0, 0.2)
 
 # Boundary geometry and initial fluid particle positions
-initial_fluid_size = (0.5, 1.0)
-tank_size = (4.0, 4.0)
+initial_fluid_size = (1.0, 1.0)
+tank_size = (2.5, 2.5)
 
 fluid_density = 1000.0
+# TODO: Was machen mit dem sound speed?
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio)
@@ -36,19 +37,18 @@ end
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
+fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
+                                           smoothing_length, viscosity=viscosity, 
                                            acceleration=(0.0, -gravity))
+
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = AdamiPressureExtrapolation()
+boundary_density_calculator = PressureMirroring() # PressureMirroring richtig oder Pressure zeoring oder was ganz anderes???
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
+                                             state_equation=nothing,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 
@@ -71,10 +71,9 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # Sometimes, the method fails to do so because forces become extremely large when
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+sol = solve(ode, SymplecticEuler(),
+            dt = 0.00001,
+            #maxiters=1000, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
 plot(sol)
