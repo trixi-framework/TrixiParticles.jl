@@ -1,5 +1,5 @@
 """
-    DEMSystem(initial_condition, normal_stiffness, elastic_modulus, poissons_ratio;
+    DEMSystem(initial_condition, contact_model, normal_stiffness, elastic_modulus, poissons_ratio;
      damping_coefficient=0.0001, acceleration=ntuple(_ -> 0.0, NDIMS), source_terms=nothing)
 
 Constructs a Discrete Element Method (DEM) system for numerically simulating the dynamics of
@@ -12,9 +12,7 @@ specified material properties and contact mechanics.
 # Arguments
  - `initial_condition`: Initial condition of the system, encapsulating the initial positions,
     velocities, masses, and radii of particles.
- - `normal_stiffness`: Normal stiffness coefficient for particle-particle and particle-wall contacts.
- - `elastic_modulus`: Elastic modulus for this particle system.
- - `poissons_ratio`: Poisson ratio for this particle system.
+ - `contact_model`: Contact model used for particle interactions.
 
 # Keywords
  - `acceleration`: Global acceleration vector applied to the system, such as gravity. Specified as
@@ -29,20 +27,17 @@ specified material properties and contact mechanics.
 ## References
 [Bicanic2004](@cite), [Cundall1979](@cite), [DiRenzo2004](@cite)
 """
-struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, IC}
+struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIMS, IC}
     initial_condition   :: IC
     mass                :: ARRAY1D               # [particle]
     radius              :: ARRAY1D               # [particle]
-    elastic_modulus     :: ELTYPE
-    poissons_ratio      :: ELTYPE
-    normal_stiffness    :: ELTYPE
     damping_coefficient :: ELTYPE
     acceleration        :: SVector{NDIMS, ELTYPE}
     source_terms        :: ST
+    contact_model       :: CM
     buffer              :: Nothing
 
-    function DEMSystem(initial_condition, normal_stiffness, elastic_modulus, poissons_ratio;
-                       damping_coefficient=0.0001,
+    function DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
                        acceleration=ntuple(_ -> 0.0,
                                            ndims(initial_condition)), source_terms=nothing)
         NDIMS = ndims(initial_condition)
@@ -57,11 +52,11 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, I
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        return new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
-                   typeof(source_terms)}(initial_condition, mass, radius, elastic_modulus,
-                                         poissons_ratio, normal_stiffness,
-                                         damping_coefficient, acceleration_, source_terms,
-                                         nothing)
+        return new{NDIMS, ELTYPE, typeof(initial_condition),
+                   typeof(mass), typeof(source_terms),
+                   typeof(contact_model)}(initial_condition, mass, radius,
+                                          damping_coefficient, acceleration_, source_terms,
+                                          contact_model, nothing)
     end
 end
 
@@ -69,25 +64,39 @@ function Base.show(io::IO, system::DEMSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "DEMSystem{", ndims(system), "}(")
-    print(io, system.initial_condition)
-    print(io, ", ", system.elastic_modulus)
-    print(io, ", ", system.poissons_ratio)
-    print(io, ", ", system.normal_stiffness)
-    print(io, ", ", system.damping_coefficient)
-    print(io, ") with ", TrixiParticles.nparticles(system), " particles")
+    print(io, system.initial_condition, ", ")
+    # Dispatch on the type of the contact_model to show the relevant parameters.
+    if system.contact_model isa HertzContactModel
+        print(io, "HertzContactModel: elastic_modulus = ",
+              system.contact_model.elastic_modulus, ", poissons_ratio = ",
+              system.contact_model.poissons_ratio)
+    elseif system.contact_model isa LinearContactModel
+        print(io, "LinearContactModel: normal_stiffness = ",
+              system.contact_model.normal_stiffness)
+    else
+        print(io, "UnknownContactModel")
+    end
+    print(io, ", damping_coefficient = ", system.damping_coefficient, ")")
+    print(io, " with ", TrixiParticles.nparticles(system), " particles")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", system::DEMSystem)
-    @nospecialize system # reduce precompilation time
-
+    @nospecialize system
     if get(io, :compact, false)
         show(io, system)
     else
         TrixiParticles.summary_header(io, "DEMSystem{$(ndims(system))}")
         TrixiParticles.summary_line(io, "#particles", TrixiParticles.nparticles(system))
-        TrixiParticles.summary_line(io, "elastic_modulus", system.elastic_modulus)
-        TrixiParticles.summary_line(io, "poissons_ratio", system.poissons_ratio)
-        TrixiParticles.summary_line(io, "normal_stiffness", system.normal_stiffness)
+        # Display contact model specific parameters.
+        if system.contact_model isa HertzContactModel
+            TrixiParticles.summary_line(io, "elastic_modulus",
+                                        system.contact_model.elastic_modulus)
+            TrixiParticles.summary_line(io, "poissons_ratio",
+                                        system.contact_model.poissons_ratio)
+        elseif system.contact_model isa LinearContactModel
+            TrixiParticles.summary_line(io, "normal_stiffness",
+                                        system.contact_model.normal_stiffness)
+        end
         TrixiParticles.summary_line(io, "damping_coefficient", system.damping_coefficient)
         TrixiParticles.summary_footer(io)
     end
