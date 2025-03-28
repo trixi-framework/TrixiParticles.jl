@@ -1,4 +1,3 @@
-
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
                                    V, PF, SRFN, Dens, PV, D, A, SD, S} <:
        FluidSystem{NDIMS, IC}
@@ -145,9 +144,9 @@ end
 end
 
 #TODO: Als SVector zurückgeben?
-function calculate_sum_dj(system :: ImplicitIncompressibleSPHSystem, particle, density, time_step, grad_kernel)
+function calculate_sum_dj(system :: ImplicitIncompressibleSPHSystem, particle, density, pressure, time_step, grad_kernel)
     m_b = hydrodynamic_mass(system, particle)
-    p_b = system.pressure[particle]
+    p_b = pressure[particle]
     rho_b = density[particle]
     return SVector(-time_step^2 * m_b / rho_b^2 * p_b * grad_kernel)
 end
@@ -185,7 +184,7 @@ function calculate_dji(system, ::BoundarySystem, particle, density, grad_kernel,
 end
 
 #TODO: Was machen mit dem Soundspeed?
-@inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = 1000
+@inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = 1000.0
 
 #TODO: Calculate pressure values 
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
@@ -211,7 +210,8 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
     set_zero!(density)
     summation_density!(system, semi,  u, u_ode, density)
-    
+    #density .= 1000.0
+
     v_adv .= v_particle_system # set to current velocity
     @trixi_timeit timer() "first loop" foreach_system(semi) do neighbor_system
         # Get neighbor system u and v values 
@@ -331,8 +331,11 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     s_term = system.s_term
     sum_dj .= 0.0
     s_term .= 0.0
+    density_error = zeros(nparticles(system))
+    density_deviation = zeros(nparticles(system))
+
     l = 0
-    while l < 2
+    while l < 5
         @trixi_timeit timer() "while loop 1" foreach_system(semi) do neighbor_system
             # Get neighbor system u and v values 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
@@ -351,11 +354,12 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
                 grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
                 # gives only a value for fluid particles (0 for boundary particles) 
-                sum_dj_ = calculate_sum_dj(neighbor_system, neighbor, density, time_step, grad_kernel)
+                sum_dj_ = calculate_sum_dj(neighbor_system, neighbor, density, pressure, time_step, grad_kernel)
                 for i in 1:ndims(system)
                     sum_dj[i, particle] += sum_dj_[i] 
                 end
             end
+
         end
 
         @trixi_timeit timer() "while loop 2" foreach_system(semi) do neighbor_system
@@ -379,30 +383,56 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
             end
         end
         for particle in eachparticle(system)
-            #pressure[particle] = (1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle])
+            pressure[particle] = (1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle])
             #version with pressure clamping (no negative pressure values)
-            pressure[particle] = max((1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle]), 0)
+            density_error[particle] = rest_density - density[particle] - s_term[particle]
+            #pressure[particle] = max((1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle]), 0)
             #pressure[particle] = 0.0
+            
+            density_deviation[particle] = rest_density - density[particle]
             #density[particle] = 1000.0
         end
+        avg_density_error = sum(density_error) / nparticles(system)
+        println("avg_density_error: ", avg_density_error)
+        density_deviation_error_ = sum(density_deviation / nparticles(system))
+        println("avg_density_deviation: ", density_deviation_error_)
+        println("avg_sterm: ", sum(s_term) / nparticles(system))
+        #println("min_avg_density_deviation: ", min(density_deviation_error_))
+        #println("max_avg_density_deviation: ", max(density_deviation_error_))
+        #=
+        println("l: ", l)
+        println("Density Minimum: ", minimum(density))
+        println("Density Maximum: ", maximum(density))
+        println("Pressure Minimum: ", minimum(pressure))
+        println("Pressure Maximum: ", maximum(pressure))
+        println("----------------------------------------------------------")   
+        println("----------------------------------------------------------")
+        =#
         l += 1
     end
-    #=
-    #print(density)
-    println("Density Minimum: ", minimum(density))
-    println("Density Maximum: ", maximum(density))
-    println("Pressure Minimum: ", minimum(pressure))
-    println("Pressure Maximum: ", maximum(pressure))
+    d
+    sum_dens = sum(particle -> particle_density(v, system, particle),
+               eachparticle(system))
+    avg_dens = sum_dens / nparticles(system)
+    sum_pres = sum(pressure)
+    avg_pres = sum_pres / nparticles(system)
+    println("Average Density: ", avg_density(v, u, t, system))
+    #println("avg_dens: ", avg_dens)
+    #println("Density Minimum: ", minimum(density))
+    #println("Density Maximum: ", maximum(density))
+    println("avg_pres: ", avg_pres)
+    #println("Pressure Minimum: ", minimum(pressure))
+    #println("Pressure Maximum: ", maximum(pressure))
     #println(a)
     #println(size(a))
-    println("a Minimum: ", minimum(a))
-    println("a Maximum: ", maximum(a))
+    #println("a Minimum: ", minimum(a))
+    #println("a Maximum: ", maximum(a))
     #println(system.s_term)
     #println(size(system.s_term))
-    println("s_term Minimum: ", minimum(system.s_term))
-    println("s_term Maximum: ", maximum(system.s_term))
-    println("------------------------------------------------------")
-    =#
+    #println("s_term Minimum: ", minimum(system.s_term))
+    #println("s_term Maximum: ", maximum(system.s_term))
+    println("----------------------------------------------------------")
+   
     return system
 end
 
