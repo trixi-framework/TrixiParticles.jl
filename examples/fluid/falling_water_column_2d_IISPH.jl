@@ -13,12 +13,12 @@ spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
-gravity = 9.81
+gravity = 0.0
 tspan = (0.0, 0.2)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (1.0, 1.0)
-tank_size = (2.5, 2.5)
+tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
 # TODO: Was machen mit dem sound speed?
@@ -29,7 +29,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # Move water column
 for i in axes(tank.fluid.coordinates, 2)
-    tank.fluid.coordinates[:, i] .+= [0.5 * tank_size[1] - 0.5 * initial_fluid_size[1], 0.2]
+    tank.fluid.coordinates[:, i] .+= [0.5 * tank_size[1] - 0.5 * initial_fluid_size[1], 0.1]
 end
 
 # ==========================================================================================
@@ -73,7 +73,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # interprets this as an instability.
 sol = solve(ode, SymplecticEuler(),
             dt = 0.00001,
-            #maxiters=1000, # Limit stepsize to prevent crashing
+            maxiters=1, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
 plot(sol)
