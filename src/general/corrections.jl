@@ -412,3 +412,92 @@ function correction_matrix_inversion_step!(corr_matrix, system)
 
     return corr_matrix
 end
+
+create_cache_correction(correction, density, NDIMS, nparticles) = (;)
+
+function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density))
+end
+
+function create_cache_correction(::KernelCorrection, density, NDIMS, n_particles)
+    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density), dw_gamma)
+end
+
+function create_cache_correction(::Union{GradientCorrection, BlendedGradientCorrection},
+                                 density,
+                                 NDIMS, n_particles)
+    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+    return (; correction_matrix)
+end
+
+function create_cache_correction(::MixedKernelGradientCorrection, density, NDIMS,
+                                 n_particles)
+    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
+    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+
+    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
+end
+
+function kernel_correct_density!(system::FluidSystem, v, u, v_ode, u_ode,
+                                 semi, correction, density_calculator)
+    return system
+end
+
+function kernel_correct_density!(system::FluidSystem, v, u, v_ode, u_ode,
+                                 semi, corr::ShepardKernelCorrection, ::SummationDensity)
+    system.cache.density ./= system.cache.kernel_correction_coefficient
+end
+
+function compute_gradient_correction_matrix!(correction, system::FluidSystem, u,
+                                             v_ode, u_ode, semi)
+    return system
+end
+
+function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection},
+                                             system::FluidSystem, u,
+                                             v_ode, u_ode, semi)
+    (; cache, correction, smoothing_kernel, smoothing_length) = system
+    (; correction_matrix) = cache
+
+    system_coords = current_coordinates(u, system)
+
+    compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
+                                        v_ode, u_ode, semi, correction, smoothing_length,
+                                        smoothing_kernel)
+end
+
+function reinit_density!(vu_ode, semi)
+    v_ode, u_ode = vu_ode.x
+
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        reinit_density!(system, v, u, v_ode, u_ode, semi)
+    end
+
+    return vu_ode
+end
+
+function reinit_density!(system::FluidSystem, v, u, v_ode, u_ode, semi)
+    # Compute density with `SummationDensity` and store the result in `v`,
+    # overwriting the previous integrated density.
+    summation_density!(system, semi, u, u_ode, v[end, :])
+
+    # Apply `ShepardKernelCorrection`
+    kernel_correction_coefficient = zeros(size(v[end, :]))
+    compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
+                           kernel_correction_coefficient)
+    v[end, :] ./= kernel_correction_coefficient
+
+    compute_pressure!(system, v)
+
+    return system
+end
+
+function reinit_density!(system, v, u, v_ode, u_ode, semi)
+    return system
+end

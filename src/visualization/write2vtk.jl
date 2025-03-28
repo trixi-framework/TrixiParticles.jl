@@ -251,6 +251,65 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["surf_normal"] = [surface_normal(system, particle)
                               for particle in eachparticle(system)]
         vtk["neighbor_count"] = system.cache.neighbor_count
+        vtk["color"] = system.cache.color
+    end
+
+    if system.surface_tension isa SurfaceTensionMorris ||
+       system.surface_tension isa SurfaceTensionMomentumMorris
+        surface_tension = zeros((ndims(system), n_moving_particles(system)))
+        system_coords = current_coordinates(u, system)
+
+        surface_tension_a = surface_tension_model(system)
+        surface_tension_b = surface_tension_model(system)
+        nhs = create_neighborhood_search(nothing, system, system)
+
+        foreach_point_neighbor(system, system,
+                               system_coords, system_coords,
+                               nhs) do particle, neighbor, pos_diff,
+                                       distance
+            rho_a = particle_density(v, system, particle)
+            rho_b = particle_density(v, system, neighbor)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+            surface_tension[1:ndims(system), particle] .+= surface_tension_force(surface_tension_a,
+                                                                                 surface_tension_b,
+                                                                                 system,
+                                                                                 system,
+                                                                                 particle,
+                                                                                 neighbor,
+                                                                                 pos_diff,
+                                                                                 distance,
+                                                                                 rho_a,
+                                                                                 rho_b,
+                                                                                 grad_kernel)
+        end
+        vtk["surface_tension"] = surface_tension
+        vtk["colorfield"] = system.cache.colorfield
+
+        if system.surface_tension isa SurfaceTensionMorris
+            vtk["curvature"] = system.cache.curvature
+        end
+        if system.surface_tension isa SurfaceTensionMomentumMorris
+            vtk["surface_stress_tensor"] = system.cache.stress_tensor
+        end
+        if system.surface_tension isa SurfaceTensionMorris ||
+           system.surface_tension isa SurfaceTensionMomentumMorris
+            if !(system.surface_tension.contact_model isa Nothing)
+                clf = zeros((ndims(system), n_moving_particles(system)))
+                for particle in each_moving_particle(system)
+                    clf[:, particle] .= contact_force(system.surface_tension.contact_model,
+                                                      system, particle)
+                end
+
+                vtk["clf"] = clf
+
+                vtk["d_hat"] = system.cache.d_hat
+                vtk["delta_wns"] = system.cache.delta_wns
+                vtk["nu_hat"] = system.cache.nu_hat
+                vtk["normal_v"] = system.cache.normal_v
+                vtk["d_vec"] = system.cache.d_vec
+            end
+        end
     end
 
     if write_meta_data
@@ -262,6 +321,8 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["density_calculator"] = type2string(system.density_calculator)
 
         if system isa WeaklyCompressibleSPHSystem
+            vtk["solver"] = "WCSPH"
+
             vtk["correction_method"] = type2string(system.correction)
             if system.correction isa AkinciFreeSurfaceCorrection
                 vtk["correction_rho0"] = system.correction.rho0
@@ -395,6 +456,13 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
 
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
+    end
+
+    if !(system.surface_normal_method isa Nothing)
+        vtk["normal"] = [surface_normal(system, particle)
+                         for particle in eachparticle(system)]
+        vtk["tangential"] = [wall_tangential(system, particle)
+                             for particle in eachparticle(system)]
     end
 end
 

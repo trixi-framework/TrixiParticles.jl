@@ -211,6 +211,7 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
+# TODO: move TLSPH correction matrix into cache so that there is no conflict with the other schemes
 @inline function correction_matrix(system, particle)
     extract_smatrix(system.correction_matrix, system, particle)
 end
