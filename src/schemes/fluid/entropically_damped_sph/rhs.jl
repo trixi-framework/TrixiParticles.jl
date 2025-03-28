@@ -22,8 +22,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
-        rho_a = particle_density(v_particle_system, particle_system, particle)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = @inbounds particle_density(v_particle_system, particle_system, particle)
+        rho_b = @inbounds particle_density(v_neighbor_system, neighbor_system, neighbor)
 
         p_a = particle_pressure(v_particle_system, particle_system, particle)
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
@@ -34,8 +34,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Note that the return value is zero when not using EDAC with TVF.
         p_avg = average_pressure(particle_system, particle)
 
-        m_a = hydrodynamic_mass(particle_system, particle)
-        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+        m_a = @inbounds hydrodynamic_mass(particle_system, particle)
+        m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
@@ -55,16 +55,19 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             rho_a, rho_b, m_a, m_b,
                                             particle, neighbor, grad_kernel)
 
+        # TODO: only applies to fluids with the same color
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
-                                                   particle, neighbor, pos_diff, distance)
+                                                   particle, neighbor, pos_diff, distance,
+                                                   rho_a, rho_b, grad_kernel)
 
         dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_convection[i] +
-                               dv_surface_tension[i] + dv_adhesion[i]
+            @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] +
+                                         dv_convection[i] + dv_surface_tension[i] +
+                                         dv_adhesion[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
@@ -81,12 +84,20 @@ function interact!(dv, v_particle_system, u_particle_system,
                              particle_system, grad_kernel)
     end
 
+    for particle in each_moving_particle(particle_system)
+        F = contact_force(particle_system.surface_tension.contact_model,
+                          particle_system, particle)
+        for i in 1:ndims(particle_system)
+            @inbounds dv[i, particle] += F[i]
+        end
+    end
+
     return dv
 end
 
 @inline function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
-                                     pos_diff, distance, sound_speed, m_a, m_b,
-                                     p_a, p_b, rho_a, rho_b)
+                             pos_diff, distance, sound_speed, m_a, m_b,
+                             p_a, p_b, rho_a, rho_b)
     (; smoothing_length) = particle_system
 
     volume_a = m_a / rho_a
@@ -126,17 +137,17 @@ end
 
 # We need a separate method for EDAC since the density is stored in `v[end-1,:]`.
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
-                                      vdiff, particle, m_b, rho_a, rho_b,
-                                      particle_system::EntropicallyDampedSPHSystem,
-                                      grad_kernel)
+                              vdiff, particle, m_b, rho_a, rho_b,
+                              particle_system::EntropicallyDampedSPHSystem,
+                              grad_kernel)
     dv[end - 1, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
 
     return dv
 end
 
 @inline function continuity_equation!(dv, density_calculator,
-                                      vdiff, particle, m_b, rho_a, rho_b,
-                                      particle_system::EntropicallyDampedSPHSystem,
-                                      grad_kernel)
+                              vdiff, particle, m_b, rho_a, rho_b,
+                              particle_system::EntropicallyDampedSPHSystem,
+                              grad_kernel)
     return dv
 end
