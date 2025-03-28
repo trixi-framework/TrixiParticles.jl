@@ -126,6 +126,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
     end
 end
 
+timer_name(::ParticlePackingSystem) = "packing"
+
 @inline function Base.eltype(::ParticlePackingSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
@@ -300,15 +302,3 @@ end
 
     return du
 end
-
-function write_u0!(u0, system::ParticlePackingSystem)
-    (; initial_condition) = system
-
-    # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
-    indices = CartesianIndices(initial_condition.coordinates)
-    copyto!(u0, indices, initial_condition.coordinates, indices)
-
-    return u0
-end
-
-timer_name(::ParticlePackingSystem) = "packing"
