@@ -652,14 +652,6 @@ function update_nhs!(neighborhood_search,
             points_moving=(true, true))
 end
 
-function update_nhs!(neighborhood_search, system::ParticlePackingSystem,
-                     neighbor::ParticlePackingSystem, u_system, u_neighbor)
-    # The current coordinates of particles changes over time
-    update!(neighborhood_search, system,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            points_moving=(true, true))
-end
 
 function update_nhs!(neighborhood_search,
                      system::FluidSystem, neighbor::BoundarySPHSystem,
