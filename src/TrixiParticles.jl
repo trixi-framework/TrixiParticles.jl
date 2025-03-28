@@ -27,11 +27,13 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
-                 disable_debug_timings, enable_debug_timings
+using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
+                 disable_debug_timings, enable_debug_timings, TrixiBase
+@reexport using TrixiBase: trixi_include, trixi_include_changeprecision
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
                                 PrecomputedNeighborhoodSearch, PeriodicBox,
-                                ParallelUpdate, SemiParallelUpdate, SerialUpdate
+                                ParallelUpdate, SemiParallelUpdate, SerialUpdate,
+                                FullGridCellList, DictionaryCellList
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
                       @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
@@ -56,8 +58,8 @@ include("preprocessing/preprocessing.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem, InFlow,
-       OutFlow
+       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem
+export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback
 export ContinuityDensity, SummationDensity
@@ -75,7 +77,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 export HertzContactModel, LinearContactModel
 
 export BoundaryMovement
-export examples_dir, validation_dir, trixi_include
+export examples_dir, validation_dir
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField

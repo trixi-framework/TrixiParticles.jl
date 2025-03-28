@@ -253,6 +253,7 @@ ode_problem = semidiscretize(semi, tspan)
 
 # output
 ODEProblem with uType RecursiveArrayTools.ArrayPartition{Float64, Tuple{Vector{Float64}, Vector{Float64}}} and tType Float64. In-place: true
+Non-trivial mass matrix: false
 timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
@@ -852,5 +853,15 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+end
+
+function check_configuration(system::OpenBoundarySPHSystem, systems)
+    (; boundary_model, boundary_zone) = system
+
+    if boundary_model isa BoundaryModelLastiwka &&
+       boundary_zone isa BoundaryZone{BidirectionalFlow}
+        throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
+                            "Please specify inflow and outflow."))
     end
 end
