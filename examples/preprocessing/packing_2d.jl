@@ -5,6 +5,10 @@ filename = "circle"
 file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".asc")
 
 # ==========================================================================================
+# ==== Packing parameters
+tlsph = true
+
+# ==========================================================================================
 # ==== Resolution
 particle_spacing = 0.03
 
@@ -18,7 +22,6 @@ boundary_thickness = 8 * particle_spacing
 density = 1000.0
 
 geometry = load_geometry(file)
-tlsph = true
 
 signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             use_for_boundary_packing=true,

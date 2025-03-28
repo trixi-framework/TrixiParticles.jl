@@ -652,7 +652,6 @@ function update_nhs!(neighborhood_search,
             points_moving=(true, true))
 end
 
-
 function update_nhs!(neighborhood_search,
                      system::FluidSystem, neighbor::BoundarySPHSystem,
                      u_system, u_neighbor)
