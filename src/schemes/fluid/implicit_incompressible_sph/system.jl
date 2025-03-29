@@ -317,22 +317,22 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
         end
     end
 
-    # parameters
-    rest_density = 1000.0
+    # relaxiaion parameter
     w = 0.5
     # get necessary fields from the struct 
     sum_dj = system.sum_dj
     s_term = system.s_term
     # set to zero
     sum_dj .= 0.0
-    s_term .= 0.0
+    #s_term .= 0.0
     #for bug fixes (searching the mistake)
+    rest_density = 1000.0
     density_error = zeros(nparticles(system))
     density_deviation = zeros(nparticles(system))
 
     # While-loop
     l = 0
-    while l < 5 #TODO: Abbruchbedingung
+    while l < 6 #TODO: Abbruchbedingung
         @trixi_timeit timer() "while loop 1" foreach_system(semi) do neighbor_system
             # Get neighbor system u and v values 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
@@ -357,6 +357,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
             end
         end
 
+        s_term .= 0.0
         @trixi_timeit timer() "while loop 2" foreach_system(semi) do neighbor_system
             # Get neighbor system u and v values 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
@@ -380,14 +381,15 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
         for particle in eachparticle(system)
             #two versions of pressure calculation: with and without pressure clamping
-            pressure[particle] = (1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle]) # no pressure clamping
-            #pressure[particle] = max((1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle]), 0) #version with pressure clamping (no negative pressure values)
+            #pressure[particle] = (1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle]) # no pressure clamping
+            pressure[particle] = max((1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle]), 0) #version with pressure clamping (no negative pressure values)
             
             # Tests für Bug Fixes
             density_error[particle] = rest_density - density[particle] - s_term[particle]
             #pressure[particle] = 0.0
             density_deviation[particle] = rest_density - density[particle]
             #density[particle] = 1000.0
+
         end
         l += 1
 
@@ -398,6 +400,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
         density_deviation_error_ = sum(density_deviation / nparticles(system))
         println("avg_density_deviation: ", density_deviation_error_)
         println("avg_sterm: ", sum(s_term) / nparticles(system))
+        println("avg 1/a term: ", 1 / (sum(a) / nparticles(system)))
         #println("min_avg_density_deviation: ", min(density_deviation_error_))
         #println("max_avg_density_deviation: ", max(density_deviation_error_))
         #=

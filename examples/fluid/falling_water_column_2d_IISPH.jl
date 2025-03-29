@@ -13,7 +13,7 @@ spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
-gravity = 0.0
+gravity = 9.81 # gravity verändern
 tspan = (0.0, 0.2)
 
 # Boundary geometry and initial fluid particle positions
@@ -21,6 +21,7 @@ initial_fluid_size = (1.0, 1.0)
 tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
+
 # TODO: Was machen mit dem sound speed?
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
 
@@ -46,7 +47,7 @@ fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = PressureMirroring() # PressureMirroring richtig oder Pressure zeoring oder was ganz anderes???
+boundary_density_calculator = PressureMirroring() #TODO PressureMirroring richtig oder Pressure zeoring oder was ganz anderes???
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=nothing,
                                              boundary_density_calculator,
@@ -72,8 +73,8 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
 sol = solve(ode, SymplecticEuler(),
-            dt = 0.00001,
-            maxiters=1, # Limit stepsize to prevent crashing
+            dt = 0.00001, # Limit stepsize to prevent crashing
+            #maxiters=3, # maximale Anzahl an #iterationen
             save_everystep=false, callback=callbacks);
 
 plot(sol)
