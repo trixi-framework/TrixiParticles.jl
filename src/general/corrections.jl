@@ -222,10 +222,7 @@ function compute_correction_values!(system,
                                                        smoothing_kernel(system, distance,
                                                                         particle)
             if distance > sqrt(eps())
-                tmp = volume *
-                      corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance,
-                                            smoothing_length(system, particle),
-                                            system.correction, system, particle)
+                tmp = volume * smoothing_kernel_grad(system, pos_diff, distance, particle)
                 for i in axes(dw_gamma, 1)
                     dw_gamma[i, particle] += tmp[i]
                 end

@@ -127,3 +127,5 @@ end
                         v_particle_system, v_neighbor_system, rho_a, rho_b,
                         m_a, m_b, particle, neighbor, grad_kernel)
 end
+
+system_correction(system::FluidSystem) = system.correction

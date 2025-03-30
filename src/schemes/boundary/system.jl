@@ -437,3 +437,11 @@ end
     return kernel_grad(system.boundary_model.smoothing_kernel, pos_diff, distance,
                        smoothing_length(system, particle))
 end
+
+function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
+    return system.boundary_model.smoothing_kernel
+end
+
+function system_correction(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
+    return system.boundary_model.correction
+end
