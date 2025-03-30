@@ -238,6 +238,8 @@ end
     return ndims(system) + 1
 end
 
+system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
+
 @propagate_inbounds function particle_pressure(v, system::WeaklyCompressibleSPHSystem,
                                                particle)
     return system.pressure[particle]

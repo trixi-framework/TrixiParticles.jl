@@ -212,6 +212,8 @@ end
     return ndims(system) * factor_tvf(system) + 2
 end
 
+system_correction(system::EntropicallyDampedSPHSystem) = system.correction
+
 @inline function particle_density(v, ::ContinuityDensity,
                                   system::EntropicallyDampedSPHSystem, particle)
     return v[end - 1, particle]
