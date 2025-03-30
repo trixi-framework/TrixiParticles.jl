@@ -284,8 +284,9 @@
             end
 
             #### Verification
-            @test TrixiParticles.pk2_stress_tensor(J, system) ≈ expected_pk2[deformation]
-            @test TrixiParticles.pk1_stress_tensor(J, system) ≈ expected_pk1[deformation]
+            @test TrixiParticles.pk2_stress_tensor(J, 1, lame_lambda, lame_mu) ≈
+                  expected_pk2[deformation]
+            @test TrixiParticles.pk1_stress_tensor(J, system, 1) ≈ expected_pk1[deformation]
         end
     end
 

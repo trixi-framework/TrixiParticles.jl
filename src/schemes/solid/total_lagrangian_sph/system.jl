@@ -55,7 +55,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                K, PF, ST} <: SolidSystem{NDIMS, IC}
+                                YM, PR, LL, LM, K, PF, ST} <: SolidSystem{NDIMS, IC}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -65,10 +65,10 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     deformation_grad    :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
     material_density    :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     n_moving_particles  :: Int64
-    young_modulus       :: ELTYPE
-    poisson_ratio       :: ELTYPE
-    lame_lambda         :: ELTYPE
-    lame_mu             :: ELTYPE
+    young_modulus       :: YM
+    poisson_ratio       :: PR
+    lame_lambda         :: LL
+    lame_mu             :: LM
     smoothing_kernel    :: K
     smoothing_length    :: ELTYPE
     acceleration        :: SVector{NDIMS, ELTYPE}
@@ -109,9 +109,9 @@ function TotalLagrangianSPHSystem(initial_condition,
 
     n_moving_particles = n_particles - n_fixed_particles
 
-    lame_lambda = young_modulus * poisson_ratio /
-                  ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
-    lame_mu = (young_modulus / 2) / (1 + poisson_ratio)
+    lame_lambda = @. young_modulus * poisson_ratio /
+                     ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
+    lame_mu = @. (young_modulus / 2) / (1 + poisson_ratio)
 
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -143,11 +143,24 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
     else
         n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
+        if system.young_modulus isa AbstractVector
+            young_modulus = UnitRange(minimum(system.young_modulus),
+                                      maximum(system.young_modulus))
+        else
+            young_modulus = system.young_modulus
+        end
+        if system.poisson_ratio isa AbstractVector
+            poisson_ratio = UnitRange(minimum(system.poisson_ratio),
+                                      maximum(system.poisson_ratio))
+        else
+            poisson_ratio = system.poisson_ratio
+        end
+
         summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
         summary_line(io, "total #particles", nparticles(system))
         summary_line(io, "#fixed particles", n_fixed_particles)
-        summary_line(io, "Young's modulus", system.young_modulus)
-        summary_line(io, "Poisson ratio", system.poisson_ratio)
+        summary_line(io, "Young's modulus", young_modulus)
+        summary_line(io, "Poisson ratio", poisson_ratio)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)
@@ -267,7 +280,7 @@ end
 
     @threaded system for particle in eachparticle(system)
         F_particle = deformation_gradient(system, particle)
-        pk1_particle = pk1_stress_tensor(F_particle, system)
+        pk1_particle = pk1_stress_tensor(F_particle, system, particle)
         pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
@@ -311,15 +324,26 @@ end
 end
 
 # First Piola-Kirchhoff stress tensor
-@inline function pk1_stress_tensor(F, system)
-    S = pk2_stress_tensor(F, system)
+@inline function pk1_stress_tensor(F, system, particle)
+    (; lame_lambda, lame_mu) = system
+
+    S = pk2_stress_tensor(F, particle, lame_lambda, lame_mu)
 
     return F * S
 end
 
 # Second Piola-Kirchhoff stress tensor
-@inline function pk2_stress_tensor(F, system)
-    (; lame_lambda, lame_mu) = system
+@inline function pk2_stress_tensor(F, particle,
+                                   lame_lambda::AbstractVector, lame_mu::AbstractVector)
+
+    # Compute the Green-Lagrange strain
+    E = (transpose(F) * F - I) / 2
+
+    return lame_lambda[particle] * tr(E) * I + 2 * lame_mu[particle] * E
+end
+
+# Second Piola-Kirchhoff stress tensor
+@inline function pk2_stress_tensor(F, particle, lame_lambda, lame_mu)
 
     # Compute the Green-Lagrange strain
     E = (transpose(F) * F - I) / 2

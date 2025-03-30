@@ -411,6 +411,7 @@ end
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
 
 # This type of viscosity depends on the system, so we need to use the fluid system
-function kinematic_viscosity(system::OpenBoundarySPHSystem, viscosity::ArtificialViscosityMonaghan)
+function kinematic_viscosity(system::OpenBoundarySPHSystem,
+                             viscosity::ArtificialViscosityMonaghan)
     return kinematic_viscosity(system.fluid_system, viscosity)
 end
