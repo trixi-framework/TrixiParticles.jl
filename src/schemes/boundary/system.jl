@@ -67,23 +67,22 @@ The interaction between fluid and boundary particles is specified by the boundar
     This is an experimental feature and may change in a future releases.
 
 """
-struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
-                         ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS, IC}
+struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS, IC}
     initial_condition :: IC
-    coordinates       :: ARRAY2D # [dimension, particle]
-    radius            :: ARRAY1D # [particle]
+    coordinates       :: ARRAY2D   # [dimension, particle]
+    radius            :: ARRAY1D   # [particle]
     normal_stiffness  :: ELTYPE
+    local_normals     :: ARRAY2D   # [dimension, particle]
     buffer            :: Nothing
 
     function BoundaryDEMSystem(initial_condition, normal_stiffness)
         coordinates = initial_condition.coordinates
-        radius = 0.5 * initial_condition.particle_spacing *
-                 ones(length(initial_condition.mass))
+        radius = 0.5 * initial_condition.particle_spacing * ones(length(initial_condition.mass))
         NDIMS = size(coordinates, 1)
-
+        local_normals = precompute_boundary_normals(coordinates)
         return new{NDIMS, eltype(coordinates), typeof(initial_condition), typeof(radius),
                    typeof(coordinates)}(initial_condition, coordinates, radius,
-                                        normal_stiffness, nothing)
+                                        normal_stiffness, local_normals, nothing)
     end
 end
 
@@ -104,6 +103,40 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundaryDEMSystem)
         summary_line(io, "#particles", nparticles(system))
         summary_footer(io)
     end
+end
+
+function precompute_boundary_normals(coordinates)
+    d, N = size(coordinates)
+    normals = zeros(coordinates)
+    for i in 1:N
+        # Use cyclic indexing: previous and next.
+        prev = coordinates[:, i == 1 ? N : i - 1]
+        nxt  = coordinates[:, i == N ? 1 : i + 1]
+        tangent = nxt - prev
+        tnorm = norm(tangent)
+        if tnorm == 0
+            tangent = ones(T, d)
+            tnorm = norm(tangent)
+        end
+        tangent .= tangent / tnorm
+        if d == 2
+            # In 2D, rotate the tangent by 90° (choose a consistent orientation).
+            nvec = [-tangent[2], tangent[1]]
+        elseif d == 3
+            # In 3D, assume the boundary is roughly planar.
+            up = [0.0, 0.0, 1.0]
+            nvec = cross(tangent, up)
+            if norm(nvec) < 1e-6
+                up = [0.0, 1.0, 0.0]
+                nvec = cross(tangent, up)
+            end
+            nvec .= nvec / norm(nvec)
+        else
+            error("precompute_boundary_normals supports only 2D or 3D boundaries")
+        end
+        normals[:, i] = nvec
+    end
+    return normals
 end
 
 """
