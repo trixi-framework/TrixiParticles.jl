@@ -148,6 +148,64 @@ function calculate_signed_distances!(positions, distances, normals,
     return positions
 end
 
+# This function interpolates the signed distances at each position.
+# It accepts multiple `signed_distance_field`s, each with a potentially different resolution.
+# The idea is to combine these fields to represent signed distances over a broader range of scales.
+# Fields with higher resolution provide more precise distance information in their specific regions,
+# while those with lower resolution can capture larger distances.
+# The function ensures that the correct interpolation is performed based on the resolution
+# of the `signed_distance_field` at each queried position.
+function interpolate_distances!(distances, positions, signed_distance_fields...;
+                                smoothing_kernel=SchoenbergQuinticSplineKernel{2}(),
+                                smoothing_length_factor=1.2,
+                                neighborhood_search=GridNeighborhoodSearch{2}())
+    particle_spacings = empty(distances)
+    neighborhood_searches = empty([neighborhood_search])
+    for i in eachindex(signed_distance_fields)
+        push!(particle_spacings, signed_distance_fields[i].particle_spacing)
+        search_radius = compact_support(smoothing_kernel,
+                                        smoothing_length_factor *
+                                        signed_distance_fields[i].particle_spacing)
+        push!(neighborhood_searches,
+              copy_neighborhood_search(neighborhood_search, search_radius,
+                                       length(signed_distance_fields[i].positions)))
+        PointNeighbors.initialize_grid!(neighborhood_searches[i],
+                                        stack(signed_distance_fields[i].positions))
+    end
+
+    for point in eachindex(positions)
+        point_coords = positions[point]
+        volume = zero(eltype(distances))
+        distance_signed = zero(eltype(distances))
+
+        for i in eachindex(neighborhood_searches)
+            search_radius2 = neighborhood_searches[i].search_radius^2
+            for neighbor in PointNeighbors.eachneighbor(point_coords,
+                                                        neighborhood_searches[i])
+                pos_diff = signed_distance_fields[i].positions[neighbor] - point_coords
+                distance2 = dot(pos_diff, pos_diff)
+                distance2 > search_radius2^2 && continue
+
+                distance = sqrt(distance2)
+                kernel_weight = kernel(smoothing_kernel, distance,
+                                       smoothing_length_factor * particle_spacings[i])
+
+                distance_signed += signed_distance_fields[i].distances[neighbor] *
+                                   kernel_weight
+
+                volume += kernel_weight
+            end
+        end
+
+        if volume > eps()
+            distance_signed /= volume
+            distances[point] = distance_signed
+        end
+    end
+
+    return distances
+end
+
 function signed_point_face_distance(p::SVector{2}, boundary, edge_index)
     (; edge_vertices, vertex_normals, edge_normals) = boundary
 
