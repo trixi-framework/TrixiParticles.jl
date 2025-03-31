@@ -5,8 +5,9 @@
                                 density_calculator=SummationDensity(),
                                 transport_velocity=nothing,
                                 alpha=0.5, viscosity=nothing,
-                                acceleration=ntuple(_ -> 0.0, NDIMS), buffer_size=nothing,
-                                source_terms=nothing)
+                                acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
+                                surface_normal_method=nothing, buffer_size=nothing,
+                                reference_particle_spacing=0.0, source_terms=nothing)
 
 System for particles of a fluid.
 As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an equation of state,
@@ -22,29 +23,35 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
-- `viscosity`:      Viscosity model for this system (default: no viscosity).
-                    Recommended: [`ViscosityAdami`](@ref).
-- `acceleration`:   Acceleration vector for the system. (default: zero vector)
-- `pressure_acceleration`: Pressure acceleration formulation (default: inter-particle averaged pressure).
-                        When set to `nothing`, the pressure acceleration formulation for the
-                        corresponding [density calculator](@ref density_calculator) is chosen.
-- `density_calculator`: [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
-- `transport_velocity`: [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
-- `buffer_size`:    Number of buffer particles.
-                    This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
-- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
-                    (by default), or a function of `(coords, velocity, density, pressure, t)`
-                    (which are the quantities of a single particle), returning a `Tuple`
-                    or `SVector` that is to be added to the acceleration of that particle.
-                    See, for example, [`SourceTermDamping`](@ref).
-                    Note that these source terms will not be used in the calculation of the
-                    boundary pressure when using a boundary with
-                    [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
-                    The keyword argument `acceleration` should be used instead for
-                    gravity-like source terms.
+- `viscosity`:                  Viscosity model for this system (default: no viscosity).
+                                Recommended: [`ViscosityAdami`](@ref).
+- `acceleration`:               Acceleration vector for the system. (default: zero vector)
+- `pressure_acceleration`:      Pressure acceleration formulation (default: inter-particle averaged pressure).
+                                When set to `nothing`, the pressure acceleration formulation for the
+                                corresponding [density calculator](@ref density_calculator) is chosen.
+- `density_calculator`:         [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
+- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
+- `buffer_size`:                Number of buffer particles.
+                                This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+- `source_terms`:               Additional source terms for this system. Has to be either `nothing`
+                                (by default), or a function of `(coords, velocity, density, pressure, t)`
+                                (which are the quantities of a single particle), returning a `Tuple`
+                                or `SVector` that is to be added to the acceleration of that particle.
+                                See, for example, [`SourceTermDamping`](@ref).
+                                Note that these source terms will not be used in the calculation of the
+                                boundary pressure when using a boundary with
+                                [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
+                                The keyword argument `acceleration` should be used instead for
+                                gravity-like source terms.
+- `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
+- `surface_normal_method`:      The surface normal method to be used for this SPH system.
+                                (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
+- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
+                                which currently is only needed when using surface tension.
+
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
-                                   PF, ST, B, C} <: FluidSystem{NDIMS, IC}
+                                   PF, ST, SRFT, SRFN, B, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
@@ -58,56 +65,82 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     pressure_acceleration_formulation :: PF
     transport_velocity                :: TV
     source_terms                      :: ST
+    surface_tension                   :: SRFT
+    surface_normal_method             :: SRFN
     buffer                            :: B
     cache                             :: C
+end
 
-    function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                         smoothing_length, sound_speed;
-                                         pressure_acceleration=inter_particle_averaged_pressure,
-                                         density_calculator=SummationDensity(),
-                                         transport_velocity=nothing,
-                                         alpha=0.5, viscosity=nothing,
-                                         acceleration=ntuple(_ -> 0.0,
-                                                             ndims(smoothing_kernel)),
-                                         source_terms=nothing, buffer_size=nothing)
-        buffer = isnothing(buffer_size) ? nothing :
-                 SystemBuffer(nparticles(initial_condition), buffer_size)
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+                                     smoothing_length, sound_speed;
+                                     pressure_acceleration=inter_particle_averaged_pressure,
+                                     density_calculator=SummationDensity(),
+                                     transport_velocity=nothing,
+                                     alpha=0.5, viscosity=nothing,
+                                     acceleration=ntuple(_ -> 0.0,
+                                                         ndims(smoothing_kernel)),
+                                     source_terms=nothing, surface_tension=nothing,
+                                     surface_normal_method=nothing, buffer_size=nothing,
+                                     reference_particle_spacing=0.0)
+    buffer = isnothing(buffer_size) ? nothing :
+             SystemBuffer(nparticles(initial_condition), buffer_size)
 
-        initial_condition = allocate_buffer(initial_condition, buffer)
+    initial_condition = allocate_buffer(initial_condition, buffer)
 
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
 
-        mass = copy(initial_condition.mass)
+    mass = copy(initial_condition.mass)
+    n_particles = length(initial_condition.mass)
 
-        if ndims(smoothing_kernel) != NDIMS
-            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        acceleration_ = SVector(acceleration...)
-        if length(acceleration_) != NDIMS
-            throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
-                                                                         density_calculator,
-                                                                         NDIMS, ELTYPE,
-                                                                         nothing)
-
-        nu_edac = (alpha * smoothing_length * sound_speed) / 8
-
-        cache = create_cache_density(initial_condition, density_calculator)
-        cache = (; create_cache_edac(initial_condition, transport_velocity)..., cache...)
-
-        new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
-            typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
-            typeof(transport_velocity), typeof(pressure_acceleration), typeof(source_terms),
-            typeof(buffer),
-            typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
-                           smoothing_length, sound_speed, viscosity, nu_edac, acceleration_,
-                           nothing, pressure_acceleration, transport_velocity, source_terms,
-                           buffer, cache)
+    if ndims(smoothing_kernel) != NDIMS
+        throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
     end
+
+    acceleration_ = SVector(acceleration...)
+    if length(acceleration_) != NDIMS
+        throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    if surface_tension !== nothing && surface_normal_method === nothing
+        surface_normal_method = ColorfieldSurfaceNormal()
+    end
+
+    if surface_normal_method !== nothing && reference_particle_spacing < eps()
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+    end
+
+    pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
+                                                                     density_calculator,
+                                                                     NDIMS, ELTYPE,
+                                                                     nothing)
+
+    nu_edac = (alpha * smoothing_length * sound_speed) / 8
+
+    cache = create_cache_density(initial_condition, density_calculator)
+    cache = (;
+             create_cache_edac(initial_condition, transport_velocity)...,
+             create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
+                                         n_particles)...,
+             create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
+                                          n_particles)...,
+             cache...)
+
+    EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
+                                typeof(density_calculator), typeof(smoothing_kernel),
+                                typeof(viscosity), typeof(transport_velocity),
+                                typeof(pressure_acceleration), typeof(source_terms),
+                                typeof(surface_tension), typeof(surface_normal_method),
+                                typeof(buffer),
+                                typeof(cache)}(initial_condition, mass, density_calculator,
+                                               smoothing_kernel, smoothing_length,
+                                               sound_speed, viscosity, nu_edac,
+                                               acceleration_, nothing,
+                                               pressure_acceleration, transport_velocity,
+                                               source_terms, surface_tension,
+                                               surface_normal_method, buffer, cache)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
@@ -118,6 +151,8 @@ function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
+    print(io, ", ", system.surface_tension)
+    print(io, ", ", system.surface_normal_method)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -142,6 +177,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "tansport velocity formulation",
                      system.transport_velocity |> typeof |> nameof)
         summary_line(io, "acceleration", system.acceleration)
+        summary_line(io, "surface tension", system.surface_tension)
+        summary_line(io, "surface normal method", system.surface_normal_method)
         summary_footer(io)
     end
 end
@@ -154,6 +191,10 @@ function create_cache_edac(initial_condition, ::TransportVelocityAdami)
     update_callback_used = Ref(false)
 
     return (; pressure_average, neighbor_counter, update_callback_used)
+end
+
+@inline function Base.eltype(::EntropicallyDampedSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
 end
 
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem)
@@ -208,6 +249,7 @@ end
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     compute_density!(system, u, u_ode, semi, system.density_calculator)
+    compute_surface_normal!(system, system.surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
 end
 
@@ -239,8 +281,9 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               neighborhood_search) do particle, neighbor,
-                                                       pos_diff, distance
+                               neighborhood_search;
+                               points=each_moving_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
             pressure_average[particle] += particle_pressure(v_neighbor_system,
                                                             neighbor_system,
                                                             neighbor)
@@ -256,18 +299,16 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::SummationDensity)
-    for particle in eachparticle(system)
-        v0[end, particle] = system.initial_condition.pressure[particle]
-    end
+    # Note that `.=` is very slightly faster, but not GPU-compatible
+    v0[end, :] = system.initial_condition.pressure
 
     return v0
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
-    for particle in eachparticle(system)
-        v0[end - 1, particle] = system.initial_condition.density[particle]
-        v0[end, particle] = system.initial_condition.pressure[particle]
-    end
+    # Note that `.=` is very slightly faster, but not GPU-compatible
+    v0[end - 1, :] = system.initial_condition.density
+    v0[end, :] = system.initial_condition.pressure
 
     return v0
 end

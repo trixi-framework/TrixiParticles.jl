@@ -255,3 +255,12 @@ Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_jacobson.jl"
 Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "geometries", "io.jl")]
 ```
+
+# Particle Packing
+
+TODO
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = map(file -> joinpath("preprocessing", "particle_packing", file), readdir(joinpath("..", "src", "preprocessing", "particle_packing")))
+```

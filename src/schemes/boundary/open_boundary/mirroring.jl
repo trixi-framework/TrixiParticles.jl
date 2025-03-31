@@ -10,7 +10,7 @@
 # which translates into the lack of a full kernel support.
 struct BoundaryModelTafuni end
 
-function update_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t)
+function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "extrapolate and correct values" begin
         extrapolate_values!(system, v_ode, u_ode, semi, t; system.cache...)
     end

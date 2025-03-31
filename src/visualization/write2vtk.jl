@@ -247,6 +247,12 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in active_particles(system)]
 
+    if system.surface_normal_method !== nothing
+        vtk["surf_normal"] = [surface_normal(system, particle)
+                              for particle in eachparticle(system)]
+        vtk["neighbor_count"] = system.cache.neighbor_count
+    end
+
     if write_meta_data
         vtk["acceleration"] = system.acceleration
         vtk["viscosity"] = type2string(system.viscosity)
@@ -260,12 +266,19 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             if system.correction isa AkinciFreeSurfaceCorrection
                 vtk["correction_rho0"] = system.correction.rho0
             end
+
+            if system.state_equation isa StateEquationCole
+                vtk["state_equation_exponent"] = system.state_equation.exponent
+            end
+
+            if system.state_equation isa StateEquationIdealGas
+                vtk["state_equation_gamma"] = system.state_equation.gamma
+            end
+
             vtk["state_equation"] = type2string(system.state_equation)
             vtk["state_equation_rho0"] = system.state_equation.reference_density
             vtk["state_equation_pa"] = system.state_equation.background_pressure
             vtk["state_equation_c"] = system.state_equation.sound_speed
-            vtk["state_equation_exponent"] = system.state_equation.exponent
-
             vtk["solver"] = "WCSPH"
         else
             vtk["solver"] = "EDAC"
@@ -332,9 +345,8 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
                        for particle in active_particles(system)]
 
     if write_meta_data
-        vtk["boundary_zone"] = type2string(system.boundary_zone)
+        vtk["boundary_zone"] = type2string(first(typeof(system.boundary_zone).parameters))
         vtk["width"] = round(system.boundary_zone.zone_width, digits=3)
-        vtk["flow_direction"] = system.flow_direction
         vtk["velocity_function"] = type2string(system.reference_velocity)
         vtk["pressure_function"] = type2string(system.reference_pressure)
         vtk["density_function"] = type2string(system.reference_density)
@@ -364,16 +376,22 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
                     write_meta_data=true)
     if write_meta_data
         vtk["boundary_model"] = "BoundaryModelDummyParticles"
-        vtk["smoothing_kernel"] = type2string(system.boundary_model.smoothing_kernel)
-        vtk["smoothing_length"] = system.boundary_model.smoothing_length
-        vtk["density_calculator"] = type2string(system.boundary_model.density_calculator)
-        vtk["state_equation"] = type2string(system.boundary_model.state_equation)
+        vtk["smoothing_kernel"] = type2string(model.smoothing_kernel)
+        vtk["smoothing_length"] = model.smoothing_length
+        vtk["density_calculator"] = type2string(model.density_calculator)
+        vtk["state_equation"] = type2string(model.state_equation)
         vtk["viscosity_model"] = type2string(model.viscosity)
     end
 
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
+
+    if haskey(model.cache, :colorfield_bnd)
+        vtk["colorfield_bnd"] = model.cache.colorfield_bnd
+        vtk["colorfield"] = model.cache.colorfield
+        vtk["neighbor_count"] = model.cache.neighbor_count
+    end
 
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)

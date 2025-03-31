@@ -6,7 +6,7 @@
              1.0 2.0],
             [1.0 2.0
              1.0 2.0
-             1.0 2.0],
+             1.0 2.0]
         ]
 
         @testset "$(i+1)D" for i in 1:2
@@ -60,14 +60,14 @@
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
             RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
                             1020.0).fluid,
-            SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0),
+            SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0)
         ]
         setup_names = [
             "RectangularShape 2D",
             "RectangularShape 3D",
             "RectangularTank 2D",
             "RectangularTank 3D",
-            "SphereShape 2D",
+            "SphereShape 2D"
         ]
         NDIMS_ = [2, 3, 2, 3, 2]
 
@@ -128,7 +128,7 @@
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
 
-        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, Val{:smoothing_kernel}(), [0.0, 0.0]) with 2 particles"
+        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, Val{:smoothing_kernel}(), [0.0, 0.0], nothing, nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -141,6 +141,8 @@
         │ smoothing kernel: ………………………………… Val                                                              │
         │ tansport velocity formulation:  Nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
+        │ surface tension: …………………………………… nothing                                                          │
+        │ surface normal method: …………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end

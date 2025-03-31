@@ -7,10 +7,19 @@
             trixi_include(@__MODULE__,
                           joinpath(examples_dir(), "fluid",
                                    "hydrostatic_water_column_2d.jl"),
-                          fluid_system=nothing, sol=nothing, semi=nothing, ode=nothing)
+                          sol=nothing, ode=nothing)
+
+            # Neighborhood search for `FullGridCellList` test below
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner)
+            semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+                                               neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                             cell_list))
 
             hydrostatic_water_column_tests = Dict(
                 "WCSPH default" => (),
+                "WCSPH with FullGridCellList" => (semi=semi_fullgrid,),
                 "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
                 "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
                                                   clip_negative_pressure=true),
@@ -73,7 +82,7 @@
                                                                                          viscosity=ViscosityMorris(nu=0.0015),
                                                                                          density_calculator=ContinuityDensity(),
                                                                                          acceleration=(0.0,
-                                                                                                       -gravity)),),
+                                                                                                       -gravity)),)
             )
 
             for (test_description, kwargs) in hydrostatic_water_column_tests
@@ -157,7 +166,7 @@
                                                 correction=AkinciFreeSurfaceCorrection(fluid_density),
                                                 density_diffusion=nothing,
                                                 adhesion_coefficient=0.05,
-                                                sound_speed=100.0),
+                                                sound_speed=100.0)
             )
 
             for (test_description, kwargs) in dam_break_tests
@@ -170,13 +179,41 @@
                                                             "dam_break_2d.jl");
                                                    tspan=(0, 0.1), kwargs...) [
                         r"┌ Info: The desired tank length in y-direction .*\n",
-                        r"└ New tank length in y-direction.*\n",
+                        r"└ New tank length in y-direction.*\n"
                     ]
 
                     @test sol.retcode == ReturnCode.Success
                     @test count_rhs_allocations(sol, semi) == 0
                 end
             end
+
+            @testset "Float32" begin
+                @test_nowarn_mod trixi_include_changeprecision(Float32,
+                                                               @__MODULE__,
+                                                               joinpath(examples_dir(),
+                                                                        "fluid",
+                                                                        "dam_break_2d.jl"),
+                                                               tspan=(0, 0.1)) [
+                    r"┌ Info: The desired tank length in y-direction .*\n",
+                    r"└ New tank length in y-direction.*\n"
+                ]
+                @test sol.retcode == ReturnCode.Success
+                @test count_rhs_allocations(sol, semi) == 0
+                @test eltype(sol) == Float32
+            end
+        end
+
+        @trixi_testset "fluid/dam_break_2d_gpu.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "dam_break_2d_gpu.jl"),
+                                           tspan=(0.0, 0.1)) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n"
+            ]
+            @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
         end
 
         @trixi_testset "fluid/dam_break_oil_film_2d.jl" begin
@@ -185,7 +222,19 @@
                                                     "dam_break_oil_film_2d.jl"),
                                            tspan=(0.0, 0.05)) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
-                r"└ New tank length in y-direction.*\n",
+                r"└ New tank length in y-direction.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/dam_break_2phase_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "dam_break_2phase_2d.jl"),
+                                           tspan=(0.0, 0.05)) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
@@ -222,6 +271,43 @@
             @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                            joinpath(examples_dir(), "fluid",
                                                     "pipe_flow_2d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
+            steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
+
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "pipe_flow_2d.jl"),
+                                           extra_callback=steady_state_reached,
+                                           tspan=(0.0, 1.5))
+
+            # Make sure that the simulation is terminated after a reasonable amount of time
+            @test 0.1 < sol.t[end] < 1.0
+            @test sol.retcode == ReturnCode.Terminated
+        end
+
+        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
+            steady_state_reached = SteadyStateReachedCallback(; interval=1,
+                                                              interval_size=10,
+                                                              abstol=1.0e-5, reltol=1.0e-4)
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "pipe_flow_2d.jl"),
+                                           extra_callback=steady_state_reached,
+                                           tspan=(0.0, 1.5))
+
+            # Make sure that the simulation is terminated after a reasonable amount of time
+            @test 0.1 < sol.t[end] < 1.0
+            @test sol.retcode == ReturnCode.Terminated
+        end
+
+        @trixi_testset "fluid/pipe_flow_3d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                           joinpath(examples_dir(), "fluid",
+                                                    "pipe_flow_3d.jl"))
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
@@ -286,7 +372,7 @@
                 r"┌ Info: The desired tank length in y-direction .*\n",
                 r"└ New tank length in y-direction.*\n",
                 r"┌ Info: The desired tank length in z-direction .*\n",
-                r"└ New tank length in z-direction.*\n",
+                r"└ New tank length in z-direction.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
@@ -375,7 +461,7 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "n_body",
                                                     "n_body_benchmark_trixi.jl")) [
-                r"WARNING: Method definition interact!.*\n",
+                r"WARNING: Method definition interact!.*\n"
             ]
         end
 
@@ -402,7 +488,7 @@
                 r"WARNING: using deprecated binding PlotUtils.*\n",
                 r"WARNING: Makie.* is deprecated.*\n",
                 r"  likely near none:1\n",
-                r", use .* instead.\n",
+                r", use .* instead.\n"
             ]
             @test sol.retcode == ReturnCode.Success
         end
@@ -418,6 +504,20 @@
                                                     "postprocessing",
                                                     "postprocessing.jl"))
             @test sol.retcode == ReturnCode.Success
+        end
+    end
+
+    @testset verbose=true "Preprocessing" begin
+        @trixi_testset "preprocessing/packing_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "preprocessing",
+                                                    "packing_2d.jl"))
+            @test sol.retcode == ReturnCode.Terminated
+        end
+        @trixi_testset "preprocessing/packing_3d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "preprocessing",
+                                                    "packing_3d.jl"))
         end
     end
 end

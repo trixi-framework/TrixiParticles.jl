@@ -47,7 +47,7 @@ pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_densi
 # Shift pipe walls in negative x-direction for the inflow
 pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
-n_buffer_particles = 40 * pipe.n_particles_per_dimension[2]
+n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
 
 # ==========================================================================================
 # ==== Fluid
@@ -78,29 +78,33 @@ fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothi
 
 # ==========================================================================================
 # ==== Open Boundary
-function velocity_function(pos, t)
+
+function velocity_function2d(pos, t)
     # Use this for a time-dependent inflow velocity
     # return SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
 
     return SVector(prescribed_velocity, 0.0)
 end
 
-inflow = InFlow(; plane=([0.0, 0.0], [0.0, domain_size[2]]), flow_direction,
-                open_boundary_layers, density=fluid_density, particle_spacing)
+plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
+inflow = BoundaryZone(; plane=plane_in,
+                      plane_normal=flow_direction, open_boundary_layers,
+                      density=fluid_density, particle_spacing, boundary_type=InFlow())
 
 open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
                                          boundary_model=BoundaryModelTafuni(),
                                          buffer_size=n_buffer_particles,
-                                         reference_velocity=velocity_function)
+                                         reference_velocity=velocity_function2d)
 
-outflow = OutFlow(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2]]),
-                  flow_direction, open_boundary_layers, density=fluid_density,
-                  particle_spacing)
+plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
+outflow = BoundaryZone(; plane=plane_out,
+                       plane_normal=-flow_direction, open_boundary_layers,
+                       density=fluid_density, particle_spacing, boundary_type=OutFlow())
 
 open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
                                           boundary_model=BoundaryModelTafuni(),
                                           buffer_size=n_buffer_particles,
-                                          # reference_velocity=velocity_function,
+                                          # reference_velocity=velocity_function2d,
                                           reference_pressure=pressure)
 
 # ==========================================================================================
@@ -119,12 +123,14 @@ boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
                           boundary_system)
 
-ode = semidiscretize(semi, tspan)
+ode = semidiscretize(semi, tspan, data_type=nothing)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
+extra_callback = nothing
+
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)

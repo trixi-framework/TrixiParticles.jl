@@ -10,9 +10,11 @@
 Adapt.@adapt_structure Semidiscretization
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure DensityDiffusionAntuono
+Adapt.@adapt_structure EntropicallyDampedSPHSystem
 Adapt.@adapt_structure BoundarySPHSystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar
+Adapt.@adapt_structure BoundaryMovement
 Adapt.@adapt_structure TotalLagrangianSPHSystem
 
 # The initial conditions are only used for initialization, which happens before `adapt`ing

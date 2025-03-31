@@ -3,8 +3,9 @@
 
 Boundary model for `OpenBoundarySPHSystem`.
 This model uses the characteristic variables to propagate the appropriate values
-to the outlet or inlet and have been proposed by Lastiwka et al. (2009). For more information
-about the method see [description below](@ref method_of_characteristics).
+to the outlet or inlet and have been proposed by Lastiwka et al. (2009).
+It requires a specific flow direction to be passed to the [`BoundaryZone`](@ref).
+For more information about the method see [description below](@ref method_of_characteristics).
 """
 struct BoundaryModelLastiwka
     extrapolate_reference_values::Bool
@@ -13,10 +14,12 @@ struct BoundaryModelLastiwka
     end
 end
 
-@inline function update_quantities!(system, boundary_model::BoundaryModelLastiwka,
-                                    v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, flow_direction,
+# Called from update callback via `update_open_boundary_eachstep!`
+@inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
+                                             v, u, v_ode, u_ode, semi, t)
+    (; density, pressure, cache, boundary_zone,
     reference_velocity, reference_pressure, reference_density) = system
+    (; flow_direction) = boundary_zone
 
     sound_speed = system_sound_speed(system.fluid_system)
 
@@ -59,10 +62,13 @@ end
     return system
 end
 
+# Called from semidiscretization
 function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "evaluate characteristics" begin
         evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    return system
 end
 
 # ==== Characteristics
@@ -112,9 +118,16 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
                 end
             end
 
-            characteristics[1, particle] = avg_J1 / counter
-            characteristics[2, particle] = avg_J2 / counter
-            characteristics[3, particle] = avg_J3 / counter
+            # To prevent NANs here if the boundary has not been in contact before.
+            if counter > 0
+                characteristics[1, particle] = avg_J1 / counter
+                characteristics[2, particle] = avg_J2 / counter
+                characteristics[3, particle] = avg_J3 / counter
+            else
+                characteristics[1, particle] = 0
+                characteristics[2, particle] = 0
+                characteristics[3, particle] = 0
+            end
         else
             characteristics[1, particle] /= volume[particle]
             characteristics[2, particle] /= volume[particle]
@@ -128,8 +141,9 @@ end
 
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, flow_direction, density, pressure,
+    (; volume, cache, boundary_zone, density, pressure,
     reference_velocity, reference_pressure, reference_density) = system
+    (; flow_direction) = boundary_zone
     (; characteristics) = cache
 
     v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
@@ -143,7 +157,9 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
+                           nhs;
+                           points=each_moving_particle(system)) do particle, neighbor,
+                                                                   pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities
@@ -177,15 +193,15 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     return system
 end
 
-@inline function prescribe_conditions!(characteristics, particle, ::OutFlow)
+@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{OutFlow})
     # J3 is prescribed (i.e. determined from the exterior of the domain).
-    # J1 and J2 is transimtted from the domain interior.
+    # J1 and J2 is transmitted from the domain interior.
     characteristics[3, particle] = zero(eltype(characteristics))
 
     return characteristics
 end
 
-@inline function prescribe_conditions!(characteristics, particle, ::InFlow)
+@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{InFlow})
     # Allow only J3 to propagate upstream to the boundary
     characteristics[1, particle] = zero(eltype(characteristics))
     characteristics[2, particle] = zero(eltype(characteristics))

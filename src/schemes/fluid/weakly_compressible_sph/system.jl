@@ -5,7 +5,9 @@
                                 viscosity=nothing, density_diffusion=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 buffer_size=nothing,
-                                correction=nothing, source_terms=nothing)
+                                correction=nothing, source_terms=nothing,
+                                surface_tension=nothing, surface_normal_method=nothing,
+                                reference_particle_spacing=0.0))
 
 System for particles of a fluid.
 The weakly compressible SPH (WCSPH) scheme is used, wherein a stiff equation of state
@@ -23,29 +25,33 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
-- `viscosity`:      Viscosity model for this system (default: no viscosity).
-                    See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
-- `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
-- `acceleration`:   Acceleration vector for the system. (default: zero vector)
-- `buffer_size`:    Number of buffer particles.
-                    This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
-- `correction`:     Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
-- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
-                    (by default), or a function of `(coords, velocity, density, pressure, t)`
-                    (which are the quantities of a single particle), returning a `Tuple`
-                    or `SVector` that is to be added to the acceleration of that particle.
-                    See, for example, [`SourceTermDamping`](@ref).
-                    Note that these source terms will not be used in the calculation of the
-                    boundary pressure when using a boundary with
-                    [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
-                    The keyword argument `acceleration` should be used instead for
-                    gravity-like source terms.
-- `surface_tension`:   Surface tension model used for this SPH system. (default: no surface tension)
-
+- `viscosity`:                  Viscosity model for this system (default: no viscosity).
+                                See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
+- `density_diffusion`:          Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
+- `acceleration`:               Acceleration vector for the system. (default: zero vector)
+- `buffer_size`:                Number of buffer particles.
+                                This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+- `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
+- `source_terms`:               Additional source terms for this system. Has to be either `nothing`
+                                (by default), or a function of `(coords, velocity, density, pressure, t)`
+                                (which are the quantities of a single particle), returning a `Tuple`
+                                or `SVector` that is to be added to the acceleration of that particle.
+                                See, for example, [`SourceTermDamping`](@ref).
+                                Note that these source terms will not be used in the calculation of the
+                                boundary pressure when using a boundary with
+                                [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
+                                The keyword argument `acceleration` should be used instead for
+                                gravity-like source terms.
+- `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
+- `surface_normal_method`:      The surface normal method to be used for this SPH system.
+                                (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
+- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
+                                which currently is only needed when using surface tension.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, B, SRFT, C} <: FluidSystem{NDIMS, IC}
+                                   V, DD, COR, PF, ST, B, SRFT, SRFN, C} <:
+       FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -61,6 +67,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     transport_velocity                :: Nothing # TODO
     source_terms                      :: ST
     surface_tension                   :: SRFT
+    surface_normal_method             :: SRFN
     buffer                            :: B
     cache                             :: C
 end
@@ -73,10 +80,11 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      pressure_acceleration=nothing,
                                      buffer_size=nothing,
                                      viscosity=nothing, density_diffusion=nothing,
-                                     acceleration=ntuple(_ -> 0.0,
+                                     acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                          ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
-                                     surface_tension=nothing)
+                                     surface_tension=nothing, surface_normal_method=nothing,
+                                     reference_particle_spacing=0)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -104,6 +112,14 @@ function WeaklyCompressibleSPHSystem(initial_condition,
         throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
     end
 
+    if surface_tension !== nothing && surface_normal_method === nothing
+        surface_normal_method = ColorfieldSurfaceNormal()
+    end
+
+    if surface_normal_method !== nothing && reference_particle_spacing < eps()
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+    end
+
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
@@ -115,6 +131,10 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                 n_particles)..., cache...)
     cache = (;
              create_cache_wcsph(surface_tension, ELTYPE, NDIMS, n_particles)...,
+             create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
+                                         n_particles)...,
+             create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
+                                          n_particles)...,
              cache...)
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
@@ -123,7 +143,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
                                        pressure_acceleration, nothing,
-                                       source_terms, surface_tension, buffer, cache)
+                                       source_terms, surface_tension, surface_normal_method,
+                                       buffer, cache)
 end
 
 create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
@@ -150,11 +171,6 @@ function create_cache_wcsph(::MixedKernelGradientCorrection, density, NDIMS, n_p
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
-function create_cache_wcsph(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
-    surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-    return (; surface_normal)
-end
-
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     @nospecialize system # reduce precompilation time
 
@@ -166,6 +182,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.density_diffusion)
     print(io, ", ", system.surface_tension)
+    print(io, ", ", system.surface_normal_method)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.source_terms)
     print(io, ") with ", nparticles(system), " particles")
@@ -193,10 +210,15 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "density diffusion", system.density_diffusion)
         summary_line(io, "surface tension", system.surface_tension)
+        summary_line(io, "surface normal method", system.surface_normal_method)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "source terms", system.source_terms |> typeof |> nameof)
         summary_footer(io)
     end
+end
+
+@inline function Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
 end
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem)
@@ -211,7 +233,8 @@ end
     return ndims(system) + 1
 end
 
-@inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
+@propagate_inbounds function particle_pressure(v, system::WeaklyCompressibleSPHSystem,
+                                               particle)
     return system.pressure[particle]
 end
 
@@ -355,40 +378,4 @@ end
 
 @inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
     extract_smatrix(system.cache.correction_matrix, system, particle)
-end
-
-function compute_surface_normal!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    return system
-end
-
-function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, v, u, v_ode,
-                                 u_ode, semi, t)
-    (; cache) = system
-
-    # Reset surface normal
-    set_zero!(cache.surface_normal)
-
-    @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-        nhs = get_neighborhood_search(system, semi)
-
-        calc_normal_akinci!(system, neighbor_system, surface_tension, u, v_neighbor_system,
-                            u_neighbor_system, nhs)
-    end
-    return system
-end
-
-@inline function surface_normal(::SurfaceTensionAkinci, particle_system::FluidSystem,
-                                particle)
-    (; cache) = particle_system
-    return extract_svector(cache.surface_normal, particle_system, particle)
-end
-
-@inline function surface_tension_model(system::WeaklyCompressibleSPHSystem)
-    return system.surface_tension
-end
-
-@inline function surface_tension_model(system)
-    return nothing
 end
