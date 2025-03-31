@@ -89,7 +89,7 @@ end
 plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
 inflow = BoundaryZone(; plane=plane_in,
                       plane_normal=flow_direction, open_boundary_layers,
-                      density=fluid_density, particle_spacing, boundary_type=InFlow())
+                      density=fluid_density, particle_spacing)
 
 open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
                                          boundary_model=BoundaryModelTafuni(),
@@ -99,7 +99,7 @@ open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
 plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
 outflow = BoundaryZone(; plane=plane_out,
                        plane_normal=-flow_direction, open_boundary_layers,
-                       density=fluid_density, particle_spacing, boundary_type=OutFlow())
+                       density=fluid_density, particle_spacing)
 
 open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
                                           boundary_model=BoundaryModelTafuni(),

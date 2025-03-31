@@ -10,7 +10,8 @@
 # which translates into the lack of a full kernel support.
 struct BoundaryModelTafuni end
 
-function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t)
+function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode,
+                                     semi, t)
     @trixi_timeit timer() "extrapolate and correct values" begin
         extrapolate_values!(system, v_ode, u_ode, semi, t; system.cache...)
     end
@@ -66,7 +67,7 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
                 # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
-                v_b = dot(v_b, boundary_zone.flow_direction) * boundary_zone.flow_direction
+                v_b = dot(v_b, boundary_zone.plane_normal) * boundary_zone.plane_normal
 
                 kernel_value = smoothing_kernel(fluid_system, distance)
                 grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance)
@@ -176,7 +177,7 @@ end
 
 function mirror_position(particle_coords, boundary_zone)
     particle_position = particle_coords - boundary_zone.zone_origin
-    dist = dot(particle_position, boundary_zone.flow_direction)
+    dist = dot(particle_position, boundary_zone.plane_normal)
 
-    return particle_coords - 2 * dist * boundary_zone.flow_direction
+    return particle_coords - 2 * dist * boundary_zone.plane_normal
 end

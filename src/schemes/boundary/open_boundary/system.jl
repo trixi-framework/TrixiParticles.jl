@@ -318,7 +318,7 @@ end
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
-        u[dim, particle] = boundary_zone.plane_normal[dim]
+        u[dim, particle] += boundary_zone.spanning_set[1][dim]
     end
 
     return system
