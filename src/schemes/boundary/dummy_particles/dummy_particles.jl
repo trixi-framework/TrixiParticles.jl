@@ -613,6 +613,13 @@ end
     return density
 end
 
+@inline function smoothing_kernel_grad(system::BoundarySystem{<:BoundaryModelDummyParticles},
+                                       pos_diff, distance, particle)
+    return corrected_kernel_grad(system.boundary_model.smoothing_kernel, pos_diff, distance,
+                                 system.boundary_model.smoothing_length,
+                                 system.boundary_model.correction, system, particle)
+end
+
 @inline function correction_matrix(system::BoundarySystem, particle)
     extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
 end

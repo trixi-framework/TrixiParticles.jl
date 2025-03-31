@@ -40,7 +40,7 @@
             @test system.lame_lambda == 1.0
             @test system.lame_mu == 1.0
             @test system.smoothing_kernel == smoothing_kernel
-            @test TrixiParticles.maximum_smoothing_length(system) == smoothing_length
+            @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
             @test system.boundary_model == boundary_model
         end

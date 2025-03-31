@@ -64,7 +64,7 @@ end
 
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
            (distance * distance_from_singularity) *
-           boundary_kernel(distance, maximum_smoothing_length(particle_system))
+           boundary_kernel(distance, initial_smoothing_length(particle_system))
 end
 
 @fastpow @inline function boundary_kernel(r, h)

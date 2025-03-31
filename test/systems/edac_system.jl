@@ -31,7 +31,7 @@
             @test system.initial_condition == initial_condition
             @test system.mass == mass
             @test system.smoothing_kernel == smoothing_kernel
-            @test TrixiParticles.maximum_smoothing_length(system) == smoothing_length
+            @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
@@ -86,7 +86,7 @@
             @test system.initial_condition == setup
             @test system.mass == setup.mass
             @test system.smoothing_kernel == smoothing_kernel
-            @test TrixiParticles.maximum_smoothing_length(system) == smoothing_length
+            @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8

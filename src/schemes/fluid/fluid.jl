@@ -14,7 +14,8 @@ function create_cache_density(ic, ::ContinuityDensity)
 end
 
 function create_cache_refinement(initial_condition, ::Nothing, smoothing_length)
-    return (; smoothing_length)
+    smoothing_length_factor = initial_condition.particle_spacing / smoothing_length
+    return (; smoothing_length, smoothing_length_factor)
 end
 
 @propagate_inbounds hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
@@ -25,6 +26,29 @@ end
 
 function smoothing_length(system::FluidSystem, ::Nothing, particle)
     return system.cache.smoothing_length
+end
+
+function initial_smoothing_length(system::FluidSystem)
+    return initial_smoothing_length(system, system.particle_refinement)
+end
+
+initial_smoothing_length(system, ::Nothing) = system.cache.smoothing_length
+
+function initial_smoothing_length(system, refinement)
+    # TODO
+    return system.cache.initial_smoothing_length_factor *
+           system.initial_condition.particle_spacing
+end
+
+@inline function particle_spacing(system::FluidSystem, particle)
+    return particle_spacing(system, system.particle_refinement, particle)
+end
+
+@inline particle_spacing(system, ::Nothing, _) = system.initial_condition.particle_spacing
+
+@inline function particle_spacing(system, refinement, particle)
+    (; smoothing_length_factor) = system.cache
+    return smoothing_length(system, particle) / smoothing_length_factor
 end
 
 function write_u0!(u0, system::FluidSystem)
@@ -70,7 +94,7 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
     (; viscosity, acceleration) = system
 
-    smoothing_length = maximum_smoothing_length(system)
+    smoothing_length = initial_smoothing_length(system)
     dt_viscosity = 0.125 * smoothing_length^2 /
                    kinematic_viscosity(system, viscosity, smoothing_length)
 
