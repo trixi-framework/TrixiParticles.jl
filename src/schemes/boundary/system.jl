@@ -67,7 +67,8 @@ The interaction between fluid and boundary particles is specified by the boundar
     This is an experimental feature and may change in a future releases.
 
 """
-struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS, IC}
+struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D} <:
+       BoundarySystem{NDIMS, IC}
     initial_condition :: IC
     coordinates       :: ARRAY2D   # [dimension, particle]
     radius            :: ARRAY1D   # [particle]
@@ -77,7 +78,8 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D} <: Boundar
 
     function BoundaryDEMSystem(initial_condition, normal_stiffness)
         coordinates = initial_condition.coordinates
-        radius = 0.5 * initial_condition.particle_spacing * ones(length(initial_condition.mass))
+        radius = 0.5 * initial_condition.particle_spacing *
+                 ones(length(initial_condition.mass))
         NDIMS = size(coordinates, 1)
         local_normals = precompute_boundary_normals(coordinates)
         return new{NDIMS, eltype(coordinates), typeof(initial_condition), typeof(radius),
@@ -111,7 +113,7 @@ function precompute_boundary_normals(coordinates)
     for i in 1:N
         # Use cyclic indexing: previous and next.
         prev = coordinates[:, i == 1 ? N : i - 1]
-        nxt  = coordinates[:, i == N ? 1 : i + 1]
+        nxt = coordinates[:, i == N ? 1 : i + 1]
         tangent = nxt - prev
         tnorm = norm(tangent)
         if tnorm == 0
