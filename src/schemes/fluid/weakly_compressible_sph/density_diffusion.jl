@@ -75,9 +75,9 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionFerrari, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
-    # TODO should we use the average smoothing length here?
-    smoothing_length_particle = smoothing_length(system, particle)
-    return ((rho_a - rho_b) / (2 * smoothing_length_particle)) * pos_diff / distance
+    return ((rho_a - rho_b) /
+            (smoothing_length(system, particle) + smoothing_length(system, neighbor))) *
+           pos_diff / distance
 end
 
 @doc raw"""
@@ -218,9 +218,9 @@ end
                                 particle_system, particle, neighbor)
     density_diffusion_term = dot(psi, grad_kernel) * volume_b
 
-    # TODO should we use the average smoothing length here?
-    smoothing_length_particle = smoothing_length(particle_system, particle)
-    dv[end, particle] += delta * smoothing_length_particle * sound_speed *
+    smoothing_length_avg = (smoothing_length(system, particle) +
+                            smoothing_length(system, neighbor)) / 2
+    dv[end, particle] += delta * smoothing_length_avg * sound_speed *
                          density_diffusion_term
 end
 

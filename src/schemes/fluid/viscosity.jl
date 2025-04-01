@@ -101,7 +101,7 @@ struct ViscosityMorris{ELTYPE}
     end
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityMorris, _)
+function kinematic_viscosity(system, viscosity::ViscosityMorris, smoothing_length)
     return viscosity.nu
 end
 
@@ -132,9 +132,9 @@ end
                                viscosity_model(particle_system, neighbor_system),
                                smoothing_length_neighbor)
 
-    # TODO do we need the average smoothing length here?
+    smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
     pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, rho_a, rho_b,
-                      smoothing_length_particle, grad_kernel, nu_a, nu_b)
+                      smoothing_length_average, grad_kernel, nu_a, nu_b)
 
     return m_b * pi_ab
 end
@@ -239,7 +239,7 @@ end
 
     eta_tilde = 2 * (eta_a * eta_b) / (eta_a + eta_b)
 
-    smoothing_length_average = 0.5 * (smoothing_length_particle + smoothing_length_neighbor)
+    smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
     tmp = eta_tilde / (distance^2 + epsilon * smoothing_length_average^2)
 
     volume_a = m_a / rho_a

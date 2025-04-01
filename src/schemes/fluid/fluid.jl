@@ -18,6 +18,11 @@ function create_cache_refinement(initial_condition, ::Nothing, smoothing_length)
     return (; smoothing_length, smoothing_length_factor)
 end
 
+# TODO
+function create_cache_refinement(initial_condition, refinement, smoothing_length)
+    # TODO: If refinement is not `Nothing` and `correction` is not `Nothing`, then throw an error
+end
+
 @propagate_inbounds hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
 function smoothing_length(system::FluidSystem, particle)
