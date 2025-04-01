@@ -145,11 +145,6 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
         cache = (;
                  cache...,  # Existing cache fields
                  reference_particle_spacing=reference_particle_spacing)
-
-                #  ideal_neighbor_count=Int64(ideal_neighbor_count(Val(NDIMS),
-                #                                                  reference_particle_spacing,
-                #                                                  compact_support(smoothing_kernel,
-                #                                                                  smoothing_length))))
     end
 
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),

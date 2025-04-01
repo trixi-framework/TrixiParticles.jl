@@ -142,10 +142,6 @@ function WeaklyCompressibleSPHSystem(initial_condition,
         cache = (;
                  cache...,  # Existing cache fields
                  reference_particle_spacing=reference_particle_spacing)
-                #  ideal_neighbor_count=Int64(ideal_neighbor_count(Val(NDIMS),
-                #                                                  reference_particle_spacing,
-                #                                                  compact_support(smoothing_kernel,
-                #                                                                  smoothing_length))))
     end
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
