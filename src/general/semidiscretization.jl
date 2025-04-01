@@ -47,26 +47,29 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{S, RU, RV, NS}
-    systems               :: S
-    ranges_u              :: RU
-    ranges_v              :: RV
-    neighborhood_searches :: NS
+struct Semidiscretization{BACKEND, S, RU, RV, NS}
+    systems                 :: S
+    ranges_u                :: RU
+    ranges_v                :: RV
+    neighborhood_searches   :: NS
+    parallelization_backend :: BACKEND
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
-    # This is an internal constructor only used in `test/count_allocations.jl`.
-    function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches)
-        new{typeof(systems), typeof(ranges_u),
+    # This is an internal constructor only used in `test/count_allocations.jl`
+    # and by Adapt.jl.
+    function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
+                                parallelization_backend)
+        new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches)}(systems, ranges_u, ranges_v,
-                                                             neighborhood_searches)
+                                                             neighborhood_searches,
+                                                             parallelization_backend)
     end
 end
 
-GPUSemidiscretization = Semidiscretization{<:NTuple{<:Any, GPUSystem}}
-
 function Semidiscretization(systems...;
-                            neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}())
+                            neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
+                            parallelization_backend=true)
     systems = filter(system -> !isnothing(system), systems)
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
@@ -89,7 +92,8 @@ function Semidiscretization(systems...;
                            for neighbor in systems)
                      for system in systems)
 
-    return Semidiscretization(systems, ranges_u, ranges_v, searches)
+    return Semidiscretization(systems, ranges_u, ranges_v, searches,
+                              parallelization_backend)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -258,7 +262,7 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
+function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]), systems)
@@ -275,11 +279,8 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
 
     # Initialize all particle systems
     foreach_system(semi) do system
-        # Get the neighborhood search for this system
-        neighborhood_search = get_neighborhood_search(system, semi)
-
         # Initialize this system
-        initialize!(system, neighborhood_search)
+        initialize!(system, semi)
 
         # Only for systems requiring a mandatory callback
         reset_callback_flag!(system)
@@ -288,14 +289,16 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
 
-    if isnothing(data_type)
+    if semi.parallelization_backend isa Bool
         # Use CPU vectors and the optimized CPU code
         u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
         v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
     else
-        # Use the specified data type, e.g., `CuArray` or `ROCArray`
-        u0_ode = data_type{ELTYPE}(undef, sum(sizes_u))
-        v0_ode = data_type{ELTYPE}(undef, sum(sizes_v))
+        # Use the specified backend, e.g., `CUDABackend` or `MetalBackend`
+        u0_ode = KernelAbstractions.allocate(semi.parallelization_backend, ELTYPE,
+                                             sum(sizes_u))
+        v0_ode = KernelAbstractions.allocate(semi.parallelization_backend, ELTYPE,
+                                             sum(sizes_v))
     end
 
     # Set initial condition
@@ -307,11 +310,12 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
         write_v0!(v0_system, system)
     end
 
-    if !isnothing(data_type)
-        # Convert all arrays to the correct array type. When e.g. `data_type=CuArray`,
-        # this will convert all `Array`s to `CuArray`s, moving data to the GPU.
+    if !(semi.parallelization_backend isa Bool)
+        # Convert all arrays to the correct array type.
+        # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
+        # to `CuArray`s, moving data to the GPU.
         # See the comments in general/gpu.jl for more details.
-        semi_adapted = Adapt.adapt(data_type, semi)
+        semi_adapted = Adapt.adapt(semi.parallelization_backend, semi)
 
         return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_adapted)
     end
@@ -421,7 +425,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                 du = wrap_u(du_ode, system, semi)
                 v = wrap_v(v_ode, system, semi)
 
-                @threaded system for particle in each_moving_particle(system)
+                @threaded semi for particle in each_moving_particle(system)
                     # This can be dispatched per system
                     add_velocity!(du, v, particle, system)
                 end
@@ -510,7 +514,7 @@ function update_nhs!(semi, u_ode)
             u_neighbor = wrap_u(u_ode, neighbor, semi)
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)
 
-            update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor)
+            update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor, semi)
         end
     end
 end
@@ -521,7 +525,7 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        @threaded system for particle in each_moving_particle(system)
+        @threaded semi for particle in each_moving_particle(system)
             # Dispatch by system type to exclude boundary systems
             add_acceleration!(dv, particle, system)
             add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
@@ -632,10 +636,9 @@ end
 
     v_neighbor = wrap_v(v_ode, neighbor, semi)
     u_neighbor = wrap_u(u_ode, neighbor, semi)
-    nhs = get_neighborhood_search(system, neighbor, semi)
 
     @trixi_timeit timer() timer_str begin
-        interact!(dv, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)
+        interact!(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor, semi)
     end
 end
 
@@ -644,82 +647,82 @@ end
 function update_nhs!(neighborhood_search,
                      system::FluidSystem,
                      neighbor::Union{FluidSystem, TotalLagrangianSPHSystem},
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # The current coordinates of fluids and solids change over time
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(true, true))
+            semi, points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::FluidSystem, neighbor::BoundarySPHSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Boundary coordinates only change over time when `neighbor.ismoving[]`
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(true, neighbor.ismoving[]))
+            semi, points_moving=(true, neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
                      system::FluidSystem, neighbor::OpenBoundarySPHSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # The current coordinates of fluids and open boundaries change over time.
 
     # TODO: Update only `active_coordinates` of open boundaries.
     # Problem: Removing inactive particles from neighboring lists is necessary.
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(true, true))
+            semi, points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::OpenBoundarySPHSystem, neighbor::FluidSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # The current coordinates of both open boundaries and fluids change over time.
 
     # TODO: Update only `active_coordinates` of open boundaries.
     # Problem: Removing inactive particles from neighboring lists is necessary.
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(true, true))
+            semi, points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::FluidSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # The current coordinates of fluids and solids change over time
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(true, true))
+            semi, points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Don't update. Neighborhood search works on the initial coordinates, which don't change.
     return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::BoundarySPHSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # The current coordinates of solids change over time.
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(true, neighbor.ismoving[]))
+            semi, points_moving=(true, neighbor.ismoving[]))
 end
 
 # This function is the same as the one below to avoid ambiguous dispatch when using `Union`
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                     neighbor::FluidSystem, u_system, u_neighbor)
+                     neighbor::FluidSystem, u_system, u_neighbor, semi)
     # Depending on the density calculator of the boundary model, this NHS is used for
     # - kernel summation (`SummationDensity`)
     # - continuity equation (`ContinuityDensity`)
@@ -727,16 +730,16 @@ function update_nhs!(neighborhood_search,
     #
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
     # The current coordinates of fluids and solids change over time.
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(system.ismoving[], true))
+            semi, points_moving=(system.ismoving[], true))
 end
 
 # This function is the same as the one above to avoid ambiguous dispatch when using `Union`
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                     neighbor::TotalLagrangianSPHSystem, u_system, u_neighbor)
+                     neighbor::TotalLagrangianSPHSystem, u_system, u_neighbor, semi)
     # Depending on the density calculator of the boundary model, this NHS is used for
     # - kernel summation (`SummationDensity`)
     # - continuity equation (`ContinuityDensity`)
@@ -744,48 +747,48 @@ function update_nhs!(neighborhood_search,
     #
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
     # The current coordinates of fluids and solids change over time.
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(system.ismoving[], true))
+            semi, points_moving=(system.ismoving[], true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
                      neighbor::BoundarySPHSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # `system` coordinates only change over time when `system.ismoving[]`.
     # `neighbor` coordinates only change over time when `neighbor.ismoving[]`.
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(system.ismoving[], neighbor.ismoving[]))
+            semi, points_moving=(system.ismoving[], neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::DEMSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Both coordinates change over time
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(true, true))
+            semi, points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::BoundaryDEMSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # DEM coordinates change over time, the boundary coordinates don't
-    update!(neighborhood_search, system,
+    update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            points_moving=(true, false))
+            semi, points_moving=(true, false))
 end
 
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem,
                      neighbor::FluidSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
 end
@@ -793,7 +796,7 @@ end
 function update_nhs!(neighborhood_search,
                      system::BoundaryDEMSystem,
                      neighbor::Union{DEMSystem, BoundaryDEMSystem},
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
 end
@@ -801,21 +804,15 @@ end
 function update_nhs!(neighborhood_search,
                      system::Union{BoundarySPHSystem, OpenBoundarySPHSystem},
                      neighbor::Union{BoundarySPHSystem, OpenBoundarySPHSystem},
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
 end
 
 # Forward to PointNeighbors.jl
-function update!(neighborhood_search, system, x, y; points_moving=(true, false))
-    PointNeighbors.update!(neighborhood_search, x, y; points_moving)
-end
-
-# For `GPUSystem`s, explicitly pass the backend, so that a `GPUSystem` with a CPU
-# backend will actually launch the KernelAbstractions.jl kernels on the CPU.
-function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(true, false))
+function update!(neighborhood_search, x, y, semi; points_moving=(true, false))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving,
-                           parallelization_backend=KernelAbstractions.get_backend(system))
+                           parallelization_backend=semi.parallelization_backend)
 end
 
 function check_configuration(systems)

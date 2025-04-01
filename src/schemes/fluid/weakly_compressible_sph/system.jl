@@ -51,7 +51,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
                                    V, DD, COR, PF, ST, B, SRFT, SRFN, C} <:
-       FluidSystem{NDIMS, IC}
+       FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -246,8 +246,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
 
     compute_density!(system, u, u_ode, semi, density_calculator)
 
-    nhs = get_neighborhood_search(system, semi)
-    @trixi_timeit timer() "update density diffusion" update!(density_diffusion, nhs, v, u,
+    @trixi_timeit timer() "update density diffusion" update!(density_diffusion, v, u,
                                                              system, semi)
 
     return system
@@ -263,7 +262,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
-    compute_pressure!(system, v)
+    compute_pressure!(system, v, semi)
     compute_surface_normal!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
 
     return system
@@ -325,7 +324,7 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
                            kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
-    compute_pressure!(system, v)
+    compute_pressure!(system, v, semi)
 
     return system
 end
@@ -334,8 +333,8 @@ function reinit_density!(system, v, u, v_ode, u_ode, semi)
     return system
 end
 
-function compute_pressure!(system, v)
-    @threaded system for particle in eachparticle(system)
+function compute_pressure!(system, v, semi)
+    @threaded semi for particle in eachparticle(system)
         apply_state_equation!(system, particle_density(v, system, particle), particle)
     end
 end

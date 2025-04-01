@@ -29,11 +29,9 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem, u_system, v,
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
 
     foreach_point_neighbor(system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           nhs,
+                           system_coords, neighbor_system_coords, semi;
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
@@ -61,7 +59,6 @@ function calc_normal_akinci!(system::FluidSystem, neighbor_system::BoundarySyste
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(neighbor_system, system, semi)
 
     # First we need to calculate the smoothed colorfield values
     # TODO: move colorfield to extra step
@@ -70,23 +67,20 @@ function calc_normal_akinci!(system::FluidSystem, neighbor_system::BoundarySyste
 
     foreach_point_neighbor(neighbor_system, system,
                            neighbor_system_coords, system_coords,
-                           nhs,
-                           points=eachparticle(neighbor_system)) do particle, neighbor,
-                                                                    pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         colorfield[particle] += smoothing_kernel(system, distance)
     end
 
-    @threaded neighbor_system for bnd_particle in eachparticle(neighbor_system)
+    @threaded semi for bnd_particle in eachparticle(neighbor_system)
         colorfield[bnd_particle] = colorfield[bnd_particle] / (colorfield[bnd_particle] +
                                     colorfield_bnd[bnd_particle])
     end
 
     maximum_colorfield = maximum(colorfield)
 
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         if colorfield[neighbor] / maximum_colorfield > 0.1
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)

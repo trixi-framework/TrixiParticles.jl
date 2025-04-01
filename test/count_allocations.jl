@@ -19,8 +19,7 @@ function copy_semi_with_no_update_nhs(semi)
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search
-@inline function PointNeighbors.foreach_neighbor(f, system_coords,
-                                                 neighbor_coords,
+@inline function PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
                                                  neighborhood_search::NoUpdateNeighborhoodSearch,
                                                  particle;
                                                  search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))

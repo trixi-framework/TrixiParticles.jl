@@ -1,19 +1,15 @@
-# Abstract supertype for all system types. We additionally store the type of the system's
-# initial condition, which is `Nothing` when using KernelAbstractions.jl.
-abstract type System{NDIMS, IC} end
+# Abstract supertype for all system types.
+abstract type System{NDIMS} end
 
-# When using KernelAbstractions.jl, the initial condition has been replaced by `nothing`
-const GPUSystem = System{<:Any, Nothing}
-
-abstract type FluidSystem{NDIMS, IC} <: System{NDIMS, IC} end
+abstract type FluidSystem{NDIMS} <: System{NDIMS} end
 timer_name(::FluidSystem) = "fluid"
 vtkname(system::FluidSystem) = "fluid"
 
-abstract type SolidSystem{NDIMS, IC} <: System{NDIMS, IC} end
+abstract type SolidSystem{NDIMS} <: System{NDIMS} end
 timer_name(::SolidSystem) = "solid"
 vtkname(system::SolidSystem) = "solid"
 
-abstract type BoundarySystem{NDIMS, IC} <: System{NDIMS, IC} end
+abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
 timer_name(::BoundarySystem) = "boundary"
 vtkname(system::BoundarySystem) = "boundary"
 
@@ -23,7 +19,7 @@ vtkname(system::BoundarySystem) = "boundary"
     return du
 end
 
-initialize!(system, neighborhood_search) = system
+initialize!(system, semi) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
 @inline Base.eltype(system::System) = error("eltype not implemented for system $system")
