@@ -198,7 +198,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
         if system.surface_normal_method isa ColorfieldSurfaceNormal
-            summary_line(io, "color", system.color)
+            summary_line(io, "color", system.cache.color)
         end
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "source terms", system.source_terms |> typeof |> nameof)

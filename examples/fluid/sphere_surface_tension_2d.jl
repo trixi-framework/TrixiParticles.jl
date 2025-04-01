@@ -42,6 +42,7 @@ source_terms = SourceTermDamping(; damping_coefficient=0.5)
 #                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
 #                                            source_terms=source_terms)
 
+# Alternatively can also be used with surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)
 fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
                                            smoothing_length,
                                            sound_speed,
@@ -52,16 +53,6 @@ fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
                                            surface_normal_method=ColorfieldSurfaceNormal(),
                                            surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
                                                                                                             0.0728))
-
-# fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
-#                                            smoothing_length,
-#                                            sound_speed,
-#                                            viscosity=ViscosityMorris(nu=nu),
-#                                            density_calculator=ContinuityDensity(),
-#                                            reference_particle_spacing=particle_spacing,
-#                                            acceleration=zeros(length(fluid_size)),
-#                                            surface_normal_method=ColorfieldSurfaceNormal(),
-#                                            surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0))
 
 # ==========================================================================================
 # ==== Simulation

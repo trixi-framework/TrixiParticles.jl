@@ -162,12 +162,9 @@ function remove_invalid_normals!(system::FluidSystem,
         # We remove normals for particles which have a lot of support e.g. they are in the interior.
         if ideal_density_threshold > 0 &&
            ideal_density_threshold *
-           ideal_neighbor_count(ndims(system), cache.reference_particle_spacing,
+           ideal_neighbor_count(Val(ndims(system)), cache.reference_particle_spacing,
                                 compact_support(smoothing_kernel, smoothing_length)) <
            neighbor_count[particle]
-            if surface_tension.contact_model isa HuberContactModel
-                cache.normal_v[1:ndims(system), particle] .= 0
-            end
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
