@@ -146,4 +146,5 @@ end
 system_smoothing_kernel(system) = system.smoothing_kernel
 system_correction(system) = nothing
 
-@inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
+# TODO
+# @inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
