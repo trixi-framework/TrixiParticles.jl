@@ -150,9 +150,9 @@ function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
     V_b = m_b / rho_b
 
     M = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab W_ab*z_ab;
-                   grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab grad_W_ab_x*z_ab;
-                   grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab grad_W_ab_y*z_ab;
-                   grad_W_ab_z grad_W_ab_z*x_ab grad_W_ab_z*y_ab grad_W_ab_z*z_ab]
+                  grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab grad_W_ab_x*z_ab;
+                  grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab grad_W_ab_y*z_ab;
+                  grad_W_ab_z grad_W_ab_z*x_ab grad_W_ab_z*y_ab grad_W_ab_z*z_ab]
 
     L = V_b * M
 
@@ -171,8 +171,8 @@ function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{2}, rho_b, m_b)
     V_b = m_b / rho_b
 
     M = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab;
-                   grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab;
-                   grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab]
+                  grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab;
+                  grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab]
     L = V_b * M
 
     R = V_b * SVector(W_ab, grad_W_ab_x, grad_W_ab_y)
