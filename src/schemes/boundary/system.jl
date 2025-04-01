@@ -423,11 +423,11 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborh
                                points=eachparticle(system)) do particle, neighbor, pos_diff,
                                                                distance
             cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
-                                              system.initial_condition.density[particle] *
-                                              system.cache.color *
-                                              kernel(smoothing_kernel,
-                                                     distance,
-                                                     smoothing_length)
+                                                  system.initial_condition.density[particle] *
+                                                  system.cache.color *
+                                                  kernel(smoothing_kernel,
+                                                         distance,
+                                                         smoothing_length)
             cache.neighbor_count[particle] += 1
         end
     end
