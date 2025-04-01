@@ -76,13 +76,18 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
 
                 correction_matrix += L
 
-                !(prescribed_pressure) && (interpolated_pressure += pressure_b * R)
+                if !prescribed_pressure
+                    interpolated_pressure += pressure_b * R
+                end
 
-                !(prescribed_velocity) && (interpolated_velocity += v_b * R')
+                if !prescribed_velocity
+                    interpolated_velocity += v_b * R'
+                end
             end
         end
 
-        if abs(det(correction_matrix)) < 1e-9
+        # See also `correction_matrix_inversion_step!` for an explanation
+        if abs(det(correction_matrix)) < 1.0f-9
             L_inv = I
         else
             L_inv = inv(correction_matrix)
@@ -144,12 +149,12 @@ function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
 
     V_b = m_b / rho_b
 
-    M_ = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab W_ab*z_ab;
+    M = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab W_ab*z_ab;
                    grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab grad_W_ab_x*z_ab;
                    grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab grad_W_ab_y*z_ab;
                    grad_W_ab_z grad_W_ab_z*x_ab grad_W_ab_z*y_ab grad_W_ab_z*z_ab]
 
-    L = V_b * M_
+    L = V_b * M
 
     R = V_b * SVector(W_ab, grad_W_ab_x, grad_W_ab_y, grad_W_ab_z)
 
@@ -165,10 +170,10 @@ function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{2}, rho_b, m_b)
 
     V_b = m_b / rho_b
 
-    M_ = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab;
+    M = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab;
                    grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab;
                    grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab]
-    L = V_b * M_
+    L = V_b * M
 
     R = V_b * SVector(W_ab, grad_W_ab_x, grad_W_ab_y)
 
