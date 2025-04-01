@@ -13,13 +13,20 @@ struct BoundaryModelTafuni end
 function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode,
                                      semi, t)
     @trixi_timeit timer() "extrapolate and correct values" begin
-        extrapolate_values!(system, v_ode, u_ode, semi, t; system.cache...)
+        v_open_boundary = wrap_v(v_ode, system, semi)
+        v_fluid = wrap_v(v_ode, fluid_system, semi)
+        u_open_boundary = wrap_u(u_ode, system, semi)
+        u_fluid = wrap_u(u_ode, fluid_system, semi)
+
+        extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
+                            semi, t; system.cache...)
     end
 end
 
 update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = system
 
-function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=false,
+function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
+                             semi, t; prescribed_density=false,
                              prescribed_pressure=false, prescribed_velocity=false)
     (; pressure, density, fluid_system, boundary_zone, reference_density,
     reference_velocity, reference_pressure) = system
@@ -28,11 +35,6 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
 
     # Static indices to avoid allocations
     two_to_end = SVector{ndims(system)}(2:(ndims(system) + 1))
-
-    v_open_boundary = wrap_v(v_ode, system, semi)
-    v_fluid = wrap_v(v_ode, fluid_system, semi)
-    u_open_boundary = wrap_u(u_ode, system, semi)
-    u_fluid = wrap_u(u_ode, fluid_system, semi)
 
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
     neighborhood_search = get_neighborhood_search(fluid_system, fluid_system, semi)
