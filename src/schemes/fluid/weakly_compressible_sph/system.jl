@@ -134,10 +134,10 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
-             color=Int64(color_value), cache...)
+             color=Int(color_value), cache...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
-    if reference_particle_spacing > 0.0
+    if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields

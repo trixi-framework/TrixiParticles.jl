@@ -44,7 +44,7 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
     ismoving = Ref(!isnothing(movement))
 
     cache = create_cache_boundary(movement, initial_condition)
-    cache = (cache..., color=Int64(color_value))
+    cache = (cache..., color=Int(color_value))
 
     if movement !== nothing && isempty(movement.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
