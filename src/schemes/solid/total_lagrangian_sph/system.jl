@@ -126,9 +126,7 @@ function Base.show(io::IO, system::TotalLagrangianSPHSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "TotalLagrangianSPHSystem{", ndims(system), "}(")
-    print(io, system.young_modulus)
-    print(io, ", ", system.poisson_ratio)
-    print(io, ", ", system.smoothing_kernel)
+    print(io, "", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.boundary_model)
     print(io, ", ", system.penalty_force)
@@ -144,14 +142,14 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
         if system.young_modulus isa AbstractVector
-            young_modulus = UnitRange(minimum(system.young_modulus),
-                                      maximum(system.young_modulus))
+            young_modulus = "$(round(minimum(system.young_modulus), digits=3)) " *
+                            "... $(round(maximum(system.young_modulus),digits=3))"
         else
             young_modulus = system.young_modulus
         end
         if system.poisson_ratio isa AbstractVector
-            poisson_ratio = UnitRange(minimum(system.poisson_ratio),
-                                      maximum(system.poisson_ratio))
+            poisson_ratio = "$(round(minimum(system.poisson_ratio), digits=3)) " *
+                            "... $(round(maximum(system.poisson_ratio),digits=3))"
         else
             poisson_ratio = system.poisson_ratio
         end

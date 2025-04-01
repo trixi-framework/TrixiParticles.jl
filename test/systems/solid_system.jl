@@ -66,7 +66,7 @@
                                           smoothing_length, E, nu,
                                           boundary_model=boundary_model)
 
-        show_compact = "TotalLagrangianSPHSystem{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
+        show_compact = "TotalLagrangianSPHSystem{2}(Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
         @test repr(system) == show_compact
 
@@ -78,6 +78,27 @@
         │ #fixed particles: ………………………………… 0                                                                │
         │ Young's modulus: …………………………………… 2.5                                                              │
         │ Poisson ratio: ………………………………………… 0.25                                                             │
+        │ smoothing kernel: ………………………………… Val                                                              │
+        │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
+        │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
+        │ penalty force: ………………………………………… Nothing                                                          │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", system) == show_box
+
+        E = [1.2, 3.4]
+        nu = [0.2, 0.4]
+        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+                                          smoothing_length, E, nu,
+                                          boundary_model=boundary_model)
+
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ TotalLagrangianSPHSystem{2}                                                                      │
+        │ ═══════════════════════════                                                                      │
+        │ total #particles: ………………………………… 2                                                                │
+        │ #fixed particles: ………………………………… 0                                                                │
+        │ Young's modulus: …………………………………… 1.2 ... 3.4                                                      │
+        │ Poisson ratio: ………………………………………… 0.2 ... 0.4                                                      │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
