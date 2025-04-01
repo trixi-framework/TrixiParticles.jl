@@ -11,7 +11,7 @@ tlsph = false
 
 # ==========================================================================================
 # ==== Resolution
-particle_spacing = 0.1
+particle_spacing = 0.4
 
 # The following depends on the sampling of the particles. In this case `boundary_thickness`
 # means literally the thickness of the boundary packed with boundary particles and *not*

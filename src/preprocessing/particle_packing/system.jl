@@ -153,7 +153,7 @@ function Base.show(io::IO, system::ParticlePackingSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "ParticlePackingSystem{", ndims(system), "}(")
-    print(io, ", ", system.smoothing_kernel)
+    print(io, "", system.smoothing_kernel)
     print(io, ") with ", nparticles(system), " particles")
 end
 
