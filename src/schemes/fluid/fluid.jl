@@ -121,3 +121,10 @@ end
                         v_particle_system, v_neighbor_system, rho_a, rho_b,
                         m_a, m_b, particle, neighbor, grad_kernel)
 end
+
+function Base.resize!(system::FluidSystem, capacity_system)
+    error("`resize!`not implemented for $(typeof(system)), yet")
+end
+
+resize_density!(system, n, ::SummationDensity) = resize!(system.cache.density, n)
+resize_density!(system, n, ::ContinuityDensity) = system

@@ -317,3 +317,40 @@ function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
         system.initial_condition.pressure[particle] = v[end, particle]
     end
 end
+
+function Base.resize!(system::EntropicallyDampedSPHSystem, capacity_system)
+    capacity(system) == nparticles(system) && return system
+
+    if capacity(system) < nparticles(system) && !(system.cache.values_conserved[])
+        error("The required capacity is smaller than the actual size of the system. " *
+              "Call `deleteat!` before resizing the system, to specify which particles can be deleted")
+    end
+
+    resize!(system.mass, capacity_system)
+
+    resize_density!(system, capacity_system, system.density_calculator)
+
+    resize_cache!(system, capacity_system)
+
+    system.cache.additional_capacity[] = 0
+    system.cache.values_conserved[] = false
+
+    return system
+end
+
+function resize_cache!(system::EntropicallyDampedSPHSystem, n)
+    # TODO
+    # resize!(system.cache.smoothing_length, n)
+    resize_cache!(system, system.transport_velocity, n)
+
+    return system
+end
+
+resize_cache!(system::EntropicallyDampedSPHSystem, ::Nothing, n) = system
+
+function resize_cache!(system::EntropicallyDampedSPHSystem, ::TransportVelocityAdami, n)
+    resize!(system.cache.pressure_average, n)
+    resize!(system.cache.neighbor_counter, n)
+
+    return system
+end
