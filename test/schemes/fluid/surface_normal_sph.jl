@@ -303,8 +303,6 @@ end
 end
 
 @testset "Rectangular Fluid with Corner Normal Check" begin
-    using LinearAlgebra: norm
-
     # Domain dimensions
     width = 2.0
     height = 1.0
@@ -429,8 +427,7 @@ end
             continue
         end
 
-        # All other points (edges + interior) => near-zero curvature
-        # since the normals are just an approximation we will only achieve correct curvature for some particles
+        # Just test the interior for now since the normal values are unreliable
         if norm(computed_normals[:, i]) < 0.5
             @test isapprox(curvature[i], 0.0; atol=1e-2)
         end
