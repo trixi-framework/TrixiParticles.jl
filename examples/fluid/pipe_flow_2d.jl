@@ -5,16 +5,16 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-particle_spacing = 0.02
+particle_spacing = 0.05
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
-boundary_layers = 5
+boundary_layers = 3
 
 # Make sure that the kernel support of fluid particles at an open boundary is always
 # fully sampled.
 # Note: Due to the dynamics at the inlets and outlets of open boundaries,
 # it is recommended to use `open_boundary_layers > boundary_layers`
-open_boundary_layers = 8
+open_boundary_layers = 6
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -34,11 +34,12 @@ fluid_density = 1000.0
 
 # For this particular example, it is necessary to have a background pressure.
 # Otherwise the suction at the outflow is to big and the simulation becomes unstable.
-pressure = 0.0
+pressure = 1000.0
 
-sound_speed = 20 * prescribed_velocity
+sound_speed = 10 * prescribed_velocity
 
-state_equation = nothing
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7, background_pressure=pressure)
 
 pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_density,
                        pressure=pressure, n_layers=boundary_layers,
@@ -86,30 +87,36 @@ function velocity_function2d(pos, t)
     return SVector(prescribed_velocity, 0.0)
 end
 
+open_boundary_model = BoundaryModelLastiwka()
+
+boundary_type_in = InFlow()
 plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
-inflow = BoundaryZone(; plane=plane_in,
-                      plane_normal=flow_direction, open_boundary_layers,
-                      density=fluid_density, particle_spacing)
+inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_boundary_layers,
+                      density=fluid_density, particle_spacing,
+                      boundary_type=boundary_type_in)
 
 open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
-                                         boundary_model=BoundaryModelTafuni(),
+                                         boundary_model=open_boundary_model,
                                          buffer_size=n_buffer_particles,
+                                         reference_density=fluid_density,
+                                         reference_pressure=pressure,
                                          reference_velocity=velocity_function2d)
 
+boundary_type_out = OutFlow()
 plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
-outflow = BoundaryZone(; plane=plane_out,
-                       plane_normal=-flow_direction, open_boundary_layers,
-                       density=fluid_density, particle_spacing)
+outflow = BoundaryZone(; plane=plane_out, plane_normal=-flow_direction,
+                       open_boundary_layers, density=fluid_density, particle_spacing,
+                       boundary_type=boundary_type_out)
 
 open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
-                                          boundary_model=BoundaryModelTafuni(),
+                                          boundary_model=open_boundary_model,
                                           buffer_size=n_buffer_particles,
-                                          # reference_velocity=velocity_function2d,
-                                          reference_pressure=pressure)
-
+                                          reference_density=fluid_density,
+                                          reference_pressure=pressure,
+                                          reference_velocity=velocity_function2d)
 # ==========================================================================================
 # ==== Boundary
-
+viscosity_boundary = ViscosityAdami(nu=1e-4)
 boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundary.mass,
                                              AdamiPressureExtrapolation(),
                                              state_equation=state_equation,
