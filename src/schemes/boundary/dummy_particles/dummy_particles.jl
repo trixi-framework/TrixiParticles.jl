@@ -77,7 +77,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                                                reference_particle_spacing,
                                                                compact_support(smoothing_kernel,
                                                                                smoothing_length))),
-                 colorfield_bnd=zeros(ELTYPE, n_particles),
+                 initial_colorfield=zeros(ELTYPE, n_particles),
                  colorfield=zeros(ELTYPE, n_particles),
                  neighbor_count=zeros(ELTYPE, n_particles))
     end

@@ -186,7 +186,7 @@ end
             end
 
             # Boundary system
-            bnd_color = bnd_system.boundary_model.cache.colorfield_bnd
+            bnd_color = bnd_system.boundary_model.cache.initial_colorfield
             # This is only true since it assumed that the color is 1
             @test all(bnd_color .>= 0.0)
 
@@ -286,7 +286,7 @@ end
             end
 
             # Boundary system
-            bnd_color = bnd_system.boundary_model.cache.colorfield_bnd
+            bnd_color = bnd_system.boundary_model.cache.initial_colorfield
             # this is only true since it assumed that the color is 1
             @test all(bnd_color .>= 0.0)
 

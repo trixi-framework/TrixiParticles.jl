@@ -82,7 +82,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
                       v, v_neighbor_system, u_neighbor_system, semi, surface_normal_method,
                       neighbor_surface_normal_method)
     (; cache) = system
-    (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
+    (; colorfield, initial_colorfield) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surface_normal_method
 
     system_coords = current_coordinates(u_system, system)
@@ -94,7 +94,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     # TODO: this is only correct for a single fluid
 
     # Reset to the constant boundary interpolated color values
-    colorfield .= colorfield_bnd
+    colorfield .= initial_colorfield
 
     # Accumulate fluid neighbors
     foreach_point_neighbor(neighbor_system, system, neighbor_system_coords, system_coords,

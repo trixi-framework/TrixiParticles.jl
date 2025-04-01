@@ -429,8 +429,8 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
 
-    if haskey(model.cache, :colorfield_bnd)
-        vtk["colorfield_bnd"] = model.cache.colorfield_bnd
+    if haskey(model.cache, :initial_colorfield)
+        vtk["initial_colorfield"] = model.cache.initial_colorfield
         vtk["colorfield"] = model.cache.colorfield
         vtk["neighbor_count"] = model.cache.neighbor_count
     end

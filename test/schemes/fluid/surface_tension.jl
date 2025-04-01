@@ -89,6 +89,7 @@
         @test isapprox(zero[1], 0.0, atol=6e-15)
         @test isapprox(zero[2], 0.0, atol=6e-15)
     end
+
     @testset "compute_stress_tensors! (MomentumMorris)" begin
         # 1. Define Minimal Initial Condition with 2 Particles in 2D
         coords = [0.0 1.0;
