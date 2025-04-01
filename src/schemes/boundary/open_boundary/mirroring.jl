@@ -1,13 +1,12 @@
-# Two ways of providing the information to an open boundary are considered:
-# - physical quantities are either assigned a priori
-# - or extrapolated from the fluid domain to the buffer zones (inflow and outflow) using ghost nodes
+@doc raw"""
+    BoundaryModelTafuni()
 
-# The position of the ghost nodes is obtained by mirroring the boundary particles
-# into the fluid along a direction that is normal to the open boundary.
-
-# In order to calculate fluid quantities at the ghost nodes, a standard particle interpolation
-# would not be consistent due to the proximity of these points to an open boundary,
-# which translates into the lack of a full kernel support.
+Boundary model for `OpenBoundarySPHSystem`.
+This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
+to the buffer zones (inflow and outflow) using ghost nodes.
+The position of the ghost nodes is obtained by mirroring the boundary particles
+into the fluid along a direction that is normal to the open boundary.
+"""
 struct BoundaryModelTafuni end
 
 function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode,

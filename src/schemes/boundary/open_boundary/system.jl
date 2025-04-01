@@ -26,6 +26,12 @@ Open boundary system for in- and outflow particles.
                        and time to its density, a vector holding the density of each particle,
                        or a scalar for a constant density over all particles.
 
+!!! note "Note"
+    When using the [`BoundaryModelTafuni()`](@ref), the reference values (`reference_velocity`,
+    `reference_pressure`, `reference_density`) can also be set to `nothing`
+    since this model allows to either assigned physical quantities a priori or exprapolate them
+    from the fluid domaim to the buffer zones (inflow and outflow) using ghost nodes.
+
 !!! warning "Experimental Implementation"
 	This is an experimental feature and may change in any future releases.
 """
