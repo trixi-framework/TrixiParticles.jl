@@ -218,8 +218,8 @@ end
                                 particle_system, particle, neighbor)
     density_diffusion_term = dot(psi, grad_kernel) * volume_b
 
-    smoothing_length_avg = (smoothing_length(system, particle) +
-                            smoothing_length(system, neighbor)) / 2
+    smoothing_length_avg = (smoothing_length(particle_system, particle) +
+                            smoothing_length(particle_system, neighbor)) / 2
     dv[end, particle] += delta * smoothing_length_avg * sound_speed *
                          density_diffusion_term
 end
