@@ -136,29 +136,26 @@ end
 function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
     @nospecialize system # reduce precompilation time
 
+    function display_param(param)
+        if param isa AbstractVector
+            min_val = round(minimum(param), digits=3)
+            max_val = round(maximum(param), digits=3)
+            return "min = $(min_val), max = $(max_val)"
+        else
+            return string(param)
+        end
+    end
+
     if get(io, :compact, false)
         show(io, system)
     else
         n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
-        if system.young_modulus isa AbstractVector
-            young_modulus = "$(round(minimum(system.young_modulus), digits=3)) " *
-                            "... $(round(maximum(system.young_modulus),digits=3))"
-        else
-            young_modulus = system.young_modulus
-        end
-        if system.poisson_ratio isa AbstractVector
-            poisson_ratio = "$(round(minimum(system.poisson_ratio), digits=3)) " *
-                            "... $(round(maximum(system.poisson_ratio),digits=3))"
-        else
-            poisson_ratio = system.poisson_ratio
-        end
-
         summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
         summary_line(io, "total #particles", nparticles(system))
         summary_line(io, "#fixed particles", n_fixed_particles)
-        summary_line(io, "Young's modulus", young_modulus)
-        summary_line(io, "Poisson ratio", poisson_ratio)
+        summary_line(io, "Young's modulus", display_param(system.young_modulus))
+        summary_line(io, "Poisson ratio", display_param(system.poisson_ratio))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)

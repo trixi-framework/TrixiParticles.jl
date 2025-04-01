@@ -97,8 +97,8 @@
         │ ═══════════════════════════                                                                      │
         │ total #particles: ………………………………… 2                                                                │
         │ #fixed particles: ………………………………… 0                                                                │
-        │ Young's modulus: …………………………………… 1.2 ... 3.4                                                      │
-        │ Poisson ratio: ………………………………………… 0.2 ... 0.4                                                      │
+        │ Young's modulus: …………………………………… min = 1.2, max = 3.4                                             │
+        │ Poisson ratio: ………………………………………… min = 0.2, max = 0.4                                             │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
