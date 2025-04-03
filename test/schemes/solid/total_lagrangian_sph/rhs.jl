@@ -60,10 +60,6 @@
                 return initial_coordinates
             end
 
-            function TrixiParticles.compact_support(::MockSystem, ::MockSystem)
-                return Inf
-            end
-
             # Unpack calls should return predefined values or
             # another mock object of the type Val{:mock_property_name}.
             function Base.getproperty(::MockSystem, f::Symbol)
@@ -86,6 +82,7 @@
             end
 
             TrixiParticles.eachparticle(::MockSystem) = eachparticle
+            TrixiParticles.each_moving_particle(::MockSystem) = each_moving_particle
 
             function TrixiParticles.add_acceleration!(_, _, ::MockSystem)
                 return nothing
