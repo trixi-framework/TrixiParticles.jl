@@ -418,8 +418,8 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
 
     if haskey(cache, :initial_colorfield)
         foreach_point_neighbor(system, system, system_coords, system_coords, semi,
-        points=eachparticle(system)) do particle, neighbor,
-                                        pos_diff, distance
+                               points=eachparticle(system)) do particle, neighbor,
+                                                               pos_diff, distance
             cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
                                                   system.initial_condition.density[particle] *
                                                   system.cache.color *

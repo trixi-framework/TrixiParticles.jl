@@ -254,7 +254,7 @@ function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMo
     return system
 end
 
-function compute_surface_delta_function!(system, surface_tension)
+function compute_surface_delta_function!(system, surface_tension, semi)
     return system
 end
 
