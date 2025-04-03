@@ -63,8 +63,9 @@ oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, oil_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))
-ode = semidiscretize(semi, tspan, data_type=nothing)
+                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
+                          parallelization_backend=true)
+ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
             dt=1.0, # This is overwritten by the stepsize callback

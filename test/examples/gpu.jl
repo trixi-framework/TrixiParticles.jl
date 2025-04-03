@@ -3,22 +3,22 @@ const TRIXIPARTICLES_TEST_ = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
 if TRIXIPARTICLES_TEST_ == "cuda"
     using CUDA
     CUDA.versioninfo()
-    data_type = CuArray
+    parallelization_backend = CUDABackend()
     supports_double_precision = true
 elseif TRIXIPARTICLES_TEST_ == "amdgpu"
     using AMDGPU
     AMDGPU.versioninfo()
-    data_type = ROCArray
+    parallelization_backend = ROCBackend()
     supports_double_precision = true
 elseif TRIXIPARTICLES_TEST_ == "metal"
     using Metal
     Metal.versioninfo()
-    data_type = MtlArray
+    parallelization_backend = MetalBackend()
     supports_double_precision = false
 elseif TRIXIPARTICLES_TEST_ == "oneapi"
     using oneAPI
     oneAPI.versioninfo()
-    data_type = oneArray
+    parallelization_backend = oneAPIBackend()
     # The runners are using an iGPU, which does not support double precision
     supports_double_precision = false
 else
@@ -33,20 +33,20 @@ end
                                                joinpath(examples_dir(), "fluid",
                                                         "dam_break_2d_gpu.jl"),
                                                tspan=(0.0, 0.1),
-                                               data_type=Main.data_type) [
+                                               parallelization_backend=Main.parallelization_backend) [
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
                 @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
                 @test sol.retcode == ReturnCode.Success
-                @test sol.u[end].x[1] isa Main.data_type
+                @test sol.u[end].x[1] isa Main.parallelization_backend
             else
                 error = "Metal does not support Float64 values, try using Float32 instead"
                 @test_throws error trixi_include(@__MODULE__,
                                                  joinpath(examples_dir(), "fluid",
                                                           "dam_break_2d_gpu.jl"),
                                                  tspan=(0.0, 0.1),
-                                                 data_type=Main.data_type)
+                                                 parallelization_backend=Main.parallelization_backend)
             end
         end
 
@@ -73,14 +73,14 @@ end
                                                                             "fluid",
                                                                             "dam_break_2d_gpu.jl");
                                                                    tspan=(0.0f0, 0.1f0),
-                                                                   data_type=Main.data_type,
+                                                                   parallelization_backend=Main.parallelization_backend,
                                                                    kwargs...) [
                         r"┌ Info: The desired tank length in y-direction .*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
                     @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
                     @test sol.retcode == ReturnCode.Success
-                    @test sol.u[end].x[1] isa Main.data_type
+                    @test sol.u[end].x[1] isa Main.parallelization_backend
                 end
             end
         end
@@ -106,13 +106,13 @@ end
                                                            boundary_layers=1,
                                                            spacing_ratio=3,
                                                            boundary_model=boundary_model,
-                                                           data_type=Main.data_type) [
+                                                           parallelization_backend=Main.parallelization_backend) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
             @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            @test sol.u[end].x[1] isa Main.parallelization_backend
         end
 
         @trixi_testset "fluid/dam_break_3d.jl" begin
@@ -139,10 +139,10 @@ end
                                           tspan=(0.0f0, 0.1f0),
                                           fluid_particle_spacing=0.1,
                                           semi=semi_fullgrid,
-                                          data_type=Main.data_type,
+                                          parallelization_backend=Main.parallelization_backend,
                                           maxiters=36)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            @test sol.u[end].x[1] isa Main.parallelization_backend
         end
 
         # Short tests to make sure that different models and kernels work on GPUs
@@ -228,12 +228,12 @@ end
                                                                             "fluid",
                                                                             "hydrostatic_water_column_2d.jl");
                                                                    semi=semi_fullgrid,
-                                                                   data_type=Main.data_type,
+                                                                   parallelization_backend=Main.parallelization_backend,
                                                                    tspan=(0.0f0, 0.1f0),
                                                                    kwargs...)
 
                     @test sol.retcode == ReturnCode.Success
-                    @test sol.u[end].x[1] isa Main.data_type
+                    @test sol.u[end].x[1] isa Main.parallelization_backend
                 end
             end
         end
@@ -261,9 +261,9 @@ end
                                                                     "periodic_channel_2d.jl"),
                                                            tspan=(0.0f0, 0.1f0),
                                                            semi=semi_fullgrid,
-                                                           data_type=Main.data_type)
+                                                           parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            @test sol.u[end].x[1] isa Main.parallelization_backend
         end
 
         # Test open boundaries and steady-state callback
@@ -293,7 +293,7 @@ end
             #                                                extra_callback=steady_state_reached,
             #                                                tspan=(0.0f0, 1.5f0),
             #                                                semi=semi_fullgrid,
-            #                                                data_type=Main.data_type)
+            #                                                parallelization_backend=Main.parallelization_backend)
 
             # TODO This currently doesn't work on GPUs due to
             # https://github.com/trixi-framework/PointNeighbors.jl/issues/20.
@@ -301,7 +301,7 @@ end
             # Make sure that the simulation is terminated after a reasonable amount of time
             @test_skip 0.1 < sol.t[end] < 1.0
             @test_skip sol.retcode == ReturnCode.Terminated
-            @test_skip sol.u[end].x[1] isa Main.data_type
+            @test_skip sol.u[end].x[1] isa Main.parallelization_backend
         end
     end
 
@@ -328,9 +328,9 @@ end
                                                                     "oscillating_beam_2d.jl"),
                                                            tspan=(0.0f0, 0.1f0),
                                                            semi=semi_fullgrid,
-                                                           data_type=Main.data_type)
+                                                           parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            @test sol.u[end].x[1] isa Main.parallelization_backend
         end
     end
 
@@ -361,9 +361,9 @@ end
                                                            semi=semi_fullgrid,
                                                            # Needs <1500 steps on the CPU
                                                            maxiters=1500,
-                                                           data_type=Main.data_type)
+                                                           parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            @test sol.u[end].x[1] isa Main.parallelization_backend
         end
     end
 end

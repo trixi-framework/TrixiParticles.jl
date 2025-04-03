@@ -1,8 +1,8 @@
 # This example file demonstrates how to run an existing example file on a GPU.
 # We simply define a GPU-compatible neighborhood search and `trixi_include` the example
 # file with this neighborhood search.
-# To run this example on a GPU, `data_type` needs to be changed to the array type of the
-# installed GPU. See the docs on GPU support for more information.
+# To run this example on a GPU, `parallelization_backend` needs to be changed to the
+# backend for the installed GPU. See the docs on GPU support for more information.
 
 using TrixiParticles
 
@@ -26,4 +26,4 @@ trixi_include(@__MODULE__,
               density_diffusion=density_diffusion,
               boundary_layers=boundary_layers, spacing_ratio=spacing_ratio,
               boundary_model=boundary_model,
-              data_type=nothing)
+              parallelization_backend=true)

@@ -151,7 +151,7 @@
                                             clip_negative_pressure=true),
                 "with DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),),
                 "no density diffusion" => (density_diffusion=nothing,),
-                "with KernelAbstractions" => (data_type=Array,),
+                "with KernelAbstractions" => (parallelization_backend=TrixiParticles.KernelAbstractions.CPU(),),
                 "with BoundaryModelMonaghanKajtar" => (boundary_model=BoundaryModelMonaghanKajtar(gravity,
                                                                                                   spacing_ratio,
                                                                                                   boundary_particle_spacing,
