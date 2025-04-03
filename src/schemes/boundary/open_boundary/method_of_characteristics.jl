@@ -32,8 +32,8 @@ end
 
     if boundary_model.extrapolate_reference_values
         (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
-        v_fluid = wrap_v(v_ode, fluid_system, semi)
-        u_fluid = wrap_u(u_ode, fluid_system, semi)
+        v_fluid = wrap_v(v_ode, system.fluid_system, semi)
+        u_fluid = wrap_u(u_ode, system.fluid_system, semi)
 
         @trixi_timeit timer() "extrapolate and correct values" begin
             extrapolate_values!(system, v, v_fluid, u, u_fluid, semi, t;
