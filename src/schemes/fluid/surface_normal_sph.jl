@@ -148,13 +148,15 @@ function remove_invalid_normals!(system::FluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
                                                         SurfaceTensionMomentumMorris},
                                  surface_normal_method::ColorfieldSurfaceNormal)
-    (; cache, smoothing_length, smoothing_kernel) = system
+    (; cache, smoothing_kernel) = system
     (; ideal_density_threshold, interface_threshold) = surface_normal_method
     (; neighbor_count) = cache
 
+    smoothing_length_ = initial_smoothing_length(system)
+
     # We remove invalid normals i.e. they have a small norm (eq. 20)
     normal_condition2 = (interface_threshold /
-                         compact_support(smoothing_kernel, smoothing_length))^2
+                         compact_support(smoothing_kernel, smoothing_length_))^2
 
     for particle in each_moving_particle(system)
 
@@ -163,7 +165,7 @@ function remove_invalid_normals!(system::FluidSystem,
         if ideal_density_threshold > 0 &&
            ideal_density_threshold *
            ideal_neighbor_count(Val(ndims(system)), cache.reference_particle_spacing,
-                                compact_support(smoothing_kernel, smoothing_length)) <
+                                compact_support(smoothing_kernel, smoothing_length_)) <
            neighbor_count[particle]
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
@@ -241,7 +243,7 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
 
         # Eq. 22: we can test against `eps()` here since the surface normals that are invalid have been removed
         if dot(n_a, n_a) > eps() && dot(n_b, n_b) > eps()
-            w = smoothing_kernel(system, distance)
+            w = smoothing_kernel(system, distance, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             for i in 1:ndims(system)
