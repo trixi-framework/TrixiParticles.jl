@@ -36,7 +36,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
         dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
                                             m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
@@ -56,7 +56,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
-                                                   particle, neighbor, pos_diff, distance)
+                                                   particle, neighbor, pos_diff, distance,
+                                                   rho_a, rho_b, grad_kernel)
 
         dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)

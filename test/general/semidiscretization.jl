@@ -43,7 +43,10 @@
             struct BoundaryModelMock end
 
             # Mock fluid system
-            struct FluidSystemMock <: TrixiParticles.FluidSystem{2} end
+            struct FluidSystemMock <: TrixiParticles.FluidSystem{2}
+                surface_tension::Nothing
+                FluidSystemMock() = new(nothing)
+            end
 
             kernel = Val(:smoothing_kernel)
             Base.ndims(::Val{:smoothing_kernel}) = 2
