@@ -18,8 +18,8 @@ smoothing_length = 3.5 * fluid_particle_spacing
 sound_speed = 20 * sqrt(gravity * H)
 
 # Physical values
-nu_water = 8.9E-7
-nu_oil = 6E-5
+nu_water = 8.9e-7
+nu_oil = 6e-5
 nu_ratio = nu_water / nu_oil
 
 nu_sim_oil = max(0.01 * smoothing_length * sound_speed, nu_oil)
@@ -27,6 +27,7 @@ nu_sim_water = nu_ratio * nu_sim_oil
 
 oil_viscosity = ViscosityMorris(nu=nu_sim_oil)
 
+# TODO: broken if both systems use surface tension
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
               viscosity=ViscosityMorris(nu=nu_sim_water), smoothing_length=smoothing_length,
@@ -59,6 +60,13 @@ oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
                                          surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
                                          correction=AkinciFreeSurfaceCorrection(oil_density),
                                          reference_particle_spacing=fluid_particle_spacing)
+
+# oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
+#                                          oil_eos, smoothing_kernel,
+#                                          smoothing_length, viscosity=oil_viscosity,
+#                                          acceleration=(0.0, -gravity),
+#                                          surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.03),
+#                                          reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Simulation

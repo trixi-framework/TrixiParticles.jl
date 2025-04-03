@@ -6,7 +6,6 @@ file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".
 
 # ==========================================================================================
 # ==== Packing parameters
-save_intervals = false
 tlsph = false
 
 # ==========================================================================================
@@ -37,7 +36,7 @@ shape_sampled = ComplexShape(geometry; particle_spacing, density,
 
 # Returns `InitialCondition`
 boundary_sampled = sample_boundary(signed_distance_field; boundary_density=density,
-                                   boundary_thickness, tlsph)
+                                   boundary_thickness, tlsph=tlsph)
 
 trixi2vtk(shape_sampled)
 trixi2vtk(boundary_sampled, filename="boundary")
@@ -73,6 +72,7 @@ steady_state = SteadyStateReachedCallback(; interval=10, interval_size=200,
 
 info_callback = InfoCallback(interval=50)
 
+save_intervals = false
 saving_callback = save_intervals ?
                   SolutionSavingCallback(interval=10, prefix="", ekin=kinetic_energy) :
                   nothing
