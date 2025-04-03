@@ -133,6 +133,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
     end
 end
 
+timer_name(::ParticlePackingSystem) = "packing"
+
 @inline function Base.eltype(::ParticlePackingSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
