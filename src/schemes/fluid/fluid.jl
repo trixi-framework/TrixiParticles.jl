@@ -100,16 +100,18 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     (; viscosity, acceleration, surface_tension) = system
 
-    dt_viscosity = 0.125 * nitial_smoothing_length(system)^2
+    smoothing_length_ = initial_smoothing_length(system)
+
+    dt_viscosity = 0.125 * initial_smoothing_length(system)^2
     if !isnothing(system.viscosity)
         dt_viscosity = dt_viscosity / kinematic_viscosity(system, viscosity,
-                                           nitial_smoothing_length(system))
+                                           initial_smoothing_length(system))
     end
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)
     # are using a per-particle acceleration. Is that supposed to be the previous RHS?
     # Morris (2000) also uses the acceleration and cites Monaghan (1992)
-    dt_acceleration = 0.25 * sqrt(smoothing_length / norm(acceleration))
+    dt_acceleration = 0.25 * sqrt(smoothing_length_ / norm(acceleration))
 
     # TODO Everyone seems to be doing this differently.
     # Morris (2000) uses the additional condition CFL < 0.25.
@@ -119,14 +121,14 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     # Antuono et al. (2015) use h / (c + h * pi_max).
     #
     # See docstring of the callback for the references.
-    dt_sound_speed = cfl_number * smoothing_length / system_sound_speed(system)
+    dt_sound_speed = cfl_number * smoothing_length_ / system_sound_speed(system)
 
     # Eq. 28 in Morris (2000)
     dt = min(dt_viscosity, dt_acceleration, dt_sound_speed)
     if surface_tension isa SurfaceTensionMorris ||
        surface_tension isa SurfaceTensionMomentumMorris
         v = wrap_v(v_ode, system, semi)
-        dt_surface_tension = sqrt(particle_density(v, system, 1) * smoothing_length^3 /
+        dt_surface_tension = sqrt(particle_density(v, system, 1) * smoothing_length_^3 /
                                   (2 * pi * surface_tension.surface_tension_coefficient))
         dt = min(dt, dt_surface_tension)
     end
