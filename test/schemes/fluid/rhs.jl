@@ -78,7 +78,7 @@
                                                                        nothing)
 
                             dv2 = TrixiParticles.pressure_acceleration(system, system,
-                                                                       -1, - 1,
+                                                                       -1, -1,
                                                                        m_b, m_a, p_b, p_a,
                                                                        rho_b, rho_a,
                                                                        -pos_diff,
