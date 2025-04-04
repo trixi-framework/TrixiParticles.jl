@@ -409,7 +409,7 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system;
     end
 end
 
-function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system, semi;
+function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
                     write_meta_data=true)
     if write_meta_data
         vtk["boundary_model"] = "BoundaryModelDummyParticles"

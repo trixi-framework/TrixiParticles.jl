@@ -346,7 +346,6 @@
                                              density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu)
-        semi = DummySemidiscretization()
 
         # Initialize deformation_grad and pk1_corrected with arbitrary values
         for particle in TrixiParticles.eachparticle(system)
@@ -354,8 +353,8 @@
             system.pk1_corrected[:, :, particle] = [1.0 0.5; 0.5 1.0]
         end
 
-        von_mises_stress = TrixiParticles.von_mises_stress(system, semi)
-        cauchy_stress = TrixiParticles.cauchy_stress(system, semi)
+        von_mises_stress = TrixiParticles.von_mises_stress(system)
+        cauchy_stress = TrixiParticles.cauchy_stress(system)
 
         reference_stress_tensor = [1.145833 0.729167; 0.729167 1.145833;;;
                                    1.145833 0.729167; 0.729167 1.145833]
