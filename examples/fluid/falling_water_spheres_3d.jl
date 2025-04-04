@@ -34,4 +34,4 @@ trixi_include(@__MODULE__,
               fluid_smoothing_length=fluid_smoothing_length,
               fluid_smoothing_kernel=SchoenbergCubicSplineKernel{3}(),
               nu=nu, alpha=10 * nu / (fluid_smoothing_length * sound_speed),
-              surface_tension_coefficient=10, adhesion_coefficient=0.1)
+              surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05))
