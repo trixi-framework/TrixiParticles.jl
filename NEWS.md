@@ -7,11 +7,29 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
-- The symplectic time integration scheme from DualSPHysics was added (#716)
+- Added the classic **Continuum Surface Force (CSF)** model based on Morris 2000 (#584), which computes
+  surface tension as a **body force** proportional to curvature and directed along the interface normal.
+  This method is efficient and accurate for capillary effects but does not explicitly conserve momentum.
+
+- Added the classic **Continuum Surface Stress (CSS)** model based on Morris 2000 (#584), which is
+  a **momentum-conserving** approach that formulates surface tension as the **divergence of a stress tensor**.
+  However, it requires additional computation and stabilization to handle **high-density interfaces** and reduce numerical instabilities.
+
+- Added `BoundaryZone` to allow for bidirectional flow (#623)
+
+- Added the symplectic time integration scheme from DualSPHysics (#716)
 
 ### Documentation
 
-- Documentation for time integration was added (#716)
+- Added documentation for time integration (#716)
+
+### Testing
+
+- Run CI tests on GPUs via Buildkite CI (#723)
+
+### Bugs
+
+- Fix GPU computations (#689)
 
 ## Version 0.2.6
 
