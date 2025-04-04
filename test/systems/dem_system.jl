@@ -1,6 +1,3 @@
-include("../test_util.jl")
-using StaticArrays
-
 @testset verbose=true "DEMSystem (HertzContactModel)" begin
     @trixi_testset "show" begin
         # Define a simple 2D initial condition.
