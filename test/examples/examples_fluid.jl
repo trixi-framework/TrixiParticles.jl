@@ -443,7 +443,7 @@
 
     include("dam_break_2d_corrections.jl")
 
-    @testset "`SymplecticPositionVerlet` 2D" begin
+    @testset "`SymplecticPositionVerlet`" begin
         @testset "2D unstable" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
