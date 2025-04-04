@@ -60,7 +60,7 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
     ismoving = Ref(!isnothing(movement))
 
     cache = create_cache_boundary(movement, initial_condition)
-    cache = (cache..., color=Int64(color_value))
+    cache = (cache..., color=Int(color_value))
 
     if movement !== nothing && isempty(movement.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
@@ -444,18 +444,18 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborh
     system_coords = system.coordinates
     (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
 
-    if haskey(cache, :colorfield_bnd)
+    if haskey(cache, :initial_colorfield)
         foreach_point_neighbor(system, system,
                                system_coords, system_coords,
                                neighborhood_search,
                                points=eachparticle(system)) do particle, neighbor, pos_diff,
                                                                distance
-            cache.colorfield_bnd[particle] += system.initial_condition.mass[particle] /
-                                              system.initial_condition.density[particle] *
-                                              system.cache.color *
-                                              kernel(smoothing_kernel,
-                                                     distance,
-                                                     smoothing_length)
+            cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
+                                                  system.initial_condition.density[particle] *
+                                                  system.cache.color *
+                                                  kernel(smoothing_kernel,
+                                                         distance,
+                                                         smoothing_length)
             cache.neighbor_count[particle] += 1
         end
     end

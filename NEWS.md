@@ -15,6 +15,17 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   a **momentum-conserving** approach that formulates surface tension as the **divergence of a stress tensor**.
   However, it requires additional computation and stabilization to handle **high-density interfaces** and reduce numerical instabilities.
 
+- Implement `BoundaryZone` to allow for bidirectional flow (#623)
+
+
+### Testing
+
+- Run CI tests on GPUs via Buildkite CI (#723)
+
+### Bugs
+
+- Fix GPU computations (#689)
+
 ## Version 0.2.6
 
 ### Features

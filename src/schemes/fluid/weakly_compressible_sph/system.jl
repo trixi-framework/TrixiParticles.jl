@@ -133,17 +133,14 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
-             color=Int64(color_value), cache...)
+             color=Int(color_value), cache...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
-    if reference_particle_spacing > 0.0
+    if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
-                 ideal_neighbor_count=Int64(ideal_neighbor_count(Val(NDIMS),
-                                                                 reference_particle_spacing,
-                                                                 compact_support(smoothing_kernel,
-                                                                                 smoothing_length))))
+                 reference_particle_spacing=reference_particle_spacing)
     end
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
@@ -200,7 +197,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
         if system.surface_normal_method isa ColorfieldSurfaceNormal
-            summary_line(io, "color", system.color)
+            summary_line(io, "color", system.cache.color)
         end
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "source terms", system.source_terms |> typeof |> nameof)
