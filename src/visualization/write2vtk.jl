@@ -68,15 +68,14 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
         u = wrap_u(u_ode, system, semi)
         periodic_box = get_neighborhood_search(system, semi).periodic_box
 
-        trixi2vtk(v, u, t, system, periodic_box, semi;
+        trixi2vtk(v, u, t, system, periodic_box;
                   system_name=filenames[system_index], output_directory, iter, prefix,
                   write_meta_data, git_hash, max_coordinates, custom_quantities...)
     end
 end
 
 # Convert data for a single TrixiParticle system to VTK format
-function trixi2vtk(v_, u_, t, system_, periodic_box, semi; output_directory="out",
-                   prefix="",
+function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", prefix="",
                    iter=nothing, system_name=vtkname(system_), write_meta_data=true,
                    max_coordinates=Inf, git_hash=compute_git_hash(),
                    custom_quantities...)
@@ -119,7 +118,7 @@ function trixi2vtk(v_, u_, t, system_, periodic_box, semi; output_directory="out
 
     @trixi_timeit timer() "write to vtk" vtk_grid(file, points, cells) do vtk
         # dispatches based on the different system types e.g. FluidSystem, TotalLagrangianSPHSystem
-        write2vtk!(vtk, v, u, t, system, semi, write_meta_data=write_meta_data)
+        write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
 
         # Store particle index
         vtk["index"] = active_particles(system)
@@ -234,13 +233,13 @@ function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
                      pressure=pressure, custom_quantities...)
 end
 
-function write2vtk!(vtk, v, u, t, system, semi; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system; write_meta_data=true)
     vtk["velocity"] = view(v, 1:ndims(system), :)
 
     return vtk
 end
 
-function write2vtk!(vtk, v, u, t, system::FluidSystem, semi; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
     vtk["density"] = [particle_density(v, system, particle)
@@ -262,10 +261,10 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem, semi; write_meta_data=tru
 
         surface_tension_a = surface_tension_model(system)
         surface_tension_b = surface_tension_model(system)
+        nhs = create_neighborhood_search(nothing, system, system)
 
-        foreach_point_neighbor(system, system,
-                               system_coords, system_coords,
-                               semi) do particle, neighbor, pos_diff, distance
+        foreach_point_neighbor(system_coords, system_coords,
+                               nhs) do particle, neighbor, pos_diff, distance
             rho_a = particle_density(v, system, particle)
             rho_b = particle_density(v, system, neighbor)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
@@ -346,8 +345,7 @@ function write2vtk!(vtk, viscosity::ArtificialViscosityMonaghan)
     vtk["viscosity_epsilon"] = viscosity.epsilon
 end
 
-function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem, semi;
-                    write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_data=true)
     n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
     vtk["velocity"] = hcat(view(v, 1:ndims(system), :),
@@ -355,9 +353,9 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem, semi;
     vtk["jacobian"] = [det(deformation_gradient(system, particle))
                        for particle in eachparticle(system)]
 
-    vtk["von_mises_stress"] = von_mises_stress(system, semi)
+    vtk["von_mises_stress"] = von_mises_stress(system)
 
-    sigma = cauchy_stress(system, semi)
+    sigma = cauchy_stress(system)
     vtk["sigma_11"] = sigma[1, 1, :]
     vtk["sigma_22"] = sigma[2, 2, :]
     if ndims(system) == 3
@@ -375,11 +373,10 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem, semi;
         vtk["smoothing_length"] = system.smoothing_length
     end
 
-    write2vtk!(vtk, v, u, t, system.boundary_model, system, semi,
-               write_meta_data=write_meta_data)
+    write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
 end
 
-function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem, semi; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
     vtk["density"] = [particle_density(v, system, particle)
@@ -398,12 +395,12 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem, semi; write_met
     return vtk
 end
 
-function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem, semi; write_meta_data=true)
-    write2vtk!(vtk, v, u, t, system.boundary_model, system, semi,
+function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem; write_meta_data=true)
+    write2vtk!(vtk, v, u, t, system.boundary_model, system,
                write_meta_data=write_meta_data)
 end
 
-function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system, semi;
+function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system;
                     write_meta_data=true)
     if write_meta_data
         vtk["boundary_model"] = "BoundaryModelMonaghanKajtar"
@@ -438,11 +435,6 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system, se
     end
 end
 
-function write2vtk!(vtk, v, u, t, model::Nothing, system, semi;
-                    write_meta_data=true)
-    return vtk
-end
-
-function write2vtk!(vtk, v, u, t, system::BoundaryDEMSystem, semi; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::BoundaryDEMSystem; write_meta_data=true)
     return vtk
 end

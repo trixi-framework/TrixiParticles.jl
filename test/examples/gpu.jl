@@ -307,8 +307,8 @@ end
             # Make sure that the simulation is terminated after a reasonable amount of time
             @test_skip 0.1 < sol.t[end] < 1.0
             @test_skip sol.retcode == ReturnCode.Terminated
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
-            @test_skip backend == Main.parallelization_backend
+            # backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            # @test_skip backend == Main.parallelization_backend
         end
     end
 

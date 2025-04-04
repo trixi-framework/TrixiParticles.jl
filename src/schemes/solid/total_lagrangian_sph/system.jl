@@ -384,10 +384,10 @@ end
 # See here below Equation 5.3.21 for the equation for the equivalent stress.
 # The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
 # See pages 32 and 123.
-function von_mises_stress(system, semi)
+function von_mises_stress(system)
     von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded von_mises_stress_vector for particle in each_moving_particle(system)
         von_mises_stress_vector[particle] = von_mises_stress(system, particle)
     end
 
@@ -414,13 +414,13 @@ end
 # J. Lubliner, 2008. Plasticity theory.
 # See here page 473 for the relation between the `pk1`, the first Piola-Kirchhoff tensor,
 # and the Cauchy stress.
-function cauchy_stress(system::TotalLagrangianSPHSystem, semi)
+function cauchy_stress(system::TotalLagrangianSPHSystem)
     NDIMS = ndims(system)
 
     cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
                                   nparticles(system))
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded cauchy_stress_tensors for particle in each_moving_particle(system)
         F = deformation_gradient(system, particle)
         J = det(F)
         P = pk1_corrected(system, particle)

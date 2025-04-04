@@ -275,17 +275,6 @@ function semidiscretize(semi, tspan; reset_threads=true)
         Polyester.reset_threads!()
     end
 
-    initialize_neighborhood_searches!(semi)
-
-    # Initialize all particle systems
-    foreach_system(semi) do system
-        # Initialize this system
-        initialize!(system, semi)
-
-        # Only for systems requiring a mandatory callback
-        reset_callback_flag!(system)
-    end
-
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
 
@@ -310,17 +299,30 @@ function semidiscretize(semi, tspan; reset_threads=true)
         write_v0!(v0_system, system)
     end
 
+    # TODO initialize after adapting to the GPU.
+    # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
+    initialize_neighborhood_searches!(semi)
+
     if !(semi.parallelization_backend isa Bool)
         # Convert all arrays to the correct array type.
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
         # See the comments in general/gpu.jl for more details.
-        semi_adapted = Adapt.adapt(semi.parallelization_backend, semi)
-
-        return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_adapted)
+        semi_new = Adapt.adapt(semi.parallelization_backend, semi)
+    else
+        semi_new = semi
     end
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)
+    # Initialize all particle systems
+    foreach_system(semi_new) do system
+        # Initialize this system
+        initialize!(system, semi_new)
+
+        # Only for systems requiring a mandatory callback
+        reset_callback_flag!(system)
+    end
+
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
 end
 
 """

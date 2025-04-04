@@ -556,7 +556,7 @@ end
                 volume = m_a / particle_density(v, system, particle)
                 shepard_coefficient += volume * W_a
 
-                interpolate_system!(interpolation_values, v, system, semi,
+                interpolate_system!(interpolation_values, v, system,
                                     particle, volume, W_a, clip_negative_pressure)
             else
                 other_density += m_a * W_a
@@ -603,7 +603,7 @@ end
     return ndims(system) * ndims(system) + ndims(system) + 2
 end
 
-@inline function interpolate_system!(interpolation_values, v, system::FluidSystem, semi,
+@inline function interpolate_system!(interpolation_values, v, system::FluidSystem,
                                      particle, volume, W_a, clip_negative_pressure)
     NDIMS = ndims(system)
 
@@ -619,7 +619,7 @@ end
     interpolation_values[NDIMS + 1] += pressure * (volume * W_a)
 end
 
-@inline function interpolate_system!(interpolation_values, v, system::SolidSystem, semi,
+@inline function interpolate_system!(interpolation_values, v, system::SolidSystem,
                                      particle, volume, W_a, clip_negative_pressure)
     NDIMS = ndims(system)
 
@@ -630,9 +630,9 @@ end
 
     interpolation_values[NDIMS + 1] = det(deformation_gradient(system, particle)) *
                                       (volume * W_a)
-    interpolation_values[NDIMS + 2] = von_mises_stress(system, semi) * (volume * W_a)
+    interpolation_values[NDIMS + 2] = von_mises_stress(system) * (volume * W_a)
 
-    sigma = cauchy_stress(system, semi)
+    sigma = cauchy_stress(system)
     for i in 1:NDIMS
         for j in 1:NDIMS
             interpolation_values[NDIMS + 3 + i * NDIMS + j] = sigma[i, j, particle] *
