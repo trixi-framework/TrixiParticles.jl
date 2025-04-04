@@ -1,5 +1,3 @@
-using TrixiParticles, Plots
-include(pkgdir(TrixiParticles, "test", "test_util.jl"))
 @testset verbose=true "Mirroring" begin
     validation_dir = pkgdir(TrixiParticles, "test", "schemes", "boundary", "open_boundary",
                             "data")
