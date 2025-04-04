@@ -454,7 +454,8 @@ end
     (; pressure_offset) = density_calculator
 
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
-                           parallel=false) do neighbor, particle, pos_diff, distance
+                           parallelization_backend=false) do neighbor, particle,
+                                                             pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         boundary_pressure_inner!(boundary_model, density_calculator, system,
