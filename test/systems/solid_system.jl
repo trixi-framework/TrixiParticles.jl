@@ -289,6 +289,7 @@
             # It is easier to mock the system and specify the Lamé constants
             # and deformation gradient than to actually construct a system.
             system = Val(:mock_system)
+            TrixiParticles.deformation_gradient(::Val{:mock_system}, _) = J
 
             # All unpack calls should return another mock object
             # of the type `Val{:mock_property_name}`, but we want to have the actual
@@ -305,9 +306,9 @@
             end
 
             #### Verification
-            @test TrixiParticles.pk2_stress_tensor(J, 1, lame_lambda, lame_mu) ≈
+            @test TrixiParticles.pk2_stress_tensor(J, lame_lambda, lame_mu, 1) ≈
                   expected_pk2[deformation]
-            @test TrixiParticles.pk1_stress_tensor(J, system, 1) ≈ expected_pk1[deformation]
+            @test TrixiParticles.pk1_stress_tensor(system, 1) ≈ expected_pk1[deformation]
         end
     end
 
