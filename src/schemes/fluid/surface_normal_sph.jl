@@ -177,7 +177,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, v, u
                       v_neighbor_system, u_neighbor_system, semi, surface_normal_method,
                       neighbor_surface_normal_method)
     (; cache) = system
-    (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
+    (; colorfield, initial_colorfield) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surface_normal_method
 
     system_coords = current_coordinates(u, system)
@@ -189,7 +189,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, v, u
     # TODO: this is only correct for a single fluid
 
     # # Reset to the constant boundary interpolated color values
-    # colorfield .= colorfield_bnd
+    # colorfield .= initial_colorfield
 
     # Accumulate fluid neighbors
     foreach_point_neighbor(neighbor_system, system, neighbor_system_coords, system_coords,
@@ -248,7 +248,7 @@ function remove_invalid_normals!(system::FluidSystem,
                                  surface_normal_method::ColorfieldSurfaceNormal)
     (; cache, smoothing_length, smoothing_kernel) = system
     (; ideal_density_threshold, interface_threshold) = surface_normal_method
-    (; ideal_neighbor_count, neighbor_count) = cache
+    (; neighbor_count) = cache
 
     # We remove invalid normals i.e. they have a small norm (eq. 20)
     normal_condition2 = (interface_threshold /
@@ -259,7 +259,10 @@ function remove_invalid_normals!(system::FluidSystem,
         # Heuristic condition if there is no gas phase to find the free surface.
         # We remove normals for particles which have a lot of support e.g. they are in the interior.
         if ideal_density_threshold > 0 &&
-           ideal_density_threshold * ideal_neighbor_count < neighbor_count[particle]
+           ideal_density_threshold *
+           ideal_neighbor_count(Val(ndims(system)), cache.reference_particle_spacing,
+                                compact_support(smoothing_kernel, smoothing_length)) <
+           neighbor_count[particle]
             if surface_tension.contact_model isa HuberContactModel
                 cache.normal_v[1:ndims(system), particle] .= 0
             end
