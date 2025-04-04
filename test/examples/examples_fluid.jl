@@ -163,7 +163,8 @@
                                             correction=AkinciFreeSurfaceCorrection(fluid_density),
                                             density_diffusion=nothing,
                                             adhesion_coefficient=0.05,
-                                            sound_speed=100.0)
+                                            sound_speed=100.0,
+                                            reference_particle_spacing=fluid_particle_spacing)
         )
 
         for (test_description, kwargs) in dam_break_tests

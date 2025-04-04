@@ -32,7 +32,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
               viscosity=ViscosityMorris(nu=nu_sim_water), smoothing_length=smoothing_length,
               gravity=gravity, density_diffusion=nothing, sound_speed=sound_speed,
-              prefix="")
+              prefix="", reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Setup oil layer

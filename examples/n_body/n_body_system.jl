@@ -36,7 +36,7 @@ end
 # NHS update
 function TrixiParticles.update_nhs!(neighborhood_search,
                                     system::NBodySystem, neighbor::NBodySystem,
-                                    u_system, u_neighbor)
+                                    u_system, u_neighbor, semi)
     TrixiParticles.PointNeighbors.update!(neighborhood_search,
                                           u_system, u_neighbor,
                                           points_moving=(true, true))
