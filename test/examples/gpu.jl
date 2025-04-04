@@ -39,7 +39,8 @@ end
                 ]
                 @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
                 @test sol.retcode == ReturnCode.Success
-                @test sol.u[end].x[1] isa Main.parallelization_backend
+                backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                @test backend == Main.parallelization_backend
             else
                 error = "Metal does not support Float64 values, try using Float32 instead"
                 @test_throws error trixi_include(@__MODULE__,
@@ -80,7 +81,8 @@ end
                     ]
                     @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
                     @test sol.retcode == ReturnCode.Success
-                    @test sol.u[end].x[1] isa Main.parallelization_backend
+                    backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                    @test backend == Main.parallelization_backend
                 end
             end
         end
@@ -112,7 +114,8 @@ end
             ]
             @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.parallelization_backend
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
 
         @trixi_testset "fluid/dam_break_3d.jl" begin
@@ -142,7 +145,8 @@ end
                                           parallelization_backend=Main.parallelization_backend,
                                           maxiters=36)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.parallelization_backend
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
 
         # Short tests to make sure that different models and kernels work on GPUs
@@ -233,7 +237,8 @@ end
                                                                    kwargs...)
 
                     @test sol.retcode == ReturnCode.Success
-                    @test sol.u[end].x[1] isa Main.parallelization_backend
+                    backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                    @test backend == Main.parallelization_backend
                 end
             end
         end
@@ -263,7 +268,8 @@ end
                                                            semi=semi_fullgrid,
                                                            parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.parallelization_backend
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
 
         # Test open boundaries and steady-state callback
@@ -301,7 +307,7 @@ end
             # Make sure that the simulation is terminated after a reasonable amount of time
             @test_skip 0.1 < sol.t[end] < 1.0
             @test_skip sol.retcode == ReturnCode.Terminated
-            @test_skip sol.u[end].x[1] isa Main.parallelization_backend
+            @test_skip TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1]) == Main.parallelization_backend
         end
     end
 
@@ -330,7 +336,8 @@ end
                                                            semi=semi_fullgrid,
                                                            parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.parallelization_backend
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
     end
 
@@ -363,7 +370,8 @@ end
                                                            maxiters=1500,
                                                            parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.parallelization_backend
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
     end
 end
