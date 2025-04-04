@@ -375,7 +375,8 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem, semi;
         vtk["smoothing_length"] = system.smoothing_length
     end
 
-    write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
+    write2vtk!(vtk, v, u, t, system.boundary_model, system, semi,
+               write_meta_data=write_meta_data)
 end
 
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem, semi; write_meta_data=true)
@@ -435,6 +436,11 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system, se
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
     end
+end
+
+function write2vtk!(vtk, v, u, t, model::Nothing, system, semi;
+                    write_meta_data=true)
+    return vtk
 end
 
 function write2vtk!(vtk, v, u, t, system::BoundaryDEMSystem, semi; write_meta_data=true)
