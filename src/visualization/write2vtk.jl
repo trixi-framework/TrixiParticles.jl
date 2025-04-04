@@ -367,8 +367,6 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
     vtk["material_density"] = system.material_density
 
     if write_meta_data
-        vtk["young_modulus"] = system.young_modulus
-        vtk["poisson_ratio"] = system.poisson_ratio
         vtk["lame_lambda"] = system.lame_lambda
         vtk["lame_mu"] = system.lame_mu
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
