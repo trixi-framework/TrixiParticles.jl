@@ -88,10 +88,6 @@ function smoothing_length(system, boundary_model::BoundaryModelDummyParticles, p
     return boundary_model.smoothing_length
 end
 
-function smoothing_length(boundary_model::BoundaryModelDummyParticles, particle)
-    return boundary_model.smoothing_length
-end
-
 @doc raw"""
     AdamiPressureExtrapolation(; pressure_offset=0)
 
