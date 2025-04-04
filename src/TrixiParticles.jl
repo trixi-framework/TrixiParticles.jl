@@ -94,5 +94,6 @@ export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_pl
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
 export ColorfieldSurfaceNormal
+export SymplecticPositionVerlet
 
 end # module
