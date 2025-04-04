@@ -46,7 +46,7 @@ end
 @inline function pressure_acceleration(particle_system,
                                        neighbor_system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
-                                       neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                        pos_diff, distance, grad_kernel, correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
@@ -64,7 +64,7 @@ end
 
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
            (distance * distance_from_singularity) *
-           boundary_kernel(distance, initial_smoothing_length(particle_system))
+           boundary_kernel(distance, smoothing_length(particle_system, particle))
 end
 
 @fastpow @inline function boundary_kernel(r, h)

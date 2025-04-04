@@ -39,7 +39,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
-        dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system,
+                                            particle, neighbor,
                                             m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
                                             rho_b, pos_diff, distance, grad_kernel,
                                             correction)

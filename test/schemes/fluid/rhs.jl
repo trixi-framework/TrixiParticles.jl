@@ -68,7 +68,8 @@
                             end
 
                             # Compute accelerations a -> b and b -> a
-                            dv1 = TrixiParticles.pressure_acceleration(system, system, -1,
+                            dv1 = TrixiParticles.pressure_acceleration(system, system,
+                                                                       -1, -1,
                                                                        m_a, m_b, p_a, p_b,
                                                                        rho_a, rho_b,
                                                                        pos_diff,
@@ -76,7 +77,8 @@
                                                                        grad_kernel,
                                                                        nothing)
 
-                            dv2 = TrixiParticles.pressure_acceleration(system, system, -1,
+                            dv2 = TrixiParticles.pressure_acceleration(system, system,
+                                                                       -1, - 1,
                                                                        m_b, m_a, p_b, p_a,
                                                                        rho_b, rho_a,
                                                                        -pos_diff,
