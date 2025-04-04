@@ -87,9 +87,9 @@ macro test_nowarn_mod(expr, additional_ignore_content=String[])
 end
 
 struct DummySemidiscretization
-    parallelization_backend
+    parallelization_backend::Any
 
-    function DummySemidiscretization(; parallelization_backend = false)
+    function DummySemidiscretization(; parallelization_backend=false)
         new(parallelization_backend)
     end
 end
