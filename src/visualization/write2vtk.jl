@@ -396,8 +396,11 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
 end
 
 function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem; write_meta_data=true)
-    write2vtk!(vtk, v, u, t, system.boundary_model, system,
-               write_meta_data=write_meta_data)
+    write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
+end
+
+function write2vtk!(vtk, v, u, t, model::Nothing, system; write_meta_data=true)
+    return vtk
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system;
