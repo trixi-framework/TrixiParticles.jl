@@ -100,6 +100,7 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     (; viscosity, acceleration, surface_tension) = system
 
+    # TODO
     smoothing_length_ = initial_smoothing_length(system)
 
     dt_viscosity = 0.125 * initial_smoothing_length(system)^2
