@@ -218,6 +218,7 @@ function compute_correction_values!(system,
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
 
+            # Use uncorrected kernel to compute correction coefficients
             W = kernel(system_smoothing_kernel(system), distance,
                        smoothing_length(system, particle))
 

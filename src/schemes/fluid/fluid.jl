@@ -103,10 +103,10 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     # TODO
     smoothing_length_ = initial_smoothing_length(system)
 
-    dt_viscosity = 0.125 * initial_smoothing_length(system)^2
+    dt_viscosity = 0.125 * smoothing_length_^2
     if !isnothing(system.viscosity)
-        dt_viscosity = dt_viscosity / kinematic_viscosity(system, viscosity,
-                                           initial_smoothing_length(system))
+        dt_viscosity = dt_viscosity /
+                       kinematic_viscosity(system, viscosity, smoothing_length_)
     end
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)

@@ -139,7 +139,7 @@ reset_callback_flag!(system) = system
 
 initial_smoothing_length(system) = smoothing_length(system, nothing)
 
-function smoothing_length(system, _)
+function smoothing_length(system, particle)
     return system.smoothing_length
 end
 

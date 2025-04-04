@@ -333,7 +333,7 @@ end
 end
 
 @inline function smoothing_length(system::BoundarySPHSystem, particle)
-    return smoothing_length(system, system.boundary_model, particle)
+    return smoothing_length(system.boundary_model, particle)
 end
 
 function update_positions!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
