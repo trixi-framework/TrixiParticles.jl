@@ -34,6 +34,9 @@ For callbacks, please refer to [the docs](@ref Callbacks) and the example files.
 In this case, we need to either set a reasonable, problem- and resolution-dependent
 step size `dt`, or use the [`StepsizeCallback`](@ref), which overwrites the step size
 dynamically during the simulation based on a CFL-number.
+We always set `save_everystep=false`, or OrdinaryDiffEq.jl would return the solution vector
+for every time step, writing massive amounts of data into the RAM for large simulations.
+To visualize data for every time step, [callbacks](@ref Callbacks) can be used.
 
 Some schemes, e.g. the two schemes `RDPK3SpFSAL35` and `RDPK3SpFSAL49` mentioned below,
 support automatic time stepping, where the step size is determined automatically based on
