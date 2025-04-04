@@ -274,7 +274,7 @@ end
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
-    compute_surface_delta_function!(system, system.surface_tension)
+    compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
