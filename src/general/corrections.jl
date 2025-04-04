@@ -398,7 +398,7 @@ function correction_matrix_inversion_step!(corr_matrix, system)
         # so `L` is singular if and only if the position vectors X_ab don't span the
         # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
         # or plane (in 3D).
-        if abs(det(L)) < 1e-9
+        if abs(det(L)) < 1.0f-9
             L_inv = I
         else
             L_inv = inv(L)
@@ -411,4 +411,30 @@ function correction_matrix_inversion_step!(corr_matrix, system)
     end
 
     return corr_matrix
+end
+
+create_cache_correction(correction, density, NDIMS, nparticles) = (;)
+
+function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density))
+end
+
+function create_cache_correction(::KernelCorrection, density, NDIMS, n_particles)
+    dw_gamma = Array{eltype(density)}(undef, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density), dw_gamma)
+end
+
+function create_cache_correction(::Union{GradientCorrection, BlendedGradientCorrection},
+                                 density,
+                                 NDIMS, n_particles)
+    correction_matrix = Array{eltype(density), 3}(undef, NDIMS, NDIMS, n_particles)
+    return (; correction_matrix)
+end
+
+function create_cache_correction(::MixedKernelGradientCorrection, density, NDIMS,
+                                 n_particles)
+    dw_gamma = Array{eltype(density)}(undef, NDIMS, n_particles)
+    correction_matrix = Array{eltype(density), 3}(undef, NDIMS, NDIMS, n_particles)
+
+    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end

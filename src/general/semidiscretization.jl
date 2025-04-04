@@ -253,6 +253,7 @@ ode_problem = semidiscretize(semi, tspan)
 
 # output
 ODEProblem with uType RecursiveArrayTools.ArrayPartition{Float64, Tuple{Vector{Float64}, Vector{Float64}}} and tType Float64. In-place: true
+Non-trivial mass matrix: false
 timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
@@ -407,7 +408,7 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
-    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system), systems)
+    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system, semi), systems)
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
@@ -821,9 +822,37 @@ function check_configuration(systems)
     foreach_system(systems) do system
         check_configuration(system, systems)
     end
+
+    check_system_color(systems)
 end
 
 check_configuration(system, systems) = nothing
+
+function check_system_color(systems)
+    if any(system isa FluidSystem && !(system isa ParticlePackingSystem) &&
+           !isnothing(system.surface_tension)
+           for system in systems)
+
+        # System indices of all systems that are either a fluid or a boundary system
+        system_ids = findall(system isa Union{FluidSystem, BoundarySPHSystem}
+                             for system in systems)
+
+        if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
+            throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
+        end
+    end
+end
+
+function check_configuration(fluid_system::FluidSystem, systems)
+    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
+        foreach_system(systems) do neighbor
+            if neighbor isa FluidSystem && isnothing(fluid_system.surface_tension) &&
+               isnothing(fluid_system.surface_normal_method)
+                throw(ArgumentError("All `FluidSystem` need to use a surface tension model or a surface normal method."))
+            end
+        end
+    end
+end
 
 function check_configuration(boundary_system::BoundarySPHSystem, systems)
     (; boundary_model) = boundary_system
@@ -852,5 +881,15 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+end
+
+function check_configuration(system::OpenBoundarySPHSystem, systems)
+    (; boundary_model, boundary_zone) = system
+
+    if boundary_model isa BoundaryModelLastiwka &&
+       boundary_zone isa BoundaryZone{BidirectionalFlow}
+        throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
+                            "Please specify inflow and outflow."))
     end
 end
