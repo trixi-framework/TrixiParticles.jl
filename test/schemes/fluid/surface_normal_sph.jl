@@ -185,8 +185,8 @@ end
             end
 
             # Boundary system
-            bnd_color = bnd_system.boundary_model.cache.colorfield_bnd
-            # this is only true since it assumed that the color is 1
+            bnd_color = bnd_system.boundary_model.cache.initial_colorfield
+            # This is only true since it assumed that the color is 1
             @test all(bnd_color .>= 0.0)
 
             # Test that computed normals match expected normals
@@ -285,7 +285,7 @@ end
             end
 
             # Boundary system
-            bnd_color = bnd_system.boundary_model.cache.colorfield_bnd
+            bnd_color = bnd_system.boundary_model.cache.initial_colorfield
             # this is only true since it assumed that the color is 1
             @test all(bnd_color .>= 0.0)
 
@@ -303,8 +303,6 @@ end
 end
 
 @testset "Rectangular Fluid with Corner Normal Check" begin
-    using LinearAlgebra: norm
-
     # Domain dimensions
     width = 2.0
     height = 1.0
@@ -351,10 +349,10 @@ end
     # Function to compute the "expected" outward normal of the rectangle
     function expected_rect_normal(pos, w, h, surface_threshold)
         x, y = pos
-        is_left = (x ≤ surface_threshold)
-        is_right = (x ≥ w - surface_threshold)
-        is_bottom = (y ≤ surface_threshold)
-        is_top = (y ≥ h - surface_threshold)
+        is_left = (x <= surface_threshold)
+        is_right = (x >= w - surface_threshold)
+        is_bottom = (y <= surface_threshold)
+        is_top = (y >= h - surface_threshold)
 
         # 1) Corners
         if is_left && is_bottom
@@ -402,7 +400,7 @@ end
         exp_normal = expected_rect_normal(pos, width, height, surface_threshold)
         nexp = norm(exp_normal)
 
-        # ignore interior values
+        # ignore interior values since the normals are just approximation and will have nonzero values in the interior
         if nexp > 0.1
             # Expected = nonzero => direction check
             dot_val = dot(exp_normal, -computed_normals[:, i])
@@ -412,10 +410,10 @@ end
     end
 
     function is_corner(x, y; tol=0.5 * particle_spacing)
-        isleft = (x ≤ tol)
-        isright = (x ≥ width - tol)
-        isbottom = (y ≤ tol)
-        istop = (y ≥ height - tol)
+        isleft = (x <= tol)
+        isright = (x >= width - tol)
+        isbottom = (y <= tol)
+        istop = (y >= height - tol)
         return (isleft || isright) && (isbottom || istop)
     end
 
@@ -429,9 +427,8 @@ end
             continue
         end
 
-        # All other points (edges + interior) => near-zero curvature
-        # We ignore most points since the normal calculation is not accurate in the interior
-        if norm(computed_normals[:, i]) < 0.1
+        # Just test the interior for now since the normal values are unreliable
+        if norm(computed_normals[:, i]) < 0.5
             @test isapprox(curvature[i], 0.0; atol=1e-2)
         end
     end
