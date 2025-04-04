@@ -1,27 +1,34 @@
-# 2D dam break simulation with an air layer on top
+################################################################################
+# Dam Break 2D with Air Layer Example
+#
+# This example simulates a 2D dam break with an air layer above the water.
+# The simulation uses a coarse resolution; note that a finer resolution (e.g. tank_height/60)
+# yields more accurate results but increases computation time significantly.
+################################################################################
 
 using TrixiParticles
 using OrdinaryDiffEq
 
-# Size parameters
-H = 0.6
-W = 2 * H
+# ------------------------------------------------------------------------------
+# Physical Size and Resolution Parameters
+# ------------------------------------------------------------------------------
+tank_height = 0.6
+tank_width = 2 * tank_height
 
-# ==========================================================================================
-# ==== Resolution
+# Note: The resolution is very coarse.
+# A better result is obtained with tank_height/60 or higher (which takes over 1 hour)
+fluid_particle_spacing = tank_height / 20
 
-# Note: The resolution is very coarse. A better result is obtained with H/60 or higher (which takes over 1 hour)
-fluid_particle_spacing = H / 20
-
-# ==========================================================================================
-# ==== Experiment Setup
+# ------------------------------------------------------------------------------
+# Experiment Setup: Physical and Numerical Parameters
+# ------------------------------------------------------------------------------
 gravity = 9.81
 tspan = (0.0, 2.0)
 
 # Numerical settings
 smoothing_length = 3.5 * fluid_particle_spacing
 sound_speed = 100.0
-# when using the Ideal gas equation
+# Alternative sound speed for the ideal gas equation:
 # sound_speed = 343.0
 
 # physical values
@@ -35,19 +42,26 @@ nu_sim_water = nu_ratio * nu_sim_air
 air_viscosity = ViscosityMorris(nu=nu_sim_air)
 water_viscosity = ViscosityMorris(nu=nu_sim_water)
 
+# ------------------------------------------------------------------------------
+# Load Dam Break Simulation (Water System)
+# ------------------------------------------------------------------------------
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
               viscosity=water_viscosity, smoothing_length=smoothing_length,
               gravity=gravity, tspan=tspan, density_diffusion=nothing,
               sound_speed=sound_speed, exponent=7, reference_particle_spacing=fluid_particle_spacing,
-              tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing,
-                         2.6 * H))
+              tank_size=(floor(5.366 * tank_height / fluid_particle_spacing) * fluid_particle_spacing,
+                         2.6 * tank_height))
 
-# ==========================================================================================
-# ==== Setup air_system layer
+# ------------------------------------------------------------------------------
+# Setup Air System Layer
+# ------------------------------------------------------------------------------
+# Define air layer dimensions for two regions:
+#   - air_system: air immediately above the initial water
+#   - air_system2: air in the remaining empty volume
 
-air_size = (tank_size[1], 1.5 * H)
-air_size2 = (tank_size[1] - W, H)
+air_size = (tank_size[1], 1.5 * tank_height)
+air_size2 = (tank_size[1] - tank_width, tank_height)
 air_density = 1.0
 
 # Air above the initial water
@@ -58,11 +72,11 @@ air_system = RectangularShape(fluid_particle_spacing,
 # Air for the rest of the empty volume
 air_system2 = RectangularShape(fluid_particle_spacing,
                                round.(Int, air_size2 ./ fluid_particle_spacing),
-                               (W, 0.0), density=air_density)
+                               (tank_width, 0.0), density=air_density)
 
 # move on top of the water
 for i in axes(air_system.coordinates, 2)
-    air_system.coordinates[:, i] .+= [0.0, H]
+    air_system.coordinates[:, i] .+= [0.0, tank_height]
 end
 
 air_system = union(air_system, air_system2)
@@ -76,8 +90,9 @@ air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calcul
                                                 viscosity=air_viscosity,
                                                 acceleration=(0.0, -gravity))
 
-# ==========================================================================================
-# ==== Simulation
+# ------------------------------------------------------------------------------
+# Simulation: Combine Water and Air Systems and Solve
+# ------------------------------------------------------------------------------
 semi = Semidiscretization(fluid_system, air_system_system, boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))
 ode = semidiscretize(semi, tspan, data_type=nothing)
