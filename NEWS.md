@@ -17,7 +17,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added `BoundaryZone` to allow for bidirectional flow (#623)
 
-- Added the symplectic time integration scheme from DualSPHysics (#716)
+- Added the symplectic time integration scheme used in DualSPHysics (#716)
 
 ### Documentation
 
