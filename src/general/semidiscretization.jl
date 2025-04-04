@@ -246,8 +246,9 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
 to be integrated with [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
 Note that this is not a true `DynamicalODEProblem` where the acceleration does not depend on the velocity.
-Therefore, not all integrators designed for `DynamicalODEProblems` will work properly.
-However, all integrators designed for `ODEProblems` can be used.
+Therefore, not all integrators designed for `DynamicalODEProblem`s will work properly.
+However, all integrators designed for `ODEProblem`s can be used.
+See [time integration](@ref time_integration) for more details.
 
 # Examples
 ```jldoctest; output = false, filter = r"u0: .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)

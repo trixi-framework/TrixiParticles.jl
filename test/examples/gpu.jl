@@ -147,6 +147,19 @@ end
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
+
+            @testset "`SymplecticPositionVerlet`" begin
+                stepsize_callback = StepsizeCallback(cfl=0.65)
+                callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
+
+                sol = solve(ode, SymplecticPositionVerlet(),
+                            dt=1, # This is overwritten by the stepsize callback
+                            save_everystep=false, callback=callbacks)
+                @test sol.retcode == ReturnCode.Success
+                @test maximum(maximum.(abs, sol.u[end].x)) < 2^15
+                backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                @test backend == Main.parallelization_backend
+            end
         end
 
         # Short tests to make sure that different models and kernels work on GPUs
