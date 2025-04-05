@@ -186,7 +186,7 @@ end
     # Don't integrate fixed systems
     fixed_packing_system(system) && return 0
 
-    return ndims(system) * 2
+    return ndims(system)
 end
 
 @inline function u_nvariables(system::ParticlePackingSystem)
@@ -205,7 +205,8 @@ end
 update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
-    vtk["velocity"] = [advection_velocity(v, system, particle)
+    vtk["velocity"] = [current_velocity(system.initial_condition.velocity, system,
+                                        particle)
                        for particle in active_particles(system)]
     if write_meta_data
         vtk["signed_distances"] = system.signed_distances
@@ -236,7 +237,7 @@ function kinetic_energy(v, u, t, system::ParticlePackingSystem)
 
     # If `each_moving_particle` is empty (no moving particles), return zero
     return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
-        velocity = advection_velocity(v, system, particle)
+        velocity = current_velocity(system.initial_condition.velocity, system, particle)
         return initial_condition.mass[particle] * dot(velocity, velocity) / 2
     end
 end
@@ -359,7 +360,7 @@ end
     v = wrap_v(v_ode, system, semi)
     @threaded system for particle in each_moving_particle(system)
         for i in 1:ndims(system)
-            v[ndims(system) + i, particle] = v[i, particle]
+            system.initial_condition.velocity[i, particle] = v[i, particle]
 
             # The particle velocity is set to zero at the beginning of each time step to
             # achieve a fully stationary state.
@@ -376,7 +377,7 @@ end
 # Add advection velocity.
 @inline function add_velocity!(du, v, particle, system::ParticlePackingSystem)
     for i in 1:ndims(system)
-        du[i, particle] = v[ndims(system) + i, particle]
+        du[i, particle] = system.initial_condition.velocity[i, particle]
     end
 
     return du
