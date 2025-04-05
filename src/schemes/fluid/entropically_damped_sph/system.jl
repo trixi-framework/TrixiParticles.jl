@@ -53,12 +53,11 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
-                                   PF, ST, SRFT, SRFN, B, C} <: FluidSystem{NDIMS, IC}
+                                   PF, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
     smoothing_kernel                  :: K
-    smoothing_length                  :: ELTYPE
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -70,6 +69,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
     buffer                            :: B
+    particle_refinement               :: PR
     cache                             :: C
 end
 
@@ -89,6 +89,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      reference_particle_spacing=0.0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
+
+    particle_refinement = nothing # TODO
 
     initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -134,6 +136,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             create_cache_refinement(initial_condition, particle_refinement,
+                                     smoothing_length)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
              color=Int(color_value),
@@ -152,14 +156,14 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 typeof(viscosity), typeof(transport_velocity),
                                 typeof(pressure_acceleration), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_normal_method),
-                                typeof(buffer),
+                                typeof(buffer), Nothing,
                                 typeof(cache)}(initial_condition, mass, density_calculator,
-                                               smoothing_kernel, smoothing_length,
-                                               sound_speed, viscosity, nu_edac,
-                                               acceleration_, correction,
+                                               smoothing_kernel, sound_speed, viscosity,
+                                               nu_edac, acceleration_, correction,
                                                pressure_acceleration, transport_velocity,
                                                source_terms, surface_tension,
-                                               surface_normal_method, buffer, cache)
+                                               surface_normal_method, buffer,
+                                               particle_refinement, cache)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
@@ -230,6 +234,8 @@ end
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
     return ndims(system) * factor_tvf(system) + 2
 end
+
+system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
 @inline function particle_density(v, ::ContinuityDensity,
                                   system::EntropicallyDampedSPHSystem, particle)

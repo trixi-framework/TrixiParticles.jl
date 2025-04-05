@@ -70,8 +70,9 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                 # only this component of interpolated velocity is kept [...]"
                 v_b = dot(v_b, boundary_zone.plane_normal) * boundary_zone.plane_normal
 
-                kernel_value = smoothing_kernel(fluid_system, distance)
-                grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance)
+                kernel_value = smoothing_kernel(fluid_system, distance, particle)
+                grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
+                                                    particle)
 
                 L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
 

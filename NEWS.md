@@ -12,7 +12,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
-- Adds the classic **Continuum Surface Force (CSF)** model based on Morris 2000 (#584), which computes
+- Added the classic **Continuum Surface Force (CSF)** model based on Morris 2000 (#584), which computes
   surface tension as a **body force** proportional to curvature and directed along the interface normal.
   This method is efficient and accurate for capillary effects but does not explicitly conserve momentum.
 
@@ -20,8 +20,13 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   a **momentum-conserving** approach that formulates surface tension as the **divergence of a stress tensor**.
   However, it requires additional computation and stabilization to handle **high-density interfaces** and reduce numerical instabilities.
 
-- Implement `BoundaryZone` to allow for bidirectional flow (#623)
+- Added `BoundaryZone` to allow for bidirectional flow (#623)
 
+- Added the symplectic time integration scheme used in DualSPHysics (#716)
+
+### Documentation
+
+- Added documentation for time integration (#716)
 
 ### Testing
 
@@ -39,7 +44,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Refactored
 
-- Surface normal calculation was moved from surface_tension.jl to surface_normal_sph.jl (#539)
+- Surface normal calculation was moved from `surface_tension.jl` to `surface_normal_sph.jl` (#539)
 
 ## Version 0.2.5
 

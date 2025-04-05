@@ -143,6 +143,18 @@ end
                                           maxiters=36)
             @test sol.retcode == ReturnCode.Success
             @test sol.u[end].x[1] isa Main.data_type
+
+            @testset "`SymplecticPositionVerlet`" begin
+                stepsize_callback = StepsizeCallback(cfl=0.65)
+                callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
+
+                sol = solve(ode, SymplecticPositionVerlet(),
+                            dt=1, # This is overwritten by the stepsize callback
+                            save_everystep=false, callback=callbacks)
+                @test sol.retcode == ReturnCode.Success
+                @test maximum(maximum.(abs, sol.u[end].x)) < 2^15
+                @test sol.u[end].x[1] isa Main.data_type
+            end
         end
 
         # Short tests to make sure that different models and kernels work on GPUs

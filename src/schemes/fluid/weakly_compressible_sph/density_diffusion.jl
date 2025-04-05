@@ -57,11 +57,11 @@ A density diffusion term by [Ferrari (2009)](@cite Ferrari2009).
 The term ``\psi_{ab}`` in the continuity equation in [`DensityDiffusion`](@ref) is defined
 by
 ```math
-\psi_{ab} = \frac{\rho_a - \rho_b}{2h} \frac{r_{ab}}{\Vert r_{ab} \Vert},
+\psi_{ab} = \frac{\rho_a - \rho_b}{h_a + h_b} \frac{r_{ab}}{\Vert r_{ab} \Vert},
 ```
 where ``\rho_a`` and ``\rho_b`` denote the densities of particles ``a`` and ``b`` respectively,
 ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b`` and
-``h`` is the smoothing length.
+``h_a`` and ``h_b`` are the smoothing lengths of particles ``a`` and ``b`` respectively.
 
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
@@ -75,9 +75,9 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionFerrari, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
-    (; smoothing_length) = system
-
-    return ((rho_a - rho_b) / 2smoothing_length) * pos_diff / distance
+    return ((rho_a - rho_b) /
+            (smoothing_length(system, particle) + smoothing_length(system, neighbor))) *
+           pos_diff / distance
 end
 
 @doc raw"""
@@ -209,7 +209,7 @@ end
     distance < sqrt(eps(typeof(distance))) && return
 
     (; delta) = density_diffusion
-    (; smoothing_length, state_equation) = particle_system
+    (; state_equation) = particle_system
     (; sound_speed) = state_equation
 
     volume_b = m_b / rho_b
@@ -218,7 +218,10 @@ end
                                 particle_system, particle, neighbor)
     density_diffusion_term = dot(psi, grad_kernel) * volume_b
 
-    dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
+    smoothing_length_avg = (smoothing_length(particle_system, particle) +
+                            smoothing_length(particle_system, neighbor)) / 2
+    dv[end, particle] += delta * smoothing_length_avg * sound_speed *
+                         density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid

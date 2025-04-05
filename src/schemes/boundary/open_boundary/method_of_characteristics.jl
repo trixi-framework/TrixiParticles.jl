@@ -191,7 +191,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
         pressure_term = p_b - p_ref
         velocity_term = rho_b * sound_speed * (dot(v_b - v_neighbor_ref, flow_direction))
 
-        kernel_ = smoothing_kernel(neighbor_system, distance)
+        kernel_ = smoothing_kernel(neighbor_system, distance, particle)
 
         characteristics[1, particle] += (density_term + pressure_term) * kernel_
         characteristics[2, particle] += (velocity_term + pressure_term) * kernel_

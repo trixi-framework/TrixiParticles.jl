@@ -457,4 +457,60 @@
     end
 
     include("dam_break_2d_corrections.jl")
+
+    @testset "`SymplecticPositionVerlet`" begin
+        @testset "2D unstable" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "dam_break_2d.jl"),
+                                           tspan=(0, 0.1), sol=nothing) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n"]
+
+            sol = solve(ode, SymplecticPositionVerlet(),
+                        dt=1.0, # This is overwritten by the stepsize callback
+                        save_everystep=false, callback=callbacks)
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+
+            # Unstable with this CFL
+            @test maximum(abs, sol.u[end]) > 2^15
+        end
+
+        @testset "2D stable" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "dam_break_2d.jl"),
+                                           tspan=(0, 0.1), sol=nothing,
+                                           cfl=0.25) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n"]
+
+            sol = solve(ode, SymplecticPositionVerlet(),
+                        dt=1.0, # This is overwritten by the stepsize callback
+                        save_everystep=false, callback=callbacks)
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+
+            # Stable with this CFL
+            @test maximum(abs, sol.u[end]) < 2^15
+        end
+
+        @testset "3D" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "dam_break_3d.jl"),
+                                           fluid_particle_spacing=0.1,
+                                           tspan=(0, 0.1), sol=nothing)
+            stepsize_callback = StepsizeCallback(cfl=0.65)
+            callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
+
+            sol = solve(ode, SymplecticPositionVerlet(),
+                        dt=1.0, # This is overwritten by the stepsize callback
+                        save_everystep=false, callback=callbacks)
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+            @test maximum(abs, sol.u[end]) < 2^15
+        end
+    end
 end
