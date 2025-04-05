@@ -111,7 +111,7 @@
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
-            function TrixiParticles.smoothing_length(::MockSystemType, _)
+            function TrixiParticles.smoothing_length(::MockSystem, _)
                 Val{:mock_smoothing_length}()
             end
 
