@@ -134,8 +134,9 @@ function create_neighborhood_search(neighborhood_search, system, neighbor)
 end
 
 @inline function compact_support(system, neighbor)
-    (; smoothing_kernel, smoothing_length) = system
-    return compact_support(smoothing_kernel, smoothing_length)
+    (; smoothing_kernel) = system
+    # TODO: Variable search radius for NHS?
+    return compact_support(smoothing_kernel, initial_smoothing_length(system))
 end
 
 @inline function compact_support(system::OpenBoundarySPHSystem, neighbor)

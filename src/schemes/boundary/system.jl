@@ -327,9 +327,13 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@inline function smoothing_kernel(system::BoundarySPHSystem, distance)
+@inline function smoothing_kernel(system::BoundarySPHSystem, distance, particle)
     (; smoothing_kernel, smoothing_length) = system.boundary_model
     return kernel(smoothing_kernel, distance, smoothing_length)
+end
+
+@inline function smoothing_length(system::BoundarySPHSystem, particle)
+    return smoothing_length(system.boundary_model, particle)
 end
 
 function update_positions!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
@@ -432,4 +436,12 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborh
         end
     end
     return system
+end
+
+function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
+    return system.boundary_model.smoothing_kernel
+end
+
+function system_correction(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
+    return system.boundary_model.correction
 end

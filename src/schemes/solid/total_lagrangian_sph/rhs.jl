@@ -35,7 +35,7 @@ end
         rho_b = neighbor_system.material_density[neighbor]
 
         grad_kernel = smoothing_kernel_grad(particle_system, initial_pos_diff,
-                                            initial_distance)
+                                            initial_distance, particle)
 
         m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
@@ -95,7 +95,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Use kernel from the fluid system in order to get the same force here in
         # solid-fluid interaction as for fluid-solid interaction.
-        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, particle)
 
         # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
         # corresponding to the chosen boundary model.
@@ -106,7 +106,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # are switched in the following two calls.
         # This way, we obtain the exact same force as for the fluid-solid interaction,
         # but with a flipped sign (because `pos_diff` is flipped compared to fluid-solid).
-        dv_boundary = pressure_acceleration(neighbor_system, particle_system, particle,
+        dv_boundary = pressure_acceleration(neighbor_system, particle_system,
+                                            neighbor, particle,
                                             m_b, m_a, p_b, p_a, rho_b, rho_a, pos_diff,
                                             distance, grad_kernel,
                                             neighbor_system.correction)

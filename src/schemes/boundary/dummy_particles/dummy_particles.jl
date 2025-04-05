@@ -311,14 +311,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              boundary_model,
                                              system, u, v_ode, u_ode, semi)
-    (; cache, correction, smoothing_kernel, smoothing_length) = boundary_model
+    (; cache, correction, smoothing_kernel) = boundary_model
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_length,
-                                        smoothing_kernel)
+                                        v_ode, u_ode, semi, correction, smoothing_kernel)
 end
 
 function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode,
@@ -506,7 +505,7 @@ end
     resulting_acceleration = neighbor_system.acceleration -
                              current_acceleration(system, particle)
 
-    kernel_weight = smoothing_kernel(boundary_model, distance)
+    kernel_weight = smoothing_kernel(boundary_model, distance, particle)
 
     pressure[particle] += (pressure_offset
                            +
@@ -605,13 +604,6 @@ end
                                          particle)
     # The density is constant when using EDAC
     return density
-end
-
-@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance, particle)
-    (; smoothing_kernel, smoothing_length, correction) = system.boundary_model
-
-    return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                 smoothing_length, correction, system, particle)
 end
 
 @inline function correction_matrix(system::BoundarySystem, particle)

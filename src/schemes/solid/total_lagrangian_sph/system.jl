@@ -302,7 +302,7 @@ end
         pos_diff = current_coords(system, particle) - current_coords(system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
-                                            initial_distance)
+                                            initial_distance, particle)
 
         result = volume * pos_diff * grad_kernel'
 
