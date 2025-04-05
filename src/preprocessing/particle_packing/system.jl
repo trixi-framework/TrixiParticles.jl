@@ -47,14 +47,13 @@ For more information on the methods, see description below.
 - `smoothing_length_interpolation`: Smoothing length to be used for intrepolating the `SignedDistanceField` information.
                                     The default is `smoothing_length_interpolation = smoothing_length`.
 """
-struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real,
+struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C,
                              IC, M, D, K, N, SD, UCU} <: FluidSystem{NDIMS, IC}
     initial_condition              :: IC
     mass                           :: M
     density                        :: D
     particle_spacing               :: ELTYPE
     smoothing_kernel               :: K
-    smoothing_length               :: ELTYPE
     smoothing_length_interpolation :: ELTYPE
     background_pressure            :: ELTYPE
     tlsph                          :: Bool
@@ -63,8 +62,10 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real,
     shift_length                   :: ELTYPE
     neighborhood_search            :: N
     signed_distances               :: SD # Only for visualization
+    particle_refinement            :: PR
     buffer                         :: Nothing
     update_callback_used           :: UCU
+    cache                          :: C
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
@@ -72,21 +73,22 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real,
                                    smoothing_kernel, smoothing_length,
                                    smoothing_length_interpolation, background_pressure,
                                    tlsph, signed_distance_field, is_boundary, shift_length,
-                                   neighborhood_search, signed_distances, buffer,
-                                   update_callback_used, fixed_system)
+                                   neighborhood_search, signed_distances,
+                                   particle_refinement, buffer, update_callback_used,
+                                   fixed_system, cache)
         return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
-                   typeof(smoothing_length), typeof(initial_condition), typeof(mass),
-                   typeof(density), typeof(smoothing_kernel), typeof(neighborhood_search),
+                   eltype(density), typeof(particle_refinement), typeof(cache),
+                   typeof(initial_condition), typeof(mass), typeof(density),
+                   typeof(smoothing_kernel), typeof(neighborhood_search),
                    typeof(signed_distances),
                    typeof(update_callback_used)}(initial_condition, mass, density,
                                                  particle_spacing, smoothing_kernel,
-                                                 smoothing_length,
                                                  smoothing_length_interpolation,
                                                  background_pressure, tlsph,
                                                  signed_distance_field, is_boundary,
                                                  shift_length, neighborhood_search,
-                                                 signed_distances, buffer,
-                                                 update_callback_used)
+                                                 signed_distances, particle_refinement,
+                                                 buffer, update_callback_used, cache)
     end
 end
 
@@ -103,6 +105,8 @@ function ParticlePackingSystem(shape::InitialCondition;
     ELTYPE = eltype(shape)
     mass = copy(shape.mass)
     density = copy(shape.density)
+
+    particle_refinement = nothing
 
     if ndims(smoothing_kernel) != NDIMS
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -141,12 +145,14 @@ function ParticlePackingSystem(shape::InitialCondition;
         tlsph ? zero(ELTYPE) : shape.particle_spacing / 2
     end
 
+    cache = (; create_cache_refinement(shape, particle_refinement, smoothing_length)...)
+
     return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
                                  smoothing_kernel, smoothing_length,
                                  smoothing_length_interpolation, background_pressure, tlsph,
                                  signed_distance_field, is_boundary, shift_length, nhs,
-                                 fill(zero(ELTYPE), nparticles(shape)), nothing, Ref(false),
-                                 fixed_system)
+                                 fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
+                                 nothing, Ref(false), fixed_system, cache)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)

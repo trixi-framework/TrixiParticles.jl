@@ -2,7 +2,7 @@ using LinearAlgebra
 
 @doc raw"""
     interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
-                         smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                         smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
                          clip_negative_pressure=false)
 
 Interpolates properties along a plane in a TrixiParticles simulation.
@@ -24,7 +24,7 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
 - `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
 - `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
@@ -53,7 +53,7 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 """
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
                               sol::ODESolution;
-                              smoothing_length=ref_system.smoothing_length,
+                              smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     # Filter out particles without neighbors
     filter_no_neighbors = true
@@ -69,7 +69,7 @@ end
 
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
                               v_ode, u_ode;
-                              smoothing_length=ref_system.smoothing_length,
+                              smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     # Filter out particles without neighbors
     filter_no_neighbors = true
@@ -84,7 +84,7 @@ end
 
 @doc raw"""
     interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, sol;
-                             smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                             smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
                              clip_negative_pressure=false, output_directory="out", filename="plane")
 
 Interpolates properties along a plane in a TrixiParticles simulation and exports the result
@@ -107,7 +107,7 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
 - `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
 - `output_directory="out"`: Directory to save the VTI file.
 - `filename="plane"`:       Name of the VTI file.
 - `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
@@ -132,7 +132,7 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 """
 function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
                                   sol::ODESolution; clip_negative_pressure=false,
-                                  smoothing_length=ref_system.smoothing_length,
+                                  smoothing_length=initial_smoothing_length(ref_system),
                                   cut_off_bnd=true,
                                   output_directory="out", filename="plane")
     v_ode, u_ode = sol.u[end].x
@@ -144,7 +144,7 @@ end
 
 function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
                                   v_ode, u_ode;
-                                  smoothing_length=ref_system.smoothing_length,
+                                  smoothing_length=initial_smoothing_length(ref_system),
                                   cut_off_bnd=true, clip_negative_pressure=false,
                                   output_directory="out", filename="plane")
     # Don't filter out particles without neighbors to keep 2D grid structure
@@ -206,7 +206,7 @@ end
 
 @doc raw"""
     interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
-                         smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                         smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
                          clip_negative_pressure=false)
 
 Interpolates properties along a plane in a 3D space in a TrixiParticles simulation.
@@ -229,7 +229,7 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
 - `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
 - `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
@@ -259,7 +259,7 @@ results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]
 """
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
                               sol::ODESolution;
-                              smoothing_length=ref_system.smoothing_length,
+                              smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     v_ode, u_ode = sol.u[end].x
 
@@ -269,7 +269,8 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
 end
 
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
-                              v_ode, u_ode; smoothing_length=ref_system.smoothing_length,
+                              v_ode, u_ode;
+                              smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     if ndims(ref_system) != 3
         throw(ArgumentError("`interpolate_plane_3d` requires a 3D simulation"))
@@ -299,7 +300,7 @@ end
 
 @doc raw"""
     interpolate_line(start, end_, n_points, semi, ref_system, sol; endpoint=true,
-                     smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                     smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
                      clip_negative_pressure=false)
 
 Interpolates properties along a line in a TrixiParticles simulation.
@@ -321,7 +322,7 @@ See also: [`interpolate_point`](@ref), [`interpolate_plane_2d`](@ref),
 
 # Keywords
 - `endpoint=true`: A boolean to include (`true`) or exclude (`false`) the end point in the interpolation.
-- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
 - `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
@@ -351,7 +352,8 @@ results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 ```
 """
 function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolution;
-                          endpoint=true, smoothing_length=ref_system.smoothing_length,
+                          endpoint=true,
+                          smoothing_length=initial_smoothing_length(ref_system),
                           cut_off_bnd=true, clip_negative_pressure=false)
     v_ode, u_ode = sol.u[end].x
 
@@ -359,7 +361,8 @@ function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolut
                      endpoint, smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
-                          endpoint=true, smoothing_length=ref_system.smoothing_length,
+                          endpoint=true,
+                          smoothing_length=initial_smoothing_length(ref_system),
                           cut_off_bnd=true, clip_negative_pressure=false)
     start_svector = SVector{ndims(ref_system)}(start)
     end_svector = SVector{ndims(ref_system)}(end_)
@@ -376,11 +379,11 @@ end
 
 @doc raw"""
     interpolate_point(points_coords::Array{Array{Float64,1},1}, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                      smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
                       clip_negative_pressure=false)
 
     interpolate_point(point_coords, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                      smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
                       clip_negative_pressure=false)
 
 Performs interpolation of properties at specified points or an array of points in a TrixiParticles simulation.
@@ -400,7 +403,7 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
 - `sol`:            The current solution state from which properties are interpolated.
 
 # Keywords
-- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
 - `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
@@ -434,7 +437,7 @@ results = interpolate_point(points, semi, ref_system, sol)
     accurate as a real surface reconstruction.
 """
 @inline function interpolate_point(point_coords, semi, ref_system, sol::ODESolution;
-                                   smoothing_length=ref_system.smoothing_length,
+                                   smoothing_length=initial_smoothing_length(ref_system),
                                    cut_off_bnd=true, clip_negative_pressure=false)
     v_ode, u_ode = sol.u[end].x
 
@@ -444,7 +447,7 @@ end
 
 @inline function interpolate_point(points_coords::AbstractArray{<:AbstractArray}, semi,
                                    ref_system, v_ode, u_ode;
-                                   smoothing_length=ref_system.smoothing_length,
+                                   smoothing_length=initial_smoothing_length(ref_system),
                                    cut_off_bnd=true, clip_negative_pressure=false)
     num_points = length(points_coords)
     coords = similar(points_coords)
@@ -472,7 +475,7 @@ end
 end
 
 function interpolate_point(point_coords, semi, ref_system, v_ode, u_ode;
-                           smoothing_length=ref_system.smoothing_length,
+                           smoothing_length=initial_smoothing_length(ref_system),
                            cut_off_bnd=true, clip_negative_pressure=false)
     neighborhood_searches = process_neighborhood_searches(semi, u_ode, ref_system,
                                                           smoothing_length)
@@ -483,7 +486,7 @@ function interpolate_point(point_coords, semi, ref_system, v_ode, u_ode;
 end
 
 function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length)
-    if isapprox(smoothing_length, ref_system.smoothing_length)
+    if isapprox(smoothing_length, initial_smoothing_length(ref_system))
         # Update existing NHS
         update_nhs!(semi, u_ode)
         neighborhood_searches = semi.neighborhood_searches[system_indices(ref_system, semi)]
@@ -507,7 +510,7 @@ end
 
 @inline function interpolate_point(point_coords, semi, ref_system, v_ode, u_ode,
                                    neighborhood_searches;
-                                   smoothing_length=ref_system.smoothing_length,
+                                   smoothing_length=initial_smoothing_length(ref_system),
                                    cut_off_bnd=true, clip_negative_pressure=false)
     interpolated_density = 0.0
     other_density = 0.0

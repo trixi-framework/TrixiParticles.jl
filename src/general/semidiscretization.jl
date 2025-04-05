@@ -134,8 +134,9 @@ function create_neighborhood_search(neighborhood_search, system, neighbor)
 end
 
 @inline function compact_support(system, neighbor)
-    (; smoothing_kernel, smoothing_length) = system
-    return compact_support(smoothing_kernel, smoothing_length)
+    (; smoothing_kernel) = system
+    # TODO: Variable search radius for NHS?
+    return compact_support(smoothing_kernel, initial_smoothing_length(system))
 end
 
 @inline function compact_support(system::OpenBoundarySPHSystem, neighbor)
@@ -242,8 +243,9 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
 to be integrated with [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
 Note that this is not a true `DynamicalODEProblem` where the acceleration does not depend on the velocity.
-Therefore, not all integrators designed for `DynamicalODEProblems` will work properly.
-However, all integrators designed for `ODEProblems` can be used.
+Therefore, not all integrators designed for `DynamicalODEProblem`s will work properly.
+However, all integrators designed for `ODEProblem`s can be used.
+See [time integration](@ref time_integration) for more details.
 
 # Examples
 ```jldoctest; output = false, filter = r"u0: .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -686,6 +688,20 @@ function update_nhs!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
             points_moving=(true, true))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySPHSystem, neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::TotalLagrangianSPHSystem, neighbor::OpenBoundarySPHSystem,
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,

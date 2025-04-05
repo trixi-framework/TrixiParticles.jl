@@ -40,7 +40,7 @@
             @test system.lame_lambda == 1.0
             @test system.lame_mu == 1.0
             @test system.smoothing_kernel == smoothing_kernel
-            @test system.smoothing_length == smoothing_length
+            @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
             @test system.boundary_model == boundary_model
         end
@@ -66,7 +66,7 @@
                                           smoothing_length, E, nu,
                                           boundary_model=boundary_model)
 
-        show_compact = "TotalLagrangianSPHSystem{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
+        show_compact = "TotalLagrangianSPHSystem{2}(Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
         @test repr(system) == show_compact
 
@@ -78,6 +78,27 @@
         │ #fixed particles: ………………………………… 0                                                                │
         │ Young's modulus: …………………………………… 2.5                                                              │
         │ Poisson ratio: ………………………………………… 0.25                                                             │
+        │ smoothing kernel: ………………………………… Val                                                              │
+        │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
+        │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
+        │ penalty force: ………………………………………… Nothing                                                          │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", system) == show_box
+
+        E = [1.2, 3.4]
+        nu = [0.2, 0.4]
+        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+                                          smoothing_length, E, nu,
+                                          boundary_model=boundary_model)
+
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ TotalLagrangianSPHSystem{2}                                                                      │
+        │ ═══════════════════════════                                                                      │
+        │ total #particles: ………………………………… 2                                                                │
+        │ #fixed particles: ………………………………… 0                                                                │
+        │ Young's modulus: …………………………………… min = 1.2, max = 3.4                                             │
+        │ Poisson ratio: ………………………………………… min = 0.2, max = 0.4                                             │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
@@ -138,6 +159,8 @@
                 function TrixiParticles.initial_coordinates(::Val{:mock_system_tensor})
                     return initial_coordinates[i]
                 end
+
+                TrixiParticles.smoothing_length(::Val{:mock_system_tensor}, _) = 0.12
 
                 # All unpack calls should return another mock object
                 # of the type `Val{:mock_property_name}`, but we want to have some real matrices
@@ -268,6 +291,8 @@
             # It is easier to mock the system and specify the Lamé constants
             # and deformation gradient than to actually construct a system.
             system = Val(:mock_system)
+            TrixiParticles.smoothing_length(::Val{:mock_system}, _) = 0.12
+            TrixiParticles.deformation_gradient(::Val{:mock_system}, _) = J
 
             # All unpack calls should return another mock object
             # of the type `Val{:mock_property_name}`, but we want to have the actual
@@ -284,8 +309,9 @@
             end
 
             #### Verification
-            @test TrixiParticles.pk2_stress_tensor(J, system) ≈ expected_pk2[deformation]
-            @test TrixiParticles.pk1_stress_tensor(J, system) ≈ expected_pk1[deformation]
+            @test TrixiParticles.pk2_stress_tensor(J, lame_lambda, lame_mu, 1) ≈
+                  expected_pk2[deformation]
+            @test TrixiParticles.pk1_stress_tensor(system, 1) ≈ expected_pk1[deformation]
         end
     end
 
@@ -300,6 +326,7 @@
         nu = 0.25
         E = 2.5
         boundary_model = Val(:boundary_model)
+        TrixiParticles.smoothing_length(::Val{:boundary_model}, _) = smoothing_length
 
         initial_condition = InitialCondition(; coordinates, mass,
                                              density=material_densities)
@@ -326,6 +353,7 @@
         nu = 0.25
         E = 2.5
         boundary_model = Val(:boundary_model)
+        TrixiParticles.smoothing_length(::Val{:boundary_model}, _) = smoothing_length
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)

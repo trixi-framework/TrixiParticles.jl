@@ -39,7 +39,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
-        dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system,
+                                            particle, neighbor,
                                             m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
                                             rho_b, pos_diff, distance, grad_kernel,
                                             correction)
@@ -71,9 +72,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
                  current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-        pressure_evolution!(dv, particle_system, v_diff, grad_kernel,
-                            particle, pos_diff, distance, sound_speed, m_a, m_b,
-                            p_a, p_b, rho_a, rho_b)
+        pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
+                            particle, neighbor, pos_diff, distance,
+                            sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b)
 
         transport_velocity!(dv, particle_system, rho_a, rho_b, m_a, m_b,
                             grad_kernel, particle)
@@ -85,11 +86,10 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-@inline function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
+@inline function pressure_evolution!(dv, particle_system, neighbor_system, v_diff,
+                                     grad_kernel, particle, neighbor,
                                      pos_diff, distance, sound_speed, m_a, m_b,
                                      p_a, p_b, rho_a, rho_b)
-    (; smoothing_length) = particle_system
-
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
     volume_term = (volume_a^2 + volume_b^2) / m_a
@@ -104,8 +104,9 @@ end
     eta_b = rho_b * particle_system.nu_edac
     eta_tilde = 2 * eta_a * eta_b / (eta_a + eta_b)
 
-    # TODO For variable smoothing length use average smoothing length
-    tmp = eta_tilde / (distance^2 + smoothing_length^2 / 100)
+    smoothing_length_average = (smoothing_length(particle_system, particle) +
+                                smoothing_length(neighbor_system, neighbor)) / 2
+    tmp = eta_tilde / (distance^2 + smoothing_length_average^2 / 100)
 
     # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
     # They argued that the formulation is more flexible because of the possibility to formulate
