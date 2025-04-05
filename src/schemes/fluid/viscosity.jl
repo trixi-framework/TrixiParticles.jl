@@ -124,7 +124,6 @@ end
     smoothing_length_particle = smoothing_length(particle_system, particle)
     smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
 
-    # TODO is that correct with the smoothing lengths?
     nu_a = kinematic_viscosity(particle_system,
                                viscosity_model(neighbor_system, particle_system),
                                smoothing_length_particle)
