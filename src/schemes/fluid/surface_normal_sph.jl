@@ -54,11 +54,9 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
 
     foreach_point_neighbor(system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           nhs,
+                           system_coords, neighbor_system_coords, semi;
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
@@ -87,7 +85,6 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(neighbor_system, system, semi)
 
     # First we need to calculate the smoothed colorfield values of the boundary
     # TODO: move colorfield to extra step
@@ -97,10 +94,9 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     colorfield .= initial_colorfield
 
     # Accumulate fluid neighbors
-    foreach_point_neighbor(neighbor_system, system, neighbor_system_coords, system_coords,
-                           nhs,
-                           points=eachparticle(neighbor_system)) do particle, neighbor,
-                                                                    pos_diff, distance
+    foreach_point_neighbor(neighbor_system, system,
+                           neighbor_system_coords, system_coords,
+                           semi) do particle, neighbor, pos_diff, distance
         colorfield[particle] += hydrodynamic_mass(system, neighbor) /
                                 particle_density(v, system, neighbor) * system.cache.color *
                                 smoothing_kernel(system, distance, particle)
@@ -108,10 +104,9 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
 
     maximum_colorfield = maximum(colorfield)
 
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         # We assume that we are in contact with the boundary if the color of the boundary particle
         # is larger than the threshold
         if colorfield[neighbor] / maximum_colorfield > boundary_contact_threshold
@@ -228,13 +223,12 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
 
     set_zero!(correction_factor)
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         n_a = surface_normal(system, particle)

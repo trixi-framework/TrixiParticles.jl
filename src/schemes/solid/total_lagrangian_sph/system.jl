@@ -55,7 +55,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, ST} <: SolidSystem{NDIMS, IC}
+                                YM, PR, LL, LM, K, PF, ST} <: SolidSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -230,7 +230,7 @@ end
     extract_smatrix(system.pk1_corrected, system, particle)
 end
 
-function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
+function initialize!(system::TotalLagrangianSPHSystem, semi)
     (; correction_matrix) = system
 
     initial_coords = initial_coordinates(system)
@@ -238,14 +238,14 @@ function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
     density_fun(particle) = system.material_density[particle]
 
     # Calculate correction matrix
-    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
-                                        initial_coords, density_fun)
+    compute_gradient_correction_matrix!(correction_matrix, system, initial_coords,
+                                        density_fun, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates) = system
 
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             current_coordinates[i, particle] = u[i, particle]
         end
@@ -254,8 +254,7 @@ end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
-    nhs = get_neighborhood_search(system, semi)
-    @trixi_timeit timer() "stress tensor" compute_pk1_corrected(nhs, system)
+    @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
 
     return system
 end
@@ -268,12 +267,12 @@ function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, sem
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
 
-@inline function compute_pk1_corrected(neighborhood_search, system)
+@inline function compute_pk1_corrected!(system, semi)
     (; deformation_grad) = system
 
-    calc_deformation_grad!(deformation_grad, neighborhood_search, system)
+    calc_deformation_grad!(deformation_grad, system, semi)
 
-    @threaded system for particle in eachparticle(system)
+    @threaded semi for particle in eachparticle(system)
         pk1_particle = pk1_stress_tensor(system, particle)
         pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
 
@@ -283,7 +282,7 @@ end
     end
 end
 
-@inline function calc_deformation_grad!(deformation_grad, neighborhood_search, system)
+@inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
     # Reset deformation gradient
@@ -292,9 +291,7 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
-                           neighborhood_search) do particle, neighbor,
-                                                   initial_pos_diff,
-                                                   initial_distance
+                           semi) do particle, neighbor, initial_pos_diff, initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
@@ -406,10 +403,10 @@ end
 # See here below Equation 5.3.21 for the equation for the equivalent stress.
 # The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
 # See pages 32 and 123.
-function von_mises_stress(system::TotalLagrangianSPHSystem)
+function von_mises_stress(system)
     von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
 
-    @threaded system for particle in each_moving_particle(system)
+    @threaded von_mises_stress_vector for particle in each_moving_particle(system)
         von_mises_stress_vector[particle] = von_mises_stress(system, particle)
     end
 
@@ -420,7 +417,7 @@ end
 # with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function von_mises_stress(system, particle)
+@inline function von_mises_stress(system, particle::Integer)
     F = deformation_gradient(system, particle)
     J = det(F)
     P = pk1_corrected(system, particle)
@@ -442,7 +439,7 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
     cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
                                   nparticles(system))
 
-    @threaded system for particle in each_moving_particle(system)
+    @threaded cauchy_stress_tensors for particle in each_moving_particle(system)
         F = deformation_gradient(system, particle)
         J = det(F)
         P = pk1_corrected(system, particle)

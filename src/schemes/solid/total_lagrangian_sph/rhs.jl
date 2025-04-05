@@ -1,14 +1,13 @@
 # Solid-solid interaction
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::TotalLagrangianSPHSystem)
-    interact_solid_solid!(dv, neighborhood_search, particle_system, neighbor_system)
+                   neighbor_system::TotalLagrangianSPHSystem, semi)
+    interact_solid_solid!(dv, particle_system, neighbor_system, semi)
 end
 
 # Function barrier without dispatch for unit testing
-@inline function interact_solid_solid!(dv, neighborhood_search, particle_system,
-                                       neighbor_system)
+@inline function interact_solid_solid!(dv, particle_system, neighbor_system, semi)
     (; penalty_force) = particle_system
 
     # Different solids do not interact with each other (yet)
@@ -23,7 +22,7 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     # For solid-solid interaction, this has to happen in the initial coordinates.
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           neighborhood_search;
+                           semi;
                            points=each_moving_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             initial_pos_diff,
@@ -61,9 +60,9 @@ end
 
 # Solid-fluid interaction
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::FluidSystem)
+                   neighbor_system::FluidSystem, semi)
     sound_speed = system_sound_speed(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -71,7 +70,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           neighborhood_search;
+                           semi;
                            points=each_moving_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             pos_diff,
@@ -163,9 +162,9 @@ end
 
 # Solid-boundary interaction
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::Union{BoundarySPHSystem, OpenBoundarySPHSystem})
+                   neighbor_system::Union{BoundarySPHSystem, OpenBoundarySPHSystem}, semi)
     # TODO continuity equation?
     return dv
 end

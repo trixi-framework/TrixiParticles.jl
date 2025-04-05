@@ -175,19 +175,10 @@
                     # For all other properties, return mock objects.
                     return Val(Symbol("mock_" * string(f)))
                 end
-
-                TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = neighbors
-                TrixiParticles.PointNeighbors.search_radius(::Val{:nhs}) = Inf
-
-                function Base.getproperty(::Val{:nhs}, f::Symbol)
-                    if f === :periodic_box
-                        return nothing
-                    end
-
-                    # For all other properties, return mock objects
-                    return Val(Symbol("mock_" * string(f)))
+                function TrixiParticles.compact_support(::Val{:mock_system_tensor},
+                                                        ::Val{:mock_system_tensor})
+                    return Inf
                 end
-                TrixiParticles.ndims(::Val{:nhs}) = 2
 
                 Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
@@ -195,10 +186,11 @@
                     return kernel_derivative
                 end
                 Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
+                semi = DummySemidiscretization()
 
                 # Compute deformation gradient
                 deformation_grad = ones(2, 2, 2)
-                TrixiParticles.calc_deformation_grad!(deformation_grad, Val(:nhs), system)
+                TrixiParticles.calc_deformation_grad!(deformation_grad, system, semi)
 
                 #### Verification
                 @test deformation_grad[:, :, particle] == expected[i]
@@ -239,10 +231,9 @@
                 initial_condition = InitialCondition(; coordinates, mass, density)
                 system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                                   smoothing_length, 1.0, 1.0)
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=1.0,
-                                                                  eachpoint=TrixiParticles.eachparticle(system))
+                semi = DummySemidiscretization()
 
-                TrixiParticles.initialize!(system, nhs)
+                TrixiParticles.initialize!(system, semi)
 
                 # Apply the deformation matrix
                 for particle in TrixiParticles.eachparticle(system)
@@ -252,7 +243,7 @@
 
                 # Compute the deformation gradient for the particle in the middle
                 TrixiParticles.calc_deformation_grad!(system.deformation_grad,
-                                                      nhs, system)
+                                                      system, semi)
                 J = TrixiParticles.deformation_gradient(system, 41)
 
                 #### Verification

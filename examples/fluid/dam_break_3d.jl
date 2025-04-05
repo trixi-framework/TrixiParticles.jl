@@ -56,8 +56,9 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system)
-ode = semidiscretize(semi, tspan, data_type=nothing)
+semi = Semidiscretization(fluid_system, boundary_system,
+                          parallelization_backend=true)
+ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=10)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")

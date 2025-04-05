@@ -16,7 +16,7 @@ See [Density Diffusion](@ref density_diffusion) for a comparison and more detail
 abstract type DensityDiffusion end
 
 # Most density diffusion formulations don't need updating
-function update!(density_diffusion, neighborhood_search, v, u, system, semi)
+function update!(density_diffusion, v, u, system, semi)
     return density_diffusion
 end
 
@@ -160,8 +160,7 @@ end
     return result * pos_diff / distance^2
 end
 
-function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search,
-                 v, u, system, semi)
+function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     (; normalized_density_gradient) = density_diffusion
 
     # Compute correction matrix
@@ -169,14 +168,12 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(density_diffusion.correction_matrix,
-                                        neighborhood_search, system,
-                                        system_coords, density_fun)
+                                        system, system_coords, density_fun, semi)
 
     # Compute normalized density gradient
     set_zero!(normalized_density_gradient)
 
-    foreach_point_neighbor(system, system, system_coords, system_coords,
-                           neighborhood_search;
+    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         # Only consider particles with a distance > 0

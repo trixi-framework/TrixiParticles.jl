@@ -1,6 +1,6 @@
 @testset verbose=true "`SystemBuffer`" begin
     # Mock fluid system
-    struct FluidSystemMock3 <: TrixiParticles.FluidSystem{2, Nothing} end
+    struct FluidSystemMock3 <: TrixiParticles.FluidSystem{2} end
 
     zone = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
                         open_boundary_layers=2, density=1.0, plane_normal=[1.0, 0.0],

@@ -62,7 +62,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity), correction=nothing,
                                            surface_tension=nothing,
-                                           reference_particle_spacing=fluid_particle_spacing)
+                                           reference_particle_spacing=0)
 
 # ==========================================================================================
 # ==== Boundary
@@ -72,7 +72,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing,
-                                             reference_particle_spacing=fluid_particle_spacing)
+                                             reference_particle_spacing=0)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 
@@ -81,8 +81,9 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coef
 # `nothing` will automatically choose the best update strategy. This is only to be able
 # to change this with `trixi_include`.
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))
-ode = semidiscretize(semi, tspan, data_type=nothing)
+                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
+                          parallelization_backend=true)
+ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 

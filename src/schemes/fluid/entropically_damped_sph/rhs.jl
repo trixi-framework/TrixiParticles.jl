@@ -1,8 +1,8 @@
 # Fluid-fluid and fluid-boundary interaction
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   v_neighbor_system, u_neighbor_system,
                    particle_system::EntropicallyDampedSPHSystem,
-                   neighbor_system)
+                   neighbor_system, semi)
     (; sound_speed, density_calculator, correction) = particle_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -13,8 +13,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_coords,
-                           neighborhood_search;
+                           system_coords, neighbor_coords, semi;
                            points=each_moving_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             pos_diff,

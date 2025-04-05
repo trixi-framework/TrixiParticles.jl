@@ -147,7 +147,7 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
     vtk_save(pvd)
 end
 
-function transfer2cpu(v_, u_, system_::GPUSystem)
+function transfer2cpu(v_::AbstractGPUArray, u_, system_)
     v = Adapt.adapt(Array, v_)
     u = Adapt.adapt(Array, u_)
     system = Adapt.adapt(Array, system_)
@@ -267,10 +267,8 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         surface_tension_b = surface_tension_model(system)
         nhs = create_neighborhood_search(nothing, system, system)
 
-        foreach_point_neighbor(system, system,
-                               system_coords, system_coords,
-                               nhs) do particle, neighbor, pos_diff,
-                                       distance
+        foreach_point_neighbor(system_coords, system_coords,
+                               nhs) do particle, neighbor, pos_diff, distance
             rho_a = particle_density(v, system, particle)
             rho_b = particle_density(v, system, neighbor)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
@@ -405,7 +403,7 @@ function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem; write_meta_data=tru
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
 end
 
-function write2vtk!(vtk, v, u, t, model, system; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, model::Nothing, system; write_meta_data=true)
     return vtk
 end
 

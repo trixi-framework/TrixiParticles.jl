@@ -39,7 +39,7 @@ For more information on the methods, see description below.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 """
 struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
-                             S, N, PR, C} <: FluidSystem{NDIMS, IC}
+                             S, N, PR, C} <: FluidSystem{NDIMS}
     initial_condition     :: IC
     smoothing_kernel      :: K
     smoothing_length      :: ELTYPE
@@ -151,13 +151,13 @@ end
 
 update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
-function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem, semi; write_meta_data=true)
     if write_meta_data
         vtk["signed_distances"] = system.signed_distances
     end
 end
 
-write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
+write_v0!(v0, system::ParticlePackingSystem) = (v0 .= zero(eltype(system)))
 
 function kinetic_energy(v, u, t, system::ParticlePackingSystem)
     (; initial_condition, is_boundary) = system
@@ -190,12 +190,12 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
                                  semi, integrator)
     u = wrap_u(u_ode, system, semi)
 
-    update_position!(u, system)
+    update_position!(u, system, semi)
 end
 
-function update_position!(u, system::ParticlePackingSystem)
+function update_position!(u, system::ParticlePackingSystem, semi)
     func_name = "constrain outside particles onto surface"
-    @trixi_timeit timer() func_name constrain_particles_onto_surface!(u, system)
+    @trixi_timeit timer() func_name constrain_particles_onto_surface!(u, system, semi)
 
     return u
 end
@@ -209,13 +209,13 @@ function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, 
     return system
 end
 
-function constrain_particles_onto_surface!(u, system::ParticlePackingSystem)
+function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, semi)
     (; neighborhood_search, signed_distance_field) = system
     (; positions, distances, normals) = signed_distance_field
 
     search_radius2 = compact_support(system, system)^2
 
-    @threaded system for particle in eachparticle(system)
+    @threaded semi for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
 
         volume = zero(eltype(system))
@@ -288,7 +288,7 @@ end
 # Update from `UpdateCallback` (between time steps)
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
     v = wrap_v(v_ode, system, semi)
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             v[ndims(system) + i, particle] = v[i, particle]
 
