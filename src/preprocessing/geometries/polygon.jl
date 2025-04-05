@@ -139,3 +139,13 @@ end
 end
 
 @inline face_normal(edge, geometry::Polygon) = geometry.edge_normals[edge]
+
+function volume(polygon::Polygon)
+    volume = sum(polygon.edge_vertices_ids, init=zero(eltype(polygon))) do edge
+        v1 = polygon.vertices[edge[1]]
+        v2 = polygon.vertices[edge[2]]
+
+        return (v1[1] * v2[2] - v2[1] * v1[2])
+    end
+    return abs(volume) / 2
+end

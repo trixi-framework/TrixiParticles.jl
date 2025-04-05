@@ -122,6 +122,15 @@
                                                     "packing_2d.jl"))
             @test sol.retcode == ReturnCode.Terminated
         end
+        @trixi_testset "preprocessing/packing_2d.jl validation" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "preprocessing",
+                                                    "packing_2d.jl"), particle_spacing=0.4)
+            expected_coordinates = [-0.540548 -0.189943 0.191664 0.542741 -0.629391 -0.196159 0.197725 0.63081 -0.629447 -0.196158 0.19779 0.631121 -0.540483 -0.190015 0.191345 0.540433;
+                                    -0.541127 -0.630201 -0.630119 -0.539294 -0.190697 -0.196942 -0.196916 -0.190324 0.190875 0.197074 0.196955 0.190973 0.541206 0.630323 0.630178 0.541314]
+
+            @test isapprox(packed_ic.coordinates, expected_coordinates, atol=1e-5)
+        end
         @trixi_testset "preprocessing/packing_3d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "preprocessing",

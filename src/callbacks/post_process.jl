@@ -248,7 +248,9 @@ function (pp::PostprocessCallback)(integrator)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
         for (key, f) in pp.func
-            result = f(v, u, t, system)
+            result = hasmethod(f, NTuple{4}, (:v_ode, :u_ode, :semi)) ?
+                     f(v, u, t, system; v_ode=v_ode, u_ode=u_ode, semi=semi) :
+                     f(v, u, t, system)
             if result !== nothing
                 add_entry!(pp, string(key), t, result, filenames[system_index])
                 new_data = true
