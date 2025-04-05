@@ -55,7 +55,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                         particle, neighbor)
 
         dv_pressure = pressure_correction *
-                      pressure_acceleration(particle_system, neighbor_system, neighbor,
+                      pressure_acceleration(particle_system, neighbor_system,
+                                            particle, neighbor,
                                             m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                             distance, grad_kernel, correction)
 

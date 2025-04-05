@@ -62,7 +62,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = particle_density(v_neighbor_system,
                                             neighbor_system, neighbor)
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
         end
@@ -99,7 +99,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
                            semi) do particle, neighbor, pos_diff, distance
         colorfield[particle] += hydrodynamic_mass(system, neighbor) /
                                 particle_density(v, system, neighbor) * system.cache.color *
-                                smoothing_kernel(system, distance)
+                                smoothing_kernel(system, distance, particle)
     end
 
     maximum_colorfield = maximum(colorfield)
@@ -112,7 +112,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
         if colorfield[neighbor] / maximum_colorfield > boundary_contact_threshold
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
             for i in 1:ndims(system)
                 cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
             end
@@ -143,13 +143,15 @@ function remove_invalid_normals!(system::FluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
                                                         SurfaceTensionMomentumMorris},
                                  surface_normal_method::ColorfieldSurfaceNormal)
-    (; cache, smoothing_length, smoothing_kernel) = system
+    (; cache, smoothing_kernel) = system
     (; ideal_density_threshold, interface_threshold) = surface_normal_method
     (; neighbor_count) = cache
 
+    smoothing_length_ = initial_smoothing_length(system)
+
     # We remove invalid normals i.e. they have a small norm (eq. 20)
     normal_condition2 = (interface_threshold /
-                         compact_support(smoothing_kernel, smoothing_length))^2
+                         compact_support(smoothing_kernel, smoothing_length_))^2
 
     for particle in each_moving_particle(system)
 
@@ -158,7 +160,7 @@ function remove_invalid_normals!(system::FluidSystem,
         if ideal_density_threshold > 0 &&
            ideal_density_threshold *
            ideal_neighbor_count(Val(ndims(system)), cache.reference_particle_spacing,
-                                compact_support(smoothing_kernel, smoothing_length)) <
+                                compact_support(smoothing_kernel, smoothing_length_)) <
            neighbor_count[particle]
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
@@ -235,7 +237,7 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
 
         # Eq. 22: we can test against `eps()` here since the surface normals that are invalid have been removed
         if dot(n_a, n_a) > eps() && dot(n_b, n_b) > eps()
-            w = smoothing_kernel(system, distance)
+            w = smoothing_kernel(system, distance, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             for i in 1:ndims(system)

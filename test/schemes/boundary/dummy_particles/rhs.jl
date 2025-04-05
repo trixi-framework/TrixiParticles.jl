@@ -250,7 +250,8 @@
 
                         grad_kernel = TrixiParticles.smoothing_kernel_grad(fluid_system,
                                                                            pos_diff,
-                                                                           distance)
+                                                                           distance,
+                                                                           particle)
 
                         return m_b * dot(v_diff, grad_kernel)
                     end
