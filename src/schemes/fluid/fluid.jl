@@ -13,7 +13,49 @@ function create_cache_density(ic, ::ContinuityDensity)
     return (;)
 end
 
+function create_cache_refinement(initial_condition, ::Nothing, smoothing_length)
+    smoothing_length_factor = initial_condition.particle_spacing / smoothing_length
+    return (; smoothing_length, smoothing_length_factor)
+end
+
+# TODO
+function create_cache_refinement(initial_condition, refinement, smoothing_length)
+    # TODO: If refinement is not `Nothing` and `correction` is not `Nothing`, then throw an error
+end
+
 @propagate_inbounds hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
+
+function smoothing_length(system::FluidSystem, particle)
+    return smoothing_length(system, system.particle_refinement, particle)
+end
+
+function smoothing_length(system::FluidSystem, ::Nothing, particle)
+    return system.cache.smoothing_length
+end
+
+function initial_smoothing_length(system::FluidSystem)
+    return initial_smoothing_length(system, system.particle_refinement)
+end
+
+initial_smoothing_length(system, ::Nothing) = system.cache.smoothing_length
+
+function initial_smoothing_length(system, refinement)
+    # TODO
+    return system.cache.initial_smoothing_length_factor *
+           system.initial_condition.particle_spacing
+end
+
+# TODO
+# @inline function particle_spacing(system::FluidSystem, particle)
+#     return particle_spacing(system, system.particle_refinement, particle)
+# end
+
+# @inline particle_spacing(system, ::Nothing, _) = system.initial_condition.particle_spacing
+
+# @inline function particle_spacing(system, refinement, particle)
+#     (; smoothing_length_factor) = system.cache
+#     return smoothing_length(system, particle) / smoothing_length_factor
+# end
 
 function write_u0!(u0, system::FluidSystem)
     (; initial_condition) = system
@@ -55,25 +97,44 @@ function compute_density!(system, u, u_ode, semi, ::SummationDensity)
     summation_density!(system, semi, u, u_ode, density)
 end
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
-    (; smoothing_length, viscosity, acceleration) = system
+function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
+    (; viscosity, acceleration, surface_tension) = system
 
-    dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity(system, viscosity)
+    # TODO
+    smoothing_length_ = initial_smoothing_length(system)
+
+    dt_viscosity = 0.125 * smoothing_length_^2
+    if !isnothing(system.viscosity)
+        dt_viscosity = dt_viscosity /
+                       kinematic_viscosity(system, viscosity, smoothing_length_)
+    end
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)
     # are using a per-particle acceleration. Is that supposed to be the previous RHS?
-    dt_acceleration = 0.25 * sqrt(smoothing_length / norm(acceleration))
+    # Morris (2000) also uses the acceleration and cites Monaghan (1992)
+    dt_acceleration = 0.25 * sqrt(smoothing_length_ / norm(acceleration))
 
     # TODO Everyone seems to be doing this differently.
+    # Morris (2000) uses the additional condition CFL < 0.25.
     # Sun et al. (2017) only use h / c (because c depends on v_max as c >= 10 v_max).
     # Adami et al. (2012) use h / (c + v_max) with a fixed CFL of 0.25.
     # Antuono et al. (2012) use h / (c + v_max + h * pi_max), where pi is the viscosity coefficient.
     # Antuono et al. (2015) use h / (c + h * pi_max).
     #
     # See docstring of the callback for the references.
-    dt_sound_speed = cfl_number * smoothing_length / system_sound_speed(system)
+    dt_sound_speed = cfl_number * smoothing_length_ / system_sound_speed(system)
 
-    return min(dt_viscosity, dt_acceleration, dt_sound_speed)
+    # Eq. 28 in Morris (2000)
+    dt = min(dt_viscosity, dt_acceleration, dt_sound_speed)
+    if surface_tension isa SurfaceTensionMorris ||
+       surface_tension isa SurfaceTensionMomentumMorris
+        v = wrap_v(v_ode, system, semi)
+        dt_surface_tension = sqrt(particle_density(v, system, 1) * smoothing_length_^3 /
+                                  (2 * pi * surface_tension.surface_tension_coefficient))
+        dt = min(dt, dt_surface_tension)
+    end
+
+    return dt
 end
 
 @inline function surface_tension_model(system::FluidSystem)
@@ -81,6 +142,14 @@ end
 end
 
 @inline function surface_tension_model(system)
+    return nothing
+end
+
+@inline function surface_normal_method(system::FluidSystem)
+    return system.surface_normal_method
+end
+
+@inline function surface_normal_method(system)
     return nothing
 end
 
