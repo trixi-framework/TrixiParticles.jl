@@ -9,8 +9,8 @@ using TrixiParticles
 # Load setup from dam break example
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              fluid_particle_spacing=fluid_particle_spacing,
-              spacing_ratio=spacing_ratio, boundary_layers=boundary_layers,
+              fluid_particle_spacing=0.6 / 40,
+              spacing_ratio=1, boundary_layers=4,
               sol=nothing, ode=nothing)
 
 # Define a GPU-compatible neighborhood search
