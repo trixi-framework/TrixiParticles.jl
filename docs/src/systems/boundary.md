@@ -235,6 +235,13 @@ Pages = [joinpath("schemes", "boundary", "open_boundary", "boundary_zones.jl")]
 ```
 
 # [Open Boundary Models](@id open_boundary_models)
+We offer two models for open boundaries, with the choice depending on the specific problem and flow characteristics near the boundary:
+1. [**Method of characteristics**](@ref method_of_characteristics): The method of characteristics is typically used in problems where you need to track wave propagation
+    or flow in a domain that interacts with open boundaries (e.g., shock waves, wave fronts, or any behavior that depends on the direction of propagation).
+    It avoids artificial reflections that could arise from boundary conditions.
+1. [**Mirroring**](@ref mirroring): The mirroring method is often applied when the flow near the boundary is expected to behave in a way that is easier to model by using symmetry
+    or when the fluid does not exhibit complex wave behavior near the boundary (e.g., free-surface flows and simple outflow).
+    The advantage compared to the method of characteristics is that no information about the reference values is needed because the values are extrapolated from the fluid domain.
 
 ## [Method of characteristics](@id method_of_characteristics)
 
