@@ -148,7 +148,7 @@ end
 @inline function update_density!(du_system, kdu_system, duprev_system,
                                  system::WeaklyCompressibleSPHSystem, semi, dt)
     update_density!(du_system, kdu_system, duprev_system,
-                    system.density_calculator, system, dt)
+                    system.density_calculator, system, semi, dt)
 end
 
 @inline function update_density!(du_system, kdu_system, duprev_system,
