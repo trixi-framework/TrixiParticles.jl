@@ -101,7 +101,8 @@ struct ViscosityMorris{ELTYPE}
     end
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityMorris, smoothing_length, sound_speed)
+function kinematic_viscosity(system, viscosity::ViscosityMorris, smoothing_length,
+                             sound_speed)
     return viscosity.nu
 end
 
@@ -257,7 +258,8 @@ end
     return visc .* v_diff
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityAdami, smoothing_length, sound_speed)
+function kinematic_viscosity(system, viscosity::ViscosityAdami, smoothing_length,
+                             sound_speed)
     return viscosity.nu
 end
 
