@@ -153,12 +153,11 @@
                         end
                     end
 
-                    nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                                      eachpoint=TrixiParticles.eachparticle(system))
+                    semi = DummySemidiscretization()
 
                     # Result
                     dv = zero(v)
-                    TrixiParticles.interact!(dv, v, u, v, u, nhs, system, system)
+                    TrixiParticles.interact!(dv, v, u, v, u, system, system, semi)
 
                     # Linear momentum conservation
                     # ∑ m_a dv_a

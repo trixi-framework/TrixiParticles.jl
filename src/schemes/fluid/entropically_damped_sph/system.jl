@@ -53,7 +53,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
-                                   PF, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS, IC}
+                                   PF, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
@@ -280,7 +280,7 @@ end
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
-    compute_surface_delta_function!(system, system.surface_tension)
+    compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
@@ -317,11 +317,9 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
-
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               neighborhood_search;
+                               semi;
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             pressure_average[particle] += particle_pressure(v_neighbor_system,

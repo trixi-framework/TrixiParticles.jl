@@ -30,7 +30,7 @@ Open boundary system for in- and outflow particles.
 	This is an experimental feature and may change in any future releases.
 """
 struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
-                             RP, RD, B, C} <: System{NDIMS, IC}
+                             RP, RD, B, C} <: System{NDIMS}
     initial_condition    :: IC
     fluid_system         :: FS
     boundary_model       :: BM
