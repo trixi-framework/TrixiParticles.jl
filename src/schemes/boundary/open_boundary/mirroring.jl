@@ -47,8 +47,8 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                                          eltype(system)})
         interpolated_pressure = zero(SVector{ndims(system) + 1, eltype(system)})
 
-        interpolated_velocity = zero(SMatrix{ndims(system), ndims(system) + 1,
-                                             eltype(system)})
+        extrapolated_velocity_correction = zero(SMatrix{ndims(system), ndims(system) + 1,
+                                                        eltype(system)})
 
         for neighbor in PointNeighbors.eachneighbor(ghost_node_position,
                                                     neighborhood_search)
@@ -83,7 +83,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                 end
 
                 if !prescribed_velocity
-                    interpolated_velocity += v_b * R'
+                    extrapolated_velocity_correction += v_b * R'
                 end
             end
         end
@@ -103,6 +103,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         #           f_0 = f_k - (r_0 - r_k) ⋅ ∇f_k
         #
         # in order to get zero gradient at the outlet interface.
+        # Note: This modification is mentioned here for reference only and is NOT applied in this implementation.
         if prescribed_pressure
             pressure[particle] = reference_value(reference_pressure, pressure[particle],
                                                  particle_coords, t)
@@ -121,7 +122,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             end
         else
             @inbounds for dim in eachindex(pos_diff)
-                f_v = L_inv * interpolated_velocity[dim, :]
+                f_v = L_inv * extrapolated_velocity_correction[dim, :]
                 df_v = f_v[two_to_end]
 
                 v_open_boundary[dim, particle] = f_v[1] + dot(pos_diff, df_v)
