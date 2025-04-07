@@ -1,7 +1,7 @@
 @doc raw"""
     BoundaryModelTafuni()
 
-Boundary model for `OpenBoundarySPHSystem`.
+Boundary model for the `OpenBoundarySPHSystem`.
 This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
 to the buffer zones (inflow and outflow) using ghost nodes.
 The position of the ghost nodes is obtained by mirroring the boundary particles
@@ -64,7 +64,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                 pressure_b = particle_pressure(v_fluid, fluid_system, neighbor)
                 v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
-                # Project `v_b` to the normal direction of the boundary zone
+                # Project `v_b` on the normal direction of the boundary zone
                 # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
@@ -116,11 +116,11 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         if prescribed_velocity
             v_particle = current_velocity(v_open_boundary, system, particle)
             v_ref = reference_value(reference_velocity, v_particle, particle_coords, t)
-            @inbounds for dim in 1:ndims(system)
+            @inbounds for dim in eachindex(v_ref)
                 v_open_boundary[dim, particle] = v_ref[dim]
             end
         else
-            @inbounds for dim in 1:ndims(system)
+            @inbounds for dim in eachindex(v_ref)
                 f_v = L_inv * interpolated_velocity[dim, :]
                 df_v = f_v[two_to_end]
 
@@ -128,7 +128,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             end
         end
 
-        # Unlike Tafuni et al. (2018), we calculate the density using the inverse state-equation.
+        # Unlike Tafuni et al. (2018), we calculate the density using the inverse state-equation
         if prescribed_density
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)

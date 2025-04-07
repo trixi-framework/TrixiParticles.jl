@@ -29,7 +29,7 @@ Open boundary system for in- and outflow particles.
 !!! note "Note"
     When using the [`BoundaryModelTafuni()`](@ref), the reference values (`reference_velocity`,
     `reference_pressure`, `reference_density`) can also be set to `nothing`
-    since this model allows to either assigned physical quantities a priori or exprapolate them
+    since this model allows for either assigning physical quantities a priori or extrapolating them
     from the fluid domaim to the buffer zones (inflow and outflow) using ghost nodes.
 
 !!! warning "Experimental Implementation"
