@@ -120,7 +120,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                 v_open_boundary[dim, particle] = v_ref[dim]
             end
         else
-            @inbounds for dim in eachindex(v_ref)
+            @inbounds for dim in eachindex(pos_diff)
                 f_v = L_inv * interpolated_velocity[dim, :]
                 df_v = f_v[two_to_end]
 
