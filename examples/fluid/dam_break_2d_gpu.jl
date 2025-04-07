@@ -11,19 +11,30 @@ trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, ode=nothing)
 
-# Define a GPU-compatible neighborhood search
+# ------------------------------------------------------------------------------
+# GPU-Compatible Neighborhood Search Setup
+# ------------------------------------------------------------------------------
+
+# Compute the minimum and maximum corners of the tank's boundary to define the grid.
 min_corner = minimum(tank.boundary.coordinates, dims=2)
 max_corner = maximum(tank.boundary.coordinates, dims=2)
+
+# Create a full grid cell list using the computed corners.
 cell_list = FullGridCellList(; min_corner, max_corner)
+
+# Define the GPU-compatible neighborhood search using the cell list.
 neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
 
-# Run the dam break simulation with the this neighborhood search
+# ------------------------------------------------------------------------------
+# Run Dam Break Simulation on GPU
+# ------------------------------------------------------------------------------
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               neighborhood_search=neighborhood_search,
               fluid_particle_spacing=fluid_particle_spacing,
               tspan=tspan,
               density_diffusion=density_diffusion,
-              boundary_layers=boundary_layers, spacing_ratio=spacing_ratio,
+              boundary_layers=boundary_layers,
+              spacing_ratio=spacing_ratio,
               boundary_model=boundary_model,
               data_type=nothing)
