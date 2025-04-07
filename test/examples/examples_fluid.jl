@@ -266,24 +266,10 @@
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (WCSPH)" begin
-        trixi_include(@__MODULE__,
-                      joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"), sol=nothing)
-
-        state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                           exponent=1, background_pressure=pressure)
-        alpha = 8 * kinematic_viscosity / (smoothing_length * sound_speed)
-        viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
-
-        fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity,
-                                                   buffer_size=n_buffer_particles)
-
         @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                        joinpath(examples_dir(), "fluid",
                                                 "pipe_flow_2d.jl"),
-                                       fluid_system=fluid_system, viscosity=viscosity,
-                                       state_equation=state_equation)
+                                       wcsph=true)
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
@@ -312,26 +298,10 @@
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (WCSPH)" begin
-        trixi_include(@__MODULE__,
-                      joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"), sol=nothing,
-                      sound_speed=20.0, pressure=0.0)
-
-        state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                           exponent=1, background_pressure=pressure)
-        alpha = 8 * kinematic_viscosity / (smoothing_length * sound_speed)
-        viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
-
-        fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity,
-                                                   buffer_size=n_buffer_particles)
-
         @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                        joinpath(examples_dir(), "fluid",
                                                 "pipe_flow_2d.jl"),
-                                       fluid_system=fluid_system, viscosity=viscosity,
-                                       state_equation=state_equation,
-                                       sound_speed=20.0, pressure=0.0,
+                                       wcsph=true, sound_speed=20.0, pressure=0.0,
                                        open_boundary_model=BoundaryModelTafuni(),
                                        boundary_type_in=BidirectionalFlow(),
                                        boundary_type_out=BidirectionalFlow(),
