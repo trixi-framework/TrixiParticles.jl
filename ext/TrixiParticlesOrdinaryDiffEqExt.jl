@@ -111,8 +111,8 @@ end
         du_system = TrixiParticles.wrap_v(du, system, semi)
         duprev_system = TrixiParticles.wrap_v(duprev, system, semi)
 
-        update_velocity!(du_system, kdu_system, duprev_system, system, dt)
-        update_density!(du_system, kdu_system, duprev_system, system, dt)
+        update_velocity!(du_system, kdu_system, duprev_system, system, semi, dt)
+        update_density!(du_system, kdu_system, duprev_system, system, semi, dt)
     end
 
     # update position (add to half step position)
@@ -124,17 +124,20 @@ end
     store_symp_state!(integrator, cache, kdu, ku)
 end
 
-@muladd function update_velocity!(du_system, kdu_system, duprev_system, system, dt)
+@muladd function update_velocity!(du_system, kdu_system, duprev_system, system, semi, dt)
     @.. broadcast=false du_system=duprev_system + dt * kdu_system
 end
 
-@inline function update_density!(du_system, kdu_system, duprev_system, system, dt)
+@inline function update_density!(du_system, kdu_system, duprev_system, system, semi, dt)
     return du_system
 end
 
 @muladd function update_velocity!(du_system, kdu_system, duprev_system,
-                                  system::WeaklyCompressibleSPHSystem, dt)
-    @threaded system for particle in each_moving_particle(system)
+                                  system::WeaklyCompressibleSPHSystem, semi, dt)
+    # For WCSPH, only update the first NDIMS components of the velocity.
+    # With `ContinuityDensity`, the last component is the density,
+    # which is updated separately.
+    @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             du_system[i, particle] = duprev_system[i, particle] +
                                      dt * kdu_system[i, particle]
@@ -143,21 +146,21 @@ end
 end
 
 @inline function update_density!(du_system, kdu_system, duprev_system,
-                                 system::WeaklyCompressibleSPHSystem, dt)
+                                 system::WeaklyCompressibleSPHSystem, semi, dt)
     update_density!(du_system, kdu_system, duprev_system,
                     system.density_calculator, system, dt)
 end
 
 @inline function update_density!(du_system, kdu_system, duprev_system,
-                                 density_calculator, system, dt)
+                                 density_calculator, system, semi, dt)
     # Don't do anything when the density is not integrated.
     # This scheme is then equivalent to the `LeapfrogDriftKickDrift` scheme.
     return du_system
 end
 
 @muladd function update_density!(du_system, kdu_system, duprev_system,
-                                 ::ContinuityDensity, system, dt)
-    @threaded system for particle in each_moving_particle(system)
+                                 ::ContinuityDensity, system, semi, dt)
+    @threaded semi for particle in each_moving_particle(system)
         density_prev = duprev_system[end, particle]
         density_half = du_system[end, particle]
         epsilon = -kdu_system[end, particle] / density_half * dt
