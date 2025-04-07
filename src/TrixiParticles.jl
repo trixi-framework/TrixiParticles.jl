@@ -38,10 +38,9 @@ using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_
                       @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
-# `util.jl` depends on the `GPUSystem` type defined in `system.jl`
-include("general/system.jl")
-# `util.jl` needs to be next because of the macros `@trixi_timeit` and `@threaded`
+# `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
+include("general/system.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
@@ -91,7 +90,9 @@ export kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
 export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d,
        interpolate_plane_2d_vtk
-export SurfaceTensionAkinci, CohesionForceAkinci
+export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
+       SurfaceTensionMomentumMorris
 export ColorfieldSurfaceNormal
+export SymplecticPositionVerlet
 
 end # module

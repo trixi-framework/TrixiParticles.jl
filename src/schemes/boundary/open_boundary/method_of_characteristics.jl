@@ -19,7 +19,7 @@ struct BoundaryModelLastiwka end
     sound_speed = system_sound_speed(system.fluid_system)
 
     # Update quantities based on the characteristic variables
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
         particle_position = current_coords(u, system, particle)
 
         J1 = cache.characteristics[1, particle]
@@ -81,7 +81,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # Thus, we compute the characteristics for the particles that are outside the influence
     # of fluid particles by using the average of the values of the previous time step.
     # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
 
         # Particle is outside of the influence of fluid particles
         if isapprox(volume[particle], 0.0)
@@ -135,15 +135,12 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
-
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
     sound_speed = system_sound_speed(system.fluid_system)
 
     # Loop over all fluid neighbors within the kernel cutoff
-    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                           nhs;
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
@@ -166,7 +163,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
         pressure_term = p_b - p_ref
         velocity_term = rho_b * sound_speed * (dot(v_b - v_neighbor_ref, flow_direction))
 
-        kernel_ = smoothing_kernel(neighbor_system, distance)
+        kernel_ = smoothing_kernel(neighbor_system, distance, particle)
 
         characteristics[1, particle] += (density_term + pressure_term) * kernel_
         characteristics[2, particle] += (velocity_term + pressure_term) * kernel_

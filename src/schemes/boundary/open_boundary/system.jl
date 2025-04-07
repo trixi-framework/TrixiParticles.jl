@@ -30,7 +30,7 @@ Open boundary system for in- and outflow particles.
 	This is an experimental feature and may change in any future releases.
 """
 struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
-                             RP, RD, B, C} <: System{NDIMS, IC}
+                             RP, RD, B, C} <: System{NDIMS}
     initial_condition    :: IC
     fluid_system         :: FS
     boundary_model       :: BM
@@ -181,6 +181,10 @@ function reset_callback_flag!(system::OpenBoundarySPHSystem)
 end
 
 update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
+
+function smoothing_length(system::OpenBoundarySPHSystem, particle)
+    return smoothing_length(system.fluid_system, particle)
+end
 
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
 
@@ -409,3 +413,9 @@ end
 @inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 # When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
+
+# This type of viscosity depends on the system, so we need to use the fluid system
+function kinematic_viscosity(system::OpenBoundarySPHSystem,
+                             viscosity::ArtificialViscosityMonaghan)
+    return kinematic_viscosity(system.fluid_system, viscosity)
+end
