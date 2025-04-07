@@ -1,5 +1,3 @@
-# struct ParticleShiftingCallback end
-
 function ParticleShiftingCallback()
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(particle_shifting_condition, particle_shifting!,
@@ -18,6 +16,8 @@ function particle_shifting!(integrator)
     semi = integrator.p
     v_ode, u_ode = integrator.u.x
     dt = integrator.dt
+    # Internal cache vector, which is safe to use as temporary array
+    u_cache = first(get_tmp_cache(integrator))
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
@@ -26,7 +26,7 @@ function particle_shifting!(integrator)
     @trixi_timeit timer() "particle shifting" foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
         v = wrap_v(v_ode, system, semi)
-        particle_shifting!(u, v, system, v_ode, u_ode, semi, dt)
+        particle_shifting!(u, v, system, v_ode, u_ode, semi, u_cache, dt)
     end
 
     # Tell OrdinaryDiffEq that `u` has been modified
@@ -41,23 +41,21 @@ function initial_shifting!(cb::DiscreteCallback{<:Any, typeof(particle_shifting!
     # particle_shifting!(integrator)
 end
 
-function particle_shifting!(u, v, system, v_ode, u_ode, semi, dt)
+function particle_shifting!(u, v, system, v_ode, u_ode, semi, u_cache, dt)
     return u
 end
 
 function particle_shifting!(u, v, system::WeaklyCompressibleSPHSystem, v_ode, u_ode, semi,
-                            dt)
+                            u_cache, dt)
     # According to Sun et al. (2017), CFL * Ma can be rewritten as
     # Δt * v_max / h (see p. 29, right above eq. 9).
     v_max = maximum(particle -> norm(current_velocity(v, system, particle)),
                     eachparticle(system))
     R = 0.2
     n = 4
-    # TODO this should be W(0) / W(particle_spacing)
-    W0_Wdx = 1.58
-    Wdx = smoothing_kernel(system, 0, 1) / W0_Wdx
 
-    delta_r = zeros(ndims(system), nparticles(system))
+    delta_r = wrap_u(u_cache, system, semi)
+    set_zero!(delta_r)
 
     foreach_system(semi) do neighbor_system
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
@@ -68,6 +66,7 @@ function particle_shifting!(u, v, system::WeaklyCompressibleSPHSystem, v_ode, u_
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi) do particle, neighbor, pos_diff, distance
+            Wdx = smoothing_kernel(system, particle_spacing(system, 1), 1)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             rho_a = particle_density(v, system, particle)
             rho_b = particle_density(v_neighbor, neighbor_system, neighbor)
@@ -79,15 +78,15 @@ function particle_shifting!(u, v, system::WeaklyCompressibleSPHSystem, v_ode, u_
                        (rho_a + rho_b) *
                        grad_kernel
 
-            for i in 1:ndims(system)
-                delta_r[i, particle] += delta_r_[i]
+            for i in eachindex(delta_r_)
+                @inbounds delta_r[i, particle] += delta_r_[i]
             end
         end
     end
 
     @threaded semi for particle in eachparticle(system)
         for i in 1:ndims(system)
-            u[i, particle] += delta_r[i, particle]
+            @inbounds u[i, particle] += delta_r[i, particle]
         end
     end
 

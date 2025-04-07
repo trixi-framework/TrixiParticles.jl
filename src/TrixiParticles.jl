@@ -41,10 +41,10 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 # `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
 include("general/system.jl")
-include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+# `callbacks.jl` requires the system types to be defined
 include("callbacks/callbacks.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
