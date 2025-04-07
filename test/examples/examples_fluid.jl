@@ -148,7 +148,7 @@
                                         clip_negative_pressure=true),
             "with DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),),
             "no density diffusion" => (density_diffusion=nothing,),
-            "with KernelAbstractions" => (data_type=Array,),
+            "with KernelAbstractions" => (parallelization_backend=TrixiParticles.KernelAbstractions.CPU(),),
             "with BoundaryModelMonaghanKajtar" => (boundary_model=BoundaryModelMonaghanKajtar(gravity,
                                                                                               spacing_ratio,
                                                                                               boundary_particle_spacing,
@@ -163,7 +163,8 @@
                                             correction=AkinciFreeSurfaceCorrection(fluid_density),
                                             density_diffusion=nothing,
                                             adhesion_coefficient=0.05,
-                                            sound_speed=100.0)
+                                            sound_speed=100.0,
+                                            reference_particle_spacing=fluid_particle_spacing)
         )
 
         for (test_description, kwargs) in dam_break_tests

@@ -44,13 +44,12 @@
         v_neighbor = zeros(0, TrixiParticles.nparticles(boundary_system))
         u_neighbor = boundary.coordinates
 
-        nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                          eachpoint=TrixiParticles.eachparticle(boundary_system))
+        semi = DummySemidiscretization()
 
         # Result
         dv = zero(fluid.velocity)
-        TrixiParticles.interact!(dv, v, u, v_neighbor, u_neighbor, nhs, fluid_system,
-                                 boundary_system)
+        TrixiParticles.interact!(dv, v, u, v_neighbor, u_neighbor, fluid_system,
+                                 boundary_system, semi)
 
         # Due to the symmetric setup, all particles will only be accelerated horizontally
         @test isapprox(dv[2, :], zeros(TrixiParticles.nparticles(fluid_system)), atol=1e-14)
