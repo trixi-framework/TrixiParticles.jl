@@ -45,7 +45,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         # Set zero
         correction_matrix = zero(SMatrix{ndims(system) + 1, ndims(system) + 1,
                                          eltype(system)})
-        interpolated_pressure = zero(SVector{ndims(system) + 1, eltype(system)})
+        extrapolated_pressure_correction = zero(SVector{ndims(system) + 1, eltype(system)})
 
         extrapolated_velocity_correction = zero(SMatrix{ndims(system), ndims(system) + 1,
                                                         eltype(system)})
@@ -79,7 +79,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                 correction_matrix += L
 
                 if !prescribed_pressure
-                    interpolated_pressure += pressure_b * R
+                    extrapolated_pressure_correction += pressure_b * R
                 end
 
                 if !prescribed_velocity
@@ -108,7 +108,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             pressure[particle] = reference_value(reference_pressure, pressure[particle],
                                                  particle_coords, t)
         else
-            f_p = L_inv * interpolated_pressure
+            f_p = L_inv * extrapolated_pressure_correction
             df_p = f_p[two_to_end]
 
             pressure[particle] = f_p[1] + dot(pos_diff, df_p)
