@@ -444,6 +444,8 @@ end
 
 # This type of viscosity depends on the system, so we need to use the fluid system
 function kinematic_viscosity(system::OpenBoundarySPHSystem,
-                             viscosity::ArtificialViscosityMonaghan)
-    return kinematic_viscosity(system.fluid_system, viscosity)
+                             viscosity::ArtificialViscosityMonaghan, smoothing_length,
+                             sound_speed)
+    return kinematic_viscosity(system.fluid_system, viscosity, smoothing_length,
+                               sound_speed)
 end

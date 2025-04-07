@@ -108,7 +108,8 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     dt_viscosity = 0.125 * smoothing_length_^2
     if !isnothing(system.viscosity)
         dt_viscosity = dt_viscosity /
-                       kinematic_viscosity(system, viscosity, smoothing_length_)
+                       kinematic_viscosity(system, viscosity, smoothing_length_,
+                                           system_sound_speed(sound_speed))
     end
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)
