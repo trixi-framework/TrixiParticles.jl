@@ -241,7 +241,6 @@ We offer two models for open boundaries, with the choice depending on the specif
     It avoids artificial reflections that could arise from boundary conditions.
 1. [**Mirroring**](@ref mirroring): The mirroring method is often applied when the flow near the boundary is expected to behave in a way that is easier to model by using symmetry
     or when the fluid does not exhibit complex wave behavior near the boundary (e.g., free-surface flows and simple outflow).
-    The advantage compared to the method of characteristics is that no information about the reference values is needed because the values are extrapolated from the fluid domain.
 
 ## [Method of characteristics](@id method_of_characteristics)
 
