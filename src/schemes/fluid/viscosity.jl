@@ -101,7 +101,8 @@ struct ViscosityMorris{ELTYPE}
     end
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityMorris, smoothing_length)
+function kinematic_viscosity(system, viscosity::ViscosityMorris, smoothing_length,
+                             sound_speed)
     return viscosity.nu
 end
 
@@ -126,10 +127,10 @@ end
 
     nu_a = kinematic_viscosity(particle_system,
                                viscosity_model(neighbor_system, particle_system),
-                               smoothing_length_particle)
+                               smoothing_length_particle, sound_speed)
     nu_b = kinematic_viscosity(neighbor_system,
                                viscosity_model(particle_system, neighbor_system),
-                               smoothing_length_neighbor)
+                               smoothing_length_neighbor, sound_speed)
 
     smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
     pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, rho_a, rho_b,
@@ -175,9 +176,8 @@ end
 # In: Reports on Progress in Physics (2005), pages 1703-1759.
 # [doi: 10.1088/0034-4885/68/8/r01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
 function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan,
-                             smoothing_length)
+                             smoothing_length, sound_speed)
     (; alpha) = viscosity
-    sound_speed = system_sound_speed(system)
 
     return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
 end
@@ -224,10 +224,10 @@ end
 
     nu_a = kinematic_viscosity(particle_system,
                                viscosity_model(neighbor_system, particle_system),
-                               smoothing_length_particle)
+                               smoothing_length_particle, sound_speed)
     nu_b = kinematic_viscosity(neighbor_system,
                                viscosity_model(particle_system, neighbor_system),
-                               smoothing_length_neighbor)
+                               smoothing_length_neighbor, sound_speed)
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -258,7 +258,8 @@ end
     return visc .* v_diff
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityAdami, smoothing_length)
+function kinematic_viscosity(system, viscosity::ViscosityAdami, smoothing_length,
+                             sound_speed)
     return viscosity.nu
 end
 

@@ -255,18 +255,18 @@ function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMo
     return system
 end
 
-function compute_surface_delta_function!(system, surface_tension)
+function compute_surface_delta_function!(system, surface_tension, semi)
     return system
 end
 
 # Eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris)
+function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris, semi)
     (; cache) = system
     (; delta_s) = cache
 
     set_zero!(delta_s)
 
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
         delta_s[particle] = norm(surface_normal(system, particle))
     end
     return system

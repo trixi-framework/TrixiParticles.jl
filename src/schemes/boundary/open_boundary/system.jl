@@ -26,11 +26,17 @@ Open boundary system for in- and outflow particles.
                        and time to its density, a vector holding the density of each particle,
                        or a scalar for a constant density over all particles.
 
+!!! note "Note"
+    When using the [`BoundaryModelTafuni()`](@ref), the reference values (`reference_velocity`,
+    `reference_pressure`, `reference_density`) can also be set to `nothing`
+    since this model allows for either assigning physical quantities a priori or extrapolating them
+    from the fluid domaim to the buffer zones (inflow and outflow) using ghost nodes.
+
 !!! warning "Experimental Implementation"
 	This is an experimental feature and may change in any future releases.
 """
 struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
-                             RP, RD, B, C} <: System{NDIMS, IC}
+                             RP, RD, B, C} <: System{NDIMS}
     initial_condition    :: IC
     fluid_system         :: FS
     boundary_model       :: BM
@@ -115,7 +121,9 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
             reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
         end
 
-        cache = create_cache_open_boundary(boundary_model, initial_condition)
+        cache = create_cache_open_boundary(boundary_model, initial_condition,
+                                           reference_density, reference_velocity,
+                                           reference_pressure)
 
         return new{typeof(boundary_model), typeof(boundary_zone), NDIMS, ELTYPE,
                    typeof(initial_condition), typeof(fluid_system), typeof(mass),
@@ -128,14 +136,28 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     end
 end
 
-function create_cache_open_boundary(boundary_model, initial_condition)
+function create_cache_open_boundary(boundary_model, initial_condition,
+                                    reference_density, reference_velocity,
+                                    reference_pressure)
     ELTYPE = eltype(initial_condition)
+
+    prescribed_pressure = isnothing(reference_pressure) ? false : true
+    prescribed_velocity = isnothing(reference_velocity) ? false : true
+    prescribed_density = isnothing(reference_density) ? false : true
+
+    if boundary_model isa BoundaryModelTafuni
+        return (; prescribed_pressure=prescribed_pressure,
+                prescribed_density=prescribed_density,
+                prescribed_velocity=prescribed_velocity)
+    end
 
     characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
     return (; characteristics=characteristics,
-            previous_characteristics=previous_characteristics)
+            previous_characteristics=previous_characteristics,
+            prescribed_pressure=prescribed_pressure,
+            prescribed_density=prescribed_density, prescribed_velocity=prescribed_velocity)
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"
@@ -306,7 +328,7 @@ end
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
-        u[dim, particle] = boundary_zone.plane_normal[dim]
+        u[dim, particle] += boundary_zone.spanning_set[1][dim]
     end
 
     return system
@@ -389,17 +411,23 @@ function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
 end
 
-function reference_value(value::Function, quantity, system, particle, position, t)
+function reference_value(value::Function, quantity, position, t)
     return value(position, t)
 end
 
 # This method is used when extrapolating quantities from the domain
 # instead of using the method of characteristics
-reference_value(value::Nothing, quantity, system, particle, position, t) = quantity
+reference_value(value::Nothing, quantity, position, t) = quantity
+
+function check_reference_values!(boundary_model, reference_density, reference_pressure,
+                                 reference_velocity)
+    return boundary_model
+end
 
 function check_reference_values!(boundary_model::BoundaryModelLastiwka,
                                  reference_density, reference_pressure, reference_velocity)
-    # TODO: Extrapolate the reference values from the domain
+    boundary_model.extrapolate_reference_values && return boundary_model
+
     if any(isnothing.([reference_density, reference_pressure, reference_velocity]))
         throw(ArgumentError("for `BoundaryModelLastiwka` all reference values must be specified"))
     end
@@ -416,6 +444,8 @@ end
 
 # This type of viscosity depends on the system, so we need to use the fluid system
 function kinematic_viscosity(system::OpenBoundarySPHSystem,
-                             viscosity::ArtificialViscosityMonaghan)
-    return kinematic_viscosity(system.fluid_system, viscosity)
+                             viscosity::ArtificialViscosityMonaghan, smoothing_length,
+                             sound_speed)
+    return kinematic_viscosity(system.fluid_system, viscosity, smoothing_length,
+                               sound_speed)
 end

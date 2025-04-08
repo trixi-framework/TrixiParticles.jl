@@ -48,7 +48,7 @@ For more information on the methods, see description below.
                                     The default is `smoothing_length_interpolation = smoothing_length`.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C,
-                             IC, M, D, K, N, SD, UCU} <: FluidSystem{NDIMS, IC}
+                             IC, M, D, K, N, SD, UCU} <: FluidSystem{NDIMS}
     initial_condition              :: IC
     mass                           :: M
     density                        :: D
@@ -70,12 +70,11 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C,
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
-                                   smoothing_kernel, smoothing_length,
-                                   smoothing_length_interpolation, background_pressure,
-                                   tlsph, signed_distance_field, is_boundary, shift_length,
-                                   neighborhood_search, signed_distances,
-                                   particle_refinement, buffer, update_callback_used,
-                                   fixed_system, cache)
+                                   smoothing_kernel, smoothing_length_interpolation,
+                                   background_pressure, tlsph, signed_distance_field,
+                                   is_boundary, shift_length, neighborhood_search,
+                                   signed_distances, particle_refinement, buffer,
+                                   update_callback_used, fixed_system, cache)
         return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
                    eltype(density), typeof(particle_refinement), typeof(cache),
                    typeof(initial_condition), typeof(mass), typeof(density),
@@ -148,9 +147,9 @@ function ParticlePackingSystem(shape::InitialCondition;
     cache = (; create_cache_refinement(shape, particle_refinement, smoothing_length)...)
 
     return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
-                                 smoothing_kernel, smoothing_length,
-                                 smoothing_length_interpolation, background_pressure, tlsph,
-                                 signed_distance_field, is_boundary, shift_length, nhs,
+                                 smoothing_kernel, smoothing_length_interpolation,
+                                 background_pressure, tlsph, signed_distance_field,
+                                 is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
                                  nothing, Ref(false), fixed_system, cache)
 end
@@ -230,7 +229,7 @@ write_v0!(v0, system::ParticlePackingSystem{<:Any, true}) = v0
     return system.initial_condition.coordinates
 end
 
-write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
+write_v0!(v0, system::ParticlePackingSystem) = (v0 .= zero(eltype(system)))
 
 # Zero for fixed systems
 kinetic_energy(v, u, t, system::ParticlePackingSystem{<:Any, true}) = zero(eltype(system))
@@ -259,12 +258,12 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
                                  semi, integrator)
     u = wrap_u(u_ode, system, semi)
 
-    update_position!(u, system)
+    update_position!(u, system, semi)
 end
 
-function update_position!(u, system::ParticlePackingSystem)
+function update_position!(u, system::ParticlePackingSystem, semi)
     func_name = "constrain outside particles onto surface"
-    @trixi_timeit timer() func_name constrain_particles_onto_surface!(u, system)
+    @trixi_timeit timer() func_name constrain_particles_onto_surface!(u, system, semi)
 
     return u
 end
@@ -279,15 +278,15 @@ function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, 
 end
 
 # Skip for systems without `SignedDistanceField`
-constrain_particles_onto_surface!(u, system::ParticlePackingSystem{Nothing}) = u
+constrain_particles_onto_surface!(u, system::ParticlePackingSystem{Nothing}, semi) = u
 
-function constrain_particles_onto_surface!(u, system::ParticlePackingSystem)
+function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, semi)
     (; neighborhood_search, signed_distance_field, smoothing_length_interpolation) = system
     (; positions, distances, normals) = signed_distance_field
 
     search_radius2 = compact_support(system, system)^2
 
-    @threaded system for particle in eachparticle(system)
+    @threaded semi for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
 
         volume = zero(eltype(system))
@@ -364,7 +363,7 @@ end
 # Update from `UpdateCallback` (between time steps)
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
     v = wrap_v(v_ode, system, semi)
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             system.initial_condition.velocity[i, particle] = v[i, particle]
 

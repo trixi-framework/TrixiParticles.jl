@@ -559,8 +559,8 @@ end
                 volume = m_a / particle_density(v, system, particle)
                 shepard_coefficient += volume * W_a
 
-                interpolate_system!(interpolation_values, system, v, particle, volume, W_a,
-                                    clip_negative_pressure)
+                interpolate_system!(interpolation_values, v, system,
+                                    particle, volume, W_a, clip_negative_pressure)
             else
                 other_density += m_a * W_a
             end
@@ -606,8 +606,8 @@ end
     return ndims(system) * ndims(system) + ndims(system) + 2
 end
 
-@inline function interpolate_system!(interpolation_values, system::FluidSystem, v, particle,
-                                     volume, W_a, clip_negative_pressure)
+@inline function interpolate_system!(interpolation_values, v, system::FluidSystem,
+                                     particle, volume, W_a, clip_negative_pressure)
     NDIMS = ndims(system)
 
     particle_velocity = current_velocity(v, system, particle)
@@ -622,8 +622,8 @@ end
     interpolation_values[NDIMS + 1] += pressure * (volume * W_a)
 end
 
-@inline function interpolate_system!(system::SolidSystem, v, particle, volume, W_a,
-                                     clip_negative_pressure)
+@inline function interpolate_system!(interpolation_values, v, system::SolidSystem,
+                                     particle, volume, W_a, clip_negative_pressure)
     NDIMS = ndims(system)
 
     particle_velocity = current_velocity(v, system, particle)

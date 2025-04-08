@@ -228,7 +228,7 @@ function unique_sorted(vertices)
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     keep = fill(true, length(vertices_sorted))
 
-    PointNeighbors.@threaded vertices_sorted for i in eachindex(vertices_sorted)
+    @threaded vertices_sorted for i in eachindex(vertices_sorted)
         # We only sorted by the first entry, so we have to check all previous vertices
         # until the first entry is too far away.
         j = i - 1
