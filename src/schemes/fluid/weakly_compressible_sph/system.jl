@@ -51,15 +51,14 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, B, SRFT, SRFN, C} <:
-       FluidSystem{NDIMS, IC}
+                                   V, DD, COR, PF, ST, B, SRFT, SRFN, PR, C} <:
+       FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
     density_calculator                :: DC
     state_equation                    :: SE
     smoothing_kernel                  :: K
-    smoothing_length                  :: ELTYPE
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     density_diffusion                 :: DD
@@ -70,6 +69,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
     buffer                            :: B
+    particle_refinement               :: PR # TODO
     cache                             :: C
 end
 
@@ -88,6 +88,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
+
+    particle_refinement = nothing # TODO
 
     initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -134,6 +136,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             create_cache_refinement(initial_condition, particle_refinement,
+                                     smoothing_length)...,
              color=Int(color_value), cache...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -146,12 +150,12 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
-                                       smoothing_kernel, smoothing_length,
+                                       smoothing_kernel,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
                                        pressure_acceleration, nothing,
                                        source_terms, surface_tension, surface_normal_method,
-                                       buffer, cache)
+                                       buffer, particle_refinement, cache)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -222,6 +226,8 @@ end
     return ndims(system) + 1
 end
 
+system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
+
 @propagate_inbounds function particle_pressure(v, system::WeaklyCompressibleSPHSystem,
                                                particle)
     return system.pressure[particle]
@@ -235,8 +241,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
 
     compute_density!(system, u, u_ode, semi, density_calculator)
 
-    nhs = get_neighborhood_search(system, semi)
-    @trixi_timeit timer() "update density diffusion" update!(density_diffusion, nhs, v, u,
+    @trixi_timeit timer() "update density diffusion" update!(density_diffusion, v, u,
                                                              system, semi)
 
     return system
@@ -252,9 +257,9 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
-    compute_pressure!(system, v)
+    compute_pressure!(system, v, semi)
     compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
-    compute_surface_delta_function!(system, surface_tension)
+    compute_surface_delta_function!(system, surface_tension, semi)
     return system
 end
 
@@ -288,14 +293,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              system::WeaklyCompressibleSPHSystem, u,
                                              v_ode, u_ode, semi)
-    (; cache, correction, smoothing_kernel, smoothing_length) = system
+    (; cache, correction, smoothing_kernel) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_length,
-                                        smoothing_kernel)
+                                        v_ode, u_ode, semi, correction, smoothing_kernel)
 end
 
 function reinit_density!(vu_ode, semi)
@@ -323,7 +327,7 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
                            kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
-    compute_pressure!(system, v)
+    compute_pressure!(system, v, semi)
 
     return system
 end
@@ -332,8 +336,8 @@ function reinit_density!(system, v, u, v_ode, u_ode, semi)
     return system
 end
 
-function compute_pressure!(system, v)
-    @threaded system for particle in eachparticle(system)
+function compute_pressure!(system, v, semi)
+    @threaded semi for particle in eachparticle(system)
         apply_state_equation!(system, particle_density(v, system, particle), particle)
     end
 end

@@ -40,7 +40,7 @@
             @test system.lame_lambda == 1.0
             @test system.lame_mu == 1.0
             @test system.smoothing_kernel == smoothing_kernel
-            @test system.smoothing_length == smoothing_length
+            @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
             @test system.boundary_model == boundary_model
         end
@@ -160,6 +160,8 @@
                     return initial_coordinates[i]
                 end
 
+                TrixiParticles.smoothing_length(::Val{:mock_system_tensor}, _) = 0.12
+
                 # All unpack calls should return another mock object
                 # of the type `Val{:mock_property_name}`, but we want to have some real matrices
                 # as properties as opposed to only mock objects.
@@ -173,19 +175,10 @@
                     # For all other properties, return mock objects.
                     return Val(Symbol("mock_" * string(f)))
                 end
-
-                TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = neighbors
-                TrixiParticles.PointNeighbors.search_radius(::Val{:nhs}) = Inf
-
-                function Base.getproperty(::Val{:nhs}, f::Symbol)
-                    if f === :periodic_box
-                        return nothing
-                    end
-
-                    # For all other properties, return mock objects
-                    return Val(Symbol("mock_" * string(f)))
+                function TrixiParticles.compact_support(::Val{:mock_system_tensor},
+                                                        ::Val{:mock_system_tensor})
+                    return Inf
                 end
-                TrixiParticles.ndims(::Val{:nhs}) = 2
 
                 Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
@@ -193,10 +186,11 @@
                     return kernel_derivative
                 end
                 Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
+                semi = DummySemidiscretization()
 
                 # Compute deformation gradient
                 deformation_grad = ones(2, 2, 2)
-                TrixiParticles.calc_deformation_grad!(deformation_grad, Val(:nhs), system)
+                TrixiParticles.calc_deformation_grad!(deformation_grad, system, semi)
 
                 #### Verification
                 @test deformation_grad[:, :, particle] == expected[i]
@@ -237,10 +231,9 @@
                 initial_condition = InitialCondition(; coordinates, mass, density)
                 system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                                   smoothing_length, 1.0, 1.0)
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=1.0,
-                                                                  eachpoint=TrixiParticles.eachparticle(system))
+                semi = DummySemidiscretization()
 
-                TrixiParticles.initialize!(system, nhs)
+                TrixiParticles.initialize!(system, semi)
 
                 # Apply the deformation matrix
                 for particle in TrixiParticles.eachparticle(system)
@@ -250,7 +243,7 @@
 
                 # Compute the deformation gradient for the particle in the middle
                 TrixiParticles.calc_deformation_grad!(system.deformation_grad,
-                                                      nhs, system)
+                                                      system, semi)
                 J = TrixiParticles.deformation_gradient(system, 41)
 
                 #### Verification
@@ -289,6 +282,7 @@
             # It is easier to mock the system and specify the Lamé constants
             # and deformation gradient than to actually construct a system.
             system = Val(:mock_system)
+            TrixiParticles.smoothing_length(::Val{:mock_system}, _) = 0.12
             TrixiParticles.deformation_gradient(::Val{:mock_system}, _) = J
 
             # All unpack calls should return another mock object
@@ -323,6 +317,7 @@
         nu = 0.25
         E = 2.5
         boundary_model = Val(:boundary_model)
+        TrixiParticles.smoothing_length(::Val{:boundary_model}, _) = smoothing_length
 
         initial_condition = InitialCondition(; coordinates, mass,
                                              density=material_densities)
@@ -349,6 +344,7 @@
         nu = 0.25
         E = 2.5
         boundary_model = Val(:boundary_model)
+        TrixiParticles.smoothing_length(::Val{:boundary_model}, _) = smoothing_length
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)

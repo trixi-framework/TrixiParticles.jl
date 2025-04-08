@@ -54,6 +54,8 @@
             BernoulliPressureExtrapolation()
         ]
 
+        semi = DummySemidiscretization()
+
         for pressure_extrapolation in pressure_extrapolations
             @testset "Pressure Extrapolation: $(typeof(pressure_extrapolation))" begin
                 # Create boundary and fluid systems
@@ -70,9 +72,6 @@
                                                            state_equation,
                                                            smoothing_kernel,
                                                            smoothing_length)
-
-                neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=1.0,
-                                                                                  eachpoint=TrixiParticles.eachparticle(fluid_system))
 
                 velocities = [
                     [0.0; -1.0],
@@ -97,7 +96,7 @@
                                                                     v_fluid,
                                                                     v_fluid .*
                                                                     ones(size(fluid.coordinates)),
-                                                                    neighborhood_search)
+                                                                    semi)
 
                     # Compute wall velocities
                     for particle in TrixiParticles.eachparticle(boundary_system)
@@ -143,9 +142,7 @@
                                                                     fluid_system,
                                                                     boundary.coordinates,
                                                                     fluid.coordinates,
-                                                                    v_fluid,
-                                                                    v_fluid,
-                                                                    neighborhood_search)
+                                                                    v_fluid, v_fluid, semi)
 
                     # Compute wall velocities
                     for particle in TrixiParticles.eachparticle(boundary_system)
@@ -215,6 +212,8 @@
         boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
         viscosity = boundary_system.boundary_model.viscosity
 
+        semi = DummySemidiscretization()
+
         # In this testset, we verify that pressures in a static tank are extrapolated correctly.
         # Use constant density equal to the reference density of the state equation,
         # so that the pressure is constant zero. Then we test that the extrapolation also yields zero.
@@ -225,11 +224,7 @@
             fluid_system1.cache.density .= tank1.fluid.density
             v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system1))
 
-            TrixiParticles.compute_pressure!(fluid_system1, v_fluid)
-
-            neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=TrixiParticles.compact_support(smoothing_kernel,
-                                                                                                                           smoothing_length),
-                                                                              eachpoint=TrixiParticles.eachparticle(fluid_system1))
+            TrixiParticles.compute_pressure!(fluid_system1, v_fluid, semi)
 
             TrixiParticles.set_zero!(boundary_model.pressure)
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
@@ -241,7 +236,7 @@
                                                             tank1.fluid.coordinates,
                                                             v_fluid,
                                                             nothing, # Not used
-                                                            neighborhood_search)
+                                                            semi)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
                 TrixiParticles.compute_adami_density!(boundary_model, boundary_system,
@@ -267,11 +262,7 @@
 
             fluid_system2.cache.density .= tank2.fluid.density
             v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system2))
-            TrixiParticles.compute_pressure!(fluid_system2, v_fluid)
-
-            neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=TrixiParticles.compact_support(smoothing_kernel,
-                                                                                                                           smoothing_length),
-                                                                              eachpoint=TrixiParticles.eachparticle(fluid_system2))
+            TrixiParticles.compute_pressure!(fluid_system2, v_fluid, semi)
 
             TrixiParticles.set_zero!(boundary_model.pressure)
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
@@ -283,7 +274,7 @@
                                                             tank2.fluid.coordinates,
                                                             v_fluid,
                                                             nothing, # Not used
-                                                            neighborhood_search)
+                                                            semi)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
                 TrixiParticles.compute_adami_density!(boundary_model, boundary_system,
@@ -311,11 +302,7 @@
                                                         acceleration=[0.0, -9.81])
             fluid_system3.cache.density .= tank3.fluid.density
             v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system3))
-            TrixiParticles.compute_pressure!(fluid_system3, v_fluid)
-
-            neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=TrixiParticles.compact_support(smoothing_kernel,
-                                                                                                                           smoothing_length),
-                                                                              eachpoint=TrixiParticles.eachparticle(fluid_system3))
+            TrixiParticles.compute_pressure!(fluid_system3, v_fluid, semi)
 
             TrixiParticles.set_zero!(boundary_model.pressure)
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
@@ -327,7 +314,7 @@
                                                             tank3.fluid.coordinates,
                                                             v_fluid,
                                                             nothing, # Not used
-                                                            neighborhood_search)
+                                                            semi)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
                 TrixiParticles.compute_adami_density!(boundary_model, boundary_system,

@@ -3,9 +3,8 @@
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates the density
 # using the continuity equation.
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::WeaklyCompressibleSPHSystem,
-                   neighbor_system)
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
     (; density_calculator, state_equation, correction) = particle_system
     (; sound_speed) = state_equation
 
@@ -21,8 +20,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           neighborhood_search;
+                           system_coords, neighbor_system_coords, semi;
                            points=each_moving_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             pos_diff,
@@ -57,7 +55,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                         particle, neighbor)
 
         dv_pressure = pressure_correction *
-                      pressure_acceleration(particle_system, neighbor_system, neighbor,
+                      pressure_acceleration(particle_system, neighbor_system,
+                                            particle, neighbor,
                                             m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                             distance, grad_kernel, correction)
 
