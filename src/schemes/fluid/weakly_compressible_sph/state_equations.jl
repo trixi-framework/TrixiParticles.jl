@@ -36,7 +36,7 @@ function (state_equation::StateEquationCole)(density)
 
     # This is determined statically and has therefore no overhead
     if clip_negative_pressure(state_equation)
-        return max(0.0, pressure)
+        return max(0, pressure)
     end
 
     return pressure
@@ -86,7 +86,7 @@ function (state_equation::StateEquationIdealGas)(density)
 
     # This is determined statically and has therefore no overhead
     if clip_negative_pressure(state_equation)
-        return max(0.0, pressure)
+        return max(0, pressure)
     end
 
     return pressure

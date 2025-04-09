@@ -29,7 +29,7 @@ specified material properties and contact mechanics.
 ## References
 [Bicanic2004](@cite), [Cundall1979](@cite), [DiRenzo2004](@cite)
 """
-struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, IC}
+struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS}
     initial_condition   :: IC
     mass                :: ARRAY1D               # [particle]
     radius              :: ARRAY1D               # [particle]
@@ -93,6 +93,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::DEMSystem)
     end
 end
 
+@inline function Base.eltype(::DEMSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
+end
+
 timer_name(::DEMSystem) = "solid"
 
 function TrixiParticles.write_u0!(u0, system::DEMSystem)
@@ -106,7 +110,7 @@ function TrixiParticles.write_v0!(v0, system::DEMSystem)
 end
 
 # Nothing to initialize for this system
-initialize!(system::DEMSystem, neighborhood_search) = system
+initialize!(system::DEMSystem, semi) = system
 
 function compact_support(system::DEMSystem, neighbor::DEMSystem)
     # we for now assume that the compact support is 3 * radius
