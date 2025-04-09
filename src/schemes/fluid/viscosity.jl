@@ -270,10 +270,6 @@ function kinematic_viscosity(system, viscosity::ViscosityAdami, smoothing_length
     return viscosity.nu
 end
 
-@propagate_inbounds function viscous_velocity(v, system, particle)
-    return current_velocity(v, system, particle)
-end
-
 @doc raw"""
     ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.01)
 
