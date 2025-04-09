@@ -119,7 +119,7 @@ function TrixiParticles.write_v0!(v0, system::DEMSystem)
 end
 
 # Nothing to initialize for this system
-initialize!(system::DEMSystem, neighborhood_search) = system
+initialize!(system::DEMSystem, semi) = system
 
 function compact_support(system::DEMSystem, neighbor::DEMSystem)
     # we for now assume that the compact support is 3 * radius

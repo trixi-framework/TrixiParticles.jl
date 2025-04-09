@@ -3,11 +3,12 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                    neighbor_system::Union{BoundaryDEMSystem, DEMSystem})
     damping_coefficient = particle_system.damping_coefficient
 
+
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           neighborhood_search;
+                           semi;
                            points=each_moving_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             pos_diff,
