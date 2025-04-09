@@ -95,7 +95,7 @@ end
 end
 
 # This can be dispatched by system type, since for some systems, the current velocity
-# is stored in `v`, for others it might be stored elsewehere.
+# is stored in `v`, for others it might be stored elsewhere.
 # By default, try to extract it from `v`.
 @inline current_velocity(v, system) = v
 

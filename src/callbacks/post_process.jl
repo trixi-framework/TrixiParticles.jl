@@ -239,7 +239,7 @@ function (pp::PostprocessCallback)(integrator)
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
         @trixi_timeit timer() "update systems" update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                                    update_from_callback=true)
+                                                                      update_from_callback=true)
 
         foreach_system(semi) do system
             if system isa BoundarySystem && pp.exclude_boundary
@@ -262,7 +262,7 @@ function (pp::PostprocessCallback)(integrator)
         end
 
         if isfinished(integrator) ||
-        (pp.write_file_interval > 0 && backup_condition(pp, integrator))
+           (pp.write_file_interval > 0 && backup_condition(pp, integrator))
             write_postprocess_callback(pp)
         end
 

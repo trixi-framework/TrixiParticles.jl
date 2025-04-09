@@ -340,8 +340,8 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             pressure_average[particle] += current_pressure(v_neighbor_system,
-                                                            neighbor_system,
-                                                            neighbor)
+                                                           neighbor_system,
+                                                           neighbor)
             neighbor_counter[particle] += 1
         end
     end

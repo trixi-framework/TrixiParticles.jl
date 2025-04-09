@@ -340,7 +340,7 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
     # boundary particles at free surfaces (sticking artifacts).
     @threaded semi for particle in eachparticle(system)
         apply_state_equation!(boundary_model, current_density(v, boundary_model,
-                                                               particle), particle)
+                                                              particle), particle)
     end
 
     return boundary_model
@@ -508,7 +508,7 @@ end
     pressure[particle] += (pressure_offset
                            +
                            current_pressure(v_neighbor_system, neighbor_system,
-                                             neighbor)
+                                            neighbor)
                            +
                            dynamic_pressure(boundary_density_calculator, density_neighbor,
                                             v, v_neighbor_system, pos_diff, distance,

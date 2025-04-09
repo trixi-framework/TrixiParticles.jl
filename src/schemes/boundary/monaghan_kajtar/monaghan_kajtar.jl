@@ -95,8 +95,9 @@ end
 end
 
 # This model does not not use any particle pressure
-@inline function current_pressure(v, system::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
-                          particle)
+@inline function current_pressure(v,
+                                  system::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                  particle)
     return zero(eltype(v))
 end
 
