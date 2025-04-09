@@ -3,22 +3,22 @@ const TRIXIPARTICLES_TEST_ = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
 if TRIXIPARTICLES_TEST_ == "cuda"
     using CUDA
     CUDA.versioninfo()
-    data_type = CuArray
+    parallelization_backend = CUDABackend()
     supports_double_precision = true
 elseif TRIXIPARTICLES_TEST_ == "amdgpu"
     using AMDGPU
     AMDGPU.versioninfo()
-    data_type = ROCArray
+    parallelization_backend = ROCBackend()
     supports_double_precision = true
 elseif TRIXIPARTICLES_TEST_ == "metal"
     using Metal
     Metal.versioninfo()
-    data_type = MtlArray
+    parallelization_backend = MetalBackend()
     supports_double_precision = false
 elseif TRIXIPARTICLES_TEST_ == "oneapi"
     using oneAPI
     oneAPI.versioninfo()
-    data_type = oneArray
+    parallelization_backend = oneAPIBackend()
     # The runners are using an iGPU, which does not support double precision
     supports_double_precision = false
 else
@@ -33,20 +33,21 @@ end
                                                joinpath(examples_dir(), "fluid",
                                                         "dam_break_2d_gpu.jl"),
                                                tspan=(0.0, 0.1),
-                                               data_type=Main.data_type) [
+                                               parallelization_backend=Main.parallelization_backend) [
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
                 @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
                 @test sol.retcode == ReturnCode.Success
-                @test sol.u[end].x[1] isa Main.data_type
+                backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                @test backend == Main.parallelization_backend
             else
                 error = "Metal does not support Float64 values, try using Float32 instead"
                 @test_throws error trixi_include(@__MODULE__,
                                                  joinpath(examples_dir(), "fluid",
                                                           "dam_break_2d_gpu.jl"),
                                                  tspan=(0.0, 0.1),
-                                                 data_type=Main.data_type)
+                                                 parallelization_backend=Main.parallelization_backend)
             end
         end
 
@@ -73,14 +74,15 @@ end
                                                                             "fluid",
                                                                             "dam_break_2d_gpu.jl");
                                                                    tspan=(0.0f0, 0.1f0),
-                                                                   data_type=Main.data_type,
+                                                                   parallelization_backend=Main.parallelization_backend,
                                                                    kwargs...) [
                         r"┌ Info: The desired tank length in y-direction .*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
                     @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
                     @test sol.retcode == ReturnCode.Success
-                    @test sol.u[end].x[1] isa Main.data_type
+                    backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                    @test backend == Main.parallelization_backend
                 end
             end
         end
@@ -106,13 +108,14 @@ end
                                                            boundary_layers=1,
                                                            spacing_ratio=3,
                                                            boundary_model=boundary_model,
-                                                           data_type=Main.data_type) [
+                                                           parallelization_backend=Main.parallelization_backend) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
             @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
 
         @trixi_testset "fluid/dam_break_3d.jl" begin
@@ -129,7 +132,8 @@ end
             cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
                                                neighborhood_search=GridNeighborhoodSearch{3}(;
-                                                                                             cell_list))
+                                                                                             cell_list),
+                                               parallelization_backend=Main.parallelization_backend)
 
             # Note that this simulation only takes 36 time steps on the CPU.
             # Due to https://github.com/JuliaGPU/Metal.jl/issues/549, it doesn't work on Metal.
@@ -139,10 +143,23 @@ end
                                           tspan=(0.0f0, 0.1f0),
                                           fluid_particle_spacing=0.1,
                                           semi=semi_fullgrid,
-                                          data_type=Main.data_type,
                                           maxiters=36)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+
+            @testset "`SymplecticPositionVerlet`" begin
+                stepsize_callback = StepsizeCallback(cfl=0.65)
+                callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
+
+                sol = solve(ode, SymplecticPositionVerlet(),
+                            dt=1, # This is overwritten by the stepsize callback
+                            save_everystep=false, callback=callbacks)
+                @test sol.retcode == ReturnCode.Success
+                @test maximum(maximum.(abs, sol.u[end].x)) < 2^15
+                backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                @test backend == Main.parallelization_backend
+            end
         end
 
         # Short tests to make sure that different models and kernels work on GPUs
@@ -220,7 +237,8 @@ end
                                                  max_points_per_cell=500)
                     semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
                                                        neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                                     cell_list))
+                                                                                                     cell_list),
+                                                       parallelization_backend=Main.parallelization_backend)
 
                     # Run the simulation
                     @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
@@ -228,12 +246,12 @@ end
                                                                             "fluid",
                                                                             "hydrostatic_water_column_2d.jl");
                                                                    semi=semi_fullgrid,
-                                                                   data_type=Main.data_type,
                                                                    tspan=(0.0f0, 0.1f0),
                                                                    kwargs...)
 
                     @test sol.retcode == ReturnCode.Success
-                    @test sol.u[end].x[1] isa Main.data_type
+                    backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                    @test backend == Main.parallelization_backend
                 end
             end
         end
@@ -254,16 +272,17 @@ end
             cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                             cell_list))
+                                                                                             cell_list),
+                                               parallelization_backend=Main.parallelization_backend)
 
             @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
                                                            joinpath(examples_dir(), "fluid",
                                                                     "periodic_channel_2d.jl"),
                                                            tspan=(0.0f0, 0.1f0),
-                                                           semi=semi_fullgrid,
-                                                           data_type=Main.data_type)
+                                                           semi=semi_fullgrid)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
 
         # Test open boundaries and steady-state callback
@@ -283,7 +302,8 @@ end
             # cell_list = FullGridCellList(; min_corner, max_corner)
             # semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
             #                                    neighborhood_search=GridNeighborhoodSearch{2}(;
-            #                                                                                  cell_list))
+            #                                                                                  cell_list),
+            #                                    parallelization_backend=Main.parallelization_backend)
 
             # steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
 
@@ -292,8 +312,7 @@ end
             #                                                         "pipe_flow_2d.jl"),
             #                                                extra_callback=steady_state_reached,
             #                                                tspan=(0.0f0, 1.5f0),
-            #                                                semi=semi_fullgrid,
-            #                                                data_type=Main.data_type)
+            #                                                semi=semi_fullgrid)
 
             # TODO This currently doesn't work on GPUs due to
             # https://github.com/trixi-framework/PointNeighbors.jl/issues/20.
@@ -301,7 +320,8 @@ end
             # Make sure that the simulation is terminated after a reasonable amount of time
             @test_skip 0.1 < sol.t[end] < 1.0
             @test_skip sol.retcode == ReturnCode.Terminated
-            @test_skip sol.u[end].x[1] isa Main.data_type
+            # backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            # @test_skip backend == Main.parallelization_backend
         end
     end
 
@@ -321,16 +341,17 @@ end
             cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(solid_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                             cell_list))
+                                                                                             cell_list),
+                                               parallelization_backend=Main.parallelization_backend)
 
             @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
                                                            joinpath(examples_dir(), "solid",
                                                                     "oscillating_beam_2d.jl"),
                                                            tspan=(0.0f0, 0.1f0),
-                                                           semi=semi_fullgrid,
-                                                           data_type=Main.data_type)
+                                                           semi=semi_fullgrid)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
     end
 
@@ -352,7 +373,8 @@ end
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system_tank,
                                                boundary_system_gate, solid_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                             cell_list))
+                                                                                             cell_list),
+                                               parallelization_backend=Main.parallelization_backend)
 
             @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
                                                            joinpath(examples_dir(), "fsi",
@@ -360,10 +382,10 @@ end
                                                            tspan=(0.0f0, 0.4f0),
                                                            semi=semi_fullgrid,
                                                            # Needs <1500 steps on the CPU
-                                                           maxiters=1500,
-                                                           data_type=Main.data_type)
+                                                           maxiters=1500)
             @test sol.retcode == ReturnCode.Success
-            @test sol.u[end].x[1] isa Main.data_type
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
     end
 end
