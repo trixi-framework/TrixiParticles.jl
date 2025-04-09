@@ -101,20 +101,21 @@ end
     return volume_term * ((A_a + A_b) / 2) * grad_kernel
 end
 
-@inline transport_velocity!(dv, system, particle, neighbor, m_a, m_b, grad_kernel) = dv
+@inline transport_velocity!(dv, system, neighbor_system, particle, neighbor, m_a, m_b,
+grad_kernel) = dv
 
-@inline function transport_velocity!(dv, system::FluidSystem, particle, neighbor, m_a, m_b,
-                                     grad_kernel)
-    transport_velocity!(dv, system, system.transport_velocity, particle, neighbor, m_a, m_b,
-                        grad_kernel)
+@inline function transport_velocity!(dv, system::FluidSystem, neighbor_system,
+                                     particle, neighbor, m_a, m_b, grad_kernel)
+    transport_velocity!(dv, system, neighbor_system, system.transport_velocity,
+                        particle, neighbor, m_a, m_b, grad_kernel)
 end
 
-@inline function transport_velocity!(dv, system, ::Nothing, particle, neighbor, m_a, m_b,
-                                     grad_kernel)
+@inline function transport_velocity!(dv, system, neighbor_system, ::Nothing,
+                                     particle, neighbor, m_a, m_b, grad_kernel)
     return dv
 end
 
-@inline function transport_velocity!(dv, system, ::TransportVelocityAdami,
+@inline function transport_velocity!(dv, system, neighbor_system, ::TransportVelocityAdami,
                                      particle, neighbor, m_a, m_b, grad_kernel)
     (; transport_velocity) = system
     (; background_pressure) = transport_velocity
@@ -131,7 +132,7 @@ end
     # volume_a = particle_spacing(system, particle)^ndims(system)
     # volume_b = particle_spacing(neighbor_system, neighbor)^ndims(neighbor_system)
     volume_a = m_a / system.initial_condition.density[particle]
-    volume_b = m_b / system.initial_condition.density[neighbor]
+    volume_b = m_b / neighbor_system.initial_condition.density[neighbor]
 
     volume_term = (volume_a^2 + volume_b^2) / m_a
 
