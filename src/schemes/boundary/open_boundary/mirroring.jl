@@ -38,7 +38,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
     neighborhood_search = get_neighborhood_search(fluid_system, fluid_system, semi)
 
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
         particle_coords = current_coords(u_open_boundary, system, particle)
         ghost_node_position = mirror_position(particle_coords, boundary_zone)
 
