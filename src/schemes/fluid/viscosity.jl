@@ -400,6 +400,12 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 - `C_S`:     Smagorinsky constant.
 - `epsilon`: Epsilon for singularity prevention [e.g., 0.001]
 """
+struct ViscosityMorrisSGS{ELTYPE}
+    nu::ELTYPE      # Standard (molecular) kinematic viscosity [e.g., 1e-6 m²/s]
+    C_S::ELTYPE     # Smagorinsky constant [e.g., 0.1-0.2]
+    epsilon::ELTYPE # Epsilon for singularity prevention [e.g., 0.001]
+end
+
 ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, epsilon)
 
 @propagate_inbounds function (viscosity::ViscosityMorrisSGS)(particle_system,
