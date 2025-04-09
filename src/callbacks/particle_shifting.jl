@@ -86,7 +86,7 @@ function particle_shifting!(u, v, system::WeaklyCompressibleSPHSystem, v_ode, u_
 
             # Eq. 7 in Sun et al. (2017).
             # CFL * Ma can be rewritten as Δt * v_max / h (see p. 29, right above Eq. 9).
-            delta_r_ = -dt * v_max * 2 * h * (1 + R * (kernel / Wdx)^n) *
+            delta_r_ = -dt * v_max * 4 * h * (1 + R * (kernel / Wdx)^n) *
                        m_b / (rho_a + rho_b) * grad_kernel
 
             # Write into the buffer
