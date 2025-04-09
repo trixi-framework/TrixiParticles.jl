@@ -107,7 +107,7 @@ function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing
 end
 
 # Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
-@inline function pressure_acceleration(particle_system, neighbor_system, neighbor,
+@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction)
     (; pressure_acceleration_formulation) = particle_system
@@ -118,7 +118,7 @@ end
 end
 
 # Formulation using asymmetric gradient formulation for corrections depending on local neighborhood.
-@inline function pressure_acceleration(particle_system, neighbor_system, neighbor,
+@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a,
                                        correction::Union{KernelCorrection,

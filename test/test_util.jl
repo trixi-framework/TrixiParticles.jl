@@ -86,5 +86,26 @@ macro test_nowarn_mod(expr, additional_ignore_content=String[])
     end
 end
 
+struct DummySemidiscretization
+    parallelization_backend::Any
+
+    function DummySemidiscretization(; parallelization_backend=false)
+        new(parallelization_backend)
+    end
+end
+
+@inline function TrixiParticles.get_neighborhood_search(system, neighbor_system,
+                                                        ::DummySemidiscretization)
+    search_radius = TrixiParticles.compact_support(system, neighbor_system)
+    eachpoint = TrixiParticles.eachparticle(neighbor_system)
+    return TrixiParticles.TrivialNeighborhoodSearch{ndims(system)}(; search_radius,
+                                                                   eachpoint)
+end
+
+@inline function TrixiParticles.get_neighborhood_search(system,
+                                                        semi::DummySemidiscretization)
+    return get_neighborhood_search(system, system, semi)
+end
+
 include("count_allocations.jl")
 include("rectangular_patch.jl")

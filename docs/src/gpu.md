@@ -45,16 +45,20 @@ For some simulations where particles move outside the initial tank coordinates,
 for example when the tank is not closed or when the tank is moving, an appropriate
 bounding box has to be specified.
 
-Then, we only need to specify the data type that is used for the simulation.
+Then, we only need to specify the parallelization backend that is used for the simulation.
 On an Nvidia GPU, we specify:
 ```julia
 using CUDA
-ode = semidiscretize(semi, tspan, data_type=CuArray)
+semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=GridNeighborhoodSearch{2}(; cell_list),
+                          parallelization_backend=CUDABackend())
 ```
 On an AMD GPU, we use:
 ```julia
 using AMDGPU
-ode = semidiscretize(semi, tspan, data_type=ROCArray)
+semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=GridNeighborhoodSearch{2}(; cell_list),
+                          parallelization_backend=ROCBackend())
 ```
 Now, we can run the simulation as usual.
 All data is transferred to the GPU during initialization and all loops over particles
@@ -70,29 +74,30 @@ the simulation. This is achieved by overwriting the line that starts the simulat
 with `trixi_include(..., sol=nothing)`.
 Next, a GPU-compatible neighborhood search is defined, and the original example file
 is included with the new neighborhood search.
-This requires the assignments `neighborhood_search = ...` and `data_type = ...`
+This requires the assignments `neighborhood_search = ...` and `parallelization_backend = ...`
 to be present in the original example file.
-Note that in `examples/fluid/dam_break_2d.jl`, we specifically set `data_type=nothing`, even though
-this is the default value, so that we can use `trixi_include` to replace this value.
+Note that in `examples/fluid/dam_break_2d.jl`, we explicitly set
+`parallelization_backend=true`, even though this is the default value,
+so that we can use `trixi_include` to replace this value.
 
-To run this simulation on a GPU, simply update `data_type` to match the
+To run this simulation on a GPU, simply update `parallelization_backend` to match the
 array type of the installed GPU.
 We can run this simulation on an Nvidia GPU as follows.
 ```julia
 using CUDA
-trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), data_type=CuArray)
+trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), parallelization_backend=CUDABackend())
 ```
 For AMD GPUs, use
 ```julia
 using AMDGPU
-trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), data_type=ROCArray)
+trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), parallelization_backend=ROCBackend())
 ```
 For Apple GPUs (which don't support double precision, see below), use
 ```julia
 using Metal
 trixi_include_changeprecision(Float32,
                               joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"),
-                              data_type=MtlArray)
+                              parallelization_backend=MetalBackend())
 ```
 
 ## [Single precision simulations](@id single_precision)
@@ -112,5 +117,5 @@ To run the previous example with single precision, use the following:
 using CUDA
 trixi_include_changeprecision(Float32,
                               joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"),
-                              data_type=CuArray)
+                              parallelization_backend=CUDABackend())
 ```

@@ -55,10 +55,11 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(solid_system,
-                          neighborhood_search=PrecomputedNeighborhoodSearch{2}())
-ode = semidiscretize(semi, tspan, data_type=nothing)
+                          neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
+                          parallelization_backend=true)
+ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
+info_callback = InfoCallback(interval=1000)
 
 # Track the position of the particle in the middle of the tip of the beam.
 middle_particle_id = Int(n_particles_per_dimension[1] * (n_particles_per_dimension[2] + 1) /
