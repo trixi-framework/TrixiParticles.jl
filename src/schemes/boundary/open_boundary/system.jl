@@ -242,7 +242,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
                                                                                    u_ode,
                                                                                    semi, t)
 
-    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi, t)
 
     # Update buffers
     update_system_buffer!(system.buffer)
@@ -251,7 +251,7 @@ end
 
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
 
-function check_domain!(system, v, u, v_ode, u_ode, semi)
+function check_domain!(system, v, u, v_ode, u_ode, semi, t)
     (; boundary_zone, fluid_system) = system
 
     u_fluid = wrap_u(u_ode, fluid_system, semi)
@@ -265,7 +265,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         # Check if boundary particle is outside the boundary zone
         if !is_in_boundary_zone(boundary_zone, particle_coords)
             convert_particle!(system, fluid_system, boundary_zone, particle,
-                              v, u, v_fluid, u_fluid)
+                              v, u, v_fluid, u_fluid, timer)
         end
 
         # Check the neighboring fluid particles whether they're entering the boundary zone
@@ -275,7 +275,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
             # Check if neighboring fluid particle is in boundary zone
             if is_in_boundary_zone(boundary_zone, fluid_coords)
                 convert_particle!(fluid_system, system, boundary_zone, neighbor,
-                                  v, u, v_fluid, u_fluid)
+                                  v, u, v_fluid, u_fluid, t)
             end
         end
     end
@@ -286,7 +286,7 @@ end
 # Outflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
                                    boundary_zone::BoundaryZone{OutFlow}, particle, v, u,
-                                   v_fluid, u_fluid)
+                                   v_fluid, u_fluid, t)
     deactivate_particle!(system, particle, u)
 
     return system
@@ -295,7 +295,7 @@ end
 # Inflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
                                    boundary_zone::BoundaryZone{InFlow}, particle, v, u,
-                                   v_fluid, u_fluid)
+                                   v_fluid, u_fluid, t)
     (; spanning_set) = boundary_zone
 
     # Activate a new particle in simulation domain
@@ -312,7 +312,7 @@ end
 # Buffer particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
                                    boundary_zone::BoundaryZone{BidirectionalFlow}, particle,
-                                   v, u, v_fluid, u_fluid)
+                                   v, u, v_fluid, u_fluid, t)
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
@@ -336,12 +336,94 @@ end
 
 # Fluid particle is in boundary zone
 @inline function convert_particle!(fluid_system::FluidSystem, system,
-                                   boundary_zone, particle, v, u, v_fluid, u_fluid)
+                                   boundary_zone, particle, v, u, v_fluid, u_fluid, t)
     # Activate particle in boundary zone
     transfer_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
 
     # Deactivate particle in interior domain
     deactivate_particle!(fluid_system, particle, u_fluid)
+
+    return fluid_system
+end
+
+# Outflow particle is outside the boundary zone and being deactivated
+@inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
+                                   boundary_zone::BoundaryZone{OutFlow}, particle, v, u,
+                                   v_fluid, u_fluid, t)
+    deactivate_particle!(system, particle, u)
+
+    return system
+end
+
+# Inflow particle is outside the boundary zone and moving into the simulation domain
+@inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
+                                   boundary_zone::BoundaryZone{InFlow}, particle, v, u,
+                                   v_fluid, u_fluid, t)
+    (; spanning_set) = boundary_zone
+
+    # Activate a new particle in simulation domain
+    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+
+    # Reset position of boundary particle
+    for dim in 1:ndims(system)
+        u[dim, particle] += spanning_set[1][dim]
+    end
+
+    return system
+end
+
+# Buffer particle is outside the boundary zone
+@inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
+                                   boundary_zone::BoundaryZone{BidirectionalFlow}, particle,
+                                   v, u, v_fluid, u_fluid, t)
+    relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
+
+    # Check if particle is in- or outside the fluid domain.
+    # `plane_normal` is always pointing into the fluid domain.
+    if signbit(dot(relative_position, boundary_zone.plane_normal))
+        deactivate_particle!(system, particle, u)
+
+        return system
+    end
+
+    # Activate a new particle in simulation domain
+    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+
+    # Reset position of boundary particle
+    for dim in 1:ndims(system)
+        u[dim, particle] += boundary_zone.spanning_set[1][dim]
+    end
+
+    return system
+end
+
+# Fluid particle enters from the simulation domain into the boundary zone
+@inline function convert_particle!(fluid_system::FluidSystem, system,
+                                   boundary_zone, particle, v, u, v_fluid, u_fluid, t)
+    # Activate particle in boundary zone
+    transfer_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
+
+    # Deactivate particle in interior domain
+    deactivate_particle!(fluid_system, particle, u_fluid)
+
+    return fluid_system
+end
+
+# Fluid particle enters from the simulation domain into an inflow boundary so we reimpose the reference velocity.
+@inline function convert_particle!(fluid_system::FluidSystem, system,
+                                   boundary_zone::BoundaryZone{InFlow}, particle,
+                                   v, u, v_fluid, u_fluid, t)
+    (; reference_velocity) = system
+
+    particle_coords = current_coords(u_fluid, fluid_system, particle)
+
+    v_particle = current_velocity(v_fluid, fluid_system, particle)
+    v_ref = reference_value(reference_velocity, v_particle, particle_coords, t)
+
+    # Update the particle’s velocity to match the prescribed inlet profile.
+    @inbounds for dim in 1:ndims(system)
+        v_fluid[dim, particle] = v_ref[dim]
+    end
 
     return fluid_system
 end
