@@ -67,13 +67,6 @@ fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.
                          coordinates_perturbation=perturb_coordinates ? 0.2 : nothing, # To avoid stagnant streamlines when not using TVF.
                          density=fluid_density, pressure=initial_pressure_function,
                          velocity=initial_velocity_function)
-
-density_calculator = SummationDensity()
-fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
-                                           sound_speed,
-                                           density_calculator=density_calculator,
-                                           transport_velocity=TransportVelocityAdami(background_pressure),
-                                           viscosity=ViscosityAdami(; nu))
 if wcsph
     # Using `SummationDensity()` with `perturb_coordinates = true` introduces noise in the simulation due to perturbed particle positions,
     # resulting in bad density estimates.
@@ -88,9 +81,16 @@ if wcsph
                                                smoothing_length,
                                                viscosity=ViscosityAdami(; nu),
                                                transport_velocity=TransportVelocityAdami(background_pressure))
+else
+    density_calculator = SummationDensity()
+    fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
+                                               sound_speed,
+                                               density_calculator=density_calculator,
+                                               transport_velocity=TransportVelocityAdami(background_pressure),
+                                               viscosity=ViscosityAdami(; nu))
 end
 
-# # ==========================================================================================
+# ==========================================================================================
 # ==== Simulation
 periodic_box = PeriodicBox(min_corner=[0.0, 0.0], max_corner=[box_length, box_length])
 semi = Semidiscretization(fluid_system,

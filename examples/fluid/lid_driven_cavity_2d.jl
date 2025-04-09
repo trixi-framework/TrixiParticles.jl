@@ -47,14 +47,6 @@ wcsph = true
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
-state_equation = nothing
-
-density_calculator = ContinuityDensity()
-fluid_system = EntropicallyDampedSPHSystem(cavity.fluid, smoothing_kernel, smoothing_length,
-                                           density_calculator=density_calculator,
-                                           sound_speed, viscosity=viscosity,
-                                           transport_velocity=TransportVelocityAdami(pressure))
-
 if wcsph
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                        exponent=1)
@@ -62,6 +54,14 @@ if wcsph
                                                state_equation, smoothing_kernel,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
                                                smoothing_length, viscosity=viscosity,
+                                               transport_velocity=TransportVelocityAdami(pressure))
+else
+    state_equation = nothing
+    density_calculator = ContinuityDensity()
+    fluid_system = EntropicallyDampedSPHSystem(cavity.fluid, smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=density_calculator,
+                                               sound_speed, viscosity=viscosity,
                                                transport_velocity=TransportVelocityAdami(pressure))
 end
 
