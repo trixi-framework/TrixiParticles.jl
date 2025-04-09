@@ -208,6 +208,25 @@ struct ViscosityAdami{ELTYPE}
     end
 end
 
+function adami_viscosity_force(h, pos_diff, distance, grad_kernel, m_a,
+                               m_b, rho_a, rho_b, v_diff, nu_eff; ε=0.01)
+    # Compute dynamic viscosities: η = ρ * ν_eff
+    eta_a = rho_a * nu_eff
+    eta_b = rho_b * nu_eff
+    # Symmetric averaging (as used in Adami's formulation)
+    eta_tilde = 2 * (eta_a * eta_b) / (eta_a + eta_b)
+
+    tmp = eta_tilde / (distance^2 + ε * h^2)
+
+    # Compute particle volumes.
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+
+    # The viscous force contribution (per unit mass) is then
+    visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp / m_a
+    return m_b * (visc .* v_diff)
+end
+
 @inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
                                              v_particle_system, v_neighbor_system,
                                              particle, neighbor, pos_diff,
@@ -256,4 +275,59 @@ end
 
 @propagate_inbounds function viscous_velocity(v, system, particle)
     return current_velocity(v, system, particle)
+end
+
+struct ViscosityAdamiSGS{ELTYPE}
+    nu::ELTYPE      # Standard (molecular) kinematic viscosity [e.g., 1e-6 m²/s]
+    C_S::ELTYPE     # Smagorinsky constant [e.g., 0.1-0.2]
+    epsilon::ELTYPE # Epsilon for singularity prevention [e.g., 0.01]
+end
+
+# Convenient constructor with default values for C_S and epsilon.
+ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.01) = ViscosityAdamiSGS(nu, C_S, epsilon)
+
+function compute_SGS_nu(h, v_diff, distance; C_S=0.1, δ=1e-6)
+    # Estimate the strain rate magnitude |S|
+    S_mag = norm(v_diff) / (distance + δ)
+    return (C_S * h)^2 * S_mag
+end
+
+@propagate_inbounds function (viscosity::ViscosityAdamiSGS)(particle_system,
+                                                            neighbor_system,
+                                                            v_particle_system,
+                                                            v_neighbor_system,
+                                                            particle, neighbor, pos_diff,
+                                                            distance, sound_speed, m_a, m_b,
+                                                            rho_a, rho_b, grad_kernel)
+    # Retrieve the local smoothing length for the reference particle.
+    h = smoothing_length(particle_system, particle)
+
+    # Retrieve the velocities
+    v_a = viscous_velocity(v_particle_system, particle_system, particle)
+    v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_diff = v_a - v_b
+
+    # ------------------------------------------------------------------------------
+    # SGS part: Compute the subgrid-scale eddy viscosity.
+    # ------------------------------------------------------------------------------
+    nu_SGS = compute_SGS_nu(h, v_diff, distance; C_S=viscosity.C_S, δ=1e-6)
+
+    # Effective kinematic viscosity is the sum of the standard and SGS parts.
+    nu_eff = viscosity.nu + nu_SGS
+
+    # ------------------------------------------------------------------------------
+    # Common Adami formulation: Compute the viscous acceleration.
+    # ------------------------------------------------------------------------------
+    return adami_viscosity_force(h, pos_diff, distance, grad_kernel, m_a, m_b,
+                                 rho_a, rho_b, v_diff, nu_eff; ε=viscosity.epsilon)
+end
+
+# ------------------------------------------------------------------------------
+# A helper to compute the effective kinematic viscosity for diagnostics, if needed.
+# ------------------------------------------------------------------------------
+function kinematic_viscosity(particle_system, viscosity::ViscosityAdamiSGS)
+    # In this diagnostic, we return the baseline (molecular) viscosity.
+    # The effective viscosity may vary locally.
+    (; smoothing_length) = particle_system
+    return viscosity.nu
 end
