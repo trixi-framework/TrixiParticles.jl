@@ -95,7 +95,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
-    n_particles = nparticles(initial_condition) + buffer_size
+    n_particles = nparticles(initial_condition) + (isnothing(buffer_size) ? 0 :
+                  buffer_size)
 
     mass = copy(initial_condition.mass)
     pressure = similar(initial_condition.pressure)
