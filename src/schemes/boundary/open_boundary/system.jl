@@ -265,7 +265,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi, t)
         # Check if boundary particle is outside the boundary zone
         if !is_in_boundary_zone(boundary_zone, particle_coords)
             convert_particle!(system, fluid_system, boundary_zone, particle,
-                              v, u, v_fluid, u_fluid, timer)
+                              v, u, v_fluid, u_fluid, t)
         end
 
         # Check the neighboring fluid particles whether they're entering the boundary zone
