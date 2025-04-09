@@ -121,8 +121,12 @@ end
 
     NDIMS = ndims(system)
 
-    # This is only used to determine the relative contribution from neighboring particles.
-    # A constant pressure field is required for the TVF to work.
+    # The TVF is based on the assumption that the pressure gradient is only accurately
+    # computed when the particle distribution is isotropic.
+    # That means, the force contribution vanishes only if the particle distribution is
+    # isotropic AND the field being differentiated by the kernel gradient is spatially constant.
+    # So we must guarantee a constant field and therefore the reference density is used
+    # instead of the locally computed one.
     # TODO:
     # volume_a = particle_spacing(system, particle)^ndims(system)
     # volume_b = particle_spacing(neighbor_system, neighbor)^ndims(neighbor_system)
