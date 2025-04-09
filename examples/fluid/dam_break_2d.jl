@@ -70,7 +70,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 viscosity_wall = nothing
-# For a no-slip condition the corresponding wall viscosity withouth SGS can be set
+# For a no-slip condition the corresponding wall viscosity without SGS can be set
 #viscosity_wall = ViscosityAdami(nu=nu)
 #viscosity_wall = ViscosityMorris(nu=nu)
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
