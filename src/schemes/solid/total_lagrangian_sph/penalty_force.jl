@@ -26,7 +26,7 @@ end
     volume_particle = m_a / rho_a
     volume_neighbor = m_b / rho_b
 
-    kernel_weight = smoothing_kernel(system, initial_distance)
+    kernel_weight = smoothing_kernel(system, initial_distance, particle)
 
     J_a = deformation_gradient(system, particle)
     J_b = deformation_gradient(system, neighbor)
@@ -35,9 +35,11 @@ end
     eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
-    f = 0.5 * penalty_force.alpha * volume_particle * volume_neighbor *
-        kernel_weight / initial_distance^2 * young_modulus * delta_sum *
-        current_pos_diff / current_distance
+    E = young_modulus_per_particle(young_modulus, particle)
+
+    f = (penalty_force.alpha / 2) * volume_particle * volume_neighbor *
+        kernel_weight / initial_distance^2 * E * delta_sum * current_pos_diff /
+        current_distance
 
     @inbounds for i in 1:ndims(system)
         # Divide force by mass to obtain acceleration
@@ -45,4 +47,12 @@ end
     end
 
     return dv
+end
+
+function young_modulus_per_particle(young_modulus::AbstractVector, particle)
+    return young_modulus[particle]
+end
+
+function young_modulus_per_particle(young_modulus, particle)
+    return young_modulus
 end

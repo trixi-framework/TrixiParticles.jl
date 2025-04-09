@@ -7,6 +7,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     # The contact model is stored within the DEM system.
     cm = particle_system.contact_model
 
+
     # Tangential force parameters (could be made part of a TangentialModel type too)
     friction_coefficient = 0.5       # Coulomb friction coefficient [Cundall and Strack, 1979]
     tangential_stiffness = 1e3       # Tangential spring constant
@@ -17,7 +18,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           neighborhood_search;
+                           semi;
                            points=each_moving_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             pos_diff,
