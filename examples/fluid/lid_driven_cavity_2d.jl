@@ -48,6 +48,7 @@ smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 if wcsph
+    density_calculator = ContinuityDensity()
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                        exponent=1)
     fluid_system = WeaklyCompressibleSPHSystem(cavity.fluid, density_calculator,
