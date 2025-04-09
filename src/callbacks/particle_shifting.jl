@@ -1,5 +1,5 @@
 @doc raw"""
-    UpdateCalParticleShiftingCallbacklback()
+    ParticleShiftingCallback()
 
 Callback to apply the Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017).
 Following the original paper, the callback is applied in every time step and not
