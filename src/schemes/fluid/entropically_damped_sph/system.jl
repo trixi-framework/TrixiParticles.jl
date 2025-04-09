@@ -130,9 +130,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
 
     nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
-    cache = create_cache_density(initial_condition, density_calculator)
-    cache = (;
-             create_cache_edac(initial_condition, transport_velocity)...,
+    cache = (; create_cache_density(initial_condition, density_calculator)...,
+             create_cache_tvf(Val(:edac), initial_condition, transport_velocity)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
@@ -141,8 +140,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      smoothing_length)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
-             color=Int(color_value),
-             cache...)
+             color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -210,9 +208,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
     end
 end
 
-create_cache_edac(initial_condition, ::Nothing) = (;)
+create_cache_tvf(::Val{:edac}, initial_condition, ::Nothing) = (;)
 
-function create_cache_edac(initial_condition, ::TransportVelocityAdami)
+function create_cache_tvf(::Val{:edac}, initial_condition, ::TransportVelocityAdami)
     pressure_average = copy(initial_condition.pressure)
     neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
     update_callback_used = Ref(false)
