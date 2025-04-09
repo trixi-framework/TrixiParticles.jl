@@ -276,19 +276,19 @@ end
 Viscosity model that extends the standard Adami formulation by incorporating a subgrid-scale (SGS)
 eddy viscosity via a Smagorinsky-type closure. The effective kinematic viscosity is defined as
 
-```
+```math
 \nu_{\mathrm{eff}} = \nu_{\\mathrm{std}} + \nu_{\\mathrm{SGS}},
 ```
 
 with
 
-```
+```math
 \nu_{\mathrm{SGS}} = (C_S * h)^2 * |S|,
 ```
 
 and an approximation for the strain rate magnitude given by
 
-```
+```math
 |S| \approx \frac{\|v_a - v_b\|}{\|r_a - r_b\| + \epsilon},
 ```
 
@@ -297,11 +297,11 @@ where:
 - $h$ is the local smoothing length, and
 
 The effective dynamic viscosities are then computed as
-```
+```math
 \eta_{a,\mathrm{eff}} = \rho_a\, \nu_{\mathrm{eff}},
 ```
 and averaged as
-```
+```math
 \bar{\eta}_{ab} = \frac{2 \eta_{a,\mathrm{eff}} \eta_{b,\mathrm{eff}}}{\eta_{a,\mathrm{eff}}+\eta_{b,\mathrm{eff}}}.
 ```
 
