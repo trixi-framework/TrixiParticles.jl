@@ -205,14 +205,14 @@ end
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
-@inline function current_density(v, system::TotalLagrangianSPHSystem, particle)
-    return current_density(v, system.boundary_model, system, particle)
+@inline function current_density(v, system::TotalLagrangianSPHSystem)
+    return current_density(v, system.boundary_model, system)
 end
 
 # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
 # corresponding to the chosen boundary model.
-@inline function current_pressure(v, system::TotalLagrangianSPHSystem, particle)
-    return current_pressure(v, system.boundary_model, system, particle)
+@inline function current_pressure(v, system::TotalLagrangianSPHSystem)
+    return current_pressure(v, system.boundary_model, system)
 end
 
 @inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
