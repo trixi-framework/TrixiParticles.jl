@@ -84,6 +84,8 @@ write_v0!(v0, system::FluidSystem, _) = v0
 @inline viscosity_model(system::FluidSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 @inline viscosity_model(system::FluidSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 
+@inline system_state_equation(system::FluidSystem) = system.state_equation
+
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
     return system
@@ -105,7 +107,8 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     dt_viscosity = 0.125 * smoothing_length_^2
     if !isnothing(system.viscosity)
         dt_viscosity = dt_viscosity /
-                       kinematic_viscosity(system, viscosity, smoothing_length_)
+                       kinematic_viscosity(system, viscosity, smoothing_length_,
+                                           system_sound_speed(system))
     end
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)

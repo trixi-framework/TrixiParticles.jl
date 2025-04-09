@@ -265,10 +265,50 @@
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl" begin
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (WCSPH)" begin
+        @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                       joinpath(examples_dir(), "fluid",
+                                                "pipe_flow_2d.jl"),
+                                       wcsph=true)
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (EDAC)" begin
         @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                        joinpath(examples_dir(), "fluid",
                                                 "pipe_flow_2d.jl"))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (EDAC)" begin
+        @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                       joinpath(examples_dir(), "fluid",
+                                                "pipe_flow_2d.jl"),
+                                       open_boundary_model=BoundaryModelTafuni(),
+                                       boundary_type_in=BidirectionalFlow(),
+                                       boundary_type_out=BidirectionalFlow(),
+                                       reference_density_in=nothing,
+                                       reference_pressure_in=nothing,
+                                       reference_density_out=nothing,
+                                       reference_velocity_out=nothing)
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (WCSPH)" begin
+        @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                       joinpath(examples_dir(), "fluid",
+                                                "pipe_flow_2d.jl"),
+                                       wcsph=true, sound_speed=20.0, pressure=0.0,
+                                       open_boundary_model=BoundaryModelTafuni(),
+                                       boundary_type_in=BidirectionalFlow(),
+                                       boundary_type_out=BidirectionalFlow(),
+                                       reference_density_in=nothing,
+                                       reference_pressure_in=nothing,
+                                       reference_density_out=nothing,
+                                       reference_velocity_out=nothing)
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
@@ -280,7 +320,7 @@
                                        joinpath(examples_dir(), "fluid",
                                                 "pipe_flow_2d.jl"),
                                        extra_callback=steady_state_reached,
-                                       tspan=(0.0, 1.5))
+                                       tspan=(0.0, 1.5), viscosity_boundary=nothing)
 
         # Make sure that the simulation is terminated after a reasonable amount of time
         @test 0.1 < sol.t[end] < 1.0
@@ -295,7 +335,7 @@
                                        joinpath(examples_dir(), "fluid",
                                                 "pipe_flow_2d.jl"),
                                        extra_callback=steady_state_reached,
-                                       tspan=(0.0, 1.5))
+                                       tspan=(0.0, 1.5), viscosity_boundary=nothing)
 
         # Make sure that the simulation is terminated after a reasonable amount of time
         @test 0.1 < sol.t[end] < 1.0

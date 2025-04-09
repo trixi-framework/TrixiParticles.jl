@@ -3,6 +3,11 @@
 TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.2.8
+
+### Features
+- Open boundary model based on Tafuni et al. (2018), utilizing mirroring and extrapolation to transfer fluid quantities to the buffer zones. (#574)
+
 ## Version 0.2.7
 
 ### Features
