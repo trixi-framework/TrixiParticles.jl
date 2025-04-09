@@ -82,16 +82,30 @@ end
 # are stored in u, for others in the system itself. By default, try to extract them from u.
 @inline current_coordinates(u, system) = u
 
-# Specifically get the initial coordinates of a particle for all system types.
+# Specifically get the initial coordinates of a particle for all system types
 @inline function initial_coords(system, particle)
     return extract_svector(initial_coordinates(system), system, particle)
 end
 
-# This can be dispatched by system type.
+# This can be dispatched by system type
 @inline initial_coordinates(system) = system.initial_condition.coordinates
 
-@propagate_inbounds current_velocity(v, system, particle) = extract_svector(v, system,
-                                                                            particle)
+@propagate_inbounds function current_velocity(v, system, particle)
+    return extract_svector(current_velocity(v, system), system, particle)
+end
+
+# This can be dispatched by system type, since for some systems, the current velocity
+# is stored in `v`, for others it might be stored elsewehere.
+# By default, try to extract it from `v`.
+@inline current_velocity(v, system) = v
+
+@inline function current_density(v, system::System, particle)
+    return current_density(v, system)[particle]
+end
+
+@propagate_inbounds function current_pressure(v, system::System, particle)
+    return current_pressure(v, system)[particle]
+end
 
 @inline function current_acceleration(system, particle)
     # TODO: Return `dv` of solid particles
@@ -99,7 +113,6 @@ end
 end
 
 @inline set_particle_density!(v, system, particle, density) = v
-
 @inline set_particle_pressure!(v, system, particle, pressure) = v
 
 @inline function smoothing_kernel(system, distance, particle)

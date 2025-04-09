@@ -2,6 +2,19 @@
     set_particle_density!(v, system, system.density_calculator, particle, density)
 end
 
+# WARNING!
+# These functions are intended to be used internally to set the density
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline set_particle_density!(v, system, ::SummationDensity, particle, density) = v
+
+@inline function set_particle_density!(v, system, ::ContinuityDensity, particle, density)
+    v[end, particle] = density
+
+    return v
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
     density = similar(initial_condition.density)
 
@@ -132,7 +145,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     if surface_tension isa SurfaceTensionMorris ||
        surface_tension isa SurfaceTensionMomentumMorris
         v = wrap_v(v_ode, system, semi)
-        dt_surface_tension = sqrt(particle_density(v, system, 1) * smoothing_length_^3 /
+        dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
                                   (2 * pi * surface_tension.surface_tension_coefficient))
         dt = min(dt, dt_surface_tension)
     end
@@ -154,6 +167,23 @@ end
 
 @inline function surface_normal_method(system)
     return nothing
+end
+
+function system_data(system::FluidSystem, v_ode, u_ode, semi)
+    (; mass, pressure) = system
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    coordinates = current_coordinates(u, system)
+    velocity = current_velocity(v, system)
+    density = current_density(v, system)
+
+    return (; coordinates, velocity, mass, density, pressure)
+end
+
+function available_data(::FluidSystem)
+    return (:coordinates, :velocity, :mass, :density, :pressure)
 end
 
 include("pressure_acceleration.jl")

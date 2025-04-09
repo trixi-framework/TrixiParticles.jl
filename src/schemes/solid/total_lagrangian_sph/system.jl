@@ -205,14 +205,14 @@ end
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
-@inline function particle_density(v, system::TotalLagrangianSPHSystem, particle)
-    return particle_density(v, system.boundary_model, system, particle)
+@inline function current_density(v, system::TotalLagrangianSPHSystem, particle)
+    return current_density(v, system.boundary_model, system, particle)
 end
 
 # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
 # corresponding to the chosen boundary model.
-@inline function particle_pressure(v, system::TotalLagrangianSPHSystem, particle)
-    return particle_pressure(v, system.boundary_model, system, particle)
+@inline function current_pressure(v, system::TotalLagrangianSPHSystem, particle)
+    return current_pressure(v, system.boundary_model, system, particle)
 end
 
 @inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
@@ -452,5 +452,33 @@ end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
-@inline viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system) = neighbor_system.viscosity
-@inline viscosity_model(system::FluidSystem, neighbor_system::TotalLagrangianSPHSystem) = neighbor_system.boundary_model.viscosity
+@inline function viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system)
+    return neighbor_system.viscosity
+end
+
+@inline function viscosity_model(system::FluidSystem,
+                                 neighbor_system::TotalLagrangianSPHSystem)
+    return neighbor_system.boundary_model.viscosity
+end
+
+function system_data(system::TotalLagrangianSPHSystem, v_ode, u_ode, semi)
+    (; mass, material_density, deformation_grad, pk1_corrected, young_modulus,
+    poisson_ratio, lame_lambda, lame_mu) = system
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    coordinates = current_coordinates(u, system)
+    initial_coordinates = initial_coordinates(system)
+    velocity = current_velocity(v, system)
+
+    return (; coordinates, initial_coordinates, velocity, mass, material_density,
+            deformation_grad, pk1_corrected, young_modulus, poisson_ratio, lame_lambda,
+            lame_mu)
+end
+
+function available_data(::TotalLagrangianSPHSystem)
+    return (:coordinates, :initial_coordinates, :velocity, :mass, :material_density,
+            :deformation_grad, :pk1_corrected, :young_modulus, :poisson_ratio,
+            :lame_lambda, :lame_mu)
+end
