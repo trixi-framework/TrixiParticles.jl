@@ -75,9 +75,13 @@ fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_le
                                            transport_velocity=TransportVelocityAdami(background_pressure),
                                            viscosity=ViscosityAdami(; nu))
 if wcsph
+    # Using `SummationDensity()` with `perturb_coordinates = true` introduces noise in the simulation due to perturbed particle positions,
+    # resulting in bad density estimates.
+    # Adami et al. 2013 use the final particle distribution from an relaxation step for the initial condition
+    # and impose the analytical velocity profile.
+    density_calculator = ContinuityDensity()
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                        exponent=1)
-    density_calculator = ContinuityDensity()
     fluid_system = WeaklyCompressibleSPHSystem(fluid, density_calculator,
                                                state_equation, smoothing_kernel,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
