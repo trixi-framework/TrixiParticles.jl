@@ -1,7 +1,17 @@
+@doc raw"""
+    UpdateCalParticleShiftingCallbacklback()
+
+Callback to apply the Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017).
+Following the original paper, the callback is applied in every time step and not
+in every stage of a multi-stage time integration method to reduce the computational
+cost and improve the stability of the scheme.
+
+## References
+[Sun2017](@cite)
+"""
 function ParticleShiftingCallback()
     # The first one is the `condition`, the second the `affect!`
-    return DiscreteCallback(particle_shifting_condition, particle_shifting!,
-                            initialize=initial_shifting!,
+    return DiscreteCallback((particle_shifting_condition), particle_shifting!,
                             save_positions=(false, false))
 end
 
@@ -35,27 +45,24 @@ function particle_shifting!(integrator)
     return integrator
 end
 
-# `initialize`
-function initial_shifting!(cb::DiscreteCallback{<:Any, typeof(particle_shifting!)}, u, t,
-                           integrator)
-    # particle_shifting!(integrator)
-end
-
 function particle_shifting!(u, v, system, v_ode, u_ode, semi, u_cache, dt)
     return u
 end
 
 function particle_shifting!(u, v, system::WeaklyCompressibleSPHSystem, v_ode, u_ode, semi,
                             u_cache, dt)
-    # According to Sun et al. (2017), CFL * Ma can be rewritten as
-    # Δt * v_max / h (see p. 29, right above eq. 9).
-    v_max = maximum(particle -> norm(current_velocity(v, system, particle)),
-                    eachparticle(system))
-    R = 0.2
-    n = 4
-
+    # Wrap the cache vector to an NDIMS x NPARTICLES matrix.
+    # We need this buffer because we cannot safely update `u` while iterating over it.
     delta_r = wrap_u(u_cache, system, semi)
     set_zero!(delta_r)
+
+    v_max = maximum(particle -> norm(current_velocity(v, system, particle)),
+                    eachparticle(system))
+
+    # TODO this needs to be adapted to multi-resolution.
+    # Section 3.2 explains what else needs to be changed.
+    Wdx = smoothing_kernel(system, particle_spacing(system, 1), 1)
+    h = smoothing_length(system, 1)
 
     foreach_system(semi) do neighbor_system
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
@@ -66,24 +73,30 @@ function particle_shifting!(u, v, system::WeaklyCompressibleSPHSystem, v_ode, u_
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi) do particle, neighbor, pos_diff, distance
-            Wdx = smoothing_kernel(system, particle_spacing(system, 1), 1)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             rho_a = particle_density(v, system, particle)
             rho_b = particle_density(v_neighbor, neighbor_system, neighbor)
-            h = smoothing_length(system, particle)
 
             kernel = smoothing_kernel(system, distance, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-            delta_r_ = -dt * v_max * 4 * (h / 2) * (1 + R * (kernel / Wdx)^n) * m_b /
-                       (rho_a + rho_b) *
-                       grad_kernel
 
+            # According to p. 29 below Eq. 9
+            R = 0.2
+            n = 4
+
+            # Eq. 7 in Sun et al. (2017).
+            # CFL * Ma can be rewritten as Δt * v_max / h (see p. 29, right above Eq. 9).
+            delta_r_ = -dt * v_max * 2 * h * (1 + R * (kernel / Wdx)^n) *
+                       m_b / (rho_a + rho_b) * grad_kernel
+
+            # Write into the buffer
             for i in eachindex(delta_r_)
                 @inbounds delta_r[i, particle] += delta_r_[i]
             end
         end
     end
 
+    # Add δ_r from the buffer to the current coordinates
     @threaded semi for particle in eachparticle(system)
         for i in 1:ndims(system)
             @inbounds u[i, particle] += delta_r[i, particle]
@@ -93,45 +106,18 @@ function particle_shifting!(u, v, system::WeaklyCompressibleSPHSystem, v_ode, u_
     return u
 end
 
-# function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:ParticleShiftingCallback})
-#     @nospecialize cb # reduce precompilation time
-#     print(io, "ParticleShiftingCallback(interval=", cb.affect!.interval, ")")
-# end
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, typeof(particle_shifting!)})
+    @nospecialize cb # reduce precompilation time
+    print(io, "ParticleShiftingCallback()")
+end
 
-# function Base.show(io::IO,
-#                    cb::DiscreteCallback{<:Any,
-#                                         <:PeriodicCallbackAffect{<:ParticleShiftingCallback}})
-#     @nospecialize cb # reduce precompilation time
-#     print(io, "ParticleShiftingCallback(dt=", cb.affect!.affect!.interval, ")")
-# end
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any, typeof(particle_shifting!)})
+    @nospecialize cb # reduce precompilation time
 
-# function Base.show(io::IO, ::MIME"text/plain",
-#                    cb::DiscreteCallback{<:Any, <:ParticleShiftingCallback})
-#     @nospecialize cb # reduce precompilation time
-
-#     if get(io, :compact, false)
-#         show(io, cb)
-#     else
-#         update_cb = cb.affect!
-#         setup = [
-#             "interval" => update_cb.interval
-#         ]
-#         summary_box(io, "ParticleShiftingCallback", setup)
-#     end
-# end
-
-# function Base.show(io::IO, ::MIME"text/plain",
-#                    cb::DiscreteCallback{<:Any,
-#                                         <:PeriodicCallbackAffect{<:ParticleShiftingCallback}})
-#     @nospecialize cb # reduce precompilation time
-
-#     if get(io, :compact, false)
-#         show(io, cb)
-#     else
-#         update_cb = cb.affect!.affect!
-#         setup = [
-#             "dt" => update_cb.interval
-#         ]
-#         summary_box(io, "ParticleShiftingCallback", setup)
-#     end
-# end
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        summary_box(io, "ParticleShiftingCallback")
+    end
+end
