@@ -28,6 +28,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 # Keyword Arguments
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
+- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
 - `density_diffusion`:          Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `buffer_size`:                Number of buffer particles.
