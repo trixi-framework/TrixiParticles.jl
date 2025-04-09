@@ -68,8 +68,8 @@ fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.
                          density=fluid_density, pressure=initial_pressure_function,
                          velocity=initial_velocity_function)
 if wcsph
-    # Using `SummationDensity()` with `perturb_coordinates = true` introduces noise in the simulation due to perturbed particle positions,
-    # resulting in bad density estimates.
+    # Using `SummationDensity()` with `perturb_coordinates = true` introduces noise in the simulation
+    # due to bad density estimates resulting from perturbed particle positions.
     # Adami et al. 2013 use the final particle distribution from an relaxation step for the initial condition
     # and impose the analytical velocity profile.
     density_calculator = ContinuityDensity()
