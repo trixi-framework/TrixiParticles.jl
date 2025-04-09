@@ -14,7 +14,7 @@ W = 2 * H
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = H / 40
+fluid_particle_spacing = H / 60
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 4
@@ -50,7 +50,9 @@ fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 # nu = 0.02 * smoothing_length * sound_speed/8
 # viscosity = ViscosityMorris(nu=nu)
+# viscosity = ViscosityMorrisSGS(nu=nu)
 # viscosity = ViscosityAdami(nu=nu)
+# viscosity = ViscosityAdamiSGS(nu=nu)
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
 # density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
@@ -67,12 +69,17 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
+viscosity_wall = nothing
+# For a no-slip condition the corresponding wall viscosity withouth SGS can be set
+#viscosity_wall = ViscosityAdami(nu=nu)
+#viscosity_wall = ViscosityMorris(nu=nu)
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing,
-                                             reference_particle_spacing=0)
+                                             reference_particle_spacing=0,
+                                             viscosity=viscosity_wall)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 

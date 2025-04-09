@@ -354,7 +354,7 @@ ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityAdamiSGS(nu, C_S, eps
     # ------------------------------------------------------------------------------
     # Estimate the strain rate magnitude |S| (rough approximation)
     S_mag = norm(v_diff) / (distance + epsilon)
-    nu_SGS = (C_S * smoothing_length_average)^2 * S_mag
+    nu_SGS = (viscosity.C_S * smoothing_length_average)^2 * S_mag
 
     # Effective kinematic viscosity is the sum of the standard and SGS parts.
     nu_a = nu_a + nu_SGS
@@ -437,7 +437,7 @@ ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, e
     # ------------------------------------------------------------------------------
     # Estimate the strain rate magnitude |S| (rough approximation)
     S_mag = norm(v_diff) / (distance + epsilon)
-    nu_SGS = (C_S * smoothing_length_average)^2 * S_mag
+    nu_SGS = (viscosity.C_S * smoothing_length_average)^2 * S_mag
 
     # Effective viscosities include the SGS term.
     nu_a_eff = nu_a + nu_SGS
