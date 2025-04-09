@@ -101,28 +101,31 @@ end
     return volume_term * ((A_a + A_b) / 2) * grad_kernel
 end
 
-@inline transport_velocity!(dv, system, rho_a, rho_b, m_a, m_b, grad_kernel, particle) = dv
+@inline transport_velocity!(dv, system, particle, neighbor, m_a, m_b, grad_kernel) = dv
 
-@inline function transport_velocity!(dv, system::FluidSystem,
-                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
-    transport_velocity!(dv, system, system.transport_velocity, rho_a, rho_b, m_a, m_b,
-                        grad_kernel, particle)
+@inline function transport_velocity!(dv, system::FluidSystem, particle, neighbor, m_a, m_b,
+                                     grad_kernel)
+    transport_velocity!(dv, system, system.transport_velocity, particle, neighbor, m_a, m_b,
+                        grad_kernel)
 end
 
-@inline function transport_velocity!(dv, system, ::Nothing,
-                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
+@inline function transport_velocity!(dv, system, ::Nothing, particle, neighbor, m_a, m_b,
+                                     grad_kernel)
     return dv
 end
 
 @inline function transport_velocity!(dv, system, ::TransportVelocityAdami,
-                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
+                                     particle, neighbor, m_a, m_b, grad_kernel)
     (; transport_velocity) = system
     (; background_pressure) = transport_velocity
 
     NDIMS = ndims(system)
 
-    volume_a = m_a / rho_a
-    volume_b = m_b / rho_b
+    # This is only used to determine the relative contribution from neighboring particles.
+    # A constant pressure field is required for the TVF to work.
+    volume_a = m_a / system.initial_condition.density[particle]
+    volume_b = m_b / system.initial_condition.density[neighbor]
+
     volume_term = (volume_a^2 + volume_b^2) / m_a
 
     for dim in 1:NDIMS

@@ -92,8 +92,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         end
 
         # Apply the transport velocity (only when using a transport velocity)
-        transport_velocity!(dv, particle_system, rho_a, rho_b, m_a, m_b,
-                            grad_kernel, particle)
+        transport_velocity!(dv, particle_system, particle, neighbor, m_a, m_b, grad_kernel)
 
         # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
