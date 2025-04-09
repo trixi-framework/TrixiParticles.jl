@@ -365,32 +365,6 @@ end
     return fluid_system
 end
 
-# Fluid particle enters from the simulation domain into an outflow boundary we enforce a velocity in direction of the outlet.
-@inline function convert_particle!(fluid_system::FluidSystem, system,
-                                   boundary_zone::BoundaryZone{OutFlow}, particle,
-                                   v, u, v_fluid, u_fluid, t)
-    v_current = current_velocity(v_fluid, fluid_system, particle)
-    outlet_normal = boundary_zone.plane_normal
-
-    # Check if the velocity has a component opposing the outlet direction:
-    if dot(v_current, outlet_normal) < 0
-        # Keep the same speed, but force the velocity to align with outlet_normal.
-        new_speed = norm(v_current)
-        new_velocity = new_speed * outlet_normal
-        @inbounds for dim in 1:ndims(system)
-            v_fluid[dim, particle] = 0.1 * new_velocity[dim]
-        end
-    end
-
-    # Activate particle in boundary zone
-    transfer_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
-
-    # Deactivate particle in interior domain
-    deactivate_particle!(fluid_system, particle, u_fluid)
-
-    return fluid_system
-end
-
 @inline function transfer_particle!(system_new, system_old, particle_old,
                                     v_new, u_new, v_old, u_old)
     particle_new = activate_next_particle(system_new)
