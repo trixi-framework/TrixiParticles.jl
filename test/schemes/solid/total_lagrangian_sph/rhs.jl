@@ -7,21 +7,21 @@
             [2.0 0.0; 0.0 3.0],
             [0.230015 0.0526099; 0.348683 0.911251],
             [0.364281 0.763916; 0.433868 0.9755],
-            [0.503965 0.125224; 0.739591 0.0323651],
+            [0.503965 0.125224; 0.739591 0.0323651]
         ]
         pk1_neighbor_corrected = [
             zeros(2, 2),
             [0.794769 0.113958; 0.1353 0.741521],
             [0.97936 0.302584; 0.333461 0.642575],
-            [0.503965 0.125224; 0.739591 0.0323651],
+            [0.503965 0.125224; 0.739591 0.0323651]
         ]
         # Create initial coordinates so that
         # initial_pos_diff is [[0.1, 0.0], [0.5, 0.3], [1.0, 0.37], [0.0, 0.0]]
         initial_coordinates_particle = [
-            [1.1, 2.0], [-1.5, 5.0], [-1.5, -6.43], [120.0, 32.2],
+            [1.1, 2.0], [-1.5, 5.0], [-1.5, -6.43], [120.0, 32.2]
         ]
         initial_coordinates_neighbor = [
-            [1.0, 2.0], [-2.0, 4.7], [-2.5, -6.8], [120.0, 32.2],
+            [1.0, 2.0], [-2.0, 4.7], [-2.5, -6.8], [120.0, 32.2]
         ]
         particle = [1, 3, 10, 7]
         neighbor = [10, 4, 9, 7]
@@ -29,7 +29,7 @@
             [2.0, 0.0],
             [0.07118137645953881, 0.11640973221047637],
             [0.01870315713691948, 0.014067976038520915],
-            [0.0, 0.0],
+            [0.0, 0.0]
         ]
 
         @testset verbose=true "Test $i" for i in 1:4
@@ -53,27 +53,16 @@
             kernel_deriv = 1.0
 
             #### Mocking
-            # Mock a CPU system to test CPU code
-            struct MockSystemInteractCPU <: TrixiParticles.System{2, String} end
-            system = MockSystemInteractCPU()
+            struct MockSystem <: TrixiParticles.System{2} end
+            system = MockSystem()
 
-            # Mock a GPU system to emulate GPU code on the CPU
-            struct MockSystemInteractGPU <: TrixiParticles.System{2, Nothing} end
-            system_gpu = MockSystemInteractGPU()
-
-            function TrixiParticles.KernelAbstractions.get_backend(::MockSystemInteractGPU)
-                return TrixiParticles.KernelAbstractions.CPU()
-            end
-
-            MockSystemType = Union{MockSystemInteractCPU, MockSystemInteractGPU}
-
-            function TrixiParticles.initial_coordinates(::MockSystemType)
+            function TrixiParticles.initial_coordinates(::MockSystem)
                 return initial_coordinates
             end
 
             # Unpack calls should return predefined values or
             # another mock object of the type Val{:mock_property_name}.
-            function Base.getproperty(::MockSystemType, f::Symbol)
+            function Base.getproperty(::MockSystem, f::Symbol)
                 if f === :current_coordinates
                     return current_coordinates
                 elseif f === :material_density
@@ -84,19 +73,25 @@
                     return mass
                 elseif f === :penalty_force
                     return nothing
+                elseif f === :buffer
+                    return nothing
                 end
 
                 # For all other properties, return mock objects
                 return Val(Symbol("mock_" * string(f)))
             end
 
-            function TrixiParticles.each_moving_particle(::MockSystemType)
-                each_moving_particle
+            TrixiParticles.eachparticle(::MockSystem) = eachparticle
+            TrixiParticles.each_moving_particle(::MockSystem) = each_moving_particle
+
+            function TrixiParticles.add_acceleration!(_, _, ::MockSystem)
+                return nothing
             end
-            TrixiParticles.eachparticle(::MockSystemType) = eachparticle
+            TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
+            Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
 
             # Mock the neighborhood search
-            nhs = Val{:nhs}()
+            nhs = Val(:nhs)
             TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = eachneighbor
             TrixiParticles.PointNeighbors.search_radius(::Val{:nhs}) = 100.0
 
@@ -110,22 +105,38 @@
             end
             TrixiParticles.ndims(::Val{:nhs}) = 2
 
-            function TrixiParticles.add_acceleration!(_, _, ::MockSystemType)
-                nothing
+            function TrixiParticles.get_neighborhood_search(system, neighbor_system,
+                                                            semi::Val{:semi_solid_interact})
+                return nhs
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
+            Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
+            function TrixiParticles.smoothing_length(::MockSystem, _)
+                Val{:mock_smoothing_length}()
+            end
 
             #### Verification
-            systems = [system, system_gpu]
+            backends = [
+                false, # CPU code
+                TrixiParticles.KernelAbstractions.CPU() # Emulate GPU code
+            ]
             names = ["CPU code", "Emulate GPU"]
             @testset "$(names[j])" for j in eachindex(names)
-                system_ = systems[j]
-
-                dv = zeros(ndims(system_), 10)
+                dv = zeros(ndims(system), 10)
                 dv_expected = copy(dv)
                 dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-                TrixiParticles.interact_solid_solid!(dv, nhs, system_, system_)
+                function Base.getproperty(::Val{:semi_solid_interact}, f::Symbol)
+                    if f === :parallelization_backend
+                        return backends[j]
+                    end
+
+                    # For all other properties, return mock objects
+                    return Val(Symbol("mock_" * string(f)))
+                end
+
+                TrixiParticles.interact_solid_solid!(dv, system, system,
+                                                     Val(:semi_solid_interact))
 
                 @test dv ≈ dv_expected
             end
@@ -147,7 +158,7 @@
             "stretch both" => [0.0, 0.0],
             "rotate and stretch" => [0.0, 0.0],
             "nonlinear stretching" => [
-                10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0,
+                10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0
             ])
 
         @testset verbose=true "Deformation Function: $deformation" for deformation in keys(deformations)
@@ -183,25 +194,13 @@
             initial_condition = InitialCondition(; coordinates, mass, density)
             system = TotalLagrangianSPHSystem(initial_condition,
                                               smoothing_kernel, smoothing_length, E, nu)
-
-            semi = Semidiscretization(system)
             tspan = (0.0, 1.0)
 
-            # To make the code below work
-            function TrixiParticles.PtrArray{Float64}(::UndefInitializer, length)
-                TrixiParticles.PtrArray(zeros(length))
-            end
-
-            # We can pass the data type `Array` to convert all systems to `GPUSystem`s
-            # and emulate the GPU kernels on the GPU.
-            # But this doesn't test `wrap_v` and `wrap_u` for non-`Array` types.
-            # In order to test this as well, we need a different data type, so we also
-            # pass `PtrArray`.
-            names = ["CPU code", "GPU code with CPU wrapping", "GPU code with GPU wrapping"]
-            data_types = [nothing, Array, TrixiParticles.PtrArray]
+            names = ["CPU code", "GPU code emulated on the CPU"]
+            backends = [false, TrixiParticles.KernelAbstractions.CPU()]
             @testset "$(names[i])" for i in eachindex(names)
-                data_type = data_types[i]
-                ode = semidiscretize(semi, tspan, data_type=data_type)
+                semi = Semidiscretization(system, parallelization_backend=backends[i])
+                ode = semidiscretize(semi, tspan)
 
                 # Apply the deformation matrix
                 for particle in axes(u, 2)
@@ -210,11 +209,7 @@
                 end
 
                 v_ode = ode.u0.x[1]
-                if isnothing(data_type)
-                    u_ode = vec(u)
-                else
-                    u_ode = data_type(vec(u))
-                end
+                u_ode = vec(u)
 
                 @test typeof(v_ode) == typeof(u_ode)
                 @test length(v_ode) == length(u_ode)

@@ -1,6 +1,6 @@
 # Channel ﬂow through periodic array of cylinders
 #
-# S. Adami et al
+# S. Adami et al.
 # "A transport-velocity formulation for smoothed particle hydrodynamics".
 # In: Journal of Computational Physics, Volume 241 (2013), pages 292-307.
 # https://doi.org/10.1016/j.jcp.2013.01.043
@@ -19,13 +19,12 @@ boundary_layers = 3
 # ==== Experiment Setup
 tspan = (0.0, 5.0)
 
-const acceleration_x = 2.5e-4
+acceleration_x = 2.5e-4
 
 # Boundary geometry and initial fluid particle positions
 cylinder_radius = 0.02
-tank_size = (6cylinder_radius, 4cylinder_radius)
+tank_size = (6 * cylinder_radius, 4 * cylinder_radius)
 fluid_size = tank_size
-initial_velocity = (1.2e-4, 0.0)
 
 fluid_density = 1000.0
 nu = 0.1 / fluid_density # viscosity parameter

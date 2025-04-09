@@ -1,22 +1,11 @@
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
-# By default, loop over `each_moving_particle(system)`.
+# By default, loop over `eachparticle(system)`.
 function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
-                                               system_coords, neighbor_coords,
-                                               neighborhood_search;
-                                               points=each_moving_particle(system),
-                                               parallel=true)
+                                               system_coords, neighbor_coords, semi;
+                                               points=eachparticle(system),
+                                               parallelization_backend=semi.parallelization_backend)
+    neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
-                           points, parallel)
-end
-
-function PointNeighbors.foreach_point_neighbor(f, system::GPUSystem, neighbor_system,
-                                               system_coords, neighbor_coords,
-                                               neighborhood_search;
-                                               points=each_moving_particle(system),
-                                               parallel=true)
-    # For `GPUSystem`s, explicitly pass the backend, so a `GPUSystem` with a CPU
-    # backend will actually launch the KernelAbstractions.jl kernels on the CPU.
-    foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
-                           points, parallel=KernelAbstractions.get_backend(system_coords))
+                           points, parallel=parallelization_backend)
 end

@@ -4,6 +4,9 @@
 # "Study of a complex fluid-structure dam-breaking benchmark problem using a multi-phase SPH method with APR".
 # In: Engineering Analysis with Boundary Elements 104 (2019), pages 240-258.
 # https://doi.org/10.1016/j.enganabound.2019.03.033
+#
+# Use a higher resolution and see the comments below regarding plate thickness
+# to reproduce the results from the paper.
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -14,7 +17,7 @@ using OrdinaryDiffEq
 # since "larger" particles don't fit through the slightly opened gate. Lower fluid
 # resolutions thereforce cause a later and more violent fluid impact against the gate.
 fluid_particle_spacing = 0.02
-n_particles_x = 5
+n_particles_x = 4
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -54,13 +57,15 @@ is_moving(t) = t < 0.1
 
 gate_movement = BoundaryMovement(movement_function, is_moving)
 
-# Elastic plate/beam
+# Elastic plate/beam.
+# The paper is using a thickness of 0.004, which only works properly when a similar fluid
+# resolution is used. Increase resolution and change to 0.004 to reproduce the results.
 length_beam = 0.09
-thickness = 0.004
+thickness = 0.004 * 10
 solid_density = 1161.54
 
 # Young's modulus and Poisson ratio
-E = 3.5e6
+E = 3.5e6 / 10
 nu = 0.45
 
 # The structure starts at the position of the first particle and ends
@@ -123,24 +128,11 @@ solid_smoothing_kernel = WendlandC2Kernel{2}()
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
-k_solid = gravity * initial_fluid_size[2]
-beta_solid = fluid_particle_spacing / solid_particle_spacing
-boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
-                                                   solid_particle_spacing,
-                                                   hydrodynamic_masses)
-
-# `BoundaryModelDummyParticles` usually produces better results, since Monaghan-Kajtar BCs
-# tend to introduce a non-physical gap between fluid and boundary.
-# However, `BoundaryModelDummyParticles` can only be used when the plate thickness is
-# at least two fluid particle spacings, so that the compact support is fully sampled,
-# or fluid particles can penetrate the solid.
-# For higher fluid resolutions, uncomment the code below for better results.
-#
-# boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-#                                                    hydrodynamic_masses,
-#                                                    state_equation=state_equation,
-#                                                    AdamiPressureExtrapolation(),
-#                                                    smoothing_kernel, smoothing_length)
+boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+                                                   hydrodynamic_masses,
+                                                   state_equation=state_equation,
+                                                   AdamiPressureExtrapolation(),
+                                                   smoothing_kernel, smoothing_length)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
@@ -151,7 +143,8 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system_tank,
-                          boundary_system_gate, solid_system)
+                          boundary_system_gate, solid_system,
+                          parallelization_backend=true)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)

@@ -6,7 +6,7 @@
              1.0 2.0],
             [1.0 2.0
              1.0 2.0
-             1.0 2.0],
+             1.0 2.0]
         ]
 
         @testset "$(i+1)D" for i in 1:2
@@ -31,7 +31,7 @@
             @test system.initial_condition == initial_condition
             @test system.mass == mass
             @test system.smoothing_kernel == smoothing_kernel
-            @test system.smoothing_length == smoothing_length
+            @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
@@ -60,14 +60,14 @@
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
             RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
                             1020.0).fluid,
-            SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0),
+            SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0)
         ]
         setup_names = [
             "RectangularShape 2D",
             "RectangularShape 3D",
             "RectangularTank 2D",
             "RectangularTank 3D",
-            "SphereShape 2D",
+            "SphereShape 2D"
         ]
         NDIMS_ = [2, 3, 2, 3, 2]
 
@@ -86,7 +86,7 @@
             @test system.initial_condition == setup
             @test system.mass == setup.mass
             @test system.smoothing_kernel == smoothing_kernel
-            @test system.smoothing_length == smoothing_length
+            @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
@@ -128,7 +128,7 @@
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
 
-        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, Val{:smoothing_kernel}(), [0.0, 0.0]) with 2 particles"
+        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, nothing, Val{:smoothing_kernel}(), [0.0, 0.0], nothing, nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -136,11 +136,14 @@
         │ ══════════════════════════════                                                                   │
         │ #particles: ………………………………………………… 2                                                                │
         │ density calculator: …………………………… SummationDensity                                                 │
+        │ correction method: ……………………………… Nothing                                                          │
         │ viscosity: …………………………………………………… Nothing                                                          │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ tansport velocity formulation:  Nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
+        │ surface tension: …………………………………… nothing                                                          │
+        │ surface normal method: …………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end
@@ -217,6 +220,8 @@
                                              smoothing_length, 0.0)
         semi = Semidiscretization(system)
 
+        TrixiParticles.initialize_neighborhood_searches!(semi)
+
         u_ode = vec(fluid.coordinates)
         v_ode = vec(vcat(fluid.velocity, fluid.velocity, fluid.pressure'))
 
@@ -225,7 +230,7 @@
 
         @test all(i -> system.cache.neighbor_counter[i] == nparticles(system),
                   nparticles(system))
-        @test all(i -> system.cache.pressure_average[i] ≈ -50.968532955185964,
+        @test all(i -> isapprox(system.cache.pressure_average[i], -50.968532955185964),
                   nparticles(system))
     end
 end

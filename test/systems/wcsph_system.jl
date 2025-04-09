@@ -6,11 +6,11 @@
              1.0 2.0],
             [1.0 2.0
              1.0 2.0
-             1.0 2.0],
+             1.0 2.0]
         ]
         density_calculators = [
             SummationDensity(),
-            ContinuityDensity(),
+            ContinuityDensity()
         ]
 
         @testset "$(i+1)D" for i in 1:2
@@ -39,7 +39,7 @@
                 @test system.density_calculator == density_calculator
                 @test system.state_equation == state_equation
                 @test system.smoothing_kernel == smoothing_kernel
-                @test system.smoothing_length == smoothing_length
+                @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
                 @test system.viscosity === nothing
                 @test system.acceleration == [0.0 for _ in 1:NDIMS]
 
@@ -76,7 +76,7 @@
             SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0),
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0)
         ]
         setup_names = [
             "RectangularShape 2D",
@@ -86,12 +86,12 @@
             "SphereShape 2D",
             "RectangularShape 2D with ShepardKernelCorrection",
             "RectangularShape 2D with AkinciFreeSurfaceCorrection",
-            "RectangularShape 2D with KernelCorrection",
+            "RectangularShape 2D with KernelCorrection"
         ]
         NDIMS_ = [2, 3, 2, 3, 2, 2, 2, 2]
         density_calculators = [
             SummationDensity(),
-            ContinuityDensity(),
+            ContinuityDensity()
         ]
         correction = [
             Nothing(),
@@ -101,7 +101,7 @@
             Nothing(),
             ShepardKernelCorrection(),
             AkinciFreeSurfaceCorrection(1000.0),
-            KernelCorrection(),
+            KernelCorrection()
         ]
 
         @testset "$(setup_names[i])" for i in eachindex(setups)
@@ -136,7 +136,7 @@
                 @test system.density_calculator == density_calculator
                 @test system.state_equation == state_equation
                 @test system.smoothing_kernel == smoothing_kernel
-                @test system.smoothing_length == smoothing_length
+                @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
                 @test system.viscosity === nothing
                 @test system.acceleration == [0.0 for _ in 1:NDIMS]
                 @test length(system.mass) == size(setup.coordinates, 2)
@@ -193,7 +193,7 @@
                                              smoothing_length,
                                              density_diffusion=density_diffusion)
 
-        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, [0.0, 0.0], nothing) with 2 particles"
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, nothing, [0.0, 0.0], nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -205,8 +205,10 @@
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… nothing                                                          │
+        │ tansport velocity formulation:  Nothing                                                          │
         │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ surface tension: …………………………………… nothing                                                          │
+        │ surface normal method: …………………… nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ source terms: …………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""

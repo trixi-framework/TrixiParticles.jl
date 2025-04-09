@@ -90,7 +90,7 @@
                 "Fluid-Fluid" => second_fluid_system,
                 "Fluid-BoundaryDummyPressureZeroing" => boundary_system_zeroing,
                 "Fluid-BoundaryDummyContinuityDensity" => boundary_system_continuity,
-                "Fluid-TLSPH" => solid_system,
+                "Fluid-TLSPH" => solid_system
             )
 
             if density_calculator isa SummationDensity
@@ -105,7 +105,7 @@
                 "Fluid-BoundaryDummyContinuityDensity" => (v_boundary_continuity,
                                                            u_boundary),
                 "Fluid-BoundaryDummySummationDensity" => (v_boundary, u_boundary),
-                "Fluid-TLSPH" => (v_solid, u_solid),
+                "Fluid-TLSPH" => (v_solid, u_solid)
             )
 
             return systems, vu
@@ -170,38 +170,34 @@
                                              state_equation,
                                              smoothing_kernel, smoothing_length)
 
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                                  eachpoint=TrixiParticles.eachparticle(fluid_system))
-
                 @testset "$key" for key in keys(systems)
                     neighbor_system = systems[key]
                     v_neighbor, u_neighbor = vu[key]
 
-                    nhs2 = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                                       eachpoint=TrixiParticles.eachparticle(neighbor_system))
+                    semi = DummySemidiscretization()
 
                     # Compute interactions
                     dv = zero(v)
 
                     # Fluid-fluid interact
-                    TrixiParticles.interact!(dv, v, u, v, u, nhs,
-                                             fluid_system, fluid_system)
+                    TrixiParticles.interact!(dv, v, u, v, u,
+                                             fluid_system, fluid_system, semi)
 
                     # Fluid-neighbor interact
-                    TrixiParticles.interact!(dv, v, u, v_neighbor, u_neighbor, nhs2,
-                                             fluid_system, neighbor_system)
+                    TrixiParticles.interact!(dv, v, u, v_neighbor, u_neighbor,
+                                             fluid_system, neighbor_system, semi)
 
                     # Neighbor-fluid interact
                     dv_neighbor = zero(v_neighbor)
                     TrixiParticles.interact!(dv_neighbor, v_neighbor, u_neighbor, v, u,
-                                             nhs, neighbor_system, fluid_system)
+                                             neighbor_system, fluid_system, semi)
 
                     if neighbor_system isa WeaklyCompressibleSPHSystem
                         # If both are fluids, neighbor-neighbor interaction is necessary
                         # for energy preservation.
                         TrixiParticles.interact!(dv_neighbor, v_neighbor, u_neighbor,
                                                  v_neighbor, u_neighbor,
-                                                 nhs2, neighbor_system, neighbor_system)
+                                                 neighbor_system, neighbor_system, semi)
                     end
 
                     # Quantities needed to test energy conservation
@@ -254,7 +250,8 @@
 
                         grad_kernel = TrixiParticles.smoothing_kernel_grad(fluid_system,
                                                                            pos_diff,
-                                                                           distance)
+                                                                           distance,
+                                                                           particle)
 
                         return m_b * dot(v_diff, grad_kernel)
                     end

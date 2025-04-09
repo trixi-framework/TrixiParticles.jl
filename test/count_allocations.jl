@@ -5,6 +5,8 @@ struct NoUpdateNeighborhoodSearch{NHS}
     nhs::NHS
 end
 
+@inline Base.ndims(nhs::NoUpdateNeighborhoodSearch) = ndims(nhs.nhs)
+
 # Copy a `Semidiscretization`, but wrap the neighborhood searches with
 # `NoUpdateNeighborhoodSearch`.
 function copy_semi_with_no_update_nhs(semi)
@@ -13,12 +15,11 @@ function copy_semi_with_no_update_nhs(semi)
                                   for searches in semi.neighborhood_searches)
 
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
-                              neighborhood_searches)
+                              neighborhood_searches, true)
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search
-@inline function PointNeighbors.foreach_neighbor(f, system_coords,
-                                                 neighbor_coords,
+@inline function PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
                                                  neighborhood_search::NoUpdateNeighborhoodSearch,
                                                  particle;
                                                  search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
@@ -29,7 +30,8 @@ end
 
 # No update
 @inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
-                                        points_moving=(true, true))
+                                        points_moving=(true, true),
+                                        parallelization_backend=false)
     return search
 end
 

@@ -2,7 +2,7 @@
 
 A Total Lagrangian framework is used wherein the governing equations are formulated such that
 all relevant quantities and operators are measured with respect to the
-initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
+initial configuration ([O’Connor & Rogers, 2021](@cite O’Connor2021), [Belytschko et al., 2000](@cite Belytschko2000)).
 
 The governing equations with respect to the initial configuration are given by:
 ```math
@@ -11,7 +11,7 @@ The governing equations with respect to the initial configuration are given by:
 where the zero subscript denotes a derivative with respect to the initial configuration
 and $\bm{P}$ is the first Piola-Kirchhoff (PK1) stress tensor.
 
-The discretized version of this equation is given by O’Connor & Rogers (2021):
+The discretized version of this equation is given by [O’Connor & Rogers (2021)](@cite O’Connor2021):
 ```math
 \frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t} = \sum_b m_{0b}
     \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
@@ -62,17 +62,6 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "system.jl")]
 ```
 
-### References
-- Joseph O’Connor, Benedict D. Rogers.
-  "A fluid-structure interaction model for free-surface flows and flexible structures using
-  smoothed particle hydrodynamics on a GPU".
-  In: Journal of Fluids and Structures 104 (2021).
-  [doi: 10.1016/J.JFLUIDSTRUCTS.2021.103312](https://doi.org/10.1016/J.JFLUIDSTRUCTS.2021.103312)
-- Ted Belytschko, Yong Guo, Wing Kam Liu, Shao Ping Xiao.
-  "A unified stability analysis of meshless particle methods".
-  In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
-  [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
-
 ## Penalty Force
 
 In FEM, underintegrated elements can deform without an associated increase of energy.
@@ -84,7 +73,7 @@ Particles can change positions without changing the SPH approximation of the def
 thus, without causing an increase of energy.
 To ensure regular particle positions, we can apply similar correction forces as are used in FEM.
 
-Ganzenmüller (2015) introduced a so-called hourglass correction force or penalty force $f^{PF}$,
+[Ganzenmüller (2015)](@cite Ganzenmueller2015) introduced a so-called hourglass correction force or penalty force $f^{PF}$,
 which is given by
 ```math
 \bm{f}_a^{PF} = \frac{1}{2} \alpha \sum_b \frac{m_{0a} m_{0b} W_{0ab}}{\rho_{0a}\rho_{0b} |\bm{X}_{ab}|^2}
@@ -94,7 +83,7 @@ The subscripts $a$ and $b$ denote quantities of particle $a$ and $b$, respective
 The zero subscript on quantities denotes that the quantity is to be measured in the initial configuration.
 The difference in the initial coordinates is denoted by $\bm{X}_{ab} = \bm{X}_a - \bm{X}_b$,
 the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a - \bm{x}_b$.
-Note that Ganzenmüller (2015) has a flipped sign here because they define $\bm{x}_{ab}$ the other way around.
+Note that [Ganzenmüller (2015)](@cite Ganzenmueller2015) has a flipped sign here because they define $\bm{x}_{ab}$ the other way around.
 
 This correction force is based on the potential energy density of a Hookean material.
 Thus, $E$ is the Young's modulus and $\alpha$ is a dimensionless coefficient that controls
@@ -113,9 +102,3 @@ where the error vector is defined as
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "penalty_force.jl")]
 ```
-
-### References
-- Georg C. Ganzenmüller.
-  "An hourglass control algorithm for Lagrangian Smooth Particle Hydrodynamics".
-  In: Computer Methods in Applied Mechanics and Engineering 286 (2015).
-  [doi: 10.1016/j.cma.2014.12.005](https://doi.org/10.1016/j.cma.2014.12.005)

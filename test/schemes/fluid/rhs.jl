@@ -7,13 +7,13 @@
                 [1000.0, 1000.0],
                 [1000.0, 1000.0],
                 [900.0, 1201.0],
-                [1003.0, 353.4],
+                [1003.0, 353.4]
             ]
             pressures = [
                 [0.0, 0.0],
                 [10_000.0, 10_000.0],
                 [10.0, 10_000.0],
-                [1000.0, -1000.0],
+                [1000.0, -1000.0]
             ]
             grad_kernels = [0.3, 104.0]
             particle = 2
@@ -28,7 +28,7 @@
             pressure_accelerations = [
                 TrixiParticles.inter_particle_averaged_pressure,
                 TrixiParticles.pressure_acceleration_continuity_density,
-                TrixiParticles.pressure_acceleration_summation_density,
+                TrixiParticles.pressure_acceleration_summation_density
             ]
 
             @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
@@ -50,7 +50,7 @@
 
                         @testset verbose=true "$system_name" for system_name in [
                             "WCSPH",
-                            "EDAC",
+                            "EDAC"
                         ]
                             if system_name == "WCSPH"
                                 system = WeaklyCompressibleSPHSystem(fluid,
@@ -68,7 +68,8 @@
                             end
 
                             # Compute accelerations a -> b and b -> a
-                            dv1 = TrixiParticles.pressure_acceleration(system, system, -1,
+                            dv1 = TrixiParticles.pressure_acceleration(system, system,
+                                                                       -1, -1,
                                                                        m_a, m_b, p_a, p_b,
                                                                        rho_a, rho_b,
                                                                        pos_diff,
@@ -76,7 +77,8 @@
                                                                        grad_kernel,
                                                                        nothing)
 
-                            dv2 = TrixiParticles.pressure_acceleration(system, system, -1,
+                            dv2 = TrixiParticles.pressure_acceleration(system, system,
+                                                                       -1, -1,
                                                                        m_b, m_a, p_b, p_a,
                                                                        rho_b, rho_a,
                                                                        -pos_diff,
@@ -151,12 +153,11 @@
                         end
                     end
 
-                    nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                                      eachpoint=TrixiParticles.eachparticle(system))
+                    semi = DummySemidiscretization()
 
                     # Result
                     dv = zero(v)
-                    TrixiParticles.interact!(dv, v, u, v, u, nhs, system, system)
+                    TrixiParticles.interact!(dv, v, u, v, u, system, system, semi)
 
                     # Linear momentum conservation
                     # ∑ m_a dv_a
@@ -209,7 +210,8 @@
                         distance < sqrt(eps()) && return 0.0
 
                         grad_kernel = TrixiParticles.smoothing_kernel_grad(system, pos_diff,
-                                                                           distance)
+                                                                           distance,
+                                                                           particle)
 
                         return m_b * dot(v_diff, grad_kernel)
                     end

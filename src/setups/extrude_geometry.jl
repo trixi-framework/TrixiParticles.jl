@@ -66,7 +66,13 @@ shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, de
 └ New particle spacing is set to 0.09387239731236392.
 ┌ Info: The desired size is not a multiple of the particle spacing 0.1.
 └ New particle spacing is set to 0.09198039027185569.
-InitialCondition{Float64}(0.1, [0.44999999999999996 0.43096988312782164 … -0.23871756048182058 -0.24999999999999994; 0.4 0.4956708580912724 … 0.5001344202803415 0.4000000000000001; 0.05 0.05 … 0.35000000000000003 0.35000000000000003], [0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0], [1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002  …  1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002], [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0  …  1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition{Float64}                                                                        │
+│ ═════════════════════════                                                                        │
+│ #dimensions: ……………………………………………… 3                                                                │
+│ #particles: ………………………………………………… 144                                                              │
+│ particle spacing: ………………………………… 0.1                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 !!! warning "Experimental Implementation"
@@ -118,7 +124,7 @@ function sample_plane(geometry::AbstractMatrix, particle_spacing; tlsph)
         # Extruding a 2D shape results in a 3D shape
 
         # When `tlsph=true`, particles will be placed on the x-y plane
-        coords = vcat(geometry, fill(tlsph ? 0.0 : 0.5particle_spacing, size(geometry, 2))')
+        coords = vcat(geometry, fill(tlsph ? 0 : particle_spacing / 2, size(geometry, 2))')
 
         # TODO: 2D shapes not only in x-y plane but in any user-defined plane
         return coords, particle_spacing
@@ -133,7 +139,7 @@ function sample_plane(shape::InitialCondition, particle_spacing; tlsph)
 
         # When `tlsph=true`, particles will be placed on the x-y plane
         coords = vcat(shape.coordinates,
-                      fill(tlsph ? 0.0 : 0.5particle_spacing, size(shape.coordinates, 2))')
+                      fill(tlsph ? 0 : particle_spacing / 2, size(shape.coordinates, 2))')
 
         # TODO: 2D shapes not only in x-y plane but in any user-defined plane
         return coords, particle_spacing
@@ -177,8 +183,8 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph=nothing)
     edge2 = point3_ - point1_
 
     # Check if the points are collinear
-    if norm(cross(edge1, edge2)) == 0
-        throw(ArgumentError("the points must not be collinear"))
+    if isapprox(norm(cross(edge1, edge2)), 0; atol=eps())
+        throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
     end
 
     # Determine the number of points along each edge
@@ -223,8 +229,8 @@ function shift_plane_corners(plane_points::NTuple{2}, direction, particle_spacin
     plane_point2 = copy(plane_points[2])
 
     # Vectors shifting the points in the corresponding direction
-    dir1 = 0.5 * particle_spacing * direction
-    dir2 = 0.5 * particle_spacing * normalize(plane_point2 - plane_point1)
+    dir1 = particle_spacing * direction / 2
+    dir2 = particle_spacing * normalize(plane_point2 - plane_point1) / 2
 
     plane_point1 .+= dir1 + dir2
     plane_point2 .+= dir1 - dir2
@@ -245,9 +251,9 @@ function shift_plane_corners(plane_points::NTuple{3}, direction, particle_spacin
     edge2 = normalize(plane_point3 - plane_point1)
 
     # Vectors shifting the points in the corresponding direction
-    dir1 = 0.5 * particle_spacing * direction
-    dir2 = 0.5 * particle_spacing * edge1
-    dir3 = 0.5 * particle_spacing * edge2
+    dir1 = particle_spacing * direction / 2
+    dir2 = particle_spacing * edge1 / 2
+    dir3 = particle_spacing * edge2 / 2
 
     plane_point1 .+= dir1 + dir2 + dir3
     plane_point2 .+= dir1 - dir2 + dir3

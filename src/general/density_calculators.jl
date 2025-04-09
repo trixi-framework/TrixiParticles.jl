@@ -23,15 +23,15 @@ difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of parti
 """
 struct ContinuityDensity end
 
-@inline function particle_density(v, system, particle)
+@propagate_inbounds function particle_density(v, system, particle)
     particle_density(v, system.density_calculator, system, particle)
 end
 
-@inline function particle_density(v, ::SummationDensity, system, particle)
+@propagate_inbounds function particle_density(v, ::SummationDensity, system, particle)
     return system.cache.density[particle]
 end
 
-@inline function particle_density(v, ::ContinuityDensity, system, particle)
+@propagate_inbounds function particle_density(v, ::ContinuityDensity, system, particle)
     return v[end, particle]
 end
 
@@ -59,14 +59,12 @@ function summation_density!(system, semi, u, u_ode, density;
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        nhs = get_neighborhood_search(system, neighbor_system, semi)
-
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, nhs,
-                               points=particles) do particle, neighbor,
-                                                    pos_diff, distance
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               semi,
+                               points=particles) do particle, neighbor, pos_diff, distance
             mass = hydrodynamic_mass(neighbor_system, neighbor)
-            density[particle] += mass * smoothing_kernel(system, distance)
+            density[particle] += mass * smoothing_kernel(system, distance, particle)
         end
     end
 end

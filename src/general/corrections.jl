@@ -2,7 +2,7 @@
 @doc raw"""
     AkinciFreeSurfaceCorrection(rho0)
 
-Free surface correction according to Akinci et al. (2013).
+Free surface correction according to [Akinci et al. (2013)](@cite Akinci2013).
 At a free surface, the mean density is typically lower than the reference density,
 resulting in reduced surface tension and viscosity forces.
 The free surface correction adjusts the viscosity, pressure, and surface tension forces
@@ -22,12 +22,6 @@ the pressure and viscosity accordingly.
 
 # Arguments
 - `rho0`: Rest density.
-
-## References
-- Akinci, N., Akinci, G., & Teschner, M. (2013).
-  "Versatile Surface Tension and Adhesion for SPH Fluids".
-  ACM Transactions on Graphics (TOG), 32(6), 182.
-  [doi: 10.1145/2508363.2508405](https://doi.org/10.1145/2508363.2508395)
 """
 struct AkinciFreeSurfaceCorrection{ELTYPE}
     rho0::ELTYPE
@@ -46,18 +40,18 @@ end
     k = correction.rho0 / rho_mean
 
     # Viscosity, pressure, surface_tension
-    return k, 1.0, k
+    return k, 1, k
 end
 
 @inline function free_surface_correction(correction, particle_system, rho_mean)
-    return 1.0, 1.0, 1.0
+    return 1, 1, 1
 end
 
 @doc raw"""
     ShepardKernelCorrection()
 
-Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
-was first proposed by Li et al.
+Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
+to obtain a 0-th order accurate result, which was first proposed by [Li et al. (1996)](@cite Li1996).
 
 The kernel correction coefficient is determined by
 ```math
@@ -71,30 +65,15 @@ to an improvement, especially at free surfaces.
 !!! note
     - It is also referred to as "0th order correction".
     - In 2D, we can expect an increase of about 5--6% in computation time.
-
-
-## References
-- J. Bonet, T.-S.L. Lok.
-  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
-  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
-- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
-  "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
-  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
--  Shaofan Li, Wing Kam Liu.
-  "Moving least-square reproducing kernel method Part II: Fourier analysis".
-  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159--193.
-  [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
 """
 struct ShepardKernelCorrection end
 
 @doc raw"""
     KernelCorrection()
 
-Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
-was first proposed by Li et al. This can be further extended to obtain a kernel corrected gradient
-as shown by Basa et al.
+Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
+to obtain a 0-th order accurate result, which was first proposed by Li et al.
+This can be further extended to obtain a kernel corrected gradient as shown by [Basa et al. (2008)](@cite Basa2008).
 
 The kernel correction coefficient is determined by
 ```math
@@ -113,21 +92,6 @@ This correction can be applied with [`SummationDensity`](@ref) and
     - This only works when the boundary model uses [`SummationDensity`](@ref) (yet).
     - It is also referred to as "0th order correction".
     - In 2D, we can expect an increase of about 10--15% in computation time.
-
-
-## References
-- J. Bonet, T.-S.L. Lok.
-  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
-  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
-- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
-  "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
-  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
-- Shaofan Li, Wing Kam Liu.
-  "Moving least-square reproducing kernel method Part II: Fourier analysis".
-  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159-193.
-  [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
 """
 struct KernelCorrection end
 
@@ -135,21 +99,11 @@ struct KernelCorrection end
     MixedKernelGradientCorrection()
 
 Combines [`GradientCorrection`](@ref) and [`KernelCorrection`](@ref),
-which results in a 1st-order-accurate SPH method.
+which results in a 1st-order-accurate SPH method (see [Bonet, 1999](@cite Bonet1999)).
 
 # Notes:
 - Stability issues, especially when particles separate into small clusters.
 - Doubles the computational effort.
-
-## References
-- J. Bonet, T.-S.L. Lok.
-  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.
-  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
-- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
-  "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
-  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 """
 struct MixedKernelGradientCorrection end
 
@@ -190,19 +144,16 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
 
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
-
         # Loop over all pairs of particles and neighbors within the kernel cutoff
-        foreach_point_neighbor(system, neighbor_system, system_coords,
-                               neighbor_coords, neighborhood_search,
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               semi) do particle, neighbor, pos_diff, distance
             rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
 
             kernel_correction_coefficient[particle] += volume *
-                                                       smoothing_kernel(system, distance)
+                                                       smoothing_kernel(system, distance,
+                                                                        particle)
         end
     end
 
@@ -252,21 +203,22 @@ function compute_correction_values!(system,
 
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
-
         # Loop over all pairs of particles and neighbors within the kernel cutoff
-        foreach_point_neighbor(system, neighbor_system, system_coords,
-                               neighbor_coords, neighborhood_search,
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               semi) do particle, neighbor, pos_diff, distance
             rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
 
-            kernel_correction_coefficient[particle] += volume *
-                                                       smoothing_kernel(system, distance)
+            # Use uncorrected kernel to compute correction coefficients
+            W = kernel(system_smoothing_kernel(system), distance,
+                       smoothing_length(system, particle))
+
+            kernel_correction_coefficient[particle] += volume * W
             if distance > sqrt(eps())
-                tmp = volume * smoothing_kernel_grad(system, pos_diff, distance)
+                grad_W = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
+                                     smoothing_length(system, particle))
+                tmp = volume * grad_W
                 for i in axes(dw_gamma, 1)
                     dw_gamma[i, particle] += tmp[i]
                 end
@@ -282,7 +234,8 @@ end
 @doc raw"""
     GradientCorrection()
 
-Compute the corrected gradient of particle interactions based on their relative positions.
+Compute the corrected gradient of particle interactions based on their relative positions
+(see [Bonet, 1999](@cite Bonet1999)).
 
 # Mathematical Details
 
@@ -315,25 +268,16 @@ the correction matrix $\bm{L}_a$ is evaluated explicitly as
 !!! note
     - Stability issues arise, especially when particles separate into small clusters.
     - Doubles the computational effort.
-- Better stability with smoother smoothing Kernels with larger support, e.g. [`SchoenbergQuinticSplineKernel`](@ref) or [`WendlandC6Kernel`](@ref).
-- Set `dt_max =< 1e-3` for stability.
-
-## References
-- J. Bonet, T.-S.L. Lok.
-  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.
-  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
-- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
-  "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
-  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
+    - Better stability with smoother smoothing Kernels with larger support, e.g. [`SchoenbergQuinticSplineKernel`](@ref) or [`WendlandC6Kernel`](@ref).
+    - Set `dt_max =< 1e-3` for stability.
 """
 struct GradientCorrection end
 
 @doc raw"""
     BlendedGradientCorrection()
 
-Calculate a blended gradient to reduce the stability issues of the [`GradientCorrection`](@ref).
+Calculate a blended gradient to reduce the stability issues of the [`GradientCorrection`](@ref)
+as explained by [Bonet (1999)](@cite Bonet1999).
 
 This calculates the following,
 ```math
@@ -353,19 +297,18 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
 end
 
 # Called only by DensityDiffusion and TLSPH
-function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
-                                             system, coordinates, density_fun)
+function compute_gradient_correction_matrix!(corr_matrix, system, coordinates, density_fun,
+                                             semi)
     (; mass) = system
 
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    foreach_point_neighbor(system, system, coordinates, coordinates, neighborhood_search;
-                           points=eachparticle(system)) do particle, neighbor,
-                                                           pos_diff, distance
+    foreach_point_neighbor(system, system, coordinates, coordinates,
+                           semi) do particle, neighbor, pos_diff, distance
         volume = mass[neighbor] / density_fun(neighbor)
 
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
         iszero(grad_kernel) && return
 
@@ -376,14 +319,14 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
         end
     end
 
-    correction_matrix_inversion_step!(corr_matrix, system)
+    correction_matrix_inversion_step!(corr_matrix, system, semi)
 
     return corr_matrix
 end
 
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                              coordinates, v_ode, u_ode, semi,
-                                             correction, smoothing_length, smoothing_kernel)
+                                             correction, smoothing_kernel)
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -392,31 +335,29 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
         foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
-                               neighborhood_search;
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
+                               semi) do particle, neighbor, pos_diff, distance
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      particle_density(v_neighbor_system, neighbor_system, neighbor)
+            smoothing_length_ = smoothing_length(system, particle)
 
             function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance,
-                                         smoothing_length, system, particle)
-                return smoothing_kernel_grad(system, pos_diff, distance)
+                                         smoothing_length_, system, particle)
+                return smoothing_kernel_grad(system, pos_diff, distance, particle)
             end
 
             # Compute gradient of corrected kernel
             function compute_grad_kernel(correction::MixedKernelGradientCorrection,
                                          smoothing_kernel, pos_diff, distance,
-                                         smoothing_length, system, particle)
+                                         smoothing_length_, system, particle)
                 return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                             smoothing_length, KernelCorrection(), system,
+                                             smoothing_length_, KernelCorrection(), system,
                                              particle)
             end
 
             grad_kernel = compute_grad_kernel(correction, smoothing_kernel, pos_diff,
-                                              distance, smoothing_length, system, particle)
+                                              distance, smoothing_length_, system, particle)
 
             iszero(grad_kernel) && return
 
@@ -429,13 +370,13 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         end
     end
 
-    correction_matrix_inversion_step!(corr_matrix, system)
+    correction_matrix_inversion_step!(corr_matrix, system, semi)
 
     return corr_matrix
 end
 
-function correction_matrix_inversion_step!(corr_matrix, system)
-    @threaded system for particle in eachparticle(system)
+function correction_matrix_inversion_step!(corr_matrix, system, semi)
+    @threaded semi for particle in eachparticle(system)
         L = extract_smatrix(corr_matrix, system, particle)
 
         # The matrix `L` only becomes singular when the particle and all neighbors
@@ -453,7 +394,7 @@ function correction_matrix_inversion_step!(corr_matrix, system)
         # so `L` is singular if and only if the position vectors X_ab don't span the
         # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
         # or plane (in 3D).
-        if abs(det(L)) < 1e-9
+        if abs(det(L)) < 1.0f-9
             L_inv = I
         else
             L_inv = inv(L)
@@ -466,4 +407,30 @@ function correction_matrix_inversion_step!(corr_matrix, system)
     end
 
     return corr_matrix
+end
+
+create_cache_correction(correction, density, NDIMS, nparticles) = (;)
+
+function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density))
+end
+
+function create_cache_correction(::KernelCorrection, density, NDIMS, n_particles)
+    dw_gamma = Array{eltype(density)}(undef, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density), dw_gamma)
+end
+
+function create_cache_correction(::Union{GradientCorrection, BlendedGradientCorrection},
+                                 density,
+                                 NDIMS, n_particles)
+    correction_matrix = Array{eltype(density), 3}(undef, NDIMS, NDIMS, n_particles)
+    return (; correction_matrix)
+end
+
+function create_cache_correction(::MixedKernelGradientCorrection, density, NDIMS,
+                                 n_particles)
+    dw_gamma = Array{eltype(density)}(undef, NDIMS, n_particles)
+    correction_matrix = Array{eltype(density), 3}(undef, NDIMS, NDIMS, n_particles)
+
+    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end

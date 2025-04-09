@@ -81,6 +81,11 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
                    custom_quantities...)
     mkpath(output_directory)
 
+    # Skip empty systems
+    if nparticles(system_) == 0
+        return
+    end
+
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
     v, u, system = transfer2cpu(v_, u_, system_)
 
@@ -119,6 +124,10 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         vtk["index"] = active_particles(system)
         vtk["time"] = t
 
+        # TODO
+        # vtk["particle_spacing"] = [particle_spacing(system, particle)
+        #                            for particle in active_particles(system)]
+
         if write_meta_data
             vtk["solver_version"] = git_hash
             vtk["julia_version"] = string(VERSION)
@@ -138,7 +147,7 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
     vtk_save(pvd)
 end
 
-function transfer2cpu(v_, u_, system_::GPUSystem)
+function transfer2cpu(v_::AbstractGPUArray, u_, system_)
     v = Adapt.adapt(Array, v_)
     u = Adapt.adapt(Array, u_)
     system = Adapt.adapt(Array, system_)
@@ -242,25 +251,78 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in active_particles(system)]
 
+    if system.surface_normal_method !== nothing
+        vtk["surf_normal"] = [surface_normal(system, particle)
+                              for particle in eachparticle(system)]
+        vtk["neighbor_count"] = system.cache.neighbor_count
+        vtk["color"] = system.cache.color
+    end
+
+    if system.surface_tension isa SurfaceTensionMorris ||
+       system.surface_tension isa SurfaceTensionMomentumMorris
+        surface_tension = zeros((ndims(system), n_moving_particles(system)))
+        system_coords = current_coordinates(u, system)
+
+        surface_tension_a = surface_tension_model(system)
+        surface_tension_b = surface_tension_model(system)
+        nhs = create_neighborhood_search(nothing, system, system)
+
+        foreach_point_neighbor(system_coords, system_coords,
+                               nhs) do particle, neighbor, pos_diff, distance
+            rho_a = particle_density(v, system, particle)
+            rho_b = particle_density(v, system, neighbor)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+            surface_tension[1:ndims(system), particle] .+= surface_tension_force(surface_tension_a,
+                                                                                 surface_tension_b,
+                                                                                 system,
+                                                                                 system,
+                                                                                 particle,
+                                                                                 neighbor,
+                                                                                 pos_diff,
+                                                                                 distance,
+                                                                                 rho_a,
+                                                                                 rho_b,
+                                                                                 grad_kernel)
+        end
+        vtk["surface_tension"] = surface_tension
+
+        if system.surface_tension isa SurfaceTensionMorris
+            vtk["curvature"] = system.cache.curvature
+        end
+        if system.surface_tension isa SurfaceTensionMomentumMorris
+            vtk["surface_stress_tensor"] = system.cache.stress_tensor
+        end
+    end
+
     if write_meta_data
         vtk["acceleration"] = system.acceleration
         vtk["viscosity"] = type2string(system.viscosity)
         write2vtk!(vtk, system.viscosity)
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
-        vtk["smoothing_length"] = system.smoothing_length
+        vtk["smoothing_length_factor"] = system.cache.smoothing_length_factor
         vtk["density_calculator"] = type2string(system.density_calculator)
 
         if system isa WeaklyCompressibleSPHSystem
+            vtk["solver"] = "WCSPH"
+
             vtk["correction_method"] = type2string(system.correction)
             if system.correction isa AkinciFreeSurfaceCorrection
                 vtk["correction_rho0"] = system.correction.rho0
             end
+
+            if system.state_equation isa StateEquationCole
+                vtk["state_equation_exponent"] = system.state_equation.exponent
+            end
+
+            if system.state_equation isa StateEquationIdealGas
+                vtk["state_equation_gamma"] = system.state_equation.gamma
+            end
+
             vtk["state_equation"] = type2string(system.state_equation)
             vtk["state_equation_rho0"] = system.state_equation.reference_density
             vtk["state_equation_pa"] = system.state_equation.background_pressure
             vtk["state_equation_c"] = system.state_equation.sound_speed
-            vtk["state_equation_exponent"] = system.state_equation.exponent
-
             vtk["solver"] = "WCSPH"
         else
             vtk["solver"] = "EDAC"
@@ -307,12 +369,12 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
     vtk["material_density"] = system.material_density
 
     if write_meta_data
-        vtk["young_modulus"] = system.young_modulus
-        vtk["poisson_ratio"] = system.poisson_ratio
         vtk["lame_lambda"] = system.lame_lambda
         vtk["lame_mu"] = system.lame_mu
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
-        vtk["smoothing_length"] = system.smoothing_length
+        # TODO
+        # vtk["smoothing_length_factor"] = initial_smoothing_length(system) /
+        #                                  particle_spacing(system, 1)
     end
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
@@ -327,10 +389,8 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
                        for particle in active_particles(system)]
 
     if write_meta_data
-        vtk["boundary_zone"] = type2string(system.boundary_zone)
-        vtk["sound_speed"] = system.sound_speed
+        vtk["boundary_zone"] = type2string(first(typeof(system.boundary_zone).parameters))
         vtk["width"] = round(system.boundary_zone.zone_width, digits=3)
-        vtk["flow_direction"] = system.flow_direction
         vtk["velocity_function"] = type2string(system.reference_velocity)
         vtk["pressure_function"] = type2string(system.reference_pressure)
         vtk["density_function"] = type2string(system.reference_density)
@@ -343,7 +403,7 @@ function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem; write_meta_data=tru
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
 end
 
-function write2vtk!(vtk, v, u, t, model, system; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, model::Nothing, system; write_meta_data=true)
     return vtk
 end
 
@@ -360,16 +420,22 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
                     write_meta_data=true)
     if write_meta_data
         vtk["boundary_model"] = "BoundaryModelDummyParticles"
-        vtk["smoothing_kernel"] = type2string(system.boundary_model.smoothing_kernel)
-        vtk["smoothing_length"] = system.boundary_model.smoothing_length
-        vtk["density_calculator"] = type2string(system.boundary_model.density_calculator)
-        vtk["state_equation"] = type2string(system.boundary_model.state_equation)
+        vtk["smoothing_kernel"] = type2string(model.smoothing_kernel)
+        vtk["smoothing_length"] = model.smoothing_length
+        vtk["density_calculator"] = type2string(model.density_calculator)
+        vtk["state_equation"] = type2string(model.state_equation)
         vtk["viscosity_model"] = type2string(model.viscosity)
     end
 
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
+
+    if haskey(model.cache, :initial_colorfield)
+        vtk["initial_colorfield"] = model.cache.initial_colorfield
+        vtk["colorfield"] = model.cache.colorfield
+        vtk["neighbor_count"] = model.cache.neighbor_count
+    end
 
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
