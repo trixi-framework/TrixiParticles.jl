@@ -125,7 +125,7 @@ end
     # A constant pressure field is required for the TVF to work.
     # TODO:
     # volume_a = particle_spacing(system, particle)^ndims(system)
-    # volume_b = particle_spacing(system, neighbor)^ndims(system)
+    # volume_b = particle_spacing(neighbor_system, neighbor)^ndims(neighbor_system)
     volume_a = m_a / system.initial_condition.density[particle]
     volume_b = m_b / system.initial_condition.density[neighbor]
 
