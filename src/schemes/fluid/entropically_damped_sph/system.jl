@@ -98,7 +98,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     ELTYPE = eltype(initial_condition)
 
     mass = copy(initial_condition.mass)
-    n_particles = length(initial_condition.mass)
+    n_particles = length(initial_condition.mass) + buffer_size
 
     if ndims(smoothing_kernel) != NDIMS
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))

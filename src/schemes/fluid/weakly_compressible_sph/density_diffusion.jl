@@ -81,7 +81,7 @@ end
 end
 
 @doc raw"""
-    DensityDiffusionAntuono(initial_condition; delta)
+    DensityDiffusionAntuono(initial_condition; delta, buffer_size=0)
 
 The commonly used density diffusion terms by [Antuono (2010)](@cite Antuono2010), also referred to as
 δ-SPH. The density diffusion term by [Molteni (2009)](@cite Molteni2009) is extended by a second
@@ -121,14 +121,15 @@ struct DensityDiffusionAntuono{NDIMS, ELTYPE, ARRAY2D, ARRAY3D} <: DensityDiffus
     end
 end
 
-function DensityDiffusionAntuono(initial_condition; delta)
+function DensityDiffusionAntuono(initial_condition; delta, buffer_size=0)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
-                                         nparticles(initial_condition))
+                                         nparticles(initial_condition) + buffer_size)
 
     normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
-                                                   nparticles(initial_condition))
+                                                   nparticles(initial_condition) +
+                                                   buffer_size)
 
     return DensityDiffusionAntuono(delta, correction_matrix, normalized_density_gradient)
 end
