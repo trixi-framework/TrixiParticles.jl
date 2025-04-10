@@ -49,7 +49,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle, neighbor, pos_diff, distance,
                                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
-        # Add convection term when using `TransportVelocityAdami`
+        # Add convection term (only when using `TransportVelocityAdami`)
         dv_convection = momentum_convection(particle_system, neighbor_system,
                                             v_particle_system, v_neighbor_system,
                                             rho_a, rho_b, m_a, m_b,
@@ -75,8 +75,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                             particle, neighbor, pos_diff, distance,
                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b)
 
-        transport_velocity!(dv, particle_system, rho_a, rho_b, m_a, m_b,
-                            grad_kernel, particle)
+        # Apply the transport velocity (only when using a transport velocity)
+        transport_velocity!(dv, particle_system, neighbor_system, particle, neighbor,
+                            m_a, m_b, grad_kernel)
 
         continuity_equation!(dv, density_calculator, v_diff, particle, m_b, rho_a, rho_b,
                              particle_system, grad_kernel)

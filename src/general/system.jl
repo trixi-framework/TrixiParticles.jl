@@ -155,8 +155,7 @@ end
 system_smoothing_kernel(system) = system.smoothing_kernel
 system_correction(system) = nothing
 
-# TODO
-# @inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
+@inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
 
 # Assuming a constant particle spacing one can calculate the number of neighbors within the
 # compact support for an undisturbed particle distribution.

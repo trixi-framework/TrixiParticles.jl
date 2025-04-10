@@ -9,7 +9,7 @@ particle_spacings = [0.02, 0.01, 0.005]
 tspan = (0.0, 5.0)
 reynolds_number = 100.0
 
-density_calculators = [SummationDensity(), ContinuityDensity()]
+density_calculators = [ContinuityDensity(), SummationDensity()]
 perturb_coordinates = [false, true]
 
 function compute_l1v_error(v, u, t, system)
@@ -64,15 +64,16 @@ function diff_p_loc_p_avg(v, u, t, system)
 end
 
 for density_calculator in density_calculators, perturbation in perturb_coordinates,
-    particle_spacing in particle_spacings
+    particle_spacing in particle_spacings, wcsph in [false, true]
 
     n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     name_density_calculator = density_calculator isa SummationDensity ?
                               "summation_density" : "continuity_density"
-    name_perturbation = perturbation ? "perturbed" : ""
+    name_perturbation = perturbation ? "_perturbed" : ""
 
-    output_directory = joinpath("out_tgv", "$(name_density_calculator)_$name_perturbation",
+    output_directory = joinpath("out_tgv", name_density_calculator * name_perturbation,
+                                wcsph ? "wcsph" : "edac",
                                 "validation_run_taylor_green_vortex_2d_nparticles_$(n_particles_xy)x$(n_particles_xy)")
     saving_callback = SolutionSavingCallback(dt=0.02,
                                              output_directory=output_directory,
@@ -89,7 +90,7 @@ for density_calculator in density_calculators, perturbation in perturb_coordinat
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fluid", "taylor_green_vortex_2d.jl"),
                   density_calculator=density_calculator,
-                  perturb_coordinates=perturbation,
+                  perturb_coordinates=perturbation, wcsph=wcsph,
                   particle_spacing=particle_spacing, reynolds_number=reynolds_number,
                   tspan=tspan, saving_callback=saving_callback, pp_callback=pp_callback)
 end

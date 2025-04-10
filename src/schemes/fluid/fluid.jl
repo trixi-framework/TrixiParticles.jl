@@ -58,17 +58,16 @@ function initial_smoothing_length(system, refinement)
            system.initial_condition.particle_spacing
 end
 
-# TODO
-# @inline function particle_spacing(system::FluidSystem, particle)
-#     return particle_spacing(system, system.particle_refinement, particle)
-# end
+@inline function particle_spacing(system::FluidSystem, particle)
+    return particle_spacing(system, system.particle_refinement, particle)
+end
 
-# @inline particle_spacing(system, ::Nothing, _) = system.initial_condition.particle_spacing
+@inline particle_spacing(system, ::Nothing, _) = system.initial_condition.particle_spacing
 
-# @inline function particle_spacing(system, refinement, particle)
-#     (; smoothing_length_factor) = system.cache
-#     return smoothing_length(system, particle) / smoothing_length_factor
-# end
+@inline function particle_spacing(system, refinement, particle)
+    (; smoothing_length_factor) = system.cache
+    return smoothing_length(system, particle) / smoothing_length_factor
+end
 
 function write_u0!(u0, system::FluidSystem)
     (; initial_condition) = system

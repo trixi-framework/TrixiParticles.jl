@@ -51,6 +51,8 @@ n_particles_xy = round(Int, box_length / particle_spacing)
 
 # ==========================================================================================
 # ==== Fluid
+wcsph = false
+
 nu = U * box_length / reynolds_number
 
 background_pressure = sound_speed^2 * fluid_density
@@ -65,13 +67,28 @@ fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.
                          coordinates_perturbation=perturb_coordinates ? 0.2 : nothing, # To avoid stagnant streamlines when not using TVF.
                          density=fluid_density, pressure=initial_pressure_function,
                          velocity=initial_velocity_function)
-
-density_calculator = SummationDensity()
-fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
-                                           sound_speed,
-                                           density_calculator=density_calculator,
-                                           transport_velocity=TransportVelocityAdami(background_pressure),
-                                           viscosity=ViscosityAdami(; nu))
+if wcsph
+    # Using `SummationDensity()` with `perturb_coordinates = true` introduces noise in the simulation
+    # due to bad density estimates resulting from perturbed particle positions.
+    # Adami et al. 2013 use the final particle distribution from an relaxation step for the initial condition
+    # and impose the analytical velocity profile.
+    density_calculator = ContinuityDensity()
+    state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                       exponent=1)
+    fluid_system = WeaklyCompressibleSPHSystem(fluid, density_calculator,
+                                               state_equation, smoothing_kernel,
+                                               pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
+                                               smoothing_length,
+                                               viscosity=ViscosityAdami(; nu),
+                                               transport_velocity=TransportVelocityAdami(background_pressure))
+else
+    density_calculator = SummationDensity()
+    fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
+                                               sound_speed,
+                                               density_calculator=density_calculator,
+                                               transport_velocity=TransportVelocityAdami(background_pressure),
+                                               viscosity=ViscosityAdami(; nu))
+end
 
 # ==========================================================================================
 # ==== Simulation
