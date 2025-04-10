@@ -205,6 +205,7 @@
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… nothing                                                          │
+        │ tansport velocity formulation:  Nothing                                                          │
         │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ surface tension: …………………………………… nothing                                                          │
         │ surface normal method: …………………… nothing                                                          │
