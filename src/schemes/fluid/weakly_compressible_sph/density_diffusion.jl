@@ -143,6 +143,15 @@ function Base.show(io::IO, density_diffusion::DensityDiffusionAntuono)
     print(io, ")")
 end
 
+function allocate_buffer(initial_condition, density_diffusion, buffer)
+    return allocate_buffer(initial_condition, buffer), density_diffusion
+end
+
+function allocate_buffer(ic, dd::DensityDiffusionAntuono, buffer::SystemBuffer)
+    initial_condition = allocate_buffer(ic, buffer)
+    return initial_condition, DensityDiffusionAntuono(initial_condition; delta=dd.delta)
+end
+
 @inline function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
                                        rho_a, rho_b, pos_diff, distance, system,
                                        particle, neighbor)
