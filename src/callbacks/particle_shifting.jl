@@ -49,7 +49,7 @@ function particle_shifting!(u, v, system, v_ode, u_ode, semi, u_cache, dt)
     return u
 end
 
-function particle_shifting!(u, v, system::WeaklyCompressibleSPHSystem, v_ode, u_ode, semi,
+function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
                             u_cache, dt)
     # Wrap the cache vector to an NDIMS x NPARTICLES matrix.
     # We need this buffer because we cannot safely update `u` while iterating over it.
@@ -98,7 +98,7 @@ function particle_shifting!(u, v, system::WeaklyCompressibleSPHSystem, v_ode, u_
 
     # Add δ_r from the buffer to the current coordinates
     @threaded semi for particle in eachparticle(system)
-        for i in 1:ndims(system)
+        for i in axes(delta_r, 1)
             @inbounds u[i, particle] += delta_r[i, particle]
         end
     end
