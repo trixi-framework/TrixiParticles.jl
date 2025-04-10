@@ -1,5 +1,5 @@
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   v_neighbor_system, u_neighbor_system,
                    system::ParticlePackingSystem{<:Any, false},
                    neighbor_system::ParticlePackingSystem, semi)
     system_coords = current_coordinates(u_particle_system, system)
@@ -37,7 +37,7 @@ end
 
 # Skip for fixed systems
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   system::ParticlePackingSystem{<:Any, true}, neighbor_system)
+                   v_neighbor_system, u_neighbor_system,
+                   system::ParticlePackingSystem{<:Any, true}, neighbor_system, semi)
     return dv
 end

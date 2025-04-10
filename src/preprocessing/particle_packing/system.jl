@@ -99,7 +99,7 @@ function ParticlePackingSystem(shape::InitialCondition;
                                smoothing_length_interpolation=smoothing_length,
                                is_boundary=false, boundary_compress_factor=1,
                                neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                               background_pressure, tlsph=true, fixed_system=false)
+                               background_pressure, tlsph=false, fixed_system=false)
     NDIMS = ndims(shape)
     ELTYPE = eltype(shape)
     mass = copy(shape.mass)
