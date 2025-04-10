@@ -1,6 +1,6 @@
 function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
-                   u_neighbor_system, neighborhood_search, particle_system::DEMSystem,
-                   neighbor_system::Union{BoundaryDEMSystem, DEMSystem})
+                   u_neighbor_system, particle_system::DEMSystem,
+                   neighbor_system::Union{BoundaryDEMSystem, DEMSystem}, semi)
     damping_coefficient = particle_system.damping_coefficient
 
     system_coords = current_coordinates(u_particle_system, particle_system)

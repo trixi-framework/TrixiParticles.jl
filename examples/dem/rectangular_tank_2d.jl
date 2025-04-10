@@ -45,7 +45,7 @@ contact_model = HertzContactModel(10e9, 0.3)
 
 # Construct the rock system using the new DEMSystem signature.
 rock_system = DEMSystem(tank.fluid, contact_model; damping_coefficient=0.0001,
-                        acceleration=(0.0, gravity))
+                        acceleration=(0.0, gravity), radius=0.4 * particle_spacing)
 
 # Construct the boundary system for the tank walls.
 boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)

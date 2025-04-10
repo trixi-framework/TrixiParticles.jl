@@ -1,6 +1,7 @@
 """
     DEMSystem(initial_condition, contact_model, normal_stiffness, elastic_modulus, poissons_ratio;
-     damping_coefficient=0.0001, acceleration=ntuple(_ -> 0.0, NDIMS), source_terms=nothing)
+     damping_coefficient=0.0001, acceleration=ntuple(_ -> 0.0, NDIMS), source_terms=nothing,
+     radius=nothing)
 
 Constructs a Discrete Element Method (DEM) system for numerically simulating the dynamics of
 granular and particulate matter. DEM is employed to simulate and analyze the motion,
@@ -20,6 +21,7 @@ specified material properties and contact mechanics.
  - `source_terms`: Optional; additional forces or modifications to particle dynamics not
     captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
  - `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
+ - `radius=nothing`: Optional; specifies the radius of the particles, defaults to `nothing` if not provided.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
@@ -39,12 +41,18 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIM
 
     function DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
                        acceleration=ntuple(_ -> 0.0,
-                                           ndims(initial_condition)), source_terms=nothing)
+                                           ndims(initial_condition)), source_terms=nothing, radius=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
         mass = copy(initial_condition.mass)
-        radius = 0.5 * initial_condition.particle_spacing * ones(length(mass))
+
+        if isnothing(radius)
+            radius = 0.5 * initial_condition.particle_spacing * ones(length(mass))
+        else
+            mass = (radius/(0.5 * initial_condition.particle_spacing))^3 * mass
+            radius = radius * ones(length(mass))
+        end
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -131,4 +139,12 @@ function compact_support(system::DEMSystem, neighbor)
     # we for now assume that the compact support is 3 * radius
     # todo: needs to be changed for more complex simulations
     return 3 * maximum(system.radius)
+end
+
+@inline function hydrodynamic_mass(system::DEMSystem, particle)
+    return system.mass[particle]
+end
+
+@inline function particle_radius(system::DEMSystem, particle)
+    return system.radius[particle]
 end
