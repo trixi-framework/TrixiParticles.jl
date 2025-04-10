@@ -61,6 +61,7 @@
         @testset verbose=true "2D" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
             n_edges = [6, 63, 240]
+            volumes = [2.5980750000000006, 3.1363805763454, 2.6153740535469048]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(geometry)`
@@ -84,6 +85,8 @@
                 @testset "Points $j" for j in eachindex(geometry.vertices)[1:(end - 1)]
                     @test isapprox(geometry.vertices[j], points[:, j], atol=1e-4)
                 end
+
+                @test isapprox(TrixiParticles.volume(geometry), volumes[i])
             end
         end
         @testset verbose=true "3D" begin
@@ -91,6 +94,7 @@
             n_faces = [3072, 12, 12406]
             n_vertices = [1538, 8, 6203]
 
+            volumes = [1.3407718028525832, 24.727223299770113, 0.39679856862253504]
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(geometry)`
                 data = TrixiParticles.CSV.read(joinpath(validation_dir,
@@ -119,6 +123,8 @@
                 @testset "Points $j" for j in eachindex(geometry.vertices)
                     @test isapprox(geometry.vertices[j], points[j], atol=1e-4)
                 end
+
+                @test isapprox(TrixiParticles.volume(geometry), volumes[i])
             end
         end
     end
