@@ -246,9 +246,9 @@ end
 function write2vtk!(vtk, v, u, t, system::DEMSystem; write_meta_data=true)
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["mass"] = [hydrodynamic_mass(system, particle)
-                      for particle in active_particles(system)]
+                   for particle in active_particles(system)]
     vtk["radius"] = [particle_radius(system, particle)
-                       for particle in active_particles(system)]
+                     for particle in active_particles(system)]
     return vtk
 end
 

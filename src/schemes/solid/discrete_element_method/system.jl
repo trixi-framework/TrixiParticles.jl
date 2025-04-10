@@ -41,7 +41,8 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIM
 
     function DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
                        acceleration=ntuple(_ -> 0.0,
-                                           ndims(initial_condition)), source_terms=nothing, radius=nothing)
+                                           ndims(initial_condition)), source_terms=nothing,
+                       radius=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -50,7 +51,7 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIM
         if isnothing(radius)
             radius = 0.5 * initial_condition.particle_spacing * ones(length(mass))
         else
-            mass = (radius/(0.5 * initial_condition.particle_spacing))^3 * mass
+            mass = (radius / (0.5 * initial_condition.particle_spacing))^3 * mass
             radius = radius * ones(length(mass))
         end
 
