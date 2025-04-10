@@ -149,17 +149,21 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                   output_directory="out", filename="plane")
     # Don't filter out particles without neighbors to keep 2D grid structure
     filter_no_neighbors = false
-    results, x_range, y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                                     semi, ref_system, v_ode, u_ode,
-                                                     filter_no_neighbors,
-                                                     smoothing_length, cut_off_bnd,
-                                                     clip_negative_pressure)
+    @trixi_timeit timer() "interpolate plane" begin
+        results, x_range, y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
+                                                         semi, ref_system, v_ode, u_ode,
+                                                         filter_no_neighbors,
+                                                         smoothing_length, cut_off_bnd,
+                                                         clip_negative_pressure)
+    end
 
     density = reshape(results.density, length(x_range), length(y_range))
-    velocity = reshape(results.velocity, length(x_range), length(y_range))
+    velocity = reshape(results.velocity, ndims(ref_system), length(x_range),
+                       length(y_range))
     pressure = reshape(results.pressure, length(x_range), length(y_range))
 
-    vtk_grid(joinpath(output_directory, filename), x_range, y_range) do vtk
+    @trixi_timeit timer() "write to vtk" vtk_grid(joinpath(output_directory, filename),
+                                                  x_range, y_range) do vtk
         vtk["density"] = density
         vtk["velocity"] = velocity
         vtk["pressure"] = pressure
@@ -179,19 +183,18 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     end
 
     # Calculate the number of points in each dimension based on the resolution
-    no_points_x = ceil(Int, (max_corner[1] - min_corner[1]) / resolution) + 1
-    no_points_y = ceil(Int, (max_corner[2] - min_corner[2]) / resolution) + 1
-
-    x_range = range(min_corner[1], max_corner[1], length=no_points_x)
-    y_range = range(min_corner[2], max_corner[2], length=no_points_y)
+    n_points_per_dimension = Tuple(ceil.(Int,
+                                         (max_corner .- min_corner) ./ resolution) .+ 1)
+    x_range = range(min_corner[1], max_corner[1], length=n_points_per_dimension[1])
+    y_range = range(min_corner[2], max_corner[2], length=n_points_per_dimension[2])
 
     # Generate points within the plane
-    points_coords = [SVector(x, y) for x in x_range, y in y_range]
+    point_coords = rectangular_shape_coords(resolution, n_points_per_dimension, min_corner)
 
-    results = interpolate_point(points_coords, semi, ref_system, v_ode, u_ode,
-                                smoothing_length=smoothing_length,
-                                cut_off_bnd=cut_off_bnd,
-                                clip_negative_pressure=clip_negative_pressure)
+    results = interpolate_points(point_coords, semi, ref_system, v_ode, u_ode,
+                                 smoothing_length=smoothing_length,
+                                 cut_off_bnd=cut_off_bnd,
+                                 clip_negative_pressure=clip_negative_pressure)
 
     if filter_no_neighbors
         # Find indices where neighbor_count > 0
@@ -474,189 +477,174 @@ end
             velocity=velocities, pressure=pressures)
 end
 
-function interpolate_point(point_coords, semi, ref_system, v_ode, u_ode;
-                           smoothing_length=initial_smoothing_length(ref_system),
-                           cut_off_bnd=true, clip_negative_pressure=false)
+function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
+                            smoothing_length=initial_smoothing_length(ref_system),
+                            cut_off_bnd=true, clip_negative_pressure=false)
     neighborhood_searches = process_neighborhood_searches(semi, u_ode, ref_system,
                                                           smoothing_length)
 
-    return interpolate_point(SVector{ndims(ref_system)}(point_coords), semi, ref_system,
-                             v_ode, u_ode, neighborhood_searches;
-                             smoothing_length, cut_off_bnd, clip_negative_pressure)
+    return interpolate_points(point_coords, semi, ref_system,
+                              v_ode, u_ode, neighborhood_searches;
+                              smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
 function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length)
     if isapprox(smoothing_length, initial_smoothing_length(ref_system))
-        # Update existing NHS
-        update_nhs!(semi, u_ode)
-        neighborhood_searches = semi.neighborhood_searches[system_indices(ref_system, semi)]
-    else
-        ref_smoothing_kernel = ref_system.smoothing_kernel
-        search_radius = compact_support(ref_smoothing_kernel, smoothing_length)
-        neighborhood_searches = map(semi.systems) do system
-            u = wrap_u(u_ode, system, semi)
-            system_coords = current_coordinates(u, system)
-            old_nhs = get_neighborhood_search(ref_system, system, semi)
-            nhs = PointNeighbors.copy_neighborhood_search(old_nhs, search_radius,
-                                                          nparticles(system))
-            PointNeighbors.initialize!(nhs, system_coords, system_coords)
-
-            return nhs
+        # Check if the neighborhood searches can be used with different points
+        # than it was initialized with.
+        f(system) = PointNeighbors.requires_update(get_neighborhood_search(ref_system,
+                                                                           system, semi))[1]
+        if !any(f, semi.systems)
+            # We can use the existing neighborhood searches.
+            # Update existing NHS with the current coordinates.
+            update_nhs!(semi, u_ode)
+            return semi.neighborhood_searches[system_indices(ref_system, semi)]
         end
+    end
+
+    # Copy neighborhood searches with new smoothing length
+    ref_smoothing_kernel = ref_system.smoothing_kernel
+    search_radius = compact_support(ref_smoothing_kernel, smoothing_length)
+    neighborhood_searches = map(semi.systems) do system
+        u = wrap_u(u_ode, system, semi)
+        system_coords = current_coordinates(u, system)
+        old_nhs = get_neighborhood_search(ref_system, system, semi)
+        nhs = PointNeighbors.copy_neighborhood_search(old_nhs, search_radius,
+                                                      nparticles(system))
+        PointNeighbors.initialize!(nhs, system_coords, system_coords)
+
+        return nhs
     end
 
     return neighborhood_searches
 end
 
-@inline function interpolate_point(point_coords, semi, ref_system, v_ode, u_ode,
-                                   neighborhood_searches;
-                                   smoothing_length=initial_smoothing_length(ref_system),
-                                   cut_off_bnd=true, clip_negative_pressure=false)
-    interpolated_density = 0.0
-    other_density = 0.0
+@inline function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode,
+                                    neighborhood_searches;
+                                    smoothing_length=initial_smoothing_length(ref_system),
+                                    cut_off_bnd=true, clip_negative_pressure=false)
+    n_points = size(point_coords, 2)
+    ELTYPE = eltype(point_coords)
+    interpolated_density = zeros(ELTYPE, n_points)
+    other_density = zeros(ELTYPE, n_points)
+    shepard_coefficient = zeros(ELTYPE, n_points)
+    neighbor_count = zeros(Int, n_points)
 
-    NDIMS = ndims(ref_system)
-    interpolation_values = zeros(n_interpolation_values(ref_system))
+    cache = create_cache_interpolation(ref_system, n_points)
 
-    shepard_coefficient = 0.0
     ref_id = system_indices(ref_system, semi)
-    neighbor_count = 0
     ref_smoothing_kernel = ref_system.smoothing_kernel
 
-    # if we don't cut at the bnd we only need to iterate the reference system
+    # If we don't cut at the boundary, we only need to iterate over the reference system
     systems = cut_off_bnd ? semi : (ref_system,)
 
-    foreach_system(systems) do system
-        system_id = system_indices(system, semi)
+    foreach_system(systems) do neighbor_system
+        system_id = system_indices(neighbor_system, semi)
         nhs = neighborhood_searches[system_id]
-        (; search_radius, periodic_box) = nhs
 
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
+        v = wrap_v(v_ode, neighbor_system, semi)
+        u = wrap_u(u_ode, neighbor_system, semi)
 
-        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u, neighbor_system)
 
-        # This is basically `foreach_point_neighbor` unrolled
-        for particle in PointNeighbors.eachneighbor(point_coords, nhs)
-            coords = extract_svector(system_coords, Val(NDIMS), particle)
-
-            pos_diff = point_coords - coords
-            distance2 = dot(pos_diff, pos_diff)
-            pos_diff, distance2 = PointNeighbors.compute_periodic_distance(pos_diff,
-                                                                           distance2,
-                                                                           search_radius,
-                                                                           periodic_box)
-            if distance2 > search_radius^2
-                continue
-            end
-
-            distance = sqrt(distance2)
-            m_a = hydrodynamic_mass(system, particle)
+        foreach_point_neighbor(point_coords, neighbor_coords,
+                               nhs) do point, neighbor, pos_diff, distance
+            m_a = hydrodynamic_mass(neighbor_system, neighbor)
             W_a = kernel(ref_smoothing_kernel, distance, smoothing_length)
 
             if system_id == ref_id
-                interpolated_density += m_a * W_a
-                volume = m_a / current_density(v, system, particle)
-                shepard_coefficient += volume * W_a
+                interpolated_density[point] += m_a * W_a
+                volume = m_a / current_density(v, neighbor_system, neighbor)
+                shepard_coefficient[point] += volume * W_a
 
-                interpolate_system!(interpolation_values, v, system,
-                                    particle, volume, W_a, clip_negative_pressure)
+                interpolate_system!(cache, v, neighbor_system,
+                                    point, neighbor, volume, W_a, clip_negative_pressure)
             else
-                other_density += m_a * W_a
+                other_density[point] += m_a * W_a
             end
 
-            neighbor_count += 1
+            neighbor_count[point] += 1
         end
     end
 
-    system_specific_return = construct_system_properties(ref_system, interpolation_values,
-                                                         NDIMS, shepard_coefficient)
+    @threaded point_coords for point in axes(point_coords, 2)
+        if other_density[point] > interpolated_density[point] ||
+           shepard_coefficient[point] < eps()
+            # Return NaN values that can be filtered out in ParaView
+            interpolated_density[point] = NaN
+            neighbor_count[point] = 0
 
-    # Point is not within the ref_system
-    if other_density > interpolated_density || shepard_coefficient < eps()
-        # Return NaN values that can be filtered out in ParaView
-        common_return = (density=NaN,
-                         neighbor_count=0,
-                         coord=point_coords)
+            foreach(cache) do field
+                if field isa AbstractVector
+                    field[point] = NaN
+                else
+                    field[:, point] .= NaN
+                end
+            end
+        else
+            # Normalize all quantities by the shepard coefficient
+            interpolated_density[point] /= shepard_coefficient[point]
 
-        # Replace all values in the named tuple with NaNs
-        system_specific_return = map(system_specific_return) do val
-            if val isa AbstractArray
-                return fill(NaN, size(val))
-            else
-                return NaN
+            foreach(cache) do field
+                if field isa AbstractVector
+                    field[point] /= shepard_coefficient[point]
+                else
+                    field[:, point] ./= shepard_coefficient[point]
+                end
             end
         end
-
-        return merge(common_return, system_specific_return)
     end
 
-    common_return = (density=interpolated_density / shepard_coefficient,
-                     neighbor_count=neighbor_count,
-                     coord=point_coords)
-
-    return merge(common_return, system_specific_return)
+    return (; density=interpolated_density, neighbor_count, point_coords, cache...)
 end
 
-@inline function n_interpolation_values(system::FluidSystem)
-    return ndims(system) + 1
+@inline function create_cache_interpolation(ref_system::FluidSystem, n_points)
+    velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
+    pressure = zeros(eltype(ref_system), n_points)
+
+    return (; velocity, pressure)
 end
 
-@inline function n_interpolation_values(system::SolidSystem)
-    return ndims(system) * ndims(system) + ndims(system) + 2
+@inline function create_cache_interpolation(ref_system::SolidSystem, n_points)
+    velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
+    jacobian = zeros(eltype(ref_system), n_points)
+    von_mises_stress = zeros(eltype(ref_system), n_points)
+    cauchy_stress = zeros(eltype(ref_system), ndims(ref_system), ndims(ref_system),
+                          n_points)
+
+    return (; velocity, jacobian, von_mises_stress, cauchy_stress)
 end
 
-@inline function interpolate_system!(interpolation_values, v, system::FluidSystem,
-                                     particle, volume, W_a, clip_negative_pressure)
-    NDIMS = ndims(system)
-
-    particle_velocity = current_velocity(v, system, particle)
-    for i in 1:NDIMS
-        interpolation_values[i] += particle_velocity[i] * (volume * W_a)
+@inline function interpolate_system!(cache, v, system::FluidSystem,
+                                     point, neighbor, volume, W_a, clip_negative_pressure)
+    velocity = current_velocity(v, system, neighbor)
+    for i in axes(cache.velocity, 1)
+        cache.velocity[i, point] += velocity[i] * (volume * W_a)
     end
 
-    pressure = current_pressure(v, system, particle)
+    pressure = current_pressure(v, system, neighbor)
     if clip_negative_pressure
-        pressure = max(0.0, pressure)
+        pressure = max(zero(eltype(pressure)), pressure)
     end
-    interpolation_values[NDIMS + 1] += pressure * (volume * W_a)
+    cache.pressure[point] += pressure * (volume * W_a)
+
+    return cache
 end
 
-@inline function interpolate_system!(interpolation_values, v, system::SolidSystem,
-                                     particle, volume, W_a, clip_negative_pressure)
-    NDIMS = ndims(system)
-
-    particle_velocity = current_velocity(v, system, particle)
-    for i in 1:NDIMS
-        interpolation_values[i] += particle_velocity[i] * (volume * W_a)
+@inline function interpolate_system!(cache, v, system::SolidSystem,
+                                     point, neighbor, volume, W_a, clip_negative_pressure)
+    velocity = current_velocity(v, system, neighbor)
+    for i in axes(cache.velocity, 1)
+        cache.velocity[i, point] += velocity[i] * (volume * W_a)
     end
 
-    interpolation_values[NDIMS + 1] = det(deformation_gradient(system, particle)) *
-                                      (volume * W_a)
-    interpolation_values[NDIMS + 2] = von_mises_stress(system) * (volume * W_a)
+    cache.jacobian[point] += det(deformation_gradient(system, neighbor)) * (volume * W_a)
+    cache.von_mises_stress[point] += von_mises_stress(system) * (volume * W_a)
 
     sigma = cauchy_stress(system)
-    for i in 1:NDIMS
-        for j in 1:NDIMS
-            interpolation_values[NDIMS + 3 + i * NDIMS + j] = sigma[i, j, particle] *
-                                                              (volume * W_a)
-        end
+    for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)
+        cache.cauchy_stress[i, j, point] += sigma[i, j, neighbor] * (volume * W_a)
     end
-end
 
-@inline function construct_system_properties(system::FluidSystem, interpolation_values,
-                                             NDIMS, shepard_coefficient)
-    velocity = interpolation_values[1:NDIMS] / shepard_coefficient
-    pressure = interpolation_values[NDIMS + 1] / shepard_coefficient
-    return (velocity=velocity, pressure=pressure)
-end
-
-@inline function construct_system_properties(system::SolidSystem, interpolation_values,
-                                             NDIMS, shepard_coefficient)
-    velocity = interpolation_values[1:NDIMS] / shepard_coefficient
-    jacobian = interpolation_values[NDIMS + 1] / shepard_coefficient
-    von_mises_stress = interpolation_values[NDIMS + 2] / shepard_coefficient
-    cauchy_stress = interpolation_values[(NDIMS + 3):end] / shepard_coefficient
-    return (velocity=velocity, jacobian=jacobian, von_mises_stress=von_mises_stress,
-            cauchy_stress=cauchy_stress)
+    return cache
 end
