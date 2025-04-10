@@ -66,10 +66,10 @@ info_callback = InfoCallback(interval=5000)
 saving_callback = SolutionSavingCallback(dt=0.02)
 callbacks = CallbackSet(info_callback, saving_callback)
 
-# Solve the ODE using a Runge-Kutta method with adaptive (error-based) time step control.
-sol = solve(ode, RDPK3SpFSAL49();
-            abstol=1e-5,   # Absolute tolerance (tuning may be necessary to avoid boundary penetration)
-            reltol=1e-4,   # Relative tolerance (tuning may be necessary)
-            dtmax=1e-3,    # Maximum time step (limits large steps that may destabilize the simulation)
-            dt=1e-7,       # Initial time step
-            save_everystep=false, callback=callbacks)
+# Use a Runge-Kutta method with automatic (error based) time step size control
+sol = solve(ode, RDPK3SpFSAL49(),
+            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-3, # Limit stepsize to prevent crashing
+            dt=1e-7,  # Initial step size
+            save_everystep=false, callback=callbacks);
