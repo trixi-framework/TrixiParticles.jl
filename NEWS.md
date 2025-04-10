@@ -6,7 +6,20 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ## Version 0.2.8
 
 ### Features
-- Open boundary model based on Tafuni et al. (2018), utilizing mirroring and extrapolation to transfer fluid quantities to the buffer zones. (#574)
+
+- Added Open boundary model based on Tafuni et al. (2018), utilizing mirroring and extrapolation to transfer fluid quantities to the buffer zones. (#574)
+
+- Added explicit contact models `LinearContactModel` and `HertzContactModel` to the DEM solver. (#756)
+
+- Added sympletic Verlet time integration (#716)
+
+- Added transport velocity formulation (TVF) support for the WCSPH solver (#600)
+
+### Refactoring
+
+- Added structures to support variable smoothing length (#736)
+
+- Added a more flexible `parallelization_backend` support (#748)
 
 ## Version 0.2.7
 
@@ -53,6 +66,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Add particle packing for 2D (.asc) and 3D (.stl) geometries (#529)
 
 ### Compatibility Changes
+
 - Dropped support for Julia 1.9
 
 ## Version 0.2.4
