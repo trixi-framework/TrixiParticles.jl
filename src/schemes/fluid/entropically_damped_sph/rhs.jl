@@ -79,8 +79,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         transport_velocity!(dv, particle_system, neighbor_system, particle, neighbor,
                             m_a, m_b, grad_kernel)
 
-        continuity_equation!(dv, density_calculator, v_diff, particle, m_b, rho_a, rho_b,
-                             particle_system, grad_kernel)
+        continuity_equation!(dv, density_calculator, v_particle_system,
+                             v_neighbor_system, particle, neighbor,
+                             pos_diff, distance, m_b, rho_a, rho_b,
+                             particle_system, neighbor_system, grad_kernel)
     end
 
     return dv
@@ -123,22 +125,5 @@ end
 
     dv[end, particle] += artificial_eos + damping_term
 
-    return dv
-end
-
-# We need a separate method for EDAC since the density is stored in `v[end-1,:]`.
-@inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
-                                      vdiff, particle, m_b, rho_a, rho_b,
-                                      particle_system::EntropicallyDampedSPHSystem,
-                                      grad_kernel)
-    dv[end - 1, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
-
-    return dv
-end
-
-@inline function continuity_equation!(dv, density_calculator,
-                                      vdiff, particle, m_b, rho_a, rho_b,
-                                      particle_system::EntropicallyDampedSPHSystem,
-                                      grad_kernel)
     return dv
 end

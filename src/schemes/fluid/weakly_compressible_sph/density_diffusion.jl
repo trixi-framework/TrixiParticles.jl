@@ -206,8 +206,7 @@ end
     distance < sqrt(eps(typeof(distance))) && return
 
     (; delta) = density_diffusion
-    (; state_equation) = particle_system
-    (; sound_speed) = state_equation
+    sound_speed = system_sound_speed(particle_system)
 
     volume_b = m_b / rho_b
 
@@ -217,8 +216,9 @@ end
 
     smoothing_length_avg = (smoothing_length(particle_system, particle) +
                             smoothing_length(particle_system, neighbor)) / 2
-    dv[end, particle] += delta * smoothing_length_avg * sound_speed *
-                         density_diffusion_term
+
+    dv[density_index(particle_system), particle] += delta * smoothing_length_avg *
+                                                    sound_speed * density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
