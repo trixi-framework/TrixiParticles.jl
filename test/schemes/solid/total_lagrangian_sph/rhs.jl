@@ -209,7 +209,11 @@
                 end
 
                 v_ode = ode.u0.x[1]
-                u_ode = vec(u)
+                if backends[i] === false
+                    u_ode = TrixiParticles.ThreadedBroadcastArray(vec(u))
+                else
+                    u_ode = vec(u)
+                end
 
                 @test typeof(v_ode) == typeof(u_ode)
                 @test length(v_ode) == length(u_ode)

@@ -258,7 +258,7 @@ tspan = (0.0, 1.0)
 ode_problem = semidiscretize(semi, tspan)
 
 # output
-ODEProblem with uType RecursiveArrayTools.ArrayPartition{Float64, Tuple{Vector{Float64}, Vector{Float64}}} and tType Float64. In-place: true
+ODEProblem with uType RecursiveArrayTools.ArrayPartition{Float64, Tuple{TrixiParticles.ThreadedBroadcastArray{Float64, 1, Vector{Float64}}, TrixiParticles.ThreadedBroadcastArray{Float64, 1, Vector{Float64}}}} and tType Float64. In-place: true
 Non-trivial mass matrix: false
 timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
@@ -281,9 +281,14 @@ function semidiscretize(semi, tspan; reset_threads=true)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
 
     if semi.parallelization_backend isa Bool
-        # Use CPU vectors and the optimized CPU code
-        u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
-        v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
+        # Use CPU vectors and the optimized CPU code.
+        # These are wrapped in `ThreadedBroadcastArray`s
+        # to make broadcasting (which is done by OrdinaryDiffEq.jl) multithreaded.
+        # See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details.
+        u0_ode_ = Vector{ELTYPE}(undef, sum(sizes_u))
+        v0_ode_ = Vector{ELTYPE}(undef, sum(sizes_v))
+        u0_ode = ThreadedBroadcastArray(u0_ode_)
+        v0_ode = ThreadedBroadcastArray(v0_ode_)
     else
         # Use the specified backend, e.g., `CUDABackend` or `MetalBackend`
         u0_ode = KernelAbstractions.allocate(semi.parallelization_backend, ELTYPE,
@@ -402,6 +407,10 @@ end
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(array), 2}, pointer(view(array, range)), size)
     return PtrArray(pointer(view(array, range)), size)
+end
+
+@inline function wrap_array(array::ThreadedBroadcastArray, range, size)
+    return ThreadedBroadcastArray(wrap_array(parent(array), range, size))
 end
 
 @inline function wrap_array(array, range, size)
