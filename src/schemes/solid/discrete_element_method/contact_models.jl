@@ -1,16 +1,59 @@
 # Define an abstract type for contact models.
 abstract type ContactModel end
 
-# HertzContactModel: Non-linear contact using Hertzian theory.
+@doc raw"""
+    HertzContactModel(; elastic_modulus, poissons_ratio)
+
+Non-linear contact model based on Hertzian contact theory ([DiRenzo2004](@cite)).
+
+This model calculates the normal contact force between two spherical particles (or a particle
+and a boundary represented by an equivalent sphere) based on their material properties and
+the overlap ``\delta``. The elastic part of the force is given by:
+```math
+F_{\text{elastic}} = \frac{4}{3} E^* \sqrt{R^*} \delta^{3/2}
+```
+where ``E^*`` is the effective Young's modulus and ``R^*`` is the effective radius.
+
+The effective Young's modulus ``E^*`` is calculated from the Young's moduli (``E_a, E_b``)
+and Poisson's ratios (``\nu_a, \nu_b``) of the two contacting bodies:
+```math
+E^* = \left( \frac{1 - \nu_a^2}{E_a} + \frac{1 - \nu_b^2}{E_b} \right)^{-1}
+```
+
+The effective radius ``R^*`` is calculated from the radii of the two particles (``R_a, R_b``):
+```math
+R^* = \left( \frac{1}{R_a} + \frac{1}{R_b} \right)^{-1} = \frac{R_a R_b}{R_a + R_b}
+```
+For particle-wall interactions, ``R_b \to \infty``, so ``R^* = R_a``.
+
+The implementation also includes a damping force based on the approach described in
+[DiRenzo2004](@cite), proportional to the normal component of the relative velocity
+``v_{\text{rel,n}}``:
+```math
+F_{\text{damping}} = C_{\text{damp}} \gamma_c v_{\text{rel,n}}
+```
+where ``C_{\text{damp}}`` is the user-provided damping coefficient (damping ratio), and
+``\gamma_c`` is a non-linear critical damping coefficient:
+```math
+\gamma_c = 2 \sqrt{m^* K_{\text{nonlin}}}
+```
+with ``m^*`` being the effective mass and ``K_{\text{nonlin}}`` being a non-linear stiffness term
+related to the current state:
+```math
+K_{\text{nonlin}} = \frac{F_{\text{elastic}}}{\delta} = \frac{4}{3} E^* \sqrt{R^* \delta}
+```
+
+The total normal force is ``F_n = F_{\text{elastic}} + F_{\text{damping}}``.
+
+# Fields
+- `elastic_modulus::Float64`: Material Young's modulus (``E``).
+- `poissons_ratio::Float64`: Material Poisson's ratio (``\nu``).
+"""
 struct HertzContactModel <: ContactModel
     elastic_modulus::Float64  # Material elastic modulus
     poissons_ratio::Float64   # Material Poisson's ratio
 end
 
-# Normal collision force for the HertzContactModel
-#
-# Implements a Hertzian contact law following [Di Renzo and Di Maio, 2004].
-#-------------------------------------------------------------------------
 @inline function collision_force_normal(model::HertzContactModel,
                                         particle_system, neighbor_system,
                                         overlap, normal, v_particle_system,
@@ -45,7 +88,7 @@ end
     r_star = (r_a * r_b) / (r_a + r_b)
 
     # Non-linear stiffness for Hertzian contact.
-    normal_stiffness = (4 / 3) * E_star * sqrt(r_star * overlap)
+    elastic_force_per_overlap = (4 / 3) * E_star * sqrt(r_star * overlap)
 
     # Compute effective mass for damping.
     if neighbor_system isa DEMSystem
@@ -57,29 +100,56 @@ end
     end
 
     # Critical damping coefficient.
-    gamma_c = 2 * sqrt(m_star * normal_stiffness)
+    gamma_c = 2 * sqrt(m_star * elastic_force_per_overlap)
 
     # Total normal force: elastic + damping term.
-    force_magnitude = normal_stiffness * overlap +
+    force_magnitude = elastic_force_per_overlap * overlap +
                       damping_coefficient * gamma_c * rel_vel_norm
 
     return force_magnitude * normal
 end
 
-# LinearContactModel: Simple linear spring-dashpot contact.
+@doc raw"""
+    LinearContactModel(; normal_stiffness)
+
+Linear spring-dashpot contact model ([Cundall1979](@cite)).
+
+This model calculates the normal contact force between two objects based on a linear spring
+law for the elastic component and a linear viscous damping law for the dissipative component.
+The total normal force ``F_n`` is given by:
+```math
+F_n = k_n \delta + \gamma_d v_{\text{rel,n}}
+```
+where ``k_n`` is the normal stiffness, ``\delta`` is the overlap between the objects,
+``v_{\text{rel,n}}`` is the normal component of the relative velocity, and ``\gamma_d``
+is the damping coefficient.
+
+The damping coefficient ``\gamma_d`` is calculated based on the critical damping
+coefficient ``\gamma_c`` and a user-provided damping ratio ``C_{\text{damp}}``:
+```math
+\gamma_d = C_{\text{damp}} \gamma_c
+```
+where the critical damping for this linear system is:
+```math
+\gamma_c = 2 \sqrt{m^* k_n}
+```
+and ``m^*`` is the effective mass of the colliding pair.
+
+The total force is applied along the normal direction connecting the centers of the
+contacting objects.
+
+# Fields
+- `normal_stiffness::Float64`: Constant spring stiffness (``k_n``) for the normal direction.
+"""
 struct LinearContactModel <: ContactModel
-    normal_stiffness::Float64 # Constant stiffness value for linear contact
+    normal_stiffness::Float64
 end
 
-# Normal collision force for the LinearContactModel
-#
-# Implements a linear spring-dashpot contact model [Cundall and Strack, 1979].
 @inline function collision_force_normal(model::LinearContactModel,
                                         particle_system, neighbor_system,
                                         overlap, normal, v_particle_system,
                                         v_neighbor_system,
                                         particle, neighbor, damping_coefficient)
-    # Use the constant stiffness from the linear contact model.
     normal_stiffness = model.normal_stiffness
 
     v_a = current_velocity(v_particle_system, particle_system, particle)
