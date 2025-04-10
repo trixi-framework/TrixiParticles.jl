@@ -339,8 +339,8 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
     @threaded semi for particle in eachparticle(system)
-        apply_state_equation!(boundary_model, current_density(v, boundary_model,
-                                                              particle), particle)
+        apply_state_equation!(boundary_model, current_density(v, system, particle),
+                              particle)
     end
 
     return boundary_model

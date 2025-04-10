@@ -170,7 +170,7 @@ end
 end
 
 function system_data(system::FluidSystem, v_ode, u_ode, semi)
-    (; mass, pressure) = system
+    (; mass) = system
 
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
@@ -178,6 +178,7 @@ function system_data(system::FluidSystem, v_ode, u_ode, semi)
     coordinates = current_coordinates(u, system)
     velocity = current_velocity(v, system)
     density = current_density(v, system)
+    pressure = current_pressure(v, system)
 
     return (; coordinates, velocity, mass, density, pressure)
 end

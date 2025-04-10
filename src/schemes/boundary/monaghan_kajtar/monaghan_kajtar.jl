@@ -80,7 +80,8 @@ end
 end
 
 @inline function current_density(v,
-                                 system::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                 system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                  particle)
     (; hydrodynamic_mass, boundary_particle_spacing) = system.boundary_model
 

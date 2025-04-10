@@ -62,10 +62,8 @@ t) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
                             [tank_right_wall_x, P3_y_bottom],
                             v_ode, u_ode, t, system, semi)
 
-function max_x_coord(system, v_ode, u_ode, semi, t)
-    u = wrap_u(u_ode, system, semi)
-    return maximum(particle -> TrixiParticles.current_coords(u, system, particle)[1],
-                   TrixiParticles.eachparticle(system))
+function max_x_coord(system, data, t)
+    return maximum(j -> data.coordinates[1, j], axes(data.coordinates, 2))
 end
 
 function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system, semi)

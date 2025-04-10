@@ -469,12 +469,12 @@ function system_data(system::TotalLagrangianSPHSystem, v_ode, u_ode, semi)
     u = wrap_u(u_ode, system, semi)
 
     coordinates = current_coordinates(u, system)
-    initial_coordinates = initial_coordinates(system)
+    initial_coordinates_ = initial_coordinates(system)
     velocity = current_velocity(v, system)
 
-    return (; coordinates, initial_coordinates, velocity, mass, material_density,
-            deformation_grad, pk1_corrected, young_modulus, poisson_ratio, lame_lambda,
-            lame_mu)
+    return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
+            material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
+            lame_lambda, lame_mu)
 end
 
 function available_data(::TotalLagrangianSPHSystem)
