@@ -126,14 +126,15 @@ end
                                                   v_particle_system, v_neighbor_system,
                                                   particle, neighbor, pos_diff, distance,
                                                   m_b, rho_a, rho_b,
-                                                  particle_system::WeaklyCompressibleSPHSystem,
+                                                  particle_system::FluidSystem,
                                                   neighbor_system, grad_kernel)
     (; density_diffusion) = particle_system
 
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+    dv[density_index(particle_system), particle] += rho_a / rho_b *
+                                                    m_b * dot(vdiff, grad_kernel)
 
     # Artificial density diffusion should only be applied to system(s) representing a fluid
     # with the same physical properties i.e. density and viscosity.

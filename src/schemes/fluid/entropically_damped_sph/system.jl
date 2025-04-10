@@ -3,7 +3,7 @@
                                 smoothing_length, sound_speed;
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
-                                transport_velocity=nothing,
+                                transport_velocity=nothing, density_diffusion=nothing,
                                 alpha=0.5, viscosity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
                                 surface_normal_method=nothing, buffer_size=nothing,
@@ -31,6 +31,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 corresponding [density calculator](@ref density_calculator) is chosen.
 - `density_calculator`:         [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
 - `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
+- `density_diffusion`:          Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
@@ -52,7 +53,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `color_value`:                The value used to initialize the color of particles in the system.
 
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV, DD,
                                    PF, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
@@ -65,6 +66,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     correction                        :: Nothing
     pressure_acceleration_formulation :: PF
     transport_velocity                :: TV
+    density_diffusion                 :: DD
     source_terms                      :: ST
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
@@ -79,7 +81,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      smoothing_length, sound_speed;
                                      pressure_acceleration=inter_particle_averaged_pressure,
                                      density_calculator=SummationDensity(),
-                                     transport_velocity=nothing,
+                                     transport_velocity=nothing, density_diffusion=nothing,
                                      alpha=0.5, viscosity=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
@@ -152,6 +154,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                                 typeof(density_calculator), typeof(smoothing_kernel),
                                 typeof(viscosity), typeof(transport_velocity),
+                                typeof(density_diffusion),
                                 typeof(pressure_acceleration), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_normal_method),
                                 typeof(buffer), Nothing,
@@ -159,9 +162,9 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                                smoothing_kernel, sound_speed, viscosity,
                                                nu_edac, acceleration_, correction,
                                                pressure_acceleration, transport_velocity,
-                                               source_terms, surface_tension,
-                                               surface_normal_method, buffer,
-                                               particle_refinement, cache)
+                                               density_diffusion, source_terms,
+                                               surface_tension, surface_normal_method,
+                                               buffer, particle_refinement, cache)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
@@ -200,6 +203,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "tansport velocity formulation",
                      system.transport_velocity |> typeof |> nameof)
+        summary_line(io, "density diffusion", system.density_diffusion)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
@@ -232,6 +236,9 @@ end
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
     return ndims(system) * factor_tvf(system) + 2
 end
+
+# To find the correct index of the density in the integration array
+@inline density_index(system::EntropicallyDampedSPHSystem) = v_nvariables(system) - 1
 
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
