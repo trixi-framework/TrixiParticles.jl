@@ -27,7 +27,7 @@ specified material properties and contact mechanics.
 ## References
 [Bicanic2004](@cite), [Cundall1979](@cite), [DiRenzo2004](@cite)
 """
-struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIMS, IC}
+struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIMS}
     initial_condition   :: IC
     mass                :: ARRAY1D               # [particle]
     radius              :: ARRAY1D               # [particle]
