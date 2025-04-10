@@ -97,7 +97,8 @@ end
 
 # This model does not not use any particle pressure
 @inline function current_pressure(v,
-                                  system::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                  system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                                TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                   particle)
     return zero(eltype(v))
 end
