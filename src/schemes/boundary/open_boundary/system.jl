@@ -204,6 +204,10 @@ end
 
 update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
 
+function system_smoothing_kernel(system::OpenBoundarySPHSystem)
+    return system.fluid_system.smoothing_kernel
+end
+
 function smoothing_length(system::OpenBoundarySPHSystem, particle)
     return smoothing_length(system.fluid_system, particle)
 end
