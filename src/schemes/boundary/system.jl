@@ -121,7 +121,6 @@ function Base.show(io::IO, system::BoundaryDEMSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "BoundaryDEMSystem{", ndims(system), "}(")
-    print(io, system.boundary_model)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -265,6 +264,10 @@ end
 
 @inline function current_coordinates(u, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
     return system.coordinates
+end
+
+@inline function current_velocity(v, system::BoundaryDEMSystem, particle)
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
