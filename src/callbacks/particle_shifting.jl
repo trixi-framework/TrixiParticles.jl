@@ -161,7 +161,7 @@ function particle_shifting!(u, v,
 
             particle_position = particle_coords - zone_origin
 
-            # Distance to transistion plane
+            # Distance to transition plane
             dist = dot(particle_position, spanning_set[1])
 
             if dist <= max_dist
