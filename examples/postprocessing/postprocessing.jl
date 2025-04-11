@@ -6,7 +6,7 @@ using JSON
 
 # Any custom function with the arguments `v, u, t, system` can be passed to the callback
 # to be called every 10th timestep. See example below:
-function hello(v, u, t, system)
+function hello(system, v_ode, u_ode, semi, t)
     # Will write "hello" and the current simulation time
     println("hello at ", t)
 

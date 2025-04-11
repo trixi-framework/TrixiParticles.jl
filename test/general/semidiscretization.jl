@@ -123,8 +123,8 @@
 
     @testset verbose=true "Source Terms" begin
         TrixiParticles.source_terms(::System1) = SourceTermDamping(damping_coefficient=0.1)
-        TrixiParticles.particle_density(v, system::System1, particle) = 0.0
-        TrixiParticles.particle_pressure(v, system::System1, particle) = 0.0
+        TrixiParticles.current_density(v, system::System1, particle) = 0.0
+        TrixiParticles.current_pressure(v, system::System1, particle) = 0.0
 
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
