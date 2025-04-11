@@ -7,19 +7,20 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
-- Added Open boundary model based on Tafuni et al. (2018), utilizing mirroring and extrapolation to transfer fluid quantities to the buffer zones. (#574)
+- **Open Boundary Model:** Added an open boundary model based on Tafuni et al. (2018), utilizing mirroring and extrapolation to transfer fluid quantities to the buffer zones.
+  This enhancement allows for more accurate handling of simulation boundaries in open systems, ensuring better consistency between the computed domain and its buffer areas. (#574)
 
-- Added explicit contact models `LinearContactModel` and `HertzContactModel` to the DEM solver. (#756)
+- **Explicit Contact Models:** Added explicit contact models, `LinearContactModel` and `HertzContactModel`, to the DEM solver. (#756)
 
-- Added sympletic Verlet time integration (#716)
+- **Transport Velocity Formulation (TVF) for WCSPH Solver:** Added support for TVF to the WCSPH solver, improving the consistency and stability of weakly compressible SPH simulations. (#600)
 
-- Added transport velocity formulation (TVF) support for the WCSPH solver (#600)
+- **Particle Shifting Technique (PST) for Closed Systems:** Integrated the Particle Shifting Technique to enhance particle distribution and reduce clumping in closed system simulations. (#735)
 
 ### Refactoring
 
-- Added structures to support variable smoothing length (#736)
+- **Variable Smoothing Length Structures:** Introduced new structures to support a variable smoothing length, providing enhanced flexibility in simulation configurations. (#736)
 
-- Added a more flexible `parallelization_backend` support (#748)
+- **Flexible Parallelization Backend:** Improved the parallelization backend support, making it more adaptable to different computational environments and workloads. (#748)
 
 ## Version 0.2.7
 
