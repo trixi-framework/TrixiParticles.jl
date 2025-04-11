@@ -103,8 +103,8 @@ end
 @inline set_particle_pressure!(v, system, particle, pressure) = v
 
 @inline function smoothing_kernel(system, distance, particle)
-    (; smoothing_kernel) = system
-    return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
+    return kernel(system_smoothing_kernel(system), distance,
+                  smoothing_length(system, particle))
 end
 
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
