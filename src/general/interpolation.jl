@@ -188,8 +188,9 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     x_range = range(min_corner[1], max_corner[1], length=n_points_per_dimension[1])
     y_range = range(min_corner[2], max_corner[2], length=n_points_per_dimension[2])
 
-    # Generate points within the plane
-    point_coords = rectangular_shape_coords(resolution, n_points_per_dimension, min_corner)
+    # Generate points within the plane. Use `tlsph=true` to generate points on the boundary
+    point_coords = rectangular_shape_coords(resolution, n_points_per_dimension, min_corner,
+                                            tlsph=true)
 
     results = interpolate_points(point_coords, semi, ref_system, v_ode, u_ode,
                                  smoothing_length=smoothing_length,
@@ -201,7 +202,13 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
         indices = findall(x -> x > 0, results.neighbor_count)
 
         # Filter all arrays in the named tuple using these indices
-        results = map(x -> x[indices], results)
+        results = map(results) do x
+            if isa(x, AbstractVector)
+                return x[indices]
+            else
+                return x[:, indices]
+            end
+        end
     end
 
     return results, x_range, y_range
@@ -279,24 +286,28 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
         throw(ArgumentError("`interpolate_plane_3d` requires a 3D simulation"))
     end
 
-    coords, resolution_ = sample_plane((point1, point2, point3), resolution)
+    points_coords, resolution_ = sample_plane((point1, point2, point3), resolution)
 
     if !isapprox(resolution, resolution_, rtol=5e-2)
         @info "The desired plane size is not a multiple of the resolution $resolution." *
               "\nNew resolution is set to $resolution_."
     end
 
-    points_coords = reinterpret(reshape, SVector{3, Float64}, coords)
-
     # Interpolate using the generated points
-    results = interpolate_point(points_coords, semi, ref_system, v_ode, u_ode,
-                                smoothing_length=smoothing_length,
-                                cut_off_bnd=cut_off_bnd,
-                                clip_negative_pressure=clip_negative_pressure)
+    results = interpolate_points(points_coords, semi, ref_system, v_ode, u_ode,
+                                 smoothing_length=smoothing_length,
+                                 cut_off_bnd=cut_off_bnd,
+                                 clip_negative_pressure=clip_negative_pressure)
 
     # Filter results
     indices = findall(x -> x > 0, results.neighbor_count)
-    filtered_results = map(x -> x[indices], results)
+    filtered_results = map(results) do x
+        if isa(x, AbstractVector)
+            return x[indices]
+        else
+            return x[:, indices]
+        end
+    end
 
     return filtered_results
 end
@@ -363,6 +374,7 @@ function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolut
     interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
                      endpoint, smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
+
 function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
                           endpoint=true,
                           smoothing_length=initial_smoothing_length(ref_system),
@@ -375,32 +387,29 @@ function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
         points_coords = points_coords[2:(end - 1)]
     end
 
-    return interpolate_point(points_coords, semi, ref_system, v_ode, u_ode;
-                             smoothing_length=smoothing_length,
-                             cut_off_bnd=cut_off_bnd, clip_negative_pressure)
+    # Convert to coordinate matrix
+    points_coords_ = collect(reinterpret(reshape, eltype(start_svector), points_coords))
+
+    return interpolate_points(points_coords_, semi, ref_system, v_ode, u_ode;
+                              smoothing_length=smoothing_length,
+                              cut_off_bnd=cut_off_bnd, clip_negative_pressure)
 end
 
 @doc raw"""
-    interpolate_point(points_coords::Array{Array{Float64,1},1}, semi, ref_system, sol;
-                      smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
-                      clip_negative_pressure=false)
+    interpolate_points(point_coords::AbstractMatrix, semi, ref_system, sol;
+                       smoothing_length=initial_smoothing_length(ref_system),
+                       cut_off_bnd=true, clip_negative_pressure=false)
 
-    interpolate_point(point_coords, semi, ref_system, sol;
-                      smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
-                      clip_negative_pressure=false)
-
-Performs interpolation of properties at specified points or an array of points in a TrixiParticles simulation.
-
-When given an array of points (`points_coords`), it iterates over each point and applies interpolation individually.
-For a single point (`point_coords`), it performs the interpolation at that specific location.
-The interpolation utilizes the same kernel function of the SPH simulation to weigh contributions from nearby particles.
+Performs interpolation of properties at specified points in a TrixiParticles simulation.
+The interpolation utilizes the same kernel function of the SPH simulation to weigh
+contributions from nearby particles.
 
 See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
           [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref), .
 
 # Arguments
-- `points_coords`:  An array of point coordinates, for which to interpolate properties.
-- `point_coords`:   The coordinates of a single point for interpolation.
+- `point_coords`:   A matrix of point coordinates, where the $i$-th column holds the
+                    coordinates of particle $i$.
 - `semi`:           The semidiscretization used in the SPH simulation.
 - `ref_system`:     The reference system defining the properties of the SPH particles.
 - `sol`:            The current solution state from which properties are interpolated.
@@ -417,16 +426,15 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
                                   interpolation thus only impacting the local interpolated value.
 
 # Returns
-- For multiple points:  A `NamedTuple` of arrays containing interpolated properties at each point.
-- For a single point: A `NamedTuple` of interpolated properties at the point.
+- A `NamedTuple` of arrays containing interpolated properties at each point.
 
 # Examples
 ```jldoctest; output = false, filter = r"density = .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01), callbacks=nothing); ref_system = fluid_system)
-# For a single point
-result = interpolate_point([1.0, 0.5], semi, ref_system, sol)
+# For a single point create a 2x1 matrix
+result = interpolate_points([1.0; 0.5;;], semi, ref_system, sol)
 
 # For multiple points
-points = [[1.0, 0.5], [1.0, 0.6], [1.0, 0.7]]
+points = [1.0; 1.0; 1.0;; 0.5; 0.6; 0.7]
 results = interpolate_point(points, semi, ref_system, sol)
 
 # output
@@ -439,44 +447,16 @@ results = interpolate_point(points, semi, ref_system, sol)
     - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
     accurate as a real surface reconstruction.
 """
-@inline function interpolate_point(point_coords, semi, ref_system, sol::ODESolution;
-                                   smoothing_length=initial_smoothing_length(ref_system),
-                                   cut_off_bnd=true, clip_negative_pressure=false)
+@inline function interpolate_points(point_coords, semi, ref_system, sol::ODESolution;
+                                    smoothing_length=initial_smoothing_length(ref_system),
+                                    cut_off_bnd=true, clip_negative_pressure=false)
     v_ode, u_ode = sol.u[end].x
 
-    interpolate_point(point_coords, semi, ref_system, v_ode, u_ode;
-                      smoothing_length, cut_off_bnd, clip_negative_pressure)
+    interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
+                       smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
-@inline function interpolate_point(points_coords::AbstractArray{<:AbstractArray}, semi,
-                                   ref_system, v_ode, u_ode;
-                                   smoothing_length=initial_smoothing_length(ref_system),
-                                   cut_off_bnd=true, clip_negative_pressure=false)
-    num_points = length(points_coords)
-    coords = similar(points_coords)
-    velocities = similar(points_coords)
-    densities = Vector{Float64}(undef, num_points)
-    pressures = Vector{Float64}(undef, num_points)
-    neighbor_counts = Vector{Int}(undef, num_points)
-
-    neighborhood_searches = process_neighborhood_searches(semi, u_ode, ref_system,
-                                                          smoothing_length)
-
-    for (i, point) in enumerate(points_coords)
-        result = interpolate_point(SVector{ndims(ref_system)}(point), semi, ref_system,
-                                   v_ode, u_ode, neighborhood_searches;
-                                   smoothing_length, cut_off_bnd, clip_negative_pressure)
-        densities[i] = result.density
-        neighbor_counts[i] = result.neighbor_count
-        coords[i] = result.coord
-        velocities[i] = result.velocity
-        pressures[i] = result.pressure
-    end
-
-    return (density=densities, neighbor_count=neighbor_counts, coord=coords,
-            velocity=velocities, pressure=pressures)
-end
-
+# Create neighborhood searches and then interpolate points
 function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                             smoothing_length=initial_smoothing_length(ref_system),
                             cut_off_bnd=true, clip_negative_pressure=false)
@@ -519,6 +499,7 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
     return neighborhood_searches
 end
 
+# Interpolate points with given neighborhood searches
 @inline function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode,
                                     neighborhood_searches;
                                     smoothing_length=initial_smoothing_length(ref_system),
