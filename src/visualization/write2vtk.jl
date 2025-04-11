@@ -124,9 +124,8 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         vtk["index"] = active_particles(system)
         vtk["time"] = t
 
-        # TODO
-        # vtk["particle_spacing"] = [particle_spacing(system, particle)
-        #                            for particle in active_particles(system)]
+        vtk["particle_spacing"] = [particle_spacing(system, particle)
+                                   for particle in active_particles(system)]
 
         if write_meta_data
             vtk["solver_version"] = git_hash
@@ -374,9 +373,8 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
         vtk["lame_lambda"] = system.lame_lambda
         vtk["lame_mu"] = system.lame_mu
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
-        # TODO
-        # vtk["smoothing_length_factor"] = initial_smoothing_length(system) /
-        #                                  particle_spacing(system, 1)
+        vtk["smoothing_length_factor"] = initial_smoothing_length(system) /
+                                         particle_spacing(system, 1)
     end
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
