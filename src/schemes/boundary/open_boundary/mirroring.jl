@@ -46,7 +46,6 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         correction_matrix = zero(SMatrix{ndims(system) + 1, ndims(system) + 1,
                                          eltype(system)})
         extrapolated_pressure_correction = zero(SVector{ndims(system) + 1, eltype(system)})
-        extrapolated_density_correction = zero(SVector{ndims(system) + 1, eltype(system)})
 
         extrapolated_velocity_correction = zero(SMatrix{ndims(system), ndims(system) + 1,
                                                         eltype(system)})
@@ -85,10 +84,6 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 
                 if !prescribed_velocity
                     extrapolated_velocity_correction += v_b * R'
-                end
-
-                if !prescribed_density
-                    extrapolated_density_correction += rho_b * R
                 end
             end
         end
@@ -139,10 +134,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)
         else
-            f_d = L_inv * extrapolated_density_correction
-            df_d = f_d[two_to_end]
-
-            density[particle] = f_d[1] + dot(pos_diff, df_d)
+            inverse_state_equation!(density, state_equation, pressure, particle)
         end
     end
 
