@@ -79,16 +79,34 @@ end
     return (177 // 100) // 32 * (1 + 5 // 2 * q + 2 * q^2) * (2 - q)^5
 end
 
-@inline function particle_density(v, model::BoundaryModelMonaghanKajtar, system, particle)
-    (; hydrodynamic_mass, boundary_particle_spacing) = model
+@inline function current_density(v,
+                                 system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                 particle)
+    (; hydrodynamic_mass, boundary_particle_spacing) = system.boundary_model
 
     # This model does not use any particle density. However, a mean density is used for
     # `ArtificialViscosityMonaghan` in the fluid interaction.
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
 end
 
+@inline function current_density(v, model::BoundaryModelMonaghanKajtar, system)
+    # We cannot make this an array without allocating
+    error("`current_density` not implemented for `BoundaryModelMonaghanKajtar`")
+end
+
 # This model does not not use any particle pressure
-particle_pressure(v, model::BoundaryModelMonaghanKajtar, system, particle) = zero(eltype(v))
+@inline function current_pressure(v,
+                                  system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                                TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                  particle)
+    return zero(eltype(v))
+end
+
+@inline function current_pressure(v, model::BoundaryModelMonaghanKajtar, system)
+    # We cannot make this an array without allocating
+    error("`current_pressure` not implemented for `BoundaryModelMonaghanKajtar`")
+end
 
 @inline function update_pressure!(boundary_model::BoundaryModelMonaghanKajtar, system,
                                   v, u, v_ode, u_ode, semi)

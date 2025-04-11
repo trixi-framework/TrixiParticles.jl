@@ -21,11 +21,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
-        rho_a = particle_density(v_particle_system, particle_system, particle)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = current_density(v_particle_system, particle_system, particle)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
-        p_a = particle_pressure(v_particle_system, particle_system, particle)
-        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_a = current_pressure(v_particle_system, particle_system, particle)
+        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
         # This technique is for a more robust `pressure_acceleration` but only with TVF.
         # It results only in significant improvement for EDAC and not for WCSPH.

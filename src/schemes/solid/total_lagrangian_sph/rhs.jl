@@ -88,8 +88,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        rho_a = particle_density(v_particle_system, particle_system, particle)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = current_density(v_particle_system, particle_system, particle)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = (rho_a + rho_b) / 2
 
         # Use kernel from the fluid system in order to get the same force here in
@@ -98,8 +98,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
         # corresponding to the chosen boundary model.
-        p_a = particle_pressure(v_particle_system, particle_system, particle)
-        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_a = current_pressure(v_particle_system, particle_system, particle)
+        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
         # Particle and neighbor (and corresponding systems and all corresponding quantities)
         # are switched in the following two calls.

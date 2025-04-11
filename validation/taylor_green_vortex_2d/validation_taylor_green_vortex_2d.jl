@@ -45,7 +45,7 @@ function compute_l1p_error(v, u, t, system)
         p_max_exact = max(p_max_exact, abs(p_analytical))
 
         # p_computed - p_average
-        p_computed = TrixiParticles.particle_pressure(v, system, particle) -
+        p_computed = TrixiParticles.current_pressure(v, system, particle) -
                      TrixiParticles.average_pressure(system, particle)
         L1p += abs(p_computed - p_analytical)
     end
