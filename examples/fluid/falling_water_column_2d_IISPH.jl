@@ -14,7 +14,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81 # gravity verändern
-tspan = (0.0, 0.2)
+tspan = (0.0, 0.4)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (1.0, 1.0)
@@ -47,7 +47,8 @@ fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = PressureMirroring() #TODO PressureMirroring richtig oder Pressure zeoring oder was ganz anderes???
+boundary_density_calculator = PressureZeroing() #TODO PressureMirroring richtig oder Pressure zeoring oder was ganz anderes???
+
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=nothing,
                                              boundary_density_calculator,
@@ -73,8 +74,21 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
 sol = solve(ode, SymplecticEuler(),
-            dt = 0.00001, # Limit stepsize to prevent crashing
-            #maxiters=3, # maximale Anzahl an #iterationen
+            dt = 0.0001,
             save_everystep=false, callback=callbacks);
 
 plot(sol)
+
+
+#244: 0,3 Sek (l=1, dt=0,00001)
+#245: 0,35 Sek (l=1, dt=0,00001)
+#246: 0,4 Sek (l=1, dt=0,00001)
+#247: 0,5 Sek (l=1, dt=0,00001)
+#248: 0,3 Sek (l=5, dt=0,00001)
+#249: 0,4 Sek (l=5, dt=0,00001)
+#250: 0,4 Sek (l=5, dt=0,0001) Fail
+#251: 0,4 Sek (l=5, dt=0,00005) Fail
+#252: 0,4 Sek (l=5, dt=0,00003) Fail
+#253: 0,4 Sek (l=5, dt=0,00002) Fail
+#254: 0,4 Sek (l=5, dt=0,000015)
+#255: 0,4 Sek (l=10, dt=0,00001)
