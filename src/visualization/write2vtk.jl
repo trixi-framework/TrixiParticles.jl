@@ -123,6 +123,8 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         # Store particle index
         vtk["index"] = active_particles(system)
         vtk["time"] = t
+        vtk["ndims"] = ndims(system)
+        vtk["particle_spacing"] = system.initial_condition.particle_spacing
 
         vtk["particle_spacing"] = [particle_spacing(system, particle)
                                    for particle in active_particles(system)]
@@ -186,7 +188,7 @@ Convert coordinate data to VTK format.
 - `file::AbstractString`: Path to the generated VTK file.
 """
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
-                   custom_quantities...)
+                   particle_spacing=-1, custom_quantities...)
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
            joinpath(output_directory, "$(prefix)_$filename")
@@ -197,6 +199,8 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     vtk_grid(file, points, cells) do vtk
         # Store particle index.
         vtk["index"] = [i for i in axes(coordinates, 2)]
+        vtk["ndims"] = size(coordinates, 1)
+        vtk["particle_spacing"] = particle_spacing
 
         # Extract custom quantities for this system.
         for (key, quantity) in custom_quantities
@@ -233,6 +237,7 @@ function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
 
     return trixi2vtk(coordinates; output_directory, prefix, filename,
                      density=density, initial_velocity=velocity, mass=mass,
+                     particle_spacing=initial_condition.particle_spacing,
                      pressure=pressure, custom_quantities...)
 end
 
