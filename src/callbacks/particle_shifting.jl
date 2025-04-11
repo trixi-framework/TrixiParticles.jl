@@ -71,7 +71,9 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi, u_cac
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               semi) do particle, neighbor, pos_diff, distance
+                               semi;
+                               points=each_moving_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             rho_a = particle_density(v, system, particle)
             rho_b = particle_density(v_neighbor, neighbor_system, neighbor)
