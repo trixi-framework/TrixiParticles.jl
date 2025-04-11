@@ -1,5 +1,32 @@
+"""
+ImplicitIncompressibleSPHSystem(initial_condition,
+                                smoothing_kernel, smoothing_length;
+                                viscosity=nothing,
+                                acceleration=ntuple(_ -> 0.0,ndims(smoothing_kernel)))
+
+System for particles of a fluid.
+The implicit incompressible SPH (IISPH) scheme is used, wherein a linear systems gets solved 
+iteratively in order to compute the correct pressure values such that the density deviation 
+from the rest density is (almost) zero.
+See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
+
+# Arguments
+- `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
+- `smoothing_kernel`:   Smoothing kernel to be used for this system.
+                        See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:   Smoothing length to be used for this system.
+                        See [Smoothing Kernels](@ref smoothing_kernel).
+
+# Keyword Arguments
+- `viscosity`:                  Viscosity model for this system (default: no viscosity).
+                                See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
+- `acceleration`:               Acceleration vector for the system. (default: zero vector)
+"""
+
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
-                                   V, PF, SRFN, Dens, PV, D, A, SD, S} <:
+                                   V, PF, SRFN, Dens, preDens, PV, D, A, SD, S} <:
        FluidSystem{NDIMS, IC}
     initial_condition                 :: IC 
     mass                              :: MA     # Array{ELTYPE, 1}
@@ -11,27 +38,22 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
     pressure_acceleration_formulation :: PF
     transport_velocity                :: Nothing # TODO
     surface_normal_method             :: SRFN
-    buffer                            :: Nothing
-    density                           :: Dens
-    v_adv                             :: PV  
-    d                                 :: D
-    a                                 :: A
-    sum_dj                            :: SD
-    s_term                            :: S
+    density                           :: Dens    # Array{ELTYPE, 1}
+    predicted_density                 :: preDens # Array{ELTYPE, 1}
+    v_adv                             :: PV      # Array{ELTYPE, NDIMS}
+    d                                 :: D       # Array{ELTYPE, NDIMS}
+    a                                 :: A       # Array{ELTYPE, 1}
+    sum_dj                            :: SD      # Array{ELTYPE, NDIMS}
+    s_term                            :: S       # Array{ELTYPE, 1}
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function ImplicitIncompressibleSPHSystem(initial_condition,
-                                     smoothing_kernel, smoothing_length;
-                                     pressure_acceleration=nothing,
-                                     buffer_size=nothing,
-                                     viscosity=nothing,
-                                     acceleration=ntuple(_ -> 0.0,
-                                                         ndims(smoothing_kernel)),
-                                     reference_particle_spacing=0.0)
-    buffer = isnothing(buffer_size) ? nothing :
-             SystemBuffer(nparticles(initial_condition), buffer_size)
+                                        smoothing_kernel, smoothing_length;
+                                        viscosity=nothing,
+                                        acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
+                                        reference_particle_spacing=0.0)
 
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
@@ -51,9 +73,9 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
     end
 
     pressure_acceleration = pressure_acceleration_summation_density
-
-
+    
     density = copy(initial_condition.density)
+    predicted_density = zeros(ELTYPE, n_particles)
     a = zeros(ELTYPE, n_particles)
     d = zeros(ELTYPE, NDIMS, n_particles)
     v_adv = zeros(ELTYPE, NDIMS, n_particles)
@@ -62,10 +84,9 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
     return ImplicitIncompressibleSPHSystem(initial_condition, mass, pressure,
                                        smoothing_kernel, smoothing_length,
                                        acceleration_, viscosity,
-                                       pressure_acceleration, nothing, nothing,
-                                       nothing, density, v_adv, d, a, sum_dj, s_term)
+                                       pressure_acceleration, nothing,
+                                       nothing, density, predicted_density, v_adv, d, a, sum_dj, s_term)
 end
-
 
 
 function reset_callback_flag!(system::ImplicitIncompressibleSPHSystem)
@@ -92,12 +113,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::ImplicitIncompressibleSPH
         show(io, system)
     else
         summary_header(io, "ImplicitIncompressibleSPHSystem{$(ndims(system))}")
-        if system.buffer isa SystemBuffer
-            summary_line(io, "#particles", nparticles(system))
-            summary_line(io, "#buffer_particles", system.buffer.buffer_size)
-        else
-            summary_line(io, "#particles", nparticles(system))
-        end
+        summary_line(io, "#particles", nparticles(system))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "acceleration", system.acceleration)
@@ -105,7 +121,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::ImplicitIncompressibleSPH
     end
 end
 
-# overwritten functios for IISPH
+@inline each_moving_particle(system :: ImplicitIncompressibleSPHSystem) = Base.OneTo(n_moving_particles(system))
+@inline active_coordinates(u, system :: ImplicitIncompressibleSPHSystem) = current_coordinates(u, system)
+@inline active_particles(system :: ImplicitIncompressibleSPHSystem) = eachparticle(system)
+
 @propagate_inbounds function particle_pressure(v, system::ImplicitIncompressibleSPHSystem,
                                                particle)
     return system.pressure[particle]
@@ -119,9 +138,6 @@ end
 @inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = 1000.0
 
 
-# new functions for IISPH
-
-#predicted velocity (roh_adv)
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem, particle)
     return extract_svector(system.v_adv, system, particle)
 end
@@ -130,7 +146,6 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-# extracts d_i values of the d-array
 @propagate_inbounds function get_d(system::ImplicitIncompressibleSPHSystem, d, particle)
     return extract_svector(d, system, particle)
 end
@@ -139,7 +154,6 @@ end
     return extract_svector(d, system, particle)
 end
 
-# extracts the value for the corresponding particle of the array with the sums over the d_js
 @propagate_inbounds function get_sum_dj(system::ImplicitIncompressibleSPHSystem, sum_dj, particle)
     return extract_svector(sum_dj, system, particle)
 end
@@ -148,8 +162,17 @@ end
     return extract_svector(sum_dj, system, particle)
 end
 
+# Calculates a summand for the calculation of the d_ii values 
+function calculate_dii(system::ImplicitIncompressibleSPHSystem, m_b, rho_a, grad_kernel, time_step)
+    return -time_step^2 * m_b / rho_a^2 * grad_kernel
+end
 
-# claculates the sum over d_ij*p_j for all neighbors j from i
+# Calculates a summand for the calculation of the d_ii values 
+function calculate_dii(system::BoundarySystem, m_b, rho_a, grad_kernel, time_step)
+    return -time_step^2 * m_b / rho_a^2 * grad_kernel[i] #für pressure mirroring
+end
+
+# Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
 function calculate_sum_dj(system :: ImplicitIncompressibleSPHSystem, particle, density, pressure, time_step, grad_kernel)
     m_b = hydrodynamic_mass(system, particle)
     p_b = pressure[particle]
@@ -157,12 +180,13 @@ function calculate_sum_dj(system :: ImplicitIncompressibleSPHSystem, particle, d
     return SVector(-time_step^2 * m_b / rho_b^2 * p_b * grad_kernel)
 end
 
-function calculate_sum_dj(system :: BoundarySystem, particle, density, time_step, grad_kernel)
+# Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
+function calculate_sum_dj(system :: BoundarySystem, particle, density, pressure, time_step, grad_kernel)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-#calculates the sum term in equation (13)
-function calculate_sterm(system, neighbor_system:: ImplicitIncompressibleSPHSystem, particle, neighbor, density, pressure, sum_dj, d, grad_kernel_ab, grad_kernel_ba, time_step)
+# Calculates the sum term in equation (13) from IHMSEN et al
+function calculate_sum_term(system, neighbor_system:: ImplicitIncompressibleSPHSystem, particle, neighbor, density, pressure, sum_dj, d, grad_kernel_ab, grad_kernel_ba, time_step)
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     sum_da = get_sum_dj(system, sum_dj, particle)
     d_b = get_d(neighbor_system, d, neighbor)
@@ -173,49 +197,54 @@ function calculate_sterm(system, neighbor_system:: ImplicitIncompressibleSPHSyst
     return m_b * dot(sum_da - d_b * p_b - (sum_db - dba * p_a), grad_kernel_ab)
 end
 
-function calculate_sterm(system, neighbor_system:: BoundarySystem, particle, neighbor, density, pressure, sum_dj, d, grad_kernel_ab, grad_kernel_ba, time_step)
+# Calculates the sum term in equation (13) from IHMSEN et al
+function calculate_sum_term(system, neighbor_system:: BoundarySystem, particle, neighbor, density, pressure, sum_dj, d, grad_kernel_ab, grad_kernel_ba, time_step)
     sum_da = get_sum_dj(system, sum_dj, particle)
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     return m_b * dot(sum_da, grad_kernel_ab)
 end
 
-#calculates the d_ij values for a particle i and his neighbor j (in Eq. 9)
+# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in IHMSEN et al
 function calculate_dji(system, ::ImplicitIncompressibleSPHSystem, particle, density, grad_kernel, time_step)
     return SVector(-time_step^2 * hydrodynamic_mass(system, particle) / density[particle]^2 * grad_kernel)
 end
 
+#=
 function calculate_dji(system, ::BoundarySystem, particle, density, grad_kernel, time_step)
     return zero(SVector{ndims(system), eltype(system)})
 end
+=#
+# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in IHMSEN et al
+function calculate_dji(system, ::BoundarySystem, particle, density, grad_kernel, time_step)
+    return SVector(-time_step^2 * hydrodynamic_mass(system, particle) / density[particle]^2 * grad_kernel)
+end
 
 
-# Main function: clculates the pressure values through a relaxed jacobi scheme
+# Calculates the pressure values by solving a linear system with a relaxed jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
 
-    # feste time step size 
-    time_step = 0.00001
+    # fixed time step size 
+    time_step = 0.0001
     
-    # get necessary fields (density, d, a, v_adv)
-    density = system.density # density
-    d = system.d # array for the d_ii values
-    a = system.a # array for the a_ii values
-    v_adv = system.v_adv # predicted velocity
-    pressure = system.pressure  # get pressure values
+    density = system.density 
+    predicted_density = system.predicted_density 
+    d = system.d
+    a = system.a
+    v_adv = system.v_adv
+    pressure = system.pressure
 
-    set_zero!(d) # set to zero in each function call 
-    set_zero!(a) # set to zero in each function call 
+    set_zero!(d)
+    set_zero!(a)
+    summation_density!(system, semi,  u, u_ode, density)
+    set_zero!(predicted_density)
 
-    summation_density!(system, semi,  u, u_ode, density)  # get current density
-    #density .= 1000.0   # für Testzwecke: Dichte konstant 1000 lassen
-  
-    v_particle_system = wrap_v(v_ode, system, semi)  # get current velocity
+    v_particle_system = wrap_v(v_ode, system, semi)
+    v_adv .= v_particle_system
 
-    v_adv .= v_particle_system  # set to predicted velocity to current velocity
-
-
-    @trixi_timeit timer() "first loop" foreach_system(semi) do neighbor_system
-        # Get neighbor system u and v values 
+    # Calculate the predicted velocity by adding all non-pressure accelerations
+    @trixi_timeit timer() "Predict Advection" foreach_system(semi) do neighbor_system
+        # get neighbor system u and v values 
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         # get coordinates
@@ -249,25 +278,22 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                                 grad_kernel)
 
 
-            # Calculate d_ii with formula in eq. (9) (fluid and boundary particles are considered)
-            for i in ndims(system)
-                d[i, particle] -= time_step^2 * m_b / rho_a^2 * grad_kernel[i]
+            # calculate d_ii with formula in eq. 9 from IHMSEN et al
+            for i in 1:ndims(system)
+                d[i, particle] += calculate_dii(neighbor_system, m_b, rho_a, grad_kernel[i], time_step)
             end
 
-            # Calculate predicted velocities
-            for i in ndims(system)
+            # calculate predicted velocities
+            for i in 1:ndims(system)
                 v_adv[i, particle] += time_step * (dv_viscosity_[i] + system.acceleration[i])
             end
-
-            #Alternative: add_acceleration!(F_adv, particle, system)
-        end    
+        end
     end
 
-    # Calculation of the a_ii-values 
-    @trixi_timeit timer() "second loop" foreach_system(semi) do neighbor_system
-        # Get neighbor system u and v values 
+    # Calculation of the a_ii-values according to equation 12 from IHMSEN et al
+    @trixi_timeit timer() "Calculate matrix diagonal a_ii" foreach_system(semi) do neighbor_system
+        # set neighbor system u and v values 
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         # get coordinates
         system_coords = current_coordinates(u, system)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -281,23 +307,24 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                                                                         neighbor,
                                                                         pos_diff,
                                                                         distance
-            #Set pressure p0 to a half of the previous/current pressure value
+
+            # set pressure p0 to a half of the previous/current pressure value
             pressure[particle] = 0.5 * pressure[particle]
 
             grad_kernel = smoothing_kernel_grad(system, -pos_diff, distance)
-            # compute dji (for the calculation of aii)
+            # compute dji
             dji = calculate_dji(system, neighbor_system, particle, density, grad_kernel, time_step)
                                
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            # calculate a_ii values (Eq. 12)
+
+            # calculate a_ii values
             a[particle] += m_b * dot((get_d(system, d, particle) - dji), smoothing_kernel_grad(system, pos_diff, distance))
         end
     end
 
     foreach_system(semi) do neighbor_system
-        # Get neighbor system u and v values 
+        # get neighbor system u and v values 
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         # get coordinates
         system_coords = current_coordinates(u, system)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -308,35 +335,29 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                                 points=each_moving_particle(system)) do particle, neighbor,
                                                                         pos_diff, distance
             
-            # calculate predicted density
+            # Calculate predicted density through predicted velocity
             v_adv_diff = predicted_velocity(system, particle) - predicted_velocity(neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
-            # update density
-            density[particle] += time_step * m_b * dot(v_adv_diff, grad_kernel)
+            
+            predicted_density[particle] = density[particle] + time_step * m_b * dot(v_adv_diff, grad_kernel)
         end
     end
 
     # relaxiaion parameter
     w = 0.5
-    # get necessary fields from the struct 
+
     sum_dj = system.sum_dj
     s_term = system.s_term
-    # set to zero
     sum_dj .= 0.0
-    #s_term .= 0.0
-    #for bug fixes (searching the mistake)
-    rest_density = 1000.0
-    density_error = zeros(nparticles(system))
-    density_deviation = zeros(nparticles(system))
 
-    # While-loop
+    # Calculate pressure values with iterative pressure solver (relaxed jacobi scheme)
     l = 0
-    while l < 6 #TODO: Abbruchbedingung
-        @trixi_timeit timer() "while loop 1" foreach_system(semi) do neighbor_system
+    while l < 15 #TODO: Abbruchbedingung
+        set_zero!(sum_dj)
+        @trixi_timeit timer() "Pressure solve - calculate Sum over d_j's" foreach_system(semi) do neighbor_system
             # Get neighbor system u and v values 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-            v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
             # get coordinates
             system_coords = current_coordinates(u, system)
             neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -358,10 +379,9 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
         end
 
         s_term .= 0.0
-        @trixi_timeit timer() "while loop 2" foreach_system(semi) do neighbor_system
+        @trixi_timeit timer() "Pressure solve - calculate pressure values" foreach_system(semi) do neighbor_system
             # Get neighbor system u and v values 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-            v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
             # get coordinates
             system_coords = current_coordinates(u, system)
             neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -375,68 +395,23 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                 
                 grad_kernel_ab = smoothing_kernel_grad(system, pos_diff, distance)
                 grad_kernel_ba = smoothing_kernel_grad(system, -pos_diff, distance)
-                s_term[particle] += calculate_sterm(system, neighbor_system, particle, neighbor, density, pressure, sum_dj, d, grad_kernel_ab, grad_kernel_ba, time_step)                      
+                s_term[particle] += calculate_sum_term(system, neighbor_system, particle, neighbor, density, pressure, sum_dj, d, grad_kernel_ab, grad_kernel_ba, time_step)                      
             end
         end
-
+        rest_density = 1000.0
+        # pressure update
         for particle in eachparticle(system)
-            #two versions of pressure calculation: with and without pressure clamping
-            #pressure[particle] = (1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle]) # no pressure clamping
-            pressure[particle] = max((1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - density[particle] - s_term[particle]), 0) #version with pressure clamping (no negative pressure values)
-            
-            # Tests für Bug Fixes
-            density_error[particle] = rest_density - density[particle] - s_term[particle]
-            #pressure[particle] = 0.0
-            density_deviation[particle] = rest_density - density[particle]
-            #density[particle] = 1000.0
-
+            # Removing instability by avoiding to divide through very low numbers for a
+            # This is not mentioned in the paper but it's what they do in SPlisHSPlasH
+            if abs(a[particle]) > 1e-9
+                pressure[particle] = max((1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - predicted_density[particle] - s_term[particle]), 0) #version with pressure clamping (no negative pressure values)
+            else
+                pressure[particle] = 0
+            end
         end
         l += 1
-
-
-        # Ausgaben für bug fixes 
-        avg_density_error = sum(density_error) / nparticles(system)
-        println("avg_density_error: ", avg_density_error)
-        density_deviation_error_ = sum(density_deviation / nparticles(system))
-        println("avg_density_deviation: ", density_deviation_error_)
-        println("avg_sterm: ", sum(s_term) / nparticles(system))
-        println("avg 1/a term: ", 1 / (sum(a) / nparticles(system)))
-        #println("min_avg_density_deviation: ", min(density_deviation_error_))
-        #println("max_avg_density_deviation: ", max(density_deviation_error_))
-        #=
-        println("l: ", l)
-        println("Density Minimum: ", minimum(density))
-        println("Density Maximum: ", maximum(density))
-        println("Pressure Minimum: ", minimum(pressure))
-        println("Pressure Maximum: ", maximum(pressure))
-        println("----------------------------------------------------------")   
-        println("----------------------------------------------------------")
-        =#
     end
 
-    # Ausgaben für bug fixes
-    sum_dens = sum(particle -> particle_density(v, system, particle),
-               eachparticle(system))
-    avg_dens = sum_dens / nparticles(system)
-    sum_pres = sum(pressure)
-    avg_pres = sum_pres / nparticles(system)
-    println("Average Density: ", avg_density(v, u, t, system))
-    #println("avg_dens: ", avg_dens)
-    #println("Density Minimum: ", minimum(density))
-    #println("Density Maximum: ", maximum(density))
-    println("avg_pres: ", avg_pres)
-    #println("Pressure Minimum: ", minimum(pressure))
-    #println("Pressure Maximum: ", maximum(pressure))
-    #println(a)
-    #println(size(a))
-    #println("a Minimum: ", minimum(a))
-    #println("a Maximum: ", maximum(a))
-    #println(system.s_term)
-    #println(size(system.s_term))
-    #println("s_term Minimum: ", minimum(system.s_term))
-    #println("s_term Maximum: ", maximum(system.s_term))
-    println("----------------------------------------------------------")
-   
     return system
 end
 
