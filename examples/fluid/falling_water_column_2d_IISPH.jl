@@ -23,7 +23,8 @@ tank_size = (2.0, 2.0)
 fluid_density = 1000.0
 
 # TODO: Was machen mit dem sound speed?
-sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+#sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 1000.0 
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio)
@@ -66,29 +67,9 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so because forces become extremely large when
-# fluid particles are very close to boundary particles, and the time integration method
-# interprets this as an instability.
 sol = solve(ode, SymplecticEuler(),
-            dt = 0.001,
+            dt = 0.0001,
             save_everystep=false, callback=callbacks);
 
 plot(sol)
 
-
-#244: 0,3 Sek (l=1, dt=0,00001)
-#245: 0,35 Sek (l=1, dt=0,00001)
-#246: 0,4 Sek (l=1, dt=0,00001)
-#247: 0,5 Sek (l=1, dt=0,00001)
-#248: 0,3 Sek (l=5, dt=0,00001)
-#249: 0,4 Sek (l=5, dt=0,00001)
-#250: 0,4 Sek (l=5, dt=0,0001) Fail
-#251: 0,4 Sek (l=5, dt=0,00005) Fail
-#252: 0,4 Sek (l=5, dt=0,00003) Fail
-#253: 0,4 Sek (l=5, dt=0,00002) Fail
-#254: 0,4 Sek (l=5, dt=0,000015)
-#255: 0,4 Sek (l=10, dt=0,00001)
