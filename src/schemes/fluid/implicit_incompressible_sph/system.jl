@@ -177,6 +177,7 @@ function calculate_dii(system, boundary_model::BoundaryModelDummyParticles, m_b,
     return calculate_dii(system, boundary_model, density_calculator, m_b, rho_a, grad_kernel, time_step)
 end
 
+# Calculates a summand for the calculation of the d_ii values 
 function calculate_dii(system, boundary_model, density_calculator::PressureMirroring ,m_b, rho_a, grad_kernel, time_step)
     return -time_step^2 * m_b / rho_a^2 * grad_kernel[i] #for pressure mirroring
 end
@@ -185,6 +186,7 @@ end
 function calculate_dii(system, boundary_model, density_calculator::PressureZeroing, m_b, rho_a, grad_kernel, time_step)
     return 0 #for pressure zeroring
 end
+
 # Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
 function calculate_sum_dj(system :: ImplicitIncompressibleSPHSystem, particle, density, pressure, time_step, grad_kernel)
     m_b = hydrodynamic_mass(system, particle)
@@ -238,7 +240,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
 
     # fixed time step size 
-    time_step = 0.001
+    time_step = 0.0001
     
     density = system.density 
     predicted_density = system.predicted_density 
@@ -289,7 +291,6 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                                 particle, neighbor, pos_diff, distance,
                                 sound_speed, m_a, m_b, rho_a, rho_b,
                                 grad_kernel)
-
 
             # calculate d_ii with formula in eq. 9 from IHMSEN et al
             for i in 1:ndims(system)
@@ -366,7 +367,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
     # Calculate pressure values with iterative pressure solver (relaxed jacobi scheme)
     l = 0
-    while l < 15 #TODO: Abbruchbedingung
+    while l < 5 #TODO: Abbruchbedingung
         set_zero!(sum_dj)
         @trixi_timeit timer() "Pressure solve - calculate Sum over d_j's" foreach_system(semi) do neighbor_system
             # Get neighbor system u and v values 
