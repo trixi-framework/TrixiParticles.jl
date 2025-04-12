@@ -74,7 +74,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
 sol = solve(ode, SymplecticEuler(),
-            dt = 0.0001,
+            dt = 0.001,
             save_everystep=false, callback=callbacks);
 
 plot(sol)
