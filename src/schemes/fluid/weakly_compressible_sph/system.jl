@@ -238,6 +238,9 @@ end
     return ndims(system) * factor_tvf(system) + 1
 end
 
+# To find the correct index of the density in the integration array
+@inline density_index(system::WeaklyCompressibleSPHSystem) = v_nvariables(system)
+
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 
 @propagate_inbounds function particle_pressure(v, system::WeaklyCompressibleSPHSystem,

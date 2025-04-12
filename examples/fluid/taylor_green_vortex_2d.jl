@@ -77,15 +77,17 @@ if wcsph
                                        exponent=1)
     fluid_system = WeaklyCompressibleSPHSystem(fluid, density_calculator,
                                                state_equation, smoothing_kernel,
+                                               density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
                                                smoothing_length,
-                                               viscosity=ViscosityAdami(; nu),
-                                               transport_velocity=TransportVelocityAdami(background_pressure))
+                                               transport_velocity=TransportVelocityAdami(background_pressure),
+                                               viscosity=ViscosityAdami(; nu))
 else
     density_calculator = SummationDensity()
     fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
                                                sound_speed,
                                                density_calculator=density_calculator,
+                                            #    density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),
                                                transport_velocity=TransportVelocityAdami(background_pressure),
                                                viscosity=ViscosityAdami(; nu))
 end
