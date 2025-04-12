@@ -17,7 +17,7 @@ $F_i^{adv}$ are all non-pressure forces such as gravity, viscosiy, surface tensi
 Note that the IISPH is an incompressible fluid system, which means that the density of the fluid does not change over the time. By assuming that we have a fixed density value (the reference density $\rho_0$) for all fluid particle over the whole time of the simulation, we want to have that the density value at the next time step $\rho_i(t + \Delta t)$ is also this rest density. So we can plug in $\rho_0$ for $\rho_i(t + \Delta t)$ in the formula above. 
 
 The goal is to compute the pressure values to get the pressure acceleration that is needed to achieve the rest density for each particle in the next time step. At the moment these pressure values are unknown, but all the non-pressure forces are known in $t$.
-Therefore a predicted density gets calculated by an predicted velocity $v_i^{adv}= v_i(t) + \Delta t \frac{\mathbb{F}_i^{adv}(t)}{m_i}$, which depends only on the non-pressure forces $F_i^{adv}$:
+Therefore a predicted density gets calculated by an predicted velocity $v_i^{adv}= v_i(t) + \Delta t \frac{\mathbb{F}_i^{adv}(t)}{m_i}$, which depends only on the non-pressure forces $F_i^{adv}$: 
 $$\rho_i^{adv} = \rho_i(t) + \Delta t \sum_j m_j v_{ij}^{adv} \nabla W_{ij}(t)$$
 
 
@@ -44,7 +44,7 @@ In the case of the linear system for the pressure values the formula is
 $$ p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i{adv} \sum_{j \neq i} a_{ij}p_j^l}{a{ii}}$$
 
 Therefore the diagonal elements $a_{ii}$ and the sum $\sum_{j \neq i} a_{ij}p_j^l$ need to be determined. 
-This can be done efficently by seperating the formula for the pressure force acceleration into a summantor which describes the displacement of particle i due to the pressure value of particle i, and one summantor which describes the displacement du to the pressure values of the neighboring particles $p_j$. 
+This can be done efficently by seperating the formula for the pressure force acceleration into a summantor which describes the displacement of particle i due to the pressure value of particle i, and one summantor which describes the displacement du to the pressure values of the neighboring particles  
 
 $$ \Delta t^2 \frac{\mathbb{F}_i^p}{m_i} &= -\Delta t^2 \sum_j m_j \left( \frac{p_i}{\rho_i^2} + \frac{p_j}{\rho_j^2} \right)\nabla W_{ij} \n &= \left( - \Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij} \right) p_i + \sum_j - \Delta t^2 \frac{m_j}{\rho_j^2} \nabla W_{ij}p_j$$
 
