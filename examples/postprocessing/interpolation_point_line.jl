@@ -9,26 +9,23 @@ trixi_include(@__MODULE__,
 
 position_x = tank_size[1] / 2
 
-# `interpolate_point` can be used to interpolate the properties of the `fluid_system` with the original kernel and `smoothing_length`
-println(interpolate_point([position_x, 0.01], semi, fluid_system, sol))
+# `interpolate_point` can be used to interpolate the properties of the `fluid_system`
+# with the original kernel and `smoothing_length`.
+println(interpolate_points([position_x; 0.01;;], semi, fluid_system, sol))
 # Or with an increased `smoothing_length` smoothing the result
-println(interpolate_point([position_x, 0.01], semi, fluid_system, sol,
-                          smoothing_length=2.0 * smoothing_length))
+println(interpolate_points([position_x; 0.01;;], semi, fluid_system, sol,
+                           smoothing_length=2.0 * smoothing_length))
 
-# A point outside of the domain will result in properties with value 0
-# On the boundary a result can still be obtained
-println(interpolate_point([position_x, 0.0], semi, fluid_system, sol))
+# A point outside of the domain will result in properties with NaN values.
+# On the boundary a result can still be obtained.
+println(interpolate_points([position_x; 0.0;;], semi, fluid_system, sol))
 # Slightly outside of the fluid domain the result is 0
-println(interpolate_point([position_x, -0.01], semi, fluid_system, sol))
+println(interpolate_points([position_x; -0.01;;], semi, fluid_system, sol))
 
 # Multiple points can be interpolated by providing an array
-println(interpolate_point([
-                              [position_x, 0.01],
-                              [position_x, 0.1],
-                              [position_x, 0.0],
-                              [position_x, -0.01],
-                              [position_x, -0.05]
-                          ], semi, fluid_system, sol))
+println(interpolate_points([position_x position_x position_x position_x position_x;
+                            0.01 0.1 0.0 -0.01 -0.05],
+                           semi, fluid_system, sol))
 
 # It is also possible to interpolate along a line
 n_interpolation_points = 10
@@ -40,8 +37,8 @@ result_endpoint = interpolate_line(start_point, end_point, n_interpolation_point
                                    semi, fluid_system, sol, endpoint=false)
 
 # Extracting wall distance for the standard and endpoint cases
-walldistance = [coord[2] for coord in result.coord]
-walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
+walldistance = result.point_coords[2, :]
+walldistance_endpoint = result_endpoint.point_coords[2, :]
 
 # Instead of using Plots.jl one can also use PythonPlot which uses matplotlib
 # using PythonPlot
