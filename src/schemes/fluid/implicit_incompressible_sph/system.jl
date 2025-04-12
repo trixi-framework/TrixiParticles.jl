@@ -169,9 +169,22 @@ end
 
 # Calculates a summand for the calculation of the d_ii values 
 function calculate_dii(system::BoundarySystem, m_b, rho_a, grad_kernel, time_step)
-    return -time_step^2 * m_b / rho_a^2 * grad_kernel[i] #für pressure mirroring
+    return calculate_dii(system::BoundarySystem, system.boundary_model, m_b, rho_a, grad_kernel, time_step)
 end
 
+# Calculates a summand for the calculation of the d_ii values 
+function calculate_dii(system, boundary_model::BoundaryModelDummyParticles, m_b, rho_a, grad_kernel, time_step)
+    return calculate_dii(system, boundary_model, density_calculator, m_b, rho_a, grad_kernel, time_step)
+end
+
+function calculate_dii(system, boundary_model, density_calculator::PressureMirroring ,m_b, rho_a, grad_kernel, time_step)
+    return -time_step^2 * m_b / rho_a^2 * grad_kernel[i] #for pressure mirroring
+end
+
+# Calculates a summand for the calculation of the d_ii values 
+function calculate_dii(system, boundary_model, density_calculator::PressureZeroing, m_b, rho_a, grad_kernel, time_step)
+    return 0 #for pressure zeroring
+end
 # Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
 function calculate_sum_dj(system :: ImplicitIncompressibleSPHSystem, particle, density, pressure, time_step, grad_kernel)
     m_b = hydrodynamic_mass(system, particle)
@@ -225,7 +238,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
 
     # fixed time step size 
-    time_step = 0.0001
+    time_step = 0.001
     
     density = system.density 
     predicted_density = system.predicted_density 
