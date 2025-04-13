@@ -174,7 +174,7 @@ end
 
 # Calculates a summand for the calculation of the d_ii values 
 function calculate_dii(system, boundary_model::BoundaryModelDummyParticles, m_b, rho_a, grad_kernel, time_step)
-    return calculate_dii(system, boundary_model, density_calculator, m_b, rho_a, grad_kernel, time_step)
+    return calculate_dii(system, boundary_model, boundary_model.density_calculator, m_b, rho_a, grad_kernel, time_step)
 end
 
 # Calculates a summand for the calculation of the d_ii values 
@@ -184,19 +184,45 @@ end
 
 # Calculates a summand for the calculation of the d_ii values 
 function calculate_dii(system, boundary_model, density_calculator::PressureZeroing, m_b, rho_a, grad_kernel, time_step)
-    return 0 #for pressure zeroring
+    return 0 #for pressure zeroing
+end
+
+# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in IHMSEN et al
+function calculate_dij(system::ImplicitIncompressibleSPHSystem, particle, density, grad_kernel, time_step)
+    return SVector(-time_step^2 * hydrodynamic_mass(system, particle) / density[particle]^2 * grad_kernel)
+end
+
+# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in IHMSEN et al
+function calculate_dij(system::BoundarySystem, particle, density, grad_kernel, time_step)
+    return SVector(-time_step^2 * hydrodynamic_mass(system, particle) / density[particle]^2 * grad_kernel)
 end
 
 # Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
-function calculate_sum_dj(system :: ImplicitIncompressibleSPHSystem, particle, density, pressure, time_step, grad_kernel)
-    m_b = hydrodynamic_mass(system, particle)
+function calculate_sum_dj(system :: ImplicitIncompressibleSPHSystem, particle, density, pressure, grad_kernel, time_step)
     p_b = pressure[particle]
-    rho_b = density[particle]
-    return SVector(-time_step^2 * m_b / rho_b^2 * p_b * grad_kernel)
+    dij = calculate_dij(system, particle, density, grad_kernel, time_step)
+    return SVector(dij * p_b)
 end
 
 # Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
-function calculate_sum_dj(system :: BoundarySystem, particle, density, pressure, time_step, grad_kernel)
+function calculate_sum_dj(system :: BoundarySystem, particle, density, pressure, grad_kernel, time_step)
+    return calculate_sum_dj(system, system.boundary_model, particle, density, pressure, grad_kernel, time_step)
+end
+
+# Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
+function calculate_sum_dj(system, boundary_model::BoundaryModelDummyParticles,  particle, density, pressure, grad_kernel, time_step)
+    return calculate_sum_dj(system, boundary_model, boundary_model.density_calculator, particle, density, pressure, grad_kernel, time_step)
+end
+
+# Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
+function calculate_sum_dj(system, boundary_model, density_calculator::PressureMirroring, particle, density, pressure, grad_kernel, time_step)
+    #pressure = particle_pressure(0 ,system, particle) #TODO In case of using different density calculators, the boundary particles have own pressure values which just need to be determined in this line, and then they contribute to the pressure value of the fluid particles 
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+# Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
+function calculate_sum_dj(system, boundary_model, density_calculator::PressureZeroing, particle, density, pressure, grad_kernel, time_step)
+    #pressure = particle_pressure(0, system, particle) #TODO s.o.
     return zero(SVector{ndims(system), eltype(system)})
 end
 
@@ -219,28 +245,13 @@ function calculate_sum_term(system, neighbor_system:: BoundarySystem, particle, 
     return m_b * dot(sum_da, grad_kernel_ab)
 end
 
-# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in IHMSEN et al
-function calculate_dji(system, ::ImplicitIncompressibleSPHSystem, particle, density, grad_kernel, time_step)
-    return SVector(-time_step^2 * hydrodynamic_mass(system, particle) / density[particle]^2 * grad_kernel)
-end
-
-#=
-function calculate_dji(system, ::BoundarySystem, particle, density, grad_kernel, time_step)
-    return zero(SVector{ndims(system), eltype(system)})
-end
-=#
-# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in IHMSEN et al
-function calculate_dji(system, ::BoundarySystem, particle, density, grad_kernel, time_step)
-    return SVector(-time_step^2 * hydrodynamic_mass(system, particle) / density[particle]^2 * grad_kernel)
-end
-
 
 # Calculates the pressure values by solving a linear system with a relaxed jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
 
     # fixed time step size 
-    time_step = 0.0001
+    time_step = 0.001
     
     density = system.density 
     predicted_density = system.predicted_density 
@@ -325,9 +336,9 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
             # set pressure p0 to a half of the previous/current pressure value
             pressure[particle] = 0.5 * pressure[particle]
 
-            grad_kernel = smoothing_kernel_grad(system, -pos_diff, distance)
+            grad_kernel_ji = smoothing_kernel_grad(system, -pos_diff, distance)
             # compute dji
-            dji = calculate_dji(system, neighbor_system, particle, density, grad_kernel, time_step)
+            dji = calculate_dij(neighbor_system, particle, density, grad_kernel_ji, time_step)
                                
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -367,7 +378,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
     # Calculate pressure values with iterative pressure solver (relaxed jacobi scheme)
     l = 0
-    while l < 5 #TODO: Abbruchbedingung
+    while l < 15 #TODO: Abbruchbedingung
         set_zero!(sum_dj)
         @trixi_timeit timer() "Pressure solve - calculate Sum over d_j's" foreach_system(semi) do neighbor_system
             # Get neighbor system u and v values 
@@ -385,7 +396,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                                                     distance
 
                 grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
-                sum_dj_ = calculate_sum_dj(neighbor_system, neighbor, density, pressure, time_step, grad_kernel)  # only gives a value for fluid particles (0 for boundary particles) 
+                sum_dj_ = calculate_sum_dj(neighbor_system, neighbor, density, pressure, grad_kernel, time_step)  # only gives a value for fluid particles (0 for boundary particles) 
                 for i in 1:ndims(system)
                     sum_dj[i, particle] += sum_dj_[i] 
                 end
