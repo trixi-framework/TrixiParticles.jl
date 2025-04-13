@@ -28,6 +28,7 @@ $$ \Delta t ^2 \sum_j m_j \left(  \frac{\mathbb{F}_i^p(t)}{m_i} - \frac{\mathbb{
 This formula comes from plugging in $\rho_0$ for $\rho(t+\Delta t)$ in the dicretizied Continuity equation and by using the above definitions for $v_{ij}(t+\Delta t)$ and $\rho_i^{adv}$.
 
 The unknown pressure force is given by 
+
 $$\mathbb{F_i^p(t)} = m_i * \nabla p_i = m_i \sum_j m_j \left( \frac{p_i(t)}{\rho_i^2(t)} - \frac{p_j(t)}{\rho_j^2(t)} \right) \nabla W_{ij}$$
 
 If you fill in this definition in the equation, you get a linear system $\mathbb{A}(t) \mathbb{p}(t) = \mathbb{b}(t)$ with one equation and one unknown pressure value per particle
@@ -41,12 +42,12 @@ $$ x_i^{(k+1)} = (1-\omega) x_i^{(k)} + \omega \left( \frac{1}{a_{ii}} \left( b_
 
 In the case of the linear system for the pressure values the formula is
 
-$$ p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i{adv} \sum_{j \neq i} a_{ij}p_j^l}{a{ii}}$$
+$$ p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i^{adv} \sum_{j \neq i} a_{ij}p_j^l}{a{ii}}$$
 
 Therefore the diagonal elements $a_{ii}$ and the sum $\sum_{j \neq i} a_{ij}p_j^l$ need to be determined. 
 This can be done efficently by seperating the formula for the pressure force acceleration into a summantor which describes the displacement of particle i due to the pressure value of particle i, and one summantor which describes the displacement du to the pressure values of the neighboring particles  
 
-$$ \Delta t^2 \frac{\mathbb{F}_i^p}{m_i} &= -\Delta t^2 \sum_j m_j \left( \frac{p_i}{\rho_i^2} + \frac{p_j}{\rho_j^2} \right)\nabla W_{ij} \n &= \left( - \Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij} \right) p_i + \sum_j - \Delta t^2 \frac{m_j}{\rho_j^2} \nabla W_{ij}p_j$$
+$$\Delta t^2 \frac{\mathbb{F}_i^p}{m_i} = -\Delta t^2 \sum_j m_j \left( \frac{p_i}{\rho_i^2} + \frac{p_j}{\rho_j^2} \right)\nabla W_{ij} = \left( - \Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij} \right) p_i + \sum_j - \Delta t^2 \frac{m_j}{\rho_j^2} \nabla W_{ij}p_j$$
 
 The $\mathbb{d}_{ii}p_i$ value describes the displacement of particle i because of the pressure value $p_i$ and $mathbb_{d}_{ij}p_j$ describes the influence from the neighboring particles $p_j$.
 Using this new values the linear system can be rewritten as
@@ -54,9 +55,9 @@ Using this new values the linear system can be rewritten as
 $$ \rho_0 - \rho_i^{adv} = \sum_j m_j \left( d_{ii}p_i + \sum_j d_{ij}p_j - d_{jj}p_j - \sum_k d_{jk}p_k \right) \nabla W_{ij}$$
 
 where$stands for the neighbor particles of the neigbor particle$ from$.
-So the sum over the neighbors$also includes the pressure values$p_$ since$ is a neighbor of$. 
+So the sum over the neighbors $p_j$ also includes the pressure values $p_i$ since $i$ is a neighbor of $j$
 To seperate this sum it can be written as 
-$$ \sum_k \mathbb{d}_{jk} p_k = \sum_{k \neq i} p_k + \b_{d}_{ji} p_$$
+$$ \sum_k \mathbb{d}_{jk} p_k = \sum_{k \neq i} \mathbb_{d}_{jk} p_k + \mathbb_{d}_{ji} p_i $$
 
 With this seperation the equation for the linear system can again be rewritten as 
 
