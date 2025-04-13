@@ -48,7 +48,7 @@ fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = PressureZeroing() #TODO PressureMirroring richtig oder Pressure zeoring oder was ganz anderes???
+boundary_density_calculator = PressureMirroring() #TODO PressureMirroring richtig oder Pressure zeoring oder was ganz anderes???
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=nothing,
@@ -68,7 +68,7 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 sol = solve(ode, SymplecticEuler(),
-            dt = 0.0001,
+            dt = 0.001,
             save_everystep=false, callback=callbacks);
 
 plot(sol)
