@@ -46,6 +46,7 @@ boundary_size = (domain_size[1] + 2 * particle_spacing * open_boundary_layers,
 
 pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_density,
                        pressure=pressure, n_layers=boundary_layers,
+                       velocity=[prescribed_velocity, 0.0],
                        faces=(false, false, true, true))
 
 # Shift pipe walls in negative x-direction for the inflow
@@ -57,8 +58,15 @@ cylinder = SphereShape(particle_spacing, cylinder_diameter / 2,
                        (5 * cylinder_diameter, domain_size[2] / 2),
                        fluid_density, sphere_type=RoundSphere())
 
-fluid = setdiff(pipe.fluid, cylinder)
-fluid.velocity .= [prescribed_velocity, 0.0]
+zero_v_region_ = RectangularShape(particle_spacing,
+                                  (1, 1) .*
+                                  round(Int, 3 * cylinder_diameter / particle_spacing),
+                                  (5 * cylinder_diameter - 1.5 * cylinder_diameter,
+                                   domain_size[2] / 2 - 1.5 * cylinder_diameter),
+                                  density=fluid_density)
+
+zero_v_region = setdiff(zero_v_region_, cylinder)
+fluid = union(setdiff(pipe.fluid, zero_v_region_), zero_v_region)
 
 # ==========================================================================================
 # ==== Fluid
