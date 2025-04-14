@@ -19,7 +19,7 @@
         │ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
         │ #particles: ………………………………………………… 307                                                              │
         │ smoothing kernel: ………………………………… SchoenbergQuinticSplineKernel                                    │
-        │ tlsph: ……………………………………………………………… yes                                                              │
+        │ tlsph: ……………………………………………………………… no                                                               │
         │ boundary: ……………………………………………………… no                                                               │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
@@ -36,7 +36,7 @@
         │ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
         │ #particles: ………………………………………………… 307                                                              │
         │ smoothing kernel: ………………………………… SchoenbergQuinticSplineKernel                                    │
-        │ tlsph: ……………………………………………………………… yes                                                              │
+        │ tlsph: ……………………………………………………………… no                                                               │
         │ boundary: ……………………………………………………… yes                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
@@ -52,7 +52,7 @@
         │ neighborhood search: ………………………… Nothing                                                          │
         │ #particles: ………………………………………………… 307                                                              │
         │ smoothing kernel: ………………………………… SchoenbergQuinticSplineKernel                                    │
-        │ tlsph: ……………………………………………………………… yes                                                              │
+        │ tlsph: ……………………………………………………………… no                                                               │
         │ boundary: ……………………………………………………… no                                                               │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
     end
