@@ -1,19 +1,15 @@
-# Abstract supertype for all system types. We additionally store the type of the system's
-# initial condition, which is `Nothing` when using KernelAbstractions.jl.
-abstract type System{NDIMS, IC} end
+# Abstract supertype for all system types.
+abstract type System{NDIMS} end
 
-# When using KernelAbstractions.jl, the initial condition has been replaced by `nothing`
-const GPUSystem = System{<:Any, Nothing}
-
-abstract type FluidSystem{NDIMS, IC} <: System{NDIMS, IC} end
+abstract type FluidSystem{NDIMS} <: System{NDIMS} end
 timer_name(::FluidSystem) = "fluid"
 vtkname(system::FluidSystem) = "fluid"
 
-abstract type SolidSystem{NDIMS, IC} <: System{NDIMS, IC} end
+abstract type SolidSystem{NDIMS} <: System{NDIMS} end
 timer_name(::SolidSystem) = "solid"
 vtkname(system::SolidSystem) = "solid"
 
-abstract type BoundarySystem{NDIMS, IC} <: System{NDIMS, IC} end
+abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
 timer_name(::BoundarySystem) = "boundary"
 vtkname(system::BoundarySystem) = "boundary"
 
@@ -23,7 +19,7 @@ vtkname(system::BoundarySystem) = "boundary"
     return du
 end
 
-initialize!(system, neighborhood_search) = system
+initialize!(system, semi) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
 @inline Base.eltype(system::System) = error("eltype not implemented for system $system")
@@ -106,30 +102,15 @@ end
 
 @inline set_particle_pressure!(v, system, particle, pressure) = v
 
-@inline function smoothing_kernel(system, distance)
-    (; smoothing_kernel, smoothing_length) = system
-    return kernel(smoothing_kernel, distance, smoothing_length)
-end
-
-@inline function smoothing_kernel_deriv(system, distance)
-    (; smoothing_kernel, smoothing_length) = system
-    return kernel_deriv(smoothing_kernel, distance, smoothing_length)
-end
-
-@inline function smoothing_kernel_grad(system, pos_diff, distance)
-    return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
-end
-
-@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance)
-    (; smoothing_kernel, smoothing_length) = system.boundary_model
-
-    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+@inline function smoothing_kernel(system, distance, particle)
+    (; smoothing_kernel) = system
+    return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
 end
 
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    return corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance,
-                                 system.smoothing_length, system.correction, system,
-                                 particle)
+    return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff,
+                                 distance, smoothing_length(system, particle),
+                                 system_correction(system), system, particle)
 end
 
 # System update orders. This can be dispatched if needed.
@@ -151,3 +132,28 @@ end
 
 # Only for systems requiring a mandatory callback
 reset_callback_flag!(system) = system
+
+initial_smoothing_length(system) = smoothing_length(system, nothing)
+
+function smoothing_length(system, particle)
+    return system.smoothing_length
+end
+
+system_smoothing_kernel(system) = system.smoothing_kernel
+system_correction(system) = nothing
+
+@inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
+
+# Assuming a constant particle spacing one can calculate the number of neighbors within the
+# compact support for an undisturbed particle distribution.
+function ideal_neighbor_count(::Val{D}, particle_spacing, compact_support) where {D}
+    throw(ArgumentError("Unsupported dimension: $D"))
+end
+
+@inline function ideal_neighbor_count(::Val{2}, particle_spacing, compact_support)
+    return floor(Int, pi * compact_support^2 / particle_spacing^2)
+end
+
+@inline @fastpow function ideal_neighbor_count(::Val{3}, particle_spacing, compact_support)
+    return floor(Int, 4 // 3 * pi * compact_support^3 / particle_spacing^3)
+end

@@ -120,6 +120,8 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         # Store particle index
         vtk["index"] = active_particles(system)
         vtk["time"] = t
+        vtk["particle_spacing"] = [particle_spacing(system, particle)
+        for particle in active_particles(system)]
 
         # Extract custom quantities for this system
         for (key, quantity) in custom_quantities
@@ -135,7 +137,7 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
     vtk_save(pvd)
 end
 
-function transfer2cpu(v_, u_, system_::GPUSystem)
+function transfer2cpu(v_::AbstractGPUArray, u_, system_)
     v = Adapt.adapt(Array, v_)
     u = Adapt.adapt(Array, u_)
     system = Adapt.adapt(Array, system_)
@@ -243,6 +245,44 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem)
         vtk["surf_normal"] = [surface_normal(system, particle)
                               for particle in eachparticle(system)]
         vtk["neighbor_count"] = system.cache.neighbor_count
+        vtk["color"] = system.cache.color
+    end
+
+    if system.surface_tension isa SurfaceTensionMorris ||
+       system.surface_tension isa SurfaceTensionMomentumMorris
+        surface_tension = zeros((ndims(system), n_moving_particles(system)))
+        system_coords = current_coordinates(u, system)
+
+        surface_tension_a = surface_tension_model(system)
+        surface_tension_b = surface_tension_model(system)
+        nhs = create_neighborhood_search(nothing, system, system)
+
+        foreach_point_neighbor(system_coords, system_coords,
+                               nhs) do particle, neighbor, pos_diff, distance
+            rho_a = particle_density(v, system, particle)
+            rho_b = particle_density(v, system, neighbor)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+            surface_tension[1:ndims(system), particle] .+= surface_tension_force(surface_tension_a,
+                                                                                 surface_tension_b,
+                                                                                 system,
+                                                                                 system,
+                                                                                 particle,
+                                                                                 neighbor,
+                                                                                 pos_diff,
+                                                                                 distance,
+                                                                                 rho_a,
+                                                                                 rho_b,
+                                                                                 grad_kernel)
+        end
+        vtk["surface_tension"] = surface_tension
+
+        if system.surface_tension isa SurfaceTensionMorris
+            vtk["curvature"] = system.cache.curvature
+        end
+        if system.surface_tension isa SurfaceTensionMomentumMorris
+            vtk["surface_stress_tensor"] = system.cache.stress_tensor
+        end
     end
 
     return vtk
@@ -298,7 +338,7 @@ function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem)
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
 
-function write2vtk!(vtk, v, u, t, model, system)
+function write2vtk!(vtk, v, u, t, model::Nothing, system)
     return vtk
 end
 
@@ -311,8 +351,8 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system)
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
 
-    if haskey(model.cache, :colorfield_bnd)
-        vtk["colorfield_bnd"] = model.cache.colorfield_bnd
+    if haskey(model.cache, :initial_colorfield)
+        vtk["initial_colorfield"] = model.cache.initial_colorfield
         vtk["colorfield"] = model.cache.colorfield
         vtk["neighbor_count"] = model.cache.neighbor_count
     end

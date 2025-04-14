@@ -137,12 +137,6 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
 
     # Save initial solution
     if solution_callback.save_initial_solution
-        # Update systems to compute quantities like density and pressure
-        semi = integrator.p
-        v_ode, u_ode = u.x
-        update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
-
-        # Apply the callback
         solution_callback(integrator)
     end
 
