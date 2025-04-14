@@ -62,7 +62,7 @@ function get_meta_data!(meta_data, system::FluidSystem)
     meta_data["viscosity"] = type2string(system.viscosity)
     get_meta_data!(meta_data, system.viscosity)
     meta_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
-    meta_data["smoothing_length"] = system.smoothing_length
+    meta_data["smoothing_length_factor"] = system.cache.smoothing_length_factor
     meta_data["density_calculator"] = type2string(system.density_calculator)
 
     if system isa WeaklyCompressibleSPHSystem
@@ -111,7 +111,7 @@ function get_meta_data!(meta_data, system::TotalLagrangianSPHSystem)
     meta_data["lame_lambda"] = system.lame_lambda
     meta_data["lame_mu"] = system.lame_mu
     meta_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
-    meta_data["smoothing_length"] = system.smoothing_length
+    meta_data["smoothing_length_factor"] = initial_smoothing_length(system) / particle_spacing(system, 1)
 
     get_meta_data!(meta_data, system.boundary_model, system)
 end
@@ -129,7 +129,7 @@ function get_meta_data!(meta_data, system::BoundarySPHSystem)
     get_meta_data!(meta_data, system.boundary_model, system)
 end
 
-function get_meta_data!(meta_data, model, system)
+function get_meta_data!(meta_data, model::Nothing, system)
     return meta_data
 end
 
