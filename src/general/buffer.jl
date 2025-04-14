@@ -12,7 +12,7 @@ struct SystemBuffer{V}
     end
 end
 
-allocate_buffer(initial_condition, buffer) = initial_condition
+allocate_buffer(initial_condition, ::Nothing) = initial_condition
 
 function allocate_buffer(initial_condition, buffer::SystemBuffer)
     (; buffer_size) = buffer

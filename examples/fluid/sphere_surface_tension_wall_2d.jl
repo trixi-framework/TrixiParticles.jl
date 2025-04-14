@@ -1,5 +1,3 @@
-# In this example we try to approach the static shape of a water droplet on a horizontal plane.
-# The shape of a static droplet can be calculated from the Young-Laplace equation.
 using TrixiParticles
 using OrdinaryDiffEq
 

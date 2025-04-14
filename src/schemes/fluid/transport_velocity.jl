@@ -32,7 +32,7 @@ end
 
 @inline function update_transport_velocity!(system, v_ode, semi, ::TransportVelocityAdami)
     v = wrap_v(v_ode, system, semi)
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             v[ndims(system) + i, particle] = v[i, particle]
         end
@@ -101,28 +101,39 @@ end
     return volume_term * ((A_a + A_b) / 2) * grad_kernel
 end
 
-@inline transport_velocity!(dv, system, rho_a, rho_b, m_a, m_b, grad_kernel, particle) = dv
+@inline transport_velocity!(dv, system, neighbor_system, particle, neighbor, m_a, m_b,
+grad_kernel) = dv
 
-@inline function transport_velocity!(dv, system::FluidSystem,
-                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
-    transport_velocity!(dv, system, system.transport_velocity, rho_a, rho_b, m_a, m_b,
-                        grad_kernel, particle)
+@inline function transport_velocity!(dv, system::FluidSystem, neighbor_system,
+                                     particle, neighbor, m_a, m_b, grad_kernel)
+    transport_velocity!(dv, system, neighbor_system, system.transport_velocity,
+                        particle, neighbor, m_a, m_b, grad_kernel)
 end
 
-@inline function transport_velocity!(dv, system, ::Nothing,
-                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
+@inline function transport_velocity!(dv, system, neighbor_system, ::Nothing,
+                                     particle, neighbor, m_a, m_b, grad_kernel)
     return dv
 end
 
-@inline function transport_velocity!(dv, system, ::TransportVelocityAdami,
-                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
+@inline function transport_velocity!(dv, system, neighbor_system, ::TransportVelocityAdami,
+                                     particle, neighbor, m_a, m_b, grad_kernel)
     (; transport_velocity) = system
     (; background_pressure) = transport_velocity
 
     NDIMS = ndims(system)
 
-    volume_a = m_a / rho_a
-    volume_b = m_b / rho_b
+    # The TVF is based on the assumption that the pressure gradient is only accurately
+    # computed when the particle distribution is isotropic.
+    # That means, the force contribution vanishes only if the particle distribution is
+    # isotropic AND the field being differentiated by the kernel gradient is spatially constant.
+    # So we must guarantee a constant field and therefore the reference density is used
+    # instead of the locally computed one.
+    # TODO:
+    # volume_a = particle_spacing(system, particle)^ndims(system)
+    # volume_b = particle_spacing(neighbor_system, neighbor)^ndims(neighbor_system)
+    volume_a = m_a / system.initial_condition.density[particle]
+    volume_b = m_b / neighbor_system.initial_condition.density[neighbor]
+
     volume_term = (volume_a^2 + volume_b^2) / m_a
 
     for dim in 1:NDIMS
