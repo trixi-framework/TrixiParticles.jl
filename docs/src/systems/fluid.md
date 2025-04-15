@@ -16,8 +16,7 @@ and different methods exist to capture both numerical stabilization and true vis
 
 ### Artificial (numerical) viscosity
 
-Artificial (numerical) viscosity is a technique used to stabilize simulations of inviscid flows by preventing
-unphysical artificial overlap or penetration of particles that would not occur in a real fluid.
+Artificial (numerical) viscosity is a technique used to stabilize simulations of inviscid flows, which would otherwise show unphysical particle movement due to numerical instability.
 To achieve this, a dissipative term is added to the momentum equations in a way that it
 does not significantly alter the physical behavior of the flow.
 This approach is especially useful in simulations such as high-speed flows with strong shocks or astrophysical scenarios,
