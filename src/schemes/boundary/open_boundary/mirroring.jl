@@ -61,8 +61,8 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                 distance = sqrt(distance2)
 
                 m_b = hydrodynamic_mass(fluid_system, neighbor)
-                rho_b = particle_density(v_fluid, fluid_system, neighbor)
-                pressure_b = particle_pressure(v_fluid, fluid_system, neighbor)
+                rho_b = current_density(v_fluid, fluid_system, neighbor)
+                pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
                 v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
                 # Project `v_b` on the normal direction of the boundary zone

@@ -23,8 +23,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                            semi) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        rho_a = particle_density(v_particle_system, particle_system, particle)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = current_density(v_particle_system, particle_system, particle)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
                  current_velocity(v_neighbor_system, neighbor_system, neighbor)

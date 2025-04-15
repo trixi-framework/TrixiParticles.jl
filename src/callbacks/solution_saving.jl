@@ -33,12 +33,12 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `max_coordinates=2^15`:       The coordinates of particles will be clipped if their
                                 absolute values exceed this threshold.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
-                            Each custom quantity must be a function of `(v, u, t, system)`,
-                            which will be called for every system, where `v` and `u` are the
-                            wrapped solution arrays for the corresponding system and `t` is
-                            the current simulation time. Note that working with these `v`
-                            and `u` arrays requires undocumented internal functions of
-                            TrixiParticles. See [Custom Quantities](@ref custom_quantities)
+                            Each custom quantity must be a function of `(system, data, t)`,
+                            which will be called for every system, where `data` is a named
+                            tuple with fields depending on the system type, and `t` is the
+                            current simulation time. Check the available data for each
+                            system with `available_data(system)`.
+                            See [Custom Quantities](@ref custom_quantities)
                             for a list of pre-defined custom quantities that can be used here.
 
 # Examples

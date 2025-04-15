@@ -285,6 +285,10 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
+@inline function current_velocity(v, system::BoundarySPHSystem)
+    error("`current_velocity(v, system)` is not implemented for `BoundarySPHSystem`")
+end
+
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
     return current_acceleration(system, system.movement, particle)
 end
@@ -315,12 +319,12 @@ end
     return current_velocity(v, system, particle)
 end
 
-@inline function particle_density(v, system::BoundarySPHSystem, particle)
-    return particle_density(v, system.boundary_model, system, particle)
+@inline function current_density(v, system::BoundarySPHSystem)
+    return current_density(v, system.boundary_model, system)
 end
 
-@inline function particle_pressure(v, system::BoundarySPHSystem, particle)
-    return particle_pressure(v, system.boundary_model, system, particle)
+@inline function current_pressure(v, system::BoundarySPHSystem)
+    return current_pressure(v, system.boundary_model, system)
 end
 
 @inline function hydrodynamic_mass(system::BoundarySPHSystem, particle)
@@ -442,4 +446,30 @@ end
 
 function system_correction(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.correction
+end
+
+function system_data(system::BoundarySPHSystem, v_ode, u_ode, semi)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    coordinates = current_coordinates(u, system)
+    velocity = current_velocity(v, system)
+    density = current_density(v, system)
+    pressure = current_pressure(v, system)
+
+    return (; coordinates, velocity, density, pressure)
+end
+
+function available_data(::BoundarySPHSystem)
+    return (:coordinates, :velocity, :density, :pressure)
+end
+
+function system_data(system::BoundaryDEMSystem, v_ode, u_ode, semi)
+    (; coordinates, radius, normal_stiffness) = system
+
+    return (; coordinates, radius, normal_stiffness)
+end
+
+function available_data(::BoundaryDEMSystem)
+    return (:coordinates, :radius, :normal_stiffness)
 end
