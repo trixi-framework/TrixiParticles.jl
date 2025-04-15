@@ -72,7 +72,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 end
 
 # Convert data for a single TrixiParticle system to VTK format
-function trixi2vtk(system_, v_ode_, u_ode_, semi, t, periodic_box; output_directory="out",
+function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_directory="out",
                    prefix="", iter=nothing, system_name=vtkname(system_),
                    write_meta_data=true, max_coordinates=Inf, git_hash=compute_git_hash(),
                    custom_quantities...)
@@ -84,11 +84,10 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi, t, periodic_box; output_direct
     end
 
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
-    v_ode, u_ode, system = transfer2cpu(v_ode_, u_ode_, system_)
+    v_ode, u_ode, system, semi = transfer2cpu(v_ode_, u_ode_, system_, semi_)
 
-    # Use `system_` because the transferred `system` is not in the `semi`
-    v = wrap_v(v_ode, system_, semi)
-    u = wrap_u(u_ode, system_, semi)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
 
     # handle "_" on optional pre/postfix strings
     add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
@@ -147,16 +146,18 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi, t, periodic_box; output_direct
     vtk_save(pvd)
 end
 
-function transfer2cpu(v_::AbstractGPUArray, u_, system_)
+function transfer2cpu(v_::AbstractGPUArray, u_, system_, semi_)
     v = Adapt.adapt(Array, v_)
     u = Adapt.adapt(Array, u_)
-    system = Adapt.adapt(Array, system_)
+    semi = Adapt.adapt(Array, semi_)
+    system_index = system_indices(system_, semi_)
+    system = semi.systems[system_index]
 
-    return v, u, system
+    return v, u, system, semi
 end
 
-function transfer2cpu(v_, u_, system_)
-    return v_, u_, system_
+function transfer2cpu(v_, u_, system_, semi_)
+    return v_, u_, system_, semi_
 end
 
 function custom_quantity(quantity::AbstractArray, system, v_ode, u_ode, semi, t)
