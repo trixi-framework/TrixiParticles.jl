@@ -86,8 +86,9 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi, t, periodic_box; output_direct
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
     v_ode, u_ode, system = transfer2cpu(v_ode_, u_ode_, system_)
 
-    v = wrap_v(v_ode, system, semi)
-    u = wrap_u(u_ode, system, semi)
+    # Use `system_` because the transferred `system` is not in the `semi`
+    v = wrap_v(v_ode, system_, semi)
+    u = wrap_u(u_ode, system_, semi)
 
     # handle "_" on optional pre/postfix strings
     add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
