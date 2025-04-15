@@ -19,7 +19,7 @@ rectangular = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0
 trixi2vtk(rectangular; filename="rectangular", output_directory="out")
 
 # Read the vtk file and convert it to `InitialCondition`
-ic = vtk2trixi(joinpath("out", "rectangular.vtu")
+ic = vtk2trixi(joinpath("out", "rectangular.vtu"))
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
