@@ -125,7 +125,7 @@ f_{ab} = \sum_w \bar{\eta}_{ab} \left( V_a^2 + V_b^2 \right) \frac{v_{ab}}{||r_{
 
 where:
 
-- `` r_{ab} = r_a - r_b `` is the relative position between particles ``a`` and ``b``,
+- `` r_{ab} = r_a - r_b `` is the difference of the coordinate vectors,
 - `` v_{ab} = v_a - v_b `` is their relative velocity,
 - `` V_a = m_a / \rho_a`` and `` V_b = m_b / \rho_b`` are the particle volumes,
 - `` h_{ab} `` is the smoothing length,
