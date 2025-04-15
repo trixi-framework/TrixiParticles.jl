@@ -133,10 +133,7 @@ end
 
     # Calculate kinetic energy
     ekin = sum(semi.systems) do system
-        v = wrap_v(v_ode, system, semi)
-        unused_arg = nothing
-
-        return kinetic_energy(v, unused_arg, unused_arg, system)
+        return kinetic_energy(system, v_ode, u_ode, semi, 0)
     end
 
     if length(previous_ekin) == interval_size

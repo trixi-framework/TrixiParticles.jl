@@ -76,8 +76,8 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            rho_a = particle_density(v, system, particle)
-            rho_b = particle_density(v_neighbor, neighbor_system, neighbor)
+            rho_a = current_density(v, system, particle)
+            rho_b = current_density(v_neighbor, neighbor_system, neighbor)
 
             kernel = smoothing_kernel(system, distance, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
