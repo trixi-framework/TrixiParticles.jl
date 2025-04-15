@@ -14,7 +14,7 @@ The interaction between fluid and boundary particles is specified by the boundar
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
-                         CA} <: BoundarySystem{NDIMS, IC}
+                         CA} <: BoundarySystem{NDIMS}
     initial_condition    :: IC
     coordinates          :: CO # Array{ELTYPE, 2}
     boundary_model       :: BM
@@ -98,7 +98,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 """
 struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
-                         ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS, IC}
+                         ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS}
     initial_condition :: IC
     coordinates       :: ARRAY2D # [dimension, particle]
     radius            :: ARRAY1D # [particle]
@@ -212,7 +212,7 @@ end
     return system.cache.initial_coordinates
 end
 
-function (movement::BoundaryMovement)(system, t)
+function (movement::BoundaryMovement)(system, t, semi)
     (; coordinates, cache) = system
     (; movement_function, is_moving, moving_particles) = movement
     (; acceleration, velocity) = cache
@@ -221,7 +221,7 @@ function (movement::BoundaryMovement)(system, t)
 
     is_moving(t) || return system
 
-    @threaded system for particle in moving_particles
+    @threaded semi for particle in moving_particles
         pos_new = initial_coords(system, particle) + movement_function(t)
         vel = ForwardDiff.derivative(movement_function, t)
         acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
@@ -236,7 +236,7 @@ function (movement::BoundaryMovement)(system, t)
     return system
 end
 
-function (movement::Nothing)(system, t)
+function (movement::Nothing)(system::System, t, semi)
     system.ismoving[] = false
 
     return system
@@ -327,15 +327,19 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@inline function smoothing_kernel(system::BoundarySPHSystem, distance)
+@inline function smoothing_kernel(system::BoundarySPHSystem, distance, particle)
     (; smoothing_kernel, smoothing_length) = system.boundary_model
     return kernel(smoothing_kernel, distance, smoothing_length)
+end
+
+@inline function smoothing_length(system::BoundarySPHSystem, particle)
+    return smoothing_length(system.boundary_model, particle)
 end
 
 function update_positions!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; movement) = system
 
-    movement(system, t)
+    movement(system, t, semi)
 end
 
 function update_quantities!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
@@ -403,25 +407,23 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf
 end
 
-function initialize!(system::BoundarySPHSystem, neighborhood_search)
-    initialize_colorfield!(system, system.boundary_model, neighborhood_search)
+function initialize!(system::BoundarySPHSystem, semi)
+    initialize_colorfield!(system, system.boundary_model, semi)
     return system
 end
 
-function initialize_colorfield!(system, boundary_model, neighborhood_search)
+function initialize_colorfield!(system, boundary_model, semi)
     return system
 end
 
-function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborhood_search)
+function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
     system_coords = system.coordinates
     (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
 
     if haskey(cache, :initial_colorfield)
-        foreach_point_neighbor(system, system,
-                               system_coords, system_coords,
-                               neighborhood_search,
-                               points=eachparticle(system)) do particle, neighbor, pos_diff,
-                                                               distance
+        foreach_point_neighbor(system, system, system_coords, system_coords, semi,
+                               points=eachparticle(system)) do particle, neighbor,
+                                                               pos_diff, distance
             cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
                                                   system.initial_condition.density[particle] *
                                                   system.cache.color *
@@ -432,4 +434,12 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborh
         end
     end
     return system
+end
+
+function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
+    return system.boundary_model.smoothing_kernel
+end
+
+function system_correction(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
+    return system.boundary_model.correction
 end

@@ -38,14 +38,14 @@ using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_
                       @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
-# `util.jl` depends on the `GPUSystem` type defined in `system.jl`
-include("general/system.jl")
-# `util.jl` needs to be next because of the macros `@trixi_timeit` and `@threaded`
+# `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
-include("callbacks/callbacks.jl")
+include("general/system.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+# `callbacks.jl` requires the system types to be defined
+include("callbacks/callbacks.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
@@ -61,7 +61,8 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
        BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback
+       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
+       ParticleShiftingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
@@ -72,9 +73,8 @@ export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing, BoundaryModelLastiwka,
+       PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
        BernoulliPressureExtrapolation
-
 export BoundaryMovement
 export examples_dir, validation_dir
 export trixi2vtk
@@ -94,5 +94,6 @@ export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_pl
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
 export ColorfieldSurfaceNormal
+export SymplecticPositionVerlet
 
 end # module

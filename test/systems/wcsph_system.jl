@@ -39,7 +39,7 @@
                 @test system.density_calculator == density_calculator
                 @test system.state_equation == state_equation
                 @test system.smoothing_kernel == smoothing_kernel
-                @test system.smoothing_length == smoothing_length
+                @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
                 @test system.viscosity === nothing
                 @test system.acceleration == [0.0 for _ in 1:NDIMS]
 
@@ -136,7 +136,7 @@
                 @test system.density_calculator == density_calculator
                 @test system.state_equation == state_equation
                 @test system.smoothing_kernel == smoothing_kernel
-                @test system.smoothing_length == smoothing_length
+                @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
                 @test system.viscosity === nothing
                 @test system.acceleration == [0.0 for _ in 1:NDIMS]
                 @test length(system.mass) == size(setup.coordinates, 2)
@@ -205,6 +205,7 @@
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… nothing                                                          │
+        │ tansport velocity formulation:  Nothing                                                          │
         │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ surface tension: …………………………………… nothing                                                          │
         │ surface normal method: …………………… nothing                                                          │

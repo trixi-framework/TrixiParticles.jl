@@ -53,12 +53,11 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
-                                   PF, ST, SRFT, SRFN, B, C} <: FluidSystem{NDIMS, IC}
+                                   PF, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
     smoothing_kernel                  :: K
-    smoothing_length                  :: ELTYPE
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -70,6 +69,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
     buffer                            :: B
+    particle_refinement               :: PR
     cache                             :: C
 end
 
@@ -89,6 +89,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      reference_particle_spacing=0.0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
+
+    particle_refinement = nothing # TODO
 
     initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -127,17 +129,17 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
 
     nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
-    cache = create_cache_density(initial_condition, density_calculator)
-    cache = (;
-             create_cache_edac(initial_condition, transport_velocity)...,
+    cache = (; create_cache_density(initial_condition, density_calculator)...,
+             create_cache_tvf(Val(:edac), initial_condition, transport_velocity)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             create_cache_refinement(initial_condition, particle_refinement,
+                                     smoothing_length)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
-             color=Int(color_value),
-             cache...)
+             color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -152,14 +154,14 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 typeof(viscosity), typeof(transport_velocity),
                                 typeof(pressure_acceleration), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_normal_method),
-                                typeof(buffer),
+                                typeof(buffer), Nothing,
                                 typeof(cache)}(initial_condition, mass, density_calculator,
-                                               smoothing_kernel, smoothing_length,
-                                               sound_speed, viscosity, nu_edac,
-                                               acceleration_, correction,
+                                               smoothing_kernel, sound_speed, viscosity,
+                                               nu_edac, acceleration_, correction,
                                                pressure_acceleration, transport_velocity,
                                                source_terms, surface_tension,
-                                               surface_normal_method, buffer, cache)
+                                               surface_normal_method, buffer,
+                                               particle_refinement, cache)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
@@ -205,9 +207,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
     end
 end
 
-create_cache_edac(initial_condition, ::Nothing) = (;)
+create_cache_tvf(::Val{:edac}, initial_condition, ::Nothing) = (;)
 
-function create_cache_edac(initial_condition, ::TransportVelocityAdami)
+function create_cache_tvf(::Val{:edac}, initial_condition, ::TransportVelocityAdami)
     pressure_average = copy(initial_condition.pressure)
     neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
     update_callback_used = Ref(false)
@@ -231,6 +233,8 @@ end
     return ndims(system) * factor_tvf(system) + 2
 end
 
+system_correction(system::EntropicallyDampedSPHSystem) = system.correction
+
 @inline function particle_density(v, ::ContinuityDensity,
                                   system::EntropicallyDampedSPHSystem, particle)
     return v[end - 1, particle]
@@ -239,6 +243,8 @@ end
 @inline function particle_pressure(v, system::EntropicallyDampedSPHSystem, particle)
     return v[end, particle]
 end
+
+@inline system_state_equation(system::EntropicallyDampedSPHSystem) = nothing
 
 # WARNING!
 # These functions are intended to be used internally to set the pressure
@@ -274,7 +280,7 @@ end
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
-    compute_surface_delta_function!(system, system.surface_tension)
+    compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
@@ -311,11 +317,9 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
-
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               neighborhood_search;
+                               semi;
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             pressure_average[particle] += particle_pressure(v_neighbor_system,
