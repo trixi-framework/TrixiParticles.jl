@@ -7,7 +7,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-cylinder_diameter = 0.1
+const cylinder_diameter = 0.1
 
 factor_D = 0.05
 
@@ -33,7 +33,7 @@ flow_direction = [1.0, 0.0]
 reynolds_number = 200
 const prescribed_velocity = 1.0
 
-fluid_density = 1000.0
+const fluid_density = 1000.0
 
 # For this particular example, it is necessary to have a background pressure.
 # Otherwise the suction at the outflow is to big and the simulation becomes unstable.
@@ -56,9 +56,9 @@ pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
 n_buffer_particles = 10 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
 
+cylinder_center = (5 * cylinder_diameter, domain_size[2] / 2)
 cylinder = SphereShape(particle_spacing, cylinder_diameter / 2,
-                       (5 * cylinder_diameter, domain_size[2] / 2),
-                       fluid_density, sphere_type=RoundSphere())
+                       cylinder_center, fluid_density, sphere_type=RoundSphere())
 
 zero_v_region_ = RectangularShape(particle_spacing,
                                   (1, 1) .*
@@ -172,8 +172,47 @@ boundary_model_cylinder = BoundaryModelDummyParticles(cylinder.density, cylinder
 boundary_system_cylinder = BoundarySPHSystem(cylinder, boundary_model_cylinder)
 
 # ==========================================================================================
-# ==== Simulation
+# ==== Postprocessing
+circle = SphereShape(particle_spacing, cylinder_diameter / 2,
+                     cylinder_center, fluid_density, n_layers=1,
+                     sphere_type=RoundSphere())
 
+const data_points = reinterpret(reshape, SVector{ndims(circle), eltype(circle)},
+                                circle.coordinates)
+const center = SVector(cylinder_center)
+
+calculate_lift_force(system, v_ode, u_ode, semi, t) = nothing
+function calculate_lift_force(system::TrixiParticles.FluidSystem, v_ode, u_ode, semi, t)
+    force = zero(first(data_points))
+
+    for point in data_points
+        values = interpolate_point(point, semi, system, v_ode, u_ode; cut_off_bnd=false,
+                                   clip_negative_pressure=false)
+
+        force += values.pressure *
+                 TrixiParticles.normalize(point - center)
+    end
+
+    return 2 * force[2] / (fluid_density * prescribed_velocity^2 * cylinder_diameter)
+end
+
+calculate_drag_force(system, v_ode, u_ode, semi, t) = nothing
+function calculate_drag_force(system::TrixiParticles.FluidSystem, v_ode, u_ode, semi, t)
+    force = zero(first(data_points))
+
+    for point in data_points
+        values = interpolate_point(point, semi, system, v_ode, u_ode; cut_off_bnd=false,
+                                   clip_negative_pressure=false)
+
+        force += values.pressure *
+                 TrixiParticles.normalize(point - SVector(cylinder_center))
+    end
+
+    return 2 * force[1] / (fluid_density * prescribed_velocity^2 * cylinder_diameter)
+end
+
+# ==========================================================================================
+# ==== Simulation
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
                           boundary_system_wall, boundary_system_cylinder)
 
@@ -183,10 +222,17 @@ info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
                                          output_directory="out_vortex_street_dp_$(factor_D)D")
 
+pp_callback = PostprocessCallback(; dt=0.02,
+                                  f_l=calculate_lift_force,
+                                  f_d=calculate_drag_force,
+                                  output_directory="out_vortex_street_dp_$(factor_D)D",
+                                  filename="resulting_force",
+                                  write_csv=true, write_file_interval=10)
+
 extra_callback = nothing
 
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
-                        ParticleShiftingCallback(), extra_callback)
+                        ParticleShiftingCallback(), pp_callback, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
