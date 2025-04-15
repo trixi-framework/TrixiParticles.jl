@@ -6,6 +6,9 @@ Load VTK-file and convert data to an `InitialCondition`.
 # Arguments
 - `file`: Name of the VTK-file to be loaded.
 
+!!! warning "Experimental Implementation"
+    This is an experimental feature and may change in a future releases.
+
 # Example
 ```jldoctest; output = false
 # Create a rectangular shape
