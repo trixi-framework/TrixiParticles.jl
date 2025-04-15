@@ -62,7 +62,7 @@ end
 # when pressures are negative to avoid tensile instability.
 # See Lyu et al. (2021). https://doi.org/10.1016/j.apor.2021.102938
 @inline function tensile_instability_correction(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
-    p = ifelse(p_a >= 0, p_a + p_b, p_b - p_a)
+    p = p_b + abs(p_a)
     return -m_b * p / (rho_a * rho_b) * W_a
 end
 
