@@ -102,7 +102,14 @@ An additional force term ``\tilde{f}_{ab}`` is introduced to the pressure gradie
 \tilde{f}_{ab} = m_a m_b \frac{(\mu_a + \mu_b)\, r_{ab} \cdot \nabla W_{ab}}{\rho_a \rho_b (\Vert r_{ab} \Vert^2 + \epsilon h^2)}\, v_{ab},
 ```
 
-Here, ``\mu_a = \rho_a \nu`` and ``\mu_b = \rho_b \nu`` represent the dynamic viscosities of particles ``a``and ``b`` (with ``\nu`` being the kinematic viscosity), ``r_{ab} = r_a - r_b`` is the inter-particle distance, ``v_{ab} = v_a - v_b`` is the relative velocity, ``W_{ab}`` is the smoothing kernel, ``h`` is the smoothing length, and ``\epsilon`` prevents singularities.
+where:
+
+- ``\mu_a = \rho_a \nu`` and ``\mu_b = \rho_b \nu`` represent the dynamic viscosities of particles ``a``and ``b`` (with ``\nu`` being the kinematic viscosity),
+- ``r_{ab} = r_a - r_b`` represents the difference of the coordinate vectors,
+- ``v_{ab} = v_a - v_b`` represents the relative velocity between particles.
+- `` h `` is the smoothing length,
+- `` \nabla W_{ab} `` is the gradient of the smoothing kernel,
+- `` \epsilon `` is a small parameter to prevent singularities.
 
 #### ViscosityAdami
 
