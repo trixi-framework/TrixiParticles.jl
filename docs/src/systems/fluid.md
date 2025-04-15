@@ -90,7 +90,7 @@ where **``d``** is the number of spatial dimensions. This relation allows the ca
 
 #### ViscosityMorris
 
-ViscosityMorris is ideal for moderate to low Mach number flows where accurately modeling physical viscous behavior is essential. Developed by [Morris (1997)](@cite Morris1997) and later applied by [Fourtakas (2019)](@cite Fourtakas2019), this method directly simulates the viscous stresses found in fluids rather than relying on artificial viscosity.
+`ViscosityMorris` is ideal for moderate to low Mach number flows where accurately modeling physical viscous behavior is essential. Developed by [Morris (1997)](@cite Morris1997) and later applied by [Fourtakas (2019)](@cite Fourtakas2019), this method directly simulates the viscous stresses found in fluids rather than relying on artificial viscosity.
 
 By approximating momentum diffusion based on local fluid properties, the method captures the actual viscous forces without excessive damping. This results in a more realistic representation of flow dynamics in weakly compressible scenarios.
 
