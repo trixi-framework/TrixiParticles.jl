@@ -120,7 +120,7 @@ where:
 
 - `` r_{ab} = r_a - r_b `` is the relative position between particles ``a`` and ``b``,
 - `` v_{ab} = v_a - v_b `` is their relative velocity,
-- `` V_a `` and `` V_b `` are the particle volumes,
+- `` V_a = m_a / \rho_a`` and `` V_b = m_b / \rho_b`` are the particle volumes,
 - `` h_{ab} `` is the smoothing length,
 - `` \nabla W_{ab} `` is the gradient of the smoothing kernel,
 - `` \epsilon `` is a small parameter that prevents singularities (see [Ramachandran (2019)](@cite Ramachandran2019)).
