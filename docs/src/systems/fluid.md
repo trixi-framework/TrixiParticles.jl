@@ -34,7 +34,7 @@ where it is crucial to capture the actual behavior of the fluid.
 
 #### ArtificialViscosityMonaghan
 
-ArtificialViscosityMonaghan by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite))
+`ArtificialViscosityMonaghan` by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite))
 is designed primarily for compressible,
 high-speed flows where shock capturing is critical.
 In its implementation, the method includes a dissipation term
