@@ -9,7 +9,9 @@ using OrdinaryDiffEq
 # ==== Resolution
 cylinder_diameter = 0.1
 
-particle_spacing = 0.05 * cylinder_diameter
+factor_D = 0.05
+
+particle_spacing = factor_D * cylinder_diameter
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
@@ -178,7 +180,8 @@ semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
+                                         output_directory="out_vortex_street_dp_$(factor_D)D")
 
 extra_callback = nothing
 
