@@ -3,6 +3,7 @@
                                 density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length;
                                 viscosity=nothing, density_diffusion=nothing,
+                                transport_velocity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 buffer_size=nothing,
                                 correction=nothing, source_terms=nothing,
@@ -27,6 +28,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 # Keyword Arguments
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
+- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
 - `density_diffusion`:          Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `buffer_size`:                Number of buffer particles.
@@ -50,9 +52,8 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `color_value`:                The value used to initialize the color of particles in the system.
 
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, B, SRFT, SRFN, PR, C} <:
-       FluidSystem{NDIMS}
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
+                                   PF, TV, ST, B, SRFT, SRFN, PR, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -64,7 +65,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     density_diffusion                 :: DD
     correction                        :: COR
     pressure_acceleration_formulation :: PF
-    transport_velocity                :: Nothing # TODO
+    transport_velocity                :: TV
     source_terms                      :: ST
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
@@ -79,6 +80,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
                                      pressure_acceleration=nothing,
+                                     transport_velocity=nothing,
                                      buffer_size=nothing,
                                      viscosity=nothing, density_diffusion=nothing,
                                      acceleration=ntuple(_ -> zero(eltype(initial_condition)),
@@ -91,7 +93,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     particle_refinement = nothing # TODO
 
-    initial_condition = allocate_buffer(initial_condition, buffer)
+    initial_condition, density_diffusion = allocate_buffer(initial_condition,
+                                                           density_diffusion, buffer)
 
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
@@ -128,8 +131,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                                                      NDIMS, ELTYPE,
                                                                      correction)
 
-    cache = create_cache_density(initial_condition, density_calculator)
-    cache = (;
+    cache = (; create_cache_density(initial_condition, density_calculator)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
@@ -138,7 +140,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                           n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
-             color=Int(color_value), cache...)
+             create_cache_tvf(Val(:wcsph), initial_condition, transport_velocity)...,
+             color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -150,12 +153,11 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
-                                       smoothing_kernel,
-                                       acceleration_, viscosity,
-                                       density_diffusion, correction,
-                                       pressure_acceleration, nothing,
-                                       source_terms, surface_tension, surface_normal_method,
-                                       buffer, particle_refinement, cache)
+                                       smoothing_kernel, acceleration_, viscosity,
+                                       density_diffusion, correction, pressure_acceleration,
+                                       transport_velocity, source_terms, surface_tension,
+                                       surface_normal_method, buffer, particle_refinement,
+                                       cache)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -198,6 +200,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "state equation", system.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
+        summary_line(io, "tansport velocity formulation",
+                     system.transport_velocity |> typeof |> nameof)
         summary_line(io, "density diffusion", system.density_diffusion)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
@@ -210,6 +214,14 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
     end
 end
 
+create_cache_tvf(::Val{:wcsph}, initial_condition, ::Nothing) = (;)
+
+function create_cache_tvf(::Val{:wcsph}, initial_condition, ::TransportVelocityAdami)
+    update_callback_used = Ref(false)
+
+    return (; update_callback_used)
+end
+
 @inline function Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
@@ -219,11 +231,11 @@ end
 end
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem, density_calculator)
-    return ndims(system)
+    return ndims(system) * factor_tvf(system)
 end
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
-    return ndims(system) + 1
+    return ndims(system) * factor_tvf(system) + 1
 end
 
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
