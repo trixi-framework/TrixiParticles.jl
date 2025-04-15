@@ -75,7 +75,7 @@ with:
 
 - **``h``** being the smoothing length,
 - **``\epsilon``** a small parameter to prevent singularities,
-- **``r_{ab} = r_a - r_b``** representing the displacement vector between particles,
+- **``r_{ab} = r_a - r_b``** representing the difference of the coordinate vectors,
 - **``v_{ab} = v_a - v_b``** representing the relative velocity between particles.
 
 ##### Resolution Dependency and Effective Viscosity
