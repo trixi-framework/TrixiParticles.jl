@@ -9,7 +9,7 @@ using OrdinaryDiffEq
 # ==== Resolution
 cylinder_diameter = 0.1
 
-particle_spacing = 0.01 * cylinder_diameter
+particle_spacing = 0.05 * cylinder_diameter
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
@@ -52,7 +52,7 @@ pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_densi
 # Shift pipe walls in negative x-direction for the inflow
 pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
-n_buffer_particles = 5 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
+n_buffer_particles = 10 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
 
 cylinder = SphereShape(particle_spacing, cylinder_diameter / 2,
                        (5 * cylinder_diameter, domain_size[2] / 2),
