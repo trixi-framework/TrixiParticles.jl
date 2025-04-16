@@ -49,17 +49,23 @@ the physical behavior is not overly altered.
 
 ##### Mathematical Formulation
 
-The artificial viscosity between two particles ``a`` and ``b`` is given by:
+The force exerted by particle `b` on particle `a` due to artificial viscosity is given by:
 
 ```math
-\Pi_{ab} =
-\begin{cases}
-    -\frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{if } v_{ab} \cdot r_{ab} < 0, \\
-    0 & \text{otherwise}
-\end{cases}
+\mathbf{F}_{ab}^{\text{AV}} = - m_a m_b \Pi_{ab} \nabla W_{ab}
 ```
 
 where:
+
+-   `\Pi_{ab}` is the artificial viscosity term defined as:
+
+    ```math
+    \Pi_{ab} =
+    \begin{cases}
+        -\frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{if } \mathbf{v}_{ab} \cdot \mathbf{r}_{ab} < 0, \\
+        0 & \text{otherwise}
+    \end{cases}
+    ```
 
 - ``\alpha`` and ``\beta`` are viscosity parameters,
 - ``c`` is the local speed of sound,
@@ -113,7 +119,9 @@ where:
 
 #### ViscosityAdami
 
-ViscosityAdami, introduced by [Adami (2012)](@cite Adami2012), is optimized for incompressible or weakly compressible flows where precise modeling of shear stress is critical. It enhances boundary layer representation by better resolving shear gradients, increasing dissipation in regions with steep velocity differences (e.g., near solid boundaries) while minimizing compressibility effects. This results in accurate laminar flow simulations and a faithful depiction of physical shear stresses.
+`ViscosityAdami`, introduced by [Adami (2012)](@cite Adami2012), is optimized for incompressible or weakly compressible flows where precise modeling of shear stress is critical.
+It enhances boundary layer representation by better resolving shear gradients, increasing dissipation in regions with steep velocity differences (e.g., near solid boundaries) 
+while minimizing compressibility effects. This results in accurate laminar flow simulations and accurate physical shear stresses.
 
 ##### Mathematical Formulation
 
