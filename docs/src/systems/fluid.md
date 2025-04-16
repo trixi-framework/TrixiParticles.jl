@@ -57,7 +57,7 @@ The force exerted by particle `b` on particle `a` due to artificial viscosity is
 
 where:
 
--   `\Pi_{ab}` is the artificial viscosity term defined as:
+- `\Pi_{ab}` is the artificial viscosity term defined as:
 
     ```math
     \Pi_{ab} =
