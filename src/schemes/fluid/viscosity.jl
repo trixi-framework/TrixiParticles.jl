@@ -34,6 +34,8 @@ end
 
 Artificial viscosity by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite)).
 
+See [`Viscosity`](@ref viscosity_sph) for an overview and comparison of implemented viscosity models.
+
 # Keywords
 - `alpha`: A value of `0.02` is usually used for most simulations. For a relation with the
            kinematic viscosity, see description above.
@@ -57,6 +59,8 @@ end
     ViscosityMorris(; nu, epsilon=0.01)
 
 Viscosity by [Morris (1997)](@cite Morris1997) also used by [Fourtakas (2019)](@cite Fourtakas2019).
+
+See [`Viscosity`](@ref viscosity_sph) for an overview and comparison of implemented viscosity models.
 
 # Keywords
 - `nu`: Kinematic viscosity
@@ -152,6 +156,8 @@ end
     ViscosityAdami(; nu, epsilon=0.01)
 
 Viscosity by [Adami (2012)](@cite Adami2012).
+
+See [`Viscosity`](@ref viscosity_sph) for an overview and comparison of implemented viscosity models.
 
 # Keywords
 - `nu`: Kinematic viscosity

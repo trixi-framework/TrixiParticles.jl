@@ -3,7 +3,7 @@
 Currently available fluid methods are the [weakly compressible SPH method](@ref wcsph) and the [entropically damped artificial compressibility for SPH](@ref edac).  
 This page lists models and techniques that apply to both of these methods.  
 
-## [Viscosity](@id viscosity_wcsph)
+## [Viscosity](@id viscosity_sph)
 
 Viscosity is a critical physical property governing momentum diffusion within a fluid.
 In the context of SPH, viscosity determines how rapidly velocity gradients are smoothed out,
