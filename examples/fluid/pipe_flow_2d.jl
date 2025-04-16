@@ -136,8 +136,14 @@ boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
+min_corner = minimum(pipe.boundary.coordinates .- particle_spacing, dims=2)
+max_corner = maximum(pipe.boundary.coordinates .+ particle_spacing, dims=2)
+
+nhs = GridNeighborhoodSearch{2}(; cell_list=FullGridCellList(; min_corner, max_corner),
+                                update_strategy=ParallelUpdate())
+
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
-                          boundary_system, parallelization_backend=true)
+                          boundary_system, neighborhood_search=nhs)
 
 ode = semidiscretize(semi, tspan)
 
