@@ -367,7 +367,8 @@ function initialize_neighborhood_searches!(semi)
         foreach_system(semi) do neighbor
             PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
                                        initial_coordinates(system),
-                                       initial_coordinates(neighbor))
+                                       initial_coordinates(neighbor),
+                                       eachindex_y=active_particles(neighbor))
         end
     end
 
@@ -656,7 +657,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -679,7 +680,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -692,7 +693,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -716,7 +717,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -751,7 +752,8 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], true))
+            semi, points_moving=(system.ismoving[], true),
+            eachindex_y=active_particles(neighbor))
 end
 
 # This function is the same as the one above to avoid ambiguous dispatch when using `Union`
@@ -828,8 +830,9 @@ function update_nhs!(neighborhood_search,
 end
 
 # Forward to PointNeighbors.jl
-function update!(neighborhood_search, x, y, semi; points_moving=(true, false))
-    PointNeighbors.update!(neighborhood_search, x, y; points_moving,
+function update!(neighborhood_search, x, y, semi; points_moving=(true, false),
+                 eachindex_y=axes(y, 2))
+    PointNeighbors.update!(neighborhood_search, x, y; points_moving, eachindex_y,
                            parallelization_backend=semi.parallelization_backend)
 end
 
