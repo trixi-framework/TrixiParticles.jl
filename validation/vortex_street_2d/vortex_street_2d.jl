@@ -9,9 +9,9 @@ using OrdinaryDiffEq
 # ==== Resolution
 const cylinder_diameter = 0.1
 
-factor_D = 0.05
+factor_D = 0.08
 
-particle_spacing = factor_D * cylinder_diameter
+const particle_spacing = factor_D * cylinder_diameter
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
@@ -24,7 +24,7 @@ open_boundary_layers = 8
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 75.0)
+tspan = (0.0, 50.0)
 
 # Boundary geometry and initial fluid particle positions
 domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
@@ -74,8 +74,9 @@ fluid = union(setdiff(pipe.fluid, zero_v_region_), zero_v_region)
 # ==== Fluid
 wcsph = true
 
-smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
+h_factor = 4.0
+smoothing_length = h_factor * particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
@@ -189,8 +190,9 @@ function calculate_lift_force(system::TrixiParticles.FluidSystem, v_ode, u_ode, 
         values = interpolate_point(point, semi, system, v_ode, u_ode; cut_off_bnd=false,
                                    clip_negative_pressure=false)
 
-        force += values.pressure *
-                 TrixiParticles.normalize(point - center)
+        # F = ∑ -p_i * A_i * n_i
+        force -= values.pressure * TrixiParticles.normalize(point - center) *
+                 particle_spacing
     end
 
     return 2 * force[2] / (fluid_density * prescribed_velocity^2 * cylinder_diameter)
@@ -204,8 +206,9 @@ function calculate_drag_force(system::TrixiParticles.FluidSystem, v_ode, u_ode, 
         values = interpolate_point(point, semi, system, v_ode, u_ode; cut_off_bnd=false,
                                    clip_negative_pressure=false)
 
-        force += values.pressure *
-                 TrixiParticles.normalize(point - SVector(cylinder_center))
+        # F = ∑ -p_i * A_i * n_i
+        force -= values.pressure * TrixiParticles.normalize(point - SVector(center)) *
+                 particle_spacing
     end
 
     return 2 * force[1] / (fluid_density * prescribed_velocity^2 * cylinder_diameter)
@@ -219,23 +222,24 @@ semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
-                                         output_directory="out_vortex_street_dp_$(factor_D)D")
+
+# saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
+#                                          output_directory="out_vortex_street_dp_$(factor_D)D")
 
 pp_callback = PostprocessCallback(; dt=0.02,
                                   f_l=calculate_lift_force,
                                   f_d=calculate_drag_force,
-                                  output_directory="out_vortex_street_dp_$(factor_D)D",
+                                  output_directory="out_vortex_street_dp_$(factor_D)D_h_factor_$(h_factor)_$(smoothing_kernel)_c_$sound_speed",
                                   filename="resulting_force",
                                   write_csv=true, write_file_interval=10)
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
+callbacks = CallbackSet(info_callback,  UpdateCallback(), # saving_callback,
                         ParticleShiftingCallback(), pp_callback, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
