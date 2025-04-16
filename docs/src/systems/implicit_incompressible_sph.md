@@ -33,12 +33,14 @@ $$\mathbb{F_i^p(t)} = m_i * \nabla p_i = m_i \sum_j m_j \left( \frac{p_i(t)}{\rh
 
 If you fill in this definition in the equation, you get a linear system $\mathbb{A}(t) \mathbb{p}(t) = \mathbb{b}(t)$ with one equation and one unknown pressure value per particle
 
-$$ \sum_j a_{ij} p_i = b_i = \rho_0 - \rho_i^{adv}$$
+$`\sum_j a_{ij} p_i = b_i = \rho_0 - \rho_i^{adv}$$
 
 This linear system needs to be solved in order to get the pressure values. This gets be done by using a relaxed jacobi scheme. 
 This is a iterative nummerical method to solve linear system$Ax=$. In each iteration the new values of the variable$x_$gets computed by the following formular
 
-$$ x_i^{(k+1)} = (1-\omega) x_i^{(k)} + \omega \left( \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} x_j^{(k)} \right)\right)$$
+```math 
+x_i^{(k+1)} = (1-\omega) x_i^{(k)} + \omega \left( \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} x_j^{(k)} \right)\right)
+```
 
 In the case of the linear system for the pressure values the formula is
 
