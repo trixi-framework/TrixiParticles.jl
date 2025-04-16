@@ -683,7 +683,9 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySPHSystem, neighbor::FluidSystem,
+                     system::OpenBoundarySPHSystem,
+                     neighbor::Union{OpenBoundarySPHSystem, FluidSystem,
+                                     TotalLagrangianSPHSystem},
                      u_system, u_neighbor, semi)
     # The current coordinates of both open boundaries and fluids change over time.
 
@@ -696,10 +698,16 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySPHSystem, neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
+                     system::OpenBoundarySPHSystem, neighbor::BoundarySPHSystem,
+                     u_system, u_neighbor, semi)
+    # The current coordinates of both open boundaries and fluids change over time.
+
+    # TODO: Update only `active_coordinates` of open boundaries.
+    # Problem: Removing inactive particles from neighboring lists is necessary.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
@@ -820,7 +828,7 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::Union{BoundarySPHSystem, OpenBoundarySPHSystem},
+                     system::BoundarySPHSystem,
                      neighbor::Union{BoundarySPHSystem, OpenBoundarySPHSystem},
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.

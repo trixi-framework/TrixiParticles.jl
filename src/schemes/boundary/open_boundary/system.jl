@@ -257,8 +257,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
 
-    neighborhood_search = get_neighborhood_search(system, fluid_system, semi)
-
+    # TODO: Make this threaded
     for particle in each_moving_particle(system)
         particle_coords = current_coords(u, system, particle)
 
@@ -267,16 +266,22 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
             convert_particle!(system, fluid_system, boundary_zone, particle,
                               v, u, v_fluid, u_fluid)
         end
+    end
 
-        # Check the neighboring fluid particles whether they're entering the boundary zone
-        for neighbor in PointNeighbors.eachneighbor(particle_coords, neighborhood_search)
-            fluid_coords = current_coords(u_fluid, fluid_system, neighbor)
+    system_coords = current_coordinates(u, system)
+    neighbor_coords = current_coordinates(u_fluid, fluid_system)
 
-            # Check if neighboring fluid particle is in boundary zone
-            if is_in_boundary_zone(boundary_zone, fluid_coords)
-                convert_particle!(fluid_system, system, boundary_zone, neighbor,
-                                  v, u, v_fluid, u_fluid)
-            end
+    # TODO Make this threaded
+    foreach_point_neighbor(system, fluid_system, system_coords, neighbor_coords, semi;
+                           points=each_moving_particle(system),
+                           parallelization_backend=false) do particle, neighbor,
+                                                             pos_diff, distance
+        fluid_coords = current_coords(u_fluid, fluid_system, neighbor)
+
+        # Check if neighboring fluid particle is in boundary zone
+        if is_in_boundary_zone(boundary_zone, fluid_coords)
+            convert_particle!(fluid_system, system, boundary_zone, neighbor,
+                              v, u, v_fluid, u_fluid)
         end
     end
 
