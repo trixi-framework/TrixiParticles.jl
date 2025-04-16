@@ -29,7 +29,7 @@ specified material properties and contact mechanics.
 ## References
 [Bicanic2004](@cite), [Cundall1979](@cite), [DiRenzo2004](@cite)
 """
-struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, IC}
+struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS}
     initial_condition   :: IC
     mass                :: ARRAY1D               # [particle]
     radius              :: ARRAY1D               # [particle]
@@ -110,7 +110,7 @@ function TrixiParticles.write_v0!(v0, system::DEMSystem)
 end
 
 # Nothing to initialize for this system
-initialize!(system::DEMSystem, neighborhood_search) = system
+initialize!(system::DEMSystem, semi) = system
 
 function compact_support(system::DEMSystem, neighbor::DEMSystem)
     # we for now assume that the compact support is 3 * radius
@@ -122,4 +122,23 @@ function compact_support(system::DEMSystem, neighbor)
     # we for now assume that the compact support is 3 * radius
     # todo: needs to be changed for more complex simulations
     return 3 * maximum(system.radius)
+end
+
+function system_data(system::DEMSystem, v_ode, u_ode, semi)
+    (; mass, radius, elastic_modulus, poissons_ratio, normal_stiffness,
+    damping_coefficient) = system
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    coordinates = current_coordinates(u, system)
+    velocity = current_velocity(v, system)
+
+    return (; coordinates, velocity, mass, radius, elastic_modulus, poissons_ratio,
+            normal_stiffness, damping_coefficient)
+end
+
+function available_data(::DEMSystem)
+    return (:coordinates, :velocity, :mass, :radius, :elastic_modulus,
+            :poissons_ratio, :normal_stiffness, :damping_coefficient)
 end

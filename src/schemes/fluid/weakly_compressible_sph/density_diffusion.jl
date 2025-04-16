@@ -16,7 +16,7 @@ See [Density Diffusion](@ref density_diffusion) for a comparison and more detail
 abstract type DensityDiffusion end
 
 # Most density diffusion formulations don't need updating
-function update!(density_diffusion, neighborhood_search, v, u, system, semi)
+function update!(density_diffusion, v, u, system, semi)
     return density_diffusion
 end
 
@@ -57,11 +57,11 @@ A density diffusion term by [Ferrari (2009)](@cite Ferrari2009).
 The term ``\psi_{ab}`` in the continuity equation in [`DensityDiffusion`](@ref) is defined
 by
 ```math
-\psi_{ab} = \frac{\rho_a - \rho_b}{2h} \frac{r_{ab}}{\Vert r_{ab} \Vert},
+\psi_{ab} = \frac{\rho_a - \rho_b}{h_a + h_b} \frac{r_{ab}}{\Vert r_{ab} \Vert},
 ```
 where ``\rho_a`` and ``\rho_b`` denote the densities of particles ``a`` and ``b`` respectively,
 ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b`` and
-``h`` is the smoothing length.
+``h_a`` and ``h_b`` are the smoothing lengths of particles ``a`` and ``b`` respectively.
 
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
@@ -75,9 +75,9 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionFerrari, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
-    (; smoothing_length) = system
-
-    return ((rho_a - rho_b) / 2smoothing_length) * pos_diff / distance
+    return ((rho_a - rho_b) /
+            (smoothing_length(system, particle) + smoothing_length(system, neighbor))) *
+           pos_diff / distance
 end
 
 @doc raw"""
@@ -143,6 +143,15 @@ function Base.show(io::IO, density_diffusion::DensityDiffusionAntuono)
     print(io, ")")
 end
 
+function allocate_buffer(initial_condition, density_diffusion, buffer)
+    return allocate_buffer(initial_condition, buffer), density_diffusion
+end
+
+function allocate_buffer(ic, dd::DensityDiffusionAntuono, buffer::SystemBuffer)
+    initial_condition = allocate_buffer(ic, buffer)
+    return initial_condition, DensityDiffusionAntuono(initial_condition; delta=dd.delta)
+end
+
 @inline function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
                                        rho_a, rho_b, pos_diff, distance, system,
                                        particle, neighbor)
@@ -160,30 +169,27 @@ end
     return result * pos_diff / distance^2
 end
 
-function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search,
-                 v, u, system, semi)
+function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     (; normalized_density_gradient) = density_diffusion
 
     # Compute correction matrix
-    density_fun = @inline(particle->particle_density(v, system, particle))
+    density_fun = @inline(particle->current_density(v, system, particle))
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(density_diffusion.correction_matrix,
-                                        neighborhood_search, system,
-                                        system_coords, density_fun)
+                                        system, system_coords, density_fun, semi)
 
     # Compute normalized density gradient
     set_zero!(normalized_density_gradient)
 
-    foreach_point_neighbor(system, system, system_coords, system_coords,
-                           neighborhood_search;
+    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         # Only consider particles with a distance > 0
         distance < sqrt(eps(typeof(distance))) && return
 
-        rho_a = particle_density(v, system, particle)
-        rho_b = particle_density(v, system, neighbor)
+        rho_a = current_density(v, system, particle)
+        rho_b = current_density(v, system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         L = correction_matrix(density_diffusion, particle)
@@ -209,7 +215,7 @@ end
     distance < sqrt(eps(typeof(distance))) && return
 
     (; delta) = density_diffusion
-    (; smoothing_length, state_equation) = particle_system
+    (; state_equation) = particle_system
     (; sound_speed) = state_equation
 
     volume_b = m_b / rho_b
@@ -218,7 +224,10 @@ end
                                 particle_system, particle, neighbor)
     density_diffusion_term = dot(psi, grad_kernel) * volume_b
 
-    dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
+    smoothing_length_avg = (smoothing_length(particle_system, particle) +
+                            smoothing_length(particle_system, neighbor)) / 2
+    dv[end, particle] += delta * smoothing_length_avg * sound_speed *
+                         density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
