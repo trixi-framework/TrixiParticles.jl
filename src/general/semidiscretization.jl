@@ -74,7 +74,7 @@ function Semidiscretization(systems...;
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
-    check_configuration(systems)
+    check_configuration(systems, neighborhood_search)
 
     sizes_u = [u_nvariables(system) * n_moving_particles(system)
                for system in systems]
@@ -836,15 +836,15 @@ function update!(neighborhood_search, x, y, semi; points_moving=(true, false),
                            parallelization_backend=semi.parallelization_backend)
 end
 
-function check_configuration(systems)
+function check_configuration(systems, neighborhood_search)
     foreach_system(systems) do system
-        check_configuration(system, systems)
+        check_configuration(system, systems, neighborhood_search)
     end
 
     check_system_color(systems)
 end
 
-check_configuration(system, systems) = nothing
+check_configuration(system, systems, neighborhood_search) = nothing
 
 function check_system_color(systems)
     if any(system isa FluidSystem && !(system isa ParticlePackingSystem) &&
@@ -861,7 +861,7 @@ function check_system_color(systems)
     end
 end
 
-function check_configuration(fluid_system::FluidSystem, systems)
+function check_configuration(fluid_system::FluidSystem, systems, neighborhood_search)
     if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
             if neighbor isa FluidSystem && isnothing(fluid_system.surface_tension) &&
@@ -872,8 +872,8 @@ function check_configuration(fluid_system::FluidSystem, systems)
     end
 end
 
-function check_configuration(boundary_system::BoundarySPHSystem, systems)
-    (; boundary_model) = boundary_system
+function check_configuration(system::BoundarySPHSystem, systems, neighborhood_search)
+    (; boundary_model) = system
 
     foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
@@ -885,7 +885,7 @@ function check_configuration(boundary_system::BoundarySPHSystem, systems)
     end
 end
 
-function check_configuration(system::TotalLagrangianSPHSystem, systems)
+function check_configuration(system::TotalLagrangianSPHSystem, systems, neighborhood_search)
     (; boundary_model) = system
 
     foreach_system(systems) do neighbor
@@ -902,12 +902,18 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
     end
 end
 
-function check_configuration(system::OpenBoundarySPHSystem, systems)
+function check_configuration(system::OpenBoundarySPHSystem, systems, neighborhood_search)
     (; boundary_model, boundary_zone) = system
 
     if boundary_model isa BoundaryModelLastiwka &&
        boundary_zone isa BoundaryZone{BidirectionalFlow}
         throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
                             "Please specify inflow and outflow."))
+    end
+
+    if first(PointNeighbors.requires_update(neighborhood_search))
+        throw(ArgumentError("`OpenBoundarySPHSystem` requires a neighborhood search " *
+                            "that does not need an update for the `x` coordinates (e.g. `GridNeighborhoodSearch`). " *
+                            "See the PointNeighbors.jl documentation for more details."))
     end
 end
