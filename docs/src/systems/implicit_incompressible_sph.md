@@ -24,7 +24,7 @@ $$\rho_i^{adv} = \rho_i(t) + \Delta t \sum_j m_j v_{ij}^{adv} \nabla W_{ij}(t)$$
 To achieve the rest density the unknown pressure forces need to resolve the compression through the non-pressure forces, that means that they have to resolve the deviation of the predicted density and the rest density. 
 
 Therefore following equation needs to be fulfilled:
-$$ \Delta t ^2 \sum_j m_j \left(  \frac{\mathbb{F}_i^p(t)}{m_i} - \frac{\mathbb{F}_j^p(t)}{m_j} \right) \nabla W_{ij}(t) = \rho_0 - \rho_i^{adv}$$
+$$ \Delta t ^2 \sum_j m_j \left(  \frac{\mathbb{F}\_i^p(t)}{m_i} - \frac{\mathbb{F}\_j^p(t)}{m_j} \right) \nabla W_{ij}(t) = \rho_0 - \rho_i^{adv}$$
 This formula comes from plugging in $\rho_0$ for $\rho(t+\Delta t)$ in the dicretizied Continuity equation and by using the above definitions for $v_{ij}(t+\Delta t)$ and $\rho_i^{adv}$.
 
 The unknown pressure force is given by 
