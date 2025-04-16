@@ -229,13 +229,14 @@ info_callback = InfoCallback(interval=100)
 pp_callback = PostprocessCallback(; dt=0.02,
                                   f_l=calculate_lift_force,
                                   f_d=calculate_drag_force,
-                                  output_directory="out_vortex_street_dp_$(factor_D)D_h_factor_$(h_factor)_$(smoothing_kernel)_c_$sound_speed",
+                                  output_directory="out_vortex_street_dp_$(factor_D)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
+                                                   TrixiParticles.type2string(smoothing_kernel),
                                   filename="resulting_force",
                                   write_csv=true, write_file_interval=10)
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback,  UpdateCallback(), # saving_callback,
+callbacks = CallbackSet(info_callback, UpdateCallback(), # saving_callback,
                         ParticleShiftingCallback(), pp_callback, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
