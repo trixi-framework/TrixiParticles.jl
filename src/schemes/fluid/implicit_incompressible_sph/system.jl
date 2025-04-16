@@ -146,6 +146,52 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
+@propagate_inbounds function get_updated_velocity(system::ImplicitIncompressibleSPHSystem, particle, v_updated)
+    return extract_svector(v_updated, system, particle)
+end
+
+@propagate_inbounds function get_updated_velocity(system::BoundarySystem, particle, v_updated)
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+@propagate_inbounds function get_current_pressure_value(system::ImplicitIncompressibleSPHSystem, particle, pressure)
+   return pressure[particle]
+end   
+
+@propagate_inbounds function get_current_pressure_value(system::BoundarySystem, particle, pressure)
+    return 0
+ end    
+
+ @propagate_inbounds function get_current_pressure_value_pair(system, neighbor_system::ImplicitIncompressibleSPHSystem, particle, neighbor, pressure)
+    p_a = get_current_pressure_value(system, particle, pressure)
+    p_b = get_current_pressure_value(neighbor_system, neighbor, pressure)
+    return p_a, p_b
+ end    
+
+ @propagate_inbounds function get_current_pressure_value_pair(system, neighbor_system::BoundarySystem, particle, neighbor, pressure)
+    p_a = get_current_pressure_value(system, particle, neighbor)
+    return p_a, 0
+ end    
+
+@propagate_inbounds function get_predicted_density(system::ImplicitIncompressibleSPHSystem, particle, predicted_density)
+    return predicted_density[particle]
+end
+
+@propagate_inbounds function get_predicted_density(system::BoundarySystem, particle, predicted_density)
+    return 1000.0
+end
+
+@propagate_inbounds function get_predicted_density_pair(system, neighbor_system::ImplicitIncompressibleSPHSystem, particle, neighbor, predicted_density) 
+    rho_a = get_predicted_density(system, particle, predicted_density)
+    rho_b = get_predicted_density(neighbor_system, neighbor, predicted_density)
+    return rho_a, rho_b
+end
+
+@propagate_inbounds function get_predicted_density_pair(system, neighbor_system::BoundarySystem, particle, neighbor, predicted_density) 
+    rho_a = get_predicted_density(system, particle, predicted_density)
+    return rho_a, 1000.0
+end
+
 @propagate_inbounds function get_d(system::ImplicitIncompressibleSPHSystem, d, particle)
     return extract_svector(d, system, particle)
 end
@@ -179,7 +225,7 @@ end
 
 # Calculates a summand for the calculation of the d_ii values 
 function calculate_dii(system, boundary_model, density_calculator::PressureMirroring ,m_b, rho_a, grad_kernel, time_step)
-    return -time_step^2 * m_b / rho_a^2 * grad_kernel[i] #for pressure mirroring
+    return -time_step^2 * m_b / rho_a^2 * grad_kernel #for pressure mirroring
 end
 
 # Calculates a summand for the calculation of the d_ii values 
@@ -259,11 +305,17 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     a = system.a
     v_adv = system.v_adv
     pressure = system.pressure
+    v_updated = copy(v_adv)
+    #v_updated = zeros(ELTYPE, ndims(system), n_particles)
+    updated_density = copy(density)
 
     set_zero!(d)
+    sound_speed = system_sound_speed(system)
     set_zero!(a)
     summation_density!(system, semi,  u, u_ode, density)
     set_zero!(predicted_density)
+    set_zero!(updated_density)
+
 
     v_particle_system = wrap_v(v_ode, system, semi)
     v_adv .= v_particle_system
@@ -287,7 +339,6 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                                                                         pos_diff,
                                                                         distance
             #TODO: Was tun mit dem sound speed?
-            sound_speed = system_sound_speed(system)
 
             m_a = hydrodynamic_mass(system, particle)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
@@ -338,7 +389,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
             grad_kernel_ji = smoothing_kernel_grad(system, -pos_diff, distance)
             # compute dji
-            dji = calculate_dij(neighbor_system, particle, density, grad_kernel_ji, time_step)
+            dji = calculate_dij(neighbor_system, neighbor, density, grad_kernel_ji, time_step)
                                
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -375,11 +426,14 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     sum_dj = system.sum_dj
     s_term = system.s_term
     sum_dj .= 0.0
+    #updated_density .= predicted_density
 
     # Calculate pressure values with iterative pressure solver (relaxed jacobi scheme)
     l = 0
     while l < 15 #TODO: Abbruchbedingung
         set_zero!(sum_dj)
+        updated_density .= predicted_density
+        v_updated .= v_adv
         @trixi_timeit timer() "Pressure solve - calculate Sum over d_j's" foreach_system(semi) do neighbor_system
             # Get neighbor system u and v values 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
@@ -434,9 +488,78 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                 pressure[particle] = 0
             end
         end
+        #=
+        #TODO: Abbruchbedingung
+            foreach_system(semi) do neighbor_system
+            # Get neighbor system u and v values 
+            u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+            # get coordinates
+            system_coords = current_coordinates(u, system)
+            neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+            # get neighborhood_search
+            nhs = get_neighborhood_search(system, neighbor_system, semi)
+
+                foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_system_coords, nhs;
+                points=each_moving_particle(system)) do particle,
+                                                        neighbor,
+                                                        pos_diff,
+                                                        distance
+                    
+                    grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+
+                    m_a = hydrodynamic_mass(system, particle)
+                    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+                    p_a, p_b = get_current_pressure_value_pair(system, neighbor_system, particle, neighbor, pressure)
+
+                    rho_a, rho_b  = get_predicted_density_pair(system, neighbor_system, particle, neighbor, predicted_density) 
+
+                    dv_pressure = pressure_acceleration(system, neighbor_system, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                                        distance, grad_kernel, nothing)
+                    # update velocity
+
+                    for i in 1:ndims(system)
+                        @inbounds v_updated[i, particle] += time_step * dv_pressure[i]
+
+                    end
+                end
+            end
+            foreach_system(semi) do neighbor_system
+                # Get neighbor system u and v values 
+                u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+                # get coordinates
+                system_coords = current_coordinates(u, system)
+                neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+                # get neighborhood_search
+                nhs = get_neighborhood_search(system, neighbor_system, semi)
+    
+                foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_system_coords, nhs;
+                points=each_moving_particle(system)) do particle,
+                                                        neighbor,
+                                                        pos_diff,
+                                                        distance
+                    #TODO update velocity
+
+                    v_updated_diff = get_updated_velocity(system, particle, v_updated) - get_updated_velocity(neighbor_system, neighbor, v_updated)
+                    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+                    grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+                    
+                    updated_density[particle] += time_step * m_b * dot(v_updated_diff, grad_kernel)
+                end
+                                    
+            end
+            mean_updated_density = sum(updated_density) / nparticles(system)
+            density_deviation_abs = mean_updated_density - rest_density
+            density_deviation_rel = density_deviation_abs / rest_density
+            println("l = ", l)
+            println("Mean:", mean_updated_density)
+            println("Rest_density:", rest_density)
+            println("Absolut Deviation:", density_deviation_abs)
+            println("Relative Deviation:", density_deviation_rel)
+            #TODO calculate deviation
+            =#
         l += 1
     end
-
     return system
 end
 
