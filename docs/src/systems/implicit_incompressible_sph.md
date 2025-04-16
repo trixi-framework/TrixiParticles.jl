@@ -48,7 +48,7 @@ If you fill in this definition in the equation, you get a linear system $A(t) p(
 ```
 
 This linear system needs to be solved in order to get the pressure values. This gets be done by using a relaxed jacobi scheme. 
-This is a iterative nummerical method to solve linear system$Ax=$. In each iteration the new values of the variable$x_$gets computed by the following formular
+This is a iterative nummerical method to solve a linear system $Ax=b$. In each iteration the new values of the variable $x$ get computed by the following formular
 
 ```math 
 x_i^{(k+1)} = (1-\omega) x_i^{(k)} + \omega \left( \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} x_j^{(k)} \right)\right)
@@ -72,7 +72,7 @@ Using this new values the linear system can be rewritten as
 \rho_0 - \rho_i^{adv} = \sum_j m_j \left( d_{ii}p_i + \sum_j d_{ij}p_j - d_{jj}p_j - \sum_k d_{jk}p_k \right) \nabla W_{ij}
 ```
 
-where stands for the neighbor particles of the neigbor particle$ from$.
+where stands for the neighbor particles of the neigbor particle from.
 So the sum over the neighbors $p_j$ also includes the pressure values $p_i$ since $i$ is a neighbor of $j$
 To seperate this sum it can be written as 
 
@@ -109,16 +109,16 @@ First of all someone can choose if he want to avoid negative pressure values by 
 \max(0, p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i{adv} \sum_{j \neq i} a_{ij}p_j^l}{a{ii}}
 ```
 
-The secound exception is to avoid the pressure update for too small diagonal elements. The simulation gets instabil if the diagonal elements$a_{ii}$ are getting to small or even zero. This can happen if a particle is isolated and has no influence from other particle around them, or just by accident because the influences are canceling each other and the term just gets zero. 
+The secound exception is to avoid the pressure update for too small diagonal elements. The simulation gets instabil if the diagonal elements $a_{ii}$ are getting to small or even zero. This can happen if a particle is isolated and has no influence from other particle around them, or just by accident because the influences are canceling each other and the term just gets zero. 
 In this case the updated pressure value will be set to zero. 
-There are also other options, like setting$a_{ii}$ to the threshold value is its beneath and then updare with the known forumla, or just don't update the pressure value at all, and continue with the old value. By setting the pressure value to zero, the numerical error through this can not be so big to mess up a whole simulation, as long as it doesn't happens for too many particles. 
+There are also other options, like setting $a_{ii}$ to the threshold value is its beneath and then updare with the known forumla, or just don't update the pressure value at all, and continue with the old value. By setting the pressure value to zero, the numerical error through this can not be so big to mess up a whole simulation, as long as it doesn't happens for too many particles. 
 
 
 ## Boundary Handling
 
 The previously mentioned theory only considered fluid particle interactions but didn't consider how fluid particles interacht with boundary particles. 
 For this case a few changes to the above formulas have to be done. 
-Firs of all the discreitzed version of the continuity equation changes in case that the neighboring particle is a boundary particle. From know on$represents neighboring boundary particles and$ represents neighboring fluid particles. 
+Firs of all the discreitzed version of the continuity equation changes in case that the neighboring particle is a boundary particle. From know on represents neighboring boundary particles and represents neighboring fluid particles. 
 Then the discretizied continuity equation for boundary particles looks like this.
 
 ```math
@@ -139,7 +139,7 @@ and also for the reulting forumla for the linear system.
 ```
 
 Note that because we don't have velocities for the boundary particles the fluid particles pressure acceleration also does not depend directly on the pressure forces of the boundary particles. 
-But the pressure forces of the fluid particle$ itself and the neighboring fluid particles$depend on the pressure values of all their neighboring particles, which can also be boundary particles. Because of that the pressure value of$ depends indirectly on the pressure values of the neighboring boundary particles
+But the pressure forces of the fluid particles itself and the neighboring fluid particles depend on the pressure values of all their neighboring particles, which can also be boundary particles. Because of that the pressure value of depends indirectly on the pressure values of the neighboring boundary particles
 
 ```math
 \mathbb{F}_i^p(t) = -m_i \sum_j \left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_j(t)}{\rho_j^2(t)} \right) \nabla W_{ij}(t) -m_i \sum_b \left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_b(t)}{\rho_j^2(t)} \right) \nabla W_{ib}(t)
@@ -149,8 +149,8 @@ From this point on the determination of the necessary coefficients for the jacob
 
 
 ### Pressure Mirroring
-In case of using pressure mirroring the pressure valuen$p_i$`s nothing else but the pressure value of the fluid particle $p_$. 
-So the coefficient which describes the influence of the own pressure value$p_$ from particle$ also needs to consider the boundary particles. 
+In case of using pressure mirroring the pressure value $p_j$ `s nothing else but the pressure value of the fluid particle $p_i$. 
+So the coefficient which describes the influence of the own pressure value $p_i$ from particle $i$ also needs to consider the boundary particles. 
 Therefore the forumla for the calculation from the $d_{ii}$ values needs to be adjusted to
 
 ```math
@@ -160,11 +160,11 @@ d_{ii} = -\Delta t^2 \sum_j ˜frac{m_j}{\rho_i^2} \nabla W_{ij} - \Delta t^2 \su
 and the relaxed jacobi iteration for pressure mirroring looks like this
 
 ```math 
-p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \Left \rho_0 - \rho_i^{adv} - \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} - \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \Right)
+p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \left \rho_0 - \rho_i^{adv} - \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} - \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right)
 ```
 
-### Pressure Zeroring
-When Pressure Zeoring is going to be used, then the pressure value $p_j$ becomes zero and just vanishes. So the boundary particles do not have a influence on the pressure forces for particle$and the calculation for the $d_{ii}$ - coefficient remians unchanged
+### Pressure Zeroing
+When Pressure Zeroing is going to be used, then the pressure value $p_j$ becomes zero and just vanishes. So the boundary particles do not have a influence on the pressure forces for particle$and the calculation for the $d_{ii}$ - coefficient remians unchanged
 
 ```math
 d_{ii} = -\Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij}
@@ -173,7 +173,7 @@ d_{ii} = -\Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij}
 The relaxed jacobi iteration is also the same like the one above for the pressure mirroring.
 
 ```math
-p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \left \rho_0 - \rho_i^{adv} - \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} - \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right)
+p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \left( \rho_0 - \rho_i^{adv} - \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} - \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right)
 ```
 
 
