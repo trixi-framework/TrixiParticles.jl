@@ -70,6 +70,5 @@ callbacks = CallbackSet(info_callback, saving_callback)
 sol = solve(ode, SymplecticEuler(),
             dt = 0.001,
             save_everystep=false, callback=callbacks);
-
 plot(sol)
 
