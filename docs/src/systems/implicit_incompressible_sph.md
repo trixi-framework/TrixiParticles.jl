@@ -4,10 +4,12 @@ Implicit Incompressible SPH as introduced by [M. Ihmsen](@cite IHMSEN et al). Th
 It does not use a state equation to generate pressure values like the [weakly compressible SPH scheme](weakly_compressible_sph.md).
 
 
-In order to get the formulation for the linear system we start by discretizing the Continuity equation $\frac{D\rho}{Dt} = - \rho \nabla \cdot \mathbb{v}$.
-For a particle $i$ a forward difference method is used to discretizie the left hand side of the equation to get $\frac{\rho_i(t+ \Delta t - \rho_i(t))}{\Delta t}$. The right hand side gets discretized by the difference formulation of the SPH discretitzation of the gradient $\nabla \cdot \mathbb{v} = \frac{1}{\rho_i} \sum_j m_j \mathbb{v}_{ij} \nabla W_{ij}$, where $\mathbb{v}_{ij}$ is equal to $\mathbb{v}_i - \mathbb{v}_j$.
+In order to get the formulation for the linear system we start by discretizing the Continuity equation $\frac{D\rho}{Dt} = - \rho \nabla \cdot v$.
+For a particle $i$ a forward difference method is used to discretizie the left hand side of the equation to get $\frac{\rho_i(t+ \Delta t - \rho_i(t))}{\Delta t}$. The right hand side gets discretized by the difference formulation of the SPH discretitzation of the gradient $\nabla \cdot v = \frac{1}{\rho_i} \sum_j m_j v_{ij} \nabla W_{ij}$, where $v_{ij}$ is equal to $`v_i - v_j`$.
 So all in all the following discretized version of the continuity equation for a particle $i$ is achieved:
-$$\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j \mathbb{v}_{ij}(t+\Delta t) \nabla W_{ij}$$
+```math
+\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j v_{ij}(t+\Delta t) \nabla W_{ij}
+```
 
 For this implicit formular  the unknown velocities $v_{ij}(t + \Delta t)$ are needed, which depend on the unknown pressure values $p(t+\Delta t)$.
 They are given by adding all pressure and non-pressure acceleartions to the current veloctiy:
@@ -36,7 +38,7 @@ The unknown pressure force is given by
 \mathbb{F_i^p(t)} = m_i * \nabla p_i = m_i \sum_j m_j \left( \frac{p_i(t)}{\rho_i^2(t)} - \frac{p_j(t)}{\rho_j^2(t)} \right) \nabla W_{ij}
 ```
 
-If you fill in this definition in the equation, you get a linear system $\mathbb{A}(t) \mathbb{p}(t) = \mathbb{b}(t)$ with one equation and one unknown pressure value per particle
+If you fill in this definition in the equation, you get a linear system $A(t) p(t) = b(t)$ with one equation and one unknown pressure value per particle
 
 ```math
 \sum_j a_{ij} p_i = b_i = \rho_0 - \rho_i^{adv}
@@ -60,46 +62,49 @@ This can be done efficently by seperating the formula for the pressure force acc
 \Delta t^2 \frac{\mathbb{F}_i^p}{m_i} = -\Delta t^2 \sum_j m_j \left( \frac{p_i}{\rho_i^2} + \frac{p_j}{\rho_j^2} \right)\nabla W_{ij} = \left( - \Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij} \right) p_i + \sum_j - \Delta t^2 \frac{m_j}{\rho_j^2} \nabla W_{ij}p_j
 ```
 
-The $\mathbb{d}_{ii}p_i$ value describes the displacement of particle i because of the pressure value $p_i$ and $mathbb_{d}_{ij}p_j$ describes the influence from the neighboring particles $p_j$.
+The $d_{ii}p_i$ value describes the displacement of particle i because of the pressure value $p_i$ and $d_{ij}p_j$ describes the influence from the neighboring particles $p_j$.
 Using this new values the linear system can be rewritten as
 
 ```math
 \rho_0 - \rho_i^{adv} = \sum_j m_j \left( d_{ii}p_i + \sum_j d_{ij}p_j - d_{jj}p_j - \sum_k d_{jk}p_k \right) \nabla W_{ij}
 ```
 
-where$stands for the neighbor particles of the neigbor particle$ from$.
+where stands for the neighbor particles of the neigbor particle$ from$.
 So the sum over the neighbors $p_j$ also includes the pressure values $p_i$ since $i$ is a neighbor of $j$
 To seperate this sum it can be written as 
+
 ```math 
-\sum_k \mathbb{d}_{jk} p_k = \sum_{k \neq i} \mathbb_{d}_{jk} p_k + \mathbb_{d}_{ji} p_i
+\sum_k d_{jk} p_k = \sum_{k \neq i} d_{jk} p_k + d_{ji} p_i
 ```
 
 With this seperation the equation for the linear system can again be rewritten as 
 
 ```math 
-\rho_0 - \rho_i^{adv} = p_i \sum_j m_j ( mathbb_{d}_{ii} - mathbb_{d}_{ij})\nabla W_{ij}  + \n \sum_j m_j \left ( \sum_j \mathbb{d}_{ij} p_j - \mathbb{d}_{jj} p_j - \sum_{k \neq i} \mathbb{d}_{jk}p_k \right) \nabla W_{ij}
+\rho_0 - \rho_i^{adv} = p_i \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij}  + \n \sum_j m_j \left ( \sum_j d_{ij} p_j - d_{jj} p_j - \sum_{k \neq i} d_{jk}p_k \right) \nabla W_{ij}
 ```
 
 In this forumlation all coefficients which are getting multiplied with the pressure value $p_i$ are seperated from the other, and the values for the diagonal elements $a_{ii}$ can be defined as these coeffincients
 
 ```math
-a_{ii} = \sum_j m_j ( mathbb_{d}_{ii} - mathbb_{d}_{ij})\nabla W_{ij}
+a_{ii} = \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij}
 ```
 
 The other term of the equation is the influence of the other pressure values $p_$. So the final relaxed jacobi iteration looks like this 
 
 ```math
-p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii} \Left( \rho_0 -\rho_i^{adv} \sum_j m_j \left( \sum_j \mathbb{d}_{ij} p_j^l - \b_{d}_{jj} p_j^l - \sum_{k \neq i} \mathbb{d}_{jk} p_k^l \right) \nabla W_{ij} \Right)}.
+p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii} \Left( \rho_0 -\rho_i^{adv} \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj} p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \Right)}.
 ```
 
 Note that the pressure value of a particle $i$ depends only on its own current pressure value, the pressure values of his neighboring particles, and the neighbor of the neighboring particle. That means that the most entries of the matrix$ are zero. 
 
-The diagonal elements of the matrix get computed and stored at the beginning of the simulation step and never changes during the relaxed jacobi iterations. The same holds for the $\mathbb{d}_{ii}$ values. the coefficients $\mathbb{d}_{ij}$ get computed to calculate the $a_{ii}$. During the jacobi iterations, two loops over all particles are being done. the first is to update the values for $\sum_j \mathbb{d}_{ij}$ and the second is to compute the updated pressure values $p_i^{l+1}$.
+The diagonal elements of the matrix get computed and stored at the beginning of the simulation step and never changes during the relaxed jacobi iterations. The same holds for the $d_{ii}$ values. the coefficients $d_{ij}$ get computed to calculate the $a_{ii}$. During the jacobi iterations, two loops over all particles are being done. the first is to update the values for $\sum_j d_{ij}$ and the second is to compute the updated pressure values $p_i^{l+1}$.
 
 The final pressure update follows the given formula of the relaxed jacobi scheme, but with two exceptions. 
 First of all someone can choose if he want to avoid negative pressure values by acitivating pressure clamping. Then the final pressure update would be
 
-$$ \max(0, p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i{adv} \sum_{j \neq i} a_{ij}p_j^l}{a{ii}}$$
+```math
+\max(0, p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i{adv} \sum_{j \neq i} a_{ij}p_j^l}{a{ii}}
+```
 
 The secound exception is to avoid the pressure update for too small diagonal elements. The simulation gets instabil if the diagonal elements$a_{ii}$ are getting to small or even zero. This can happen if a particle is isolated and has no influence from other particle around them, or just by accident because the influences are canceling each other and the term just gets zero. 
 In this case the updated pressure value will be set to zero. 
@@ -113,21 +118,29 @@ For this case a few changes to the above formulas have to be done.
 Firs of all the discreitzed version of the continuity equation changes in case that the neighboring particle is a boundary particle. From know on$represents neighboring boundary particles and$ represents neighboring fluid particles. 
 Then the discretizied continuity equation for boundary particles looks like this.
 
-$$ \frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j \mathbb{v}_{ij}(t+\Delta t) \nabla W_{ij} $+ \sum_b m_b \mathbb{v}_{ib}(t+\Delta t) \nabla W_{ib}$$
+```math
+\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j v_{ij}(t+\Delta t) \nabla W_{ij} $+ \sum_b m_b v_{ib}(t+\Delta t) \nabla W_{ib}
+```
 
-But because of the fact that the boundary particles do not have an own velocity the difference between the fluid particles velocity and the boundary particles velocity is just equal to the fluid particles velocity $\mathbb{v}_{ib}(t+\Delta t) = \mathbb{v}_{i}(ts+\Delta t)$
+But because of the fact that the boundary particles do not have an own velocity the difference between the fluid particles velocity and the boundary particles velocity is just equal to the fluid particles velocity $v_{ib}(t+\Delta t) = v_{i}(t+\Delta t)$
 The same goes for the predicted density
 
-$$\rho_i^{adv} = \rho_i (t) + \Delta t \sum_j m_j \mathbb{v}_{ij}^{adv} \nabla W_{ij}(t) + \Delta t \sum_b m_b \mathbb{v}_{i}^{adv} \nabla W_{ib}(t$$
+```math
+\rho_i^{adv} = \rho_i (t) + \Delta t \sum_j m_j v_{ij}^{adv} \nabla W_{ij}(t) + \Delta t \sum_b m_b v_{i}^{adv} \nabla W_{ib}(t)
+```
 
 and also for the reulting forumla for the linear system. 
 
-$$ \Delta t^2 \sum_j m_j \left(  \frac{\mathbb{F}_i^p(t)}{m_i} - \frac{\mathbb{F}_j^p(t)}{m_j} \right) \nabla W_{ij} + \Delta t^2 \sum_b m_b \frac{\mathbb{F}_i^p(t)}{m_i} \nabla W_{ib} = \rho_0 - \rho_i^{adv}$$
+```math
+\Delta t^2 \sum_j m_j \left(  \frac{\mathbb{F}_i^p(t)}{m_i} - \frac{\mathbb{F}_j^p(t)}{m_j} \right) \nabla W_{ij} + \Delta t^2 \sum_b m_b \frac{\mathbb{F}_i^p(t)}{m_i} \nabla W_{ib} = \rho_0 - \rho_i^{adv}
+```
 
 Note that because we don't have velocities for the boundary particles the fluid particles pressure acceleration also does not depend directly on the pressure forces of the boundary particles. 
 But the pressure forces of the fluid particle$ itself and the neighboring fluid particles$depend on the pressure values of all their neighboring particles, which can also be boundary particles. Because of that the pressure value of$ depends indirectly on the pressure values of the neighboring boundary particles
 
-$$ \mathbb{F}_i^p(t) = -m_i \sum_j \Left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_j(t)}{\rho_j^2(t)} \Right) \nabla W_{ij}(t) -m_i \sum_b \Left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_b(t)}{\rho_j^2(t)} \Right) \nabla W_{ib}(t)$$
+```math
+\mathbb{F}_i^p(t) = -m_i \sum_j \Left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_j(t)}{\rho_j^2(t)} \Right) \nabla W_{ij}(t) -m_i \sum_b \Left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_b(t)}{\rho_j^2(t)} \Right) \nabla W_{ib}(t)
+````
 
 From this point on the determination of the necessary coefficients for the jacobi scheme, $d_{ii}, d_{ij}$ , ... , depend on the boundary density calculator that is used for the boundary model. 
 
@@ -137,19 +150,28 @@ In case of using pressure mirroring the pressure valuen$p_i$`s nothing else but 
 So the coefficient which describes the influence of the own pressure value$p_$ from particle$ also needs to consider the boundary particles. 
 Therefore the forumla for the calculation from the $d_{ii}$ values needs to be adjusted to
 
-$$ d_{ii} = -\Delta t^2 \sum_j ˜frac{m_j}{\rho_i^2} \nabla W_{ij} - \Delta t^2 \sum_b \frac{m_b}{\rho_i^2} \nabla W_{ib}$$
+```math
+d_{ii} = -\Delta t^2 \sum_j ˜frac{m_j}{\rho_i^2} \nabla W_{ij} - \Delta t^2 \sum_b \frac{m_b}{\rho_i^2} \nabla W_{ib}
+```
 
 and the relaxed jacobi iteration for pressure mirroring looks like this
-$$ p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \Left \rho_0 - \rho_i^{adv} - \sum_j m_j \left( \sum_j \mathbb{d}_{ij} p_j^l - \mathbb{d}_{jj}p_j^l - \sum_{k \neq i} \mathbb{d}_{jk} p_k^l \right) \nabla W_{ij} - \sum_b m_b \sum_j \mathbb{d}_{ij} p_j^l \nabla W_{ij} \Right)$$
+
+```math 
+p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \Left \rho_0 - \rho_i^{adv} - \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} - \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \Right)
+```
 
 ### Pressure Zeroring
 When pressure zeoring is going to be used then the pressure value$p_$ becomes zero and just vanishes. So the boundary particles do not have a influence on the pressure forces for particle$and the calculation for the$d_{ii}$-coefficient remians unchanged
 
-$$ d_{ii} = -\Delta t^2 \sum_j ˜frac{m_j}{\rho_i^2} \nabla W_{ij}$$
+```math
+d_{ii} = -\Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij}
+```
 
 The relaxed jacobi iteration is also the same like the one above for the pressure mirroring.
 
-$$ p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \Left \rho_0 - \rho_i^{adv} - \sum_j m_j \left( \sum_j \mathbb{d}_{ij} p_j^l - \mathbb{d}_{jj}p_j^l - \sum_{k \neq i} \mathbb{d}_{jk} p_k^l \right) \nabla W_{ij} - \sum_b m_b \sum_j \mathbb{d}_{ij} p_j^l \nabla W_{ij} \Right)$$
+```math
+p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \Left \rho_0 - \rho_i^{adv} - \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} - \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \Right)
+```
 
 
 
