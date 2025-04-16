@@ -61,9 +61,9 @@ The artificial viscosity between two particles ``a`` and ``b`` is given by:
 
 where:
 
-- **``\alpha`` and ``\beta``** are viscosity parameters,
-- **``c``** is the local speed of sound,
-- **``\bar{\rho}_{ab}``** is the arithmetic mean of the densities of particles ``a`` and ``b``.
+- ``\alpha`` and ``\beta`` are viscosity parameters,
+- ``c`` is the local speed of sound,
+- ``\bar{\rho}_{ab}`` is the arithmetic mean of the densities of particles ``a`` and ``b``.
 
 The term ``\mu_{ab}`` is defined as:
 
@@ -73,10 +73,10 @@ The term ``\mu_{ab}`` is defined as:
 
 with:
 
-- **``h``** being the smoothing length,
-- **``\epsilon``** a small parameter to prevent singularities,
-- **``r_{ab} = r_a - r_b``** representing the difference of the coordinate vectors,
-- **``v_{ab} = v_a - v_b``** representing the relative velocity between particles.
+- ``h`` being the smoothing length,
+- ``\epsilon`` a small parameter to prevent singularities,
+- ``r_{ab} = r_a - r_b`` representing the difference of the coordinate vectors,
+- ``v_{ab} = v_a - v_b`` representing the relative velocity between particles.
 
 ##### Resolution Dependency and Effective Viscosity
 
