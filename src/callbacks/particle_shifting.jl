@@ -79,6 +79,9 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
     Wdx = smoothing_kernel(system, particle_spacing(system, 1), 1)
     h = smoothing_length(system, 1)
 
+    k_factor(::WendlandC2Kernel) = 2
+    k_factor(kernel) = 4
+
     foreach_system(semi) do neighbor_system
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
@@ -103,8 +106,8 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
 
             # Eq. 7 in Sun et al. (2017).
             # CFL * Ma can be rewritten as Δt * v_max / h (see p. 29, right above Eq. 9).
-            delta_r_ = -dt * v_max * 4 * h * (1 + R * (kernel / Wdx)^n) *
-                       m_b / (rho_a + rho_b) * grad_kernel
+            delta_r_ = -dt * v_max * k_factor(system_smoothing_kernel(system)) * h *
+                       (1 + R * (kernel / Wdx)^n) * m_b / (rho_a + rho_b) * grad_kernel
 
             # Write into the buffer
             for i in eachindex(delta_r_)
