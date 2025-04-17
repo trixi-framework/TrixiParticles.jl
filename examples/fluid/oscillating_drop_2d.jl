@@ -43,7 +43,7 @@ fluid = SphereShape(fluid_particle_spacing, radius, (0.0, 0.0),
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 3.0 * fluid_particle_spacing
+smoothing_length = 1.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()

@@ -123,11 +123,11 @@ end
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
-        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 3.0, 1.0, (0.0, 0.0), 0.8),
-        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
-        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
-        (2, WendlandC2Kernel{2}(), 0.3, 2.0, 1.0, (0.0, 0.0), 1.4),
-        (3, WendlandC2Kernel{3}(), 0.3, 3.0, 1.0, (0.0, 0.0, 0.0), 0.6)
+        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 1.5, 1.0, (0.0, 0.0), 0.8),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 1.75, 1.0, (0.0, 0.0), 1.7),
+        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 1.5, 1.0, (0.0, 0.0, 0.0), 0.5),
+        (2, WendlandC2Kernel{2}(), 0.3, 1.0, 1.0, (0.0, 0.0), 1.4),
+        (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
     ]
 
     for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center, relative_curvature_error) in variations
@@ -224,11 +224,11 @@ end
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
-        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 3.0, 1.0, (0.0, 0.0), 0.8),
-        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
-        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
-        (2, WendlandC2Kernel{2}(), 0.3, 2.0, 1.0, (0.0, 0.0), 1.4),
-        (3, WendlandC2Kernel{3}(), 0.3, 3.0, 1.0, (0.0, 0.0, 0.0), 0.6)
+        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 1.5, 1.0, (0.0, 0.0), 0.8),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 1.75, 1.0, (0.0, 0.0), 1.7),
+        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 1.5, 1.0, (0.0, 0.0, 0.0), 0.5),
+        (2, WendlandC2Kernel{2}(), 0.3, 1.0, 1.0, (0.0, 0.0), 1.4),
+        (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
     ]
 
     for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center, relative_curvature_error) in variations
@@ -334,7 +334,7 @@ end
                                                         particle_spacing,
                                                         SurfaceTensionMorris(surface_tension_coefficient=0.072);
                                                         NDIMS=NDIMS,
-                                                        smoothing_length=3.0 *
+                                                        smoothing_length=1.5 *
                                                                          particle_spacing,
                                                         wall=false,
                                                         walldistance=0.0)
