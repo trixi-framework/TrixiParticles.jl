@@ -1,12 +1,46 @@
 # Changelog
 
-TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
+TrixiParticles.jl follows the interpretation of
+[semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
-## Version 0.2.8
+## Version 0.3
+
+### API Changes
+
+- Rescaled the Wendland kernels by a factor of 2 to be consistent with the literature.
+  This requires dividing the previously used smoothing length by a factor of 2 as well
+  to obtain the same results (#775).
+
+- API for custom quantities and functions in the `PostprocessCallback` changed.
+  See the docs for more details on the new required function arguments (#755).
+
+- The API for choosing parallelization backends changed. The keyword argument `data_type`
+  in `semidiscretize` was removed and a keyword argument `parallelization_backend` was added
+  to `Semidiscretization`. See the docs on GPU support for more details.
 
 ### Features
-- Open boundary model based on Tafuni et al. (2018), utilizing mirroring and extrapolation to transfer fluid quantities to the buffer zones. (#574)
+
+- **Particle Shifting Technique (PST) for Closed Systems:** Integrated the
+  Particle Shifting Technique to enhance particle distribution, reduce clumping
+  and prevent void regions due to tensile instability in closed system simulations. (#735)
+
+- **Open Boundary Model:** Added an open boundary model based on Tafuni et al. (2018),
+  utilizing mirroring and extrapolation to transfer fluid quantities to the buffer zones.
+  This enhancement allows for more accurate handling of simulation boundaries in open systems,
+  ensuring better consistency between the computed domain and its buffer areas. (#574)
+
+- **Transport Velocity Formulation (TVF) for WCSPH Solver:** Added support for TVF
+  to the WCSPH solver, improving the consistency and stability
+  of weakly compressible SPH simulations. (#600)
+
+### Refactoring
+
+- **Variable Smoothing Length Structures:** Introduced new structures to support a variable
+  smoothing length, providing enhanced flexibility in simulation configurations. (#736)
+
+- **Flexible Parallelization Backend:** Improved the parallelization backend support,
+  making it possible to switch the parallelization backend for single simulations. (#748)
 
 ## Version 0.2.7
 
