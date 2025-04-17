@@ -36,7 +36,7 @@ where it is crucial to capture the actual behavior of the fluid.
 #### ArtificialViscosityMonaghan
 
 `ArtificialViscosityMonaghan` by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite))
-and should be mainly used for inviscid flows (Euler), artificial stabilization
+should be mainly used for inviscid flows (Euler), artificial stabilization
 or shock-capturing for which Monaghan [Monaghan1992](@cite) originally designed
 this term to provide smoothing across shocks indentionally overestimating the physical viscosity.
 In its implementation, the method includes a dissipation term
