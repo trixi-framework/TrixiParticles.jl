@@ -440,7 +440,7 @@ on the dimension. The normalization factor `` \sigma `` is `` 9 / \pi `` in two 
 This kernel function has a compact support of `` [0, 2h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, see [Dehnen (2012)](@cite Dehnen2012).
-The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
+The smoothness of these functions is also the largest disadvantage as they lose details at sharp corners.
 
 The smoothing length is typically in the range ``[1.5\delta, 2.3\delta]``,
 where ``\delta`` is the typical particle spacing.
