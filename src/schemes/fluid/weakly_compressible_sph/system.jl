@@ -93,9 +93,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     particle_refinement = nothing # TODO
 
-    initial_condition,
-    density_diffusion = allocate_buffer(initial_condition,
-                                        density_diffusion, buffer)
+    initial_condition, density_diffusion = allocate_buffer(initial_condition,
+                                                           density_diffusion, buffer)
 
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)

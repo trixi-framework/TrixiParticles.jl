@@ -166,10 +166,9 @@
                 end
 
                 # Create several neighbor systems to test fluid-neighbor interaction
-                systems,
-                vu = second_systems(boundary, density_calculator,
-                                    state_equation,
-                                    smoothing_kernel, smoothing_length)
+                systems, vu = second_systems(boundary, density_calculator,
+                                             state_equation,
+                                             smoothing_kernel, smoothing_length)
 
                 @testset "$key" for key in keys(systems)
                     neighbor_system = systems[key]
