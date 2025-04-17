@@ -19,21 +19,21 @@ For a particle $i$ a forward difference method is used to discretizie the left h
 The right hand side gets discretized by the difference formulation of the SPH discretitzation of the gradient
 
 ```math
-\nabla \cdot v = \frac{1}{\rho_i} \sum_j m_j v_{ij} \nabla W_{ij},
+\nabla \cdot \textbf{v}_i = \frac{1}{\rho_i} \sum_j m_j \textbf{v}_{ij} \nabla W_{ij},
 ```
-where $v_{ij}$ is equal to $v_i - v_j$.
+where $\textbf{v}_{ij}$ is equal to $\textbf{v}_i - \textbf{v}_j$.
 
 So all in all the following discretized version of the continuity equation for a particle $i$ is achieved:
 
 ```math
-\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j v_{ij}(t+\Delta t) \nabla W_{ij}
+\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j \textbf{v}_{ij}(t+\Delta t) \nabla W_{ij}
 ```
 
-For this implicit formular  the unknown velocities $v_{ij}(t + \Delta t)$ are needed, which depend on the unknown pressure values $p(t+\Delta t)$.
+For this implicit formular  the unknown velocities $\textbf{v}_{ij}(t + \Delta t)$ are needed, which depend on the unknown pressure values $p(t+\Delta t)$.
 They are given by adding all pressure and non-pressure acceleartions to the current veloctiy:
 
 ```math
-v_i(t + \Delta t) = v_i(t) * \frac{\textbf{F}_i^{adv}(t) + \textbf{F}_i^p(t)}{m_i}
+\textbf{v}_i(t + \Delta t) = \textbf{v}_i(t) * \frac{\textbf{F}_i^{adv}(t) + \textbf{F}_i^p(t)}{m_i}
 ```
 
 $\textbf{F}_i^{adv}$ are all non-pressure forces such as gravity, viscosiy, surface tension and more, while $\textbf{F}_i^p(t)$ are the pressure forces. 
@@ -43,12 +43,12 @@ Note that the IISPH is an incompressible fluid system, which means that the dens
 The goal is to compute the pressure values to get the pressure acceleration that is needed to achieve the rest density for each particle in the next time step. At the moment these pressure values are unknown, but all the non-pressure forces are known in $t$.
 Therefore a predicted density gets calculated by an predicted velocity 
 ```math
-v_i^{adv}= v_i(t) + \Delta t \frac{\textbf{F}_i^{adv}(t)}{m_i},
+\textbf{v}_i^{adv}= \textbf{v}_i(t) + \Delta t \frac{\textbf{F}_i^{adv}(t)}{m_i},
 ```
 which depends only on the non-pressure forces $\textbf{F}_i^{adv}$: 
 
 ```math
-\rho_i^{adv} = \rho_i(t) + \Delta t \sum_j m_j v_{ij}^{adv} \nabla W_{ij}(t)
+\rho_i^{adv} = \rho_i(t) + \Delta t \sum_j m_j \textbf{v}_{ij}^{adv} \nabla W_{ij}(t)
 ```
 
 To achieve the rest density the unknown pressure forces need to resolve the compression through the non-pressure forces, that means that they have to resolve the deviation of the predicted density and the rest density. 
@@ -58,7 +58,7 @@ Therefore following equation needs to be fulfilled:
 \Delta t ^2 \sum_j m_j \left(  \frac{\textbf{F}\_i^p(t)}{m_i} - \frac{\textbf{F}\_j^p(t)}{m_j} \right) \nabla W_{ij}(t) = \rho_0 - \rho_i^{adv}
 ```
 
-This formula comes from plugging in $\rho_0$ for $\rho(t+\Delta t)$ in the dicretizied Continuity equation and by using the above definitions for $v_{ij}(t+\Delta t)$ and $\rho_i^{adv}$.
+This formula comes from plugging in $\rho_0$ for $\rho(t+\Delta t)$ in the dicretizied Continuity equation and by using the above definitions for $\textbf{v}_{ij}(t+\Delta t)$ and $\rho_i^{adv}$.
 
 The unknown pressure force is given by 
 
@@ -66,7 +66,7 @@ The unknown pressure force is given by
 \textbf{F}_i^p(t) = m_i * \nabla p_i = m_i \sum_j m_j \left( \frac{p_i(t)}{\rho_i^2(t)} - \frac{p_j(t)}{\rho_j^2(t)} \right) \nabla W_{ij}
 ```
 
-If you fill in this definition in the equation, you get a linear system $\textbf{A}(t) \textbf{p}(t) = \textvf{b}(t)$ with one equation and one unknown pressure value per particle
+If you fill in this definition in the equation, you get a linear system $\textbf{A}(t) \textbf{p}(t) = \textbf{b}(t)$ with one equation and one unknown pressure value per particle
 
 ```math
 \sum_j a_{ij} p_i = b_i = \rho_0 - \rho_i^{adv}
@@ -149,14 +149,14 @@ Firs of all the discreitzed version of the continuity equation changes in case t
 Then the discretizied continuity equation for boundary particles looks like this.
 
 ```math
-\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j v_{ij}(t+\Delta t) \nabla W_{ij} + \sum_b m_b v_{ib}(t+\Delta t) \nabla W_{ib}
+\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j \textbf{v}_{ij}(t+\Delta t) \nabla W_{ij} + \sum_b m_b \textbf{v}_{ib}(t+\Delta t) \nabla W_{ib}
 ```
 
-But because of the fact that the boundary particles do not have an own velocity the difference between the fluid particles velocity and the boundary particles velocity is just equal to the fluid particles velocity $v_{ib}(t+\Delta t) = v_{i}(t+\Delta t)$
+But because of the fact that the boundary particles do not have an own velocity the difference between the fluid particles velocity and the boundary particles velocity is just equal to the fluid particles velocity $\textbf{v}_{ib}(t+\Delta t) = \textbf{v}_{i}(t+\Delta t)$
 The same goes for the predicted density
 
 ```math
-\rho_i^{adv} = \rho_i (t) + \Delta t \sum_j m_j v_{ij}^{adv} \nabla W_{ij}(t) + \Delta t \sum_b m_b v_{i}^{adv} \nabla W_{ib}(t)
+\rho_i^{adv} = \rho_i (t) + \Delta t \sum_j m_j \textbf{v}_{ij}^{adv} \nabla W_{ij}(t) + \Delta t \sum_b m_b \textbf{v}_{i}^{adv} \nabla W_{ib}(t)
 ```
 
 and also for the reulting forumla for the linear system. 
