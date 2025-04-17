@@ -90,8 +90,9 @@ end
 # This can be dispatched by system type.
 @inline initial_coordinates(system) = system.initial_condition.coordinates
 
-@propagate_inbounds current_velocity(v, system, particle) = extract_svector(v, system,
-                                                                            particle)
+@propagate_inbounds current_velocity(v, system,
+                                     particle) = extract_svector(v, system,
+                                                                 particle)
 
 @inline function current_acceleration(system, particle)
     # TODO: Return `dv` of solid particles

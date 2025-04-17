@@ -49,15 +49,18 @@ sensor_names = ["P1", "P2", "P3"]
 tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing -
                     0.5 * particle_spacing
 
-pressure_P1 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
-                                                      [tank_right_wall_x, P1_y_bottom],
-                                                      v, u, t, sys)
-pressure_P2 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
-                                                      [tank_right_wall_x, P2_y_bottom],
-                                                      v, u, t, sys)
-pressure_P3 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
-                                                      [tank_right_wall_x, P3_y_bottom],
-                                                      v, u, t, sys)
+pressure_P1 = (v, u, t,
+               sys) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
+                                             [tank_right_wall_x, P1_y_bottom],
+                                             v, u, t, sys)
+pressure_P2 = (v, u, t,
+               sys) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
+                                             [tank_right_wall_x, P2_y_bottom],
+                                             v, u, t, sys)
+pressure_P3 = (v, u, t,
+               sys) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
+                                             [tank_right_wall_x, P3_y_bottom],
+                                             v, u, t, sys)
 
 function max_x_coord(v, u, t, system)
     return maximum(particle -> TrixiParticles.current_coords(u, system, particle)[1],

@@ -8,7 +8,9 @@
         @test_throws ArgumentError(error_str2) PostprocessCallback(interval=10,
                                                                    write_file_interval=0,
                                                                    dt=0.1,
-                                                                   another_function=(v, u, t, system) -> 1)
+                                                                   another_function=(v, u,
+                                                                                     t,
+                                                                                     system) -> 1)
     end
 
     @testset verbose=true "show" begin
