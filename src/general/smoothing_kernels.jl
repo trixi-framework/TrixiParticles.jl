@@ -346,7 +346,7 @@ end
 abstract type WendlandKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 # Compact support for all Wendland kernels
-@inline compact_support(::WendlandKernel, h) = h
+@inline compact_support(::WendlandKernel, h) = 2h
 
 @doc raw"""
     WendlandC2Kernel{NDIMS}()
@@ -411,9 +411,9 @@ end
     return result
 end
 
-@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2)
+@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2) / 4
 # `2 * pi` is always `Float64`. `pi * h^3 * 2` preserves the type of `h`.
-@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 2)
+@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 2) / 8
 
 @doc raw"""
     WendlandC4Kernel{NDIMS}()
@@ -464,7 +464,7 @@ end
     q = r / h
 
     # Use `//` to preserve the type of `q`
-    term1 = (1 - q / 2)^6 * (3 + 35 // 3 * q)
+    term1 = (1 - q / 2)^6 * (3 + 35 // 6 * q)
     term2 = 3 * (1 - q / 2)^5 * (1 + 3q + 35 // 12 * q^2)
     derivative = term1 - term2
 
@@ -475,9 +475,9 @@ end
     return result
 end
 
-@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2)
+@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2) / 4
 # `32 * pi` is always `Float64`. `pi * h^2 * 32` preserves the type of `h`.
-@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 32)
+@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 32) / 8
 
 @doc raw"""
     WendlandC6Kernel{NDIMS}()
@@ -526,7 +526,7 @@ end
 
 @fastpow @muladd @inline function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
-    term1 = -4 * (1 - q)^7 * (4q^3 + 25q^2 / 4 + 4q + 1)
+    term1 = -4 * (1 - q / 2)^7 * (4q^3 + 25q^2 / 4 + 4q + 1)
     term2 = (1 - q / 2)^8 * (12q^2 + 50q / 4 + 4)
     derivative = term1 + term2
 
@@ -538,8 +538,8 @@ end
 end
 
 # `7 * pi` is always `Float64`. `pi * h^2 * 7` preserves the type of `h`.
-@inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (pi * h^2 * 7)
-@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 64)
+@inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (pi * h^2 * 7) / 4
+@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 64) / 8
 
 @doc raw"""
     Poly6Kernel{NDIMS}()
