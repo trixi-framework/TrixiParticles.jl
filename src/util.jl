@@ -134,3 +134,82 @@ function compute_git_hash()
         return "UnknownVersion"
     end
 end
+
+# This data type wraps regular arrays and redefines broadcasting and common operations
+# like `fill!` and `copyto!` to use multithreading with `@threaded`.
+# See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details
+# and benchmarks.
+struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}} <: AbstractArray{T, N}
+    array::A
+
+    function ThreadedBroadcastArray(array::AbstractArray{T, N}) where {T, N}
+        new{T, N, typeof(array)}(array)
+    end
+end
+
+Base.parent(A::ThreadedBroadcastArray) = A.array
+Base.pointer(A::ThreadedBroadcastArray) = pointer(parent(A))
+Base.size(A::ThreadedBroadcastArray) = size(parent(A))
+Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
+
+function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
+    return ThreadedBroadcastArray(similar(A.array, T))
+end
+
+Base.@propagate_inbounds function Base.getindex(A::ThreadedBroadcastArray, i...)
+    return getindex(A.array, i...)
+end
+
+Base.@propagate_inbounds function Base.setindex!(A::ThreadedBroadcastArray, x...)
+    setindex!(A.array, x...)
+    return A
+end
+
+function Base.fill!(A::ThreadedBroadcastArray{T}, x) where {T}
+    xT = x isa T ? x : convert(T, x)::T
+    @threaded A.array for i in eachindex(A.array)
+        @inbounds A.array[i] = xT
+    end
+
+    return A
+end
+
+function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
+    if eachindex(dest) == eachindex(src)
+        # Shared-iterator implementation
+        @threaded dest.array for I in eachindex(dest)
+            @inbounds dest.array[I] = src[I]
+        end
+    else
+        # Dual-iterator implementation
+        @threaded dest.array for (Idest, Isrc) in zip(eachindex(dest), eachindex(src))
+            @inbounds dest.array[Idest] = src[Isrc]
+        end
+    end
+
+    return dest
+end
+
+function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A}}) where {T, N, A}
+    return Broadcast.ArrayStyle{ThreadedBroadcastArray}()
+end
+
+# Based on copyto!(dest::AbstractArray, bc::Broadcasted{Nothing})
+# defined in base/broadcast.jl.
+function Broadcast.copyto!(dest::ThreadedBroadcastArray,
+                           bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{ThreadedBroadcastArray}})
+    # Check bounds
+    axes(dest.array) == axes(bc) || Broadcast.throwdm(axes(dest.array), axes(bc))
+
+    bc_ = Base.Broadcast.preprocess(dest.array, bc)
+
+    @threaded dest.array for i in eachindex(bc_)
+        @inbounds dest.array[i] = bc_[i]
+    end
+    return dest
+end
+
+function Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{ThreadedBroadcastArray}},
+                      ::Type{T}, dims) where {T}
+    return ThreadedBroadcastArray(similar(Array{T}, dims))
+end
