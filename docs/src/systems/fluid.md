@@ -17,7 +17,8 @@ and different methods exist to capture both numerical stabilization and true vis
 
 ### Artificial (numerical) viscosity
 
-Artificial (numerical) viscosity is a technique used to stabilize simulations of inviscid flows, which would otherwise show unphysical particle movement due to numerical instability.
+Artificial (numerical) viscosity is a technique used to stabilize simulations of inviscid flows,
+which would otherwise show unphysical particle movement due to numerical instability.
 To achieve this, a dissipative term is added to the momentum equations in a way that it
 does not significantly alter the physical behavior of the flow.
 This approach is especially useful in simulations such as high-speed flows with strong shocks or astrophysical scenarios,
@@ -37,12 +38,11 @@ where it is crucial to capture the actual behavior of the fluid.
 
 `ArtificialViscosityMonaghan` by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite))
 should be mainly used for inviscid flows (Euler), artificial stabilization
-or shock-capturing for which Monaghan [Monaghan1992](@cite) originally designed
-this term to provide smoothing across shocks intentionally overestimating the physical viscosity.
-In its implementation, the method includes a dissipation term
-that increases when particles approach each other.
-In doing so we can suppress the tensile instability that can cause clumping and smooth
-high-frequency pressure noise.
+or shock-capturing, for which Monaghan [Monaghan1989](@cite) originally designed
+this term to provide smoothing across shocks, intentionally overestimating the physical viscosity.
+The implementation includes a dissipation term that becomes more significant
+as particles approach one another. This helps suppress tensile instabilities,
+which can lead to particle clumping and effectively smooths out high-frequency pressure fluctuations.
 This increase in dissipation is triggered by the relative motion between particles:
 as particles come closer and compress the local flow,
 the artificial viscosity term becomes stronger to damp out rapid changes
@@ -92,7 +92,8 @@ with:
 
 ##### Resolution Dependency and Effective Viscosity
 
-To ensure that the simulation maintains a consistent Reynolds number when the resolution changes, the parameter ``\alpha`` must be adjusted accordingly. Monaghan (2005) introduced an effective physical kinematic viscosity ``\nu`` defined as:
+To ensure that the simulation maintains a consistent Reynolds number when the resolution changes, the parameter ``\alpha`` must be adjusted accordingly.
+Monaghan (2005) introduced an effective physical kinematic viscosity ``\nu`` defined as:
 
 ```math
 \nu = \frac{\alpha h c}{2d + 4},
@@ -102,9 +103,11 @@ where **``d``** is the number of spatial dimensions. This relation allows the ca
 
 #### ViscosityMorris
 
-`ViscosityMorris` is ideal for moderate to low Mach number flows where accurately modeling physical viscous behavior is essential. Developed by [Morris (1997)](@cite Morris1997) and later applied by [Fourtakas (2019)](@cite Fourtakas2019), this method directly simulates the viscous stresses found in fluids rather than relying on artificial viscosity.
-
-By approximating momentum diffusion based on local fluid properties, the method captures the actual viscous forces without excessive damping. This results in a more realistic representation of flow dynamics in weakly compressible scenarios.
+`ViscosityMorris` is ideal for moderate to low Mach number flows where accurately modeling physical viscous behavior is essential.
+Developed by [Morris (1997)](@cite Morris1997) and later applied by [Fourtakas (2019)](@cite Fourtakas2019),
+this method directly simulates the viscous stresses found in fluids rather than relying on artificial viscosity.
+By approximating momentum diffusion based on local fluid properties, the method captures the actual viscous forces without excessive damping.
+This results in a more realistic representation of flow dynamics in weakly compressible scenarios.
 
 ##### Mathematical Formulation
 
@@ -126,7 +129,7 @@ where:
 #### ViscosityAdami
 
 `ViscosityAdami`, introduced by [Adami (2012)](@cite Adami2012), is optimized for incompressible or weakly compressible flows where precise modeling of shear stress is critical.
-It enhances boundary layer representation by better resolving shear gradients, increasing dissipation in regions with steep velocity differences (e.g., near solid boundaries) 
+It enhances boundary layer representation by better resolving shear gradients, increasing dissipation in regions with steep velocity differences (e.g., near solid boundaries)
 while minimizing compressibility effects. This results in accurate laminar flow simulations and accurate physical shear stresses.
 
 ##### Mathematical Formulation
