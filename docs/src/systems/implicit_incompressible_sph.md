@@ -19,8 +19,9 @@ For a particle $i$ a forward difference method is used to discretizie the left h
 The right hand side gets discretized by the difference formulation of the SPH discretitzation of the gradient
 
 ```math
-\nabla \cdot v = \frac{1}{\rho_i} \sum_j m_j v_{ij} \nabla W_{ij}$, where $v_{ij}$ is equal to $v_i - v_j$.
+\nabla \cdot v = \frac{1}{\rho_i} \sum_j m_j v_{ij} \nabla W_{ij},
 ```
+where $v_{ij}$ is equal to $v_i - v_j$.
 
 So all in all the following discretized version of the continuity equation for a particle $i$ is achieved:
 
@@ -50,7 +51,6 @@ which depends only on the non-pressure forces $\textbf{F}_i^{adv}$:
 \rho_i^{adv} = \rho_i(t) + \Delta t \sum_j m_j v_{ij}^{adv} \nabla W_{ij}(t)
 ```
 
-
 To achieve the rest density the unknown pressure forces need to resolve the compression through the non-pressure forces, that means that they have to resolve the deviation of the predicted density and the rest density. 
 
 Therefore following equation needs to be fulfilled:
@@ -66,7 +66,7 @@ The unknown pressure force is given by
 \textbf{F}_i^p(t) = m_i * \nabla p_i = m_i \sum_j m_j \left( \frac{p_i(t)}{\rho_i^2(t)} - \frac{p_j(t)}{\rho_j^2(t)} \right) \nabla W_{ij}
 ```
 
-If you fill in this definition in the equation, you get a linear system $A(t) p(t) = b(t)$ with one equation and one unknown pressure value per particle
+If you fill in this definition in the equation, you get a linear system $\textbf{A}(t) \textbf{p}(t) = \textvf{b}(t)$ with one equation and one unknown pressure value per particle
 
 ```math
 \sum_j a_{ij} p_i = b_i = \rho_0 - \rho_i^{adv}
@@ -122,7 +122,7 @@ a_{ii} = \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij}
 The other term of the equation is the influence of the other pressure values $p_j$. So the final relaxed jacobi iteration looks like this 
 
 ```math
-p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii} \left( \rho_0 -\rho_i^{adv} \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj} p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \right)}.
+p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii}} \left( \rho_0 -\rho_i^{adv} \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj} p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \right).
 ```
 
 Note that the pressure value of a particle $i$ depends only on its own current pressure value, the pressure values of his neighboring particles, and the neighbor of the neighboring particle. That means that the most entries of the matrix are zero. 
