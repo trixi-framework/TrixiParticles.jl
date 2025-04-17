@@ -53,7 +53,7 @@ n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 
 # ==== Fluid
 wcsph = false
 
-smoothing_length = 3.0 * particle_spacing
+smoothing_length = 1.5 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
