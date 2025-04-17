@@ -405,8 +405,10 @@ end
 
 # To incorporate the effect at boundaries in the viscosity term of the RHS the neighbor
 # viscosity model has to be used.
-@inline viscosity_model(system::BoundarySPHSystem,
-                        neighbor_system::FluidSystem) = neighbor_system.viscosity
+@inline function viscosity_model(system::BoundarySPHSystem,
+                                 neighbor_system::FluidSystem)
+    return neighbor_system.viscosity
+end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf

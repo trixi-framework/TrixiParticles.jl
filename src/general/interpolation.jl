@@ -546,8 +546,7 @@ end
             pos_diff = point_coords - coords
             distance2 = dot(pos_diff, pos_diff)
             pos_diff,
-            distance2 = PointNeighbors.compute_periodic_distance(pos_diff,
-                                                                 distance2,
+            distance2 = PointNeighbors.compute_periodic_distance(pos_diff, distance2,
                                                                  search_radius,
                                                                  periodic_box)
             if distance2 > search_radius^2
