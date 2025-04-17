@@ -9,7 +9,7 @@ trixi_include(@__MODULE__,
 
 position_x = tank_size[1] / 2
 
-# `interpolate_point` can be used to interpolate the properties of the `fluid_system`
+# `interpolate_points` can be used to interpolate the properties of the `fluid_system`
 # with the original kernel and `smoothing_length`.
 println(interpolate_points([position_x; 0.01;;], semi, fluid_system, sol))
 # Or with an increased `smoothing_length` smoothing the result
