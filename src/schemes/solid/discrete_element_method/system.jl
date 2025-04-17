@@ -123,3 +123,22 @@ function compact_support(system::DEMSystem, neighbor)
     # todo: needs to be changed for more complex simulations
     return 3 * maximum(system.radius)
 end
+
+function system_data(system::DEMSystem, v_ode, u_ode, semi)
+    (; mass, radius, elastic_modulus, poissons_ratio, normal_stiffness,
+    damping_coefficient) = system
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    coordinates = current_coordinates(u, system)
+    velocity = current_velocity(v, system)
+
+    return (; coordinates, velocity, mass, radius, elastic_modulus, poissons_ratio,
+            normal_stiffness, damping_coefficient)
+end
+
+function available_data(::DEMSystem)
+    return (:coordinates, :velocity, :mass, :radius, :elastic_modulus,
+            :poissons_ratio, :normal_stiffness, :damping_coefficient)
+end
