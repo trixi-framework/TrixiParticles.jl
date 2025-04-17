@@ -90,24 +90,10 @@
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
 
-            # Mock the neighborhood search
-            nhs = Val(:nhs)
-            TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = eachneighbor
-            TrixiParticles.PointNeighbors.search_radius(::Val{:nhs}) = 100.0
-
-            function Base.getproperty(::Val{:nhs}, f::Symbol)
-                if f === :periodic_box
-                    return nothing
-                end
-
-                # For all other properties, return mock objects
-                return Val(Symbol("mock_" * string(f)))
-            end
-            TrixiParticles.ndims(::Val{:nhs}) = 2
-
             function TrixiParticles.get_neighborhood_search(system, neighbor_system,
                                                             semi::Val{:semi_solid_interact})
-                return nhs
+                return TrivialNeighborhoodSearch{2}(search_radius=1000.0,
+                                                    eachpoint=eachneighbor)
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()

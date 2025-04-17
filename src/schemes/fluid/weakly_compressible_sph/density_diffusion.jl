@@ -143,6 +143,15 @@ function Base.show(io::IO, density_diffusion::DensityDiffusionAntuono)
     print(io, ")")
 end
 
+function allocate_buffer(initial_condition, density_diffusion, buffer)
+    return allocate_buffer(initial_condition, buffer), density_diffusion
+end
+
+function allocate_buffer(ic, dd::DensityDiffusionAntuono, buffer::SystemBuffer)
+    initial_condition = allocate_buffer(ic, buffer)
+    return initial_condition, DensityDiffusionAntuono(initial_condition; delta=dd.delta)
+end
+
 @inline function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
                                        rho_a, rho_b, pos_diff, distance, system,
                                        particle, neighbor)
@@ -164,7 +173,7 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     (; normalized_density_gradient) = density_diffusion
 
     # Compute correction matrix
-    density_fun = @inline(particle->particle_density(v, system, particle))
+    density_fun = @inline(particle->current_density(v, system, particle))
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(density_diffusion.correction_matrix,
@@ -179,8 +188,8 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
         # Only consider particles with a distance > 0
         distance < sqrt(eps(typeof(distance))) && return
 
-        rho_a = particle_density(v, system, particle)
-        rho_b = particle_density(v, system, neighbor)
+        rho_a = current_density(v, system, particle)
+        rho_b = current_density(v, system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         L = correction_matrix(density_diffusion, particle)

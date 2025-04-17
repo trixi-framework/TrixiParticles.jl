@@ -93,7 +93,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     particle_refinement = nothing # TODO
 
-    initial_condition = allocate_buffer(initial_condition, buffer)
+    initial_condition, density_diffusion = allocate_buffer(initial_condition,
+                                                           density_diffusion, buffer)
 
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
@@ -239,9 +240,24 @@ end
 
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 
-@propagate_inbounds function particle_pressure(v, system::WeaklyCompressibleSPHSystem,
-                                               particle)
-    return system.pressure[particle]
+@inline function current_density(v, system::WeaklyCompressibleSPHSystem)
+    return current_density(v, system.density_calculator, system)
+end
+
+@inline function current_density(v, ::SummationDensity,
+                                 system::WeaklyCompressibleSPHSystem)
+    # When using `SummationDensity`, the density is stored in the cache
+    return system.cache.density
+end
+
+@inline function current_density(v, ::ContinuityDensity,
+                                 system::WeaklyCompressibleSPHSystem)
+    # When using `ContinuityDensity`, the density is stored in the last row of `v`
+    return view(v, size(v, 1), :)
+end
+
+@inline function current_pressure(v, system::WeaklyCompressibleSPHSystem)
+    return system.pressure
 end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
@@ -349,7 +365,7 @@ end
 
 function compute_pressure!(system, v, semi)
     @threaded semi for particle in eachparticle(system)
-        apply_state_equation!(system, particle_density(v, system, particle), particle)
+        apply_state_equation!(system, current_density(v, system, particle), particle)
     end
 end
 

@@ -60,8 +60,8 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
-        density_neighbor = particle_density(v_neighbor_system,
-                                            neighbor_system, neighbor)
+        density_neighbor = current_density(v_neighbor_system,
+                                           neighbor_system, neighbor)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
@@ -98,7 +98,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
                            neighbor_system_coords, system_coords,
                            semi) do particle, neighbor, pos_diff, distance
         colorfield[particle] += hydrodynamic_mass(system, neighbor) /
-                                particle_density(v, system, neighbor) * system.cache.color *
+                                current_density(v, system, neighbor) * system.cache.color *
                                 smoothing_kernel(system, distance, particle)
     end
 
@@ -111,7 +111,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
         # is larger than the threshold
         if colorfield[neighbor] / maximum_colorfield > boundary_contact_threshold
             m_b = hydrodynamic_mass(system, particle)
-            density_neighbor = particle_density(v, system, particle)
+            density_neighbor = current_density(v, system, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
             for i in 1:ndims(system)
                 cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
@@ -230,7 +230,7 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
                            system_coords, neighbor_system_coords,
                            semi) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
         n_a = surface_normal(system, particle)
         n_b = surface_normal(neighbor_system, neighbor)
         v_b = m_b / rho_b
