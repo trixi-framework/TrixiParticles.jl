@@ -9,10 +9,10 @@
                                                                    write_file_interval=0,
                                                                    dt=0.1,
                                                                    another_function=(system,
-                                                                                     v_ode,
-                                                                                     u_ode,
-                                                                                     semi,
-                                                                                     t) -> 1)
+                                                                   v_ode,
+                                                                   u_ode,
+                                                                   semi,
+                                                                   t) -> 1)
     end
 
     @testset verbose=true "show" begin
@@ -21,7 +21,7 @@
         end
 
         callback = PostprocessCallback(another_function=(system, v_ode, u_ode, semi,
-                                                         t) -> 1;
+                                       t) -> 1;
                                        interval=10,
                                        example_function, write_file_interval=0)
 

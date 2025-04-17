@@ -225,8 +225,8 @@ end
 
 # This is just for readability to loop over all systems without allocations
 @inline foreach_system(f,
-                       semi::Union{NamedTuple, Semidiscretization}) = foreach_noalloc(f,
-                                                                                      semi.systems)
+semi::Union{NamedTuple, Semidiscretization}) = foreach_noalloc(f,
+                                                               semi.systems)
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
 """

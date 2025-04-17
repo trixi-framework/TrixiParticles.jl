@@ -107,7 +107,7 @@ function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     # For the linear arrangement, surface normals may still be zero
     # when we have more neighbors than the threshold.
     @test all(i -> system.cache.neighbor_count[i] >= threshold ||
-                   iszero(system.cache.surface_normal[:, i]), 1:nparticles)
+                  iszero(system.cache.surface_normal[:, i]), 1:nparticles)
 end
 
 function compute_curvature!(system, semi, ode)
@@ -131,8 +131,7 @@ end
     ]
 
     for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
-         relative_curvature_error) in variations
-
+    relative_curvature_error) in variations
         @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
             smoothing_length = smoothing_length_mult * particle_spacing
 
@@ -235,8 +234,7 @@ end
     ]
 
     for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
-         relative_curvature_error) in variations
-
+    relative_curvature_error) in variations
         @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
             smoothing_length = smoothing_length_mult * particle_spacing
 

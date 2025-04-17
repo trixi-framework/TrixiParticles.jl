@@ -35,10 +35,8 @@
             ]
 
             @testset "Move Tank: $(min_coordinates[i])" for i in eachindex(min_coordinates)
-                @testset "Particle Spacing: $(particle_spacings[j])" for j in
-                                                                         eachindex(particle_spacings)
-                    @testset "Spacing Ratio: $(spacing_ratios[k])" for k in
-                                                                       eachindex(spacing_ratios)
+                @testset "Particle Spacing: $(particle_spacings[j])" for j in eachindex(particle_spacings)
+                    @testset "Spacing Ratio: $(spacing_ratios[k])" for k in eachindex(spacing_ratios)
                         tank = RectangularTank(particle_spacings[j],
                                                (water_width, water_height),
                                                (tank_width, tank_height),
@@ -306,10 +304,8 @@ end
             ]
 
             @testset "Move Tank: $(min_coordinates[i])" for i in eachindex(min_coordinates)
-                @testset "Particle Spacing: $(particle_spacings[j])" for j in
-                                                                         eachindex(particle_spacings)
-                    @testset "Spacing Ratio: $(spacing_ratios[k])" for k in
-                                                                       eachindex(spacing_ratios)
+                @testset "Particle Spacing: $(particle_spacings[j])" for j in eachindex(particle_spacings)
+                    @testset "Spacing Ratio: $(spacing_ratios[k])" for k in eachindex(spacing_ratios)
                         tank = RectangularTank(particle_spacings[j],
                                                (water_width, water_height, water_depth),
                                                (tank_width, tank_height, tank_depth),

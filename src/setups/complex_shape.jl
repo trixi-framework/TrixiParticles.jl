@@ -119,7 +119,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 function sample_boundary(signed_distance_field;
                          boundary_density, boundary_thickness, tlsph=true)
     (; max_signed_distance, boundary_packing,
-     positions, distances, particle_spacing) = signed_distance_field
+    positions, distances, particle_spacing) = signed_distance_field
 
     if !(boundary_packing)
         throw(ArgumentError("`SignedDistanceField` was not generated with `use_for_boundary_packing`"))

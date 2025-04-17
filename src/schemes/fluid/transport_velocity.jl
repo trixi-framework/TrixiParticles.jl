@@ -102,7 +102,7 @@ end
 end
 
 @inline transport_velocity!(dv, system, neighbor_system, particle, neighbor, m_a, m_b,
-                            grad_kernel) = dv
+grad_kernel) = dv
 
 @inline function transport_velocity!(dv, system::FluidSystem, neighbor_system,
                                      particle, neighbor, m_a, m_b, grad_kernel)

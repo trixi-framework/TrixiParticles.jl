@@ -172,8 +172,8 @@ function remove_invalid_normals!(system::FluidSystem,
         # See eq. 21
         if norm2 > normal_condition2
             cache.surface_normal[1:ndims(system),
-                                 particle] = particle_surface_normal /
-                                             sqrt(norm2)
+            particle] = particle_surface_normal /
+                        sqrt(norm2)
         else
             cache.surface_normal[1:ndims(system), particle] .= 0
         end

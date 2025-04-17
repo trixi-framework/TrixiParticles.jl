@@ -463,7 +463,7 @@ end
 
 function system_data(system::TotalLagrangianSPHSystem, v_ode, u_ode, semi)
     (; mass, material_density, deformation_grad, pk1_corrected, young_modulus,
-     poisson_ratio, lame_lambda, lame_mu) = system
+    poisson_ratio, lame_lambda, lame_mu) = system
 
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)

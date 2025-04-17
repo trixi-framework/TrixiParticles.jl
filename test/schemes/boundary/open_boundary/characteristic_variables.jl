@@ -46,9 +46,7 @@
                 outflow
             ]
 
-            @testset "`$(TrixiParticles.boundary_type_name(boundary_zone))`" for boundary_zone in
-                                                                                 boundary_zones
-
+            @testset "`$(TrixiParticles.boundary_type_name(boundary_zone))`" for boundary_zone in boundary_zones
                 sign_ = (first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow) ?
                         1 : -1
                 fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,

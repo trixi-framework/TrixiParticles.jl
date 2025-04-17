@@ -411,8 +411,7 @@ function compute_pressure!(boundary_model,
         end
     end
 
-    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
-                                                                      eachparticle(system)
+    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in eachparticle(system)
         compute_adami_density!(boundary_model, system, system_coords, particle)
     end
 end
@@ -589,8 +588,8 @@ end
     for dim in 1:ndims(system)
         # The second term is the precalculated smoothed velocity field of the fluid.
         wall_velocity[dim,
-                      particle] = 2 * v_boundary[dim] -
-                                  wall_velocity[dim, particle] / volume[particle]
+        particle] = 2 * v_boundary[dim] -
+                    wall_velocity[dim, particle] / volume[particle]
     end
     return viscosity
 end

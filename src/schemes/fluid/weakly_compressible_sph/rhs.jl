@@ -35,8 +35,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Determine correction factors.
         # This can be ignored, as these are all 1 when no correction is used.
         (viscosity_correction, pressure_correction,
-         surface_tension_correction) = free_surface_correction(correction, particle_system,
-                                                               rho_mean)
+        surface_tension_correction) = free_surface_correction(correction, particle_system,
+                                                              rho_mean)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
@@ -86,9 +86,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i,
-                         particle] += dv_pressure[i] + dv_viscosity_[i] +
-                                      dv_convection[i] + dv_surface_tension[i] +
-                                      dv_adhesion[i]
+            particle] += dv_pressure[i] + dv_viscosity_[i] +
+                         dv_convection[i] + dv_surface_tension[i] +
+                         dv_adhesion[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end

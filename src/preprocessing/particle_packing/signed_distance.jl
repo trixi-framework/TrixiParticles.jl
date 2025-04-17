@@ -196,7 +196,7 @@ end
 # Inspired by https://github.com/embree/embree/blob/master/tutorials/common/math/closest_point.h
 function signed_point_face_distance(p::SVector{3}, boundary, face_index)
     (; face_vertices, face_vertices_ids, edge_normals,
-     face_edges_ids, face_normals, vertex_normals) = boundary
+    face_edges_ids, face_normals, vertex_normals) = boundary
 
     a = face_vertices[face_index][1]
     b = face_vertices[face_index][2]
