@@ -36,10 +36,13 @@ where it is crucial to capture the actual behavior of the fluid.
 #### ArtificialViscosityMonaghan
 
 `ArtificialViscosityMonaghan` by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite))
-is designed primarily for compressible,
-high-speed flows where shock capturing is critical.
+and should be mainly used for inviscid flows (Euler), artificial stabilization
+or shock-capturing for which Monaghan [Monaghan1992](@cite) originally designed
+this term to provide smoothing across shocks indentionally overestimating the physical viscosity.
 In its implementation, the method includes a dissipation term
 that increases when particles approach each other.
+In doing so we can suppress the tensile instability that can cause clumping and smooth
+high-frequency pressure noise.
 This increase in dissipation is triggered by the relative motion between particles:
 as particles come closer and compress the local flow,
 the artificial viscosity term becomes stronger to damp out rapid changes
@@ -47,6 +50,8 @@ and prevent unphysical clustering.
 This ensures that while the simulation remains stable in challenging
 flow regimes with large density or pressure variations,
 the physical behavior is not overly altered.
+Several extensions have been proposed to limit the dissipation effect for example
+by Balsara ([Balsara1995](@cite)) or Morris ([Morris1997](@cite)).
 
 ##### Mathematical Formulation
 
