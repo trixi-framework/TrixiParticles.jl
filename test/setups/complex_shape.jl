@@ -11,9 +11,10 @@
             shifts = [-0.5, 0.0, 0.5]
             particle_spacings = [0.03, 0.05]
 
-            test_name(algorithm, shift, particle_spacing) = "Algorithm: $(TrixiParticles.type2string(algorithm))" *
-                                                            ", Shift: $shift" *
-                                                            ", Particle Spacing: $particle_spacing"
+            test_name(algorithm, shift,
+            particle_spacing) = "Algorithm: $(TrixiParticles.type2string(algorithm))" *
+                                ", Shift: $shift" *
+                                ", Particle Spacing: $particle_spacing"
             @testset verbose=true "$(test_name(point_in_geometry_algorithm, shift,
             particle_spacing))" for point_in_geometry_algorithm in algorithms,
                                     shift in shifts,

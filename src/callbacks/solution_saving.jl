@@ -110,14 +110,14 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
     elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(solution_callback, dt,
-                                initialize=initialize_save_cb!,
+                                initialize=(initialize_save_cb!),
                                 save_positions=(false, false),
                                 final_affect=save_final_solution)
     else
         # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(solution_callback, solution_callback,
                                 save_positions=(false, false),
-                                initialize=initialize_save_cb!)
+                                initialize=(initialize_save_cb!))
     end
 end
 

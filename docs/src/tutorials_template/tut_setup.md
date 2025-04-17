@@ -121,7 +121,7 @@ You can find an overview over smoothing kernels and corresponding smoothing
 lengths [here](@ref smoothing_kernel).
 
 For stability, we need numerical dissipation in form of an artificial viscosity term.
-[Other viscosity models](@ref viscosity_wcsph) offer a physical approach
+[Other viscosity models](@ref viscosity_sph) offer a physical approach
 based on the kinematic viscosity of the fluid.
 ```@example tut_setup
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)

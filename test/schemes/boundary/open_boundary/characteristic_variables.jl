@@ -38,7 +38,7 @@
                                   plane_normal=flow_direction, open_boundary_layers,
                                   boundary_type=InFlow())
             outflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
-                                   plane_normal=-flow_direction, open_boundary_layers,
+                                   plane_normal=(-flow_direction), open_boundary_layers,
                                    boundary_type=OutFlow())
 
             boundary_zones = [

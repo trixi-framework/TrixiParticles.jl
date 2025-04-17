@@ -56,7 +56,7 @@ function DensityReinitializationCallback(particle_system; interval::Integer=0, d
     reinit_cb = DensityReinitializationCallback(interval, last_t, reinit_initial_solution)
 
     return DiscreteCallback(reinit_cb, reinit_cb, save_positions=(false, false),
-                            initialize=initialize_reinit_cb!)
+                            initialize=(initialize_reinit_cb!))
 end
 
 function initialize_reinit_cb!(cb, u, t, integrator)
