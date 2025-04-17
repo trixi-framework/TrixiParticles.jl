@@ -560,7 +560,7 @@ end
 
             if system_id == ref_id
                 interpolated_density += m_a * W_a
-                volume = m_a / particle_density(v, system, particle)
+                volume = m_a / current_density(v, system, particle)
                 shepard_coefficient += volume * W_a
 
                 interpolate_system!(interpolation_values, v, system,
@@ -619,7 +619,7 @@ end
         interpolation_values[i] += particle_velocity[i] * (volume * W_a)
     end
 
-    pressure = particle_pressure(v, system, particle)
+    pressure = current_pressure(v, system, particle)
     if clip_negative_pressure
         pressure = max(0.0, pressure)
     end

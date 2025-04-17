@@ -170,11 +170,11 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
         rho_ref = reference_value(reference_density, density[particle],
                                   neighbor_position, t)
 
-        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
         p_ref = reference_value(reference_pressure, pressure[particle],
                                 neighbor_position, t)
 

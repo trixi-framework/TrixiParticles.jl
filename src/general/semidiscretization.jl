@@ -558,8 +558,8 @@ end
 @inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)
-    density = particle_density(v, system, particle)
-    pressure = particle_pressure(v, system, particle)
+    density = current_density(v, system, particle)
+    pressure = current_pressure(v, system, particle)
 
     source = source_terms_(coords, velocity, density, pressure, t)
 

@@ -49,6 +49,7 @@ sensor_names = ["P1", "P2", "P3"]
 tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing -
                     0.5 * particle_spacing
 
+<<<<<<< HEAD
 pressure_P1 = (v, u, t,
                sys) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
                                              [tank_right_wall_x, P1_y_bottom],
@@ -61,16 +62,30 @@ pressure_P3 = (v, u, t,
                sys) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
                                              [tank_right_wall_x, P3_y_bottom],
                                              v, u, t, sys)
+=======
+pressure_P1 = (system, v_ode, u_ode, semi,
+t) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
+                            [tank_right_wall_x, P1_y_bottom],
+                            v_ode, u_ode, t, system, semi)
+pressure_P2 = (system, v_ode, u_ode, semi,
+t) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
+                            [tank_right_wall_x, P2_y_bottom],
+                            v_ode, u_ode, t, system, semi)
+pressure_P3 = (system, v_ode, u_ode, semi,
+t) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
+                            [tank_right_wall_x, P3_y_bottom],
+                            v_ode, u_ode, t, system, semi)
+>>>>>>> e1dd6ad6c8ff1fef21c69f7fe1ffb1ed590f7872
 
-function max_x_coord(v, u, t, system)
-    return maximum(particle -> TrixiParticles.current_coords(u, system, particle)[1],
-                   TrixiParticles.eachparticle(system))
+function max_x_coord(system, data, t)
+    return maximum(j -> data.coordinates[1, j], axes(data.coordinates, 2))
 end
 
-function interpolated_pressure(coord_top, coord_bottom, v, u, t, system)
+function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system, semi)
     n_interpolation_points = 10
     interpolated_values = interpolate_line(coord_top, coord_bottom,
-                                           n_interpolation_points, semi, system, v, u,
+                                           n_interpolation_points, semi, system, v_ode,
+                                           u_ode,
                                            smoothing_length=2.0 *
                                                             TrixiParticles.initial_smoothing_length(system),
                                            clip_negative_pressure=true)

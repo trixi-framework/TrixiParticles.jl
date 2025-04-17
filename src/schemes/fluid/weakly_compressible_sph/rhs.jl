@@ -28,8 +28,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.
-        rho_a = @inbounds particle_density(v_particle_system, particle_system, particle)
-        rho_b = @inbounds particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
+        rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = (rho_a + rho_b) / 2
 
         # Determine correction factors.
@@ -44,8 +44,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
         # The following call is equivalent to
-        #     `p_a = particle_pressure(v_particle_system, particle_system, particle)`
-        #     `p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)`
+        #     `p_a = current_pressure(v_particle_system, particle_system, particle)`
+        #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
         # Only when the neighbor system is a `BoundarySPHSystem` or a `TotalLagrangianSPHSystem`
         # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
         # the pressure of the fluid particle.
@@ -151,8 +151,8 @@ end
                                                         v_neighbor_system,
                                                         particle_system, neighbor_system,
                                                         particle, neighbor)
-    p_a = particle_pressure(v_particle_system, particle_system, particle)
-    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+    p_a = current_pressure(v_particle_system, particle_system, particle)
+    p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
     return p_a, p_b
 end
@@ -161,7 +161,7 @@ end
                                             particle_system,
                                             neighbor_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
                                             particle, neighbor)
-    p_a = particle_pressure(v_particle_system, particle_system, particle)
+    p_a = current_pressure(v_particle_system, particle_system, particle)
 
     return p_a, p_a
 end

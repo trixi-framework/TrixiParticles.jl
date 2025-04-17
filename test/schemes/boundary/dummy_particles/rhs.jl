@@ -263,8 +263,8 @@
                     function deriv_energy(dv, v, u, v_neighbor, u_neighbor,
                                           system, neighbor_system, particle)
                         m_a = TrixiParticles.hydrodynamic_mass(system, particle)
-                        p_a = TrixiParticles.particle_pressure(v, system, particle)
-                        rho_a = TrixiParticles.particle_density(v, system, particle)
+                        p_a = TrixiParticles.current_pressure(v, system, particle)
+                        rho_a = TrixiParticles.current_density(v, system, particle)
 
                         if system isa WeaklyCompressibleSPHSystem
                             dc = system.density_calculator

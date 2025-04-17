@@ -236,22 +236,27 @@ function initial_boundary_pressure(initial_density, ::PressureZeroing, ::Nothing
     return zero(initial_density)
 end
 
-@inline function particle_density(v, model::BoundaryModelDummyParticles, system, particle)
-    return particle_density(v, model.density_calculator, model, particle)
+@inline function current_density(v, model::BoundaryModelDummyParticles, system)
+    return current_density(v, model.density_calculator, model)
 end
 
-# Note that the other density calculators are dispatched in `density_calculators.jl`
-@inline function particle_density(v,
-                                  ::Union{AdamiPressureExtrapolation, PressureMirroring,
-                                          PressureZeroing, BernoulliPressureExtrapolation},
-                                  boundary_model, particle)
-    (; cache) = boundary_model
-
-    return cache.density[particle]
+@inline function current_density(v,
+                                 ::Union{SummationDensity, AdamiPressureExtrapolation,
+                                         PressureMirroring, PressureZeroing,
+                                         BernoulliPressureExtrapolation},
+                                 model::BoundaryModelDummyParticles)
+    # When using `SummationDensity`, the density is stored in the cache
+    return model.cache.density
 end
 
-@inline function particle_pressure(v, model::BoundaryModelDummyParticles, system, particle)
-    return model.pressure[particle]
+@inline function current_density(v, ::ContinuityDensity,
+                                 model::BoundaryModelDummyParticles)
+    # When using `ContinuityDensity`, the density is stored in the last row of `v`
+    return view(v, size(v, 1), :)
+end
+
+@inline function current_pressure(v, model::BoundaryModelDummyParticles, system)
+    return model.pressure
 end
 
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
@@ -334,8 +339,8 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
     @threaded semi for particle in eachparticle(system)
-        apply_state_equation!(boundary_model, particle_density(v, boundary_model,
-                                                               particle), particle)
+        apply_state_equation!(boundary_model, current_density(v, system, particle),
+                              particle)
     end
 
     return boundary_model
@@ -494,7 +499,7 @@ end
                                           v_neighbor_system, particle, neighbor, pos_diff,
                                           distance, viscosity, cache, pressure,
                                           pressure_offset)
-    density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
+    density_neighbor = current_density(v_neighbor_system, neighbor_system, neighbor)
 
     resulting_acceleration = neighbor_system.acceleration -
                              current_acceleration(system, particle)
@@ -503,8 +508,8 @@ end
 
     pressure[particle] += (pressure_offset
                            +
-                           particle_pressure(v_neighbor_system, neighbor_system,
-                                             neighbor)
+                           current_pressure(v_neighbor_system, neighbor_system,
+                                            neighbor)
                            +
                            dynamic_pressure(boundary_density_calculator, density_neighbor,
                                             v, v_neighbor_system, pos_diff, distance,
