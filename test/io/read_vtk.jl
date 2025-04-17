@@ -1,4 +1,7 @@
 @testset verbose=true "`vtk2trixi`" begin
+    # Make sure that the `rand` calls below are deterministic
+    Random.seed!(1)
+
     mktempdir() do tmp_dir
         expected_ic = InitialCondition(; coordinates=rand(2, 12), velocity=rand(2, 12),
                                        density=rand(), pressure=rand(), mass=rand())

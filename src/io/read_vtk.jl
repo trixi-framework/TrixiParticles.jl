@@ -1,13 +1,13 @@
 """
 	vtk2trixi(file::String)
 
-Load VTK-file and convert data to an `InitialCondition`.
+Load VTK file and convert data to an [`InitialCondition`](@ref).
 
 # Arguments
-- `file`: Name of the VTK-file to be loaded.
+- `file`: Name of the VTK file to be loaded.
 
 !!! warning "Experimental Implementation"
-    This is an experimental feature and may change in a future releases.
+    This is an experimental feature and may change in any future releases.
 
 # Example
 ```jldoctest; output = false
