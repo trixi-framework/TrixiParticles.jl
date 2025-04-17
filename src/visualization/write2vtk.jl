@@ -280,18 +280,10 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             rho_b = current_density(v, system, neighbor)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            surface_tension[1:ndims(system),
-                            particle] .+= surface_tension_force(surface_tension_a,
-                                                                surface_tension_b,
-                                                                system,
-                                                                system,
-                                                                particle,
-                                                                neighbor,
-                                                                pos_diff,
-                                                                distance,
-                                                                rho_a,
-                                                                rho_b,
-                                                                grad_kernel)
+            surface_tension[1:ndims(system), particle] .+=
+             surface_tension_force(surface_tension_a, surface_tension_b,
+                                   system, system, particle, neighbor, pos_diff,
+                                   distance, rho_a, rho_b, grad_kernel)
         end
         vtk["surface_tension"] = surface_tension
 
