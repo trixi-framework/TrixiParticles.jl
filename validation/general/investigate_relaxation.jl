@@ -59,7 +59,8 @@ end
 
 if file_path != ""
     time, e_kin, p_max, avg_rho = read_and_parse(file_path)
-    time_damped, e_kin_damped, p_max_damped, avg_rho_damped = read_and_parse(file_path_damped)
+    time_damped, e_kin_damped, p_max_damped,
+    avg_rho_damped = read_and_parse(file_path_damped)
 
     tl_ekin, grad_ekin = calculate_regression(e_kin, time)
     tl_ekin_damped, grad_ekin_damped = calculate_regression(e_kin_damped, time_damped)
@@ -68,8 +69,9 @@ if file_path != ""
     tl_p_max_damped, grad_p_max_damped = calculate_regression(p_max_damped, time_damped)
 
     tl_avg_rho, grad_avg_rho = calculate_regression(avg_rho, time)
-    tl_avg_rho_damped, grad_avg_rho_damped = calculate_regression(avg_rho_damped,
-                                                                  time_damped)
+    tl_avg_rho_damped,
+    grad_avg_rho_damped = calculate_regression(avg_rho_damped,
+                                               time_damped)
 
     plot1 = Plots.plot(time, [e_kin, tl_ekin], label=["undamped" "trend"],
                        color=[:blue :red], linewidth=[2 2])

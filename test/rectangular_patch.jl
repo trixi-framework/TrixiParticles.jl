@@ -23,7 +23,8 @@ function rectangular_patch(particle_spacing, size; density=1000.0, pressure=0.0,
     if set_function !== nothing
         for i in 1:Base.size(ic.coordinates, 2)
             coord = ic.coordinates[:, i]
-            ic.mass[i], ic.density[i], ic.pressure[i], ic.velocity[:, i] = set_function(coord)
+            ic.mass[i], ic.density[i], ic.pressure[i],
+            ic.velocity[:, i] = set_function(coord)
         end
     end
 

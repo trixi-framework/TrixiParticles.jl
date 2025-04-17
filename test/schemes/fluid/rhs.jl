@@ -31,8 +31,12 @@
                 TrixiParticles.pressure_acceleration_summation_density
             ]
 
-            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
-                @testset "`$(nameof(typeof(pressure_acceleration)))`" for pressure_acceleration in pressure_accelerations
+            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
+                                                                   density_calculators
+
+                @testset "`$(nameof(typeof(pressure_acceleration)))`" for pressure_acceleration in
+                                                                          pressure_accelerations
+
                     for (m_a, m_b) in masses, (rho_a, rho_b) in densities,
                         (p_a, p_b) in pressures, grad_kernel in grad_kernels
 
@@ -113,7 +117,8 @@
         smoothing_length = 1.2particle_spacing
         search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
-        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
+        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
+                                                               density_calculators
             # Run three times with different seed for the random initial condition
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
@@ -132,7 +137,7 @@
                 # Overwrite `system.pressure` because we skip the update step
                 system_wcsph.pressure .= fluid.pressure
                 @testset "`$(nameof(typeof(system)))`" for system in (system_wcsph,
-                                                                      system_edac)
+                                                            system_edac)
                     u = fluid.coordinates
                     if density_calculator isa SummationDensity
                         # Density is stored in the cache

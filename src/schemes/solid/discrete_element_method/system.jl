@@ -126,7 +126,7 @@ end
 
 function system_data(system::DEMSystem, v_ode, u_ode, semi)
     (; mass, radius, elastic_modulus, poissons_ratio, normal_stiffness,
-    damping_coefficient) = system
+     damping_coefficient) = system
 
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)

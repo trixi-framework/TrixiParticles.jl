@@ -14,7 +14,9 @@
         ]
 
         @testset "$(i+1)D" for i in 1:2
-            @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
+            @testset "$(typeof(density_calculator))" for density_calculator in
+                                                         density_calculators
+
                 NDIMS = i + 1
                 coordinates = coordinates_[i]
                 mass = [1.25, 1.5]
@@ -113,7 +115,9 @@
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
             smoothing_length = 0.362
 
-            @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
+            @testset "$(typeof(density_calculator))" for density_calculator in
+                                                         density_calculators
+
                 if density_calculator isa ContinuityDensity &&
                    corr isa ShepardKernelCorrection
                     error_str = "`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"
@@ -161,7 +165,9 @@
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
             smoothing_length = 0.362
 
-            @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
+            @testset "$(typeof(density_calculator))" for density_calculator in
+                                                         density_calculators
+
                 error_str = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
                 @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
                                                                                   density_calculator,

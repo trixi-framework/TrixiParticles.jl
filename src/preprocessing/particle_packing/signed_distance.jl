@@ -125,8 +125,9 @@ function calculate_signed_distances!(positions, distances, normals,
         point_coords = positions[point]
 
         for face in eachneighbor(point_coords, nhs)
-            sign_bit, distance, normal = signed_point_face_distance(point_coords, boundary,
-                                                                    face)
+            sign_bit, distance,
+            normal = signed_point_face_distance(point_coords, boundary,
+                                                face)
 
             if distance < distances[point]^2
                 # Found a face closer than the previous closest face
@@ -195,7 +196,7 @@ end
 # Inspired by https://github.com/embree/embree/blob/master/tutorials/common/math/closest_point.h
 function signed_point_face_distance(p::SVector{3}, boundary, face_index)
     (; face_vertices, face_vertices_ids, edge_normals,
-    face_edges_ids, face_normals, vertex_normals) = boundary
+     face_edges_ids, face_normals, vertex_normals) = boundary
 
     a = face_vertices[face_index][1]
     b = face_vertices[face_index][2]
