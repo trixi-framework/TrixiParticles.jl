@@ -461,14 +461,15 @@ function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                             smoothing_length=initial_smoothing_length(ref_system),
                             cut_off_bnd=true, clip_negative_pressure=false)
     neighborhood_searches = process_neighborhood_searches(semi, u_ode, ref_system,
-                                                          smoothing_length)
+                                                          smoothing_length, point_coords)
 
     return interpolate_points(point_coords, semi, ref_system,
                               v_ode, u_ode, neighborhood_searches;
                               smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
-function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length)
+function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length,
+                                       point_coords)
     if isapprox(smoothing_length, initial_smoothing_length(ref_system))
         # Check if the neighborhood searches can be used with different points
         # than it was initialized with.
@@ -491,7 +492,7 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
         old_nhs = get_neighborhood_search(ref_system, system, semi)
         nhs = PointNeighbors.copy_neighborhood_search(old_nhs, search_radius,
                                                       nparticles(system))
-        PointNeighbors.initialize!(nhs, system_coords, system_coords)
+        PointNeighbors.initialize!(nhs, point_coords, system_coords)
 
         return nhs
     end
