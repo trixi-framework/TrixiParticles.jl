@@ -62,27 +62,35 @@ end
 @inline function activate_next_particle(system)
     (; active_particle) = system.buffer
 
-    next_particle = findfirst(x -> !x, active_particle)
+    for particle in eachindex(active_particle)
+        if !active_particle[particle]
+            # Activate this particle. The return value is the old value.
+            # If this is `true`, the particle was active before and we need to continue.
+            # This happens because a particle might have been activated by another thread
+            # between the condition and the line below.
+            was_active = PointNeighbors.Atomix.@atomicswap active_particle[particle] = true
 
-    if isnothing(next_particle)
-        error("0 out of $(system.buffer.buffer_size) buffer particles available")
+            !was_active && return particle
+        end
     end
 
-    active_particle[next_particle] = true
-
-    return next_particle
+    error("0 out of $(system.buffer.buffer_size) buffer particles available")
 end
 
 @inline function deactivate_particle!(system, particle, u)
     (; active_particle) = system.buffer
-
-    active_particle[particle] = false
 
     # Set particle far away from simulation domain
     for dim in 1:ndims(system)
         # Inf or NaN causes instability outcome.
         u[dim, particle] = 1e16
     end
+
+    # To ensure thread safety, the buffer particle is only released for reuse
+    # after the write operation (`u`) has been completed.
+    # This guarantees that no other thread can access the active particle prematurely,
+    # avoiding race conditions.
+    active_particle[particle] = false
 
     return system
 end

@@ -36,7 +36,9 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
     two_to_end = SVector{ndims(system)}(2:(ndims(system) + 1))
 
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
-    neighborhood_search = get_neighborhood_search(fluid_system, fluid_system, semi)
+    nhs = get_neighborhood_search(fluid_system, fluid_system, semi)
+
+    fluid_coords = current_coordinates(u_fluid, fluid_system)
 
     @threaded semi for particle in each_moving_particle(system)
         particle_coords = current_coords(u_open_boundary, system, particle)
@@ -50,41 +52,35 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         extrapolated_velocity_correction = zero(SMatrix{ndims(system), ndims(system) + 1,
                                                         eltype(system)})
 
-        for neighbor in PointNeighbors.eachneighbor(ghost_node_position,
-                                                    neighborhood_search)
-            neighbor_coords = current_coords(u_fluid, fluid_system, neighbor)
-            pos_diff = ghost_node_position - neighbor_coords
-            distance2 = dot(pos_diff, pos_diff)
+        # TODO: Not public API
+        PointNeighbors.foreach_neighbor(fluid_coords, nhs, particle, ghost_node_position,
+                                        nhs.search_radius) do particle, neighbor, pos_diff,
+                                                              distance
+            m_b = hydrodynamic_mass(fluid_system, neighbor)
+            rho_b = current_density(v_fluid, fluid_system, neighbor)
+            pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
+            v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
-            if distance2 <= neighborhood_search.search_radius^2
-                distance = sqrt(distance2)
+            # Project `v_b` on the normal direction of the boundary zone
+            # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
+            # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
+            # only this component of interpolated velocity is kept [...]"
+            v_b = dot(v_b, boundary_zone.plane_normal) * boundary_zone.plane_normal
 
-                m_b = hydrodynamic_mass(fluid_system, neighbor)
-                rho_b = current_density(v_fluid, fluid_system, neighbor)
-                pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
-                v_b = current_velocity(v_fluid, fluid_system, neighbor)
+            kernel_value = smoothing_kernel(fluid_system, distance, particle)
+            grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
+                                                particle)
 
-                # Project `v_b` on the normal direction of the boundary zone
-                # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
-                # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
-                # only this component of interpolated velocity is kept [...]"
-                v_b = dot(v_b, boundary_zone.plane_normal) * boundary_zone.plane_normal
+            L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
 
-                kernel_value = smoothing_kernel(fluid_system, distance, particle)
-                grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
-                                                    particle)
+            correction_matrix += L
 
-                L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
+            if !prescribed_pressure
+                extrapolated_pressure_correction += pressure_b * R
+            end
 
-                correction_matrix += L
-
-                if !prescribed_pressure
-                    extrapolated_pressure_correction += pressure_b * R
-                end
-
-                if !prescribed_velocity
-                    extrapolated_velocity_correction += v_b * R'
-                end
+            if !prescribed_velocity
+                extrapolated_velocity_correction += v_b * R'
             end
         end
 
