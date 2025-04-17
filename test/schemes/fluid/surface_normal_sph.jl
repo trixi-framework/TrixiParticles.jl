@@ -123,9 +123,9 @@ end
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
-        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 1.5, 1.0, (0.0, 0.0), 0.8),
-        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 1.75, 1.0, (0.0, 0.0), 1.7),
-        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 1.5, 1.0, (0.0, 0.0, 0.0), 0.5),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 3.0, 1.0, (0.0, 0.0), 0.8),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
+        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
         (2, WendlandC2Kernel{2}(), 0.3, 1.0, 1.0, (0.0, 0.0), 1.4),
         (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
     ]
@@ -224,9 +224,9 @@ end
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
-        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 1.5, 1.0, (0.0, 0.0), 0.8),
-        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 1.75, 1.0, (0.0, 0.0), 1.7),
-        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 1.5, 1.0, (0.0, 0.0, 0.0), 0.5),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.2, 3.0, 1.0, (0.0, 0.0), 0.8),
+        (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
+        (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
         (2, WendlandC2Kernel{2}(), 0.3, 1.0, 1.0, (0.0, 0.0), 1.4),
         (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
     ]
