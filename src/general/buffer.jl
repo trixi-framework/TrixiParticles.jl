@@ -18,7 +18,8 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     (; buffer_size) = buffer
 
     # Initialize particles far away from simulation domain
-    coordinates = fill(1e16, ndims(initial_condition), buffer_size)
+    coordinates = fill(eltype(initial_condition)(1e-16), ndims(initial_condition),
+                       buffer_size)
 
     if all(rho -> isapprox(rho, first(initial_condition.density), atol=eps(), rtol=eps()),
            initial_condition.density)
@@ -83,7 +84,7 @@ end
     # Set particle far away from simulation domain
     for dim in 1:ndims(system)
         # Inf or NaN causes instability outcome.
-        u[dim, particle] = 1e16
+        u[dim, particle] = eltype(system)(1e16)
     end
 
     # To ensure thread safety, the buffer particle is only released for reuse

@@ -836,15 +836,15 @@ function update!(neighborhood_search, x, y, semi; points_moving=(true, false),
                            parallelization_backend=semi.parallelization_backend)
 end
 
-function check_configuration(systems, neighborhood_search)
+function check_configuration(systems, nhs::PointNeighbors.AbstractNeighborhoodSearch)
     foreach_system(systems) do system
-        check_configuration(system, systems, neighborhood_search)
+        check_configuration(system, systems, nhs)
     end
 
     check_system_color(systems)
 end
 
-check_configuration(system, systems, neighborhood_search) = nothing
+check_configuration(system, systems, ::PointNeighbors.AbstractNeighborhoodSearch) = nothing
 
 function check_system_color(systems)
     if any(system isa FluidSystem && !(system isa ParticlePackingSystem) &&
@@ -861,7 +861,8 @@ function check_system_color(systems)
     end
 end
 
-function check_configuration(fluid_system::FluidSystem, systems, neighborhood_search)
+function check_configuration(fluid_system::FluidSystem, systems,
+                             ::PointNeighbors.AbstractNeighborhoodSearch)
     if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
             if neighbor isa FluidSystem && isnothing(fluid_system.surface_tension) &&
@@ -872,7 +873,8 @@ function check_configuration(fluid_system::FluidSystem, systems, neighborhood_se
     end
 end
 
-function check_configuration(system::BoundarySPHSystem, systems, neighborhood_search)
+function check_configuration(system::BoundarySPHSystem, systems,
+                             ::PointNeighbors.AbstractNeighborhoodSearch)
     (; boundary_model) = system
 
     foreach_system(systems) do neighbor
@@ -885,7 +887,8 @@ function check_configuration(system::BoundarySPHSystem, systems, neighborhood_se
     end
 end
 
-function check_configuration(system::TotalLagrangianSPHSystem, systems, neighborhood_search)
+function check_configuration(system::TotalLagrangianSPHSystem, systems,
+                             ::PointNeighbors.AbstractNeighborhoodSearch)
     (; boundary_model) = system
 
     foreach_system(systems) do neighbor
@@ -902,7 +905,8 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, neighbor
     end
 end
 
-function check_configuration(system::OpenBoundarySPHSystem, systems, neighborhood_search)
+function check_configuration(system::OpenBoundarySPHSystem, systems,
+                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
     (; boundary_model, boundary_zone) = system
 
     if boundary_model isa BoundaryModelLastiwka &&
