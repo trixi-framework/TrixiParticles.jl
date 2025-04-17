@@ -588,8 +588,9 @@ end
 
     for dim in 1:ndims(system)
         # The second term is the precalculated smoothed velocity field of the fluid.
-        wall_velocity[dim, particle] = 2 * v_boundary[dim] -
-                                       wall_velocity[dim, particle] / volume[particle]
+        wall_velocity[dim,
+                      particle] = 2 * v_boundary[dim] -
+                                  wall_velocity[dim, particle] / volume[particle]
     end
     return viscosity
 end

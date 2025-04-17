@@ -119,8 +119,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         end
 
         # Fluid particle data
-        n_particles_per_dim, fluid_size_ =
-                    fluid_particles_per_dimension(fluid_size_, particle_spacing)
+        n_particles_per_dim,
+        fluid_size_ = fluid_particles_per_dimension(fluid_size_, particle_spacing)
 
         # If sizes were equal before rounding, make sure they're equal after rounding as well
         for dim in 1:NDIMS
@@ -130,23 +130,26 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         end
 
         # Boundary particle data
-        n_boundaries_per_dim, tank_size_ =
-              boundary_particles_per_dimension(tank_size_, particle_spacing, spacing_ratio)
+        n_boundaries_per_dim,
+        tank_size_ = boundary_particles_per_dimension(tank_size_, particle_spacing,
+                                                      spacing_ratio)
 
         boundary_spacing = particle_spacing / spacing_ratio
-        boundary_coordinates,face_indices = initialize_boundaries(boundary_spacing,
-                                                                  tank_size_,
-                                                                  n_boundaries_per_dim,
-                                                                  n_layers, faces)
+        boundary_coordinates,
+        face_indices = initialize_boundaries(boundary_spacing,
+                                             tank_size_,
+                                             n_boundaries_per_dim,
+                                             n_layers, faces)
 
         boundary_masses = boundary_density * boundary_spacing^NDIMS *
                           ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_velocities = zeros(ELTYPE, size(boundary_coordinates))
 
-        n_particles_per_dim, fluid_size_ = check_tank_overlap(fluid_size_, tank_size_,
-                                                              particle_spacing,
-                                                              n_particles_per_dim)
+        n_particles_per_dim,
+        fluid_size_ = check_tank_overlap(fluid_size_, tank_size_,
+                                         particle_spacing,
+                                         n_particles_per_dim)
 
         boundary = InitialCondition(coordinates=boundary_coordinates,
                                     velocity=boundary_velocities,
@@ -197,21 +200,26 @@ function round_n_particles(size, spacing, type)
 end
 
 function fluid_particles_per_dimension(size::NTuple{2}, particle_spacing)
-    n_particles_x, new_width = round_n_particles(size[1], particle_spacing,
-                                                 "fluid length in x-direction")
-    n_particles_y, new_height = round_n_particles(size[2], particle_spacing,
-                                                  "fluid length in y-direction")
+    n_particles_x,
+    new_width = round_n_particles(size[1], particle_spacing,
+                                  "fluid length in x-direction")
+    n_particles_y,
+    new_height = round_n_particles(size[2], particle_spacing,
+                                   "fluid length in y-direction")
 
     return (n_particles_x, n_particles_y), (new_width, new_height)
 end
 
 function fluid_particles_per_dimension(size::NTuple{3}, particle_spacing)
-    n_particles_x, new_x_size = round_n_particles(size[1], particle_spacing,
-                                                  "fluid length in x-direction")
-    n_particles_y, new_y_size = round_n_particles(size[2], particle_spacing,
-                                                  "fluid length in y-direction")
-    n_particles_z, new_z_size = round_n_particles(size[3], particle_spacing,
-                                                  "fluid length in z-direction")
+    n_particles_x,
+    new_x_size = round_n_particles(size[1], particle_spacing,
+                                   "fluid length in x-direction")
+    n_particles_y,
+    new_y_size = round_n_particles(size[2], particle_spacing,
+                                   "fluid length in y-direction")
+    n_particles_z,
+    new_z_size = round_n_particles(size[3], particle_spacing,
+                                   "fluid length in z-direction")
 
     return (n_particles_x, n_particles_y, n_particles_z),
            (new_x_size, new_y_size, new_z_size)
@@ -219,27 +227,32 @@ end
 
 function boundary_particles_per_dimension(tank_size::NTuple{2}, particle_spacing,
                                           spacing_ratio)
-    n_particles_x, new_width = round_n_particles(tank_size[1],
-                                                 particle_spacing / spacing_ratio,
-                                                 "tank length in x-direction")
-    n_particles_y, new_height = round_n_particles(tank_size[2],
-                                                  particle_spacing / spacing_ratio,
-                                                  "tank length in y-direction")
+    n_particles_x,
+    new_width = round_n_particles(tank_size[1],
+                                  particle_spacing / spacing_ratio,
+                                  "tank length in x-direction")
+    n_particles_y,
+    new_height = round_n_particles(tank_size[2],
+                                   particle_spacing / spacing_ratio,
+                                   "tank length in y-direction")
 
     return (n_particles_x, n_particles_y), (new_width, new_height)
 end
 
 function boundary_particles_per_dimension(tank_size::NTuple{3}, particle_spacing,
                                           spacing_ratio)
-    n_particles_x, new_x_size = round_n_particles(tank_size[1],
-                                                  particle_spacing / spacing_ratio,
-                                                  "tank length in x-direction")
-    n_particles_y, new_y_size = round_n_particles(tank_size[2],
-                                                  particle_spacing / spacing_ratio,
-                                                  "tank length in y-direction")
-    n_particles_z, new_z_size = round_n_particles(tank_size[3],
-                                                  particle_spacing / spacing_ratio,
-                                                  "tank length in z-direction")
+    n_particles_x,
+    new_x_size = round_n_particles(tank_size[1],
+                                   particle_spacing / spacing_ratio,
+                                   "tank length in x-direction")
+    n_particles_y,
+    new_y_size = round_n_particles(tank_size[2],
+                                   particle_spacing / spacing_ratio,
+                                   "tank length in y-direction")
+    n_particles_z,
+    new_z_size = round_n_particles(tank_size[3],
+                                   particle_spacing / spacing_ratio,
+                                   "tank length in z-direction")
 
     return (n_particles_x, n_particles_y, n_particles_z),
            (new_x_size, new_y_size, new_z_size)

@@ -49,10 +49,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Only when the neighbor system is a `BoundarySPHSystem` or a `TotalLagrangianSPHSystem`
         # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
         # the pressure of the fluid particle.
-        p_a, p_b = @inbounds particle_neighbor_pressure(v_particle_system,
-                                                        v_neighbor_system,
-                                                        particle_system, neighbor_system,
-                                                        particle, neighbor)
+        p_a,
+        p_b = @inbounds particle_neighbor_pressure(v_particle_system,
+                                                   v_neighbor_system,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor)
 
         dv_pressure = pressure_correction *
                       pressure_acceleration(particle_system, neighbor_system,
@@ -84,9 +85,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
-            @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] +
-                                         dv_convection[i] + dv_surface_tension[i] +
-                                         dv_adhesion[i]
+            @inbounds dv[i,
+                         particle] += dv_pressure[i] + dv_viscosity_[i] +
+                                      dv_convection[i] + dv_surface_tension[i] +
+                                      dv_adhesion[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end

@@ -59,8 +59,9 @@ function ComplexShape(geometry; particle_spacing, density,
     grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
                          grid_offset, max_nparticles)
 
-    inpoly, winding_numbers = point_in_geometry_algorithm(geometry, grid;
-                                                          store_winding_number)
+    inpoly,
+    winding_numbers = point_in_geometry_algorithm(geometry, grid;
+                                                  store_winding_number)
 
     coordinates = stack(grid[inpoly])
 
