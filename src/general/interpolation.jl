@@ -13,7 +13,7 @@ The function generates a grid of points within the defined region,
 spaced uniformly according to the given resolution.
 
 See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
-          [`interpolate_line`](@ref), [`interpolate_point`](@ref).
+          [`interpolate_line`](@ref), [`interpolate_points`](@ref).
 
 # Arguments
 - `min_corner`: The lower left corner of the interpolation region.
@@ -96,7 +96,7 @@ The function generates a grid of points within the defined region,
 spaced uniformly according to the given resolution.
 
 See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
-          [`interpolate_line`](@ref), [`interpolate_point`](@ref).
+          [`interpolate_line`](@ref), [`interpolate_points`](@ref).
 
 # Arguments
 - `min_corner`: The lower left corner of the interpolation region.
@@ -227,7 +227,7 @@ The function generates a grid of points on a parallelogram within the plane defi
 three points, spaced uniformly according to the given resolution.
 
 See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
-          [`interpolate_line`](@ref), [`interpolate_point`](@ref).
+          [`interpolate_line`](@ref), [`interpolate_points`](@ref).
 
 # Arguments
 - `point1`:     The first point defining the plane.
@@ -323,7 +323,7 @@ evenly spaced points between `start` and `end_`.
 If `endpoint` is `false`, the line is interpolated between the start and end points,
 but does not include these points.
 
-See also: [`interpolate_point`](@ref), [`interpolate_plane_2d`](@ref),
+See also: [`interpolate_points`](@ref), [`interpolate_plane_2d`](@ref),
           [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref).
 
 # Arguments
@@ -434,8 +434,8 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
 result = interpolate_points([1.0; 0.5;;], semi, ref_system, sol)
 
 # For multiple points
-points = [1.0; 1.0; 1.0;; 0.5; 0.6; 0.7]
-results = interpolate_point(points, semi, ref_system, sol)
+points = [1.0 1.0 1.0; 0.5 0.6 0.7]
+results = interpolate_points(points, semi, ref_system, sol)
 
 # output
 (density = ...)
