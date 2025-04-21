@@ -2,7 +2,11 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::TotalLagrangianSPHSystem, semi)
+                   neighbor_system::TotalLagrangianSPHSystem, semi;
+                   integrate_tlsph=semi.integrate_tlsph[])
+    # Skip interaction if TLSPH systems are integrated separately
+    integrate_tlsph || return dv
+
     interact_solid_solid!(dv, particle_system, neighbor_system, semi)
 end
 
@@ -62,7 +66,11 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::FluidSystem, semi)
+                   neighbor_system::FluidSystem, semi;
+                   integrate_tlsph=semi.integrate_tlsph[])
+    # Skip interaction if TLSPH systems are integrated separately
+    integrate_tlsph || return dv
+
     sound_speed = system_sound_speed(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -164,7 +172,8 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::Union{BoundarySPHSystem, OpenBoundarySPHSystem}, semi)
+                   neighbor_system::Union{BoundarySPHSystem, OpenBoundarySPHSystem}, semi;
+                   integrate_tlsph=semi.integrate_tlsph[])
     # TODO continuity equation?
     return dv
 end
