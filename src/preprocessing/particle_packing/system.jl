@@ -288,7 +288,8 @@ function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, sem
     (; neighborhood_search, signed_distance_field, smoothing_length_interpolation) = system
     (; positions, distances, normals) = signed_distance_field
 
-    search_radius2 = compact_support(system, system)^2
+    search_radius = compact_support(system, system)
+    sdf_coords = stack(signed_distance_field.positions)
 
     @threaded semi for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
@@ -297,13 +298,13 @@ function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, sem
         distance_signed = zero(eltype(system))
         normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
 
-        # Interpolate signed distances and normals
-        for neighbor in PointNeighbors.eachneighbor(particle_position, neighborhood_search)
-            pos_diff = positions[neighbor] - particle_position
-            distance2 = dot(pos_diff, pos_diff)
-            distance2 > search_radius2 && continue
-
-            distance = sqrt(distance2)
+        # Interpolate signed distances and normals.
+        # Here, `neighborhood_search` is an intern NHS and is thus not organized by `Semidiscretization`.
+        # TODO: Not public API, thus, add a warning in `check_configuration` if `PointNeighbors.requires_update(neighborhood_search)` is `false`.
+        PointNeighbors.foreach_neighbor(sdf_coords, neighborhood_search,
+                                        particle, particle_position,
+                                        search_radius) do particle, neighbor,
+                                                          pos_diff, distance
             kernel_weight = kernel(system.smoothing_kernel, distance,
                                    smoothing_length_interpolation)
 
