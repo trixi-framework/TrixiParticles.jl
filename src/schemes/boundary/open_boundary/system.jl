@@ -210,12 +210,12 @@ end
 
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
 
-@inline function particle_density(v, system::OpenBoundarySPHSystem, particle)
-    return system.density[particle]
+@inline function current_density(v, system::OpenBoundarySPHSystem)
+    return system.density
 end
 
-@inline function particle_pressure(v, system::OpenBoundarySPHSystem, particle)
-    return system.pressure[particle]
+@inline function current_pressure(v, system::OpenBoundarySPHSystem)
+    return system.pressure
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
@@ -351,11 +351,11 @@ end
     particle_new = activate_next_particle(system_new)
 
     # Transfer densities
-    density = particle_density(v_old, system_old, particle_old)
+    density = current_density(v_old, system_old, particle_old)
     set_particle_density!(v_new, system_new, particle_new, density)
 
     # Transfer pressure
-    pressure = particle_pressure(v_old, system_old, particle_old)
+    pressure = current_pressure(v_old, system_old, particle_old)
     set_particle_pressure!(v_new, system_new, particle_new, pressure)
 
     # Exchange position and velocity
@@ -448,4 +448,20 @@ function kinematic_viscosity(system::OpenBoundarySPHSystem,
                              sound_speed)
     return kinematic_viscosity(system.fluid_system, viscosity, smoothing_length,
                                sound_speed)
+end
+
+function system_data(system::OpenBoundarySPHSystem, v_ode, u_ode, semi)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    coordinates = current_coordinates(u, system)
+    velocity = current_velocity(v, system)
+    density = current_density(v, system)
+    pressure = current_pressure(v, system)
+
+    return (; coordinates, velocity, density, pressure)
+end
+
+function available_data(::OpenBoundarySPHSystem)
+    return (:coordinates, :velocity, :density, :pressure)
 end

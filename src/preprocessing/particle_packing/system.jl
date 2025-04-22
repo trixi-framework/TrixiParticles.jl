@@ -232,10 +232,14 @@ end
 write_v0!(v0, system::ParticlePackingSystem) = (v0 .= zero(eltype(system)))
 
 # Zero for fixed systems
-kinetic_energy(v, u, t, system::ParticlePackingSystem{<:Any, true}) = zero(eltype(system))
+function kinetic_energy(system::ParticlePackingSystem{<:Any, true}, v_ode, u_ode, semi, t)
+    return zero(eltype(system))
+end
 
-function kinetic_energy(v, u, t, system::ParticlePackingSystem)
+function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
     (; initial_condition, is_boundary) = system
+
+    v = wrap_v(v_ode, system, semi)
 
     # Exclude boundary packing system
     is_boundary && return zero(eltype(system))

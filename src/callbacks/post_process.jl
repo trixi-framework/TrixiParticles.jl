@@ -14,13 +14,13 @@ a fixed interval of simulation time (`dt`).
 
 # Keywords
 - `funcs...`:   Functions to be executed at specified intervals during the simulation.
-                Each function must have the arguments `(v, u, t, system)`,
-                and will be called for every system, where `v` and `u` are the
-                wrapped solution arrays for the corresponding system and `t` is
-                the current simulation time. Note that working with these `v`
-                and `u` arrays requires undocumented internal functions of
-                TrixiParticles. See [Custom Quantities](@ref custom_quantities)
-                for a list of pre-defined functions that can be used here.
+                Each function must have the arguments `(system, data, t)`,
+                which will be called for every system, where `data` is a named
+                tuple with fields depending on the system type, and `t` is the
+                current simulation time. Check the available data for each
+                system with `available_data(system)`.
+                See [Custom Quantities](@ref custom_quantities)
+                for a list of pre-defined custom quantities that can be used here.
 - `interval=0`: Specifies the number of time steps between each invocation of the callback.
                 If set to `0`, the callback will not be triggered based on time steps.
                 Either `interval` or `dt` must be set to something larger than 0.
@@ -228,47 +228,47 @@ end
 
 # `affect!`
 function (pp::PostprocessCallback)(integrator)
-    vu_ode = integrator.u
-    v_ode, u_ode = vu_ode.x
-    semi = integrator.p
-    t = integrator.t
-    filenames = system_names(semi.systems)
-    new_data = false
+    @trixi_timeit timer() "apply postprocess cb" begin
+        vu_ode = integrator.u
+        v_ode, u_ode = vu_ode.x
+        semi = integrator.p
+        t = integrator.t
+        filenames = system_names(semi.systems)
+        new_data = false
 
-    # Update systems to compute quantities like density and pressure
-    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
+        # Update quantities that are stored in the systems. These quantities (e.g. pressure)
+        # still have the values from the last stage of the previous step if not updated here.
+        @trixi_timeit timer() "update systems" update_systems_and_nhs(v_ode, u_ode, semi, t;
+                                                                      update_from_callback=true)
 
-    foreach_system(semi) do system
-        if system isa BoundarySystem && pp.exclude_boundary
-            return
-        end
+        foreach_system(semi) do system
+            if system isa BoundarySystem && pp.exclude_boundary
+                return
+            end
 
-        system_index = system_indices(system, semi)
+            system_index = system_indices(system, semi)
 
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-        for (key, f) in pp.func
-            result = hasmethod(f, NTuple{4}, (:v_ode, :u_ode, :semi)) ?
-                     f(v, u, t, system; v_ode=v_ode, u_ode=u_ode, semi=semi) :
-                     f(v, u, t, system)
-            if result !== nothing
-                add_entry!(pp, string(key), t, result, filenames[system_index])
-                new_data = true
+            for (key, f) in pp.func
+                result = custom_quantity(f, system, v_ode, u_ode, semi, t)
+                if result !== nothing
+                    add_entry!(pp, string(key), t, result, filenames[system_index])
+                    new_data = true
+                end
             end
         end
-    end
 
-    if new_data
-        push!(pp.times, t)
-    end
+        if new_data
+            push!(pp.times, t)
+        end
 
-    if isfinished(integrator) ||
-       (pp.write_file_interval > 0 && backup_condition(pp, integrator))
-        write_postprocess_callback(pp)
-    end
+        if isfinished(integrator) ||
+           (pp.write_file_interval > 0 && backup_condition(pp, integrator))
+            write_postprocess_callback(pp)
+        end
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
-    u_modified!(integrator, false)
+        # Tell OrdinaryDiffEq that `u` has not been modified
+        u_modified!(integrator, false)
+    end
 end
 
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
