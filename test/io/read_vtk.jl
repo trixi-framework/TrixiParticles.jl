@@ -22,6 +22,7 @@
             fluid_system = EntropicallyDampedSPHSystem(expected_ic,
                                                        SchoenbergCubicSplineKernel{2}(),
                                                        rand(), rand())
+            semi = Semidiscretization(fluid_system)
 
             # Overwrite values because we skip the update step
             fluid_system.cache.density .= expected_ic.density
@@ -33,7 +34,7 @@
                      TrixiParticles.n_moving_particles(fluid_system))
 
             # Write out `FluidSystem` Simulation-File
-            trixi2vtk(v, u, 0.0, fluid_system,
+            trixi2vtk(fluid_system, v, u, semi, 0.0,
                       nothing; system_name="tmp_file_fluid", output_directory=tmp_dir,
                       iter=1)
             # Load `fluid_system` Simulation-File
@@ -58,10 +59,16 @@
             boundary_model.cache.density .= expected_ic.density
 
             boundary_system = BoundarySPHSystem(expected_ic, boundary_model)
+            semi = Semidiscretization(boundary_system)
+
+            # Create random ODE solutions
+            u = rand(TrixiParticles.u_nvariables(boundary_system),
+                     TrixiParticles.n_moving_particles(boundary_system))
+            v = rand(TrixiParticles.v_nvariables(boundary_system),
+                     TrixiParticles.n_moving_particles(boundary_system))
 
             # Write out `BoundarySystem` Simulation-File
-            # There are no ODE solutions for `BoundarySystem`
-            trixi2vtk(0.0, 0.0, 0.0, boundary_system,
+            trixi2vtk(boundary_system, v, u, semi, 0.0,
                       nothing; system_name="tmp_file_boundary", output_directory=tmp_dir,
                       iter=1)
 
