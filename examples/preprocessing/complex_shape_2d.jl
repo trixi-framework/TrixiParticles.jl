@@ -6,9 +6,10 @@ particle_spacing = 0.05
 filename = "inverted_open_curve"
 file = joinpath("examples", "preprocessing", "data", filename * ".asc")
 
-geometry = load_geometry(file)
+geometry = load_geometry(file; parallelization_backend=true,
+                         element_type=typeof(particle_spacing))
 
-trixi2vtk(geometry)
+# trixi2vtk(geometry)
 
 point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
                                                     winding_number_factor=0.4,

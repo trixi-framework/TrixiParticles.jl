@@ -59,7 +59,13 @@ function ComplexShape(geometry; particle_spacing, density,
     grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
                          grid_offset, max_nparticles)
 
-    inpoly, winding_numbers = point_in_geometry_algorithm(geometry, grid;
+    if !(geometry.parallelization_backend isa Bool)
+        geometry_new = Adapt.adapt(geometry.parallelization_backend, geometry)
+    else
+        geometry_new = geometry
+    end
+
+    inpoly, winding_numbers = point_in_geometry_algorithm(geometry_new, grid;
                                                           store_winding_number)
 
     coordinates = stack(grid[inpoly])

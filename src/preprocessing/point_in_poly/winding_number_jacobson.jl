@@ -1,18 +1,18 @@
 struct NaiveWinding end
 
-@inline function (winding::NaiveWinding)(polygon::Polygon{2}, query_point)
+@inline function (winding::NaiveWinding)(polygon::Polygon, query_point)
     (; edge_vertices_ids) = polygon
 
     return naive_winding(polygon, edge_vertices_ids, query_point)
 end
 
-@inline function (winding::NaiveWinding)(mesh::TriangleMesh{3}, query_point)
+@inline function (winding::NaiveWinding)(mesh::TriangleMesh, query_point)
     (; face_vertices_ids) = mesh
 
     return naive_winding(mesh, face_vertices_ids, query_point)
 end
 
-@inline function naive_winding(polygon::Polygon{2}, edges, query_point)
+@inline function naive_winding(polygon::Polygon, edges, query_point)
     winding_number = sum(edges, init=zero(eltype(polygon))) do edge
         v1 = polygon.vertices[edge[1]]
         v2 = polygon.vertices[edge[2]]
@@ -26,7 +26,7 @@ end
     return winding_number
 end
 
-@inline function naive_winding(mesh::TriangleMesh{3}, faces, query_point)
+@inline function naive_winding(mesh::TriangleMesh, faces, query_point)
     winding_number = sum(faces, init=zero(eltype(mesh))) do face
         v1 = mesh.vertices[face[1]]
         v2 = mesh.vertices[face[2]]
@@ -113,7 +113,7 @@ function (point_in_poly::WindingNumberJacobson)(geometry, points;
 
     divisor = ndims(geometry) == 2 ? 2pi : 4pi
 
-    @threaded points for query_point in eachindex(points)
+    @threaded geometry for query_point in eachindex(points)
         p = points[query_point]
 
         winding_number = winding(geometry, p) / divisor

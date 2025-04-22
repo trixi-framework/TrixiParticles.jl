@@ -1,56 +1,57 @@
 # This bounding box is used for the hierarchical evaluation of the `WindingNumberJacobsen`.
 # It is implementing a binary tree and thus stores the left and right child and also the
 # faces and closing faces which are inside the bounding box.
-struct BoundingBoxTree{MC, NDIMS}
-    faces         :: Vector{NTuple{NDIMS, Int}}
-    closing_faces :: Vector{NTuple{NDIMS, Int}}
+struct BoundingBoxTree{MC, NDIMS, VOT, BBT}
+    faces         :: VOT
+    closing_faces :: VOT
     min_corner    :: MC
     max_corner    :: MC
     is_leaf       :: Bool
-    child_left    :: BoundingBoxTree
-    child_right   :: BoundingBoxTree
+    child_left    :: BBT
+    child_right   :: BBT
+end
 
-    function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_corner)
-        closing_faces = Vector{NTuple{ndims(geometry), Int}}()
+function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_corner)
+    closing_faces = Vector{NTuple{ndims(geometry), Int}}()
 
-        max_faces_in_box = ndims(geometry) == 3 ? 100 : 20
-        if length(face_ids) < max_faces_in_box
-            return new{typeof(min_corner),
-                       ndims(geometry)}(faces(face_ids, geometry), closing_faces,
-                                        min_corner, max_corner, true)
-        end
-
-        determine_closure!(closing_faces, min_corner, max_corner, geometry, face_ids,
-                           directed_edges)
-
-        if length(closing_faces) >= length(face_ids)
-            return new{typeof(min_corner),
-                       ndims(geometry)}(faces(face_ids, geometry), closing_faces,
-                                        min_corner, max_corner, true)
-        end
-
-        # Bisect the box splitting its longest side
-        box_edges = max_corner - min_corner
-
-        split_direction = argmax(box_edges)
-
-        uvec = (1:ndims(geometry)) .== split_direction
-
-        max_corner_left = max_corner - 0.5box_edges[split_direction] * uvec
-        min_corner_right = min_corner + 0.5box_edges[split_direction] * uvec
-
-        faces_left = is_in_box(geometry, face_ids, min_corner, max_corner_left)
-        faces_right = is_in_box(geometry, face_ids, min_corner_right, max_corner)
-
-        child_left = BoundingBoxTree(geometry, faces_left, directed_edges,
-                                     min_corner, max_corner_left)
-        child_right = BoundingBoxTree(geometry, faces_right, directed_edges,
-                                      min_corner_right, max_corner)
-
-        return new{typeof(min_corner),
-                   ndims(geometry)}(faces(face_ids, geometry), closing_faces,
-                                    min_corner, max_corner, false, child_left, child_right)
+    max_faces_in_box = ndims(geometry) == 3 ? 100 : 20
+    if length(face_ids) < max_faces_in_box
+        return BoundingBoxTree{typeof(min_corner), ndims(geometry), typeof(closing_faces),
+                               Nothing}(faces(face_ids, geometry), closing_faces,
+                                        min_corner, max_corner, true, nothing, nothing)
     end
+
+    determine_closure!(closing_faces, min_corner, max_corner, geometry, face_ids,
+                       directed_edges)
+
+    if length(closing_faces) >= length(face_ids)
+        return BoundingBoxTree{typeof(min_corner), ndims(geometry), typeof(closing_faces),
+                               Nothing}(faces(face_ids, geometry), closing_faces,
+                                        min_corner, max_corner, true, nothing, nothing)
+    end
+
+    # Bisect the box splitting its longest side
+    box_edges = max_corner - min_corner
+
+    split_direction = argmax(box_edges)
+
+    uvec = (1:ndims(geometry)) .== split_direction
+
+    max_corner_left = max_corner - 0.5box_edges[split_direction] * uvec
+    min_corner_right = min_corner + 0.5box_edges[split_direction] * uvec
+
+    faces_left = is_in_box(geometry, face_ids, min_corner, max_corner_left)
+    faces_right = is_in_box(geometry, face_ids, min_corner_right, max_corner)
+
+    child_left = BoundingBoxTree(geometry, faces_left, directed_edges,
+                                 min_corner, max_corner_left)
+    child_right = BoundingBoxTree(geometry, faces_right, directed_edges,
+                                  min_corner_right, max_corner)
+
+    return BoundingBoxTree{typeof(min_corner), ndims(geometry), typeof(closing_faces),
+                           BoundingBoxTree}(faces(face_ids, geometry), closing_faces,
+                                            min_corner, max_corner, false,
+                                            child_left, child_right)
 end
 
 function faces(edge_ids, geometry::Polygon)
@@ -110,7 +111,7 @@ function hierarchical_winding(bounding_box, mesh, query_point)
 end
 
 # This only works when all `vertices` are unique
-function determine_closure!(closing_faces, min_corner, max_corner, mesh::TriangleMesh{3},
+function determine_closure!(closing_faces, min_corner, max_corner, mesh::TriangleMesh,
                             faces, directed_edges)
     (; edge_vertices_ids, face_vertices_ids, face_edges_ids, vertices) = mesh
 
@@ -198,7 +199,7 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
 end
 
 # This only works when all `vertices` are unique
-function determine_closure!(closing_edges, min_corner, max_corner, polygon::Polygon{2},
+function determine_closure!(closing_edges, min_corner, max_corner, polygon::Polygon,
                             edges, vertex_count)
     (; edge_vertices_ids, edge_vertices) = polygon
 
@@ -262,7 +263,7 @@ function is_in_box(mesh, faces, min_corner, max_corner)
     return filter(face -> is_in_box(barycenter(mesh, face), min_corner, max_corner), faces)
 end
 
-@inline function barycenter(mesh::Polygon{2}, edge)
+@inline function barycenter(mesh::Polygon, edge)
     (; edge_vertices) = mesh
 
     v1 = edge_vertices[edge][1]
@@ -271,7 +272,7 @@ end
     return 0.5(v1 + v2)
 end
 
-@inline function barycenter(mesh::TriangleMesh{3}, face)
+@inline function barycenter(mesh::TriangleMesh, face)
     (; face_vertices) = mesh
 
     v1 = face_vertices[face][1]

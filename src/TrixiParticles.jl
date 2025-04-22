@@ -50,10 +50,10 @@ include("callbacks/callbacks.jl")
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
+include("preprocessing/preprocessing.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
-include("preprocessing/preprocessing.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition

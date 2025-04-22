@@ -17,6 +17,11 @@ Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar
 Adapt.@adapt_structure BoundaryMovement
 Adapt.@adapt_structure TotalLagrangianSPHSystem
+Adapt.@adapt_structure Polygon
+Adapt.@adapt_structure TriangleMesh
+Adapt.@adapt_structure BoundingBoxTree
+Adapt.@adapt_structure Base.ReinterpretArray
+Adapt.@adapt_structure WindingNumberJacobson
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
@@ -28,4 +33,9 @@ end
 # This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
+end
+
+# This makes `@threaded geometry for ...` use `geometry.parallelization_backend` for parallelization
+@inline function PointNeighbors.parallel_foreach(f, iterator, geometry::Geometry)
+    PointNeighbors.parallel_foreach(f, iterator, geometry.parallelization_backend)
 end

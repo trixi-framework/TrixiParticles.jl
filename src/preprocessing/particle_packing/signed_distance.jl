@@ -67,7 +67,7 @@ function SignedDistanceField(geometry, particle_spacing;
     positions = copy(points)
 
     # This gives a performance boost for large geometries
-    delete_positions_in_empty_cells!(positions, nhs)
+    delete_positions_in_empty_cells!(positions, nhs, geometry)
 
     normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(positions))
     distances = fill(Inf, length(positions))
@@ -107,12 +107,15 @@ function trixi2vtk(signed_distance_field::SignedDistanceField;
               filename=filename, output_directory=output_directory)
 end
 
-delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch) = positions
+function delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch,
+                                          geometry)
+    return positions
+end
 
-function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch)
+function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch, geometry)
     delete_positions = fill(false, length(positions))
 
-    @threaded positions for point in eachindex(positions)
+    @threaded geometry for point in eachindex(positions)
         if isempty(eachneighbor(positions[point], nhs))
             delete_positions[point] = true
         end
@@ -124,12 +127,12 @@ function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch
 end
 
 function calculate_signed_distances!(positions, distances, normals,
-                                     boundary, sdf_factor, max_signed_distance, nhs)
-    @threaded positions for point in eachindex(positions)
+                                     geometry, sdf_factor, max_signed_distance, nhs)
+    @threaded geometry for point in eachindex(positions)
         point_coords = positions[point]
 
         for face in eachneighbor(point_coords, nhs)
-            sign_bit, distance, normal = signed_point_face_distance(point_coords, boundary,
+            sign_bit, distance, normal = signed_point_face_distance(point_coords, geometry,
                                                                     face)
 
             if distance < distances[point]^2
@@ -140,7 +143,7 @@ function calculate_signed_distances!(positions, distances, normals,
         end
     end
 
-    # Keep "larger" signed distance field outside `boundary` to guarantee
+    # Keep "larger" signed distance field outside `geometry` to guarantee
     # compact support for boundary particles.
     keep = -max_signed_distance .< distances .< sdf_factor * max_signed_distance
     delete_indices = .!keep

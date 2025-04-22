@@ -1,33 +1,40 @@
 # This is the data format returned by `load(file)` when used with `.stl` files
-struct TriangleMesh{NDIMS, ELTYPE}
-    vertices          :: Vector{SVector{NDIMS, ELTYPE}}
-    face_vertices     :: Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}
-    face_vertices_ids :: Vector{NTuple{3, Int}}
-    face_edges_ids    :: Vector{NTuple{3, Int}}
-    edge_vertices_ids :: Vector{NTuple{2, Int}}
-    vertex_normals    :: Vector{SVector{NDIMS, ELTYPE}}
-    edge_normals      :: Vector{SVector{NDIMS, ELTYPE}}
-    face_normals      :: Vector{SVector{NDIMS, ELTYPE}}
-    min_corner        :: SVector{NDIMS, ELTYPE}
-    max_corner        :: SVector{NDIMS, ELTYPE}
+struct TriangleMesh{BACKEND, NDIMS, ELTYPE, VOV, VOTV,
+                    VOT3, VOT2} <: Geometry{BACKEND, NDIMS, ELTYPE}
+    vertices                :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
+    face_vertices           :: VOTV # `Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}`
+    face_vertices_ids       :: VOT3 # `Vector{NTuple{3, Int}}`
+    face_edges_ids          :: VOT3 # `Vector{NTuple{3, Int}}`
+    edge_vertices_ids       :: VOT2 # `Vector{NTuple{2, Int}}`
+    vertex_normals          :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
+    edge_normals            :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
+    face_normals            :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
+    min_corner              :: SVector{NDIMS, ELTYPE}
+    max_corner              :: SVector{NDIMS, ELTYPE}
+    parallelization_backend :: BACKEND
 
-    function TriangleMesh(face_vertices, face_normals, vertices)
+    function TriangleMesh(face_vertices, face_normals, vertices;
+                          parallelization_backend=true)
         NDIMS = 3
 
-        return TriangleMesh{NDIMS}(face_vertices, face_normals, vertices)
+        return TriangleMesh{NDIMS}(face_vertices, face_normals, vertices,
+                                   parallelization_backend)
     end
 
     # Function barrier to make `NDIMS` static and therefore `SVector`s type-stable
-    function TriangleMesh{NDIMS}(face_vertices, face_normals, vertices_) where {NDIMS}
+    function TriangleMesh{NDIMS}(face_vertices, face_normals, vertices_,
+                                 parallelization_backend) where {NDIMS}
+        BACKEND = typeof(parallelization_backend)
+
         # Sort vertices by the first entry of the vector and return only unique vertices
-        vertices = unique_sorted(vertices_)
+        vertices = unique_sorted(vertices_; parallelization_backend)
 
         ELTYPE = eltype(first(face_normals))
         n_faces = length(face_normals)
 
         face_vertices_ids = fill((0, 0, 0), n_faces)
 
-        @threaded face_vertices for i in 1:n_faces
+        @threaded parallelization_backend for i in 1:n_faces
             v1 = face_vertices[i][1]
             v2 = face_vertices[i][2]
             v3 = face_vertices[i][3]
@@ -139,10 +146,13 @@ struct TriangleMesh{NDIMS, ELTYPE}
             end
         end
 
-        return new{NDIMS, ELTYPE}(vertices, face_vertices, face_vertices_ids,
-                                  face_edges_ids, edge_vertices_ids,
-                                  normalize.(vertex_normals), edge_normals,
-                                  face_normals, min_corner, max_corner)
+        return new{BACKEND, NDIMS, ELTYPE, typeof(vertices), typeof(face_vertices),
+                   typeof(face_vertices_ids),
+                   typeof(edge_vertices_ids)}(vertices, face_vertices, face_vertices_ids,
+                                              face_edges_ids, edge_vertices_ids,
+                                              normalize.(vertex_normals), edge_normals,
+                                              face_normals, min_corner, max_corner,
+                                              parallelization_backend)
     end
 end
 
@@ -164,10 +174,6 @@ function Base.show(io::IO, ::MIME"text/plain", geometry::TriangleMesh)
         summary_footer(io)
     end
 end
-
-@inline Base.ndims(::TriangleMesh{NDIMS}) where {NDIMS} = NDIMS
-
-@inline Base.eltype(::TriangleMesh{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
 @inline face_normal(triangle, geometry::TriangleMesh) = geometry.face_normals[triangle]
 
@@ -221,14 +227,14 @@ function incident_angles(triangle_points)
     return alpha, beta, gamma
 end
 
-function unique_sorted(vertices)
+function unique_sorted(vertices; parallelization_backend=true)
     # Sort by the first entry of the vectors
     compare_first_element = (x, y) -> x[1] < y[1]
     vertices_sorted = sort!(vertices, lt=compare_first_element)
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     keep = fill(true, length(vertices_sorted))
 
-    @threaded vertices_sorted for i in eachindex(vertices_sorted)
+    @threaded parallelization_backend for i in eachindex(vertices_sorted)
         # We only sorted by the first entry, so we have to check all previous vertices
         # until the first entry is too far away.
         j = i - 1
