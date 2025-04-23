@@ -52,7 +52,7 @@ function vtk2trixi(file)
             results[field] = ReadVTK.get_data(point_data[all_keys[idx]])
         else
             # Use zeros as default values when a field is missing
-            results[field] = field in ["density", "pressure", "mass"] ?
+            results[field] = field in ["mass"] ?
                              zeros(size(coordinates, 2)) : zero(coordinates)
             @info "No '$field' field found in VTK file. Will be set to zero."
         end
