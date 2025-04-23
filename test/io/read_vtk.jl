@@ -28,8 +28,10 @@
             fluid_system.cache.density .= expected_ic.density
 
             # Create random ODE solutions
+            Random.seed!(1)
             u = rand(TrixiParticles.u_nvariables(fluid_system),
                      TrixiParticles.n_moving_particles(fluid_system))
+            Random.seed!(1)
             v = rand(TrixiParticles.v_nvariables(fluid_system),
                      TrixiParticles.n_moving_particles(fluid_system))
 
@@ -62,8 +64,10 @@
             semi = Semidiscretization(boundary_system)
 
             # Create random ODE solutions
+            Random.seed!(1)
             u = rand(TrixiParticles.u_nvariables(boundary_system),
                      TrixiParticles.n_moving_particles(boundary_system))
+            Random.seed!(1)
             v = rand(TrixiParticles.v_nvariables(boundary_system),
                      TrixiParticles.n_moving_particles(boundary_system))
 
