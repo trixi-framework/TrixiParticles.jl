@@ -18,8 +18,14 @@ Follow these steps to view the exported VTK files in ParaView:
 You will now see the following:
 ![image](https://github.com/user-attachments/assets/383d323a-3020-4232-9dc3-682b0afe8653)
 
-It is useful to make the particles larger.
-For this, **first** make sure you have "fluid_1.pvd" highlighted in the "Pipeline Browser" then in the "Properties" window in the bottom left change "Point Size" to a larger value.
+It is useful to make the dot size dependent on the actual particle size.
+For this, **first** make sure you have "fluid_1.pvd" highlighted in the "Pipeline Browser"
+Then, in the Properties panel (bottom left), adjust the following settings:
+1. "Representation" to "Point Gaussian".
+2. Choose the right "Shader Preset": "Plain Circle" for 2D and "Sphere" for 3D.
+3. Activate "Scale by Array" and select "`particle_spacing`" in "Gaussian Scale Array".
+4. Deactivate "Use Scale Function"
+5. Set the "Gaussian Radius" to "`0.5`".
 ![image](https://github.com/user-attachments/assets/6e975d2c-82ed-4d53-936b-bb0beafaf515)
 
 To now view the result variables **first** make sure you have "fluid_1.pvd" highlighted in the "Pipeline Browser" then select them in the variable selection combo box (see picture below).
