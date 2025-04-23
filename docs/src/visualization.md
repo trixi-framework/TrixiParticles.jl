@@ -29,7 +29,9 @@ Then, in the Properties panel (bottom left), adjust the following settings:
 ![image](https://github.com/user-attachments/assets/194d9a09-5937-4ee4-b229-07078afe3ff0)
 
 #### Visualization with Macro
-To simplify the visualization of your particle data in ParaView, we've prepared a macro. This macro scales the particles using the `particle_spacing` attribute.
+To simplify the visualization of your particle data in ParaView, you can use a macro.
+This macro automates the manual steps in the previous section to a single click of a button.
+Install the macro as follows.
 
 1. **Save the macro code** (see below) as a `.py` file, e.g. `PointGaussianMacro.py`.
 2. Open **ParaView** and go to the top menu:
@@ -43,7 +45,7 @@ To simplify the visualization of your particle data in ParaView, we've prepared 
 
 ---
 
-#### Macro Code (Copy and save as `PointGaussianMacro.py`)
+#### Macro Code
 
 ```python
 # trace generated using paraview version 5.13.1
