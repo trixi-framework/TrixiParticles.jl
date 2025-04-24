@@ -296,7 +296,7 @@ end
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
 
-    # fixed time step size 
+    # fixed time step size #TODO
     time_step = 0.001
     
     density = system.density 
@@ -368,7 +368,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
     # Calculation of the a_ii-values according to equation 12 from IHMSEN et al
     @trixi_timeit timer() "Calculate matrix diagonal a_ii" foreach_system(semi) do neighbor_system
-        # set neighbor system u and v values 
+        # get neighbor system u and v values 
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         # get coordinates
         system_coords = current_coordinates(u, system)
@@ -384,10 +384,11 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                                                                         pos_diff,
                                                                         distance
 
-            # set pressure p0 to a half of the previous/current pressure value
+            # set initial pressure p0 to a half of the current pressure value
             pressure[particle] = 0.5 * pressure[particle]
 
             grad_kernel_ji = smoothing_kernel_grad(system, -pos_diff, distance)
+
             # compute dji
             dji = calculate_dij(neighbor_system, neighbor, density, grad_kernel_ji, time_step)
                                
@@ -420,9 +421,8 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
         end
     end
 
-    # relaxiaion parameter
-    w = 0.5
-
+    # get fields
+    w = 0.5 # relaxiaion parameter
     sum_dj = system.sum_dj
     s_term = system.s_term
     sum_dj .= 0.0
@@ -435,7 +435,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
         updated_density .= predicted_density
         v_updated .= v_adv
         @trixi_timeit timer() "Pressure solve - calculate Sum over d_j's" foreach_system(semi) do neighbor_system
-            # Get neighbor system u and v values 
+            # get neighbor system u and v values 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
             # get coordinates
             system_coords = current_coordinates(u, system)
@@ -459,7 +459,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
         s_term .= 0.0
         @trixi_timeit timer() "Pressure solve - calculate pressure values" foreach_system(semi) do neighbor_system
-            # Get neighbor system u and v values 
+            # get neighbor system u and v values 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
             # get coordinates
             system_coords = current_coordinates(u, system)
@@ -480,10 +480,10 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
         rest_density = 1000.0
         # pressure update
         for particle in eachparticle(system)
-            # Removing instability by avoiding to divide through very low numbers for a
-            # This is not mentioned in the paper but it's what they do in SPlisHSPlasH
+            # Removing instability by avoiding to divide through very low numbers for a_ii
             if abs(a[particle]) > 1e-9
                 pressure[particle] = max((1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - predicted_density[particle] - s_term[particle]), 0) #version with pressure clamping (no negative pressure values)
+                #pressure[particle] = (1-w) * pressure[particle] + w * 1/a[particle] * (rest_density - predicted_density[particle] - s_term[particle]) #version without pressure clamping
             else
                 pressure[particle] = 0
             end
