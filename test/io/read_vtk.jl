@@ -22,30 +22,31 @@
             fluid_system = EntropicallyDampedSPHSystem(expected_ic,
                                                        SchoenbergCubicSplineKernel{2}(),
                                                        rand(), rand())
-            semi = Semidiscretization(fluid_system)
 
             # Overwrite values because we skip the update step
             fluid_system.cache.density .= expected_ic.density
 
+            semi = Semidiscretization(fluid_system)
+
             # Create random ODE solutions
-            Random.seed!(1)
-            u = rand(TrixiParticles.u_nvariables(fluid_system),
-                     TrixiParticles.n_moving_particles(fluid_system))
-            Random.seed!(1)
-            v = rand(TrixiParticles.v_nvariables(fluid_system),
-                     TrixiParticles.n_moving_particles(fluid_system))
+            v = rand(ndims(fluid_system), nparticles(fluid_system))
+            pressure = rand(nparticles(fluid_system))
+            v_ode = vec([v; pressure'])
+
+            u = rand(ndims(fluid_system), nparticles(fluid_system))
+            u_ode = vec(u)
 
             # Write out `FluidSystem` Simulation-File
-            trixi2vtk(fluid_system, v, u, semi, 0.0,
+            trixi2vtk(fluid_system, v_ode, u_ode, semi, 0.0,
                       nothing; system_name="tmp_file_fluid", output_directory=tmp_dir,
                       iter=1)
-            # Load `fluid_system` Simulation-File
+
+            # Load `FluidSystem` Simulation-File
             test = vtk2trixi(joinpath(tmp_dir, "tmp_file_fluid_1.vtu"))
 
             @test isapprox(u, test.coordinates, rtol=1e-5)
-            # Pressure is saved in `v`
-            @test isapprox(v[1:2, :], test.velocity, rtol=1e-5)
-            @test isapprox(v[end, :], test.pressure, rtol=1e-5)
+            @test isapprox(v, test.velocity, rtol=1e-5)
+            @test isapprox(pressure, test.pressure, rtol=1e-5)
             @test isapprox(fluid_system.cache.density, test.density, rtol=1e-5)
         end
 
@@ -63,20 +64,16 @@
             boundary_system = BoundarySPHSystem(expected_ic, boundary_model)
             semi = Semidiscretization(boundary_system)
 
-            # Create random ODE solutions
-            Random.seed!(1)
-            u = rand(TrixiParticles.u_nvariables(boundary_system),
-                     TrixiParticles.n_moving_particles(boundary_system))
-            Random.seed!(1)
-            v = rand(TrixiParticles.v_nvariables(boundary_system),
-                     TrixiParticles.n_moving_particles(boundary_system))
+            # Create dummy ODE solutions
+            v_ode = zeros(ndims(boundary_system) * nparticles(boundary_system))
+            u_ode = zeros(ndims(boundary_system) * nparticles(boundary_system))
 
             # Write out `BoundarySystem` Simulation-File
-            trixi2vtk(boundary_system, v, u, semi, 0.0,
+            trixi2vtk(boundary_system, v_ode, u_ode, semi, 0.0,
                       nothing; system_name="tmp_file_boundary", output_directory=tmp_dir,
                       iter=1)
 
-            # Load `boundary_system` Simulation-File
+            # Load `BoundarySystem` Simulation-File
             test = vtk2trixi(joinpath(tmp_dir, "tmp_file_boundary_1.vtu"))
 
             @test isapprox(boundary_system.coordinates, test.coordinates, rtol=1e-5)
