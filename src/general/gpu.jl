@@ -20,8 +20,8 @@ Adapt.@adapt_structure TotalLagrangianSPHSystem
 Adapt.@adapt_structure Polygon
 Adapt.@adapt_structure TriangleMesh
 Adapt.@adapt_structure BoundingBoxTree
-Adapt.@adapt_structure Base.ReinterpretArray
 Adapt.@adapt_structure WindingNumberJacobson
+Adapt.@adapt_structure HierarchicalWinding
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)

@@ -61,12 +61,16 @@ function ComplexShape(geometry; particle_spacing, density,
 
     if !(geometry.parallelization_backend isa Bool)
         geometry_new = Adapt.adapt(geometry.parallelization_backend, geometry)
+
+        point_in_geometry_algorithm_ = Adapt.adapt(geometry.parallelization_backend,
+                                                   point_in_geometry_algorithm)
     else
         geometry_new = geometry
+        point_in_geometry_algorithm_ = point_in_geometry_algorithm
     end
 
-    inpoly, winding_numbers = point_in_geometry_algorithm(geometry_new, grid;
-                                                          store_winding_number)
+    inpoly, winding_numbers = point_in_geometry_algorithm_(geometry_new, grid;
+                                                           store_winding_number)
 
     coordinates = stack(grid[inpoly])
 
@@ -163,5 +167,17 @@ function particle_grid(geometry, particle_spacing;
 
     grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                     min_corner; tlsph=true)
-    return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
+
+    if !(geometry.parallelization_backend isa Bool)
+        grid_ = KernelAbstractions.allocate(geometry.parallelization_backend,
+                                            SVector{ndims(geometry), eltype(geometry)},
+                                            n_particles)
+
+        grid = copy(reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid))
+        copyto!(grid_, grid)
+
+        return grid_
+    else
+        return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
+    end
 end
