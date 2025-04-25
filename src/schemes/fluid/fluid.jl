@@ -94,6 +94,7 @@ write_v0!(v0, system::FluidSystem, _) = v0
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
+
 @inline function viscosity_model(system::FluidSystem, neighbor_system::FluidSystem)
     return neighbor_system.viscosity
 end
