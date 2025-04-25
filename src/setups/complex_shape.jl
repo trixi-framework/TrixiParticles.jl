@@ -69,10 +69,10 @@ function ComplexShape(geometry; particle_spacing, density,
         point_in_geometry_algorithm_ = point_in_geometry_algorithm
     end
 
-    inpoly, winding_numbers = point_in_geometry_algorithm_(geometry_new, grid;
-                                                           store_winding_number)
+    inpoly = point_in_geometry_algorithm_(geometry_new, grid;
+                                          store_winding_number)
 
-    coordinates = stack(grid[inpoly])
+    coordinates = stack(Vector(grid)[Vector(inpoly)])
 
     initial_condition = InitialCondition(; coordinates, density, mass, velocity, pressure,
                                          particle_spacing)
@@ -169,14 +169,9 @@ function particle_grid(geometry, particle_spacing;
                                     min_corner; tlsph=true)
 
     if !(geometry.parallelization_backend isa Bool)
-        grid_ = KernelAbstractions.allocate(geometry.parallelization_backend,
-                                            SVector{ndims(geometry), eltype(geometry)},
-                                            n_particles)
-
-        grid = copy(reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid))
-        copyto!(grid_, grid)
-
-        return grid_
+        return Adapt.adapt(geometry.parallelization_backend,
+                           reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
+                                       grid))
     else
         return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
     end

@@ -6,21 +6,20 @@ struct BoundingBoxTree{MC, NDIMS, VOT, BBL, BBR}
     closing_faces :: VOT
     min_corner    :: MC
     max_corner    :: MC
-    is_leaf       :: Bool
     child_left    :: BBL
     child_right   :: BBR
 end
 
-function BoundingBoxTree(faces, closing_faces, min_corner, max_corner, is_leaf,
+function BoundingBoxTree(faces, closing_faces, min_corner, max_corner,
                          child_left, child_right)
     MC = typeof(min_corner)
-    VOT = typeof(faces)
     NDIMS = length(min_corner)
+    VOT = typeof(faces)
     BBL = typeof(child_left)
     BBR = typeof(child_right)
 
-    return BoundingBoxTree{MC, NDIMS, VOT, BBL, BBR}(faces, closing_faces, min_corner,
-                                                     max_corner, is_leaf,
+    return BoundingBoxTree{MC, NDIMS, VOT, BBL, BBR}(faces, closing_faces,
+                                                     min_corner, max_corner,
                                                      child_left, child_right)
 end
 
@@ -32,8 +31,7 @@ function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_cor
     max_faces_in_box = NDIMS == 3 ? 100 : 20
     if length(face_ids) < max_faces_in_box
         return BoundingBoxTree(faces(face_ids, geometry), closing_faces,
-                               min_corner, max_corner, true,
-                               nothing, nothing)
+                               min_corner, max_corner, nothing, nothing)
     end
 
     determine_closure!(closing_faces, min_corner, max_corner, geometry, face_ids,
@@ -41,8 +39,7 @@ function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_cor
 
     if length(closing_faces) >= length(face_ids)
         return BoundingBoxTree(faces(face_ids, geometry), closing_faces,
-                               min_corner, max_corner, true,
-                               nothing, nothing)
+                               min_corner, max_corner, nothing, nothing)
     end
 
     # Bisect the box splitting its longest side
@@ -66,10 +63,13 @@ function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_cor
     return BoundingBoxTree{typeof(min_corner), NDIMS,
                            typeof(closing_faces), typeof(child_left),
                            typeof(child_right)}(faces(face_ids, geometry),
-                                                closing_faces,
-                                                min_corner, max_corner, false,
+                                                closing_faces, min_corner, max_corner,
                                                 child_left, child_right)
 end
+
+# Bounding box is a leaf if and only if both children are `nothing`
+@inline is_leaf(::BoundingBoxTree) = false
+@inline is_leaf(::BoundingBoxTree{<:Any, <:Any, <:Any, Nothing, Nothing}) = true
 
 function faces(edge_ids, geometry::Polygon)
     (; edge_vertices_ids) = geometry
@@ -115,7 +115,7 @@ end
 function hierarchical_winding(bounding_box, mesh, query_point)
     (; min_corner, max_corner) = bounding_box
 
-    if bounding_box.is_leaf
+    if is_leaf(bounding_box)
         return naive_winding(mesh, bounding_box.faces, query_point)
 
     elseif !is_in_box(query_point, min_corner, max_corner)
