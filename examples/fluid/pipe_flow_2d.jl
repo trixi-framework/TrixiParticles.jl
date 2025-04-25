@@ -110,7 +110,7 @@ open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
 
 boundary_type_out = OutFlow()
 plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
-outflow = BoundaryZone(; plane=plane_out, plane_normal=-flow_direction,
+outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        boundary_type=boundary_type_out)
 

@@ -107,7 +107,7 @@ function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     # For the linear arrangement, surface normals may still be zero
     # when we have more neighbors than the threshold.
     @test all(i -> system.cache.neighbor_count[i] >= threshold ||
-                  iszero(system.cache.surface_normal[:, i]), 1:nparticles)
+                   iszero(system.cache.surface_normal[:, i]), 1:nparticles)
 end
 
 function compute_curvature!(system, semi, ode)
@@ -130,7 +130,9 @@ end
         (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
     ]
 
-    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center, relative_curvature_error) in variations
+    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
+         relative_curvature_error) in variations
+
         @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
             smoothing_length = smoothing_length_mult * particle_spacing
 
@@ -143,16 +145,17 @@ end
             density = sphere_ic.density
 
             # wall is placed 2.0 away so that it doesn't have much influence on the result
-            system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
-                                                                density,
-                                                                particle_spacing,
-                                                                SurfaceTensionMorris(surface_tension_coefficient=0.072);
-                                                                NDIMS=NDIMS,
-                                                                smoothing_length=smoothing_length,
-                                                                smoothing_kernel=smoothing_kernel,
-                                                                surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                                              ideal_density_threshold=0.9),
-                                                                wall=true, walldistance=2.0)
+            system, bnd_system, semi,
+            ode = create_fluid_system(coordinates, velocity, mass,
+                                      density,
+                                      particle_spacing,
+                                      SurfaceTensionMorris(surface_tension_coefficient=0.072);
+                                      NDIMS=NDIMS,
+                                      smoothing_length=smoothing_length,
+                                      smoothing_kernel=smoothing_kernel,
+                                      surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                                    ideal_density_threshold=0.9),
+                                      wall=true, walldistance=2.0)
 
             compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
 
@@ -231,7 +234,9 @@ end
         (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
     ]
 
-    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center, relative_curvature_error) in variations
+    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
+         relative_curvature_error) in variations
+
         @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
             smoothing_length = smoothing_length_mult * particle_spacing
 
@@ -243,16 +248,17 @@ end
             mass = sphere_ic.mass
             density = sphere_ic.density
 
-            system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
-                                                                density,
-                                                                particle_spacing,
-                                                                SurfaceTensionAkinci(surface_tension_coefficient=0.072);
-                                                                NDIMS=NDIMS,
-                                                                smoothing_length=smoothing_length,
-                                                                smoothing_kernel=smoothing_kernel,
-                                                                surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                                              ideal_density_threshold=0.9),
-                                                                wall=true, walldistance=2.0)
+            system, bnd_system, semi,
+            ode = create_fluid_system(coordinates, velocity, mass,
+                                      density,
+                                      particle_spacing,
+                                      SurfaceTensionAkinci(surface_tension_coefficient=0.072);
+                                      NDIMS=NDIMS,
+                                      smoothing_length=smoothing_length,
+                                      smoothing_kernel=smoothing_kernel,
+                                      surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                                    ideal_density_threshold=0.9),
+                                      wall=true, walldistance=2.0)
 
             compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
 
@@ -329,15 +335,16 @@ end
     density = fill(fluid_density, nparticles)
 
     # Create fluid system (no wall)
-    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
-                                                        density,
-                                                        particle_spacing,
-                                                        SurfaceTensionMorris(surface_tension_coefficient=0.072);
-                                                        NDIMS=NDIMS,
-                                                        smoothing_length=1.5 *
-                                                                         particle_spacing,
-                                                        wall=false,
-                                                        walldistance=0.0)
+    system, bnd_system, semi,
+    ode = create_fluid_system(coordinates, velocity, mass,
+                              density,
+                              particle_spacing,
+                              SurfaceTensionMorris(surface_tension_coefficient=0.072);
+                              NDIMS=NDIMS,
+                              smoothing_length=1.5 *
+                                               particle_spacing,
+                              wall=false,
+                              walldistance=0.0)
 
     # Compute surface normals
     compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
