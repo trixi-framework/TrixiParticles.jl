@@ -33,12 +33,12 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `max_coordinates=2^15`:       The coordinates of particles will be clipped if their
                                 absolute values exceed this threshold.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
-                            Each custom quantity must be a function of `(v, u, t, system)`,
-                            which will be called for every system, where `v` and `u` are the
-                            wrapped solution arrays for the corresponding system and `t` is
-                            the current simulation time. Note that working with these `v`
-                            and `u` arrays requires undocumented internal functions of
-                            TrixiParticles. See [Custom Quantities](@ref custom_quantities)
+                            Each custom quantity must be a function of `(system, data, t)`,
+                            which will be called for every system, where `data` is a named
+                            tuple with fields depending on the system type, and `t` is the
+                            current simulation time. Check the available data for each
+                            system with `available_data(system)`.
+                            See [Custom Quantities](@ref custom_quantities)
                             for a list of pre-defined custom quantities that can be used here.
 
 # Examples
@@ -67,7 +67,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 """
 mutable struct SolutionSavingCallback{I, CQ}
     interval              :: I
-    save_times            :: Array{Float64, 1}
+    save_times            :: Vector{Float64}
     save_initial_solution :: Bool
     save_final_solution   :: Bool
     write_meta_data       :: Bool
@@ -81,7 +81,7 @@ mutable struct SolutionSavingCallback{I, CQ}
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
-                                save_times=Array{Float64, 1}([]),
+                                save_times=Float64[],
                                 save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
                                 prefix="", verbose=false, write_meta_data=true,
@@ -99,16 +99,14 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
         output_directory *= string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
 
-    solution_callback = SolutionSavingCallback(interval, save_times,
+    solution_callback = SolutionSavingCallback(interval, Float64.(save_times),
                                                save_initial_solution, save_final_solution,
                                                write_meta_data, verbose, output_directory,
                                                prefix, max_coordinates, custom_quantities,
                                                -1, Ref("UnknownVersion"))
 
     if length(save_times) > 0
-        # See the large comment below for an explanation why we use `finalize` here.
-        # When support for Julia 1.9 is dropped, the `finalize` argument can be removed.
-        return PresetTimeCallback(save_times, solution_callback, finalize=solution_callback)
+        return PresetTimeCallback(save_times, solution_callback)
     elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(solution_callback, dt,
@@ -137,12 +135,6 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
 
     # Save initial solution
     if solution_callback.save_initial_solution
-        # Update systems to compute quantities like density and pressure
-        semi = integrator.p
-        v_ode, u_ode = u.x
-        update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
-
-        # Apply the callback
         solution_callback(integrator)
     end
 
@@ -198,41 +190,22 @@ end
 # When `interval` is used, this is
 # `DiscreteCallback{<:SolutionSavingCallback,
 #                   <:SolutionSavingCallback,
-#                   typeof(TrixiParticles.initialize_save_cb!),
-#                   typeof(SciMLBase.FINALIZE_DEFAULT)}`.
+#                   typeof(TrixiParticles.initialize_save_cb!)}`.
 #
 # When `dt` is used, this is
 # `DiscreteCallback{DiffEqCallbacks.var"#99#103"{...},
 #                   DiffEqCallbacks.PeriodicCallbackAffect{<:SolutionSavingCallback},
-#                   DiffEqCallbacks.var"#100#104"{...}
-#                   typeof(SciMLBase.FINALIZE_DEFAULT)}`.
+#                   DiffEqCallbacks.var"#100#104"{...}}`.
 #
 # When `save_times` is used, this is
 # `DiscreteCallback{DiffEqCallbacks.var"#115#117"{...},
 #                   <:SolutionSavingCallback,
-#                   DiffEqCallbacks.var"#116#118"{...},
-#                   typeof(SciMLBase.FINALIZE_DEFAULT)}}`.
+#                   DiffEqCallbacks.var"#116#118"{...}}`.
 #
 # So we can unambiguously dispatch on
 # - `DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback}`,
 # - `DiscreteCallback{<:Any, <:PeriodicCallbackAffect{<:SolutionSavingCallback}}`,
 # - `DiscreteCallback{<:Any, <:SolutionSavingCallback}`.
-#
-# WORKAROUND FOR JULIA 1.9:
-# When `save_times` is used, the `affect!` is also wrapped in an anonymous function:
-# `DiscreteCallback{DiffEqCallbacks.var"#110#113"{...},
-#                   DiffEqCallbacks.var"#111#114"{<:SolutionSavingCallback},
-#                   DiffEqCallbacks.var"#116#118"{...},
-#                   typeof(SciMLBase.FINALIZE_DEFAULT)}}`.
-#
-# To dispatch here, we set `finalize` to the callback itself, so that the fourth parameter
-# becomes `<:SolutionSavingCallback`. This is only used in Julia 1.9. 1.10 and later uses
-# a newer version of DiffEqCallbacks.jl that does not have this issue.
-#
-# To use the callback as `finalize`, we have to define the following function.
-# `finalize` is set to `FINALIZE_DEFAULT` by default in the `PresetTimeCallback`,
-# which is a function that just returns `nothing`.
-# We define the `SolutionSavingCallback` to do the same when called with these arguments.
 function (finalize::SolutionSavingCallback)(c, u, t, integrator)
     return nothing
 end
@@ -256,17 +229,12 @@ function Base.show(io::IO,
     print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
 end
 
-# With `save_times`, also working in Julia 1.9.
-# When support for Julia 1.9 is dropped, this can be changed to
-# `DiscreteCallback{<:Any, <:SolutionSavingCallback}`, and the `finalize` argument
-# in the constructor of `SolutionSavingCallback` can be removed.
+# With `save_times`
 function Base.show(io::IO,
-                   cb::DiscreteCallback{<:Any, <:Any, <:Any, <:SolutionSavingCallback})
+                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
-    # This has to be changed to `cb.affect!` when support for Julia 1.9 is dropped
-    # and finalize is removed from the constructor of `SolutionSavingCallback`.
-    solution_saving = cb.finalize
+    solution_saving = cb.affect!
     print(io, "SolutionSavingCallback(save_times=", solution_saving.save_times, ")")
 end
 
@@ -323,15 +291,13 @@ end
 
 # With `save_times`. See comments above.
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:Any, <:Any, <:SolutionSavingCallback})
+                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, cb)
     else
-        # This has to be changed to `cb.affect!` when support for Julia 1.9 is dropped
-        # and finalize is removed from the constructor of `SolutionSavingCallback`.
-        solution_saving = cb.finalize
+        solution_saving = cb.affect!
         cq = collect(solution_saving.custom_quantities)
 
         setup = [

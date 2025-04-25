@@ -39,7 +39,7 @@
                 @test system.density_calculator == density_calculator
                 @test system.state_equation == state_equation
                 @test system.smoothing_kernel == smoothing_kernel
-                @test system.smoothing_length == smoothing_length
+                @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
                 @test system.viscosity === nothing
                 @test system.acceleration == [0.0 for _ in 1:NDIMS]
 
@@ -136,7 +136,7 @@
                 @test system.density_calculator == density_calculator
                 @test system.state_equation == state_equation
                 @test system.smoothing_kernel == smoothing_kernel
-                @test system.smoothing_length == smoothing_length
+                @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
                 @test system.viscosity === nothing
                 @test system.acceleration == [0.0 for _ in 1:NDIMS]
                 @test length(system.mass) == size(setup.coordinates, 2)
@@ -193,7 +193,7 @@
                                              smoothing_length,
                                              density_diffusion=density_diffusion)
 
-        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, [0.0, 0.0], nothing) with 2 particles"
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, nothing, [0.0, 0.0], nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -205,8 +205,10 @@
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… nothing                                                          │
+        │ tansport velocity formulation:  Nothing                                                          │
         │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ surface tension: …………………………………… nothing                                                          │
+        │ surface normal method: …………………… nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ source terms: …………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""

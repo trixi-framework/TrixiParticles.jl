@@ -71,6 +71,13 @@ in water would lead to prohibitively small time steps.
 The speed of sound in Weakly Compressible SPH should be chosen as small as
 possible for numerical efficiency, but large enough to limit density fluctuations
 to about 1%.
+We usually choose the speed of sound as ``10 v_\text{max}``, where ``v_\text{max}``
+is the largest velocity in the simulation.
+This can also be done by approximating the expected maximum velocity.
+For example, in dam break simulations, the speed of sound is often chosen as ``10 \sqrt{gH}``,
+where ``H`` is the initial height of the water column and ``g`` is the gravitational
+acceleration, using the shallow water wave velocity as an estimate.
+See e.g. [Adami et al., 2012](@cite Adami2012).
 
 TrixiParticles.jl requires the initial particle positions and quantities in
 form of an [`InitialCondition`](@ref).
@@ -208,9 +215,8 @@ respective simulation.
 You can find both approaches in our [example files](@ref examples).
 Here, we just use the method with the default parameters, and only disable
 `save_everystep` to avoid expensive saving of the solution in every time step.
-```@example tut_setup
+```@cast tut_setup; width=100, height=50, delay=0, loop=true, loop_delay=5
 sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);
-nothing # hide
 ```
 
 See [Visualization](@ref) for how to visualize the final solution.
@@ -315,8 +321,7 @@ In order to use our kernel in a pre-defined example file, we can use the functio
 The following will run the example simulation
 `examples/fluid/hydrostatic_water_column_2d.jl` with our custom kernel and the corresponding
 smoothing length.
-```@example tut_setup
+```@cast tut_setup; width=100, height=50, delay=0, loop=true, loop_delay=5
 trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              smoothing_kernel=MyGaussianKernel(), smoothing_length=smoothing_length_gauss);
-nothing # hide
+              smoothing_kernel=MyGaussianKernel());
 ```
