@@ -100,8 +100,8 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
-                          mass=nothing, pressure=0.0, particle_spacing=-1.0)
+function InitialCondition(; coordinates, density, velocity = zeros(size(coordinates, 1)),
+                          mass = nothing, pressure = 0.0, particle_spacing = -1.0)
     NDIMS = size(coordinates, 1)
 
     return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
@@ -328,9 +328,9 @@ end
 
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
-function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
-                          min_particle_distance=(system.initial_condition.particle_spacing /
-                                                 4))
+function InitialCondition(sol::ODESolution, system, semi; use_final_velocity = false,
+                          min_particle_distance = (system.initial_condition.particle_spacing /
+                                                   4))
     ic = system.initial_condition
 
     v_ode, u_ode = sol.u[end].x
@@ -364,12 +364,12 @@ function find_too_close_particles(coords1, coords2, max_distance)
     NDIMS = size(coords1, 1)
     result = Int[]
 
-    nhs = GridNeighborhoodSearch{NDIMS}(search_radius=max_distance,
-                                        n_points=size(coords2, 2))
+    nhs = GridNeighborhoodSearch{NDIMS}(search_radius = max_distance,
+                                        n_points = size(coords2, 2))
     PointNeighbors.initialize!(nhs, coords1, coords2)
 
     # We are modifying the vector `result`, so this cannot be parallel
-    foreach_point_neighbor(coords1, coords2, nhs, parallel=false) do particle, _, _, _
+    foreach_point_neighbor(coords1, coords2, nhs, parallel = false) do particle, _, _, _
         if !(particle in result)
             push!(result, particle)
         end
@@ -383,12 +383,13 @@ function find_too_close_particles(coords, min_distance)
     NDIMS = size(coords, 1)
     result = Int[]
 
-    nhs = GridNeighborhoodSearch{NDIMS}(search_radius=min_distance,
-                                        n_points=size(coords, 2))
+    nhs = GridNeighborhoodSearch{NDIMS}(search_radius = min_distance,
+                                        n_points = size(coords, 2))
     TrixiParticles.initialize!(nhs, coords)
 
     # We are modifying the vector `result`, so this cannot be parallel
-    foreach_point_neighbor(coords, coords, nhs, parallel=false) do particle, neighbor, _, _
+    foreach_point_neighbor(coords, coords, nhs,
+                           parallel = false) do particle, neighbor, _, _
         # Only consider particles with neighbors that are not to be removed
         if particle != neighbor && !(particle in result) && !(neighbor in result)
             push!(result, particle)

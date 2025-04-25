@@ -1,6 +1,6 @@
 @testset verbose=true "InfoCallback" begin
     @testset verbose=true "show" begin
-        callback = InfoCallback(interval=10)
+        callback = InfoCallback(interval = 10)
 
         show_compact = "InfoCallback(interval=10)"
         @test repr(callback) == show_compact
@@ -20,17 +20,17 @@
         # Build a mock `integrator`, which is a `NamedTuple` holding the fields that are
         # accessed in `initialize_info_callback`.
         continuous_callbacks = (:cb1, :cb2)
-        discrete_callbacks = (callback, (; (affect!)=:cb3))
+        discrete_callbacks = (callback, (; (affect!) = :cb3))
 
-        semi = (; systems=(:system1, :system2))
+        semi = (; systems = (:system1, :system2))
 
-        integrator = (; p=semi,
-                      opts=(;
-                            callback=(; continuous_callbacks, discrete_callbacks),
-                            adaptive=true, abstol=1e-2, reltol=1e-1,
-                            controller=:controller),
-                      alg=Val(:alg),
-                      sol=(; prob=(; tspan=(0.1, 0.5))))
+        integrator = (; p = semi,
+                      opts = (;
+                              callback = (; continuous_callbacks, discrete_callbacks),
+                              adaptive = true, abstol = 1e-2, reltol = 1e-1,
+                              controller = :controller),
+                      alg = Val(:alg),
+                      sol = (; prob = (; tspan = (0.1, 0.5))))
 
         expected = """
 
@@ -92,11 +92,11 @@
 
         # Build a mock `integrator`, which is a `NamedTuple` holding the fields that are
         # accessed in `initialize_info_callback`.
-        integrator = (; t=23.42,
-                      stats=(; naccept=453),
-                      iter=472,
-                      dt=1.4548e-3,
-                      sol=(; prob=(; tspan=(0.0, 30.0))))
+        integrator = (; t = 23.42,
+                      stats = (; naccept = 453),
+                      iter = 472,
+                      dt = 1.4548e-3,
+                      sol = (; prob = (; tspan = (0.0, 30.0))))
 
         TrixiParticles.isfinished(::NamedTuple) = false
         TrixiParticles.u_modified!(::NamedTuple, _) = nothing
@@ -122,10 +122,10 @@
 
         # Build a mock `integrator`, which is a `NamedTuple` holding the fields that are
         # accessed in `initialize_info_callback`.
-        integrator = (; t=23.0,
-                      stats=(; naccept=453),
-                      iter=472,
-                      dt=1e-3)
+        integrator = (; t = 23.0,
+                      stats = (; naccept = 453),
+                      iter = 472,
+                      dt = 1e-3)
 
         TrixiParticles.isfinished(::NamedTuple) = true
         TrixiParticles.u_modified!(::NamedTuple, _) = nothing

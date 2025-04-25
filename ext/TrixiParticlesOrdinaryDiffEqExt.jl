@@ -86,7 +86,7 @@ end
 
 @muladd function OrdinaryDiffEqCore.perform_step!(integrator,
                                                   cache::SymplecticPositionVerletCache,
-                                                  repeat_step=false)
+                                                  repeat_step = false)
     (; t, dt, f, p) = integrator
     duprev, uprev, _, _ = load_symp_state(integrator)
     du, u, kdu, ku = alloc_symp_state(integrator)

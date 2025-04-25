@@ -9,7 +9,7 @@ trixiparticles_root_dir = dirname(@__DIR__)
 
 # Copy files to not need to synchronize them manually
 function copy_file(filename, replaces...;
-                   new_file=joinpath(@__DIR__, "src", lowercase(filename)))
+                   new_file = joinpath(@__DIR__, "src", lowercase(filename)))
     source_path = joinpath(trixiparticles_root_dir, filename)
 
     if !isfile(source_path)
@@ -74,7 +74,7 @@ function replace_with_code(filename)
     file_basename = basename(filename)
 
     # Replace all occurrences in the markdown content
-    copy_file(filename, new_file=joinpath(path_tutorials, file_basename),
+    copy_file(filename, new_file = joinpath(path_tutorials, file_basename),
               pattern => replace_include)
 end
 
@@ -99,7 +99,8 @@ copy_file("CODE_OF_CONDUCT.md",
 copy_file("NEWS.md")
 
 # Define module-wide setups such that the respective modules are available in doctests
-DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recursive=true)
+DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles);
+                    recursive = true)
 
 # Define environment variables to create plots without warnings
 # https://discourse.julialang.org/t/test-plots-on-travis-gks-cant-open-display/9465/2
@@ -108,13 +109,13 @@ ENV["GKSwstype"] = "100"
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
-makedocs(sitename="TrixiParticles.jl",
-         plugins=[bib],
+makedocs(sitename = "TrixiParticles.jl",
+         plugins = [bib],
          # Run doctests and check docs for the following modules
-         modules=[TrixiParticles, TrixiBase],
-         format=Documenter.HTML(; assets=Asciicast.assets()),
+         modules = [TrixiParticles, TrixiBase],
+         format = Documenter.HTML(; assets = Asciicast.assets()),
          # Explicitly specify documentation structure
-         pages=[
+         pages = [
              "Home" => "index.md",
              "News" => "news.md",
              "Installation" => "install.md",
@@ -164,5 +165,5 @@ makedocs(sitename="TrixiParticles.jl",
              "References" => "references.md"
          ])
 
-deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",
-           devbranch="main", push_preview=true)
+deploydocs(repo = "github.com/trixi-framework/TrixiParticles.jl",
+           devbranch = "main", push_preview = true)

@@ -22,16 +22,16 @@ end
 @inline function PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
                                                  neighborhood_search::NoUpdateNeighborhoodSearch,
                                                  particle;
-                                                 search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
+                                                 search_radius = PointNeighbors.search_radius(neighborhood_search.nhs))
     PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
                                     neighborhood_search.nhs, particle,
-                                    search_radius=search_radius)
+                                    search_radius = search_radius)
 end
 
 # No update
 @inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
-                                        points_moving=(true, true),
-                                        parallelization_backend=false)
+                                        points_moving = (true, true),
+                                        parallelization_backend = false)
     return search
 end
 

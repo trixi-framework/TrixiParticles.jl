@@ -80,12 +80,12 @@ mutable struct SolutionSavingCallback{I, CQ}
     git_hash              :: Ref{String}
 end
 
-function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
-                                save_times=Float64[],
-                                save_initial_solution=true, save_final_solution=true,
-                                output_directory="out", append_timestamp=false,
-                                prefix="", verbose=false, write_meta_data=true,
-                                max_coordinates=Float64(2^15), custom_quantities...)
+function SolutionSavingCallback(; interval::Integer = 0, dt = 0.0,
+                                save_times = Float64[],
+                                save_initial_solution = true, save_final_solution = true,
+                                output_directory = "out", append_timestamp = false,
+                                prefix = "", verbose = false, write_meta_data = true,
+                                max_coordinates = Float64(2^15), custom_quantities...)
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
         throw(ArgumentError("Setting multiple save times for the same solution " *
                             "callback is not possible. Use either `dt`, `interval` or `save_times`."))
@@ -110,14 +110,14 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
     elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(solution_callback, dt,
-                                initialize=(initialize_save_cb!),
-                                save_positions=(false, false),
-                                final_affect=save_final_solution)
+                                initialize = (initialize_save_cb!),
+                                save_positions = (false, false),
+                                final_affect = save_final_solution)
     else
         # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(solution_callback, solution_callback,
-                                save_positions=(false, false),
-                                initialize=(initialize_save_cb!))
+                                save_positions = (false, false),
+                                initialize = (initialize_save_cb!))
     end
 end
 
@@ -146,7 +146,7 @@ function (solution_callback::SolutionSavingCallback)(u, t, integrator)
     (; interval, save_final_solution) = solution_callback
 
     return condition_integrator_interval(integrator, interval,
-                                         save_final_solution=save_final_solution)
+                                         save_final_solution = save_final_solution)
 end
 
 # `affect!`
@@ -175,7 +175,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
 
     @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t;
                                                     iter, output_directory, prefix,
-                                                    write_meta_data, git_hash=git_hash[],
+                                                    write_meta_data, git_hash = git_hash[],
                                                     max_coordinates, custom_quantities...)
 
     # Tell OrdinaryDiffEq that `u` has not been modified

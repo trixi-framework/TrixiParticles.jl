@@ -9,7 +9,7 @@ Penalty force to ensure regular particle positions under large deformations.
 """
 struct PenaltyForceGanzenmueller{ELTYPE}
     alpha::ELTYPE
-    function PenaltyForceGanzenmueller(; alpha=0.1)
+    function PenaltyForceGanzenmueller(; alpha = 0.1)
         new{typeof(alpha)}(alpha)
     end
 end

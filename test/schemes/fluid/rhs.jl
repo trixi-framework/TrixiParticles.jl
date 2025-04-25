@@ -91,7 +91,7 @@
                                                                        nothing)
 
                             # Test that both forces are identical but in opposite directions
-                            @test isapprox(m_a * dv1, -m_b * dv2, rtol=2eps())
+                            @test isapprox(m_a * dv1, -m_b * dv2, rtol = 2eps())
                         end
                     end
                 end
@@ -112,7 +112,7 @@
 
         # The state equation is only needed to unpack `sound_speed`, so we can mock
         # it by using a `NamedTuple`.
-        state_equation = (; sound_speed=0.0)
+        state_equation = (; sound_speed = 0.0)
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.2particle_spacing
         search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
@@ -123,14 +123,14 @@
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
                 # summation. A larger tolerance has to be used for the tests below.
-                fluid = rectangular_patch(particle_spacing, (3, 3), seed=seed)
+                fluid = rectangular_patch(particle_spacing, (3, 3), seed = seed)
                 system_wcsph = WeaklyCompressibleSPHSystem(fluid, density_calculator,
                                                            state_equation, smoothing_kernel,
                                                            smoothing_length)
 
                 system_edac = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                                          pressure_acceleration=nothing,
-                                                          density_calculator=density_calculator,
+                                                          pressure_acceleration = nothing,
+                                                          density_calculator = density_calculator,
                                                           smoothing_length, 0.0)
                 n_particles = TrixiParticles.nparticles(system_edac)
 
@@ -166,9 +166,9 @@
 
                     # Linear momentum conservation
                     # ∑ m_a dv_a
-                    deriv_linear_momentum = sum(fluid.mass' .* view(dv, 1:2, :), dims=2)
+                    deriv_linear_momentum = sum(fluid.mass' .* view(dv, 1:2, :), dims = 2)
 
-                    @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=5e-14)
+                    @test isapprox(deriv_linear_momentum, zeros(2, 1), atol = 5e-14)
 
                     # Angular momentum conservation
                     # m_a (r_a × dv_a)
@@ -183,7 +183,7 @@
                     deriv_angular_momentum = sum(deriv_angular_momentum, 1:n_particles)
 
                     # Cross product is always 3-dimensional
-                    @test isapprox(deriv_angular_momentum, zeros(3), atol=4e-15)
+                    @test isapprox(deriv_angular_momentum, zeros(3), atol = 4e-15)
 
                     # Total energy conservation
                     function drho(::ContinuityDensity, ::WeaklyCompressibleSPHSystem,
@@ -236,7 +236,7 @@
                     # ∑ m_a (v_a ⋅ dv_a + dte_a)
                     deriv_total_energy = sum(deriv_energy, 1:n_particles)
 
-                    @test isapprox(deriv_total_energy, 0.0, atol=6e-15)
+                    @test isapprox(deriv_total_energy, 0.0, atol = 6e-15)
                 end
             end
         end

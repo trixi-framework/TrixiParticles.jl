@@ -6,9 +6,9 @@
         # Mock fluid system
         struct FluidSystemMock2 <: TrixiParticles.FluidSystem{2} end
 
-        inflow = BoundaryZone(; plane, particle_spacing=0.1,
-                              plane_normal=flow_direction, density=1.0,
-                              open_boundary_layers=2, boundary_type=InFlow())
+        inflow = BoundaryZone(; plane, particle_spacing = 0.1,
+                              plane_normal = flow_direction, density = 1.0,
+                              open_boundary_layers = 2, boundary_type = InFlow())
 
         error_str = "`reference_velocity` must be either a function mapping " *
                     "each particle's coordinates and time to its velocity, " *
@@ -17,11 +17,11 @@
 
         reference_velocity = 1.0
         @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow;
-                                                                    boundary_model=BoundaryModelLastiwka(),
-                                                                    buffer_size=0,
-                                                                    fluid_system=FluidSystemMock2(),
-                                                                    reference_density=0,
-                                                                    reference_pressure=0,
+                                                                    boundary_model = BoundaryModelLastiwka(),
+                                                                    buffer_size = 0,
+                                                                    fluid_system = FluidSystemMock2(),
+                                                                    reference_density = 0,
+                                                                    reference_pressure = 0,
                                                                     reference_velocity)
 
         error_str = "`reference_pressure` must be either a function mapping " *
@@ -30,11 +30,12 @@
 
         reference_pressure = [1.0, 1.0]
         @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow;
-                                                                    boundary_model=BoundaryModelLastiwka(),
-                                                                    buffer_size=0,
-                                                                    fluid_system=FluidSystemMock2(),
-                                                                    reference_density=0,
-                                                                    reference_velocity=[1.0,
+                                                                    boundary_model = BoundaryModelLastiwka(),
+                                                                    buffer_size = 0,
+                                                                    fluid_system = FluidSystemMock2(),
+                                                                    reference_density = 0,
+                                                                    reference_velocity = [
+                                                                        1.0,
                                                                         1.0],
                                                                     reference_pressure)
 
@@ -44,24 +45,25 @@
 
         reference_density = [1.0, 1.0]
         @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow;
-                                                                    boundary_model=BoundaryModelLastiwka(),
-                                                                    buffer_size=0,
-                                                                    fluid_system=FluidSystemMock2(),
+                                                                    boundary_model = BoundaryModelLastiwka(),
+                                                                    buffer_size = 0,
+                                                                    fluid_system = FluidSystemMock2(),
                                                                     reference_density,
-                                                                    reference_velocity=[1.0,
+                                                                    reference_velocity = [
+                                                                        1.0,
                                                                         1.0],
-                                                                    reference_pressure=0)
+                                                                    reference_pressure = 0)
     end
     @testset "`show`" begin
-        inflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
-                              plane_normal=(1.0, 0.0), density=1.0,
-                              open_boundary_layers=4, boundary_type=InFlow())
-        system = OpenBoundarySPHSystem(inflow; buffer_size=0,
-                                       boundary_model=BoundaryModelLastiwka(),
-                                       reference_density=0.0,
-                                       reference_pressure=0.0,
-                                       reference_velocity=[0.0, 0.0],
-                                       fluid_system=FluidSystemMock2())
+        inflow = BoundaryZone(; plane = ([0.0, 0.0], [0.0, 1.0]), particle_spacing = 0.05,
+                              plane_normal = (1.0, 0.0), density = 1.0,
+                              open_boundary_layers = 4, boundary_type = InFlow())
+        system = OpenBoundarySPHSystem(inflow; buffer_size = 0,
+                                       boundary_model = BoundaryModelLastiwka(),
+                                       reference_density = 0.0,
+                                       reference_pressure = 0.0,
+                                       reference_velocity = [0.0, 0.0],
+                                       fluid_system = FluidSystemMock2())
 
         show_compact = "OpenBoundarySPHSystem{2}(InFlow) with 80 particles"
         @test repr(system) == show_compact
@@ -82,15 +84,16 @@
 
         @test repr("text/plain", system) == show_box
 
-        outflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
-                               plane_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
-                               boundary_type=OutFlow())
-        system = OpenBoundarySPHSystem(outflow; buffer_size=0,
-                                       boundary_model=BoundaryModelLastiwka(),
-                                       reference_density=0.0,
-                                       reference_pressure=0.0,
-                                       reference_velocity=[0.0, 0.0],
-                                       fluid_system=FluidSystemMock2())
+        outflow = BoundaryZone(; plane = ([0.0, 0.0], [0.0, 1.0]), particle_spacing = 0.05,
+                               plane_normal = (1.0, 0.0), density = 1.0,
+                               open_boundary_layers = 4,
+                               boundary_type = OutFlow())
+        system = OpenBoundarySPHSystem(outflow; buffer_size = 0,
+                                       boundary_model = BoundaryModelLastiwka(),
+                                       reference_density = 0.0,
+                                       reference_pressure = 0.0,
+                                       reference_velocity = [0.0, 0.0],
+                                       fluid_system = FluidSystemMock2())
 
         show_compact = "OpenBoundarySPHSystem{2}(OutFlow) with 80 particles"
         @test repr(system) == show_compact

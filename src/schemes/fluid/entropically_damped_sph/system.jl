@@ -77,16 +77,16 @@ end
 # See the comments in general/gpu.jl for more details.
 function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      smoothing_length, sound_speed;
-                                     pressure_acceleration=inter_particle_averaged_pressure,
-                                     density_calculator=SummationDensity(),
-                                     transport_velocity=nothing,
-                                     alpha=0.5, viscosity=nothing,
-                                     acceleration=ntuple(_ -> 0.0,
-                                                         ndims(smoothing_kernel)),
-                                     correction=nothing,
-                                     source_terms=nothing, surface_tension=nothing,
-                                     surface_normal_method=nothing, buffer_size=nothing,
-                                     reference_particle_spacing=0.0, color_value=1)
+                                     pressure_acceleration = inter_particle_averaged_pressure,
+                                     density_calculator = SummationDensity(),
+                                     transport_velocity = nothing,
+                                     alpha = 0.5, viscosity = nothing,
+                                     acceleration = ntuple(_ -> 0.0,
+                                                           ndims(smoothing_kernel)),
+                                     correction = nothing,
+                                     source_terms = nothing, surface_tension = nothing,
+                                     surface_normal_method = nothing, buffer_size = nothing,
+                                     reference_particle_spacing = 0.0, color_value = 1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -139,14 +139,14 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      smoothing_length)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
-             color=Int(color_value))
+             color = Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+                 reference_particle_spacing = reference_particle_spacing)
     end
 
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
@@ -299,7 +299,7 @@ function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_od
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+                       update_from_callback = false)
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already
@@ -335,8 +335,8 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
-                               points=each_moving_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points = each_moving_particle(system)) do particle, neighbor,
+                                                                         pos_diff, distance
             pressure_average[particle] += current_pressure(v_neighbor_system,
                                                            neighbor_system,
                                                            neighbor)

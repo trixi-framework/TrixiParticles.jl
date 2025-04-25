@@ -55,7 +55,7 @@
                                                                                    state_equation,
                                                                                    smoothing_kernel,
                                                                                    smoothing_length,
-                                                                                   acceleration=(0.0))
+                                                                                   acceleration = (0.0))
 
                 error_str2 = "smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
                 @test_throws ArgumentError(error_str2) WeaklyCompressibleSPHSystem(initial_condition,
@@ -70,15 +70,15 @@
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructors with Setups" begin
         setups = [
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
-            RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), density=1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density = 1.0),
+            RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), density = 1.0),
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
             RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
                             1020.0).fluid,
             SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0),
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0)
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density = 1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density = 1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density = 1.0)
         ]
         setup_names = [
             "RectangularShape 2D",
@@ -126,13 +126,13 @@
                                                                                       state_equation,
                                                                                       smoothing_kernel,
                                                                                       smoothing_length,
-                                                                                      correction=corr)
+                                                                                      correction = corr)
                     continue
                 end
                 system = WeaklyCompressibleSPHSystem(setup, density_calculator,
                                                      state_equation, smoothing_kernel,
                                                      smoothing_length,
-                                                     correction=corr)
+                                                     correction = corr)
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
                 @test system.initial_condition == setup
@@ -174,7 +174,7 @@
                                                                                   state_equation,
                                                                                   smoothing_kernel,
                                                                                   smoothing_length,
-                                                                                  acceleration=(0.0))
+                                                                                  acceleration = (0.0))
             end
         end
     end
@@ -197,7 +197,7 @@
                                              density_calculator,
                                              state_equation, smoothing_kernel,
                                              smoothing_length,
-                                             density_diffusion=density_diffusion)
+                                             density_diffusion = density_diffusion)
 
         show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, nothing, [0.0, 0.0], nothing) with 2 particles"
         @test repr(system) == show_compact

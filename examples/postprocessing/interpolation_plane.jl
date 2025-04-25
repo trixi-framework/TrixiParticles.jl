@@ -6,7 +6,7 @@ using Plots.PlotMeasures
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              tspan=(0.0, 0.1))
+              tspan = (0.0, 0.1))
 
 # Interpolation parameters
 interpolation_start = [0.0, 0.0]
@@ -34,7 +34,7 @@ interpolate_plane_2d_vtk(interpolation_start, interpolation_end, resolution,
 # can affect both the accuracy and smoothness of the interpolated results.
 double_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
                                               resolution, semi, fluid_system, sol,
-                                              smoothing_length=2.0 * smoothing_length)
+                                              smoothing_length = 2.0 * smoothing_length)
 double_x = [point[1] for point in double_smoothing_plane.coord]
 double_y = [point[2] for point in double_smoothing_plane.coord]
 double_pressure = double_smoothing_plane.pressure
@@ -46,32 +46,35 @@ double_pressure = double_smoothing_plane.pressure
 # balance between the detail of disturbances captured and the precision of fluid representation near surfaces.
 half_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
                                             resolution, semi, fluid_system, sol,
-                                            smoothing_length=0.5 * smoothing_length)
+                                            smoothing_length = 0.5 * smoothing_length)
 half_x = [point[1] for point in half_smoothing_plane.coord]
 half_y = [point[2] for point in half_smoothing_plane.coord]
 half_pressure = half_smoothing_plane.pressure
 
-scatter1 = Plots.scatter(original_x, original_y, zcolor=original_pressure, marker=:circle,
-                         markersize=2, markercolor=:viridis, markerstrokewidth=0)
-scatter2 = Plots.scatter(double_x, double_y, zcolor=double_pressure, marker=:circle,
-                         markersize=2, markercolor=:viridis, markerstrokewidth=0)
-scatter3 = Plots.scatter(half_x, half_y, zcolor=half_pressure, marker=:circle, markersize=2,
-                         markercolor=:viridis, markerstrokewidth=0)
+scatter1 = Plots.scatter(original_x, original_y, zcolor = original_pressure,
+                         marker = :circle,
+                         markersize = 2, markercolor = :viridis, markerstrokewidth = 0)
+scatter2 = Plots.scatter(double_x, double_y, zcolor = double_pressure, marker = :circle,
+                         markersize = 2, markercolor = :viridis, markerstrokewidth = 0)
+scatter3 = Plots.scatter(half_x, half_y, zcolor = half_pressure, marker = :circle,
+                         markersize = 2,
+                         markercolor = :viridis, markerstrokewidth = 0)
 
-plot1 = Plots.plot(scatter1, xlabel="X Coordinate", ylabel="Y Coordinate",
-                   title="Pressure Distribution", colorbar_title="Pressure",
-                   ylim=(0.0, 1.0), legend=false, clim=(0, 9000), colorbar=true)
-plot2 = Plots.plot(scatter2, xlabel="X Coordinate", ylabel="Y Coordinate",
-                   title="Pressure with 2x Smoothing Length", colorbar_title="Pressure",
-                   ylim=(0.0, 1.0), legend=false, clim=(0, 9000), colorbar=true)
-plot3 = Plots.plot(scatter3, xlabel="X Coordinate", ylabel="Y Coordinate",
-                   title="Pressure with 0.5x Smoothing Length", colorbar_title="Pressure",
-                   ylim=(0.0, 1.0), legend=false, clim=(0, 9000), colorbar=true)
+plot1 = Plots.plot(scatter1, xlabel = "X Coordinate", ylabel = "Y Coordinate",
+                   title = "Pressure Distribution", colorbar_title = "Pressure",
+                   ylim = (0.0, 1.0), legend = false, clim = (0, 9000), colorbar = true)
+plot2 = Plots.plot(scatter2, xlabel = "X Coordinate", ylabel = "Y Coordinate",
+                   title = "Pressure with 2x Smoothing Length", colorbar_title = "Pressure",
+                   ylim = (0.0, 1.0), legend = false, clim = (0, 9000), colorbar = true)
+plot3 = Plots.plot(scatter3, xlabel = "X Coordinate", ylabel = "Y Coordinate",
+                   title = "Pressure with 0.5x Smoothing Length",
+                   colorbar_title = "Pressure",
+                   ylim = (0.0, 1.0), legend = false, clim = (0, 9000), colorbar = true)
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_3d.jl"),
-              tspan=(0.0, 0.01), initial_fluid_size=(2.0, 1.0, 0.9),
-              tank_size=(2.0, 1.0, 1.2))
+              tspan = (0.0, 0.01), initial_fluid_size = (2.0, 1.0, 0.9),
+              tank_size = (2.0, 1.0, 1.2))
 
 # Interpolation parameters
 p1 = [0.0, 0.0, 0.0]
@@ -87,15 +90,16 @@ original_y = [point[2] for point in original_plane.coord]
 original_z = [point[3] for point in original_plane.coord]
 original_pressure = original_plane.pressure
 
-scatter_3d = Plots.scatter3d(original_x, original_y, original_z, marker_z=original_pressure,
-                             color=:viridis, markerstrokewidth=0)
+scatter_3d = Plots.scatter3d(original_x, original_y, original_z,
+                             marker_z = original_pressure,
+                             color = :viridis, markerstrokewidth = 0)
 
-plot_3d = Plots.plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z",
-                     title="3D Scatter Plot with Pressure Coloring", legend=false,
-                     clim=(0, 9000), colorbar=false)
+plot_3d = Plots.plot(scatter_3d, xlabel = "X", ylabel = "Y", zlabel = "Z",
+                     title = "3D Scatter Plot with Pressure Coloring", legend = false,
+                     clim = (0, 9000), colorbar = false)
 
-combined_plot = Plots.plot(plot1, plot2, plot3, plot_3d, layout=(2, 2),
-                           size=(1000, 1500), margin=3mm)
+combined_plot = Plots.plot(plot1, plot2, plot3, plot_3d, layout = (2, 2),
+                           size = (1000, 1500), margin = 3mm)
 
 # If we want to save planes at regular intervals, we can use the postprocessing callback.
 # Note that the arguments `system, v_ode, u_ode, semi, t` are more powerful than the
@@ -111,13 +115,13 @@ function save_interpolated_plane(system, v_ode, u_ode, semi, t)
 
     file_id = ceil(Int, t * 10000)
     interpolate_plane_2d_vtk(interpolation_start, interpolation_end, resolution,
-                             semi, system, v_ode, u_ode, filename="plane_$file_id.vti")
+                             semi, system, v_ode, u_ode, filename = "plane_$file_id.vti")
     return nothing
 end
 
-save_interpolation_cb = PostprocessCallback(; dt=0.1, write_file_interval=0,
+save_interpolation_cb = PostprocessCallback(; dt = 0.1, write_file_interval = 0,
                                             save_interpolated_plane)
 
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "dam_break_2d.jl"), tspan=(0.0, 0.2),
-              extra_callback=save_interpolation_cb, fluid_particle_spacing=0.01)
+              joinpath(examples_dir(), "fluid", "dam_break_2d.jl"), tspan = (0.0, 0.2),
+              extra_callback = save_interpolation_cb, fluid_particle_spacing = 0.01)

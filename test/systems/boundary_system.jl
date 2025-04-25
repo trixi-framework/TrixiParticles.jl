@@ -34,7 +34,7 @@
             coordinates = coordinates_[i]
 
             initial_condition = InitialCondition(; coordinates, mass, density)
-            model = (; hydrodynamic_mass=3)
+            model = (; hydrodynamic_mass = 3)
 
             function movement_function(t)
                 if NDIMS == 2
@@ -46,7 +46,7 @@
 
             is_moving(t) = t < 1.0
             bm = BoundaryMovement(movement_function, is_moving)
-            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+            system = BoundarySPHSystem(initial_condition, model, movement = bm)
 
             # Moving
             t = 0.6
@@ -78,8 +78,8 @@
 
             initial_condition = InitialCondition(; coordinates, mass, density)
 
-            bm = BoundaryMovement(movement_function, is_moving, moving_particles=[2])
-            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+            bm = BoundaryMovement(movement_function, is_moving, moving_particles = [2])
+            system = BoundarySPHSystem(initial_condition, model, movement = bm)
 
             t = 0.1
             system.movement(system, t, false)
@@ -107,7 +107,7 @@
         mass = [1.0, 1.0]
         density = [1000.0, 1000.0]
         initial_condition = InitialCondition(; coordinates, mass, density)
-        model = (; hydrodynamic_mass=3)
+        model = (; hydrodynamic_mass = 3)
 
         system = BoundarySPHSystem(initial_condition, model)
 

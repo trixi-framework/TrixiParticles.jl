@@ -28,12 +28,12 @@ tank_size = 4 .* initial_fluid_size
 
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=1)
+state_equation = StateEquationCole(; sound_speed, reference_density = fluid_density,
+                                   exponent = 1)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       n_layers = boundary_layers, spacing_ratio = spacing_ratio,
+                       acceleration = (0.0, -gravity), state_equation = state_equation)
 
 # Elastic plate/beam
 length_beam = 0.08
@@ -56,10 +56,10 @@ n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_x, n_particles_y - 1),
                          (2initial_fluid_size[1], solid_particle_spacing),
-                         density=solid_density, tlsph=true)
+                         density = solid_density, tlsph = true)
 fixed_particles = RectangularShape(solid_particle_spacing,
                                    (n_particles_x, 1), (2initial_fluid_size[1], 0.0),
-                                   density=solid_density, tlsph=true)
+                                   density = solid_density, tlsph = true)
 
 solid = union(plate, fixed_particles)
 
@@ -69,18 +69,18 @@ smoothing_length = 3.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+viscosity = ArtificialViscosityMonaghan(alpha = 0.02, beta = 0.0)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity))
+                                           smoothing_length, viscosity = viscosity,
+                                           acceleration = (0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
+                                             state_equation = state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 
@@ -116,18 +116,18 @@ boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, spacing_ratio_solid,
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
-                                        E, nu, boundary_model=boundary_model_solid,
-                                        n_fixed_particles=n_particles_x,
-                                        acceleration=(0.0, -gravity),
-                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+                                        E, nu, boundary_model = boundary_model_solid,
+                                        n_fixed_particles = n_particles_x,
+                                        acceleration = (0.0, -gravity),
+                                        penalty_force = PenaltyForceGanzenmueller(alpha = 0.01))
 
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system, solid_system)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+info_callback = InfoCallback(interval = 100)
+saving_callback = SolutionSavingCallback(dt = 0.02, prefix = "")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
@@ -139,7 +139,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-3, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+            abstol = 1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol = 1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax = 1e-3, # Limit stepsize to prevent crashing
+            save_everystep = false, callback = callbacks);

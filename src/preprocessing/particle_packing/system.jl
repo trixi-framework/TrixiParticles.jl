@@ -57,11 +57,11 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, K,
 
     function ParticlePackingSystem(shape::InitialCondition;
                                    signed_distance_field::SignedDistanceField,
-                                   smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
-                                   smoothing_length=1.2 * shape.particle_spacing,
-                                   is_boundary=false, boundary_compress_factor=1.0,
-                                   neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                                   background_pressure, tlsph=true)
+                                   smoothing_kernel = SchoenbergCubicSplineKernel{ndims(shape)}(),
+                                   smoothing_length = 1.2 * shape.particle_spacing,
+                                   is_boundary = false, boundary_compress_factor = 1.0,
+                                   neighborhood_search = GridNeighborhoodSearch{ndims(shape)}(),
+                                   background_pressure, tlsph = true)
         NDIMS = ndims(shape)
         ELTYPE = eltype(shape)
 
@@ -151,7 +151,8 @@ end
 
 update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
-function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem, semi; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem, semi;
+                    write_meta_data = true)
     if write_meta_data
         vtk["signed_distances"] = system.signed_distances
     end
@@ -168,7 +169,7 @@ function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
     is_boundary && return zero(eltype(system))
 
     # If `each_moving_particle` is empty (no moving particles), return zero
-    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
+    return sum(each_moving_particle(system), init = zero(eltype(system))) do particle
         velocity = advection_velocity(v, system, particle)
         return initial_condition.mass[particle] * dot(velocity, velocity) / 2
     end
@@ -203,7 +204,7 @@ function update_position!(u, system::ParticlePackingSystem, semi)
 end
 
 function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+                       update_from_callback = false)
     if !update_from_callback && !(system.update_callback_used[])
         throw(ArgumentError("`UpdateCallback` is required when using `ParticlePackingSystem`"))
     end

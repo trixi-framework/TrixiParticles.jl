@@ -92,8 +92,8 @@
 
             function TrixiParticles.get_neighborhood_search(system, neighbor_system,
                                                             semi::Val{:semi_solid_interact})
-                return TrivialNeighborhoodSearch{2}(search_radius=1000.0,
-                                                    eachpoint=eachneighbor)
+                return TrivialNeighborhoodSearch{2}(search_radius = 1000.0,
+                                                    eachpoint = eachneighbor)
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
@@ -185,7 +185,7 @@
             names = ["CPU code", "GPU code emulated on the CPU"]
             backends = [false, TrixiParticles.KernelAbstractions.CPU()]
             @testset "$(names[i])" for i in eachindex(names)
-                semi = Semidiscretization(system, parallelization_backend=backends[i])
+                semi = Semidiscretization(system, parallelization_backend = backends[i])
                 ode = semidiscretize(semi, tspan)
 
                 # Apply the deformation matrix
@@ -209,7 +209,7 @@
                 dv = TrixiParticles.wrap_v(dv_ode, system, semi)
 
                 @test isapprox(dv[:, particle], dv_expected_41[deformation],
-                               rtol=sqrt(eps()), atol=sqrt(eps()))
+                               rtol = sqrt(eps()), atol = sqrt(eps()))
             end
         end
     end

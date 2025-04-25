@@ -13,7 +13,7 @@ position_x = tank_size[1] / 2
 println(interpolate_point([position_x, 0.01], semi, fluid_system, sol))
 # Or with an increased `smoothing_length` smoothing the result
 println(interpolate_point([position_x, 0.01], semi, fluid_system, sol,
-                          smoothing_length=2.0 * smoothing_length))
+                          smoothing_length = 2.0 * smoothing_length))
 
 # A point outside of the domain will result in properties with value 0
 # On the boundary a result can still be obtained
@@ -37,7 +37,7 @@ end_point = [position_x, tank_size[2]]
 result = interpolate_line(start_point, end_point, n_interpolation_points,
                           semi, fluid_system, sol)
 result_endpoint = interpolate_line(start_point, end_point, n_interpolation_points,
-                                   semi, fluid_system, sol, endpoint=false)
+                                   semi, fluid_system, sol, endpoint = false)
 
 # Extracting wall distance for the standard and endpoint cases
 walldistance = [coord[2] for coord in result.coord]
@@ -61,11 +61,13 @@ walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 # Replace NaNs with zeros for visualization
 replace!(result.density, NaN => 0.0)
 
-p = Plots.plot(walldistance, result.density, marker=:circle, color=:blue,
-               markerstrokecolor=:blue, linewidth=2, label="With Endpoint")
+p = Plots.plot(walldistance, result.density, marker = :circle, color = :blue,
+               markerstrokecolor = :blue, linewidth = 2, label = "With Endpoint")
 
-Plots.plot!(p, walldistance_endpoint, result_endpoint.density, marker=:xcross, linewidth=2,
-            linestyle=:dash, label="Without Endpoint", color=:orange)
+Plots.plot!(p, walldistance_endpoint, result_endpoint.density, marker = :xcross,
+            linewidth = 2,
+            linestyle = :dash, label = "Without Endpoint", color = :orange)
 
-Plots.plot!(p, framestyle=:box, legend=:best, xlabel="Wall distance", ylabel="Density",
-            title="Density Interpolation Along a Line", size=(800, 600), dpi=300)
+Plots.plot!(p, framestyle = :box, legend = :best, xlabel = "Wall distance",
+            ylabel = "Density",
+            title = "Density Interpolation Along a Line", size = (800, 600), dpi = 300)
