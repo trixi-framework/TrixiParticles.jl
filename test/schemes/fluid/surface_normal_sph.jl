@@ -236,6 +236,7 @@ end
 
     for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
          relative_curvature_error) in variations
+
         @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
             smoothing_length = smoothing_length_mult * particle_spacing
 
@@ -334,13 +335,14 @@ end
     density = fill(fluid_density, nparticles)
 
     # Create fluid system (no wall)
-    system, bnd_system, semi, ode = create_fluid_system(coordinates, velocity, mass,
-                                                        density, particle_spacing,
-                                                        SurfaceTensionMorris(surface_tension_coefficient=0.072);
-                                                        NDIMS=NDIMS,
-                                                        smoothing_length=3.0 *
-                                                                         particle_spacing,
-                                                        wall=false, walldistance=0.0)
+    system, bnd_system, semi,
+    ode = create_fluid_system(coordinates, velocity, mass,
+                              density, particle_spacing,
+                              SurfaceTensionMorris(surface_tension_coefficient=0.072);
+                              NDIMS=NDIMS,
+                              smoothing_length=3.0 *
+                                               particle_spacing,
+                              wall=false, walldistance=0.0)
 
     # Compute surface normals
     compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
