@@ -8,12 +8,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
-- Rescaled the Wendland kernels by a factor of 2 to be consistent with the literature.
-  This requires dividing the previously used smoothing length by a factor of 2 as well
-  to obtain the same results (#775).
+- Rescaled the Wendland kernels by a factor of 2 to be consistent with literature.
+  This requires adjusting the previously used smoothing length for the Wendland Kernels
+  by dividing them by 2 as well to obtain the same results (#775).
 
-- API for custom quantities and functions in the `PostprocessCallback` changed.
-  See the docs for more details on the new required function arguments (#755).
+- API for custom quantities and functions in the `PostprocessCallback` changed (#755).
 
 - The API for choosing parallelization backends changed. The keyword argument `data_type`
   in `semidiscretize` was removed and a keyword argument `parallelization_backend` was added
