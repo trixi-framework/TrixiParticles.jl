@@ -1,14 +1,14 @@
 # This bounding box is used for the hierarchical evaluation of the `WindingNumberJacobsen`.
 # It is implementing a binary tree and thus stores the left and right child and also the
 # faces and closing faces which are inside the bounding box.
-struct BoundingBoxTree{MC, NDIMS, VOT}
+struct BoundingBoxTree{MC, NDIMS, VOT, BBL, BBR}
     faces         :: VOT
     closing_faces :: VOT
     min_corner    :: MC
     max_corner    :: MC
     is_leaf       :: Bool
-    child_left    :: Union{Nothing, BoundingBoxTree}
-    child_right   :: Union{Nothing, BoundingBoxTree}
+    child_left    :: BBL
+    child_right   :: BBR
 end
 
 function BoundingBoxTree(faces, closing_faces, min_corner, max_corner, is_leaf,
@@ -16,10 +16,12 @@ function BoundingBoxTree(faces, closing_faces, min_corner, max_corner, is_leaf,
     MC = typeof(min_corner)
     VOT = typeof(faces)
     NDIMS = length(min_corner)
+    BBL = typeof(child_left)
+    BBR = typeof(child_right)
 
-    return BoundingBoxTree{MC, NDIMS, VOT}(faces, closing_faces, min_corner,
-                                           max_corner, is_leaf,
-                                           child_left, child_right)
+    return BoundingBoxTree{MC, NDIMS, VOT, BBL, BBR}(faces, closing_faces, min_corner,
+                                                     max_corner, is_leaf,
+                                                     child_left, child_right)
 end
 
 function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_corner)
@@ -62,10 +64,11 @@ function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_cor
                                   min_corner_right, max_corner)
 
     return BoundingBoxTree{typeof(min_corner), NDIMS,
-                           typeof(closing_faces)}(faces(face_ids, geometry),
-                                                  closing_faces,
-                                                  min_corner, max_corner, false,
-                                                  child_left, child_right)
+                           typeof(closing_faces), typeof(child_left),
+                           typeof(child_right)}(faces(face_ids, geometry),
+                                                closing_faces,
+                                                min_corner, max_corner, false,
+                                                child_left, child_right)
 end
 
 function faces(edge_ids, geometry::Polygon)
@@ -80,8 +83,8 @@ function faces(face_ids, geometry::TriangleMesh)
     return map(i -> face_vertices_ids[i], face_ids)
 end
 
-struct HierarchicalWinding
-    bounding_box::Union{BoundingBoxTree, Nothing}
+struct HierarchicalWinding{BB}
+    bounding_box::BB
 end
 
 function HierarchicalWinding(geometry::Geometry)
