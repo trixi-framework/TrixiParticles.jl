@@ -64,20 +64,31 @@ Algorithm for inside-outside segmentation of a complex geometry proposed by [Jac
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct WindingNumberJacobson{ELTYPE, W}
+struct WindingNumberJacobson{ELTYPE, W, C}
     winding_number_factor :: ELTYPE
     winding               :: W
+    cache                 :: C
 end
 
 function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                               hierarchical_winding=true)
+                               hierarchical_winding=true, store_winding_number=false)
     if hierarchical_winding && geometry isa Nothing
         throw(ArgumentError("`geometry` must be of type `Polygon` (2D) or `TriangleMesh` (3D) when using hierarchical winding"))
     end
 
     winding = hierarchical_winding ? HierarchicalWinding(geometry) : NaiveWinding()
 
-    return WindingNumberJacobson(winding_number_factor, winding)
+    # Only for debugging purposes
+    if store_winding_number
+        ELTYPE = eltype(geometry)
+        NDIMS = ndims(geometry)
+
+        cache = (winding_numbers=ELTYPE[], grid=SVector{NDIMS, ELTYPE}[])
+    else
+        cache = nothing
+    end
+
+    return WindingNumberJacobson(winding_number_factor, winding, cache)
 end
 
 function Base.show(io::IO, winding::WindingNumberJacobson)
@@ -100,14 +111,20 @@ function Base.show(io::IO, ::MIME"text/plain", winding::WindingNumberJacobson)
     end
 end
 
-function (point_in_poly::WindingNumberJacobson{ELTYPE})(geometry, points;
-                                                        store_winding_number=false) where {ELTYPE}
+store_winding_number(::WindingNumberJacobson{<:Any, <:Any, Nothing}) = false
+store_winding_number(::WindingNumberJacobson) = true
+
+function (point_in_poly::WindingNumberJacobson{ELTYPE, STORE})(geometry,
+                                                               points) where {ELTYPE, STORE}
     (; winding_number_factor, winding) = point_in_poly
 
-    # TODO
-    inpoly = get_vectors(geometry, points)
+    inpoly = allocate(geometry.parallelization_backend, Bool, length(points))
 
-    # store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
+    if store_winding_number(point_in_poly)
+        resize!(point_in_poly.cache.winding_numbers, length(points))
+        resize!(point_in_poly.cache.grid, length(points))
+        copyto!(point_in_poly.cache.grid, points)
+    end
 
     divisor = ndims(geometry) == 2 ? ELTYPE(2pi) : ELTYPE(4pi)
 
@@ -116,31 +133,14 @@ function (point_in_poly::WindingNumberJacobson{ELTYPE})(geometry, points;
 
         winding_number = winding(geometry, p) / divisor
 
-        # store_winding_number && (winding_numbers[query_point] = winding_number)
+        if store_winding_number(point_in_poly)
+            point_in_poly.cache.winding_numbers[query_point] = winding_number
+        end
 
         # Relaxed restriction of `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)
             inpoly[query_point] = true
         end
-    end
-
-    return inpoly#, winding_numbers
-end
-
-# TODO
-function get_vectors(geometry, points)
-    ELTYPE = eltype(geometry)
-    # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
-    # TODO: Store this in the `WindingNumberJacobson` struct (for GPU backend reasons)
-    if !(geometry.parallelization_backend isa Bool)
-        inpoly = KernelAbstractions.allocate(geometry.parallelization_backend,
-                                             Bool, length(points))
-
-        winding_numbers = KernelAbstractions.allocate(geometry.parallelization_backend,
-                                                      ELTYPE, 0)
-    else
-        inpoly = fill(false, length(points))
-        winding_numbers = ELTYPE[]
     end
 
     return inpoly
