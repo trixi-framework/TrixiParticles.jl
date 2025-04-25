@@ -30,7 +30,9 @@
                     outflow
                 ]
 
-                @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in boundary_zones
+                @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in
+                                                                                                boundary_zones
+
                     zone_width = open_boundary_layers *
                                  boundary_zone.initial_condition.particle_spacing
                     sign_ = (first(typeof(boundary_zone).parameters) ===
@@ -92,7 +94,9 @@
                     outflow
                 ]
 
-                @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in boundary_zones
+                @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in
+                                                                                                boundary_zones
+
                     zone_width = open_boundary_layers *
                                  boundary_zone.initial_condition.particle_spacing
                     sign_ = (first(typeof(boundary_zone).parameters) ===
@@ -130,7 +134,9 @@
             outflow
         ]
 
-        @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in boundary_zones
+        @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in
+                                                                                        boundary_zones
+
             perturb_ = first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow ?
                        sqrt(eps()) :
                        -sqrt(eps())
@@ -174,7 +180,9 @@
             outflow
         ]
 
-        @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in boundary_zones
+        @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in
+                                                                                        boundary_zones
+
             perturb_ = first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow ?
                        eps() : -eps()
             point4 = boundary_zone.spanning_set[1] + boundary_zone.zone_origin
