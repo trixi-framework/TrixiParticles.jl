@@ -104,6 +104,32 @@ function (point_in_poly::WindingNumberJacobson{ELTYPE})(geometry, points;
                                                         store_winding_number=false) where {ELTYPE}
     (; winding_number_factor, winding) = point_in_poly
 
+    # TODO
+    inpoly = get_vectors(geometry, points)
+
+    # store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
+
+    divisor = ndims(geometry) == 2 ? ELTYPE(2pi) : ELTYPE(4pi)
+
+    @threaded geometry for query_point in eachindex(points)
+        p = points[query_point]
+
+        winding_number = winding(geometry, p) / divisor
+
+        # store_winding_number && (winding_numbers[query_point] = winding_number)
+
+        # Relaxed restriction of `(winding_number != 0.0)`
+        if !(-winding_number_factor < winding_number < winding_number_factor)
+            inpoly[query_point] = true
+        end
+    end
+
+    return inpoly#, winding_numbers
+end
+
+# TODO
+function get_vectors(geometry, points)
+    ELTYPE = eltype(geometry)
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     # TODO: Store this in the `WindingNumberJacobson` struct (for GPU backend reasons)
     if !(geometry.parallelization_backend isa Bool)
@@ -117,22 +143,5 @@ function (point_in_poly::WindingNumberJacobson{ELTYPE})(geometry, points;
         winding_numbers = ELTYPE[]
     end
 
-    store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
-
-    divisor = ndims(geometry) == 2 ? ELTYPE(2pi) : ELTYPE(4pi)
-
-    @threaded geometry for query_point in eachindex(points)
-        p = points[query_point]
-
-        winding_number = winding(geometry, p) / divisor
-
-        store_winding_number && (winding_numbers[query_point] = winding_number)
-
-        # Relaxed restriction of `(winding_number != 0.0)`
-        if !(-winding_number_factor < winding_number < winding_number_factor)
-            inpoly[query_point] = true
-        end
-    end
-
-    return inpoly, winding_numbers
+    return inpoly
 end
