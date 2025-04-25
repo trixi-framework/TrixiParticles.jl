@@ -98,7 +98,6 @@
                                                                                enumerate(cell_sizes)
             nhs = TrixiParticles.FaceNeighborhoodSearch{3}(; search_radius = cell_size)
 
-
             TrixiParticles.initialize!(nhs, triangle_arbitrary)
 
             @test expected_ncells_bbox[i] ==

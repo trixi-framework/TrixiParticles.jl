@@ -224,7 +224,6 @@
                                                            open_boundary_layers = 2,
                                                            boundary_type = OutFlow())
 
-
         rectangular_plane = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
         flow_direction = [0.0, 1.0, 0.0]
 
