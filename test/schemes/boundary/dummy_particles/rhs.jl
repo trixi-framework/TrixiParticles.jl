@@ -79,7 +79,7 @@
             # TLSPH system
             solid_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                                     smoothing_length, 0.0, 0.0,
-                                                    boundary_model=boundary_model_continuity)
+                                                    boundary_model = boundary_model_continuity)
 
             # Positions of the solid particles are not used here
             u_solid = zeros(0, TrixiParticles.nparticles(solid_system))
@@ -115,7 +115,7 @@
 
         # The state equation is only needed to unpack `sound_speed`, so we can mock
         # it by using a `NamedTuple`.
-        state_equation = (; sound_speed=0.0)
+        state_equation = (; sound_speed = 0.0)
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.2particle_spacing
         search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
@@ -126,7 +126,7 @@
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
                 # summation. A larger tolerance will have to be used for the tests below.
-                ic = rectangular_patch(particle_spacing, (3, 3), seed=seed)
+                ic = rectangular_patch(particle_spacing, (3, 3), seed = seed)
 
                 # Split initial condition at center particle into two systems
                 center_particle = ceil(Int, TrixiParticles.nparticles(ic) / 2)
@@ -298,7 +298,7 @@
                                                                        particle),
                                               TrixiParticles.eachparticle(neighbor_system))
 
-                    @test isapprox(deriv_total_energy, 0.0, atol=6e-15)
+                    @test isapprox(deriv_total_energy, 0.0, atol = 6e-15)
                 end
             end
         end

@@ -15,8 +15,9 @@ struct ColorfieldSurfaceNormal{ELTYPE}
     ideal_density_threshold::ELTYPE
 end
 
-function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
-                                 ideal_density_threshold=0.0)
+function ColorfieldSurfaceNormal(; boundary_contact_threshold = 0.1,
+                                 interface_threshold = 0.01,
+                                 ideal_density_threshold = 0.0)
     return ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold,
                                    ideal_density_threshold)
 end
@@ -57,8 +58,8 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                           points = each_moving_particle(system)) do particle, neighbor,
+                                                                     pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = current_density(v_neighbor_system,
                                            neighbor_system, neighbor)

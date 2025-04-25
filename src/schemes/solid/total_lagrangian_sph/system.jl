@@ -81,10 +81,10 @@ end
 function TotalLagrangianSPHSystem(initial_condition,
                                   smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_fixed_particles=0, boundary_model=nothing,
-                                  acceleration=ntuple(_ -> 0.0,
-                                                      ndims(smoothing_kernel)),
-                                  penalty_force=nothing, source_terms=nothing)
+                                  n_fixed_particles = 0, boundary_model = nothing,
+                                  acceleration = ntuple(_ -> 0.0,
+                                                        ndims(smoothing_kernel)),
+                                  penalty_force = nothing, source_terms = nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -138,8 +138,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
 
     function display_param(param)
         if param isa AbstractVector
-            min_val = round(minimum(param), digits=3)
-            max_val = round(maximum(param), digits=3)
+            min_val = round(minimum(param), digits = 3)
+            max_val = round(maximum(param), digits = 3)
             return "min = $(min_val), max = $(max_val)"
         else
             return string(param)
@@ -260,7 +260,7 @@ function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode
 end
 
 function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+                       update_from_callback = false)
     (; boundary_model) = system
 
     # Only update boundary model
@@ -472,7 +472,7 @@ function system_data(system::TotalLagrangianSPHSystem, v_ode, u_ode, semi)
     initial_coordinates_ = initial_coordinates(system)
     velocity = current_velocity(v, system)
 
-    return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
+    return (; coordinates, initial_coordinates = initial_coordinates_, velocity, mass,
             material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
             lame_lambda, lame_mu)
 end

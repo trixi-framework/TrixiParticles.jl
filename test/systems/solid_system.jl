@@ -22,10 +22,10 @@
             boundary_model = Val(:boundary_model)
 
             initial_condition = InitialCondition(; coordinates, mass,
-                                                 density=material_densities)
+                                                 density = material_densities)
             system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                               smoothing_length, E, nu,
-                                              boundary_model=boundary_model)
+                                              boundary_model = boundary_model)
 
             @test system isa TotalLagrangianSPHSystem
             @test ndims(system) == NDIMS
@@ -61,10 +61,10 @@
         boundary_model = Val(:boundary_model)
 
         initial_condition = InitialCondition(; coordinates, mass,
-                                             density=material_densities)
+                                             density = material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu,
-                                          boundary_model=boundary_model)
+                                          boundary_model = boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
@@ -89,7 +89,7 @@
         nu = [0.2, 0.4]
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu,
-                                          boundary_model=boundary_model)
+                                          boundary_model = boundary_model)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -322,10 +322,10 @@
         TrixiParticles.smoothing_length(::Val{:boundary_model}, _) = smoothing_length
 
         initial_condition = InitialCondition(; coordinates, mass,
-                                             density=material_densities)
+                                             density = material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu,
-                                          boundary_model=boundary_model)
+                                          boundary_model = boundary_model)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_moving_particles(system))
@@ -349,10 +349,10 @@
         TrixiParticles.smoothing_length(::Val{:boundary_model}, _) = smoothing_length
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
-                                             density=material_densities)
+                                             density = material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu,
-                                          boundary_model=boundary_model)
+                                          boundary_model = boundary_model)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_moving_particles(system))
@@ -373,7 +373,7 @@
         E = 2.5    # Young's modulus
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
-                                             density=material_densities)
+                                             density = material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu)
 
@@ -390,7 +390,7 @@
                                    1.145833 0.729167; 0.729167 1.145833]
 
         # Verify against calculation by hand
-        @test isapprox(von_mises_stress[1], 1.4257267477533202, atol=1e-14)
-        @test isapprox(reference_stress_tensor, cauchy_stress, atol=1e-6)
+        @test isapprox(von_mises_stress[1], 1.4257267477533202, atol = 1e-14)
+        @test isapprox(reference_stress_tensor, cauchy_stress, atol = 1e-6)
     end
 end;

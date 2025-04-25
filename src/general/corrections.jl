@@ -412,12 +412,12 @@ end
 create_cache_correction(correction, density, NDIMS, nparticles) = (;)
 
 function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
-    return (; kernel_correction_coefficient=similar(density))
+    return (; kernel_correction_coefficient = similar(density))
 end
 
 function create_cache_correction(::KernelCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{eltype(density)}(undef, NDIMS, n_particles)
-    return (; kernel_correction_coefficient=similar(density), dw_gamma)
+    return (; kernel_correction_coefficient = similar(density), dw_gamma)
 end
 
 function create_cache_correction(::Union{GradientCorrection, BlendedGradientCorrection},
@@ -432,5 +432,5 @@ function create_cache_correction(::MixedKernelGradientCorrection, density, NDIMS
     dw_gamma = Array{eltype(density)}(undef, NDIMS, n_particles)
     correction_matrix = Array{eltype(density), 3}(undef, NDIMS, NDIMS, n_particles)
 
-    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
+    return (; kernel_correction_coefficient = similar(density), dw_gamma, correction_matrix)
 end

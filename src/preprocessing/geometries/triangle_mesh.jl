@@ -214,7 +214,7 @@ end
 function unique_sorted(vertices)
     # Sort by the first entry of the vectors
     compare_first_element = (x, y) -> x[1] < y[1]
-    vertices_sorted = sort!(vertices, lt=compare_first_element)
+    vertices_sorted = sort!(vertices, lt = compare_first_element)
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     keep = fill(true, length(vertices_sorted))
 
@@ -222,8 +222,8 @@ function unique_sorted(vertices)
         # We only sorted by the first entry, so we have to check all previous vertices
         # until the first entry is too far away.
         j = i - 1
-        while j >= 1 && isapprox(vertices_sorted[j][1], vertices_sorted[i][1], atol=1e-14)
-            if isapprox(vertices_sorted[i], vertices_sorted[j], atol=1e-14)
+        while j >= 1 && isapprox(vertices_sorted[j][1], vertices_sorted[i][1], atol = 1e-14)
+            if isapprox(vertices_sorted[i], vertices_sorted[j], atol = 1e-14)
                 keep[i] = false
             end
             j -= 1

@@ -17,17 +17,17 @@
         boundary_1 = RectangularShape(particle_spacing,
                                       (10, 1),
                                       (0.0, 0.2),
-                                      density=257.0)
+                                      density = 257.0)
         boundary_2 = RectangularShape(particle_spacing,
                                       (10, 1),
                                       (0.0, 0.1),
-                                      density=257.0)
+                                      density = 257.0)
 
         # Boundary particles out of fluid compact support
         boundary_3 = RectangularShape(particle_spacing,
                                       (10, 1),
                                       (0.0, 0.0),
-                                      density=257.0)
+                                      density = 257.0)
 
         boundary = union(boundary_1, boundary_2, boundary_3)
 
@@ -37,16 +37,16 @@
         fluid = RectangularShape(particle_spacing,
                                  (16, 5),
                                  (-0.3, 0.3),
-                                 density=257.0,
-                                 loop_order=:x_first)
+                                 density = 257.0,
+                                 loop_order = :x_first)
 
         # Simulation parameters
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.2 * particle_spacing
-        viscosity = ViscosityAdami(nu=1e-6)
-        state_equation = StateEquationCole(sound_speed=10.0,
-                                           reference_density=257.0,
-                                           exponent=7)
+        viscosity = ViscosityAdami(nu = 1e-6)
+        state_equation = StateEquationCole(sound_speed = 10.0,
+                                           reference_density = 257.0,
+                                           exponent = 7)
 
         # Define pressure extrapolation methods to test
         pressure_extrapolations = [
@@ -61,11 +61,11 @@
                 # Create boundary and fluid systems
                 boundary_model = BoundaryModelDummyParticles(boundary.density,
                                                              boundary.mass,
-                                                             state_equation=state_equation,
+                                                             state_equation = state_equation,
                                                              pressure_extrapolation,
                                                              smoothing_kernel,
                                                              smoothing_length,
-                                                             viscosity=viscosity)
+                                                             viscosity = viscosity)
                 boundary_system = BoundarySPHSystem(boundary, boundary_model)
                 fluid_system = WeaklyCompressibleSPHSystem(fluid,
                                                            SummationDensity(),
@@ -196,16 +196,16 @@
 
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 3 * particle_spacing
-        state_equation = StateEquationCole(sound_speed=10, reference_density=257,
-                                           exponent=7)
+        state_equation = StateEquationCole(sound_speed = 10, reference_density = 257,
+                                           exponent = 7)
 
         tank1 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                density, n_layers=n_layers,
-                                faces=(true, true, true, false))
+                                density, n_layers = n_layers,
+                                faces = (true, true, true, false))
 
         boundary_model = BoundaryModelDummyParticles(tank1.boundary.density,
                                                      tank1.boundary.mass,
-                                                     state_equation=state_equation,
+                                                     state_equation = state_equation,
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length)
 
@@ -253,8 +253,8 @@
         @testset "Constant Non-Zero Pressure" begin
             density = 260
             tank2 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                    density, n_layers=n_layers,
-                                    faces=(true, true, true, false))
+                                    density, n_layers = n_layers,
+                                    faces = (true, true, true, false))
 
             fluid_system2 = WeaklyCompressibleSPHSystem(tank2.fluid, SummationDensity(),
                                                         state_equation,
@@ -285,21 +285,21 @@
             @test all(isapprox.(fluid_system2.pressure, fluid_system2.pressure[1]))
             # Test that boundary pressure equals fluid pressure
             @test all(isapprox.(boundary_system.boundary_model.pressure,
-                                fluid_system2.pressure[1], atol=1.0e-12))
+                                fluid_system2.pressure[1], atol = 1.0e-12))
         end
 
         # In this test, we initialize a fluid with a hydrostatic pressure gradient
         # and check that this gradient is extrapolated correctly.
         @testset "Hydrostatic Pressure Gradient" begin
             tank3 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                    density, acceleration=[0.0, -9.81],
-                                    state_equation=state_equation, n_layers=n_layers,
-                                    faces=(true, true, true, false))
+                                    density, acceleration = [0.0, -9.81],
+                                    state_equation = state_equation, n_layers = n_layers,
+                                    faces = (true, true, true, false))
 
             fluid_system3 = WeaklyCompressibleSPHSystem(tank3.fluid, SummationDensity(),
                                                         state_equation,
                                                         smoothing_kernel, smoothing_length,
-                                                        acceleration=[0.0, -9.81])
+                                                        acceleration = [0.0, -9.81])
             fluid_system3.cache.density .= tank3.fluid.density
             v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system3))
             TrixiParticles.compute_pressure!(fluid_system3, v_fluid, semi)
@@ -331,9 +331,9 @@
             tank_reference = RectangularTank(particle_spacing,
                                              (width_reference, height_reference),
                                              (width_reference, height_reference),
-                                             density, acceleration=[0.0, -9.81],
-                                             state_equation=state_equation, n_layers=0,
-                                             faces=(true, true, true, false))
+                                             density, acceleration = [0.0, -9.81],
+                                             state_equation = state_equation, n_layers = 0,
+                                             faces = (true, true, true, false))
 
             # Because it is a pain to deal with the linear indices of the pressure arrays,
             # we convert the matrices to Cartesian indices based on the coordinates.
@@ -368,7 +368,7 @@
             set_pressure!(pressure_reference, tank_reference.fluid.coordinates, 0.5,
                           tank_reference.fluid, tank_reference.fluid.pressure)
 
-            @test all(isapprox.(pressure, pressure_reference, atol=4.0))
+            @test all(isapprox.(pressure, pressure_reference, atol = 4.0))
         end
     end
 end

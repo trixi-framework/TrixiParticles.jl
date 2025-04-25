@@ -34,12 +34,12 @@
 
         @testset "Flow Direction $j" for j in eachindex(flow_directions)
             flow_direction = flow_directions[j]
-            inflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
-                                  plane_normal=flow_direction, open_boundary_layers,
-                                  boundary_type=InFlow())
-            outflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
-                                   plane_normal=(-flow_direction), open_boundary_layers,
-                                   boundary_type=OutFlow())
+            inflow = BoundaryZone(; plane = plane_points, particle_spacing, density,
+                                  plane_normal = flow_direction, open_boundary_layers,
+                                  boundary_type = InFlow())
+            outflow = BoundaryZone(; plane = plane_points, particle_spacing, density,
+                                   plane_normal = (-flow_direction), open_boundary_layers,
+                                   boundary_type = OutFlow())
 
             boundary_zones = [
                 inflow,
@@ -51,18 +51,18 @@
 
                 sign_ = (first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow) ?
                         1 : -1
-                fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,
+                fluid = extrude_geometry(plane_points; particle_spacing, n_extrude = 4,
                                          density, pressure,
-                                         direction=(sign_ * flow_direction))
+                                         direction = (sign_ * flow_direction))
 
                 fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                                           buffer_size=0,
-                                                           density_calculator=ContinuityDensity(),
+                                                           buffer_size = 0,
+                                                           density_calculator = ContinuityDensity(),
                                                            smoothing_length, sound_speed)
 
                 boundary_system = OpenBoundarySPHSystem(boundary_zone;
-                                                        fluid_system, buffer_size=0,
-                                                        boundary_model=BoundaryModelLastiwka(),
+                                                        fluid_system, buffer_size = 0,
+                                                        boundary_model = BoundaryModelLastiwka(),
                                                         reference_velocity,
                                                         reference_pressure,
                                                         reference_density)

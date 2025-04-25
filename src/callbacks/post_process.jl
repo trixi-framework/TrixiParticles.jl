@@ -76,10 +76,10 @@ struct PostprocessCallback{I, F}
     git_hash            :: Ref{String}
 end
 
-function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
-                             output_directory="out", filename="values",
-                             append_timestamp=false, write_csv=true, write_json=true,
-                             write_file_interval::Integer=1, funcs...)
+function PostprocessCallback(; interval::Integer = 0, dt = 0.0, exclude_boundary = true,
+                             output_directory = "out", filename = "values",
+                             append_timestamp = false, write_csv = true, write_json = true,
+                             write_file_interval::Integer = 1, funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
     end
@@ -100,13 +100,13 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(post_callback, dt,
-                                initialize=(initialize_postprocess_callback!),
-                                save_positions=(false, false), final_affect=true)
+                                initialize = (initialize_postprocess_callback!),
+                                save_positions = (false, false), final_affect = true)
     else
         # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(post_callback, post_callback,
-                                save_positions=(false, false),
-                                initialize=(initialize_postprocess_callback!))
+                                save_positions = (false, false),
+                                initialize = (initialize_postprocess_callback!))
     end
 end
 
@@ -239,7 +239,7 @@ function (pp::PostprocessCallback)(integrator)
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
         @trixi_timeit timer() "update systems" update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                                      update_from_callback=true)
+                                                                      update_from_callback = true)
 
         foreach_system(semi) do system
             if system isa BoundarySystem && pp.exclude_boundary
@@ -329,7 +329,7 @@ function prepare_series_data!(data, post_callback)
     return data
 end
 
-function create_series_dict(values, times, system_name="")
+function create_series_dict(values, times, system_name = "")
     return Dict("type" => "series",
                 "datatype" => eltype(values),
                 "n_values" => length(values),
@@ -358,7 +358,7 @@ function write_csv(abs_file_path, data)
     end
 
     # Initialize DataFrame with time column
-    df = DataFrame(time=times)
+    df = DataFrame(time = times)
 
     for (key, series) in data
         # Ensure we only process data entries, excluding any meta data or non-data entries.

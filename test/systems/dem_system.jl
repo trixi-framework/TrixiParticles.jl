@@ -7,7 +7,8 @@ include("../test_util.jl")
         density = [990.0, 1000.0]
 
         initial_condition = InitialCondition(; coordinates, mass, density)
-        system = DEMSystem(initial_condition, 2 * 10^5, 10e9, 0.3, acceleration=(0.0, 10.0))
+        system = DEMSystem(initial_condition, 2 * 10^5, 10e9, 0.3,
+                           acceleration = (0.0, 10.0))
 
         show_compact = "DEMSystem{2}(InitialCondition{Float64}(), 1.0e10, 0.3, 200000.0, 0.0001) with 2 particles"
         @test repr(system) == show_compact

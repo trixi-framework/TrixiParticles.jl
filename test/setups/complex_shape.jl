@@ -6,7 +6,7 @@
         @testset verbose=true "Shifted Rectangle" begin
             algorithms = [
                 WindingNumberHormann(),
-                WindingNumberJacobson(; hierarchical_winding=false)
+                WindingNumberJacobson(; hierarchical_winding = false)
             ]
             shifts = [-0.5, 0.0, 0.5]
             particle_spacings = [0.03, 0.05]
@@ -25,7 +25,7 @@
                 geometry = TrixiParticles.Polygon(points_rectangle)
 
                 grid_offset = 0.5particle_spacing
-                shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0,
+                shape_sampled = ComplexShape(geometry; particle_spacing, density = 1.0,
                                              point_in_geometry_algorithm, grid_offset)
 
                 min_corner = points_rectangle[:, 1] .+ 0.5particle_spacing
@@ -44,7 +44,7 @@
             files = ["hexagon", "circle", "inverted_open_curve"]
             algorithms = [
                 WindingNumberHormann(),
-                WindingNumberJacobson(; hierarchical_winding=false)
+                WindingNumberJacobson(; hierarchical_winding = false)
             ]
             algorithm_names = ["hormann", "jacobson"]
 
@@ -57,8 +57,8 @@
                     # Relaxed inside-outside segmentation for open geometry
                     if (i == 2 && j == 3)
                         point_in_geometry_algorithm = WindingNumberJacobson(;
-                                                                            hierarchical_winding=false,
-                                                                            winding_number_factor=0.4)
+                                                                            hierarchical_winding = false,
+                                                                            winding_number_factor = 0.4)
                     end
 
                     data = TrixiParticles.CSV.read(joinpath(validation_dir,
@@ -74,16 +74,16 @@
 
                     geometry = load_geometry(joinpath(data_dir, files[j] * ".asc"))
 
-                    shape_sampled = ComplexShape(geometry; particle_spacing=0.05,
-                                                 density=1.0, point_in_geometry_algorithm)
+                    shape_sampled = ComplexShape(geometry; particle_spacing = 0.05,
+                                                 density = 1.0, point_in_geometry_algorithm)
 
-                    @test isapprox(shape_sampled.coordinates, coords, atol=1e-2)
+                    @test isapprox(shape_sampled.coordinates, coords, atol = 1e-2)
                 end
             end
         end
 
         @testset verbose=true "Intersect of Overlapping Shapes and Geometries" begin
-            shape = RectangularShape(0.1, (10, 10), (0.0, 0.0), density=1.0)
+            shape = RectangularShape(0.1, (10, 10), (0.0, 0.0), density = 1.0)
             geometry = load_geometry(joinpath(data_dir, "circle.asc"))
 
             initial_condition = intersect(shape, geometry)
@@ -94,7 +94,7 @@
         end
 
         @testset verbose=true "Setdiff of Overlapping Shapes and Geometries" begin
-            shape = RectangularShape(0.1, (10, 10), (0.0, 0.0), density=1.0)
+            shape = RectangularShape(0.1, (10, 10), (0.0, 0.0), density = 1.0)
             geometry = load_geometry(joinpath(data_dir, "circle.asc"))
 
             initial_condition = setdiff(shape, geometry)
@@ -123,10 +123,10 @@
 
                     geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(geometry; grid_offset=0.1,
-                                                 particle_spacing=particle_spacings[i],
-                                                 density=1.0)
-                    @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
+                    shape_sampled = ComplexShape(geometry; grid_offset = 0.1,
+                                                 particle_spacing = particle_spacings[i],
+                                                 density = 1.0)
+                    @test isapprox(shape_sampled.coordinates, coords, atol = 1e-3)
                 end
             end
             @testset verbose=true "Hierarchical Winding" begin
@@ -143,18 +143,18 @@
                     geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
                     shape_sampled = ComplexShape(geometry;
-                                                 particle_spacing=particle_spacings[i],
-                                                 density=1.0, grid_offset=0.1,
-                                                 point_in_geometry_algorithm=WindingNumberJacobson(;
-                                                                                                   geometry,
-                                                                                                   winding_number_factor=0.1,
-                                                                                                   hierarchical_winding=true))
-                    @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
+                                                 particle_spacing = particle_spacings[i],
+                                                 density = 1.0, grid_offset = 0.1,
+                                                 point_in_geometry_algorithm = WindingNumberJacobson(;
+                                                                                                     geometry,
+                                                                                                     winding_number_factor = 0.1,
+                                                                                                     hierarchical_winding = true))
+                    @test isapprox(shape_sampled.coordinates, coords, atol = 1e-3)
                 end
             end
         end
         @testset verbose=true "Intersect of Overlapping Shapes and Geometries" begin
-            shape = RectangularShape(0.1, (10, 10, 10), (0.0, 0.0, 0.0), density=1.0)
+            shape = RectangularShape(0.1, (10, 10, 10), (0.0, 0.0, 0.0), density = 1.0)
             geometry = load_geometry(joinpath(data_dir, "sphere.stl"))
 
             initial_condition = intersect(shape, geometry)
@@ -166,7 +166,7 @@
         end
 
         @testset verbose=true "Setdiff of Overlapping Shapes and Geometries" begin
-            shape = RectangularShape(0.1, (10, 10, 10), (-0.3, -0.3, -0.3), density=1.0)
+            shape = RectangularShape(0.1, (10, 10, 10), (-0.3, -0.3, -0.3), density = 1.0)
             geometry = load_geometry(joinpath(data_dir, "sphere.stl"))
 
             initial_condition = setdiff(shape, geometry)

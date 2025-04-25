@@ -32,25 +32,26 @@
 
             for edge in eachindex(edge_vertices)
                 @test all(isapprox.(geometry_clockwise.edge_vertices[edge],
-                                    edge_vertices[edge], atol=1e-14))
+                                    edge_vertices[edge], atol = 1e-14))
             end
             for vertex in eachindex(vertex_normals)
                 @test all(isapprox.(geometry_clockwise.vertex_normals[vertex],
-                                    vertex_normals[vertex], atol=1e-14))
+                                    vertex_normals[vertex], atol = 1e-14))
             end
-            @test all(isapprox(geometry_clockwise.edge_normals, edge_normals, atol=1e-14))
+            @test all(isapprox(geometry_clockwise.edge_normals, edge_normals, atol = 1e-14))
 
             geometry_cclockwise = TrixiParticles.Polygon(Matrix(points_rectangular_counter_clockwise))
 
             for edge in eachindex(edge_vertices)
                 @test all(isapprox.(geometry_cclockwise.edge_vertices[edge],
-                                    edge_vertices[edge], atol=1e-14))
+                                    edge_vertices[edge], atol = 1e-14))
             end
             for vertex in eachindex(vertex_normals)
                 @test all(isapprox.(geometry_cclockwise.vertex_normals[vertex],
-                                    vertex_normals[vertex], atol=1e-14))
+                                    vertex_normals[vertex], atol = 1e-14))
             end
-            @test all(isapprox(geometry_cclockwise.edge_normals, edge_normals, atol=1e-14))
+            @test all(isapprox(geometry_cclockwise.edge_normals, edge_normals,
+                               atol = 1e-14))
         end
     end
 
@@ -79,10 +80,10 @@
 
                 @testset "Normals $j" for j in eachindex(geometry.vertex_normals)
                     @test isapprox(geometry.vertex_normals[j][1], vertex_normals[:, j],
-                                   atol=1e-4)
+                                   atol = 1e-4)
                 end
                 @testset "Points $j" for j in eachindex(geometry.vertices)[1:(end - 1)]
-                    @test isapprox(geometry.vertices[j], points[:, j], atol=1e-4)
+                    @test isapprox(geometry.vertices[j], points[:, j], atol = 1e-4)
                 end
             end
         end
@@ -113,11 +114,12 @@
                 @test length(geometry.vertices) == n_vertices[i]
 
                 @testset "Normals $j" for j in eachindex(geometry.vertices)
-                    @test isapprox(geometry.vertex_normals[j], vertex_normals[j], atol=1e-5)
+                    @test isapprox(geometry.vertex_normals[j], vertex_normals[j],
+                                   atol = 1e-5)
                 end
 
                 @testset "Points $j" for j in eachindex(geometry.vertices)
-                    @test isapprox(geometry.vertices[j], points[j], atol=1e-4)
+                    @test isapprox(geometry.vertices[j], points[j], atol = 1e-4)
                 end
             end
         end

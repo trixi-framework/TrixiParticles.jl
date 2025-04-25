@@ -68,8 +68,8 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS}
 end
 
 function Semidiscretization(systems...;
-                            neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            parallelization_backend=true)
+                            neighborhood_search = GridNeighborhoodSearch{ndims(first(systems))}(),
+                            parallelization_backend = true)
     systems = filter(system -> !isnothing(system), systems)
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
@@ -266,7 +266,7 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads = true)
     (; systems) = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]), systems)
@@ -341,7 +341,7 @@ in the solution `sol`.
 - `semi`:   The semidiscretization
 - `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
 """
-function restart_with!(semi, sol; reset_threads=true)
+function restart_with!(semi, sol; reset_threads = true)
     # Optionally reset Polyester.jl threads. See
     # https://github.com/trixi-framework/Trixi.jl/issues/1583
     # https://github.com/JuliaSIMD/Polyester.jl/issues/30
@@ -470,7 +470,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
 end
 
 # Update the systems and neighborhood searches (NHS) for a simulation before calling `interact!` to compute forces
-function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=false)
+function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback = false)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
     foreach_system(semi) do system
@@ -624,7 +624,7 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
                 timer_str = ""
             end
 
-            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
+            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str = timer_str)
         end
     end
 
@@ -635,7 +635,7 @@ end
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
-@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
+@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str = "")
     dv = wrap_v(dv_ode, system, semi)
     v_system = wrap_v(v_ode, system, semi)
     u_system = wrap_u(u_ode, system, semi)
@@ -658,7 +658,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving = (true, true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -668,7 +668,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, neighbor.ismoving[]))
+            semi, points_moving = (true, neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
@@ -681,7 +681,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving = (true, true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -694,7 +694,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving = (true, true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -718,7 +718,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving = (true, true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -736,7 +736,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, neighbor.ismoving[]))
+            semi, points_moving = (true, neighbor.ismoving[]))
 end
 
 # This function is the same as the one below to avoid ambiguous dispatch when using `Union`
@@ -753,7 +753,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], true))
+            semi, points_moving = (system.ismoving[], true))
 end
 
 # This function is the same as the one above to avoid ambiguous dispatch when using `Union`
@@ -770,7 +770,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], true))
+            semi, points_moving = (system.ismoving[], true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -782,7 +782,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], neighbor.ismoving[]))
+            semi, points_moving = (system.ismoving[], neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
@@ -792,7 +792,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving = (true, true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -802,7 +802,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, false))
+            semi, points_moving = (true, false))
 end
 
 function update_nhs!(neighborhood_search,
@@ -830,9 +830,9 @@ function update_nhs!(neighborhood_search,
 end
 
 # Forward to PointNeighbors.jl
-function update!(neighborhood_search, x, y, semi; points_moving=(true, false))
+function update!(neighborhood_search, x, y, semi; points_moving = (true, false))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving,
-                           parallelization_backend=semi.parallelization_backend)
+                           parallelization_backend = semi.parallelization_backend)
 end
 
 function check_configuration(systems)

@@ -32,7 +32,7 @@ Create and return a callback that prints a human-readable summary of the simulat
 beginning of a simulation and then resets the timer. When the returned callback is executed
 directly, the current timer values are shown.
 """
-function InfoCallback(; interval=0, reset_threads=true)
+function InfoCallback(; interval = 0, reset_threads = true)
     info_callback = InfoCallback(0.0, interval)
 
     function initialize(cb, u, t, integrator)
@@ -41,8 +41,8 @@ function InfoCallback(; interval=0, reset_threads=true)
     end
 
     DiscreteCallback(info_callback, info_callback,
-                     save_positions=(false, false),
-                     initialize=initialize)
+                     save_positions = (false, false),
+                     initialize = initialize)
 end
 
 # condition
@@ -79,7 +79,7 @@ end
 # Print information about the current simulation setup
 # Note: This is called *after* all initialization is done, but *before* the first time step
 function initialize_info_callback(discrete_callback, u, t, integrator;
-                                  reset_threads=true)
+                                  reset_threads = true)
     info_callback = discrete_callback.affect!
 
     # Optionally reset Polyester.jl threads. See
@@ -154,14 +154,15 @@ end
 # Format a key/value pair for output from the InfoCallback
 function format_key_value_line(key::AbstractString, value::AbstractString, key_width,
                                total_width;
-                               indentation_level=0, guide='…', filler='…', prefix="│ ",
-                               suffix=" │")
+                               indentation_level = 0, guide = '…', filler = '…',
+                               prefix = "│ ",
+                               suffix = " │")
     @assert key_width < total_width
     line = prefix
     # Indent the key as requested (or not at all if `indentation_level == 0`)
     indentation = prefix^indentation_level
     reduced_key_width = key_width - length(indentation)
-    squeezed_key = indentation * squeeze(key, reduced_key_width, filler=filler)
+    squeezed_key = indentation * squeeze(key, reduced_key_width, filler = filler)
     line *= squeezed_key
     line *= ": "
     short = key_width - length(squeezed_key)
@@ -171,7 +172,7 @@ function format_key_value_line(key::AbstractString, value::AbstractString, key_w
         line *= guide^(short - 1) * " "
     end
     value_width = total_width - length(prefix) - length(suffix) - key_width - 2
-    squeezed_value = squeeze(value, value_width, filler=filler)
+    squeezed_value = squeeze(value, value_width, filler = filler)
     line *= squeezed_value
     short = value_width - length(squeezed_value)
     line *= " "^short
@@ -187,7 +188,7 @@ function format_key_value_line(key, value, args...; kwargs...)
 end
 
 # Squeeze a string to fit into a maximum width by deleting characters from the center
-function squeeze(message, max_width; filler::Char='…')
+function squeeze(message, max_width; filler::Char = '…')
     @assert max_width>=3 "squeezing works only for a minimum `max_width` of 3"
 
     length(message) <= max_width && return message
@@ -196,9 +197,9 @@ function squeeze(message, max_width; filler::Char='…')
     keep_back = div(max_width, 2) - (isodd(max_width) ? 0 : 1)
     remove_back = length(message) - keep_front
     remove_front = length(message) - keep_back
-    squeezed = (chop(message, head=0, tail=remove_back)
+    squeezed = (chop(message, head = 0, tail = remove_back)
                 * filler *
-                chop(message, head=remove_front, tail=0))
+                chop(message, head = remove_front, tail = 0))
 
     @assert length(squeezed)==max_width "`$(length(squeezed)) != $max_width` should not happen: algorithm error!"
 
@@ -206,7 +207,7 @@ function squeeze(message, max_width; filler::Char='…')
 end
 
 # Print a summary with a box around it with a given heading and a setup of key=>value pairs
-function summary_box(io::IO, heading, setup=[])
+function summary_box(io::IO, heading, setup = [])
     summary_header(io, heading)
     for (key, value) in setup
         summary_line(io, key, value)
@@ -214,7 +215,7 @@ function summary_box(io::IO, heading, setup=[])
     summary_footer(io)
 end
 
-function summary_header(io, heading; total_width=100, indentation_level=0)
+function summary_header(io, heading; total_width = 100, indentation_level = 0)
     total_width = get(io, :total_width, total_width)
     indentation_level = get(io, :indentation_level, indentation_level)
 
@@ -229,7 +230,8 @@ function summary_header(io, heading; total_width=100, indentation_level=0)
     println(io, "│ " * "═"^length(heading) * " "^(total_width - length(heading) - 4) * " │")
 end
 
-function summary_line(io, key, value; key_width=30, total_width=100, indentation_level=0)
+function summary_line(io, key, value; key_width = 30, total_width = 100,
+                      indentation_level = 0)
     # Printing is not performance-critical, so we can use `@nospecialize` to reduce latency
     @nospecialize value # reduce precompilation time
 
@@ -238,12 +240,12 @@ function summary_line(io, key, value; key_width=30, total_width=100, indentation
     indentation_level = get(io, :indentation_level, indentation_level)
 
     s = format_key_value_line(key, value, key_width, total_width,
-                              indentation_level=indentation_level)
+                              indentation_level = indentation_level)
 
     println(io, s)
 end
 
-function summary_footer(io; total_width=100, indentation_level=0)
+function summary_footer(io; total_width = 100, indentation_level = 0)
     total_width = get(io, :total_width, 100)
     indentation_level = get(io, :indentation_level, 0)
 
@@ -266,7 +268,7 @@ function print_summary(integrator)
 
     # Print timer
     TimerOutputs.complement!(timer())
-    print_timer(timer(), title="TrixiParticles.jl",
-                allocations=true, linechars=:unicode, compact=false)
+    print_timer(timer(), title = "TrixiParticles.jl",
+                allocations = true, linechars = :unicode, compact = false)
     println()
 end

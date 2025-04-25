@@ -37,14 +37,14 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
     end
 end
 
-function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                           adhesion_coefficient=0.0, color_value=0)
+function BoundarySPHSystem(initial_condition, model; movement = nothing,
+                           adhesion_coefficient = 0.0, color_value = 0)
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(movement))
 
     cache = create_cache_boundary(movement, initial_condition)
-    cache = (cache..., color=Int(color_value))
+    cache = (cache..., color = Int(color_value))
 
     if movement !== nothing && isempty(movement.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
@@ -171,7 +171,7 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
+function BoundaryMovement(movement_function, is_moving; moving_particles = nothing)
     if !(movement_function(0.0) isa SVector)
         @warn "Return value of `movement_function` is not of type `SVector`. " *
               "Returning regular `Vector`s causes allocations and significant performance overhead."
@@ -357,7 +357,7 @@ end
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
 function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+                       update_from_callback = false)
     (; boundary_model) = system
 
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
@@ -429,8 +429,8 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
 
     if haskey(cache, :initial_colorfield)
         foreach_point_neighbor(system, system, system_coords, system_coords, semi,
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
+                               points = eachparticle(system)) do particle, neighbor,
+                                                                 pos_diff, distance
             cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
                                                   system.initial_condition.density[particle] *
                                                   system.cache.color *

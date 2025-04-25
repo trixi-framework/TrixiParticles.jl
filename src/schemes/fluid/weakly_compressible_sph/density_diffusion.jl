@@ -149,7 +149,7 @@ end
 
 function allocate_buffer(ic, dd::DensityDiffusionAntuono, buffer::SystemBuffer)
     initial_condition = allocate_buffer(ic, buffer)
-    return initial_condition, DensityDiffusionAntuono(initial_condition; delta=dd.delta)
+    return initial_condition, DensityDiffusionAntuono(initial_condition; delta = dd.delta)
 end
 
 @inline function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
@@ -183,8 +183,8 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     set_zero!(normalized_density_gradient)
 
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                           points = each_moving_particle(system)) do particle, neighbor,
+                                                                     pos_diff, distance
         # Only consider particles with a distance > 0
         distance < sqrt(eps(typeof(distance))) && return
 

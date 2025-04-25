@@ -78,9 +78,9 @@ shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, de
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::Integer,
-                          velocity=zeros(length(direction)), tlsph=false,
-                          mass=nothing, density=nothing, pressure=0.0)
+function extrude_geometry(geometry; particle_spacing = -1, direction, n_extrude::Integer,
+                          velocity = zeros(length(direction)), tlsph = false,
+                          mass = nothing, density = nothing, pressure = 0.0)
     direction_ = normalize(direction)
     NDIMS = length(direction_)
 
@@ -97,9 +97,9 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
 
     geometry = shift_plane_corners(geometry, direction_, particle_spacing, tlsph)
 
-    face_coords, particle_spacing_ = sample_plane(geometry, particle_spacing; tlsph=tlsph)
+    face_coords, particle_spacing_ = sample_plane(geometry, particle_spacing; tlsph = tlsph)
 
-    if !isapprox(particle_spacing, particle_spacing_, rtol=5e-2)
+    if !isapprox(particle_spacing, particle_spacing_, rtol = 5e-2)
         @info "The desired size is not a multiple of the particle spacing $particle_spacing." *
               "\nNew particle spacing is set to $particle_spacing_."
     end
@@ -114,7 +114,7 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
     end
 
     return InitialCondition(; coordinates, velocity, density, mass, pressure,
-                            particle_spacing=particle_spacing_)
+                            particle_spacing = particle_spacing_)
 end
 
 # For corners/endpoints of a plane/line, sample the plane/line with particles.
@@ -148,13 +148,13 @@ function sample_plane(shape::InitialCondition, particle_spacing; tlsph)
     return shape.coordinates, particle_spacing
 end
 
-function sample_plane(plane_points, particle_spacing; tlsph=nothing)
+function sample_plane(plane_points, particle_spacing; tlsph = nothing)
 
     # Convert to tuple
-    return sample_plane(tuple(plane_points...), particle_spacing; tlsph=nothing)
+    return sample_plane(tuple(plane_points...), particle_spacing; tlsph = nothing)
 end
 
-function sample_plane(plane_points::NTuple{2}, particle_spacing; tlsph=nothing)
+function sample_plane(plane_points::NTuple{2}, particle_spacing; tlsph = nothing)
     # Verify that points are in 2D space
     if any(length.(plane_points) .!= 2)
         throw(ArgumentError("all points must be 2D coordinates"))
@@ -162,13 +162,13 @@ function sample_plane(plane_points::NTuple{2}, particle_spacing; tlsph=nothing)
 
     n_points = ceil(Int, norm(plane_points[2] - plane_points[1]) / particle_spacing) + 1
 
-    coords = stack(range(plane_points[1], plane_points[2], length=n_points))
+    coords = stack(range(plane_points[1], plane_points[2], length = n_points))
     particle_spacing_new = norm(coords[:, 1] - coords[:, 2])
 
     return coords, particle_spacing_new
 end
 
-function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph=nothing)
+function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph = nothing)
     # Verify that points are in 3D space
     if any(length.(plane_points) .!= 3)
         throw(ArgumentError("all points must be 3D coordinates"))
@@ -183,7 +183,7 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph=nothing)
     edge2 = point3_ - point1_
 
     # Check if the points are collinear
-    if isapprox(norm(cross(edge1, edge2)), 0; atol=eps())
+    if isapprox(norm(cross(edge1, edge2)), 0; atol = eps())
         throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
     end
 

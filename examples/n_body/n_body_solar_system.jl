@@ -23,7 +23,7 @@ masses = [
     1.99e30, 3.30e23, 4.87e24, 5.97e24, 6.42e23, 1.90e27, 5.68e26, 8.68e25, 1.02e26
 ]
 
-initial_condition = InitialCondition(; coordinates, velocity, density=1.0, mass=masses)
+initial_condition = InitialCondition(; coordinates, velocity, density = 1.0, mass = masses)
 
 G = 6.6743e-11
 particle_system = NBodySystem(initial_condition, G)
@@ -31,15 +31,15 @@ particle_system = NBodySystem(initial_condition, G)
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_system, neighborhood_search=nothing)
+semi = Semidiscretization(particle_system, neighborhood_search = nothing)
 
 day = 24 * 3600.0
 year = 365day
 tspan = (0.0, 10year)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100000)
-saving_callback = SolutionSavingCallback(dt=10day, max_coordinates=Inf)
+info_callback = InfoCallback(interval = 100000)
+saving_callback = SolutionSavingCallback(dt = 10day, max_coordinates = Inf)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
@@ -54,8 +54,8 @@ open(filename, "w") do f
 end
 
 sol = solve(ode, SymplecticEuler(),
-            dt=1.0e5,
-            save_everystep=false, callback=callbacks);
+            dt = 1.0e5,
+            save_everystep = false, callback = callbacks);
 
 @printf("%.9e\n", energy(ode.u0.x..., particle_system, semi))
 @printf("%.9e\n", energy(sol.u[end].x..., particle_system, semi))

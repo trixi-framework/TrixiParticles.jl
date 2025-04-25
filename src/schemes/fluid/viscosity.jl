@@ -70,7 +70,7 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     beta    :: ELTYPE
     epsilon :: ELTYPE
 
-    function ArtificialViscosityMonaghan(; alpha, beta=0.0, epsilon=0.01)
+    function ArtificialViscosityMonaghan(; alpha, beta = 0.0, epsilon = 0.01)
         new{typeof(alpha)}(alpha, beta, epsilon)
     end
 end
@@ -96,7 +96,7 @@ struct ViscosityMorris{ELTYPE}
     nu::ELTYPE
     epsilon::ELTYPE
 
-    function ViscosityMorris(; nu, epsilon=0.01)
+    function ViscosityMorris(; nu, epsilon = 0.01)
         new{typeof(nu)}(nu, epsilon)
     end
 end
@@ -207,7 +207,7 @@ struct ViscosityAdami{ELTYPE}
     nu::ELTYPE
     epsilon::ELTYPE
 
-    function ViscosityAdami(; nu, epsilon=0.01)
+    function ViscosityAdami(; nu, epsilon = 0.01)
         new{typeof(nu)}(nu, epsilon)
     end
 end

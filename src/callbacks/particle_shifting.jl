@@ -12,7 +12,7 @@ cost and improve the stability of the scheme.
 function ParticleShiftingCallback()
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback((particle_shifting_condition), particle_shifting!,
-                            save_positions=(false, false))
+                            save_positions = (false, false))
 end
 
 # `condition`
@@ -31,7 +31,7 @@ function particle_shifting!(integrator)
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
-    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
+    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback = true)
 
     @trixi_timeit timer() "particle shifting" foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
@@ -73,8 +73,8 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
-                               points=each_moving_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points = each_moving_particle(system)) do particle, neighbor,
+                                                                         pos_diff, distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             rho_a = current_density(v, system, particle)
             rho_b = current_density(v_neighbor, neighbor_system, neighbor)

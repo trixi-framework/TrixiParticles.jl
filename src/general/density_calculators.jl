@@ -24,7 +24,7 @@ difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of parti
 struct ContinuityDensity end
 
 function summation_density!(system, semi, u, u_ode, density;
-                            particles=each_moving_particle(system))
+                            particles = each_moving_particle(system))
     set_zero!(density)
 
     # Use all other systems for the density summation
@@ -37,7 +37,7 @@ function summation_density!(system, semi, u, u_ode, density;
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi,
-                               points=particles) do particle, neighbor, pos_diff, distance
+                               points = particles) do particle, neighbor, pos_diff, distance
             mass = hydrodynamic_mass(neighbor_system, neighbor)
             density[particle] += mass * smoothing_kernel(system, distance, particle)
         end

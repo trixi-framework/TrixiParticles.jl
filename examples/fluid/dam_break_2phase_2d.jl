@@ -32,16 +32,17 @@ nu_ratio = nu_water / nu_air
 nu_sim_air = 0.02 * smoothing_length * sound_speed
 nu_sim_water = nu_ratio * nu_sim_air
 
-air_viscosity = ViscosityMorris(nu=nu_sim_air)
-water_viscosity = ViscosityMorris(nu=nu_sim_water)
+air_viscosity = ViscosityMorris(nu = nu_sim_air)
+water_viscosity = ViscosityMorris(nu = nu_sim_water)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
-              viscosity=water_viscosity, smoothing_length=smoothing_length,
-              gravity=gravity, tspan=tspan, density_diffusion=nothing,
-              sound_speed=sound_speed, exponent=7,
-              tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing,
-                         2.6 * H))
+              sol = nothing, fluid_particle_spacing = fluid_particle_spacing,
+              viscosity = water_viscosity, smoothing_length = smoothing_length,
+              gravity = gravity, tspan = tspan, density_diffusion = nothing,
+              sound_speed = sound_speed, exponent = 7,
+              tank_size = (floor(5.366 * H / fluid_particle_spacing) *
+                           fluid_particle_spacing,
+                           2.6 * H))
 
 # ==========================================================================================
 # ==== Setup air_system layer
@@ -53,12 +54,12 @@ air_density = 1.0
 # Air above the initial water
 air_system = RectangularShape(fluid_particle_spacing,
                               round.(Int, air_size ./ fluid_particle_spacing),
-                              zeros(length(air_size)), density=air_density)
+                              zeros(length(air_size)), density = air_density)
 
 # Air for the rest of the empty volume
 air_system2 = RectangularShape(fluid_particle_spacing,
                                round.(Int, air_size2 ./ fluid_particle_spacing),
-                               (W, 0.0), density=air_density)
+                               (W, 0.0), density = air_density)
 
 # move on top of the water
 for i in axes(air_system.coordinates, 2)
@@ -67,24 +68,24 @@ end
 
 air_system = union(air_system, air_system2)
 
-air_eos = StateEquationCole(; sound_speed, reference_density=air_density, exponent=1,
-                            clip_negative_pressure=false)
+air_eos = StateEquationCole(; sound_speed, reference_density = air_density, exponent = 1,
+                            clip_negative_pressure = false)
 #air_eos = StateEquationIdealGas(; sound_speed, reference_density=air_density, gamma=1.4)
 
 air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calculator,
                                                 air_eos, smoothing_kernel, smoothing_length,
-                                                viscosity=air_viscosity,
-                                                acceleration=(0.0, -gravity))
+                                                viscosity = air_viscosity,
+                                                acceleration = (0.0, -gravity))
 
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, air_system_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
-                          parallelization_backend=true)
+                          neighborhood_search = GridNeighborhoodSearch{2}(update_strategy = nothing),
+                          parallelization_backend = true)
 ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+            abstol = 1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol = 1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax = 1e-2, # Limit stepsize to prevent crashing
+            save_everystep = false, callback = callbacks);

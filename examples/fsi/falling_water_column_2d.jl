@@ -7,8 +7,8 @@ n_particles_y = 5
 
 # Load setup from oscillating beam example
 trixi_include(@__MODULE__, joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"),
-              thickness=0.05, n_particles_y=n_particles_y,
-              sol=nothing) # Don't run simulation, only include the setup part
+              thickness = 0.05, n_particles_y = n_particles_y,
+              sol = nothing) # Don't run simulation, only include the setup part
 
 # Fluid resolution
 fluid_particle_spacing = 3particle_spacing
@@ -24,12 +24,12 @@ tank_size = (2.0, 4.0)
 
 fluid_density = 1000.0
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7)
+state_equation = StateEquationCole(; sound_speed, reference_density = fluid_density,
+                                   exponent = 7)
 
 fluid = RectangularShape(fluid_particle_spacing,
                          round.(Int, (initial_fluid_size ./ fluid_particle_spacing)),
-                         (0.1, 0.2), density=fluid_density)
+                         (0.1, 0.2), density = fluid_density)
 
 # ==========================================================================================
 # ==== Fluid
@@ -37,12 +37,12 @@ fluid_smoothing_length = 1.2 * fluid_particle_spacing
 fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+viscosity = ArtificialViscosityMonaghan(alpha = 0.02, beta = 0.0)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, fluid_smoothing_kernel,
-                                           fluid_smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity))
+                                           fluid_smoothing_length, viscosity = viscosity,
+                                           acceleration = (0.0, -gravity))
 
 # ==========================================================================================
 # ==== Solid
@@ -59,17 +59,17 @@ boundary_model = BoundaryModelMonaghanKajtar(k, spacing_ratio, particle_spacing,
 solid_system = TotalLagrangianSPHSystem(solid,
                                         smoothing_kernel, smoothing_length,
                                         material.E, material.nu,
-                                        boundary_model=boundary_model,
-                                        n_fixed_particles=nparticles(fixed_particles),
-                                        acceleration=(0.0, -gravity))
+                                        boundary_model = boundary_model,
+                                        n_fixed_particles = nparticles(fixed_particles),
+                                        acceleration = (0.0, -gravity))
 
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, solid_system)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.005, prefix="")
+info_callback = InfoCallback(interval = 100)
+saving_callback = SolutionSavingCallback(dt = 0.005, prefix = "")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
@@ -81,7 +81,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-3, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+            abstol = 1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol = 1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax = 1e-3, # Limit stepsize to prevent crashing
+            save_everystep = false, callback = callbacks);

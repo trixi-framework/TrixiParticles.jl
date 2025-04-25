@@ -94,13 +94,13 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
-                             velocity=zeros(length(fluid_size)), fluid_mass=nothing,
-                             pressure=0,
-                             acceleration=nothing, state_equation=nothing,
-                             boundary_density=fluid_density,
-                             n_layers=1, spacing_ratio=1,
-                             min_coordinates=zeros(length(fluid_size)),
-                             faces=Tuple(trues(2 * length(fluid_size))))
+                             velocity = zeros(length(fluid_size)), fluid_mass = nothing,
+                             pressure = 0,
+                             acceleration = nothing, state_equation = nothing,
+                             boundary_density = fluid_density,
+                             n_layers = 1, spacing_ratio = 1,
+                             min_coordinates = zeros(length(fluid_size)),
+                             faces = Tuple(trues(2 * length(fluid_size))))
         NDIMS = length(fluid_size)
         ELTYPE = eltype(particle_spacing)
         fluid_size_ = Tuple(ELTYPE.(fluid_size))
@@ -151,10 +151,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                          particle_spacing,
                                          n_particles_per_dim)
 
-        boundary = InitialCondition(coordinates=boundary_coordinates,
-                                    velocity=boundary_velocities,
-                                    mass=boundary_masses, density=boundary_densities,
-                                    particle_spacing=boundary_spacing)
+        boundary = InitialCondition(coordinates = boundary_coordinates,
+                                    velocity = boundary_velocities,
+                                    mass = boundary_masses, density = boundary_densities,
+                                    particle_spacing = boundary_spacing)
 
         # Move the tank corner in the negative coordinate directions to the desired position
         boundary.coordinates .+= min_coordinates
@@ -166,18 +166,18 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                 fluid = RectangularShape(particle_spacing, n_particles_per_dim,
                                          zeros(NDIMS);
                                          velocity, pressure, acceleration, state_equation,
-                                         mass=fluid_mass)
+                                         mass = fluid_mass)
             else
                 fluid = RectangularShape(particle_spacing, n_particles_per_dim,
                                          zeros(NDIMS);
-                                         density=fluid_density, velocity, pressure,
-                                         acceleration, state_equation, mass=fluid_mass)
+                                         density = fluid_density, velocity, pressure,
+                                         acceleration, state_equation, mass = fluid_mass)
             end
             # Move the tank corner in the negative coordinate directions to the desired position
             fluid.coordinates .+= min_coordinates
         else
             # Fluid is empty
-            fluid = InitialCondition(coordinates=zeros(ELTYPE, NDIMS, 0), density=1.0)
+            fluid = InitialCondition(coordinates = zeros(ELTYPE, NDIMS, 0), density = 1.0)
         end
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
@@ -191,7 +191,7 @@ function round_n_particles(size, spacing, type)
     n_particles = round(Int, size / spacing)
 
     new_size = n_particles * spacing
-    if round(new_size, digits=4) != round(size, digits=4)
+    if round(new_size, digits = 4) != round(size, digits = 4)
         @info "The desired $type $size is not a multiple of the particle spacing " *
               "$spacing.\nNew $type is set to $new_size."
     end
@@ -335,7 +335,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
         left_boundary = rectangular_shape_coords(particle_spacing,
                                                  (n_layers, n_particles_y),
                                                  (layer_offset, 0.0),
-                                                 loop_order=:x_first)
+                                                 loop_order = :x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, left_boundary)
@@ -353,7 +353,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
         right_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_layers, n_particles_y),
                                                   (tank_size[1], 0.0),
-                                                  loop_order=:x_first)
+                                                  loop_order = :x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, right_boundary)
@@ -371,7 +371,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
         bottom_boundary = rectangular_shape_coords(particle_spacing,
                                                    (n_particles_x, n_layers),
                                                    (0.0, layer_offset),
-                                                   loop_order=:y_first)
+                                                   loop_order = :y_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, bottom_boundary)
@@ -389,7 +389,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
         top_boundary = rectangular_shape_coords(particle_spacing,
                                                 (n_particles_x, n_layers),
                                                 (0.0, tank_size[2]),
-                                                loop_order=:y_first)
+                                                loop_order = :y_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, top_boundary)
@@ -466,7 +466,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         x_neg_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_layers, n_particles_y, n_particles_z),
                                                   (layer_offset, 0.0, 0.0),
-                                                  loop_order=:x_first)
+                                                  loop_order = :x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, x_neg_boundary)
@@ -484,7 +484,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         x_pos_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_layers, n_particles_y, n_particles_z),
                                                   (tank_size[1], 0.0, 0.0),
-                                                  loop_order=:x_first)
+                                                  loop_order = :x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, x_pos_boundary)
@@ -502,7 +502,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         y_neg_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_particles_x, n_layers, n_particles_z),
                                                   (0.0, layer_offset, 0.0),
-                                                  loop_order=:y_first)
+                                                  loop_order = :y_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, y_neg_boundary)
@@ -520,7 +520,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         y_pos_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_particles_x, n_layers, n_particles_z),
                                                   (0.0, tank_size[2], 0.0),
-                                                  loop_order=:y_first)
+                                                  loop_order = :y_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, y_pos_boundary)
@@ -538,7 +538,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         z_neg_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_particles_x, n_particles_y, n_layers),
                                                   (0.0, 0.0, layer_offset),
-                                                  loop_order=:z_first)
+                                                  loop_order = :z_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, z_neg_boundary)
@@ -556,7 +556,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         z_pos_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_particles_x, n_particles_y, n_layers),
                                                   (0.0, 0.0, tank_size[3]),
-                                                  loop_order=:z_first)
+                                                  loop_order = :z_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, z_pos_boundary)

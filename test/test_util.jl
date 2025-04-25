@@ -51,7 +51,7 @@ Modified version of `@test_nowarn expr` that prints the content of `stderr` when
 it is not empty and ignores some common info statements printed in Trixi.jl
 uses.
 """
-macro test_nowarn_mod(expr, additional_ignore_content=String[])
+macro test_nowarn_mod(expr, additional_ignore_content = String[])
     quote
         let fname = tempname()
             try
@@ -80,7 +80,7 @@ macro test_nowarn_mod(expr, additional_ignore_content=String[])
                 @test occursin(r"^(WARNING: replacing module .+\.\n)*$", stderr_content)
                 ret
             finally
-                rm(fname, force=true)
+                rm(fname, force = true)
             end
         end
     end
@@ -89,7 +89,7 @@ end
 struct DummySemidiscretization
     parallelization_backend::Any
 
-    function DummySemidiscretization(; parallelization_backend=false)
+    function DummySemidiscretization(; parallelization_backend = false)
         new(parallelization_backend)
     end
 end

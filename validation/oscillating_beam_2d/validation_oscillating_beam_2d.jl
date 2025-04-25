@@ -27,19 +27,19 @@ n_particles_beam_y = 5
 # Overwrite `sol` assignment to skip time integration
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"),
-              n_particles_y=n_particles_beam_y, sol=nothing, tspan=tspan,
-              penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+              n_particles_y = n_particles_beam_y, sol = nothing, tspan = tspan,
+              penalty_force = PenaltyForceGanzenmueller(alpha = 0.01))
 
-pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
-                                  output_directory="out",
-                                  filename="validation_run_oscillating_beam_2d_$n_particles_beam_y",
-                                  write_csv=false, write_file_interval=0)
-info_callback = InfoCallback(interval=2500)
+pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt = 0.01,
+                                  output_directory = "out",
+                                  filename = "validation_run_oscillating_beam_2d_$n_particles_beam_y",
+                                  write_csv = false, write_file_interval = 0)
+info_callback = InfoCallback(interval = 2500)
 
 callbacks = CallbackSet(info_callback, pp_callback)
 
-sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dt=1e-5,
-            save_everystep=false, callback=callbacks)
+sol = solve(ode, RDPK3SpFSAL49(), abstol = 1e-8, reltol = 1e-6, dt = 1e-5,
+            save_everystep = false, callback = callbacks)
 
 reference_file_name = joinpath(validation_dir(), "oscillating_beam_2d",
                                "validation_reference_$n_particles_beam_y.json")

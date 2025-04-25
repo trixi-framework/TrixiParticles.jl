@@ -24,8 +24,9 @@ struct SteadyStateReachedCallback{I, ELTYPE <: Real}
     interval_size :: Int
 end
 
-function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
-                                    interval_size::Integer=10, abstol=1.0e-8, reltol=1.0e-6)
+function SteadyStateReachedCallback(; interval::Integer = 0, dt = 0.0,
+                                    interval_size::Integer = 10, abstol = 1.0e-8,
+                                    reltol = 1.0e-6)
     abstol, reltol = promote(abstol, reltol)
 
     if dt > 0 && interval > 0
@@ -40,11 +41,11 @@ function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
                                                        interval_size)
 
     if dt > 0
-        return PeriodicCallback(steady_state_callback, dt, save_positions=(false, false),
-                                final_affect=true)
+        return PeriodicCallback(steady_state_callback, dt, save_positions = (false, false),
+                                final_affect = true)
     else
         return DiscreteCallback(steady_state_callback, steady_state_callback,
-                                save_positions=(false, false))
+                                save_positions = (false, false))
     end
 end
 

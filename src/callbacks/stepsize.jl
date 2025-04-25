@@ -39,8 +39,8 @@ function StepsizeCallback(; cfl::Real)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(stepsize_callback, stepsize_callback,
-                            save_positions=(false, false),
-                            initialize=initialize_stepsize_callback)
+                            save_positions = (false, false),
+                            initialize = initialize_stepsize_callback)
 end
 
 function initialize_stepsize_callback(discrete_callback, u, t, integrator)

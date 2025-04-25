@@ -20,7 +20,8 @@
 
         @test repr("text/plain", signed_distance_field) == show_box
 
-        signed_distance_field = SignedDistanceField(geometry, 0.1; max_signed_distance=0.89)
+        signed_distance_field = SignedDistanceField(geometry, 0.1;
+                                                    max_signed_distance = 0.89)
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ SignedDistanceField{2}                                                                           │
@@ -31,8 +32,9 @@
 
         @test repr("text/plain", signed_distance_field) == show_box
 
-        signed_distance_field = SignedDistanceField(geometry, 0.1; max_signed_distance=0.45,
-                                                    use_for_boundary_packing=true)
+        signed_distance_field = SignedDistanceField(geometry, 0.1;
+                                                    max_signed_distance = 0.45,
+                                                    use_for_boundary_packing = true)
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ SignedDistanceField{2}                                                                           │
@@ -55,7 +57,7 @@
 
             signed_distance_field = SignedDistanceField(geometry, 0.1)
 
-            nhs = TrixiParticles.FaceNeighborhoodSearch{ndims(geometry)}(search_radius=0.1)
+            nhs = TrixiParticles.FaceNeighborhoodSearch{ndims(geometry)}(search_radius = 0.1)
 
             TrixiParticles.initialize!(nhs, geometry)
 
@@ -129,9 +131,9 @@
 
                 distances = data.signed_distances
 
-                @test isapprox(signed_distance_field.positions, points; rtol=1e-4)
-                @test isapprox(signed_distance_field.normals, vertex_normals; rtol=1e-4)
-                @test isapprox(signed_distance_field.distances, distances; rtol=1e-4)
+                @test isapprox(signed_distance_field.positions, points; rtol = 1e-4)
+                @test isapprox(signed_distance_field.normals, vertex_normals; rtol = 1e-4)
+                @test isapprox(signed_distance_field.distances, distances; rtol = 1e-4)
             end
         end
     end

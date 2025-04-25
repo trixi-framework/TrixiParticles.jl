@@ -9,7 +9,7 @@ struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
 end
 
 function FaceNeighborhoodSearch{NDIMS}(; search_radius,
-                                       cell_list=PointNeighbors.DictionaryCellList{NDIMS}()) where {NDIMS}
+                                       cell_list = PointNeighbors.DictionaryCellList{NDIMS}()) where {NDIMS}
     cell_size = ntuple(_ -> search_radius, Val(NDIMS))
     n_cells = ntuple(_ -> -1, Val(NDIMS))
     neighbors = PointNeighbors.copy_cell_list(cell_list, search_radius, nothing)
@@ -30,7 +30,7 @@ end
 end
 
 function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
-                     pad=ntuple(_ -> 1, ndims(geometry)))
+                     pad = ntuple(_ -> 1, ndims(geometry)))
     (; cell_list, neighbors) = neighborhood_search
 
     empty!(cell_list)

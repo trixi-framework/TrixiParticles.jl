@@ -71,11 +71,11 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), den
 ```
 """
 function RectangularShape(particle_spacing, n_particles_per_dimension, min_coordinates;
-                          velocity=zeros(length(n_particles_per_dimension)),
-                          coordinates_perturbation=nothing,
-                          mass=nothing, density=nothing, pressure=0.0,
-                          acceleration=nothing, state_equation=nothing,
-                          tlsph=false, loop_order=nothing)
+                          velocity = zeros(length(n_particles_per_dimension)),
+                          coordinates_perturbation = nothing,
+                          mass = nothing, density = nothing, pressure = 0.0,
+                          acceleration = nothing, state_equation = nothing,
+                          tlsph = false, loop_order = nothing)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -95,8 +95,8 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
     n_particles = prod(n_particles_per_dimension)
 
     coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                           min_coordinates, tlsph=tlsph,
-                                           loop_order=loop_order)
+                                           min_coordinates, tlsph = tlsph,
+                                           loop_order = loop_order)
 
     if !isnothing(coordinates_perturbation)
         seed!(1)
@@ -190,7 +190,7 @@ function loop_permutation(loop_order, NDIMS::Val{3})
 end
 
 function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                  min_coordinates; tlsph=false, loop_order=nothing)
+                                  min_coordinates; tlsph = false, loop_order = nothing)
     ELTYPE = eltype(particle_spacing)
     NDIMS = length(n_particles_per_dimension)
 

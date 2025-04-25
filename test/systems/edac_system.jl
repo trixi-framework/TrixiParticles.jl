@@ -42,7 +42,7 @@
                                                                                smoothing_kernel,
                                                                                smoothing_length,
                                                                                sound_speed,
-                                                                               acceleration=(0.0))
+                                                                               acceleration = (0.0))
 
             error_str2 = "smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str2) EntropicallyDampedSPHSystem(initial_condition,
@@ -55,8 +55,8 @@
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructors with Setups" begin
         setups = [
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0, pressure=1.0),
-            RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), density=1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density = 1.0, pressure = 1.0),
+            RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), density = 1.0),
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
             RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
                             1020.0).fluid,
@@ -109,7 +109,7 @@
                                                                               smoothing_kernel,
                                                                               smoothing_length,
                                                                               sound_speed,
-                                                                              acceleration=(0.0))
+                                                                              acceleration = (0.0))
         end
     end
 
@@ -196,7 +196,7 @@
         @test v0 == vcat(velocity, pressure')
 
         initial_condition = InitialCondition(; coordinates, velocity, mass, density,
-                                             pressure=pressure_function)
+                                             pressure = pressure_function)
 
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
@@ -213,10 +213,10 @@
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.6particle_spacing
 
-        fluid = rectangular_patch(particle_spacing, (3, 3), seed=1)
+        fluid = rectangular_patch(particle_spacing, (3, 3), seed = 1)
 
         system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                             transport_velocity=TransportVelocityAdami(0.0),
+                                             transport_velocity = TransportVelocityAdami(0.0),
                                              smoothing_length, 0.0)
         semi = Semidiscretization(system)
 

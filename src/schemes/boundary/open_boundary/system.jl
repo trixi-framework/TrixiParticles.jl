@@ -55,9 +55,9 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                    fluid_system::FluidSystem,
                                    buffer_size::Integer, boundary_model,
-                                   reference_velocity=nothing,
-                                   reference_pressure=nothing,
-                                   reference_density=nothing)
+                                   reference_velocity = nothing,
+                                   reference_pressure = nothing,
+                                   reference_density = nothing)
         (; initial_condition) = boundary_zone
 
         check_reference_values!(boundary_model, reference_density, reference_pressure,
@@ -146,18 +146,19 @@ function create_cache_open_boundary(boundary_model, initial_condition,
     prescribed_density = isnothing(reference_density) ? false : true
 
     if boundary_model isa BoundaryModelTafuni
-        return (; prescribed_pressure=prescribed_pressure,
-                prescribed_density=prescribed_density,
-                prescribed_velocity=prescribed_velocity)
+        return (; prescribed_pressure = prescribed_pressure,
+                prescribed_density = prescribed_density,
+                prescribed_velocity = prescribed_velocity)
     end
 
     characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
-    return (; characteristics=characteristics,
-            previous_characteristics=previous_characteristics,
-            prescribed_pressure=prescribed_pressure,
-            prescribed_density=prescribed_density, prescribed_velocity=prescribed_velocity)
+    return (; characteristics = characteristics,
+            previous_characteristics = previous_characteristics,
+            prescribed_pressure = prescribed_pressure,
+            prescribed_density = prescribed_density,
+            prescribed_velocity = prescribed_velocity)
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"
@@ -187,7 +188,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         summary_line(io, "prescribed velocity", type2string(system.reference_velocity))
         summary_line(io, "prescribed pressure", type2string(system.reference_pressure))
         summary_line(io, "prescribed density", type2string(system.reference_density))
-        summary_line(io, "width", round(system.boundary_zone.zone_width, digits=3))
+        summary_line(io, "width", round(system.boundary_zone.zone_width, digits = 3))
         summary_footer(io)
     end
 end
@@ -219,7 +220,7 @@ end
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+                       update_from_callback = false)
     if !update_from_callback && !(system.update_callback_used[])
         throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
     end

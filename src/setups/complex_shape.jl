@@ -42,12 +42,12 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
     This is an experimental feature and may change in any future releases.
 """
 function ComplexShape(geometry; particle_spacing, density,
-                      pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
-                      point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
-                                                                        hierarchical_winding=true,
-                                                                        winding_number_factor=sqrt(eps())),
-                      store_winding_number=false, grid_offset::Real=0.0,
-                      max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
+                      pressure = 0.0, mass = nothing, velocity = zeros(ndims(geometry)),
+                      point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
+                                                                          hierarchical_winding = true,
+                                                                          winding_number_factor = sqrt(eps())),
+                      store_winding_number = false, grid_offset::Real = 0.0,
+                      max_nparticles = 10^7, pad_initial_particle_grid = 2particle_spacing)
     if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHormann
         throw(ArgumentError("`WindingNumberHormann` only supports 2D geometries"))
     end
@@ -56,7 +56,7 @@ function ComplexShape(geometry; particle_spacing, density,
         throw(ArgumentError("only a positive `grid_offset` is supported"))
     end
 
-    grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
+    grid = particle_grid(geometry, particle_spacing; padding = pad_initial_particle_grid,
                          grid_offset, max_nparticles)
 
     inpoly,
@@ -70,8 +70,8 @@ function ComplexShape(geometry; particle_spacing, density,
 
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
-        return (initial_condition=initial_condition, winding_numbers=winding_numbers,
-                grid=stack(grid))
+        return (initial_condition = initial_condition, winding_numbers = winding_numbers,
+                grid = stack(grid))
     end
 
     return initial_condition
@@ -117,7 +117,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 ```
 """
 function sample_boundary(signed_distance_field;
-                         boundary_density, boundary_thickness, tlsph=true)
+                         boundary_density, boundary_thickness, tlsph = true)
     (; max_signed_distance, boundary_packing,
      positions, distances, particle_spacing) = signed_distance_field
 
@@ -135,12 +135,14 @@ function sample_boundary(signed_distance_field;
     keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
 
     boundary_coordinates = stack(positions[keep_indices])
-    return InitialCondition(; coordinates=boundary_coordinates, density=boundary_density,
+    return InitialCondition(; coordinates = boundary_coordinates,
+                            density = boundary_density,
                             particle_spacing)
 end
 
 function particle_grid(geometry, particle_spacing;
-                       padding=2particle_spacing, grid_offset=0.0, max_nparticles=10^7)
+                       padding = 2particle_spacing, grid_offset = 0.0,
+                       max_nparticles = 10^7)
     (; max_corner) = geometry
 
     min_corner = geometry.min_corner .- grid_offset .- padding
@@ -157,6 +159,6 @@ function particle_grid(geometry, particle_spacing;
     end
 
     grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                    min_corner; tlsph=true)
+                                    min_corner; tlsph = true)
     return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
 end

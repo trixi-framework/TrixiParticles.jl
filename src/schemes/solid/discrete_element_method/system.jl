@@ -42,9 +42,10 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS}
     buffer              :: Nothing
 
     function DEMSystem(initial_condition, normal_stiffness, elastic_modulus, poissons_ratio;
-                       damping_coefficient=0.0001,
-                       acceleration=ntuple(_ -> 0.0,
-                                           ndims(initial_condition)), source_terms=nothing)
+                       damping_coefficient = 0.0001,
+                       acceleration = ntuple(_ -> 0.0,
+                                             ndims(initial_condition)),
+                       source_terms = nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 

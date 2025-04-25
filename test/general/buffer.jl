@@ -2,18 +2,19 @@
     # Mock fluid system
     struct FluidSystemMock3 <: TrixiParticles.FluidSystem{2} end
 
-    zone = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
-                        open_boundary_layers=2, density=1.0, plane_normal=[1.0, 0.0],
-                        boundary_type=InFlow())
-    system = OpenBoundarySPHSystem(zone; fluid_system=FluidSystemMock3(),
-                                   reference_density=0.0, reference_pressure=0.0,
-                                   reference_velocity=[0, 0],
-                                   boundary_model=BoundaryModelLastiwka(), buffer_size=0)
-    system_buffer = OpenBoundarySPHSystem(zone; buffer_size=5,
-                                          reference_density=0.0, reference_pressure=0.0,
-                                          reference_velocity=[0, 0],
-                                          boundary_model=BoundaryModelLastiwka(),
-                                          fluid_system=FluidSystemMock3())
+    zone = BoundaryZone(; plane = ([0.0, 0.0], [0.0, 1.0]), particle_spacing = 0.2,
+                        open_boundary_layers = 2, density = 1.0, plane_normal = [1.0, 0.0],
+                        boundary_type = InFlow())
+    system = OpenBoundarySPHSystem(zone; fluid_system = FluidSystemMock3(),
+                                   reference_density = 0.0, reference_pressure = 0.0,
+                                   reference_velocity = [0, 0],
+                                   boundary_model = BoundaryModelLastiwka(),
+                                   buffer_size = 0)
+    system_buffer = OpenBoundarySPHSystem(zone; buffer_size = 5,
+                                          reference_density = 0.0, reference_pressure = 0.0,
+                                          reference_velocity = [0, 0],
+                                          boundary_model = BoundaryModelLastiwka(),
+                                          fluid_system = FluidSystemMock3())
 
     n_particles = nparticles(system)
 
@@ -46,7 +47,7 @@
     end
 
     @testset "Allocate Buffer" begin
-        initial_condition = rectangular_patch(0.1, (3, 3), perturbation_factor=0.0)
+        initial_condition = rectangular_patch(0.1, (3, 3), perturbation_factor = 0.0)
         buffer = TrixiParticles.SystemBuffer(nparticles(initial_condition), 7)
 
         ic_with_buffer = TrixiParticles.allocate_buffer(initial_condition, buffer)

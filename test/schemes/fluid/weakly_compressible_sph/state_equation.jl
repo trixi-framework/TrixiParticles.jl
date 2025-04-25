@@ -15,9 +15,9 @@
             ATM = 101_325.0
 
             # 7.15 is the value used by Cole (see p. 39 of Cole 1948)
-            state_equation = StateEquationCole(; sound_speed, exponent=7.15,
-                                               reference_density=rest_density,
-                                               background_pressure=1ATM)
+            state_equation = StateEquationCole(; sound_speed, exponent = 7.15,
+                                               reference_density = rest_density,
+                                               background_pressure = 1ATM)
 
             # These densities differ from an online calculator by less than 0.05%.
             # See https://www.omnicalculator.com/physics/water-density
@@ -43,9 +43,9 @@
             background_pressures = [0.0, 10_000.0, 100_000.0, 200_000.0]
 
             for background_pressure in background_pressures
-                state_equation = StateEquationCole(sound_speed=10.0, exponent=7,
-                                                   reference_density=1000.0,
-                                                   background_pressure=background_pressure)
+                state_equation = StateEquationCole(sound_speed = 10.0, exponent = 7,
+                                                   reference_density = 1000.0,
+                                                   background_pressure = background_pressure)
                 @test state_equation(1000.0) == background_pressure
                 @test state_equation(1001.0) > background_pressure + 10
                 # No pressure clipping
@@ -53,9 +53,9 @@
             end
 
             # Test pressure clipping
-            state_equation = StateEquationCole(sound_speed=10.0, exponent=7,
-                                               reference_density=1000.0,
-                                               clip_negative_pressure=true)
+            state_equation = StateEquationCole(sound_speed = 10.0, exponent = 7,
+                                               reference_density = 1000.0,
+                                               clip_negative_pressure = true)
             @test state_equation(999.0) == 0.0
             @test state_equation(900.0) == 0.0
         end
@@ -76,9 +76,9 @@
             # Work with pressures in ATM
             ATM = 101_325.0
 
-            state_equation = StateEquationCole(; sound_speed, exponent=1,
-                                               reference_density=rest_density,
-                                               background_pressure=1ATM)
+            state_equation = StateEquationCole(; sound_speed, exponent = 1,
+                                               reference_density = rest_density,
+                                               background_pressure = 1ATM)
 
             # These densities differ from an online calculator by less than 0.1%.
             # See https://www.omnicalculator.com/physics/water-density
@@ -103,24 +103,26 @@
     @testset verbose=false "inverse_state_equation" begin
         # Verify that the `inverse_state_equation` actually is the inverse
         state_equations = [
-            StateEquationCole(sound_speed=1484.0, exponent=7.15, reference_density=998.34,
-                              background_pressure=101_325.0),
-            StateEquationCole(sound_speed=10.0, exponent=7, reference_density=1000.0,
-                              background_pressure=10_000.0),
-            StateEquationCole(sound_speed=10.0, exponent=7, reference_density=1000.0,
-                              background_pressure=0.0),
-            StateEquationCole(sound_speed=10.0, exponent=7, reference_density=1000.0,
-                              background_pressure=-100_000.0),
-            StateEquationCole(sound_speed=1484.0, exponent=1, reference_density=998.34,
-                              background_pressure=101_325.0),
-            StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
-                              background_pressure=100_000.0),
-            StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
-                              background_pressure=90_000.0),
-            StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
-                              background_pressure=0.0),
-            StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
-                              background_pressure=-100_000.0)
+            StateEquationCole(sound_speed = 1484.0, exponent = 7.15,
+                              reference_density = 998.34,
+                              background_pressure = 101_325.0),
+            StateEquationCole(sound_speed = 10.0, exponent = 7, reference_density = 1000.0,
+                              background_pressure = 10_000.0),
+            StateEquationCole(sound_speed = 10.0, exponent = 7, reference_density = 1000.0,
+                              background_pressure = 0.0),
+            StateEquationCole(sound_speed = 10.0, exponent = 7, reference_density = 1000.0,
+                              background_pressure = -100_000.0),
+            StateEquationCole(sound_speed = 1484.0, exponent = 1,
+                              reference_density = 998.34,
+                              background_pressure = 101_325.0),
+            StateEquationCole(sound_speed = 10.0, exponent = 1, reference_density = 1000.0,
+                              background_pressure = 100_000.0),
+            StateEquationCole(sound_speed = 10.0, exponent = 1, reference_density = 1000.0,
+                              background_pressure = 90_000.0),
+            StateEquationCole(sound_speed = 10.0, exponent = 1, reference_density = 1000.0,
+                              background_pressure = 0.0),
+            StateEquationCole(sound_speed = 10.0, exponent = 1, reference_density = 1000.0,
+                              background_pressure = -100_000.0)
         ]
 
         densities = [100.0, 500.0, 900.0, 990.0, 1000.0, 1005.0, 1100.0, 1600.0]
@@ -135,7 +137,7 @@
 
             for pressure in pressures
                 density = TrixiParticles.inverse_state_equation(state_equation, pressure)
-                @test isapprox(state_equation(density), pressure, atol=2e-7, rtol=1e-10)
+                @test isapprox(state_equation(density), pressure, atol = 2e-7, rtol = 1e-10)
             end
         end
     end
@@ -155,9 +157,9 @@
             # Work with pressures in ATM
             ATM = 101_325.0
 
-            state_equation = StateEquationIdealGas(; sound_speed, gamma=gamma,
-                                                   reference_density=rest_density,
-                                                   background_pressure=1ATM)
+            state_equation = StateEquationIdealGas(; sound_speed, gamma = gamma,
+                                                   reference_density = rest_density,
+                                                   background_pressure = 1ATM)
 
             # Results by manual calculation
             @test TrixiParticles.inverse_state_equation(state_equation, 1ATM) ==

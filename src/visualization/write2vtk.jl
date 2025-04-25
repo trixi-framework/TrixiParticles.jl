@@ -48,16 +48,16 @@ trixi2vtk(sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
 
 ```
 """
-function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
-                   write_meta_data=true, git_hash=compute_git_hash(),
-                   max_coordinates=Inf, custom_quantities...)
+function trixi2vtk(vu_ode, semi, t; iter = nothing, output_directory = "out", prefix = "",
+                   write_meta_data = true, git_hash = compute_git_hash(),
+                   max_coordinates = Inf, custom_quantities...)
     (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
     @trixi_timeit timer() "update systems" update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                                  update_from_callback=true)
+                                                                  update_from_callback = true)
 
     filenames = system_names(systems)
 
@@ -66,15 +66,17 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
         periodic_box = get_neighborhood_search(system, semi).periodic_box
 
         trixi2vtk(system, v_ode, u_ode, semi, t, periodic_box;
-                  system_name=filenames[system_index], output_directory, iter, prefix,
+                  system_name = filenames[system_index], output_directory, iter, prefix,
                   write_meta_data, git_hash, max_coordinates, custom_quantities...)
     end
 end
 
 # Convert data for a single TrixiParticle system to VTK format
-function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_directory="out",
-                   prefix="", iter=nothing, system_name=vtkname(system_),
-                   write_meta_data=true, max_coordinates=Inf, git_hash=compute_git_hash(),
+function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box;
+                   output_directory = "out",
+                   prefix = "", iter = nothing, system_name = vtkname(system_),
+                   write_meta_data = true, max_coordinates = Inf,
+                   git_hash = compute_git_hash(),
                    custom_quantities...)
     mkpath(output_directory)
 
@@ -101,7 +103,7 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_direc
                                add_opt_str_pre(prefix) * "$system_name")
 
     # Reset the collection when the iteration is 0
-    pvd = paraview_collection(collection_file; append=iter > 0)
+    pvd = paraview_collection(collection_file; append = iter > 0)
 
     points = PointNeighbors.periodic_coords(active_coordinates(u, system),
                                             periodic_box)
@@ -118,7 +120,7 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_direc
 
     @trixi_timeit timer() "write to vtk" vtk_grid(file, points, cells) do vtk
         # Dispatches based on the different system types e.g. FluidSystem, TotalLagrangianSPHSystem
-        write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
+        write2vtk!(vtk, v, u, t, system, write_meta_data = write_meta_data)
 
         # Store particle index
         vtk["index"] = active_particles(system)
@@ -195,7 +197,8 @@ Convert coordinate data to VTK format.
 # Returns
 - `file::AbstractString`: Path to the generated VTK file.
 """
-function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
+function trixi2vtk(coordinates; output_directory = "out", prefix = "",
+                   filename = "coordinates",
                    custom_quantities...)
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
@@ -237,22 +240,22 @@ Convert [`InitialCondition`](@ref) data to VTK format.
 # Returns
 - `file::AbstractString`: Path to the generated VTK file.
 """
-function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
-                   prefix="", filename="initial_condition", custom_quantities...)
+function trixi2vtk(initial_condition::InitialCondition; output_directory = "out",
+                   prefix = "", filename = "initial_condition", custom_quantities...)
     (; coordinates, velocity, density, mass, pressure) = initial_condition
 
     return trixi2vtk(coordinates; output_directory, prefix, filename,
-                     density=density, initial_velocity=velocity, mass=mass,
-                     pressure=pressure, custom_quantities...)
+                     density = density, initial_velocity = velocity, mass = mass,
+                     pressure = pressure, custom_quantities...)
 end
 
-function write2vtk!(vtk, v, u, t, system; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system; write_meta_data = true)
     vtk["velocity"] = view(v, 1:ndims(system), :)
 
     return vtk
 end
 
-function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data = true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
     vtk["density"] = current_density(v, system)
@@ -352,7 +355,7 @@ function write2vtk!(vtk, viscosity::ArtificialViscosityMonaghan)
     vtk["viscosity_epsilon"] = viscosity.epsilon
 end
 
-function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_data = true)
     n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
     vtk["velocity"] = hcat(view(v, 1:ndims(system), :),
@@ -379,10 +382,11 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
                                          particle_spacing(system, 1)
     end
 
-    write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
+    write2vtk!(vtk, v, u, t, system.boundary_model, system,
+               write_meta_data = write_meta_data)
 end
 
-function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data = true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
     vtk["density"] = current_density(v, system)
@@ -390,7 +394,7 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
 
     if write_meta_data
         vtk["boundary_zone"] = type2string(first(typeof(system.boundary_zone).parameters))
-        vtk["width"] = round(system.boundary_zone.zone_width, digits=3)
+        vtk["width"] = round(system.boundary_zone.zone_width, digits = 3)
         vtk["velocity_function"] = type2string(system.reference_velocity)
         vtk["pressure_function"] = type2string(system.reference_pressure)
         vtk["density_function"] = type2string(system.reference_density)
@@ -399,16 +403,17 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
     return vtk
 end
 
-function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem; write_meta_data=true)
-    write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
+function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem; write_meta_data = true)
+    write2vtk!(vtk, v, u, t, system.boundary_model, system,
+               write_meta_data = write_meta_data)
 end
 
-function write2vtk!(vtk, v, u, t, model::Nothing, system; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, model::Nothing, system; write_meta_data = true)
     return vtk
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system;
-                    write_meta_data=true)
+                    write_meta_data = true)
     if write_meta_data
         vtk["boundary_model"] = "BoundaryModelMonaghanKajtar"
         vtk["boundary_spacing_ratio"] = model.beta
@@ -417,7 +422,7 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system;
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
-                    write_meta_data=true)
+                    write_meta_data = true)
     if write_meta_data
         vtk["boundary_model"] = "BoundaryModelDummyParticles"
         vtk["smoothing_kernel"] = type2string(model.smoothing_kernel)
@@ -441,6 +446,6 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
     end
 end
 
-function write2vtk!(vtk, v, u, t, system::BoundaryDEMSystem; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::BoundaryDEMSystem; write_meta_data = true)
     return vtk
 end

@@ -19,8 +19,8 @@ struct Polygon{NDIMS, ELTYPE}
         n_vertices = size(vertices_, 2)
         ELTYPE = eltype(vertices_)
 
-        min_corner = SVector{NDIMS}(minimum(vertices_, dims=2))
-        max_corner = SVector{NDIMS}(maximum(vertices_, dims=2))
+        min_corner = SVector{NDIMS}(minimum(vertices_, dims = 2))
+        max_corner = SVector{NDIMS}(maximum(vertices_, dims = 2))
 
         vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_)
 

@@ -20,7 +20,8 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     # Initialize particles far away from simulation domain
     coordinates = fill(1e16, ndims(initial_condition), buffer_size)
 
-    if all(rho -> isapprox(rho, first(initial_condition.density), atol=eps(), rtol=eps()),
+    if all(rho -> isapprox(rho, first(initial_condition.density), atol = eps(),
+                           rtol = eps()),
            initial_condition.density)
         density = first(initial_condition.density)
     else
