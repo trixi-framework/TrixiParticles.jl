@@ -14,7 +14,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81 # gravity verändern
-tspan = (0.0, 0.4)
+tspan = (0.0, 0.45)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (1.0, 1.0)

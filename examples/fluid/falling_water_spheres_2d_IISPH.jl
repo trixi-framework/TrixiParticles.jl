@@ -13,7 +13,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 0.03)
+tspan = (0.0, 0.1)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
@@ -53,12 +53,9 @@ alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
-sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,
-                                                     sound_speed, viscosity=viscosity,
-                                                     density_calculator=ContinuityDensity(),
+sphere_IISPH = ImplicitIncompressibleSPHSystem(sphere1, fluid_smoothing_kernel,
+                                                     fluid_smoothing_length,viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                      reference_particle_spacing=fluid_particle_spacing)
 
 sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
@@ -70,20 +67,16 @@ sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
-wall_viscosity = nu
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=wall_viscosity),
-                                             reference_particle_spacing=fluid_particle_spacing)
+                                             smoothing_kernel, smoothing_length)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    adhesion_coefficient=1.0)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(sphere_surface_tension, sphere, boundary_system)
+semi = Semidiscretization(sphere_IISPH, sphere, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
@@ -93,9 +86,8 @@ saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out",
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
-sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-7, # Default abstol is 1e-6
-            reltol=1e-4, # Default reltol is 1e-3
+sol = solve(ode, SymplecticEuler(),
+            dt = 0.001,
             save_everystep=false, callback=callbacks);
 
 

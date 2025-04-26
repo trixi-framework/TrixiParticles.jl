@@ -563,8 +563,8 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
 end
 
 @inline source_terms(system) = nothing
-@inline source_terms(system::ImplicitIncompressibleSPHSystem) = nothing
 @inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
+@inline source_terms(system::ImplicitIncompressibleSPHSystem) = nothing
 
 @inline add_acceleration!(dv, particle, system) = dv
 
