@@ -125,6 +125,11 @@ end
 @inline active_coordinates(u, system :: ImplicitIncompressibleSPHSystem) = current_coordinates(u, system)
 @inline active_particles(system :: ImplicitIncompressibleSPHSystem) = eachparticle(system)
 
+
+@inline function surface_tension_model(system::ImplicitIncompressibleSPHSystem)
+    return nothing
+end
+
 @propagate_inbounds function particle_pressure(v, system::ImplicitIncompressibleSPHSystem,
                                                particle)
     return system.pressure[particle]
@@ -135,7 +140,7 @@ end
 end
 
 #TODO: Was machen mit dem Soundspeed? Wird für viscosity benötigt
-@inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = 1000.0
+@inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = 100.0
 
 
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem, particle)
@@ -189,7 +194,8 @@ end
 
 @propagate_inbounds function get_predicted_density_pair(system, neighbor_system::BoundarySystem, particle, neighbor, predicted_density) 
     rho_a = get_predicted_density(system, particle, predicted_density)
-    return rho_a, 1000.0
+    reference_density = sum(system.initial_condition.density) / nparticles(system) #TODO check
+    return rho_a, reference_density 
 end
 
 @propagate_inbounds function get_d(system::ImplicitIncompressibleSPHSystem, d, particle)
@@ -239,12 +245,24 @@ function calculate_dij(system::ImplicitIncompressibleSPHSystem, particle, densit
 end
 
 # Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in IHMSEN et al
+function calculate_dij(system::WeaklyCompressibleSPHSystem, particle, density, grad_kernel, time_step)
+    return SVector(-time_step^2 * hydrodynamic_mass(system, particle) / density[particle]^2 * grad_kernel)
+end
+
+# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in IHMSEN et al
 function calculate_dij(system::BoundarySystem, particle, density, grad_kernel, time_step)
     return SVector(-time_step^2 * hydrodynamic_mass(system, particle) / density[particle]^2 * grad_kernel)
 end
 
 # Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
 function calculate_sum_dj(system :: ImplicitIncompressibleSPHSystem, particle, density, pressure, grad_kernel, time_step)
+    p_b = pressure[particle]
+    dij = calculate_dij(system, particle, density, grad_kernel, time_step)
+    return SVector(dij * p_b)
+end
+
+# Calculates the sum d_ij*p_j over all j for a given particle i (IHMSEN et al section 3.1.1)
+function calculate_sum_dj(system :: WeaklyCompressibleSPHSystem, particle, density, pressure, grad_kernel, time_step)
     p_b = pressure[particle]
     dij = calculate_dij(system, particle, density, grad_kernel, time_step)
     return SVector(dij * p_b)
@@ -282,6 +300,13 @@ function calculate_sum_term(system, neighbor_system:: ImplicitIncompressibleSPHS
     sum_db = get_sum_dj(neighbor_system, sum_dj, neighbor)
     dba = -time_step^2 * hydrodynamic_mass(system, particle) / density[particle]^2 * grad_kernel_ba
     return m_b * dot(sum_da - d_b * p_b - (sum_db - dba * p_a), grad_kernel_ab)
+end
+
+# Calculates the sum term in equation (13) from IHMSEN et al #TODO
+function calculate_sum_term(system, neighbor_system:: WeaklyCompressibleSPHSystem, particle, neighbor, density, pressure, sum_dj, d, grad_kernel_ab, grad_kernel_ba, time_step)
+    sum_da = get_sum_dj(system, sum_dj, particle)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    return m_b * dot(sum_da, grad_kernel_ab)
 end
 
 # Calculates the sum term in equation (13) from IHMSEN et al

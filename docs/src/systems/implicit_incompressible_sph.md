@@ -195,7 +195,7 @@ As a result, the coefficient that describes the influence of a particle's own pr
 ​must also include contributions from boundary particles. Therefore, the formula for calculating the coefficient $d_{ii}$ must be adjusted as follows:
 
 ```math
-d_{ii} = -\Delta t^2 \sum_j ˜frac{m_j}{\rho_i^2} \nabla W_{ij} - \Delta t^2 \sum_b \frac{m_b}{\rho_i^2} \nabla W_{ib}
+d_{ii} = -\Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij} - \Delta t^2 \sum_b \frac{m_b}{\rho_i^2} \nabla W_{ib}
 ```
 
 The corresponding relaxed Jacobi iteration for pressure mirroring then becomes:
