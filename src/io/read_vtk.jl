@@ -13,7 +13,7 @@ Load VTK file and convert data to an [`InitialCondition`](@ref).
 ```jldoctest; output = false
 # Create a rectangular shape
 rectangular = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0, -2.0),
-							   pressure=1000.0)
+                               pressure=1000.0)
 
 # Write the `InitialCondition` to a vtk file
 trixi2vtk(rectangular; filename="rectangular", output_directory="out")
