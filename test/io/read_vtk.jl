@@ -1,10 +1,10 @@
 @testset verbose=true "`vtk2trixi`" begin
-    # Make sure that the `rand` calls below are deterministic
-    Random.seed!(1)
-
     mktempdir() do tmp_dir
-        expected_ic = InitialCondition(; coordinates=rand(2, 12), velocity=rand(2, 12),
-                                       density=rand(), pressure=rand(), mass=rand())
+        coordinates=fill(1.0, 2, 12)
+        velocity=fill(2.0, 2, 12)
+
+        expected_ic = InitialCondition(; coordinates=coordinates, velocity=velocity,
+                                       density=1000.0, pressure=900.0, mass=50.0)
 
         @testset verbose=true "`InitialCondition`" begin
             trixi2vtk(expected_ic; filename="tmp_initial_condition",
@@ -21,7 +21,7 @@
         @testset verbose=true "`FluidSystem`" begin
             fluid_system = EntropicallyDampedSPHSystem(expected_ic,
                                                        SchoenbergCubicSplineKernel{2}(),
-                                                       rand(), rand())
+                                                       1.5, 1.5)
 
             # Overwrite values because we skip the update step
             fluid_system.cache.density .= expected_ic.density
@@ -29,11 +29,11 @@
             semi = Semidiscretization(fluid_system)
 
             # Create random ODE solutions
-            v = rand(ndims(fluid_system), nparticles(fluid_system))
-            pressure = rand(nparticles(fluid_system))
+            v = fill(2.0, ndims(fluid_system), nparticles(fluid_system))
+            pressure = fill(3.0, nparticles(fluid_system))
             v_ode = vec([v; pressure'])
 
-            u = rand(ndims(fluid_system), nparticles(fluid_system))
+            u = fill(1.0, ndims(fluid_system), nparticles(fluid_system))
             u_ode = vec(u)
 
             # Write out `FluidSystem` Simulation-File
@@ -55,7 +55,7 @@
                                                          expected_ic.mass,
                                                          SummationDensity(),
                                                          SchoenbergCubicSplineKernel{2}(),
-                                                         rand())
+                                                         1.5)
 
             # Overwrite values because we skip the update step
             boundary_model.pressure .= expected_ic.pressure

@@ -197,7 +197,7 @@ Convert coordinate data to VTK format.
 - `file::AbstractString`: Path to the generated VTK file.
 """
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
-                   particle_spacing=-ones(size(coordinates, 2)), custom_quantities...)
+                   particle_spacing=(-ones(size(coordinates, 2))), custom_quantities...)
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
            joinpath(output_directory, "$(prefix)_$filename")
@@ -246,8 +246,8 @@ function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
 
     return trixi2vtk(coordinates; output_directory, prefix, filename,
                      density=density, initial_velocity=velocity, mass=mass,
-                     particle_spacing=initial_condition.particle_spacing .*
-                                      ones(nparticles(initial_condition)),
+                     particle_spacing=(initial_condition.particle_spacing .*
+                                       ones(nparticles(initial_condition))),
                      pressure=pressure, custom_quantities...)
 end
 

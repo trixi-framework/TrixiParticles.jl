@@ -57,8 +57,7 @@ function vtk2trixi(file)
             @info "No '$field' field found in VTK file. Will be set to zero."
         end
     end
-    return InitialCondition(
-                            ; coordinates, particle_spacing=results["particle_spacing"],
+    return InitialCondition(; coordinates, particle_spacing=results["particle_spacing"],
                             velocity=results["velocity"],
                             mass=results["mass"],
                             density=results["density"],
