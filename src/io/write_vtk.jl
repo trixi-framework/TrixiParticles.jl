@@ -261,7 +261,9 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
     vtk["density"] = current_density(v, system)
-    vtk["pressure"] = current_pressure(v, system)
+    # Indexing the pressure is a workaround for slicing issue (see https://github.com/JuliaSIMD/StrideArrays.jl/issues/88)
+    vtk["pressure"] = [current_pressure(v, system, particle)
+                       for particle in active_particles(system)]
 
     if system.surface_normal_method !== nothing
         vtk["surf_normal"] = [surface_normal(system, particle)
