@@ -371,7 +371,7 @@ end
 
 # Skip for fixed systems
 @inline update_transport_velocity!(system::ParticlePackingSystem{<:Any, true}, v_ode,
-semi) = system
+                                   semi) = system
 
 # Update from `UpdateCallback` (between time steps)
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
