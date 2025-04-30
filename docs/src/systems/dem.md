@@ -15,16 +15,16 @@ they interact with each other and possibly with their boundaries through contact
 The motion and behavior of each mass element are governed by Newton's laws of motion, accounting for the forces
 and moments acting upon them.
 
-## Contact Models
-
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "solid", "discrete_element_method", "contact_models.jl")]
-```
-
 ## API
 
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "solid", "discrete_element_method", "system.jl")]
+```
+
+### Contact Models
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "solid", "discrete_element_method", "contact_models.jl")]
 ```

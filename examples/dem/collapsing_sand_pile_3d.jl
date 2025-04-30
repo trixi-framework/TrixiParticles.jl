@@ -11,11 +11,9 @@ acceleration = (0.0, 0.0, gravity)
 particle_spacing = 0.1
 
 # Initial sand column dimensions and placement
-pile_width = 0.5
-pile_depth = 0.5
-pile_height = 1.0
+pile_size = (0.5, 0.5, 1.0)
 pile_min_z = particle_spacing * 0.1
-pile_center_z = pile_min_z + pile_height / 2
+pile_center_z = pile_min_z + pile_size[3] / 2
 pile_center = (0.0, 0.0, pile_center_z)
 sand_density = 1600.0
 
@@ -31,13 +29,10 @@ boundary_thickness = n_boundary_layers * particle_spacing
 # Particle Generation
 # -----------------------------------------------------------------------------
 # Sand column particles
-n_particles_pile_x = round(Int, pile_width / particle_spacing)
-n_particles_pile_y = round(Int, pile_depth / particle_spacing)
-n_particles_pile_z = round(Int, pile_height / particle_spacing)
-n_particles_pile = (n_particles_pile_x, n_particles_pile_y, n_particles_pile_z)
+n_particles_pile = round.(Int, pile_size ./ particle_spacing)
 
-min_coords_pile = (pile_center[1] - pile_width / 2,
-                   pile_center[2] - pile_depth / 2,
+min_coords_pile = (pile_center[1] - pile_size[1] / 2,
+                   pile_center[2] - pile_size[2] / 2,
                    pile_min_z)
 sand_particles = RectangularShape(particle_spacing, n_particles_pile, min_coords_pile;
                                   density=sand_density, coordinates_perturbation=0.1)

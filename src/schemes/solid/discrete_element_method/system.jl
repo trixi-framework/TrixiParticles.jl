@@ -21,7 +21,7 @@ specified material properties and contact mechanics.
  - `source_terms`: Optional; additional forces or modifications to particle dynamics not
     captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
  - `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
- - `radius=nothing`: Optional; specifies the radius of the particles, defaults to `nothing` if not provided.
+ - `radius=nothing`: Specifies the radius of the particles, defaults to `initial_condition.particle_spacing / 2`.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
@@ -74,7 +74,7 @@ function Base.show(io::IO, system::DEMSystem)
 
     print(io, "DEMSystem{", ndims(system), "}(")
     print(io, system.initial_condition, ", ")
-    # Dispatch on the type of the contact_model to show the relevant parameters.
+    # TODO: Dispatch on the type of the contact_model to show the relevant parameters.
     if system.contact_model isa HertzContactModel
         print(io, "HertzContactModel: elastic_modulus = ",
               system.contact_model.elastic_modulus, ", poissons_ratio = ",

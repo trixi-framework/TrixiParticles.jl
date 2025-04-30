@@ -45,6 +45,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
             end
 
             # Apply a simple position correction to mitigate overlap.
+            # TODO: use update callback
             position_correction!(neighbor_system, u_particle_system, overlap, normal,
                                  particle)
         end
@@ -53,7 +54,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     return dv
 end
 
-# Tangential Force Computation (common for now)
+# Tangential Force Computation
 #
 # Uses a spring-dashpot model to compute the instantaneous tangential force,
 # with a Coulomb friction limit.
@@ -69,11 +70,11 @@ end
     # Compute relative velocity and extract the tangential component.
     v_a = current_velocity(v_particle_system, particle_system, particle)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    v_rel = v_a - v_b
-    v_rel_tangent = v_rel - (dot(v_rel, normal) * normal)
+    v_diff = v_a - v_b
+    v_diff_tangent = v_diff - (dot(v_diff, normal) * normal)
 
     # Compute tangential force as a spring–dashpot response.
-    F_t = -tangential_stiffness * v_rel_tangent - tangential_damping * v_rel_tangent
+    F_t = -tangential_stiffness * v_diff_tangent - tangential_damping * v_diff_tangent
 
     # Coulomb friction: limit the tangential force to μ * |F_normal|.
     max_tangent = friction_coefficient * norm(F_normal)
