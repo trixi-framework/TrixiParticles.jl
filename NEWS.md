@@ -16,7 +16,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - The API for choosing parallelization backends changed. The keyword argument `data_type`
   in `semidiscretize` was removed and a keyword argument `parallelization_backend` was added
-  to `Semidiscretization`. See the docs on GPU support for more details.
+  to `Semidiscretization`. See [the docs on GPU support](@ref gpu_support) for more details.
 
 ### Features
 
@@ -40,6 +40,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - **Flexible Parallelization Backend:** Improved the parallelization backend support,
   making it possible to switch the parallelization backend for single simulations. (#748)
+
+- **Total Lagrangian SPH:** Added per-particle material parameters. (#740)
 
 ## Version 0.2.7
 
