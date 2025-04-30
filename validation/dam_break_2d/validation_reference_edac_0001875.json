@@ -210,8 +210,8 @@
         "type": "series"
     },
     "meta": {
-        "julia_version": "1.11.1",
-        "solver_version": "v0.2.7-24-ga4237cd40-dirty",
+        "julia_version": "1.11.5",
+        "solver_version": "v0.2.7-27-g6f8951d97-dirty",
         "solver_name": "TrixiParticles.jl"
     },
     "pressure_P2_fluid_1": {
