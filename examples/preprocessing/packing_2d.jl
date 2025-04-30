@@ -94,7 +94,7 @@ packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 trixi2vtk(packed_ic, filename="initial_condition_packed")
 trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary_packed")
 
-shape = Shape(stack(geometry.vertices)[1, :], stack(geometry.vertices)[2, :])
+shape = Plots.Shape(stack(geometry.vertices)[1, :], stack(geometry.vertices)[2, :])
 p1 = plot(shape_sampled, markerstrokewidth=1, label=nothing, layout=(1, 2))
 plot!(p1, shape, color=nothing, label=nothing, linewidth=2, subplot=1)
 plot!(p1, packed_ic, markerstrokewidth=1, label=nothing, subplot=2)
