@@ -362,7 +362,8 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
 end
 
 # Skip for fixed systems
-@inline update_transport_velocity!(system::ParticlePackingSystem{<:Any, true}, v_ode, semi) = system
+@inline update_transport_velocity!(system::ParticlePackingSystem{<:Any, true}, v_ode,
+                                   semi) = system
 
 # Update from `UpdateCallback` (between time steps)
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)

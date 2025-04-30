@@ -59,8 +59,9 @@ function ComplexShape(geometry; particle_spacing, density,
     grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
                          grid_offset, max_nparticles)
 
-    inpoly, winding_numbers = point_in_geometry_algorithm(geometry, grid;
-                                                          store_winding_number)
+    inpoly,
+    winding_numbers = point_in_geometry_algorithm(geometry, grid;
+                                                  store_winding_number)
 
     coordinates = stack(grid[inpoly])
 
@@ -118,7 +119,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 function sample_boundary(signed_distance_field;
                          boundary_density, boundary_thickness, tlsph=true)
     (; max_signed_distance, boundary_packing,
-    positions, distances, particle_spacing) = signed_distance_field
+     positions, distances, particle_spacing) = signed_distance_field
 
     if !(boundary_packing)
         throw(ArgumentError("`SignedDistanceField` was not generated with `use_for_boundary_packing`"))
