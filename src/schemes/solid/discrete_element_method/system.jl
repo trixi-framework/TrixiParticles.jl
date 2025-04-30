@@ -150,7 +150,7 @@ end
     return system.radius[particle]
 end
 
-    function system_data(system::DEMSystem, v_ode, u_ode, semi)
+function system_data(system::DEMSystem, v_ode, u_ode, semi)
     (; mass, radius, damping_coefficient) = system
 
     v = wrap_v(v_ode, system, semi)

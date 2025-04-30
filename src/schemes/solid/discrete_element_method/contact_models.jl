@@ -172,7 +172,8 @@ function compute_effective_mass(particle_system, particle, neighbor_system, neig
     return m_star
 end
 
-function compute_effective_mass(particle_system, particle, neighbor_system::DEMSystem, neighbor)
+function compute_effective_mass(particle_system, particle, neighbor_system::DEMSystem,
+                                neighbor)
     m_a = particle_system.mass[particle]
     m_b = neighbor_system.mass[neighbor]
     return (m_a * m_b) / (m_a + m_b)
