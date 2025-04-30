@@ -54,17 +54,15 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
 
     foreach_point_neighbor(system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           nhs,
+                           system_coords, neighbor_system_coords, semi;
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
-        density_neighbor = particle_density(v_neighbor_system,
-                                            neighbor_system, neighbor)
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        density_neighbor = current_density(v_neighbor_system,
+                                           neighbor_system, neighbor)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
         end
@@ -87,7 +85,6 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(neighbor_system, system, semi)
 
     # First we need to calculate the smoothed colorfield values of the boundary
     # TODO: move colorfield to extra step
@@ -97,27 +94,25 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     colorfield .= initial_colorfield
 
     # Accumulate fluid neighbors
-    foreach_point_neighbor(neighbor_system, system, neighbor_system_coords, system_coords,
-                           nhs,
-                           points=eachparticle(neighbor_system)) do particle, neighbor,
-                                                                    pos_diff, distance
+    foreach_point_neighbor(neighbor_system, system,
+                           neighbor_system_coords, system_coords,
+                           semi) do particle, neighbor, pos_diff, distance
         colorfield[particle] += hydrodynamic_mass(system, neighbor) /
-                                particle_density(v, system, neighbor) * system.cache.color *
-                                smoothing_kernel(system, distance)
+                                current_density(v, system, neighbor) * system.cache.color *
+                                smoothing_kernel(system, distance, particle)
     end
 
     maximum_colorfield = maximum(colorfield)
 
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         # We assume that we are in contact with the boundary if the color of the boundary particle
         # is larger than the threshold
         if colorfield[neighbor] / maximum_colorfield > boundary_contact_threshold
             m_b = hydrodynamic_mass(system, particle)
-            density_neighbor = particle_density(v, system, particle)
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+            density_neighbor = current_density(v, system, particle)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
             for i in 1:ndims(system)
                 cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
             end
@@ -148,13 +143,15 @@ function remove_invalid_normals!(system::FluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
                                                         SurfaceTensionMomentumMorris},
                                  surface_normal_method::ColorfieldSurfaceNormal)
-    (; cache, smoothing_length, smoothing_kernel) = system
+    (; cache, smoothing_kernel) = system
     (; ideal_density_threshold, interface_threshold) = surface_normal_method
     (; neighbor_count) = cache
 
+    smoothing_length_ = initial_smoothing_length(system)
+
     # We remove invalid normals i.e. they have a small norm (eq. 20)
     normal_condition2 = (interface_threshold /
-                         compact_support(smoothing_kernel, smoothing_length))^2
+                         compact_support(smoothing_kernel, smoothing_length_))^2
 
     for particle in each_moving_particle(system)
 
@@ -163,7 +160,7 @@ function remove_invalid_normals!(system::FluidSystem,
         if ideal_density_threshold > 0 &&
            ideal_density_threshold *
            ideal_neighbor_count(Val(ndims(system)), cache.reference_particle_spacing,
-                                compact_support(smoothing_kernel, smoothing_length)) <
+                                compact_support(smoothing_kernel, smoothing_length_)) <
            neighbor_count[particle]
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
@@ -174,8 +171,8 @@ function remove_invalid_normals!(system::FluidSystem,
 
         # See eq. 21
         if norm2 > normal_condition2
-            cache.surface_normal[1:ndims(system), particle] = particle_surface_normal /
-                                                              sqrt(norm2)
+            cache.surface_normal[1:ndims(system),
+                                 particle] = particle_surface_normal / sqrt(norm2)
         else
             cache.surface_normal[1:ndims(system), particle] .= 0
         end
@@ -226,22 +223,21 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(system, neighbor_system, semi)
 
     set_zero!(correction_factor)
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
-                           nhs) do particle, neighbor, pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
         n_a = surface_normal(system, particle)
         n_b = surface_normal(neighbor_system, neighbor)
         v_b = m_b / rho_b
 
         # Eq. 22: we can test against `eps()` here since the surface normals that are invalid have been removed
         if dot(n_a, n_a) > eps() && dot(n_b, n_b) > eps()
-            w = smoothing_kernel(system, distance)
+            w = smoothing_kernel(system, distance, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             for i in 1:ndims(system)

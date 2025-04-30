@@ -143,8 +143,9 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system_tank,
-                          boundary_system_gate, solid_system)
-ode = semidiscretize(semi, tspan, data_type=nothing)
+                          boundary_system_gate, solid_system,
+                          parallelization_backend=true)
+ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")

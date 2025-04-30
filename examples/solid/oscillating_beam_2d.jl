@@ -55,23 +55,26 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(solid_system,
-                          neighborhood_search=PrecomputedNeighborhoodSearch{2}())
-ode = semidiscretize(semi, tspan, data_type=nothing)
+                          neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
+                          parallelization_backend=true)
+ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
+info_callback = InfoCallback(interval=1000)
 
 # Track the position of the particle in the middle of the tip of the beam.
 middle_particle_id = Int(n_particles_per_dimension[1] * (n_particles_per_dimension[2] + 1) /
                          2)
-startposition_x = beam.coordinates[1, middle_particle_id]
-startposition_y = beam.coordinates[2, middle_particle_id]
 
-function deflection_x(v, u, t, system)
-    return system.current_coordinates[1, middle_particle_id] - startposition_x
+# Make these constants because global variables in the functions below are slow
+const STARTPOSITION_X = beam.coordinates[1, middle_particle_id]
+const STARTPOSITION_Y = beam.coordinates[2, middle_particle_id]
+
+function deflection_x(system, data, t)
+    return data.coordinates[1, middle_particle_id] - STARTPOSITION_X
 end
 
-function deflection_y(v, u, t, system)
-    return system.current_coordinates[2, middle_particle_id] - startposition_y
+function deflection_y(system, data, t)
+    return data.coordinates[2, middle_particle_id] - STARTPOSITION_Y
 end
 
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="",

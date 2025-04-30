@@ -55,7 +55,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                K, PF, ST} <: SolidSystem{NDIMS, IC}
+                                YM, PR, LL, LM, K, PF, ST} <: SolidSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -65,10 +65,10 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     deformation_grad    :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
     material_density    :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     n_moving_particles  :: Int64
-    young_modulus       :: ELTYPE
-    poisson_ratio       :: ELTYPE
-    lame_lambda         :: ELTYPE
-    lame_mu             :: ELTYPE
+    young_modulus       :: YM
+    poisson_ratio       :: PR
+    lame_lambda         :: LL
+    lame_mu             :: LM
     smoothing_kernel    :: K
     smoothing_length    :: ELTYPE
     acceleration        :: SVector{NDIMS, ELTYPE}
@@ -109,9 +109,9 @@ function TotalLagrangianSPHSystem(initial_condition,
 
     n_moving_particles = n_particles - n_fixed_particles
 
-    lame_lambda = young_modulus * poisson_ratio /
-                  ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
-    lame_mu = (young_modulus / 2) / (1 + poisson_ratio)
+    lame_lambda = @. young_modulus * poisson_ratio /
+                     ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
+    lame_mu = @. (young_modulus / 2) / (1 + poisson_ratio)
 
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -126,9 +126,7 @@ function Base.show(io::IO, system::TotalLagrangianSPHSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "TotalLagrangianSPHSystem{", ndims(system), "}(")
-    print(io, system.young_modulus)
-    print(io, ", ", system.poisson_ratio)
-    print(io, ", ", system.smoothing_kernel)
+    print(io, "", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.boundary_model)
     print(io, ", ", system.penalty_force)
@@ -138,6 +136,16 @@ end
 function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
     @nospecialize system # reduce precompilation time
 
+    function display_param(param)
+        if param isa AbstractVector
+            min_val = round(minimum(param), digits=3)
+            max_val = round(maximum(param), digits=3)
+            return "min = $(min_val), max = $(max_val)"
+        else
+            return string(param)
+        end
+    end
+
     if get(io, :compact, false)
         show(io, system)
     else
@@ -146,8 +154,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
         summary_line(io, "total #particles", nparticles(system))
         summary_line(io, "#fixed particles", n_fixed_particles)
-        summary_line(io, "Young's modulus", system.young_modulus)
-        summary_line(io, "Poisson ratio", system.poisson_ratio)
+        summary_line(io, "Young's modulus", display_param(system.young_modulus))
+        summary_line(io, "Poisson ratio", display_param(system.poisson_ratio))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)
@@ -197,14 +205,14 @@ end
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
-@inline function particle_density(v, system::TotalLagrangianSPHSystem, particle)
-    return particle_density(v, system.boundary_model, system, particle)
+@inline function current_density(v, system::TotalLagrangianSPHSystem)
+    return current_density(v, system.boundary_model, system)
 end
 
 # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
 # corresponding to the chosen boundary model.
-@inline function particle_pressure(v, system::TotalLagrangianSPHSystem, particle)
-    return particle_pressure(v, system.boundary_model, system, particle)
+@inline function current_pressure(v, system::TotalLagrangianSPHSystem)
+    return current_pressure(v, system.boundary_model, system)
 end
 
 @inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
@@ -222,7 +230,7 @@ end
     extract_smatrix(system.pk1_corrected, system, particle)
 end
 
-function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
+function initialize!(system::TotalLagrangianSPHSystem, semi)
     (; correction_matrix) = system
 
     initial_coords = initial_coordinates(system)
@@ -230,14 +238,14 @@ function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
     density_fun(particle) = system.material_density[particle]
 
     # Calculate correction matrix
-    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
-                                        initial_coords, density_fun)
+    compute_gradient_correction_matrix!(correction_matrix, system, initial_coords,
+                                        density_fun, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates) = system
 
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             current_coordinates[i, particle] = u[i, particle]
         end
@@ -246,8 +254,7 @@ end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
-    nhs = get_neighborhood_search(system, semi)
-    @trixi_timeit timer() "stress tensor" compute_pk1_corrected(nhs, system)
+    @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
 
     return system
 end
@@ -260,14 +267,13 @@ function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, sem
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
 
-@inline function compute_pk1_corrected(neighborhood_search, system)
+@inline function compute_pk1_corrected!(system, semi)
     (; deformation_grad) = system
 
-    calc_deformation_grad!(deformation_grad, neighborhood_search, system)
+    calc_deformation_grad!(deformation_grad, system, semi)
 
-    @threaded system for particle in eachparticle(system)
-        F_particle = deformation_gradient(system, particle)
-        pk1_particle = pk1_stress_tensor(F_particle, system)
+    @threaded semi for particle in eachparticle(system)
+        pk1_particle = pk1_stress_tensor(system, particle)
         pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
@@ -276,7 +282,7 @@ end
     end
 end
 
-@inline function calc_deformation_grad!(deformation_grad, neighborhood_search, system)
+@inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
     # Reset deformation gradient
@@ -285,9 +291,7 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
-                           neighborhood_search) do particle, neighbor,
-                                                   initial_pos_diff,
-                                                   initial_distance
+                           semi) do particle, neighbor, initial_pos_diff, initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
@@ -295,7 +299,7 @@ end
         pos_diff = current_coords(system, particle) - current_coords(system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
-                                            initial_distance)
+                                            initial_distance, particle)
 
         result = volume * pos_diff * grad_kernel'
 
@@ -311,15 +315,27 @@ end
 end
 
 # First Piola-Kirchhoff stress tensor
-@inline function pk1_stress_tensor(F, system)
-    S = pk2_stress_tensor(F, system)
+@inline function pk1_stress_tensor(system, particle)
+    (; lame_lambda, lame_mu) = system
+
+    F = deformation_gradient(system, particle)
+    S = pk2_stress_tensor(F, lame_lambda, lame_mu, particle)
 
     return F * S
 end
 
 # Second Piola-Kirchhoff stress tensor
-@inline function pk2_stress_tensor(F, system)
-    (; lame_lambda, lame_mu) = system
+@inline function pk2_stress_tensor(F, lame_lambda::AbstractVector, lame_mu::AbstractVector,
+                                   particle)
+
+    # Compute the Green-Lagrange strain
+    E = (transpose(F) * F - I) / 2
+
+    return lame_lambda[particle] * tr(E) * I + 2 * lame_mu[particle] * E
+end
+
+# Second Piola-Kirchhoff stress tensor
+@inline function pk2_stress_tensor(F, lame_lambda, lame_mu, particle)
 
     # Compute the Green-Lagrange strain
     E = (transpose(F) * F - I) / 2
@@ -387,10 +403,10 @@ end
 # See here below Equation 5.3.21 for the equation for the equivalent stress.
 # The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
 # See pages 32 and 123.
-function von_mises_stress(system::TotalLagrangianSPHSystem)
+function von_mises_stress(system)
     von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
 
-    @threaded system for particle in each_moving_particle(system)
+    @threaded von_mises_stress_vector for particle in each_moving_particle(system)
         von_mises_stress_vector[particle] = von_mises_stress(system, particle)
     end
 
@@ -401,7 +417,7 @@ end
 # with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function von_mises_stress(system, particle)
+@inline function von_mises_stress(system, particle::Integer)
     F = deformation_gradient(system, particle)
     J = det(F)
     P = pk1_corrected(system, particle)
@@ -423,7 +439,7 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
     cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
                                   nparticles(system))
 
-    @threaded system for particle in each_moving_particle(system)
+    @threaded cauchy_stress_tensors for particle in each_moving_particle(system)
         F = deformation_gradient(system, particle)
         J = det(F)
         P = pk1_corrected(system, particle)
@@ -436,5 +452,33 @@ end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
-@inline viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system) = neighbor_system.viscosity
-@inline viscosity_model(system::FluidSystem, neighbor_system::TotalLagrangianSPHSystem) = neighbor_system.boundary_model.viscosity
+@inline function viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system)
+    return neighbor_system.viscosity
+end
+
+@inline function viscosity_model(system::FluidSystem,
+                                 neighbor_system::TotalLagrangianSPHSystem)
+    return neighbor_system.boundary_model.viscosity
+end
+
+function system_data(system::TotalLagrangianSPHSystem, v_ode, u_ode, semi)
+    (; mass, material_density, deformation_grad, pk1_corrected, young_modulus,
+     poisson_ratio, lame_lambda, lame_mu) = system
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    coordinates = current_coordinates(u, system)
+    initial_coordinates_ = initial_coordinates(system)
+    velocity = current_velocity(v, system)
+
+    return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
+            material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
+            lame_lambda, lame_mu)
+end
+
+function available_data(::TotalLagrangianSPHSystem)
+    return (:coordinates, :initial_coordinates, :velocity, :mass, :material_density,
+            :deformation_grad, :pk1_corrected, :young_modulus, :poisson_ratio,
+            :lame_lambda, :lame_mu)
+end
