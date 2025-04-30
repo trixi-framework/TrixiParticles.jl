@@ -141,6 +141,9 @@ end
 @inline face_normal(edge, geometry::Polygon) = geometry.edge_normals[edge]
 
 function volume(polygon::Polygon)
+
+    # Compute the area of the polygon by the shoelace formula.
+    # https://en.wikipedia.org/wiki/Polygon
     volume = sum(polygon.edge_vertices_ids, init=zero(eltype(polygon))) do edge
         v1 = polygon.vertices[edge[1]]
         v2 = polygon.vertices[edge[2]]

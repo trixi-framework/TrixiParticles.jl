@@ -130,8 +130,8 @@ struct TriangleMesh{NDIMS, ELTYPE}
         max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
 
         for i in eachindex(edge_normals)
-            # Skip zero normals to avoid unstable packing.
-            # The edge normals are only used for the `SignedDistanceField` which is
+            # Skip zero normals, which would be normalized to `NaN` vectors.
+            # The edge normals are only used for the `SignedDistanceField`, which is
             # essential for the packing.
             # Zero normals are caused by exactly or nearly duplicated faces.
             if !iszero(norm(edge_normals[i]))
@@ -245,6 +245,10 @@ end
 
 function volume(mesh::TriangleMesh)
     volume = sum(mesh.face_vertices) do vertices
+
+        # Formula for the volume of a tetrahedron:
+        # V = (1/6) * |a · (b × c)|, where a, b, and c are vectors defining the tetrahedron.
+        # Reference: https://en.wikipedia.org/wiki/Tetrahedron#Volume
         return dot(vertices[1], cross(vertices[2], vertices[3])) / 6
     end
 

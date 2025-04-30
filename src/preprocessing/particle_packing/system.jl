@@ -35,7 +35,7 @@ For more information on the methods, see description below.
                            This is useful when the system is packed together with another
                            (non-fixed) `ParticlePackingSystem`.
                            In this case, no `SignedDistanceField` is required for both
-                           the fixed and non-fixed system.
+                           the fixed and non-fixed system (use `nothing` as signed distance field).
 - `signed_distance_field`: To constrain particles onto the surface, the information about
                            the signed distance from a particle to a face is required.
                            The precalculated signed distances will be interpolated
@@ -44,7 +44,7 @@ For more information on the methods, see description below.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:      Smoothing length to be used for the gradient estimation.
                            See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length_interpolation`: Smoothing length to be used for intrepolating the `SignedDistanceField` information.
+- `smoothing_length_interpolation`: Smoothing length to be used for interpolating the `SignedDistanceField` information.
                                     The default is `smoothing_length_interpolation = smoothing_length`.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C,
@@ -116,7 +116,7 @@ function ParticlePackingSystem(shape::InitialCondition;
     # This is an intern NHS and is thus not organized by `Semidiscretization`.
     if isnothing(signed_distance_field)
         nhs = nothing
-        @info "No `SignedDistanceField` provided. Particles will not be constraint onto a geoemtric surface."
+        @info "No `SignedDistanceField` provided. Particles will not be constraint onto a geometric surface."
     else
         nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
                neighborhood_search

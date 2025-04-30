@@ -70,7 +70,7 @@ function ComplexShape(geometry; particle_spacing, density,
 
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
-        return (initial_condition=initial_condition, winding_numbers=winding_numbers,
+        return (; initial_condition=initial_condition, winding_numbers=winding_numbers,
                 grid=grid)
     end
 

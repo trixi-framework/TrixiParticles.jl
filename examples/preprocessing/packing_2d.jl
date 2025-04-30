@@ -44,8 +44,10 @@ trixi2vtk(boundary_sampled, filename="boundary")
 # ==========================================================================================
 # ==== Packing
 
-# Large `background_pressure` can cause high accelerations. That is, the adaptive
-# time-stepsize will be adjusted properly. We use `1.0` for simplicity.
+# A larger `background_pressure` makes the packing happen faster in physical time,
+# which results in a correspondingly smaller time step.
+# Essentially, the `background_pressure` just scales the physical time,
+# and can therefore arbitrarily be set to 1.
 background_pressure = 1.0
 
 smoothing_length = 0.8 * particle_spacing
@@ -78,7 +80,7 @@ saving_callback = save_intervals ?
                   nothing
 
 pp_cb_ekin = PostprocessCallback(; ekin=kinetic_energy, interval=1,
-                                 filename="kinetic_energy", write_file_interval=1)
+                                 filename="kinetic_energy", write_file_interval=50)
 
 callbacks = CallbackSet(UpdateCallback(), saving_callback, info_callback, steady_state,
                         pp_cb_ekin)
