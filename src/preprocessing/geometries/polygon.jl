@@ -140,6 +140,12 @@ end
 
 @inline face_normal(edge, geometry::Polygon) = geometry.edge_normals[edge]
 
+
+# Although "volume" is typically associated with 3D objects, the function name
+# is intentionally kept as `volume` to maintain consistency between 2D and 3D cases.
+# This allows seamless handling of both cases without requiring differentiation
+# between dimensions in the calling code.
+# Note that this function is not part of the public API.
 function volume(polygon::Polygon)
 
     # Compute the area of the polygon by the shoelace formula.
