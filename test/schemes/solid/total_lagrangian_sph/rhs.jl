@@ -183,7 +183,7 @@
             tspan = (0.0, 1.0)
 
             names = ["CPU code", "GPU code emulated on the CPU"]
-            backends = [false, TrixiParticles.KernelAbstractions.CPU()]
+            backends = [SerialBackend(), TrixiParticles.KernelAbstractions.CPU()]
             @testset "$(names[i])" for i in eachindex(names)
                 semi = Semidiscretization(system, parallelization_backend=backends[i])
                 ode = semidiscretize(semi, tspan)

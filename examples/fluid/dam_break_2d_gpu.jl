@@ -3,7 +3,6 @@
 # file with this neighborhood search.
 # To run this example on a GPU, `parallelization_backend` needs to be changed to the
 # backend for the installed GPU. See the docs on GPU support for more information.
-
 using TrixiParticles
 
 # Load setup from dam break example
@@ -28,4 +27,4 @@ trixi_include(@__MODULE__,
               density_diffusion=density_diffusion,
               boundary_layers=boundary_layers, spacing_ratio=spacing_ratio,
               boundary_model=boundary_model,
-              parallelization_backend=true)
+              parallelization_backend=PolyesterBackend())

@@ -89,7 +89,7 @@ end
 struct DummySemidiscretization
     parallelization_backend::Any
 
-    function DummySemidiscretization(; parallelization_backend=false)
+    function DummySemidiscretization(; parallelization_backend=SerialBackend())
         new(parallelization_backend)
     end
 end
