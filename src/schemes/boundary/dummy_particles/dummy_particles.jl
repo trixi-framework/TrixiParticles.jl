@@ -416,7 +416,7 @@ function compute_pressure!(boundary_model,
         speedup = ceil(Int, Threads.nthreads() / 2)
         parallelize = system_coords isa AbstractGPUArray ||
                       n_boundary_particles < speedup * n_fluid_particles
-        if parallelize && allow_loop_flipping
+        if parallelize || !allow_loop_flipping
             # Loop over boundary particles and then the neighboring fluid particles
             # to extrapolate fluid pressure to the boundaries.
             boundary_pressure_extrapolation!(boundary_model, system,
@@ -488,6 +488,7 @@ end
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
 
+    # This needs to be serial to avoid race conditions when writing into `system`
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
                            parallelization_backend=false) do neighbor, particle,
                                                              pos_diff, distance
