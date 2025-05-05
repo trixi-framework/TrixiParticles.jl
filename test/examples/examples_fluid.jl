@@ -16,6 +16,9 @@
 
         hydrostatic_water_column_tests = Dict(
             "WCSPH default" => (),
+            "with Threads.@threads :static" => (parallelization_backend=ThreadsStaticBackend(),),
+            "with Threads.@threads :dynamic" => (parallelization_backend=ThreadsDynamicBackend(),),
+            "with SerialBackend" => (parallelization_backend=SerialBackend(),),
             "WCSPH with FullGridCellList" => (semi=semi_fullgrid,),
             "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
             "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
