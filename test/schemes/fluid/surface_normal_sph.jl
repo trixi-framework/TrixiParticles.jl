@@ -337,14 +337,12 @@ end
     # Create fluid system (no wall)
     system, bnd_system, semi,
     ode = create_fluid_system(coordinates, velocity, mass,
-                              density,
-                              particle_spacing,
+                              density, particle_spacing,
                               SurfaceTensionMorris(surface_tension_coefficient=0.072);
                               NDIMS=NDIMS,
                               smoothing_length=1.5 *
                                                particle_spacing,
-                              wall=false,
-                              walldistance=0.0)
+                              wall=false, walldistance=0.0)
 
     # Compute surface normals
     compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
