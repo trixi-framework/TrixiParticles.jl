@@ -218,8 +218,7 @@ end
 update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
-    vtk["velocity"] = [current_velocity(system.advection_velocity, system,
-                                        particle)
+    vtk["velocity"] = [advection_velocity(v, system, particle)
                        for particle in active_particles(system)]
     if write_meta_data
         vtk["signed_distances"] = system.signed_distances
@@ -235,6 +234,10 @@ write_v0!(v0, system::ParticlePackingSystem{<:Any, true}) = v0
 # Skip for fixed systems
 @inline function current_coordinates(u, system::ParticlePackingSystem{<:Any, true})
     return system.initial_condition.coordinates
+end
+
+@inline function advection_velocity(v, system::PackingSystem, particle)
+    return extract_svector(system.advection_velocity, system, particle)
 end
 
 write_v0!(v0, system::ParticlePackingSystem) = (v0 .= zero(eltype(system)))
@@ -254,7 +257,7 @@ function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
 
     # If `each_moving_particle` is empty (no moving particles), return zero
     return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
-        velocity = current_velocity(system.advection_velocity, system, particle)
+        velocity = advection_velocity(v, system, particle)
         return initial_condition.mass[particle] * dot(velocity, velocity) / 2
     end
 end
