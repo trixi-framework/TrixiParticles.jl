@@ -236,7 +236,7 @@ write_v0!(v0, system::ParticlePackingSystem{<:Any, true}) = v0
     return system.initial_condition.coordinates
 end
 
-@inline function advection_velocity(v, system::PackingSystem, particle)
+@inline function advection_velocity(v, system::ParticlePackingSystem, particle)
     return extract_svector(system.advection_velocity, system, particle)
 end
 
