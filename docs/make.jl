@@ -1,7 +1,7 @@
 using Documenter, DocumenterCitations
 using TrixiParticles
 using TrixiBase
-using PointNeighbors
+using TrixiParticles.PointNeighbors
 using Asciicast: Asciicast
 
 # Get TrixiParticles.jl root directory

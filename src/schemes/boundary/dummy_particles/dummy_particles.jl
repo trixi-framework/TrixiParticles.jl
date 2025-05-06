@@ -85,20 +85,34 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 end
 
 @doc raw"""
-    AdamiPressureExtrapolation(; pressure_offset=0)
+    AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
 - `pressure_offset=0`: Sometimes it is necessary to artificially increase the boundary pressure
                        to prevent penetration, which is possible by increasing this value.
+- `allow_loop_flipping=true`: Allow to flip the loop order for the pressure extrapolation.
+                              Disable to prevent error variations between simulations with
+                              different numbers of threads.
+                              Usually, the first (multithreaded) loop is over the boundary
+                              particles and the second loop over the fluid neighbors.
+                              When the number of boundary particles is larger than
+                              `ceil(0.5 * nthreads())` times the number of fluid particles,
+                              it is usually more efficient to flip the loop order and loop
+                              over the fluid particles first.
+                              The factor depends on the number of threads, as the flipped
+                              loop is not thread parallelizable.
+                              This can cause error variations between simulations with
+                              different numbers of threads.
 
 """
 struct AdamiPressureExtrapolation{ELTYPE}
-    pressure_offset::ELTYPE
+    pressure_offset     :: ELTYPE
+    allow_loop_flipping :: Bool
 
-    function AdamiPressureExtrapolation(; pressure_offset=0)
-        return new{eltype(pressure_offset)}(pressure_offset)
+    function AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
+        return new{eltype(pressure_offset)}(pressure_offset, allow_loop_flipping)
     end
 end
 
@@ -112,14 +126,29 @@ end
                          to prevent penetration, which is possible by increasing this value.
 - `factor=1`         :   Setting `factor` allows to just increase the strength of the dynamic
                          pressure part.
+- `allow_loop_flipping=true`: Allow to flip the loop order for the pressure extrapolation.
+                              Disable to prevent error variations between simulations with
+                              different numbers of threads.
+                              Usually, the first (multithreaded) loop is over the boundary
+                              particles and the second loop over the fluid neighbors.
+                              When the number of boundary particles is larger than
+                              `ceil(0.5 * nthreads())` times the number of fluid particles,
+                              it is usually more efficient to flip the loop order and loop
+                              over the fluid particles first.
+                              The factor depends on the number of threads, as the flipped
+                              loop is not thread parallelizable.
+                              This can cause error variations between simulations with
+                              different numbers of threads.
 
 """
 struct BernoulliPressureExtrapolation{ELTYPE}
-    pressure_offset :: ELTYPE
-    factor          :: ELTYPE
+    pressure_offset     :: ELTYPE
+    factor              :: ELTYPE
+    allow_loop_flipping :: Bool
 
-    function BernoulliPressureExtrapolation(; pressure_offset=0, factor=1)
-        return new{eltype(pressure_offset)}(pressure_offset, factor)
+    function BernoulliPressureExtrapolation(; pressure_offset=0, factor=1,
+                                            allow_loop_flipping=true)
+        return new{eltype(pressure_offset)}(pressure_offset, factor, allow_loop_flipping)
     end
 end
 
@@ -358,6 +387,7 @@ function compute_pressure!(boundary_model,
                                    BernoulliPressureExtrapolation},
                            system, v, u, v_ode, u_ode, semi)
     (; pressure, cache, viscosity) = boundary_model
+    (; allow_loop_flipping) = boundary_model.density_calculator
 
     set_zero!(pressure)
 
@@ -386,7 +416,7 @@ function compute_pressure!(boundary_model,
         speedup = ceil(Int, Threads.nthreads() / 2)
         parallelize = system_coords isa AbstractGPUArray ||
                       n_boundary_particles < speedup * n_fluid_particles
-        if parallelize
+        if parallelize || !allow_loop_flipping
             # Loop over boundary particles and then the neighboring fluid particles
             # to extrapolate fluid pressure to the boundaries.
             boundary_pressure_extrapolation!(boundary_model, system,
@@ -458,6 +488,7 @@ end
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
 
+    # This needs to be serial to avoid race conditions when writing into `system`
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
                            parallelization_backend=false) do neighbor, particle,
                                                              pos_diff, distance
