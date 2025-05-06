@@ -85,5 +85,5 @@ Let's, for example, pick "density". To now view the time progression of the resu
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = map(file -> joinpath("visualization", file), readdir(joinpath("..", "src", "visualization")))
+Pages = map(file -> joinpath("io", file), readdir(joinpath("..", "src", "io")))
 ```
