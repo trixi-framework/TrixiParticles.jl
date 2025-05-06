@@ -395,9 +395,9 @@ ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, e
                                                              v_neighbor_system,
                                                              particle, neighbor, pos_diff,
                                                              distance, sound_speed, m_a,
-                                                             m_b,
-                                                             rho_a, rho_b, grad_kernel)
-    epsilon_val = viscosity.epsilon
+                                                             m_b, rho_a, rho_b, grad_kernel)
+    epsilon = viscosity.epsilon
+
     smoothing_length_particle = smoothing_length(particle_system, particle)
     smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
     smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
@@ -433,7 +433,7 @@ ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, e
     #
     # and then the Smagorinsky eddy viscosity:
     #   ν_SGS = (C_S * h̄)^2 * S_mag.
-    #    S_mag = norm(v_diff) / (distance + epsilon)
+    S_mag = norm(v_diff) / (distance + epsilon)
     nu_SGS = (viscosity.C_S * smoothing_length_average)^2 * S_mag
 
     # Effective viscosities include the SGS term.
@@ -445,7 +445,7 @@ ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, e
     mu_b = nu_b_eff * rho_b
 
     force_Morris = (mu_a + mu_b) / (rho_a * rho_b) * (dot(pos_diff, grad_kernel)) /
-                   (distance^2 + epsilon_val * smoothing_length_average^2) * v_diff
+                   (distance^2 + epsilon * smoothing_length_average^2) * v_diff
     return m_b * force_Morris
 end
 
