@@ -14,15 +14,15 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                                                                             distance
         distance < sqrt(eps()) && return
 
-        # Retrieve particle properties.
+        # Retrieve particle properties
         m_a = particle_system.mass[particle]
         r_a = particle_system.radius[particle]
         r_b = neighbor_system.radius[neighbor]
 
-        # Compute the overlap (penetration depth).
+        # Compute the overlap (penetration depth)
         overlap = r_a + r_b - distance
         if overlap > 0
-            # Compute the unit normal vector (from neighbor to particle).
+            # Compute the unit normal vector (from neighbor to particle)
             normal = pos_diff / distance
 
             # Compute Normal Force by Dispatching on the Contact Model.
@@ -39,7 +39,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
 
             interaction_force = F_normal + F_tangent
 
-            # Update the particle acceleration: a = F/m.
+            # Update the particle acceleration: a = F/m
             for i in 1:ndims(particle_system)
                 dv[i, particle] += interaction_force[i] / m_a
             end
@@ -76,7 +76,7 @@ end
     # Compute tangential force as a spring–dashpot response.
     F_t = -tangential_stiffness * v_diff_tangent - tangential_damping * v_diff_tangent
 
-    # Coulomb friction: limit the tangential force to μ * |F_normal|.
+    # Coulomb friction: limit the tangential force to μ * |F_normal|
     max_tangent = friction_coefficient * norm(F_normal)
     if norm(F_t) > max_tangent && norm(F_t) > 0.0
         F_t = F_t * (max_tangent / norm(F_t))

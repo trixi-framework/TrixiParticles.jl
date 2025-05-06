@@ -167,9 +167,9 @@ end
     return force_magnitude * normal
 end
 
+# TODO: add dispatches to the neighbor systems
 function compute_effective_mass(particle_system, particle, neighbor_system, neighbor)
-    m_star = particle_system.mass[particle]
-    return m_star
+    return particle_system.mass[particle]
 end
 
 function compute_effective_mass(particle_system, particle, neighbor_system::DEMSystem,
