@@ -1,7 +1,7 @@
 """
-    DEMSystem(initial_condition, contact_model, normal_stiffness, elastic_modulus, poissons_ratio;
-     damping_coefficient=0.0001, acceleration=ntuple(_ -> 0.0, NDIMS), source_terms=nothing,
-     radius=nothing)
+    DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
+              acceleration=ntuple(_ -> 0.0, ndims(initial_condition)), source_terms=nothing,
+              radius=nothing)
 
 Constructs a Discrete Element Method (DEM) system for numerically simulating the dynamics of
 granular and particulate matter. DEM is employed to simulate and analyze the motion,
