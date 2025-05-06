@@ -36,7 +36,7 @@ Open boundary system for in- and outflow particles.
 	This is an experimental feature and may change in any future releases.
 """
 struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
-                             RP, RD, B, C} <: System{NDIMS}
+                             RP, RD, B, PI, C} <: System{NDIMS}
     initial_condition    :: IC
     fluid_system         :: FS
     boundary_model       :: BM
@@ -50,6 +50,7 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     reference_density    :: RD
     buffer               :: B
     update_callback_used :: Ref{Bool}
+    particle_iterator    :: PI
     cache                :: C
 
     function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
@@ -125,14 +126,17 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                                            reference_density, reference_velocity,
                                            reference_pressure)
 
+        particle_iterator = Int[]
+
         return new{typeof(boundary_model), typeof(boundary_zone), NDIMS, ELTYPE,
                    typeof(initial_condition), typeof(fluid_system), typeof(mass),
                    typeof(reference_velocity_), typeof(reference_pressure_),
-                   typeof(reference_density_), typeof(buffer),
+                   typeof(reference_density_), typeof(buffer), typeof(particle_iterator),
                    typeof(cache)}(initial_condition, fluid_system, boundary_model, mass,
                                   density, volume, pressure, boundary_zone,
                                   reference_velocity_, reference_pressure_,
-                                  reference_density_, buffer, false, cache)
+                                  reference_density_, buffer, false, particle_iterator,
+                                  cache)
     end
 end
 
@@ -242,7 +246,19 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
                                                                                    u_ode,
                                                                                    semi, t)
 
+    resize!(system.particle_iterator, 0)
+
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
+
+    if !isempty(system.particle_iterator)
+        v_fluid = wrap_v(v_ode, system.fluid_system, semi)
+        u_fluid = wrap_u(u_ode, system.fluid_system, semi)
+
+        @info "test 2"
+        extrapolate_values!(system, v, v_fluid, u, u_fluid,
+                            semi, t; particle_iterator=system.particle_iterator,
+                            system.cache...)
+    end
 
     # Update buffers
     update_system_buffer!(system.buffer)
@@ -299,7 +315,8 @@ end
     (; spanning_set) = boundary_zone
 
     # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u,
+                       boundary_zone)
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
@@ -324,7 +341,8 @@ end
     end
 
     # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u,
+                       boundary_zone)
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
@@ -338,7 +356,8 @@ end
 @inline function convert_particle!(fluid_system::FluidSystem, system,
                                    boundary_zone, particle, v, u, v_fluid, u_fluid)
     # Activate particle in boundary zone
-    transfer_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
+    transfer_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid,
+                       boundary_zone)
 
     # Deactivate particle in interior domain
     deactivate_particle!(fluid_system, particle, u_fluid)
@@ -347,7 +366,7 @@ end
 end
 
 @inline function transfer_particle!(system_new, system_old, particle_old,
-                                    v_new, u_new, v_old, u_old)
+                                    v_new, u_new, v_old, u_old, boundary_zone)
     particle_new = activate_next_particle(system_new)
 
     # Transfer densities
@@ -363,6 +382,16 @@ end
         u_new[dim, particle_new] = u_old[dim, particle_old]
         v_new[dim, particle_new] = v_old[dim, particle_old]
     end
+
+    return system_new
+end
+
+@inline function transfer_particle!(system_new::FluidSystem, system_old, particle_old,
+                                    v_new, u_new, v_old, u_old, ::InFlow)
+    particle_new = activate_next_particle(system_new)
+
+    @info "test 1"
+    push!(system_new.particle_iterator, particle_new)
 
     return system_new
 end

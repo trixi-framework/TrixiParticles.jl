@@ -9,6 +9,7 @@ into the fluid along a direction that is normal to the open boundary.
 """
 struct BoundaryModelTafuni end
 
+# Called from update callback via `update_open_boundary_eachstep!`
 function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode,
                                      semi, t)
     @trixi_timeit timer() "extrapolate and correct values" begin
@@ -25,7 +26,9 @@ end
 update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = system
 
 function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
-                             semi, t; prescribed_density=false,
+                             semi, t;
+                             particle_iterator=each_moving_particle(system),
+                             prescribed_density=false,
                              prescribed_pressure=false, prescribed_velocity=false)
     (; pressure, density, fluid_system, boundary_zone, reference_density,
      reference_velocity, reference_pressure) = system
@@ -38,7 +41,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
     neighborhood_search = get_neighborhood_search(fluid_system, fluid_system, semi)
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in particle_iterator
         particle_coords = current_coords(u_open_boundary, system, particle)
         ghost_node_position = mirror_position(particle_coords, boundary_zone)
 
