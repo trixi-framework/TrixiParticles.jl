@@ -160,11 +160,12 @@ Base.@propagate_inbounds function Base.getindex(A::ThreadedBroadcastArray, i...)
     return getindex(A.array, i...)
 end
 
-Base.@propagate_inbounds function Base.setindex!(A::ThreadedBroadcastArray, x...)
-    setindex!(A.array, x...)
+Base.@propagate_inbounds function Base.setindex!(A::ThreadedBroadcastArray, x, i...)
+    setindex!(A.array, x, i...)
     return A
 end
 
+# For things like `A .= 0` where `A` is a `ThreadedBroadcastArray`
 function Base.fill!(A::ThreadedBroadcastArray{T}, x) where {T}
     xT = x isa T ? x : convert(T, x)::T
     @threaded A.array for i in eachindex(A.array)
@@ -174,6 +175,9 @@ function Base.fill!(A::ThreadedBroadcastArray{T}, x) where {T}
     return A
 end
 
+# Based on
+# copyto_unaliased!(deststyle::IndexStyle, dest::AbstractArray, srcstyle::IndexStyle, src::AbstractArray)
+# defined in base/abstractarray.jl.
 function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
     if eachindex(dest) == eachindex(src)
         # Shared-iterator implementation
@@ -194,10 +198,24 @@ function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A}}) where
     return Broadcast.ArrayStyle{ThreadedBroadcastArray}()
 end
 
+# The threaded broadcast style wins over any other array style.
+# For things like `A .+ B` where `A` is a `ThreadedBroadcastArray` and `B` is a
+# `RecursiveArrayTools.ArrayPartition`.
+#
+# https://docs.julialang.org/en/v1/manual/interfaces/
+# "It is worth noting that you do not need to (and should not) define both argument orders
+# of this call;
+# defining one is sufficient no matter what order the user supplies the arguments in."
+function Broadcast.BroadcastStyle(s1::Broadcast.ArrayStyle{ThreadedBroadcastArray},
+                                  ::Broadcast.AbstractArrayStyle)
+    return s1
+end
+
 # Based on copyto!(dest::AbstractArray, bc::Broadcasted{Nothing})
 # defined in base/broadcast.jl.
+# For things like `A .= B .+ C` where `A` is a `ThreadedBroadcastArray`.
 function Broadcast.copyto!(dest::ThreadedBroadcastArray,
-                           bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{ThreadedBroadcastArray}})
+                           bc::Broadcast.Broadcasted{Nothing})
     # Check bounds
     axes(dest.array) == axes(bc) || Broadcast.throwdm(axes(dest.array), axes(bc))
 
@@ -209,6 +227,8 @@ function Broadcast.copyto!(dest::ThreadedBroadcastArray,
     return dest
 end
 
+# For things like `C = A .+ B` where `A` or `B` is a `ThreadedBroadcastArray`.
+# `C` will be allocated with this function.
 function Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{ThreadedBroadcastArray}},
                       ::Type{T}, dims) where {T}
     return ThreadedBroadcastArray(similar(Array{T}, dims))
