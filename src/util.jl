@@ -168,7 +168,7 @@ end
 # For things like `A .= 0` where `A` is a `ThreadedBroadcastArray`
 function Base.fill!(A::ThreadedBroadcastArray{T}, x) where {T}
     xT = x isa T ? x : convert(T, x)::T
-    @threaded A.array for i in eachindex(A.array)
+    @threaded PointNeighbors.default_backend(A.array) for i in eachindex(A.array)
         @inbounds A.array[i] = xT
     end
 
@@ -181,12 +181,12 @@ end
 function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
     if eachindex(dest) == eachindex(src)
         # Shared-iterator implementation
-        @threaded dest.array for I in eachindex(dest)
+        @threaded PointNeighbors.default_backend(dest.array) for I in eachindex(dest)
             @inbounds dest.array[I] = src[I]
         end
     else
         # Dual-iterator implementation
-        @threaded dest.array for (Idest, Isrc) in zip(eachindex(dest), eachindex(src))
+        @threaded PointNeighbors.default_backend(dest.array) for (Idest, Isrc) in zip(eachindex(dest), eachindex(src))
             @inbounds dest.array[Idest] = src[Isrc]
         end
     end
@@ -211,6 +211,12 @@ function Broadcast.BroadcastStyle(s1::Broadcast.ArrayStyle{ThreadedBroadcastArra
     return s1
 end
 
+# To avoid ambiguity with the function above
+function Broadcast.BroadcastStyle(s1::Broadcast.ArrayStyle{ThreadedBroadcastArray},
+                                  ::Broadcast.DefaultArrayStyle)
+    return s1
+end
+
 # Based on copyto!(dest::AbstractArray, bc::Broadcasted{Nothing})
 # defined in base/broadcast.jl.
 # For things like `A .= B .+ C` where `A` is a `ThreadedBroadcastArray`.
@@ -221,7 +227,7 @@ function Broadcast.copyto!(dest::ThreadedBroadcastArray,
 
     bc_ = Base.Broadcast.preprocess(dest.array, bc)
 
-    @threaded dest.array for i in eachindex(bc_)
+    @threaded PointNeighbors.default_backend(dest.array) for i in eachindex(bc_)
         @inbounds dest.array[i] = bc_[i]
     end
     return dest
