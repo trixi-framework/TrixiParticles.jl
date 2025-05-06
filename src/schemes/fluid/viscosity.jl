@@ -316,7 +316,24 @@ ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityAdamiSGS(nu, C_S, eps
     # ------------------------------------------------------------------------------
     # SGS part: Compute the subgrid-scale eddy viscosity.
     # ------------------------------------------------------------------------------
-    # Estimate the strain rate magnitude |S| (rough approximation)
+    # In classical LES the Smagorinsky model defines:
+    #   ν_SGS = (C_S Δ)^2 |S|,
+    # where |S| is the norm of the strain-rate tensor Sᵢⱼ = ½(∂ᵢvⱼ+∂ⱼvᵢ).
+    #
+    # In SPH, one could compute ∂ᵢvⱼ via kernel gradients, but this is costly.
+    # A common low-order surrogate is to approximate the strain‐rate magnitude by a
+    # finite-difference along each particle pair:
+    #
+    #   |S| ≈ ‖vₐ–v_b‖ / (‖rₐ–r_b‖ + δ),
+    #
+    # where δ regularizes the denominator to avoid singularities when particles are very close.
+    #
+    # This yields:
+    #   S_mag = norm(v_diff) / (distance + ε)
+    #
+    # and then the Smagorinsky eddy viscosity:
+    #   ν_SGS = (C_S * h̄)^2 * S_mag.
+    #
     S_mag = norm(v_diff) / (distance + epsilon)
     nu_SGS = (viscosity.C_S * smoothing_length_average)^2 * S_mag
 
@@ -399,8 +416,24 @@ ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, e
     # ------------------------------------------------------------------------------
     # SGS part: Compute the subgrid-scale eddy viscosity.
     # ------------------------------------------------------------------------------
-    # Estimate the strain rate magnitude |S| (rough approximation)
-    S_mag = norm(v_diff) / (distance + epsilon)
+    # In classical LES the Smagorinsky model defines:
+    #   ν_SGS = (C_S Δ)^2 |S|,
+    # where |S| is the norm of the strain-rate tensor Sᵢⱼ = ½(∂ᵢvⱼ+∂ⱼvᵢ).
+    #
+    # In SPH, one could compute ∂ᵢvⱼ via kernel gradients, but this is costly.
+    # A common low-order surrogate is to approximate the strain‐rate magnitude by a
+    # finite-difference along each particle pair:
+    #
+    #   |S| ≈ ‖vₐ–v_b‖ / (‖rₐ–r_b‖ + δ),
+    #
+    # where δ regularizes the denominator to avoid singularities when particles are very close.
+    #
+    # This yields:
+    #   S_mag = norm(v_diff) / (distance + ε)
+    #
+    # and then the Smagorinsky eddy viscosity:
+    #   ν_SGS = (C_S * h̄)^2 * S_mag.
+    #    S_mag = norm(v_diff) / (distance + epsilon)
     nu_SGS = (viscosity.C_S * smoothing_length_average)^2 * S_mag
 
     # Effective viscosities include the SGS term.
