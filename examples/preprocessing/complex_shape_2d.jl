@@ -11,11 +11,10 @@ geometry = load_geometry(file; parallelization_backend=false,
 
 trixi2vtk(geometry)
 
-point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
-                                                    vector_of_nodes=true,
+point_in_geometry_algorithm = WindingNumberJacobson(geometry;
+                                                    winding=HierarchicalWinding(geometry),
                                                     winding_number_factor=0.4,
-                                                    store_winding_number=false,
-                                                    hierarchical_winding=true)
+                                                    store_winding_number=true)
 
 # Returns `InitialCondition`
 shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0,
@@ -23,10 +22,7 @@ shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0,
 
 trixi2vtk(shape_sampled)
 
-# trixi2vtk(shape_sampled.signed_distance_field)
-# trixi2vtk(coordinates, w=shape_sampled.winding_numbers)
-
 # Plot the winding number field
-# coordinates = stack(point_in_geometry_algorithm.cache.grid)
-# plot(InitialCondition(; coordinates, density=1.0, particle_spacing),
-#      zcolor=point_in_geometry_algorithm.cache.winding_numbers)
+coordinates = stack(point_in_geometry_algorithm.cache.grid)
+plot(InitialCondition(; coordinates, density=1.0, particle_spacing),
+     zcolor=point_in_geometry_algorithm.cache.winding_numbers)

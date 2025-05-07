@@ -3,6 +3,7 @@ module TrixiParticles
 using Reexport: @reexport
 
 using Adapt: Adapt
+using ArraysOfArrays: VectorOfVectors
 using Base: @propagate_inbounds
 using CSV: CSV
 using Dates
@@ -81,7 +82,7 @@ export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
-export WindingNumberHormann, WindingNumberJacobson
+export WindingNumberHormann, WindingNumberJacobson, NaiveWinding, HierarchicalWinding
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
        sample_boundary
 export SourceTermDamping

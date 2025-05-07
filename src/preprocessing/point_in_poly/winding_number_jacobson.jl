@@ -70,19 +70,13 @@ struct WindingNumberJacobson{ELTYPE, W, C}
     cache                 :: C
 end
 
-function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                               hierarchical_winding=true, store_winding_number=false,
-                               vector_of_nodes=false)
-    if hierarchical_winding && geometry isa Nothing
-        throw(ArgumentError("`geometry` must be of type `Polygon` (2D) or `TriangleMesh` (3D) when using hierarchical winding"))
-    end
-
-    winding = hierarchical_winding ? HierarchicalWinding(geometry; vector_of_nodes) :
-              NaiveWinding()
+function WindingNumberJacobson(geometry::Geometry; winding=HierarchicalWinding(geometry),
+                               winding_number_factor=sqrt(eps()),
+                               store_winding_number=false)
+    ELTYPE = eltype(geometry)
 
     # Only for debugging purposes
     if store_winding_number
-        ELTYPE = eltype(geometry)
         NDIMS = ndims(geometry)
 
         cache = (winding_numbers=ELTYPE[], grid=SVector{NDIMS, ELTYPE}[])
@@ -90,7 +84,7 @@ function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(ep
         cache = nothing
     end
 
-    return WindingNumberJacobson(winding_number_factor, winding, cache)
+    return WindingNumberJacobson(ELTYPE(winding_number_factor), winding, cache)
 end
 
 function Base.show(io::IO, winding::WindingNumberJacobson)
@@ -116,8 +110,7 @@ end
 store_winding_number(::WindingNumberJacobson{<:Any, <:Any, Nothing}) = false
 store_winding_number(::WindingNumberJacobson) = true
 
-function (point_in_poly::WindingNumberJacobson{ELTYPE, STORE})(geometry,
-                                                               points) where {ELTYPE, STORE}
+function (point_in_poly::WindingNumberJacobson{ELTYPE})(geometry, points) where {ELTYPE}
     (; winding_number_factor, winding) = point_in_poly
 
     inpoly = allocate(geometry.parallelization_backend, Bool, length(points))
