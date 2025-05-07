@@ -127,7 +127,8 @@
                 10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0
             ])
 
-        @testset verbose=true "Deformation Function: $deformation" for deformation in keys(deformations)
+        @testset verbose=true "Deformation Function: $deformation" for deformation in
+                                                                       keys(deformations)
             J = deformations[deformation]
             u = zeros(2, 81)
             v = zeros(2, 81)
