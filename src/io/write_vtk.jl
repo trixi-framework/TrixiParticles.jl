@@ -123,6 +123,7 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_direc
         # Store particle index
         vtk["index"] = active_particles(system)
         vtk["time"] = t
+        vtk["ndims"] = ndims(system)
 
         vtk["particle_spacing"] = [particle_spacing(system, particle)
                                    for particle in active_particles(system)]
@@ -196,7 +197,7 @@ Convert coordinate data to VTK format.
 - `file::AbstractString`: Path to the generated VTK file.
 """
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
-                   custom_quantities...)
+                   particle_spacing=(-ones(size(coordinates, 2))), custom_quantities...)
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
            joinpath(output_directory, "$(prefix)_$filename")
@@ -207,6 +208,8 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     vtk_grid(file, points, cells) do vtk
         # Store particle index.
         vtk["index"] = [i for i in axes(coordinates, 2)]
+        vtk["ndims"] = size(coordinates, 1)
+        vtk["particle_spacing"] = particle_spacing
 
         # Extract custom quantities for this system.
         for (key, quantity) in custom_quantities
@@ -243,6 +246,8 @@ function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
 
     return trixi2vtk(coordinates; output_directory, prefix, filename,
                      density=density, initial_velocity=velocity, mass=mass,
+                     particle_spacing=(initial_condition.particle_spacing .*
+                                       ones(nparticles(initial_condition))),
                      pressure=pressure, custom_quantities...)
 end
 
@@ -256,7 +261,9 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
     vtk["density"] = current_density(v, system)
-    vtk["pressure"] = current_pressure(v, system)
+    # Indexing the pressure is a workaround for slicing issue (see https://github.com/JuliaSIMD/StrideArrays.jl/issues/88)
+    vtk["pressure"] = [current_pressure(v, system, particle)
+                       for particle in active_particles(system)]
 
     if system.surface_normal_method !== nothing
         vtk["surf_normal"] = [surface_normal(system, particle)
