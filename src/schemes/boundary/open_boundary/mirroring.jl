@@ -28,7 +28,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                              semi, t; prescribed_density=false,
                              prescribed_pressure=false, prescribed_velocity=false)
     (; pressure, density, fluid_system, boundary_zone, reference_density,
-    reference_velocity, reference_pressure) = system
+     reference_velocity, reference_pressure) = system
 
     state_equation = system_state_equation(system.fluid_system)
 

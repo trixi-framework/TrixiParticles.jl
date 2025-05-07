@@ -428,8 +428,16 @@ end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
-@inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
-@inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
+@inline function viscosity_model(system::OpenBoundarySPHSystem,
+                                 neighbor_system::FluidSystem)
+    return neighbor_system.viscosity
+end
+
+@inline function viscosity_model(system::OpenBoundarySPHSystem,
+                                 neighbor_system::BoundarySystem)
+    return neighbor_system.boundary_model.viscosity
+end
+
 # When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
 

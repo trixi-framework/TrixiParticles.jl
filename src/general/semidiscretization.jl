@@ -224,8 +224,10 @@ end
 end
 
 # This is just for readability to loop over all systems without allocations
-@inline foreach_system(f, semi::Union{NamedTuple, Semidiscretization}) = foreach_noalloc(f,
-                                                                                         semi.systems)
+@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization})
+    return foreach_noalloc(f, semi.systems)
+end
+
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
 """
@@ -698,14 +700,14 @@ end
 
 function update_nhs!(neighborhood_search,
                      system::OpenBoundarySPHSystem, neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::OpenBoundarySPHSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
 end
