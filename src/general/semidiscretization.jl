@@ -67,7 +67,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS}
     end
 end
 
-function Semidiscretization(systems...;
+function Semidiscretization(systems::System...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
