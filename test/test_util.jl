@@ -94,6 +94,10 @@ struct DummySemidiscretization
     end
 end
 
+@inline function PointNeighbors.parallel_foreach(f, iterator, semi::DummySemidiscretization)
+    PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
+end
+
 @inline function TrixiParticles.get_neighborhood_search(system, neighbor_system,
                                                         ::DummySemidiscretization)
     search_radius = TrixiParticles.compact_support(system, neighbor_system)
