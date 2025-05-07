@@ -44,8 +44,10 @@ trixi2vtk(boundary_sampled, filename="boundary")
 # ==========================================================================================
 # ==== Packing
 
-# Large `background_pressure` can cause high accelerations. That is, the adaptive
-# time-stepsize will be adjusted properly. We use `1.0` for simplicity.
+# A larger `background_pressure` makes the packing happen faster in physical time,
+# which results in a correspondingly smaller time step.
+# Essentially, the `background_pressure` just scales the physical time,
+# and can therefore arbitrarily be set to 1.
 background_pressure = 1.0
 
 smoothing_length = 0.8 * particle_spacing
@@ -78,7 +80,7 @@ saving_callback = save_intervals ?
                   nothing
 
 pp_cb_ekin = PostprocessCallback(; ekin=kinetic_energy, interval=1,
-                                 filename="kinetic_energy", write_file_interval=1)
+                                 filename="kinetic_energy", write_file_interval=50)
 
 callbacks = CallbackSet(UpdateCallback(), saving_callback, info_callback, steady_state,
                         pp_cb_ekin)
@@ -92,7 +94,7 @@ packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 trixi2vtk(packed_ic, filename="initial_condition_packed")
 trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary_packed")
 
-shape = Shape(stack(geometry.vertices)[1, :], stack(geometry.vertices)[2, :])
+shape = Plots.Shape(stack(geometry.vertices)[1, :], stack(geometry.vertices)[2, :])
 p1 = plot(shape_sampled, markerstrokewidth=1, label=nothing, layout=(1, 2))
 plot!(p1, shape, color=nothing, label=nothing, linewidth=2, subplot=1)
 plot!(p1, packed_ic, markerstrokewidth=1, label=nothing, subplot=2)

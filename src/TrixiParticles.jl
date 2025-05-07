@@ -19,6 +19,7 @@ using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
+using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
@@ -52,7 +53,7 @@ include("callbacks/callbacks.jl")
 include("general/semidiscretization.jl")
 include("preprocessing/preprocessing.jl")
 include("general/gpu.jl")
-include("visualization/write2vtk.jl")
+include("io/io.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
@@ -77,7 +78,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        BernoulliPressureExtrapolation
 export BoundaryMovement
 export examples_dir, validation_dir
-export trixi2vtk
+export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson

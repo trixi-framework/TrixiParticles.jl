@@ -35,7 +35,7 @@ For more information on the methods, see description below.
                            This is useful when the system is packed together with another
                            (non-fixed) `ParticlePackingSystem`.
                            In this case, no `SignedDistanceField` is required for both
-                           the fixed and non-fixed system.
+                           the fixed and non-fixed system (use `nothing` as signed distance field).
 - `signed_distance_field`: To constrain particles onto the surface, the information about
                            the signed distance from a particle to a face is required.
                            The precalculated signed distances will be interpolated
@@ -44,12 +44,13 @@ For more information on the methods, see description below.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:      Smoothing length to be used for the gradient estimation.
                            See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length_interpolation`: Smoothing length to be used for intrepolating the `SignedDistanceField` information.
+- `smoothing_length_interpolation`: Smoothing length to be used for interpolating the `SignedDistanceField` information.
                                     The default is `smoothing_length_interpolation = smoothing_length`.
 """
-struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C,
+struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                              IC, M, D, K, N, SD, UCU} <: FluidSystem{NDIMS}
     initial_condition              :: IC
+    advection_velocity             :: AV
     mass                           :: M
     density                        :: D
     particle_spacing               :: ELTYPE
@@ -74,14 +75,16 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C,
                                    background_pressure, tlsph, signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
                                    signed_distances, particle_refinement, buffer,
-                                   update_callback_used, fixed_system, cache)
+                                   update_callback_used, fixed_system, cache,
+                                   advection_velocity)
         return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
                    eltype(density), typeof(particle_refinement), typeof(cache),
-                   typeof(initial_condition), typeof(mass), typeof(density),
-                   typeof(smoothing_kernel), typeof(neighborhood_search),
+                   typeof(advection_velocity), typeof(initial_condition), typeof(mass),
+                   typeof(density), typeof(smoothing_kernel), typeof(neighborhood_search),
                    typeof(signed_distances),
-                   typeof(update_callback_used)}(initial_condition, mass, density,
-                                                 particle_spacing, smoothing_kernel,
+                   typeof(update_callback_used)}(initial_condition, advection_velocity,
+                                                 mass, density, particle_spacing,
+                                                 smoothing_kernel,
                                                  smoothing_length_interpolation,
                                                  background_pressure, tlsph,
                                                  signed_distance_field, is_boundary,
@@ -116,7 +119,7 @@ function ParticlePackingSystem(shape::InitialCondition;
     # This is an intern NHS and is thus not organized by `Semidiscretization`.
     if isnothing(signed_distance_field)
         nhs = nothing
-        @info "No `SignedDistanceField` provided. Particles will not be constraint onto a geoemtric surface."
+        @info "No `SignedDistanceField` provided. Particles will not be constraint onto a geometric surface."
     else
         nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
                neighborhood_search
@@ -137,21 +140,26 @@ function ParticlePackingSystem(shape::InitialCondition;
     # which means the signed distance to the surface.
     # Its value is negative if the particle is inside the geometry.
     # Otherwise (if outside), the value is positive.
-    shift_length = if is_boundary
+    if is_boundary
         offset = tlsph ? shape.particle_spacing : shape.particle_spacing / 2
-        -boundary_compress_factor * signed_distance_field.max_signed_distance - offset
+
+        shift_length = -boundary_compress_factor *
+                       signed_distance_field.max_signed_distance - offset
     else
-        tlsph ? zero(ELTYPE) : shape.particle_spacing / 2
+        shift_length = tlsph ? zero(ELTYPE) : shape.particle_spacing / 2
     end
 
     cache = (; create_cache_refinement(shape, particle_refinement, smoothing_length)...)
+
+    advection_velocity = copy(shape.velocity)
 
     return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
                                  smoothing_kernel, smoothing_length_interpolation,
                                  background_pressure, tlsph, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
-                                 nothing, Ref(false), fixed_system, cache)
+                                 nothing, Ref(false), fixed_system, cache,
+                                 advection_velocity)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
@@ -210,8 +218,7 @@ end
 update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
-    vtk["velocity"] = [current_velocity(system.initial_condition.velocity, system,
-                                        particle)
+    vtk["velocity"] = [advection_velocity(v, system, particle)
                        for particle in active_particles(system)]
     if write_meta_data
         vtk["signed_distances"] = system.signed_distances
@@ -227,6 +234,10 @@ write_v0!(v0, system::ParticlePackingSystem{<:Any, true}) = v0
 # Skip for fixed systems
 @inline function current_coordinates(u, system::ParticlePackingSystem{<:Any, true})
     return system.initial_condition.coordinates
+end
+
+@inline function advection_velocity(v, system::ParticlePackingSystem, particle)
+    return extract_svector(system.advection_velocity, system, particle)
 end
 
 write_v0!(v0, system::ParticlePackingSystem) = (v0 .= zero(eltype(system)))
@@ -246,7 +257,7 @@ function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
 
     # If `each_moving_particle` is empty (no moving particles), return zero
     return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
-        velocity = current_velocity(system.initial_condition.velocity, system, particle)
+        velocity = advection_velocity(v, system, particle)
         return initial_condition.mass[particle] * dot(velocity, velocity) / 2
     end
 end
@@ -363,7 +374,8 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
 end
 
 # Skip for fixed systems
-@inline update_transport_velocity!(system::ParticlePackingSystem{<:Any, true}, v_ode, semi) = system
+@inline update_transport_velocity!(system::ParticlePackingSystem{<:Any, true}, v_ode,
+semi) = system
 
 # Update from `UpdateCallback` (between time steps)
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
