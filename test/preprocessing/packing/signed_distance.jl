@@ -7,13 +7,13 @@
 
         signed_distance_field = SignedDistanceField(geometry, 0.1)
 
-        show_compact = "SignedDistanceField{2}()"
+        show_compact = "SignedDistanceField()"
         @test repr(signed_distance_field) == show_compact
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ SignedDistanceField{2}                                                                           │
-        │ ══════════════════════                                                                           │
+        │ SignedDistanceField                                                                              │
+        │ ═══════════════════                                                                              │
         │ #particles: ………………………………………………… 474                                                              │
         │ max signed distance: ………………………… 0.4                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
@@ -23,8 +23,8 @@
         signed_distance_field = SignedDistanceField(geometry, 0.1; max_signed_distance=0.89)
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ SignedDistanceField{2}                                                                           │
-        │ ══════════════════════                                                                           │
+        │ SignedDistanceField                                                                              │
+        │ ═══════════════════                                                                              │
         │ #particles: ………………………………………………… 1037                                                             │
         │ max signed distance: ………………………… 0.89                                                             │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
@@ -35,8 +35,8 @@
                                                     use_for_boundary_packing=true)
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ SignedDistanceField{2}                                                                           │
-        │ ══════════════════════                                                                           │
+        │ SignedDistanceField                                                                              │
+        │ ═══════════════════                                                                              │
         │ #particles: ………………………………………………… 998                                                              │
         │ max signed distance: ………………………… 0.45                                                             │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
