@@ -244,9 +244,10 @@ function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMo
             if delta_s_particle > eps()
                 for i in 1:NDIMS, j in 1:NDIMS
                     delta_ij = (i == j) ? 1 : 0
-                    stress_tensor[i, j, particle] = delta_s_particle *
-                                                    (delta_ij - normal[i] * normal[j]) -
-                                                    delta_ij * max_delta_s
+                    stress_tensor[i, j,
+                                  particle] = delta_s_particle *
+                                              (delta_ij - normal[i] * normal[j]) -
+                                              delta_ij * max_delta_s
                 end
             end
         end

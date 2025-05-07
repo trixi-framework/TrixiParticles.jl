@@ -74,7 +74,7 @@ fluid = union(setdiff(pipe.fluid, zero_v_region_), zero_v_region)
 # ==== Fluid
 wcsph = true
 
-h_factor = 4.0
+h_factor = 2.0
 smoothing_length = h_factor * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 

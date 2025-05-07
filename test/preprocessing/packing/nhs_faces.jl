@@ -13,7 +13,9 @@
         # One padding layer in each direction around the bounding box
         expected_ncells_filled = map(x -> prod(x .+ 2), expected_ncells_bbox)
 
-        @testset verbose=true "Axis Aligned Edge: cell size $(cell_size)" for (i, cell_size) in enumerate(cell_sizes)
+        @testset verbose=true "Axis Aligned Edge: cell size $(cell_size)" for (i,
+                                                                               cell_size) in
+                                                                              enumerate(cell_sizes)
             nhs = TrixiParticles.FaceNeighborhoodSearch{2}(; search_radius=cell_size)
 
             TrixiParticles.initialize!(nhs, edge_aligned)
@@ -32,7 +34,8 @@
         # One padding layer in each direction around the bounding box
         expected_ncells_filled = map(x -> prod(x .+ 2), expected_ncells_bbox)
 
-        @testset verbose=true "Arbitrary Edge: cell size $(cell_size)" for (i, cell_size) in enumerate(cell_sizes)
+        @testset verbose=true "Arbitrary Edge: cell size $(cell_size)" for (i, cell_size) in
+                                                                           enumerate(cell_sizes)
             nhs = TrixiParticles.FaceNeighborhoodSearch{2}(; search_radius=cell_size)
 
             TrixiParticles.initialize!(nhs, edge_arbitrary)
@@ -62,7 +65,9 @@
         # One padding layer in each direction around the bounding box
         expected_ncells_filled = map(x -> prod(x .+ 2), expected_ncells_bbox)
 
-        @testset verbose=true "Axis Aligned Triangle: cell size $(cell_size)" for (i, cell_size) in enumerate(cell_sizes)
+        @testset verbose=true "Axis Aligned Triangle: cell size $(cell_size)" for (i,
+                                                                                   cell_size) in
+                                                                                  enumerate(cell_sizes)
             nhs = TrixiParticles.FaceNeighborhoodSearch{3}(; search_radius=cell_size)
 
             TrixiParticles.initialize!(nhs, triangle_aligned)
@@ -89,7 +94,9 @@
         # One padding layer in each direction around the bounding box
         expected_ncells_filled = map(x -> prod(x .+ 2), expected_ncells_bbox)
 
-        @testset verbose=true "Arbitrary Triangle: cell size $(cell_size)" for (i, cell_size) in enumerate(cell_sizes)
+        @testset verbose=true "Arbitrary Triangle: cell size $(cell_size)" for (i,
+                                                                                cell_size) in
+                                                                               enumerate(cell_sizes)
             nhs = TrixiParticles.FaceNeighborhoodSearch{3}(; search_radius=cell_size)
 
             TrixiParticles.initialize!(nhs, triangle_arbitrary)

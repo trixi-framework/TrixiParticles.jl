@@ -90,24 +90,10 @@
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
 
-            # Mock the neighborhood search
-            nhs = Val(:nhs)
-            TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = eachneighbor
-            TrixiParticles.PointNeighbors.search_radius(::Val{:nhs}) = 100.0
-
-            function Base.getproperty(::Val{:nhs}, f::Symbol)
-                if f === :periodic_box
-                    return nothing
-                end
-
-                # For all other properties, return mock objects
-                return Val(Symbol("mock_" * string(f)))
-            end
-            TrixiParticles.ndims(::Val{:nhs}) = 2
-
             function TrixiParticles.get_neighborhood_search(system, neighbor_system,
                                                             semi::Val{:semi_solid_interact})
-                return nhs
+                return TrivialNeighborhoodSearch{2}(search_radius=1000.0,
+                                                    eachpoint=eachneighbor)
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
@@ -161,7 +147,8 @@
                 10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0
             ])
 
-        @testset verbose=true "Deformation Function: $deformation" for deformation in keys(deformations)
+        @testset verbose=true "Deformation Function: $deformation" for deformation in
+                                                                       keys(deformations)
             J = deformations[deformation]
             u = zeros(2, 81)
             v = zeros(2, 81)
@@ -180,7 +167,6 @@
 
             for y in 1:n_particles_per_dimension[2],
                 x in 1:n_particles_per_dimension[1]
-
                 particle = (x - 1) * n_particles_per_dimension[2] + y
 
                 # Coordinates

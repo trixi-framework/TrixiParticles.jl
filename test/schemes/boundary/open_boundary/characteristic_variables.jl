@@ -38,7 +38,7 @@
                                   plane_normal=flow_direction, open_boundary_layers,
                                   boundary_type=InFlow())
             outflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
-                                   plane_normal=-flow_direction, open_boundary_layers,
+                                   plane_normal=(-flow_direction), open_boundary_layers,
                                    boundary_type=OutFlow())
 
             boundary_zones = [
@@ -46,7 +46,9 @@
                 outflow
             ]
 
-            @testset "`$(TrixiParticles.boundary_type_name(boundary_zone))`" for boundary_zone in boundary_zones
+            @testset "`$(TrixiParticles.boundary_type_name(boundary_zone))`" for boundary_zone in
+                                                                                 boundary_zones
+
                 sign_ = (first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow) ?
                         1 : -1
                 fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,

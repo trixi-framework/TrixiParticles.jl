@@ -57,7 +57,6 @@ end
 
 for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers,
     density_calculator in [SummationDensity(), ContinuityDensity()], wcsph in [false, true]
-
     n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     Re = Int(reynolds_number)
@@ -90,10 +89,10 @@ for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers,
     n_evaluations = first(data.counter)
 
     df = TrixiParticles.DataFrame(pos=data.pos,
-                                  avg_vx_x=data.vx_x ./ n_evaluations,
-                                  avg_vx_y=data.vx_y ./ n_evaluations,
-                                  avg_vy_x=data.vy_x ./ n_evaluations,
-                                  avg_vy_y=data.vy_y ./ n_evaluations,
+                                  avg_vx_x=(data.vx_x ./ n_evaluations),
+                                  avg_vx_y=(data.vx_y ./ n_evaluations),
+                                  avg_vy_x=(data.vy_x ./ n_evaluations),
+                                  avg_vy_y=(data.vy_y ./ n_evaluations),
                                   counter=n_evaluations)
 
     TrixiParticles.CSV.write(output_directory * "/interpolated_velocities.csv", df)

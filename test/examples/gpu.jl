@@ -135,7 +135,7 @@ end
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
 
-            # Note that this simulation only takes 36 time steps on the CPU.
+            # Note that this simulation only takes 42 time steps on the CPU.
             # Due to https://github.com/JuliaGPU/Metal.jl/issues/549, it doesn't work on Metal.
             trixi_include_changeprecision(Float32, @__MODULE__,
                                           joinpath(examples_dir(), "fluid",
@@ -143,7 +143,7 @@ end
                                           tspan=(0.0f0, 0.1f0),
                                           fluid_particle_spacing=0.1,
                                           semi=semi_fullgrid,
-                                          maxiters=36)
+                                          maxiters=42)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -193,11 +193,11 @@ end
                 #                                                smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
                 "WCSPH with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
                                                                smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
-                "WCSPH with WendlandC2Kernel" => (smoothing_length=3.0,
+                "WCSPH with WendlandC2Kernel" => (smoothing_length=1.5,
                                                   smoothing_kernel=WendlandC2Kernel{2}()),
-                "WCSPH with WendlandC4Kernel" => (smoothing_length=3.5,
+                "WCSPH with WendlandC4Kernel" => (smoothing_length=1.75,
                                                   smoothing_kernel=WendlandC4Kernel{2}()),
-                "WCSPH with WendlandC6Kernel" => (smoothing_length=4.0,
+                "WCSPH with WendlandC6Kernel" => (smoothing_length=2.0,
                                                   smoothing_kernel=WendlandC6Kernel{2}()),
                 "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),
                                                     fluid_system=EntropicallyDampedSPHSystem(tank.fluid,

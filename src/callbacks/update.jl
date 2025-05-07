@@ -33,12 +33,12 @@ function UpdateCallback(; interval::Integer=-1, dt=0.0)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(update_callback!, dt,
-                                initialize=initial_update!,
+                                initialize=(initial_update!),
                                 save_positions=(false, false))
     else
         # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(update_callback!, update_callback!,
-                                initialize=initial_update!,
+                                initialize=(initial_update!),
                                 save_positions=(false, false))
     end
 end

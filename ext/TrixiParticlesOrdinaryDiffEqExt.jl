@@ -94,11 +94,11 @@ end
     # update position half step
     half = cache.half
     f.f2(ku, duprev, uprev, p, t)
-    @.. broadcast=false u=uprev + dt * half * ku
+    @.. broadcast=false u=uprev+dt*half*ku
 
     # update velocity half step
     f.f1(kdu, duprev, uprev, p, t)
-    @.. broadcast=false du=duprev + dt * half * kdu
+    @.. broadcast=false du=duprev+dt*half*kdu
 
     # update velocity (add to previous full step velocity)
     f.f1(kdu, du, u, p, t + half * dt)
@@ -117,7 +117,7 @@ end
 
     # update position (add to half step position)
     f.f2(ku, du, u, p, t + dt)
-    @.. broadcast=false u=u + dt * half * ku
+    @.. broadcast=false u=u+dt*half*ku
 
     OrdinaryDiffEqCore.increment_nf!(integrator.stats, 2)
     integrator.stats.nf2 += 2
@@ -125,7 +125,7 @@ end
 end
 
 @muladd function update_velocity!(du_system, kdu_system, duprev_system, system, semi, dt)
-    @.. broadcast=false du_system=duprev_system + dt * kdu_system
+    @.. broadcast=false du_system=duprev_system+dt*kdu_system
 end
 
 @inline function update_density!(du_system, kdu_system, duprev_system, system, semi, dt)
@@ -139,8 +139,8 @@ end
     # which is updated separately.
     @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
-            du_system[i, particle] = duprev_system[i, particle] +
-                                     dt * kdu_system[i, particle]
+            du_system[i,
+                      particle] = duprev_system[i, particle] + dt * kdu_system[i, particle]
         end
     end
 end
