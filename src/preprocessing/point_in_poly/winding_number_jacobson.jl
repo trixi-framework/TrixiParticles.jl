@@ -1,18 +1,18 @@
 struct NaiveWinding end
 
-@inline function (winding::NaiveWinding)(polygon::Polygon{2}, query_point)
+@inline function (winding::NaiveWinding)(polygon::Polygon, query_point)
     (; edge_vertices_ids) = polygon
 
     return naive_winding(polygon, edge_vertices_ids, query_point)
 end
 
-@inline function (winding::NaiveWinding)(mesh::TriangleMesh{3}, query_point)
+@inline function (winding::NaiveWinding)(mesh::TriangleMesh, query_point)
     (; face_vertices_ids) = mesh
 
     return naive_winding(mesh, face_vertices_ids, query_point)
 end
 
-@inline function naive_winding(polygon::Polygon{2}, edges, query_point)
+@inline function naive_winding(polygon::Polygon, edges, query_point)
     winding_number = sum(edges, init=zero(eltype(polygon))) do edge
         v1 = polygon.vertices[edge[1]]
         v2 = polygon.vertices[edge[2]]
@@ -26,7 +26,7 @@ end
     return winding_number
 end
 
-@inline function naive_winding(mesh::TriangleMesh{3}, faces, query_point)
+@inline function naive_winding(mesh::TriangleMesh, faces, query_point)
     winding_number = sum(faces, init=zero(eltype(mesh))) do face
         v1 = mesh.vertices[face[1]]
         v2 = mesh.vertices[face[2]]
@@ -64,21 +64,27 @@ Algorithm for inside-outside segmentation of a complex geometry proposed by [Jac
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct WindingNumberJacobson{ELTYPE, W}
+struct WindingNumberJacobson{ELTYPE, W, C}
     winding_number_factor :: ELTYPE
     winding               :: W
+    cache                 :: C
+end
 
-    function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                                   hierarchical_winding=true)
-        if hierarchical_winding && geometry isa Nothing
-            throw(ArgumentError("`geometry` must be of type `Polygon` (2D) or `TriangleMesh` (3D) when using hierarchical winding"))
-        end
+function WindingNumberJacobson(geometry::Geometry; winding=HierarchicalWinding(geometry),
+                               winding_number_factor=sqrt(eps()),
+                               store_winding_number=false)
+    ELTYPE = eltype(geometry)
 
-        winding = hierarchical_winding ? HierarchicalWinding(geometry) : NaiveWinding()
+    # Only for debugging purposes
+    if store_winding_number
+        NDIMS = ndims(geometry)
 
-        return new{typeof(winding_number_factor), typeof(winding)}(winding_number_factor,
-                                                                   winding)
+        cache = (winding_numbers=ELTYPE[], grid=SVector{NDIMS, ELTYPE}[])
+    else
+        cache = nothing
     end
+
+    return WindingNumberJacobson(ELTYPE(winding_number_factor), winding, cache)
 end
 
 function Base.show(io::IO, winding::WindingNumberJacobson)
@@ -101,30 +107,37 @@ function Base.show(io::IO, ::MIME"text/plain", winding::WindingNumberJacobson)
     end
 end
 
-function (point_in_poly::WindingNumberJacobson)(geometry, points;
-                                                store_winding_number=false)
+store_winding_number(::WindingNumberJacobson{<:Any, <:Any, Nothing}) = false
+store_winding_number(::WindingNumberJacobson) = true
+
+function (point_in_poly::WindingNumberJacobson{ELTYPE})(geometry, points) where {ELTYPE}
     (; winding_number_factor, winding) = point_in_poly
 
-    # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
-    inpoly = fill(false, length(points))
+    inpoly = allocate(geometry.parallelization_backend, Bool, length(points))
 
-    winding_numbers = Float64[]
-    store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
+    if store_winding_number(point_in_poly)
+        resize!(point_in_poly.cache.winding_numbers, length(points))
+        resize!(point_in_poly.cache.grid, length(points))
+        copyto!(point_in_poly.cache.grid, points)
+    end
 
-    divisor = ndims(geometry) == 2 ? 2pi : 4pi
+    divisor = ndims(geometry) == 2 ? ELTYPE(2pi) : ELTYPE(4pi)
 
-    @threaded default_backend(points) for query_point in eachindex(points)
+    @threaded geometry for query_point in eachindex(points)
         p = points[query_point]
+        inpoly[query_point] = false
 
         winding_number = winding(geometry, p) / divisor
-
-        store_winding_number && (winding_numbers[query_point] = winding_number)
 
         # Relaxed restriction of `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)
             inpoly[query_point] = true
         end
+
+        if store_winding_number(point_in_poly)
+            point_in_poly.cache.winding_numbers[query_point] = winding_number
+        end
     end
 
-    return inpoly, winding_numbers
+    return inpoly
 end

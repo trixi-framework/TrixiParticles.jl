@@ -282,17 +282,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
 
-    if semi.parallelization_backend isa KernelAbstractions.Backend
-        # Use the specified backend, e.g., `CUDABackend` or `MetalBackend`
-        u0_ode = KernelAbstractions.allocate(semi.parallelization_backend, ELTYPE,
-                                             sum(sizes_u))
-        v0_ode = KernelAbstractions.allocate(semi.parallelization_backend, ELTYPE,
-                                             sum(sizes_v))
-    else
-        # Use CPU vectors for all CPU backends
-        u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
-        v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
-    end
+    u0_ode = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_u))
+    v0_ode = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_v))
 
     # Set initial condition
     foreach_system(semi) do system
@@ -316,7 +307,6 @@ function semidiscretize(semi, tspan; reset_threads=true)
     else
         semi_new = semi
     end
-
     # Initialize all particle systems
     foreach_system(semi_new) do system
         # Initialize this system
