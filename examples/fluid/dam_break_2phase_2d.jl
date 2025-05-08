@@ -94,8 +94,9 @@ air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calcul
 # Simulation: Combine Water and Air Systems and Solve
 # ------------------------------------------------------------------------------
 semi = Semidiscretization(fluid_system, air_system_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))
-ode = semidiscretize(semi, tspan, data_type=nothing)
+                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
+                          parallelization_backend=true)
+ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)

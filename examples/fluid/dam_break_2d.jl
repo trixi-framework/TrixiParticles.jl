@@ -57,7 +57,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 # ------------------------------------------------------------------------------
 # Fluid System Setup
 # ------------------------------------------------------------------------------
-smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_length = 1.75 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -98,8 +98,9 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coef
 # `nothing` will automatically choose the best update strategy. This is only to be able
 # to change this with `trixi_include`.
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))
-ode = semidiscretize(semi, tspan, data_type=nothing)
+                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
+                          parallelization_backend=true)
+ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 

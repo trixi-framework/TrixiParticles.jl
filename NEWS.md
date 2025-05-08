@@ -1,7 +1,75 @@
 # Changelog
 
-TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
+TrixiParticles.jl follows the interpretation of
+[semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
+
+## Version 0.3
+
+### API Changes
+
+- Rescaled the Wendland kernels by a factor of 2 to be consistent with literature.
+  This requires adjusting the previously used smoothing length for the Wendland Kernels
+  by dividing them by 2 as well to obtain the same results (#775).
+
+- API for custom quantities and functions in the `PostprocessCallback` changed (#755).
+
+- The API for choosing parallelization backends changed. The keyword argument `data_type`
+  in `semidiscretize` was removed and a keyword argument `parallelization_backend` was added
+  to `Semidiscretization`. See [the docs on GPU support](@ref gpu_support) for more details.
+
+### Features
+
+- **Particle Shifting Technique (PST) for Closed Systems:** Integrated the
+  Particle Shifting Technique to enhance particle distribution, reduce clumping
+  and prevent void regions due to tensile instability in closed system simulations. (#735)
+
+- **Open Boundary Model:** Added an open boundary model based on Tafuni et al. (2018),
+  utilizing mirroring and extrapolation to transfer fluid quantities to the buffer zones.
+  This enhancement allows for more accurate handling of simulation boundaries in open systems,
+  ensuring better consistency between the computed domain and its buffer areas. (#574)
+
+- **Transport Velocity Formulation (TVF) for WCSPH Solver:** Added support for TVF
+  to the WCSPH solver, improving the consistency and stability
+  of weakly compressible SPH simulations. (#600)
+
+### Refactoring
+
+- **Variable Smoothing Length Structures:** Introduced new structures to support a variable
+  smoothing length, providing enhanced flexibility in simulation configurations. (#736)
+
+- **Flexible Parallelization Backend:** Improved the parallelization backend support,
+  making it possible to switch the parallelization backend for single simulations. (#748)
+
+- **Total Lagrangian SPH:** Added per-particle material parameters. (#740)
+
+## Version 0.2.7
+
+### Features
+
+- Added the classic **Continuum Surface Force (CSF)** model based on Morris 2000 (#584), which computes
+  surface tension as a **body force** proportional to curvature and directed along the interface normal.
+  This method is efficient and accurate for capillary effects but does not explicitly conserve momentum.
+
+- Added the classic **Continuum Surface Stress (CSS)** model based on Morris 2000 (#584), which is
+  a **momentum-conserving** approach that formulates surface tension as the **divergence of a stress tensor**.
+  However, it requires additional computation and stabilization to handle **high-density interfaces** and reduce numerical instabilities.
+
+- Added `BoundaryZone` to allow for bidirectional flow (#623)
+
+- Added the symplectic time integration scheme used in DualSPHysics (#716)
+
+### Documentation
+
+- Added documentation for time integration (#716)
+
+### Testing
+
+- Run CI tests on GPUs via Buildkite CI (#723)
+
+### Bugs
+
+- Fix GPU computations (#689)
 
 ## Version 0.2.6
 
@@ -11,7 +79,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Refactored
 
-- Surface normal calculation was moved from surface_tension.jl to surface_normal_sph.jl (#539)
+- Surface normal calculation was moved from `surface_tension.jl` to `surface_normal_sph.jl` (#539)
 
 ## Version 0.2.5
 

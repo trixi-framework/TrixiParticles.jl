@@ -55,12 +55,17 @@ function interpolated_velocity(v, u, t, system::TrixiParticles.FluidSystem)
     return nothing
 end
 
-for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers
+for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers,
+    density_calculator in [SummationDensity(), ContinuityDensity()], wcsph in [false, true]
     n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     Re = Int(reynolds_number)
 
-    global output_directory = joinpath("out_ldc",
+    name_density_calculator = density_calculator isa SummationDensity ?
+                              "summation_density" : "continuity_density"
+
+    global output_directory = joinpath("out_ldc", wcsph ? "wcsph" : "edac",
+                                       name_density_calculator,
                                        "validation_run_lid_driven_cavity_2d_nparticles_$(n_particles_xy)x$(n_particles_xy)_Re_$Re")
 
     saving_callback = SolutionSavingCallback(dt=0.1, output_directory=output_directory)
@@ -73,6 +78,7 @@ for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers
     # Import variables into scope
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fluid", "lid_driven_cavity_2d.jl"),
+                  wcsph=wcsph, density_calculator=density_calculator,
                   saving_callback=saving_callback, tspan=tspan, pp_callback=pp_callback,
                   particle_spacing=particle_spacing, reynolds_number=reynolds_number)
 
@@ -83,10 +89,10 @@ for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers
     n_evaluations = first(data.counter)
 
     df = TrixiParticles.DataFrame(pos=data.pos,
-                                  avg_vx_x=data.vx_x ./ n_evaluations,
-                                  avg_vx_y=data.vx_y ./ n_evaluations,
-                                  avg_vy_x=data.vy_x ./ n_evaluations,
-                                  avg_vy_y=data.vy_y ./ n_evaluations,
+                                  avg_vx_x=(data.vx_x ./ n_evaluations),
+                                  avg_vx_y=(data.vx_y ./ n_evaluations),
+                                  avg_vy_x=(data.vy_x ./ n_evaluations),
+                                  avg_vy_y=(data.vy_y ./ n_evaluations),
                                   counter=n_evaluations)
 
     TrixiParticles.CSV.write(output_directory * "/interpolated_velocities.csv", df)

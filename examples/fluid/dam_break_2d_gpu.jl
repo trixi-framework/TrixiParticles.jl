@@ -1,14 +1,16 @@
 # This example file demonstrates how to run an existing example file on a GPU.
 # We simply define a GPU-compatible neighborhood search and `trixi_include` the example
 # file with this neighborhood search.
-# To run this example on a GPU, `data_type` needs to be changed to the array type of the
-# installed GPU. See the docs on GPU support for more information.
+# To run this example on a GPU, `parallelization_backend` needs to be changed to the
+# backend for the installed GPU. See the docs on GPU support for more information.
 
 using TrixiParticles
 
 # Load setup from dam break example
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              fluid_particle_spacing=0.6 / 40,
+              spacing_ratio=1, boundary_layers=4,
               sol=nothing, ode=nothing)
 
 # ------------------------------------------------------------------------------
@@ -37,4 +39,4 @@ trixi_include(@__MODULE__,
               boundary_layers=boundary_layers,
               spacing_ratio=spacing_ratio,
               boundary_model=boundary_model,
-              data_type=nothing)
+              parallelization_backend=true)
