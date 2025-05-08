@@ -244,9 +244,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-    # Update buffers
-    update_system_buffer!(system.buffer)
-    update_system_buffer!(system.fluid_system.buffer)
+    return system
 end
 
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
@@ -268,6 +266,9 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         end
     end
 
+    update_system_buffer!(system.buffer)
+    update_system_buffer!(system.fluid_system.buffer)
+
     # Check the fluid particles whether they're entering the boundary zone
     @threaded semi for fluid_particle in each_moving_particle(fluid_system)
         fluid_coords = current_coords(u_fluid, fluid_system, fluid_particle)
@@ -278,6 +279,9 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
                               v, u, v_fluid, u_fluid)
         end
     end
+
+    update_system_buffer!(system.buffer)
+    update_system_buffer!(system.fluid_system.buffer)
 
     return system
 end

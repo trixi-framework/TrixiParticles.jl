@@ -143,7 +143,8 @@ nhs = GridNeighborhoodSearch{2}(; cell_list=FullGridCellList(; min_corner, max_c
                                 update_strategy=ParallelUpdate())
 
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
-                          boundary_system, neighborhood_search=nhs)
+                          boundary_system, neighborhood_search=nhs,
+                          parallelization_backend=PolyesterBackend())
 
 ode = semidiscretize(semi, tspan)
 
