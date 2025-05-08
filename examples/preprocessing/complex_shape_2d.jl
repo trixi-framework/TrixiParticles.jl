@@ -4,9 +4,9 @@ using Plots
 particle_spacing = 0.1
 
 filename = "inverted_open_curve"
-file = joinpath("examples", "preprocessing", "data", filename * ".asc")
+file = joinpath(examples_dir(), "preprocessing", "data", filename * ".asc")
 
-geometry = load_geometry(file; parallelization_backend=false,
+geometry = load_geometry(file; parallelization_backend=PolyesterBackend(),
                          element_type=typeof(particle_spacing))
 
 trixi2vtk(geometry)

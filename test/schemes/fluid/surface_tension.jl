@@ -138,7 +138,7 @@
                                                SurfaceTensionMomentumMorris(),
                                                nothing, nothing,  # v, u (not needed for stress computation)
                                                nothing, nothing,  # v_ode, u_ode (not needed)
-                                               nothing,           # semi (not needed)
+                                               SerialBackend(),   # semi (only passed to `@threaded`)
                                                0.0)
 
         # 7. Define Reference Stress Tensors by Hand

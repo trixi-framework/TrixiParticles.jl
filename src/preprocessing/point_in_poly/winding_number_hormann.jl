@@ -47,7 +47,7 @@ function (point_in_poly::WindingNumberHormann)(geometry, points)
         (v[1] >= p[1] && v[2] < p[2]) && return 3
     end
 
-    @threaded geometry for query_point in eachindex(points)
+    @threaded default_backend(points) for query_point in eachindex(points)
         v_query = points[query_point]
         winding_number = 0
 
