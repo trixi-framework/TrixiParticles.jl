@@ -7,4 +7,5 @@
     include("systems/systems.jl")
     include("schemes/schemes.jl")
     include("preprocessing/preprocessing.jl")
+    include("io/read_vtk.jl")
 end;

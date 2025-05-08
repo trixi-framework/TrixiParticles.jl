@@ -110,7 +110,7 @@
                                      reference_density=1.0,
                                      exponent=1)
         kernel = WendlandC2Kernel{2}()
-        smoothing_length = 1.0
+        smoothing_length = 0.5
 
         # 3. Create the WeaklyCompressibleSPHSystem with Surface Tension
         system = WeaklyCompressibleSPHSystem(ic,

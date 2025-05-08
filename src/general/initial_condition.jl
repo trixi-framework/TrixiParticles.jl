@@ -206,7 +206,7 @@ function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
         summary_header(io, "InitialCondition{$(eltype(ic))}")
         summary_line(io, "#dimensions", "$(ndims(ic))")
         summary_line(io, "#particles", "$(nparticles(ic))")
-        summary_line(io, "particle spacing", "$(ic.particle_spacing)")
+        summary_line(io, "particle spacing", "$(first(ic.particle_spacing))")
         summary_footer(io)
     end
 end
@@ -329,8 +329,8 @@ end
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
 function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
-                          min_particle_distance=system.initial_condition.particle_spacing /
-                                                4)
+                          min_particle_distance=(system.initial_condition.particle_spacing /
+                                                 4))
     ic = system.initial_condition
 
     v_ode, u_ode = sol.u[end].x
