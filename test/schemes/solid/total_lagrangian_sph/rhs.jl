@@ -175,7 +175,7 @@
                 end
 
                 v_ode = ode.u0.x[1]
-                if backends[i] === false
+                if backends[i] isa SerialBackend
                     u_ode = TrixiParticles.ThreadedBroadcastArray(vec(u))
                 else
                     u_ode = vec(u)
