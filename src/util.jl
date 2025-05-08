@@ -186,7 +186,9 @@ function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
         end
     else
         # Dual-iterator implementation
-        @threaded PointNeighbors.default_backend(dest.array) for (Idest, Isrc) in zip(eachindex(dest), eachindex(src))
+        @threaded PointNeighbors.default_backend(dest.array) for (Idest, Isrc) in
+                                                                 zip(eachindex(dest),
+                                                                     eachindex(src))
             @inbounds dest.array[Idest] = src[Isrc]
         end
     end
