@@ -61,7 +61,7 @@ function ComplexShape(geometry; particle_spacing, density,
         geometry_new = Adapt.adapt(geometry.parallelization_backend, geometry)
 
         point_in_geometry_algorithm_new = Adapt.adapt(geometry.parallelization_backend,
-                                                   point_in_geometry_algorithm)
+                                                      point_in_geometry_algorithm)
     else
         geometry_new = geometry
         point_in_geometry_algorithm_new = point_in_geometry_algorithm

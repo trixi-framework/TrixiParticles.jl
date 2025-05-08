@@ -6,7 +6,8 @@ include("io.jl")
 
 @inline Base.ndims(::Geometry{BACKEND, NDIMS}) where {BACKEND, NDIMS} = NDIMS
 
-@inline Base.eltype(::Geometry{BACKEND, NDIMS, ELTYPE}) where {BACKEND, NDIMS, ELTYPE} = ELTYPE
+@inline Base.eltype(::Geometry{BACKEND, NDIMS, ELTYPE}) where {BACKEND, NDIMS,
+                                                               ELTYPE} = ELTYPE
 
 @inline eachface(mesh) = Base.OneTo(nfaces(mesh))
 

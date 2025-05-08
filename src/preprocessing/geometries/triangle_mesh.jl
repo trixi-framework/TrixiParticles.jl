@@ -35,6 +35,7 @@ function TriangleMesh{NDIMS}(face_vertices, face_normals, vertices_,
 
     face_vertices_ids = fill((0, 0, 0), n_faces)
 
+    # TODO: Backend?
     @threaded true for i in 1:n_faces
         v1 = face_vertices[i][1]
         v2 = face_vertices[i][2]
@@ -235,6 +236,7 @@ function unique_sorted(vertices)
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     keep = fill(true, length(vertices_sorted))
 
+    # TODO: Backend?
     @threaded true for i in eachindex(vertices_sorted)
         # We only sorted by the first entry, so we have to check all previous vertices
         # until the first entry is too far away.

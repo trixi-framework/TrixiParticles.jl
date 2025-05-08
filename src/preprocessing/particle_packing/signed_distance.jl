@@ -107,7 +107,10 @@ function trixi2vtk(signed_distance_field::SignedDistanceField;
               filename=filename, output_directory=output_directory)
 end
 
-delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch, geometry) = positions
+function delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch,
+                                          geometry)
+    return positions
+end
 
 function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch, geometry)
     delete_positions = fill(false, length(positions))
