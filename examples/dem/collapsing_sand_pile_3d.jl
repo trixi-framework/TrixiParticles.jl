@@ -6,8 +6,10 @@ gravity = -9.81
 acceleration = (0.0, 0.0, gravity)
 
 # -----------------------------------------------------------------------------
-# Sandpile Simulation Setup
+# Sandpile Simulation
 # -----------------------------------------------------------------------------
+
+# Resolution
 particle_spacing = 0.1
 
 # Initial sand column dimensions and placement
@@ -25,9 +27,6 @@ container_height = 1.5
 n_boundary_layers = 1
 boundary_thickness = n_boundary_layers * particle_spacing
 
-# -----------------------------------------------------------------------------
-# Particle Generation
-# -----------------------------------------------------------------------------
 # Sand column particles
 n_particles_pile = round.(Int, pile_size ./ particle_spacing)
 
@@ -57,7 +56,7 @@ floor_particles = RectangularShape(particle_spacing,
 boundary_particles = floor_particles
 
 # -----------------------------------------------------------------------------
-# Systems Setup
+# Systems
 # -----------------------------------------------------------------------------
 contact_model = LinearContactModel(1e6)
 damping_coefficient = 0.00001
@@ -70,7 +69,7 @@ boundary_stiffness = 1.0e5
 boundary_system = BoundaryDEMSystem(boundary_particles, boundary_stiffness)
 
 # -----------------------------------------------------------------------------
-# Simulation Setup
+# Simulation
 # -----------------------------------------------------------------------------
 semi = Semidiscretization(sand_system, boundary_system)
 tspan = (0.0, 2.0)
