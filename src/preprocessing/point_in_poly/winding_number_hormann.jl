@@ -28,7 +28,7 @@ store_winding_number(::WindingNumberHormann) = true
 
 # Algorithm 2 from Hormann et al. (2001) "The point in polygon problem for arbitrary polygons"
 # https://doi.org/10.1016/S0925-7721(01)00012-8
-function (point_in_poly::WindingNumberHormann)(geometry, points; store_winding_number=false)
+function (point_in_poly::WindingNumberHormann)(geometry, points)
     (; edge_vertices) = geometry
 
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
@@ -76,12 +76,12 @@ function (point_in_poly::WindingNumberHormann)(geometry, points; store_winding_n
             end
         end
 
+        winding_number != 0 && (inpoly[query_point] = true)
+
         if store_winding_number(point_in_poly)
             point_in_poly.cache.winding_numbers[query_point] = winding_number
         end
-
-        winding_number != 0 && (inpoly[query_point] = true)
     end
 
-    return inpoly, winding_numbers
+    return inpoly
 end

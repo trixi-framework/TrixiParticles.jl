@@ -1,7 +1,7 @@
 using TrixiParticles
 using Plots
 
-particle_spacing = 0.05
+particle_spacing = 0.1
 
 filename = "inverted_open_curve"
 file = joinpath("examples", "preprocessing", "data", filename * ".asc")

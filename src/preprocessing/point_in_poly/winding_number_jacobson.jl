@@ -129,13 +129,13 @@ function (point_in_poly::WindingNumberJacobson{ELTYPE})(geometry, points) where 
 
         winding_number = winding(geometry, p) / divisor
 
-        if store_winding_number(point_in_poly)
-            point_in_poly.cache.winding_numbers[query_point] = winding_number
-        end
-
         # Relaxed restriction of `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)
             inpoly[query_point] = true
+        end
+
+        if store_winding_number(point_in_poly)
+            point_in_poly.cache.winding_numbers[query_point] = winding_number
         end
     end
 

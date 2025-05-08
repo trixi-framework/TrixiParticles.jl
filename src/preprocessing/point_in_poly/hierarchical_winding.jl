@@ -1,7 +1,8 @@
 # This bounding box is used for the hierarchical evaluation of the `WindingNumberJacobsen`.
 # It is implementing a binary tree and thus stores the left and right child and also the
 # faces and closing faces which are inside the bounding box.
-struct BoundingBoxTree{VOVOT, VOSV, V}
+# TODO: docs
+struct HierarchicalWinding{VOVOT, VOSV, V}
     depth         :: Int    # Depth of the tree
     faces         :: VOVOT  # VectorOfVectors{NTuple{NDIMS, Int}}()
     closing_faces :: VOVOT  # VectorOfVectors{NTuple{NDIMS, Int}}()
@@ -11,7 +12,7 @@ struct BoundingBoxTree{VOVOT, VOSV, V}
     childs_right  :: V      # Vector{Int}
 end
 
-function BoundingBoxTree(geometry::Geometry)
+function HierarchicalWinding(geometry::Geometry)
     ELTYPE = eltype(geometry)
 
     # Note that overlapping bounding boxes are perfectly fine
@@ -35,8 +36,8 @@ function BoundingBoxTree(geometry::Geometry)
                 childs_left, childs_right, directed_edges,
                 geometry, eachface(geometry), min_corner, max_corner)
 
-    return BoundingBoxTree(length(faces), faces, closing_faces, min_corners, max_corners,
-                           childs_left, childs_right)
+    return HierarchicalWinding(length(faces), faces, closing_faces, min_corners,
+                               max_corners, childs_left, childs_right)
 end
 
 function build_tree!(faces, closing_faces, min_corners, max_corners,
@@ -114,22 +115,11 @@ function faces_to_tuple(face_ids, geometry::TriangleMesh)
     return map(i -> face_vertices_ids[i], face_ids)
 end
 
-struct HierarchicalWinding{T}
-    bounding_box_tree::T
-end
-
-function HierarchicalWinding(geometry::Geometry)
-    return HierarchicalWinding(BoundingBoxTree(geometry))
-end
-
 @inline function (winding::HierarchicalWinding)(geometry, query_point)
-    (; bounding_box_tree) = winding
-
-    return hierarchical_winding(bounding_box_tree, bounding_box_tree.depth,
-                                geometry, query_point)
+    return hierarchical_winding(winding, winding.depth, geometry, query_point)
 end
 
-function hierarchical_winding(tree::BoundingBoxTree, node_id, geometry, query_point)
+function hierarchical_winding(tree::HierarchicalWinding, node_id, geometry, query_point)
     faces = tree.faces[node_id]
     closing_faces = tree.closing_faces[node_id]
     min_corner = tree.min_corners[node_id]

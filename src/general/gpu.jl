@@ -19,7 +19,6 @@ Adapt.@adapt_structure BoundaryMovement
 Adapt.@adapt_structure TotalLagrangianSPHSystem
 Adapt.@adapt_structure Polygon
 Adapt.@adapt_structure TriangleMesh
-Adapt.@adapt_structure BoundingBoxTree
 Adapt.@adapt_structure WindingNumberJacobson
 Adapt.@adapt_structure HierarchicalWinding
 
