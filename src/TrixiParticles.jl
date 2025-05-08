@@ -34,7 +34,10 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
                                 PrecomputedNeighborhoodSearch, PeriodicBox,
                                 ParallelUpdate, SemiParallelUpdate, SerialUpdate,
-                                FullGridCellList, DictionaryCellList
+                                SerialIncrementalUpdate,
+                                FullGridCellList, DictionaryCellList,
+                                SerialBackend, PolyesterBackend, ThreadsStaticBackend,
+                                ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
                       @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
