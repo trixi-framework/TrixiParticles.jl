@@ -3,7 +3,6 @@ using TrixiParticles
 using TrixiParticles: PointNeighbors
 using LinearAlgebra
 using Printf
-using StaticArrays
 using CSV: CSV
 using DataFrames: DataFrame
 using JSON: JSON
