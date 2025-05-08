@@ -59,7 +59,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS}
     # This is an internal constructor only used in `test/count_allocations.jl`
     # and by Adapt.jl.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
-                                parallelization_backend)
+                                parallelization_backend::PointNeighbors.ParallelizationBackend)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches)}(systems, ranges_u, ranges_v,
                                                              neighborhood_searches,
@@ -67,9 +67,9 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS}
     end
 end
 
-function Semidiscretization(systems...;
+function Semidiscretization(systems::Union{System, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            parallelization_backend=true)
+                            parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
@@ -282,8 +282,14 @@ function semidiscretize(semi, tspan; reset_threads=true)
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
 
-    if semi.parallelization_backend isa Bool
-        # Use CPU vectors and the optimized CPU code.
+    if semi.parallelization_backend isa KernelAbstractions.Backend
+        # Use the specified backend, e.g., `CUDABackend` or `MetalBackend`
+        u0_ode = KernelAbstractions.allocate(semi.parallelization_backend, ELTYPE,
+                                             sum(sizes_u))
+        v0_ode = KernelAbstractions.allocate(semi.parallelization_backend, ELTYPE,
+                                             sum(sizes_v))
+    else
+        # Use CPU vectors for all CPU backends.
         # These are wrapped in `ThreadedBroadcastArray`s
         # to make broadcasting (which is done by OrdinaryDiffEq.jl) multithreaded.
         # See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details.
@@ -291,12 +297,6 @@ function semidiscretize(semi, tspan; reset_threads=true)
         v0_ode_ = Vector{ELTYPE}(undef, sum(sizes_v))
         u0_ode = ThreadedBroadcastArray(u0_ode_)
         v0_ode = ThreadedBroadcastArray(v0_ode_)
-    else
-        # Use the specified backend, e.g., `CUDABackend` or `MetalBackend`
-        u0_ode = KernelAbstractions.allocate(semi.parallelization_backend, ELTYPE,
-                                             sum(sizes_u))
-        v0_ode = KernelAbstractions.allocate(semi.parallelization_backend, ELTYPE,
-                                             sum(sizes_v))
     end
 
     # Set initial condition
@@ -312,7 +312,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
     initialize_neighborhood_searches!(semi)
 
-    if !(semi.parallelization_backend isa Bool)
+    if semi.parallelization_backend isa KernelAbstractions.Backend
         # Convert all arrays to the correct array type.
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
@@ -708,14 +708,14 @@ end
 
 function update_nhs!(neighborhood_search,
                      system::OpenBoundarySPHSystem, neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::OpenBoundarySPHSystem,
-                     u_system, u_neighbor)
+                     u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
 end
