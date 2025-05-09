@@ -27,11 +27,10 @@ tank = RectangularTank(particle_spacing, (rock_width, rock_height),
                        n_layers=2)
 
 # ==========================================================================================
-# ==== Systems Setup
+# ==== Systems
 #
 # We adjust the rock positions upward to allow them to fall under gravity.
 # Next, we create a contact model and use it to build the rock (DEM) system.
-# The contact model is dispatched using multiple types (e.g. Hertz or Linear).
 # ==========================================================================================
 
 # Move the rock particles up to let them fall
@@ -45,16 +44,13 @@ contact_model = HertzContactModel(10e9, 0.3)
 
 # Construct the rock system using the new DEMSystem signature.
 rock_system = DEMSystem(tank.fluid, contact_model; damping_coefficient=0.0001,
-                        acceleration=(0.0, gravity))
+                        acceleration=(0.0, gravity), radius=0.4 * particle_spacing)
 
 # Construct the boundary system for the tank walls.
 boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)
 
 # ==========================================================================================
-# ==== Simulation Setup
-#
-# We now create a semidiscretization (spatially discretized system) and set up
-# the time integration using a Runge-Kutta method with adaptive time-stepping.
+# ==== Simulation
 # ==========================================================================================
 
 semi = Semidiscretization(rock_system, boundary_system)

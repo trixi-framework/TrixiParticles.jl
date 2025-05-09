@@ -32,7 +32,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
               viscosity=ViscosityMorris(nu=nu_sim_water), smoothing_length=smoothing_length,
               gravity=gravity, density_diffusion=nothing, sound_speed=sound_speed,
-              prefix="")
+              prefix="", reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Setup oil layer
@@ -71,8 +71,9 @@ oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, oil_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))
-ode = semidiscretize(semi, tspan, data_type=nothing)
+                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
+                          parallelization_backend=true)
+ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
             dt=1.0, # This is overwritten by the stepsize callback

@@ -1,28 +1,28 @@
 function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
-                   u_neighbor_system, neighborhood_search, particle_system::DEMSystem,
-                   neighbor_system::Union{BoundaryDEMSystem, DEMSystem})
+                   u_neighbor_system, particle_system::DEMSystem,
+                   neighbor_system::Union{BoundaryDEMSystem, DEMSystem}, semi)
     damping_coefficient = particle_system.damping_coefficient
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           neighborhood_search;
+                           semi;
                            points=each_moving_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             pos_diff,
                                                                             distance
         distance < sqrt(eps()) && return
 
-        # Retrieve particle properties.
+        # Retrieve particle properties
         m_a = particle_system.mass[particle]
         r_a = particle_system.radius[particle]
         r_b = neighbor_system.radius[neighbor]
 
-        # Compute the overlap (penetration depth).
+        # Compute the overlap (penetration depth)
         overlap = r_a + r_b - distance
         if overlap > 0
-            # Compute the unit normal vector (from neighbor to particle).
+            # Compute the unit normal vector (from neighbor to particle)
             normal = pos_diff / distance
 
             # Compute Normal Force by Dispatching on the Contact Model.
@@ -39,12 +39,13 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
 
             interaction_force = F_normal + F_tangent
 
-            # Update the particle acceleration: a = F/m.
+            # Update the particle acceleration: a = F/m
             for i in 1:ndims(particle_system)
                 dv[i, particle] += interaction_force[i] / m_a
             end
 
             # Apply a simple position correction to mitigate overlap.
+            # TODO: use update callback
             position_correction!(neighbor_system, u_particle_system, overlap, normal,
                                  particle)
         end
@@ -53,7 +54,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     return dv
 end
 
-# Tangential Force Computation (common for now)
+# Tangential Force Computation
 #
 # Uses a spring-dashpot model to compute the instantaneous tangential force,
 # with a Coulomb friction limit.
@@ -69,13 +70,13 @@ end
     # Compute relative velocity and extract the tangential component.
     v_a = current_velocity(v_particle_system, particle_system, particle)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    v_rel = v_a - v_b
-    v_rel_tangent = v_rel - (dot(v_rel, normal) * normal)
+    v_diff = v_a - v_b
+    v_diff_tangent = v_diff - (dot(v_diff, normal) * normal)
 
     # Compute tangential force as a spring–dashpot response.
-    F_t = -tangential_stiffness * v_rel_tangent - tangential_damping * v_rel_tangent
+    F_t = -tangential_stiffness * v_diff_tangent - tangential_damping * v_diff_tangent
 
-    # Coulomb friction: limit the tangential force to μ * |F_normal|.
+    # Coulomb friction: limit the tangential force to μ * |F_normal|
     max_tangent = friction_coefficient * norm(F_normal)
     if norm(F_t) > max_tangent && norm(F_t) > 0.0
         F_t = F_t * (max_tangent / norm(F_t))

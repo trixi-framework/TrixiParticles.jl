@@ -32,29 +32,9 @@ end
 @doc raw"""
     ArtificialViscosityMonaghan(; alpha, beta=0.0, epsilon=0.01)
 
-Artificial viscosity by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite)), given by
-```math
-\Pi_{ab} =
-\begin{cases}
-    -(\alpha c \mu_{ab} + \beta \mu_{ab}^2) / \bar{\rho}_{ab} & \text{if } v_{ab} \cdot r_{ab} < 0, \\
-    0 & \text{otherwise}
-\end{cases}
-```
-with
-```math
-\mu_{ab} = \frac{h v_{ab} \cdot r_{ab}}{\Vert r_{ab} \Vert^2 + \epsilon h^2},
-```
-where ``\alpha, \beta, \epsilon`` are parameters, ``c`` is the speed of sound, ``h`` is the smoothing length,
-``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``,
-``v_{ab} = v_a - v_b`` is the difference of their velocities,
-and ``\bar{\rho}_{ab}`` is the arithmetic mean of their densities.
+Artificial viscosity by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite)).
 
-Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
-To do so, [Monaghan (2005)](@cite Monaghan2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
-```math
-    \nu = \frac{\alpha h c }{2d + 4},
-```
-where ``d`` is the dimension.
+See [`Viscosity`](@ref viscosity_sph) for an overview and comparison of implemented viscosity models.
 
 # Keywords
 - `alpha`: A value of `0.02` is usually used for most simulations. For a relation with the
@@ -80,13 +60,7 @@ end
 
 Viscosity by [Morris (1997)](@cite Morris1997) also used by [Fourtakas (2019)](@cite Fourtakas2019).
 
-To the force ``f_{ab}`` between two particles ``a`` and ``b`` due to pressure gradients,
-an additional force term ``\tilde{f}_{ab}`` is added with
-```math
-\tilde{f}_{ab} = m_a m_b \frac{(\mu_a + \mu_b) r_{ab} \cdot \nabla W_{ab}}{\rho_a \rho_b (\Vert r_{ab} \Vert^2 + \epsilon h^2)} v_{ab},
-```
-where ``\mu_a = \rho_a \nu`` and ``\mu_b = \rho_b \nu`` denote the dynamic viscosity
-of particle ``a`` and ``b`` respectively, and ``\nu`` is the kinematic viscosity.
+See [`Viscosity`](@ref viscosity_sph) for an overview and comparison of implemented viscosity models.
 
 # Keywords
 - `nu`: Kinematic viscosity
@@ -101,7 +75,8 @@ struct ViscosityMorris{ELTYPE}
     end
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityMorris)
+function kinematic_viscosity(system, viscosity::ViscosityMorris, smoothing_length,
+                             sound_speed)
     return viscosity.nu
 end
 
@@ -115,21 +90,25 @@ end
                                                                  sound_speed,
                                                                  m_a, m_b, rho_a, rho_b,
                                                                  grad_kernel)
-    (; smoothing_length) = particle_system
-
     rho_mean = (rho_a + rho_b) / 2
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
     v_diff = v_a - v_b
 
-    nu_a = kinematic_viscosity(particle_system,
-                               viscosity_model(neighbor_system, particle_system))
-    nu_b = kinematic_viscosity(neighbor_system,
-                               viscosity_model(particle_system, neighbor_system))
+    smoothing_length_particle = smoothing_length(particle_system, particle)
+    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
 
+    nu_a = kinematic_viscosity(particle_system,
+                               viscosity_model(neighbor_system, particle_system),
+                               smoothing_length_particle, sound_speed)
+    nu_b = kinematic_viscosity(neighbor_system,
+                               viscosity_model(particle_system, neighbor_system),
+                               smoothing_length_neighbor, sound_speed)
+
+    smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
     pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, rho_a, rho_b,
-                      smoothing_length, grad_kernel, nu_a, nu_b)
+                      smoothing_length_average, grad_kernel, nu_a, nu_b)
 
     return m_b * pi_ab
 end
@@ -170,10 +149,9 @@ end
 # Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
 # In: Reports on Progress in Physics (2005), pages 1703-1759.
 # [doi: 10.1088/0034-4885/68/8/r01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
-function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan)
-    (; smoothing_length) = system
+function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan,
+                             smoothing_length, sound_speed)
     (; alpha) = viscosity
-    sound_speed = system_sound_speed(system)
 
     return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
 end
@@ -182,18 +160,8 @@ end
     ViscosityAdami(; nu, epsilon=0.01)
 
 Viscosity by [Adami (2012)](@cite Adami2012).
-The viscous interaction is calculated with the shear force for incompressible flows given by
-```math
-f_{ab} = \sum_w \bar{\eta}_{ab} \left( V_a^2 + V_b^2 \right) \frac{v_{ab}}{||r_{ab}||^2+\epsilon h_{ab}^2}  \nabla W_{ab} \cdot r_{ab},
-```
-where ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``,
-``v_{ab} = v_a - v_b`` is the difference of their velocities, ``h`` is the smoothing length and ``V`` is the particle volume.
-The parameter ``\epsilon`` prevents singularities (see [Ramachandran (2019)](@cite Ramachandran2019)).
-The inter-particle-averaged shear stress  is
-```math
-    \bar{\eta}_{ab} =\frac{2 \eta_a \eta_b}{\eta_a + \eta_b},
-```
-where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
+
+See [`Viscosity`](@ref viscosity_sph) for an overview and comparison of implemented viscosity models.
 
 # Keywords
 - `nu`: Kinematic viscosity
@@ -213,13 +181,17 @@ end
                                              particle, neighbor, pos_diff,
                                              distance, sound_speed, m_a, m_b,
                                              rho_a, rho_b, grad_kernel)
-    (; smoothing_length) = particle_system
-
     epsilon = viscosity.epsilon
+
+    smoothing_length_particle = smoothing_length(particle_system, particle)
+    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
+
     nu_a = kinematic_viscosity(particle_system,
-                               viscosity_model(neighbor_system, particle_system))
+                               viscosity_model(neighbor_system, particle_system),
+                               smoothing_length_particle, sound_speed)
     nu_b = kinematic_viscosity(neighbor_system,
-                               viscosity_model(particle_system, neighbor_system))
+                               viscosity_model(particle_system, neighbor_system),
+                               smoothing_length_neighbor, sound_speed)
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -230,8 +202,8 @@ end
 
     eta_tilde = 2 * (eta_a * eta_b) / (eta_a + eta_b)
 
-    # TODO For variable smoothing_length use average smoothing length
-    tmp = eta_tilde / (distance^2 + epsilon * smoothing_length^2)
+    smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
+    tmp = eta_tilde / (distance^2 + epsilon * smoothing_length_average^2)
 
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
@@ -250,7 +222,8 @@ end
     return visc .* v_diff
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityAdami)
+function kinematic_viscosity(system, viscosity::ViscosityAdami, smoothing_length,
+                             sound_speed)
     return viscosity.nu
 end
 
