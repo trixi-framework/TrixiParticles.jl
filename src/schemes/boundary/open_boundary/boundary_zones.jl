@@ -81,50 +81,49 @@ bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_s
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{F, NDIMS, IC, S, ZO, ZW, FD, PN}
+struct BoundaryZone{BT, IC, S, ZO, ZW, FD, PN}
     initial_condition :: IC
     spanning_set      :: S
     zone_origin       :: ZO
     zone_width        :: ZW
     flow_direction    :: FD
     plane_normal      :: PN
-
-    function BoundaryZone(; plane, plane_normal, density, particle_spacing,
-                          initial_condition=nothing, extrude_geometry=nothing,
-                          open_boundary_layers::Integer, boundary_type=BidirectionalFlow())
-        if open_boundary_layers <= 0
-            throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
-        end
-
-        # `plane_normal` always points in fluid domain
-        plane_normal_ = normalize(SVector(plane_normal...))
-
-        if boundary_type isa BidirectionalFlow
-            flow_direction = nothing
-
-        elseif boundary_type isa InFlow
-            # Unit vector pointing in downstream direction
-            flow_direction = plane_normal_
-
-        elseif boundary_type isa OutFlow
-            # Unit vector pointing in downstream direction
-            flow_direction = -plane_normal_
-        end
-
-        ic, spanning_set_, zone_origin,
-        zone_width = set_up_boundary_zone(plane, plane_normal_, flow_direction, density,
-                                          particle_spacing, initial_condition,
-                                          extrude_geometry, open_boundary_layers;
-                                          boundary_type=boundary_type)
-
-        return new{typeof(boundary_type), ndims(ic), typeof(ic), typeof(spanning_set_),
-                   typeof(zone_origin), typeof(zone_width), typeof(flow_direction),
-                   typeof(plane_normal_)}(ic, spanning_set_, zone_origin, zone_width,
-                                          flow_direction, plane_normal_)
-    end
+    boundary_type     :: BT
 end
 
-@inline Base.ndims(::BoundaryZone{F, NDIMS}) where {F, NDIMS} = NDIMS
+function BoundaryZone(; plane, plane_normal, density, particle_spacing,
+                      initial_condition=nothing, extrude_geometry=nothing,
+                      open_boundary_layers::Integer, boundary_type=BidirectionalFlow())
+    if open_boundary_layers <= 0
+        throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
+    end
+
+    # `plane_normal` always points in fluid domain
+    plane_normal_ = normalize(SVector(plane_normal...))
+
+    if boundary_type isa BidirectionalFlow
+        flow_direction = nothing
+
+    elseif boundary_type isa InFlow
+        # Unit vector pointing in downstream direction
+        flow_direction = plane_normal_
+
+    elseif boundary_type isa OutFlow
+        # Unit vector pointing in downstream direction
+        flow_direction = -plane_normal_
+    end
+
+    ic, spanning_set_, zone_origin,
+    zone_width = set_up_boundary_zone(plane, plane_normal_, flow_direction, density,
+                                      particle_spacing, initial_condition,
+                                      extrude_geometry, open_boundary_layers;
+                                      boundary_type=boundary_type)
+
+    return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
+                        flow_direction, plane_normal_, boundary_type)
+end
+
+@inline Base.ndims(::BoundaryZone) = error("`ndims` not defined for `BoundaryZone`")
 
 function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
                               particle_spacing, initial_condition, extrude_geometry,

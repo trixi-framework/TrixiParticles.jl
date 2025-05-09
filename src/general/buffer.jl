@@ -1,15 +1,16 @@
-struct SystemBuffer{V}
-    active_particle :: Vector{Bool}
-    eachparticle    :: V # Vector{Int}
-    buffer_size     :: Int
+struct SystemBuffer{AP, APC, EP}
+    active_particle       :: AP # Vector{Bool}
+    active_particle_count :: APC
+    eachparticle          :: EP # Vector{Int}
+    buffer_size           :: Int
+end
 
-    function SystemBuffer(active_size, buffer_size::Integer)
-        # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
-        active_particle = vcat(fill(true, active_size), fill(false, buffer_size))
-        eachparticle = collect(1:active_size)
+function SystemBuffer(active_size, buffer_size::Integer)
+    # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
+    active_particle = vcat(fill(true, active_size), fill(false, buffer_size))
+    eachparticle = collect(eachindex(active_particle))
 
-        return new{typeof(eachparticle)}(active_particle, eachparticle, buffer_size)
-    end
+    return SystemBuffer(active_particle, Ref(active_size), eachparticle, buffer_size)
 end
 
 allocate_buffer(initial_condition, ::Nothing) = initial_condition
@@ -35,30 +36,39 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     return union(initial_condition, buffer_ic)
 end
 
-@inline update_system_buffer!(buffer::Nothing) = buffer
+@inline update_system_buffer!(buffer::Nothing, semi) = buffer
 
 # TODO `resize` allocates. Find a non-allocating version
-@inline function update_system_buffer!(buffer::SystemBuffer)
+@inline function update_system_buffer!(buffer::SystemBuffer, semi)
     (; active_particle) = buffer
 
-    resize!(buffer.eachparticle, count(active_particle))
 
-    i = 1
-    for j in eachindex(active_particle)
-        if active_particle[j]
-            buffer.eachparticle[i] = j
-            i += 1
+    buffer.active_particle_count[] = count(active_particle)
+    buffer.eachparticle .= -1
+
+    @threaded semi for i in 1:buffer.active_particle_count[]
+        active = 0
+        for j in eachindex(active_particle)
+            if active_particle[j]
+                active += 1
+                if active == i
+                    buffer.eachparticle[i] = j
+                    break
+                end
+            end
         end
     end
 
     return buffer
 end
 
-@inline each_moving_particle(system, buffer) = buffer.eachparticle
+@inline each_moving_particle(system, buffer) = view(buffer.eachparticle,
+                                                    1:buffer.active_particle_count[])
 
 @inline active_coordinates(u, system, buffer) = view(u, :, buffer.active_particle)
 
-@inline active_particles(system, buffer) = buffer.eachparticle
+@inline active_particles(system, buffer) = view(buffer.eachparticle,
+                                                1:buffer.active_particle_count[])
 
 @inline function activate_next_particle(system)
     (; active_particle) = system.buffer
@@ -75,7 +85,7 @@ end
         end
     end
 
-    error("0 out of $(system.buffer.buffer_size) buffer particles available")
+    error("No buffer particles available")
 end
 
 @inline function deactivate_particle!(system, particle, u)

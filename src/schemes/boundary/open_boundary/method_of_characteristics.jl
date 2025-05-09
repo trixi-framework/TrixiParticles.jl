@@ -25,15 +25,17 @@ end
 @inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, boundary_zone,
-     reference_velocity, reference_pressure, reference_density) = system
+    reference_velocity, reference_pressure, reference_density) = system
     (; flow_direction) = boundary_zone
 
-    sound_speed = system_sound_speed(system.fluid_system)
+    fluid_system = corresponding_fluid_system(system, semi)
+
+    sound_speed = system_sound_speed(fluid_system)
 
     if boundary_model.extrapolate_reference_values
         (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
-        v_fluid = wrap_v(v_ode, system.fluid_system, semi)
-        u_fluid = wrap_u(u_ode, system.fluid_system, semi)
+        v_fluid = wrap_v(v_ode, fluid_system, semi)
+        u_fluid = wrap_u(u_ode, fluid_system, semi)
 
         @trixi_timeit timer() "extrapolate and correct values" begin
             extrapolate_values!(system, v, v_fluid, u, u_fluid, semi, t;
@@ -52,11 +54,11 @@ end
 
         rho_ref = reference_value(reference_density, density[particle],
                                   particle_position, t)
-        density[particle] = rho_ref + ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
+        density[particle] = rho_ref + ((-J1 + (J2 + J3) / 2) / sound_speed^2)
 
         p_ref = reference_value(reference_pressure, pressure[particle],
                                 particle_position, t)
-        pressure[particle] = p_ref + 0.5 * (J2 + J3)
+        pressure[particle] = p_ref + (J2 + J3) / 2
 
         v_current = current_velocity(v, system, particle)
         v_ref = reference_value(reference_velocity, v_current,
@@ -88,8 +90,9 @@ end
 function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     (; volume, cache, boundary_zone) = system
     (; characteristics, previous_characteristics) = cache
+    fluid_system = corresponding_fluid_system(system, semi)
 
-    for particle in eachparticle(system)
+    @threaded semi for particle in eachparticle(system)
         previous_characteristics[1, particle] = characteristics[1, particle]
         previous_characteristics[2, particle] = characteristics[2, particle]
         previous_characteristics[3, particle] = characteristics[3, particle]
@@ -99,7 +102,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     set_zero!(volume)
 
     # Evaluate the characteristic variables with the fluid system
-    evaluate_characteristics!(system, system.fluid_system, v, u, v_ode, u_ode, semi, t)
+    evaluate_characteristics!(system, fluid_system, v, u, v_ode, u_ode, semi, t)
 
     # Only some of the in-/outlet particles are in the influence of the fluid particles.
     # Thus, we compute the characteristics for the particles that are outside the influence
@@ -108,13 +111,13 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     @threaded semi for particle in each_moving_particle(system)
 
         # Particle is outside of the influence of fluid particles
-        if isapprox(volume[particle], 0.0)
+        if isapprox(volume[particle], 0)
 
             # Using the average of the values at the previous time step for particles which
             # are outside of the influence of fluid particles.
-            avg_J1 = 0.0
-            avg_J2 = 0.0
-            avg_J3 = 0.0
+            avg_J1 = zero(volume[particle])
+            avg_J2 = zero(volume[particle])
+            avg_J3 = zero(volume[particle])
             counter = 0
 
             for neighbor in each_moving_particle(system)
@@ -152,7 +155,7 @@ end
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
     (; volume, cache, boundary_zone, density, pressure,
-     reference_velocity, reference_pressure, reference_density) = system
+    reference_velocity, reference_pressure, reference_density) = system
     (; flow_direction) = boundary_zone
     (; characteristics) = cache
 
@@ -161,7 +164,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    sound_speed = system_sound_speed(system.fluid_system)
+    sound_speed = system_sound_speed(neighbor_system)
 
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;

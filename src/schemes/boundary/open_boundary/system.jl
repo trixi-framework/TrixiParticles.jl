@@ -35,11 +35,13 @@ Open boundary system for in- and outflow particles.
 !!! warning "Experimental Implementation"
 	This is an experimental feature and may change in any future releases.
 """
-struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
-                             RP, RD, B, C} <: System{NDIMS}
+struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BZ, RV,
+                             RP, RD, B, UCU, C} <: System{NDIMS}
+    boundary_model       :: BM
     initial_condition    :: IC
     fluid_system         :: FS
-    boundary_model       :: BM
+    fluid_system_index   :: FSI
+    smoothing_length     :: ELTYPE
     mass                 :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     density              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     volume               :: ARRAY1D # Array{ELTYPE, 1}: [particle]
@@ -49,91 +51,110 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     reference_pressure   :: RP
     reference_density    :: RD
     buffer               :: B
-    update_callback_used :: Ref{Bool}
+    update_callback_used :: UCU
     cache                :: C
+end
 
-    function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
-                                   fluid_system::FluidSystem,
-                                   buffer_size::Integer, boundary_model,
-                                   reference_velocity=nothing,
-                                   reference_pressure=nothing,
-                                   reference_density=nothing)
-        (; initial_condition) = boundary_zone
+function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
+                               fluid_system_index, smoothing_length, mass, density, volume,
+                               pressure, boundary_zone, reference_velocity,
+                               reference_pressure, reference_density, buffer,
+                               update_callback_used, cache)
+    OpenBoundarySPHSystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
+                          typeof(initial_condition), typeof(fluid_system),
+                          typeof(fluid_system_index), typeof(mass), typeof(boundary_zone),
+                          typeof(reference_velocity), typeof(reference_pressure),
+                          typeof(reference_density), typeof(buffer),
+                          typeof(update_callback_used),
+                          typeof(cache)}(boundary_model, initial_condition, fluid_system,
+                                         fluid_system_index, smoothing_length, mass,
+                                         density, volume, pressure, boundary_zone,
+                                         reference_velocity, reference_pressure,
+                                         reference_density, buffer, update_callback_used,
+                                         cache)
+end
 
-        check_reference_values!(boundary_model, reference_density, reference_pressure,
-                                reference_velocity)
+function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
+                               fluid_system::FluidSystem,
+                               buffer_size::Integer, boundary_model,
+                               reference_velocity=nothing,
+                               reference_pressure=nothing,
+                               reference_density=nothing)
+    (; initial_condition) = boundary_zone
 
-        buffer = SystemBuffer(nparticles(initial_condition), buffer_size)
+    check_reference_values!(boundary_model, reference_density, reference_pressure,
+                            reference_velocity)
 
-        initial_condition = allocate_buffer(initial_condition, buffer)
+    buffer = SystemBuffer(nparticles(initial_condition), buffer_size)
 
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
+    initial_condition = allocate_buffer(initial_condition, buffer)
 
-        pressure = copy(initial_condition.pressure)
-        mass = copy(initial_condition.mass)
-        density = copy(initial_condition.density)
-        volume = similar(initial_condition.density)
+    NDIMS = ndims(initial_condition)
 
-        if !(reference_velocity isa Function || isnothing(reference_velocity) ||
-             (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
-            throw(ArgumentError("`reference_velocity` must be either a function mapping " *
-                                "each particle's coordinates and time to its velocity, " *
-                                "an array where the ``i``-th column holds the velocity of particle ``i`` " *
-                                "or, for a constant fluid velocity, a vector of length $NDIMS for a $(NDIMS)D problem holding this velocity"))
-        else
-            if reference_velocity isa Function
-                test_result = reference_velocity(zeros(NDIMS), 0.0)
-                if length(test_result) != NDIMS
-                    throw(ArgumentError("`reference_velocity` function must be of dimension $NDIMS"))
-                end
+    pressure = copy(initial_condition.pressure)
+    mass = copy(initial_condition.mass)
+    density = copy(initial_condition.density)
+    volume = similar(initial_condition.density)
+
+    if !(reference_velocity isa Function || isnothing(reference_velocity) ||
+         (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
+        throw(ArgumentError("`reference_velocity` must be either a function mapping " *
+                            "each particle's coordinates and time to its velocity, " *
+                            "an array where the ``i``-th column holds the velocity of particle ``i`` " *
+                            "or, for a constant fluid velocity, a vector of length $NDIMS for a $(NDIMS)D problem holding this velocity"))
+    else
+        if reference_velocity isa Function
+            test_result = reference_velocity(zeros(NDIMS), 0.0)
+            if length(test_result) != NDIMS
+                throw(ArgumentError("`reference_velocity` function must be of dimension $NDIMS"))
             end
-            reference_velocity_ = wrap_reference_function(reference_velocity, Val(NDIMS))
         end
-
-        if !(reference_pressure isa Function || reference_pressure isa Real ||
-             isnothing(reference_pressure))
-            throw(ArgumentError("`reference_pressure` must be either a function mapping " *
-                                "each particle's coordinates and time to its pressure, " *
-                                "a vector holding the pressure of each particle, or a scalar"))
-        else
-            if reference_pressure isa Function
-                test_result = reference_pressure(zeros(NDIMS), 0.0)
-                if length(test_result) != 1
-                    throw(ArgumentError("`reference_pressure` function must be a scalar function"))
-                end
-            end
-            reference_pressure_ = wrap_reference_function(reference_pressure, Val(NDIMS))
-        end
-
-        if !(reference_density isa Function || reference_density isa Real ||
-             isnothing(reference_density))
-            throw(ArgumentError("`reference_density` must be either a function mapping " *
-                                "each particle's coordinates and time to its density, " *
-                                "a vector holding the density of each particle, or a scalar"))
-        else
-            if reference_density isa Function
-                test_result = reference_density(zeros(NDIMS), 0.0)
-                if length(test_result) != 1
-                    throw(ArgumentError("`reference_density` function must be a scalar function"))
-                end
-            end
-            reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
-        end
-
-        cache = create_cache_open_boundary(boundary_model, initial_condition,
-                                           reference_density, reference_velocity,
-                                           reference_pressure)
-
-        return new{typeof(boundary_model), typeof(boundary_zone), NDIMS, ELTYPE,
-                   typeof(initial_condition), typeof(fluid_system), typeof(mass),
-                   typeof(reference_velocity_), typeof(reference_pressure_),
-                   typeof(reference_density_), typeof(buffer),
-                   typeof(cache)}(initial_condition, fluid_system, boundary_model, mass,
-                                  density, volume, pressure, boundary_zone,
-                                  reference_velocity_, reference_pressure_,
-                                  reference_density_, buffer, false, cache)
+        reference_velocity_ = wrap_reference_function(reference_velocity, Val(NDIMS))
     end
+
+    if !(reference_pressure isa Function || reference_pressure isa Real ||
+         isnothing(reference_pressure))
+        throw(ArgumentError("`reference_pressure` must be either a function mapping " *
+                            "each particle's coordinates and time to its pressure, " *
+                            "a vector holding the pressure of each particle, or a scalar"))
+    else
+        if reference_pressure isa Function
+            test_result = reference_pressure(zeros(NDIMS), 0.0)
+            if length(test_result) != 1
+                throw(ArgumentError("`reference_pressure` function must be a scalar function"))
+            end
+        end
+        reference_pressure_ = wrap_reference_function(reference_pressure, Val(NDIMS))
+    end
+
+    if !(reference_density isa Function || reference_density isa Real ||
+         isnothing(reference_density))
+        throw(ArgumentError("`reference_density` must be either a function mapping " *
+                            "each particle's coordinates and time to its density, " *
+                            "a vector holding the density of each particle, or a scalar"))
+    else
+        if reference_density isa Function
+            test_result = reference_density(zeros(NDIMS), 0.0)
+            if length(test_result) != 1
+                throw(ArgumentError("`reference_density` function must be a scalar function"))
+            end
+        end
+        reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
+    end
+
+    cache = create_cache_open_boundary(boundary_model, initial_condition,
+                                       reference_density, reference_velocity,
+                                       reference_pressure)
+
+    ucu = Ref(false) # Reference to check if the update callback is used
+    fsi = Ref(0) # Reference to the fluid system index
+
+    smoothing_length = initial_smoothing_length(fluid_system)
+
+    return OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system, fsi,
+                                 smoothing_length, mass, density, volume, pressure,
+                                 boundary_zone, reference_velocity_, reference_pressure_,
+                                 reference_density_, buffer, ucu, cache)
 end
 
 function create_cache_open_boundary(boundary_model, initial_condition,
@@ -192,7 +213,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
     end
 end
 
-@inline function Base.eltype(::OpenBoundarySPHSystem{<:Any, <:Any, <:Any, ELTYPE}) where {ELTYPE}
+@inline function Base.eltype(::OpenBoundarySPHSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
 
@@ -204,8 +225,12 @@ end
 
 update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
 
+function corresponding_fluid_system(system::OpenBoundarySPHSystem, semi)
+    return semi.systems[system.fluid_system_index[]]
+end
+
 function smoothing_length(system::OpenBoundarySPHSystem, particle)
-    return smoothing_length(system.fluid_system, particle)
+    return system.smoothing_length
 end
 
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
@@ -250,7 +275,8 @@ end
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
-    (; boundary_zone, fluid_system) = system
+    (; boundary_zone) = system
+    fluid_system = corresponding_fluid_system(system, semi)
 
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
@@ -266,8 +292,8 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         end
     end
 
-    update_system_buffer!(system.buffer)
-    update_system_buffer!(system.fluid_system.buffer)
+    update_system_buffer!(system.buffer, semi)
+    update_system_buffer!(fluid_system.buffer, semi)
 
     # Check the fluid particles whether they're entering the boundary zone
     @threaded semi for fluid_particle in each_moving_particle(fluid_system)
@@ -280,8 +306,8 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         end
     end
 
-    update_system_buffer!(system.buffer)
-    update_system_buffer!(system.fluid_system.buffer)
+    update_system_buffer!(system.buffer, semi)
+    update_system_buffer!(fluid_system.buffer, semi)
 
     return system
 end
