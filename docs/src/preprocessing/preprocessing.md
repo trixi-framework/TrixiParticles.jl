@@ -1,4 +1,4 @@
-# Sampling of Geometries
+# [Sampling of Geometries](@id sampling_of_geometries)
 
 Generating the initial configuration of a simulation requires filling volumes (3D) or surfaces (2D) of complex geometries with particles.
 The algorithm to sample a complex geometry should be robust and fast,
@@ -256,9 +256,58 @@ Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "geometries", "io.jl")]
 ```
 
-# Particle Packing
+# [Particle Packing](@id particle_packing)
+To obtain a body-fitted and isotropic particle distribution, an initial configuration (see [Sampling of Geometries](@ref sampling_of_geometries)) is first generated. This configuration is then packed using a [`ParticlePackingSystem`](@ref).
+The preprocessing pipeline consists of the following steps:
 
-TODO
+- Load geometry: Fig. (1), [`load_geometry`](@ref).
+- Compute the signed distance field (SDF): Fig. (2), [`SignedDistanceField`](@ref).
+- Generate boundary particles: Fig. (3), [`sample_boundary`](@ref).
+- Initial sampling of the interior particles with inside-outside segmentation: Fig. (4), [`ComplexShape`](@ref).
+- Pack the initial configuration of interior and boundary particles (Fig. (5)): Fig. (6), [`ParticlePackingSystem`](@ref).
+
+The input data can either be a 3D triangulated surface mesh represented in STL-format or a 2D polygonal traversal of the geometry (see [`load_geometry`](@ref)).
+The second step involves generating the SDF (see [`SignedDistanceField`](@ref)), which is necessary for the final packing step, which requires a surface detection.
+The SDF is illustrated in Fig. (2), where the distances to the surface of the geometry are visualized as a color map.
+As depicted, the SDF is computed only within a narrow band around the geometry’s surface, enabling the use of a face-based neighborhood search (NHS) exclusively for the SDF generation step.
+Afterward, the NHS is no longer required for subsequent steps.
+In the third step, the initial configuration of the boundary particles is generated (orange particles in Fig. (3)).
+To create the boundary particles, the positions of the SDF points located outside the geometry and within a predefined boundary thickness are copied (see [`sample_boundary`](@ref)).
+In the fourth step, the initial configuration of the interior particles (green particles in Fig. (4)) is generated using the hierarchical winding number approach (see [Hierarchical Winding](@ref hierarchical_winding)).
+After steps (1) to (4), the initial configuration of both interior and boundary particles is obtained, as illustrated in Fig. (5).
+The interface of the geometry surface is not well resolved with the initial particle configuration.
+Therefore, in the final step, a packing algorithm [Zhu2021](@cite) is applied utilizing the SDF to simultaneously optimize the positions of both interior and boundary particles,
+yielding an isotropic distribution while accurately preserving the geometry surface, as illustrated in Fig. (6).
+
+```@raw html
+<div style="display: flex; gap: 16px; flex-wrap: wrap;">
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/7fe9d1f1-1633-4377-8b97-a4d1778aee07" alt="geometry" style="max-width: 200px;">
+    <figcaption>(1) Geometry representation</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/2b79188c-3148-49f1-8337-718721851bf5" alt="sdf" style="max-width: 200px;">
+    <figcaption>(2) Signed distances to the surface</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/1501718f-d1f5-4f14-b1bc-2a2e581db476" alt="boundary" style="max-width: 200px;">
+    <figcaption>(3) Boundary particles</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/f7376b15-324a-4da1-bb59-db01c7bd6620" alt="interior" style="max-width: 200px;">
+    <figcaption>(4) Interior particles</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/4be889d6-e70a-4c5e-bef2-0071ea4d898c" alt="initial_config" style="max-width: 200px;">
+    <figcaption>(5) Initial configuration</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/0f7aba29-3cf7-4ec1-8c95-841e72fe620d" alt="packed_config" style="max-width: 200px;">
+    <figcaption>(6) Packed configuration</figcaption>
+  </figure>
+</div>
+```
+
 
 ```@autodocs
 Modules = [TrixiParticles]
