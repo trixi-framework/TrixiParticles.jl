@@ -201,18 +201,11 @@ function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
 end
 
 # Broadcasting style for `ThreadedBroadcastArray`.
-struct ThreadedBroadcastStyle{S, P, N} <: Broadcast.AbstractArrayStyle{N}
-    parent_style::S
-
-    function ThreadedBroadcastStyle(parent_style::Broadcast.AbstractArrayStyle{N},
-                                    P::Type) where {N}
-        new{typeof(parent_style), P, N}(parent_style)
-    end
-end
+struct ThreadedBroadcastStyle{P} <: Broadcast.AbstractArrayStyle{1} end
 
 function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A, P}}) where {T, N,
                                                                                      A, P}
-    return ThreadedBroadcastStyle(Broadcast.BroadcastStyle(A), P)
+    return ThreadedBroadcastStyle{P}()
 end
 
 # The threaded broadcast style wins over any other array style.
@@ -252,8 +245,8 @@ end
 
 # For things like `C = A .+ B` where `A` or `B` is a `ThreadedBroadcastArray`.
 # `C` will be allocated with this function.
-function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{S, P, N}},
-                      ::Type{T}, dims) where {T, S, P, N}
+function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{P}},
+                      ::Type{T}, dims) where {T, P}
     # TODO we only have the type `P` here and just assume that we can do `P()`
     return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
 end
