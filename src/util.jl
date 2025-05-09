@@ -252,8 +252,8 @@ end
 
 # For things like `C = A .+ B` where `A` or `B` is a `ThreadedBroadcastArray`.
 # `C` will be allocated with this function.
-function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{T1, P, N}},
-                      ::Type{T}, dims) where {T, T1, P, N}
+function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{S, P, N}},
+                      ::Type{T}, dims) where {T, S, P, N}
     # TODO we only have the type `P` here and just assume that we can do `P()`
     return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
 end
