@@ -27,7 +27,7 @@ struct TriangleMesh{NDIMS, ELTYPE}
 
         face_vertices_ids = fill((0, 0, 0), n_faces)
 
-        @threaded face_vertices for i in 1:n_faces
+        @threaded default_backend(face_vertices) for i in 1:n_faces
             v1 = face_vertices[i][1]
             v2 = face_vertices[i][2]
             v3 = face_vertices[i][3]
@@ -228,7 +228,7 @@ function unique_sorted(vertices)
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     keep = fill(true, length(vertices_sorted))
 
-    @threaded vertices_sorted for i in eachindex(vertices_sorted)
+    @threaded default_backend(vertices_sorted) for i in eachindex(vertices_sorted)
         # We only sorted by the first entry, so we have to check all previous vertices
         # until the first entry is too far away.
         j = i - 1
