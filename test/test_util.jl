@@ -90,9 +90,13 @@ end
 struct DummySemidiscretization
     parallelization_backend::Any
 
-    function DummySemidiscretization(; parallelization_backend=false)
+    function DummySemidiscretization(; parallelization_backend=SerialBackend())
         new(parallelization_backend)
     end
+end
+
+@inline function PointNeighbors.parallel_foreach(f, iterator, semi::DummySemidiscretization)
+    PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
 end
 
 @inline function TrixiParticles.get_neighborhood_search(system, neighbor_system,

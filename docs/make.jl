@@ -1,6 +1,6 @@
 using Documenter, DocumenterCitations
 using TrixiParticles
-using TrixiBase
+using TrixiParticles.TrixiBase
 using TrixiParticles.PointNeighbors
 using Asciicast: Asciicast
 
