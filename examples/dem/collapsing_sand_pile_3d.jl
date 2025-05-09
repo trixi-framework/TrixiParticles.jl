@@ -5,9 +5,8 @@ using OrdinaryDiffEq
 gravity = -9.81
 acceleration = (0.0, 0.0, gravity)
 
-# -----------------------------------------------------------------------------
-# Sandpile Simulation
-# -----------------------------------------------------------------------------
+# ==========================================================================================
+# ==== Collapsing Sand Pile Simulation
 
 # Resolution
 particle_spacing = 0.1
@@ -55,9 +54,8 @@ floor_particles = RectangularShape(particle_spacing,
                                    min_coords_floor; density=boundary_density, tlsph=true)
 boundary_particles = floor_particles
 
-# -----------------------------------------------------------------------------
-# Systems
-# -----------------------------------------------------------------------------
+# ==========================================================================================
+# ==== Systems
 contact_model = LinearContactModel(1e6)
 damping_coefficient = 0.00001
 
@@ -68,9 +66,8 @@ sand_system = DEMSystem(sand_particles, contact_model;
 boundary_stiffness = 1.0e5
 boundary_system = BoundaryDEMSystem(boundary_particles, boundary_stiffness)
 
-# -----------------------------------------------------------------------------
-# Simulation
-# -----------------------------------------------------------------------------
+# ==========================================================================================
+# ==== Simulation
 semi = Semidiscretization(sand_system, boundary_system)
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
