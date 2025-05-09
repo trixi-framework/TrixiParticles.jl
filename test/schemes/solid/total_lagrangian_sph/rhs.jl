@@ -175,10 +175,11 @@
                 end
 
                 v_ode = ode.u0.x[1]
-                if backends[i] isa SerialBackend
-                    u_ode = TrixiParticles.ThreadedBroadcastArray(vec(u))
-                else
+                if backends[i] isa TrixiParticles.KernelAbstractions.Backend
                     u_ode = vec(u)
+                else
+                    u_ode = TrixiParticles.ThreadedBroadcastArray(vec(u);
+                                                                  parallelization_backend=backends[i])
                 end
 
                 @test typeof(v_ode) == typeof(u_ode)
