@@ -57,7 +57,7 @@ function count_rhs_allocations(sol, semi)
         # `TrixiParticles.timeit_debug_enabled()` is called, which is redefined in
         # `disable_debug_timings` above.
         return @invokelatest count_rhs_allocations_inner(dv_ode, du_ode, v_ode, u_ode,
-                                                            semi_no_nhs_update, t)
+                                                         semi_no_nhs_update, t)
     finally
         # Enable timers again
         @invokelatest TrixiParticles.enable_debug_timings()
