@@ -295,8 +295,10 @@ function semidiscretize(semi, tspan; reset_threads=true)
         # See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details.
         u0_ode_ = Vector{ELTYPE}(undef, sum(sizes_u))
         v0_ode_ = Vector{ELTYPE}(undef, sum(sizes_v))
-        u0_ode = ThreadedBroadcastArray(u0_ode_)
-        v0_ode = ThreadedBroadcastArray(v0_ode_)
+        u0_ode = ThreadedBroadcastArray(u0_ode_;
+                                        parallelization_backend=semi.parallelization_backend)
+        v0_ode = ThreadedBroadcastArray(v0_ode_;
+                                        parallelization_backend=semi.parallelization_backend)
     end
 
     # Set initial condition

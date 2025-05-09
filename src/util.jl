@@ -144,10 +144,8 @@ struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}, P} <: AbstractArra
     parallelization_backend::P
 
     function ThreadedBroadcastArray(array::AbstractArray{T, N};
-                                    parallelization_backend=default_backend(array)) where {
-                                                                                           T,
-                                                                                           N
-                                                                                           }
+                                    parallelization_backend=default_backend(array)) where {T,
+                                                                                           N}
         new{T, N, typeof(array), typeof(parallelization_backend)}(array,
                                                                   parallelization_backend)
     end
@@ -194,7 +192,7 @@ function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
     else
         # Dual-iterator implementation
         @threaded dest.parallelization_backend for (Idest, Isrc) in zip(eachindex(dest),
-                                                                        eachindex(src))
+                                                       eachindex(src))
             @inbounds dest.array[Idest] = src[Isrc]
         end
     end
@@ -202,8 +200,19 @@ function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
     return dest
 end
 
-function Broadcast.BroadcastStyle(::Type{<:ThreadedBroadcastArray})
-    return Broadcast.ArrayStyle{ThreadedBroadcastArray}()
+# Broadcasting style for `ThreadedBroadcastArray`.
+struct ThreadedBroadcastStyle{S, P, N} <: Broadcast.AbstractArrayStyle{N}
+    parent_style::S
+
+    function ThreadedBroadcastStyle(parent_style::Broadcast.AbstractArrayStyle{N},
+                                    P::Type) where {N}
+        new{typeof(parent_style), P, N}(parent_style)
+    end
+end
+
+function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A, P}}) where {T, N,
+                                                                                     A, P}
+    return ThreadedBroadcastStyle(Broadcast.BroadcastStyle(A), P)
 end
 
 # The threaded broadcast style wins over any other array style.
@@ -214,13 +223,13 @@ end
 # "It is worth noting that you do not need to (and should not) define both argument orders
 # of this call;
 # defining one is sufficient no matter what order the user supplies the arguments in."
-function Broadcast.BroadcastStyle(s1::Broadcast.ArrayStyle{ThreadedBroadcastArray},
+function Broadcast.BroadcastStyle(s1::ThreadedBroadcastStyle,
                                   ::Broadcast.AbstractArrayStyle)
     return s1
 end
 
 # To avoid ambiguity with the function above
-function Broadcast.BroadcastStyle(s1::Broadcast.ArrayStyle{ThreadedBroadcastArray},
+function Broadcast.BroadcastStyle(s1::ThreadedBroadcastStyle,
                                   ::Broadcast.DefaultArrayStyle)
     return s1
 end
@@ -243,7 +252,8 @@ end
 
 # For things like `C = A .+ B` where `A` or `B` is a `ThreadedBroadcastArray`.
 # `C` will be allocated with this function.
-function Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{ThreadedBroadcastArray}},
-                      ::Type{T}, dims) where {T}
-    return ThreadedBroadcastArray(similar(Array{T}, dims))
+function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{T1, P, N}},
+                      ::Type{T}, dims) where {T, T1, P, N}
+    # TODO we only have the type `P` here and just assume that we can do `P()`
+    return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
 end
