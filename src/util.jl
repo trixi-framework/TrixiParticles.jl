@@ -139,11 +139,17 @@ end
 # like `fill!` and `copyto!` to use multithreading with `@threaded`.
 # See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details
 # and benchmarks.
-struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}} <: AbstractArray{T, N}
+struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}, P} <: AbstractArray{T, N}
     array::A
+    parallelization_backend::P
 
-    function ThreadedBroadcastArray(array::AbstractArray{T, N}) where {T, N}
-        new{T, N, typeof(array)}(array)
+    function ThreadedBroadcastArray(array::AbstractArray{T, N};
+                                    parallelization_backend=default_backend(array)) where {
+                                                                                           T,
+                                                                                           N
+                                                                                           }
+        new{T, N, typeof(array), typeof(parallelization_backend)}(array,
+                                                                  parallelization_backend)
     end
 end
 
@@ -153,7 +159,8 @@ Base.size(A::ThreadedBroadcastArray) = size(parent(A))
 Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
 
 function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
-    return ThreadedBroadcastArray(similar(A.array, T))
+    return ThreadedBroadcastArray(similar(A.array, T);
+                                  parallelization_backend=A.parallelization_backend)
 end
 
 Base.@propagate_inbounds function Base.getindex(A::ThreadedBroadcastArray, i...)
@@ -168,7 +175,7 @@ end
 # For things like `A .= 0` where `A` is a `ThreadedBroadcastArray`
 function Base.fill!(A::ThreadedBroadcastArray{T}, x) where {T}
     xT = x isa T ? x : convert(T, x)::T
-    @threaded PointNeighbors.default_backend(A.array) for i in eachindex(A.array)
+    @threaded A.parallelization_backend for i in eachindex(A.array)
         @inbounds A.array[i] = xT
     end
 
@@ -181,14 +188,13 @@ end
 function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
     if eachindex(dest) == eachindex(src)
         # Shared-iterator implementation
-        @threaded PointNeighbors.default_backend(dest.array) for I in eachindex(dest)
+        @threaded dest.parallelization_backend for I in eachindex(dest)
             @inbounds dest.array[I] = src[I]
         end
     else
         # Dual-iterator implementation
-        @threaded PointNeighbors.default_backend(dest.array) for (Idest, Isrc) in
-                                                                 zip(eachindex(dest),
-                                                                     eachindex(src))
+        @threaded dest.parallelization_backend for (Idest, Isrc) in zip(eachindex(dest),
+                                                                        eachindex(src))
             @inbounds dest.array[Idest] = src[Isrc]
         end
     end
@@ -196,7 +202,7 @@ function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
     return dest
 end
 
-function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A}}) where {T, N, A}
+function Broadcast.BroadcastStyle(::Type{<:ThreadedBroadcastArray})
     return Broadcast.ArrayStyle{ThreadedBroadcastArray}()
 end
 
@@ -229,7 +235,7 @@ function Broadcast.copyto!(dest::ThreadedBroadcastArray,
 
     bc_ = Base.Broadcast.preprocess(dest.array, bc)
 
-    @threaded PointNeighbors.default_backend(dest.array) for i in eachindex(bc_)
+    @threaded dest.parallelization_backend for i in eachindex(bc_)
         @inbounds dest.array[i] = bc_[i]
     end
     return dest
