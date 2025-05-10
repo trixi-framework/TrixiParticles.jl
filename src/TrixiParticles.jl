@@ -79,6 +79,7 @@ export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerr
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
        BernoulliPressureExtrapolation
+export HertzContactModel, LinearContactModel
 export BoundaryMovement
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
