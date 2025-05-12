@@ -150,7 +150,7 @@ end
         @test count_rhs_allocations(sol, semi) == 0
     end
     @trixi_testset "dem/collapsing_sand_pile_3d.jl" begin
-        @test_nowarn_mod trixi_include(@__MODULE__,
+        @trixi_test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "dem",
                                                 "collapsing_sand_pile_3d.jl"),
                                        tspan=(0.0, 0.1))
