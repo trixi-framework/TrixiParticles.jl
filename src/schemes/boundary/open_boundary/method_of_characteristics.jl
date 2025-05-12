@@ -25,7 +25,7 @@ end
 @inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, boundary_zone,
-    reference_velocity, reference_pressure, reference_density) = system
+     reference_velocity, reference_pressure, reference_density) = system
     (; flow_direction) = boundary_zone
 
     sound_speed = system_sound_speed(system.fluid_system)
@@ -152,7 +152,7 @@ end
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
     (; volume, cache, boundary_zone, density, pressure,
-    reference_velocity, reference_pressure, reference_density) = system
+     reference_velocity, reference_pressure, reference_density) = system
     (; flow_direction) = boundary_zone
     (; characteristics) = cache
 
@@ -170,11 +170,11 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
         rho_ref = reference_value(reference_density, density[particle],
                                   neighbor_position, t)
 
-        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
         p_ref = reference_value(reference_pressure, pressure[particle],
                                 neighbor_position, t)
 

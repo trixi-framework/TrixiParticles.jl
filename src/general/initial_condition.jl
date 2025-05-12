@@ -206,7 +206,7 @@ function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
         summary_header(io, "InitialCondition{$(eltype(ic))}")
         summary_line(io, "#dimensions", "$(ndims(ic))")
         summary_line(io, "#particles", "$(nparticles(ic))")
-        summary_line(io, "particle spacing", "$(ic.particle_spacing)")
+        summary_line(io, "particle spacing", "$(first(ic.particle_spacing))")
         summary_footer(io)
     end
 end
@@ -329,8 +329,8 @@ end
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
 function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
-                          min_particle_distance=system.initial_condition.particle_spacing /
-                                                4)
+                          min_particle_distance=(system.initial_condition.particle_spacing /
+                                                 4))
     ic = system.initial_condition
 
     v_ode, u_ode = sol.u[end].x
@@ -369,7 +369,8 @@ function find_too_close_particles(coords1, coords2, max_distance)
     PointNeighbors.initialize!(nhs, coords1, coords2)
 
     # We are modifying the vector `result`, so this cannot be parallel
-    foreach_point_neighbor(coords1, coords2, nhs, parallel=false) do particle, _, _, _
+    foreach_point_neighbor(coords1, coords2, nhs;
+                           parallelization_backend=SerialBackend()) do particle, _, _, _
         if !(particle in result)
             push!(result, particle)
         end
@@ -388,7 +389,9 @@ function find_too_close_particles(coords, min_distance)
     TrixiParticles.initialize!(nhs, coords)
 
     # We are modifying the vector `result`, so this cannot be parallel
-    foreach_point_neighbor(coords, coords, nhs, parallel=false) do particle, neighbor, _, _
+    foreach_point_neighbor(coords, coords, nhs;
+                           parallelization_backend=SerialBackend()) do particle, neighbor,
+                                                                       _, _
         # Only consider particles with neighbors that are not to be removed
         if particle != neighbor && !(particle in result) && !(neighbor in result)
             push!(result, particle)

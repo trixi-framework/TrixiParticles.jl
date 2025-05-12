@@ -16,6 +16,9 @@
 
         hydrostatic_water_column_tests = Dict(
             "WCSPH default" => (),
+            "with Threads.@threads :static" => (parallelization_backend=ThreadsStaticBackend(),),
+            "with Threads.@threads :dynamic" => (parallelization_backend=ThreadsDynamicBackend(),),
+            "with SerialBackend" => (parallelization_backend=SerialBackend(),),
             "WCSPH with FullGridCellList" => (semi=semi_fullgrid,),
             "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
             "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
@@ -41,11 +44,11 @@
                                                            smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
             "WCSPH with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
                                                            smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
-            "WCSPH with WendlandC2Kernel" => (smoothing_length=3.0,
+            "WCSPH with WendlandC2Kernel" => (smoothing_length=1.5,
                                               smoothing_kernel=WendlandC2Kernel{2}()),
-            "WCSPH with WendlandC4Kernel" => (smoothing_length=3.5,
+            "WCSPH with WendlandC4Kernel" => (smoothing_length=1.75,
                                               smoothing_kernel=WendlandC4Kernel{2}()),
-            "WCSPH with WendlandC6Kernel" => (smoothing_length=4.0,
+            "WCSPH with WendlandC6Kernel" => (smoothing_length=2.0,
                                               smoothing_kernel=WendlandC6Kernel{2}()),
             "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),
                                                 fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
@@ -104,7 +107,7 @@
                                                 "oscillating_drop_2d.jl"))
         @test sol.retcode == ReturnCode.Success
         # This error varies between serial and multithreaded runs
-        @test isapprox(error_A, 0.0, atol=1.73e-4)
+        @test isapprox(error_A, 0, atol=2e-4)
         @test count_rhs_allocations(sol, semi) == 0
     end
 

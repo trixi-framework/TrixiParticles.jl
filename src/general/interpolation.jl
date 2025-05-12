@@ -59,10 +59,11 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     filter_no_neighbors = true
     v_ode, u_ode = sol.u[end].x
 
-    results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                         semi, ref_system, v_ode, u_ode,
-                                         filter_no_neighbors, smoothing_length, cut_off_bnd,
-                                         clip_negative_pressure)
+    results, _,
+    _ = interpolate_plane_2d(min_corner, max_corner, resolution,
+                             semi, ref_system, v_ode, u_ode,
+                             filter_no_neighbors, smoothing_length, cut_off_bnd,
+                             clip_negative_pressure)
 
     return results
 end
@@ -74,10 +75,11 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     # Filter out particles without neighbors
     filter_no_neighbors = true
 
-    results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                         semi, ref_system, v_ode, u_ode,
-                                         filter_no_neighbors, smoothing_length, cut_off_bnd,
-                                         clip_negative_pressure)
+    results, _,
+    _ = interpolate_plane_2d(min_corner, max_corner, resolution,
+                             semi, ref_system, v_ode, u_ode,
+                             filter_no_neighbors, smoothing_length, cut_off_bnd,
+                             clip_negative_pressure)
 
     return results
 end
@@ -149,11 +151,12 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                   output_directory="out", filename="plane")
     # Don't filter out particles without neighbors to keep 2D grid structure
     filter_no_neighbors = false
-    results, x_range, y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                                     semi, ref_system, v_ode, u_ode,
-                                                     filter_no_neighbors,
-                                                     smoothing_length, cut_off_bnd,
-                                                     clip_negative_pressure)
+    results, x_range,
+    y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
+                                   semi, ref_system, v_ode, u_ode,
+                                   filter_no_neighbors,
+                                   smoothing_length, cut_off_bnd,
+                                   clip_negative_pressure)
 
     density = reshape(results.density, length(x_range), length(y_range))
     velocity = reshape(results.velocity, length(x_range), length(y_range))
@@ -542,10 +545,10 @@ end
 
             pos_diff = point_coords - coords
             distance2 = dot(pos_diff, pos_diff)
-            pos_diff, distance2 = PointNeighbors.compute_periodic_distance(pos_diff,
-                                                                           distance2,
-                                                                           search_radius,
-                                                                           periodic_box)
+            pos_diff,
+            distance2 = PointNeighbors.compute_periodic_distance(pos_diff, distance2,
+                                                                 search_radius,
+                                                                 periodic_box)
             if distance2 > search_radius^2
                 continue
             end
@@ -556,7 +559,7 @@ end
 
             if system_id == ref_id
                 interpolated_density += m_a * W_a
-                volume = m_a / particle_density(v, system, particle)
+                volume = m_a / current_density(v, system, particle)
                 shepard_coefficient += volume * W_a
 
                 interpolate_system!(interpolation_values, v, system,
@@ -615,7 +618,7 @@ end
         interpolation_values[i] += particle_velocity[i] * (volume * W_a)
     end
 
-    pressure = particle_pressure(v, system, particle)
+    pressure = current_pressure(v, system, particle)
     if clip_negative_pressure
         pressure = max(0.0, pressure)
     end
