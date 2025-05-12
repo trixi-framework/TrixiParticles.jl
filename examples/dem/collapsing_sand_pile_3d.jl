@@ -72,8 +72,8 @@ semi = Semidiscretization(sand_system, boundary_system)
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
+info_callback = InfoCallback(interval=2000)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control

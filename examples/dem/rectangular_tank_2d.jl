@@ -35,6 +35,9 @@ tank = RectangularTank(particle_spacing, (rock_width, rock_height),
 
 # Move the rock particles up to let them fall
 tank.fluid.coordinates[2, :] .+= 0.5
+# small perturbation
+tank.fluid.coordinates .+= rand((-particle_spacing / 100):1e-4:(particle_spacing / 100),
+                                (2, nparticles(tank.fluid)))
 
 # Create a contact model.
 # Option 1: Hertzian contact model (uses elastic modulus and Poisson's ratio)
