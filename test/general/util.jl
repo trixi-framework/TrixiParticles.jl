@@ -3,16 +3,16 @@
     B = ones(3, 3)
 
     # Test that all of these operations work
-    @test_nowarn_mod A .* 2
-    @test_nowarn_mod A .+ B
-    @test_nowarn_mod B .+ A
-    @test_nowarn_mod A .= 0
-    @test_nowarn_mod A .+= 0
-    @test_nowarn_mod A .= B
-    @test_nowarn_mod A .= A .+ B
-    @test_nowarn_mod A .= B .+ A
-    @test_nowarn_mod A .= A .* 2
-    @test_nowarn_mod A .= B .* 2
+    @trixi_test_nowarn A .* 2
+    @trixi_test_nowarn A .+ B
+    @trixi_test_nowarn B .+ A
+    @trixi_test_nowarn A .= 0
+    @trixi_test_nowarn A .+= 0
+    @trixi_test_nowarn A .= B
+    @trixi_test_nowarn A .= A .+ B
+    @trixi_test_nowarn A .= B .+ A
+    @trixi_test_nowarn A .= A .* 2
+    @trixi_test_nowarn A .= B .* 2
 
     # Test that the resulting type of broadcasting is correct
     @test typeof(A .* 2) == typeof(A)
