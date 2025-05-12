@@ -1,16 +1,24 @@
-struct SystemBuffer{AP, APC, EP}
-    active_particle       :: AP # Vector{Bool}
-    active_particle_count :: APC
-    eachparticle          :: EP # Vector{Int}
+struct SystemBuffer{VB, RI, VI}
+    active_particle       :: VB  # Vector{Bool}
+    active_particle_count :: RI  # Ref{Int}
+    candidates            :: VI  # Vector{Int}
+    particle_outside      :: VB  # Vector{Bool}
+    available_particles   :: VI  # Vector{Int}
+    next_particle         :: VI  # Vector{Int}
+    eachparticle          :: VI  # Vector{Int}
     buffer_size           :: Int
 end
 
 function SystemBuffer(active_size, buffer_size::Integer)
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     active_particle = vcat(fill(true, active_size), fill(false, buffer_size))
+    candidates = collect(eachindex(active_particle))
+    particle_outside = vcat(fill(false, active_size), fill(true, buffer_size))
+    available_particles = collect(eachindex(active_particle))
     eachparticle = collect(eachindex(active_particle))
 
-    return SystemBuffer(active_particle, Ref(active_size), eachparticle, buffer_size)
+    return SystemBuffer(active_particle, Ref(active_size), candidates, particle_outside,
+                        available_particles, Int[1], eachparticle, buffer_size)
 end
 
 allocate_buffer(initial_condition, ::Nothing) = initial_condition
@@ -42,7 +50,6 @@ end
 @inline function update_system_buffer!(buffer::SystemBuffer, semi)
     (; active_particle) = buffer
 
-
     buffer.active_particle_count[] = count(active_particle)
     buffer.eachparticle .= -1
 
@@ -62,31 +69,15 @@ end
     return buffer
 end
 
-@inline each_moving_particle(system, buffer) = view(buffer.eachparticle,
-                                                    1:buffer.active_particle_count[])
+@inline each_moving_particle(system,
+                             buffer) = view(buffer.eachparticle,
+                                            1:buffer.active_particle_count[])
 
 @inline active_coordinates(u, system, buffer) = view(u, :, buffer.active_particle)
 
-@inline active_particles(system, buffer) = view(buffer.eachparticle,
-                                                1:buffer.active_particle_count[])
-
-@inline function activate_next_particle(system)
-    (; active_particle) = system.buffer
-
-    for particle in eachindex(active_particle)
-        if !active_particle[particle]
-            # Activate this particle. The return value is the old value.
-            # If this is `true`, the particle was active before and we need to continue.
-            # This happens because a particle might have been activated by another thread
-            # between the condition and the line below.
-            was_active = PointNeighbors.Atomix.@atomicswap active_particle[particle] = true
-
-            !was_active && return particle
-        end
-    end
-
-    error("No buffer particles available")
-end
+@inline active_particles(system,
+                         buffer) = view(buffer.eachparticle,
+                                        1:buffer.active_particle_count[])
 
 @inline function deactivate_particle!(system, particle, u)
     (; active_particle) = system.buffer
