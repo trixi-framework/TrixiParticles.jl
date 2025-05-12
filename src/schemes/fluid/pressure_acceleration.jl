@@ -36,6 +36,13 @@ end
     return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b)
 end
 
+# Same as `pressure_acceleration_continuity_density`, but using the minus formulation
+# when pressures are negative to avoid tensile instability.
+# See Lyu et al. (2021). https://doi.org/10.1016/j.apor.2021.102938
+@inline function tensile_instability_correction(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    return -m_b * (abs(p_a) + p_b) / (rho_a * rho_b) * W_a
+end
+
 # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
 # They argued that the formulation is more flexible because of the possibility to formulate
 # different inter-particle averages or to assume different inter-particle distributions.
@@ -56,14 +63,6 @@ end
     pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
 
     return -volume_term * pressure_tilde * W_a
-end
-
-# Same as `pressure_acceleration_continuity_density`, but using the minus formulation
-# when pressures are negative to avoid tensile instability.
-# See Lyu et al. (2021). https://doi.org/10.1016/j.apor.2021.102938
-@inline function tensile_instability_correction(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
-    p = p_b + abs(p_a)
-    return -m_b * p / (rho_a * rho_b) * W_a
 end
 
 function choose_pressure_acceleration_formulation(pressure_acceleration,
