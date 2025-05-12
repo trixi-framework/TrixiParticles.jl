@@ -89,7 +89,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coef
 # to change this with `trixi_include`.
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
-                          parallelization_backend=true)
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
