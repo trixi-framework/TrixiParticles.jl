@@ -1,11 +1,17 @@
+abstract type Geometry{BACKEND, NDIMS, ELTYPE} end
+
 include("polygon.jl")
 include("triangle_mesh.jl")
 include("io.jl")
 
+@inline Base.ndims(::Geometry{BACKEND, NDIMS}) where {BACKEND, NDIMS} = NDIMS
+
+@inline Base.eltype(::Geometry{BACKEND, NDIMS, ELTYPE}) where {BACKEND, NDIMS,
+                                                               ELTYPE} = ELTYPE
+
 @inline eachface(mesh) = Base.OneTo(nfaces(mesh))
 
-function Base.setdiff(initial_condition::InitialCondition,
-                      geometries::Union{Polygon, TriangleMesh}...)
+function Base.setdiff(initial_condition::InitialCondition, geometries::Geometry...)
     geometry = first(geometries)
 
     if ndims(geometry) != ndims(initial_condition)
@@ -30,8 +36,7 @@ function Base.setdiff(initial_condition::InitialCondition,
     return setdiff(result, Base.tail(geometries)...)
 end
 
-function Base.intersect(initial_condition::InitialCondition,
-                        geometries::Union{Polygon, TriangleMesh}...)
+function Base.intersect(initial_condition::InitialCondition, geometries::Geometry...)
     geometry = first(geometries)
 
     if ndims(geometry) != ndims(initial_condition)

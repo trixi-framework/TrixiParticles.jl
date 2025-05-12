@@ -1,116 +1,150 @@
 # This bounding box is used for the hierarchical evaluation of the `WindingNumberJacobsen`.
 # It is implementing a binary tree and thus stores the left and right child and also the
 # faces and closing faces which are inside the bounding box.
-struct BoundingBoxTree{MC, NDIMS}
-    faces         :: Vector{NTuple{NDIMS, Int}}
-    closing_faces :: Vector{NTuple{NDIMS, Int}}
-    min_corner    :: MC
-    max_corner    :: MC
-    is_leaf       :: Bool
-    child_left    :: BoundingBoxTree
-    child_right   :: BoundingBoxTree
-
-    function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_corner)
-        closing_faces = Vector{NTuple{ndims(geometry), Int}}()
-
-        max_faces_in_box = ndims(geometry) == 3 ? 100 : 20
-        if length(face_ids) < max_faces_in_box
-            return new{typeof(min_corner),
-                       ndims(geometry)}(faces(face_ids, geometry), closing_faces,
-                                        min_corner, max_corner, true)
-        end
-
-        determine_closure!(closing_faces, min_corner, max_corner, geometry, face_ids,
-                           directed_edges)
-
-        if length(closing_faces) >= length(face_ids)
-            return new{typeof(min_corner),
-                       ndims(geometry)}(faces(face_ids, geometry), closing_faces,
-                                        min_corner, max_corner, true)
-        end
-
-        # Bisect the box splitting its longest side
-        box_edges = max_corner - min_corner
-
-        split_direction = argmax(box_edges)
-
-        uvec = (1:ndims(geometry)) .== split_direction
-
-        max_corner_left = max_corner - 0.5box_edges[split_direction] * uvec
-        min_corner_right = min_corner + 0.5box_edges[split_direction] * uvec
-
-        faces_left = is_in_box(geometry, face_ids, min_corner, max_corner_left)
-        faces_right = is_in_box(geometry, face_ids, min_corner_right, max_corner)
-
-        child_left = BoundingBoxTree(geometry, faces_left, directed_edges,
-                                     min_corner, max_corner_left)
-        child_right = BoundingBoxTree(geometry, faces_right, directed_edges,
-                                      min_corner_right, max_corner)
-
-        return new{typeof(min_corner),
-                   ndims(geometry)}(faces(face_ids, geometry), closing_faces,
-                                    min_corner, max_corner, false, child_left, child_right)
-    end
+# TODO: docs
+struct HierarchicalWinding{VOVOT, VOSV, V}
+    depth         :: Int    # Depth of the tree
+    faces         :: VOVOT  # VectorOfVectors{NTuple{NDIMS, Int}}()
+    closing_faces :: VOVOT  # VectorOfVectors{NTuple{NDIMS, Int}}()
+    min_corners   :: VOSV   # Vector{SVector{NDIMS}}()
+    max_corners   :: VOSV   # Vector{SVector{NDIMS}}()
+    childs_left   :: V      # Vector{Int}
+    childs_right  :: V      # Vector{Int}
 end
 
-function faces(edge_ids, geometry::Polygon)
+function HierarchicalWinding(geometry::Geometry)
+    ELTYPE = eltype(geometry)
+
+    # Note that overlapping bounding boxes are perfectly fine
+    min_corner = geometry.min_corner .- ELTYPE(sqrt(eps()))
+    max_corner = geometry.max_corner .+ ELTYPE(sqrt(eps()))
+
+    if ndims(geometry) == 3
+        directed_edges = zeros(Int, length(geometry.edge_normals))
+    else
+        directed_edges = zeros(Int, length(geometry.vertices))
+    end
+
+    faces = VectorOfVectors{NTuple{ndims(geometry), Int}}()
+    closing_faces = VectorOfVectors{NTuple{ndims(geometry), Int}}()
+    min_corners = Vector{SVector{ndims(geometry), ELTYPE}}()
+    max_corners = Vector{SVector{ndims(geometry), ELTYPE}}()
+    childs_left = Int[]
+    childs_right = Int[]
+
+    build_tree!(faces, closing_faces, min_corners, max_corners,
+                childs_left, childs_right, directed_edges,
+                geometry, eachface(geometry), min_corner, max_corner)
+
+    return HierarchicalWinding(length(faces), faces, closing_faces, min_corners,
+                               max_corners, childs_left, childs_right)
+end
+
+function build_tree!(faces, closing_faces, min_corners, max_corners,
+                     childs_left, childs_right, directed_edges,
+                     geometry, face_ids, min_corner_local, max_corner_local)
+    NDIMS = ndims(geometry)
+
+    closing_faces_local = NTuple{NDIMS, Int}[]
+
+    max_faces_in_box = NDIMS == 3 ? 100 : 20
+    if length(face_ids) < max_faces_in_box
+        push!(faces, faces_to_tuple(face_ids, geometry))
+        push!(min_corners, min_corner_local)
+        push!(max_corners, max_corner_local)
+        push!(childs_left, -1)
+        push!(childs_right, -1)
+        push!(closing_faces, closing_faces_local)
+
+        return length(faces) # Index of the new node
+    end
+
+    determine_closure!(closing_faces_local, min_corner_local, max_corner_local, geometry,
+                       face_ids, directed_edges)
+
+    if length(closing_faces_local) >= length(face_ids)
+        push!(faces, faces_to_tuple(face_ids, geometry))
+        push!(min_corners, min_corner_local)
+        push!(max_corners, max_corner_local)
+        push!(childs_left, -1)
+        push!(childs_right, -1)
+        push!(closing_faces, closing_faces_local)
+
+        return length(faces) # Index of the new node
+    end
+
+    # Bisect the box splitting its longest side
+    box_edges = max_corner_local - min_corner_local
+
+    split_direction = argmax(box_edges)
+
+    uvec = (1:NDIMS) .== split_direction
+
+    max_corner_left = max_corner_local - box_edges[split_direction] / 2 * uvec
+    min_corner_right = min_corner_local + box_edges[split_direction] / 2 * uvec
+
+    faces_left = is_in_box(geometry, face_ids, min_corner_local, max_corner_left)
+    faces_right = is_in_box(geometry, face_ids, min_corner_right, max_corner_local)
+
+    left_index = build_tree!(faces, closing_faces, min_corners, max_corners,
+                             childs_left, childs_right, directed_edges,
+                             geometry, faces_left, min_corner_local, max_corner_left)
+    right_index = build_tree!(faces, closing_faces, min_corners, max_corners,
+                              childs_left, childs_right, directed_edges,
+                              geometry, faces_right, min_corner_right, max_corner_local)
+
+    push!(faces, faces_to_tuple(face_ids, geometry))
+    push!(closing_faces, closing_faces_local)
+    push!(min_corners, min_corner_local)
+    push!(max_corners, max_corner_local)
+    push!(childs_left, left_index)
+    push!(childs_right, right_index)
+
+    return length(faces) # Index of the new node
+end
+
+function faces_to_tuple(edge_ids, geometry::Polygon)
     (; edge_vertices_ids) = geometry
 
     return map(i -> edge_vertices_ids[i], edge_ids)
 end
 
-function faces(face_ids, geometry::TriangleMesh)
+function faces_to_tuple(face_ids, geometry::TriangleMesh)
     (; face_vertices_ids) = geometry
 
     return map(i -> face_vertices_ids[i], face_ids)
 end
 
-struct HierarchicalWinding{BB}
-    bounding_box::BB
-
-    function HierarchicalWinding(geometry)
-        # Note that overlapping bounding boxes are perfectly fine
-        min_corner = geometry.min_corner .- sqrt(eps())
-        max_corner = geometry.max_corner .+ sqrt(eps())
-
-        if ndims(geometry) == 3
-            directed_edges = zeros(Int, length(geometry.edge_normals))
-        else
-            directed_edges = zeros(Int, length(geometry.vertices))
-        end
-
-        bounding_box = BoundingBoxTree(geometry, eachface(geometry), directed_edges,
-                                       min_corner, max_corner)
-
-        return new{typeof(bounding_box)}(bounding_box)
-    end
+@inline function (winding::HierarchicalWinding)(geometry, query_point)
+    return hierarchical_winding(winding, winding.depth, geometry, query_point)
 end
 
-@inline function (winding::HierarchicalWinding)(mesh, query_point)
-    (; bounding_box) = winding
+function hierarchical_winding(tree::HierarchicalWinding, node_id, geometry, query_point)
+    faces = tree.faces[node_id]
+    closing_faces = tree.closing_faces[node_id]
+    min_corner = tree.min_corners[node_id]
+    max_corner = tree.max_corners[node_id]
+    child_left = tree.childs_left[node_id]
+    child_right = tree.childs_right[node_id]
 
-    return hierarchical_winding(bounding_box, mesh, query_point)
-end
-
-function hierarchical_winding(bounding_box, mesh, query_point)
-    (; min_corner, max_corner) = bounding_box
-
-    if bounding_box.is_leaf
-        return naive_winding(mesh, bounding_box.faces, query_point)
-
+    if child_left < 0
+        # node is a leaf
+        return naive_winding(geometry, faces, query_point)
     elseif !is_in_box(query_point, min_corner, max_corner)
         # `query_point` is outside bounding box
-        return -naive_winding(mesh, bounding_box.closing_faces, query_point)
+        return -naive_winding(geometry, closing_faces, query_point)
     end
 
-    winding_number_left = hierarchical_winding(bounding_box.child_left, mesh, query_point)
-    winding_number_right = hierarchical_winding(bounding_box.child_right, mesh, query_point)
+    winding_number_left = hierarchical_winding(tree, child_left,
+                                               geometry, query_point)
+    winding_number_right = hierarchical_winding(tree, child_right,
+                                                geometry, query_point)
 
     return winding_number_left + winding_number_right
 end
 
 # This only works when all `vertices` are unique
-function determine_closure!(closing_faces, min_corner, max_corner, mesh::TriangleMesh{3},
+function determine_closure!(closing_faces, min_corner, max_corner, mesh::TriangleMesh,
                             faces, directed_edges)
     (; edge_vertices_ids, face_vertices_ids, face_edges_ids, vertices) = mesh
 
@@ -159,7 +193,6 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
     end
 
     exterior_edges = findall(!iszero, directed_edges)
-    resize!(closing_faces, 0)
 
     if !isempty(exterior_edges)
         closing_vertex = edge_vertices_ids[exterior_edges[1]][2]
@@ -198,7 +231,7 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
 end
 
 # This only works when all `vertices` are unique
-function determine_closure!(closing_edges, min_corner, max_corner, polygon::Polygon{2},
+function determine_closure!(closing_edges, min_corner, max_corner, polygon::Polygon,
                             edges, vertex_count)
     (; edge_vertices_ids, edge_vertices) = polygon
 
@@ -262,7 +295,7 @@ function is_in_box(mesh, faces, min_corner, max_corner)
     return filter(face -> is_in_box(barycenter(mesh, face), min_corner, max_corner), faces)
 end
 
-@inline function barycenter(mesh::Polygon{2}, edge)
+@inline function barycenter(mesh::Polygon, edge)
     (; edge_vertices) = mesh
 
     v1 = edge_vertices[edge][1]
@@ -271,7 +304,7 @@ end
     return 0.5(v1 + v2)
 end
 
-@inline function barycenter(mesh::TriangleMesh{3}, face)
+@inline function barycenter(mesh::TriangleMesh, face)
     (; face_vertices) = mesh
 
     v1 = face_vertices[face][1]
