@@ -19,6 +19,7 @@ using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
+using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
@@ -33,7 +34,10 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
                                 PrecomputedNeighborhoodSearch, PeriodicBox,
                                 ParallelUpdate, SemiParallelUpdate, SerialUpdate,
-                                FullGridCellList, DictionaryCellList
+                                SerialIncrementalUpdate,
+                                FullGridCellList, DictionaryCellList,
+                                SerialBackend, PolyesterBackend, ThreadsStaticBackend,
+                                ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
                       @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
@@ -51,7 +55,7 @@ include("callbacks/callbacks.jl")
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
-include("visualization/write2vtk.jl")
+include("io/io.jl")
 include("visualization/recipes_plots.jl")
 include("preprocessing/preprocessing.jl")
 
@@ -77,7 +81,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        BernoulliPressureExtrapolation
 export BoundaryMovement
 export examples_dir, validation_dir
-export trixi2vtk
+export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson

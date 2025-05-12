@@ -59,10 +59,11 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     filter_no_neighbors = true
     v_ode, u_ode = sol.u[end].x
 
-    results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                         semi, ref_system, v_ode, u_ode,
-                                         filter_no_neighbors, smoothing_length, cut_off_bnd,
-                                         clip_negative_pressure)
+    results, _,
+    _ = interpolate_plane_2d(min_corner, max_corner, resolution,
+                             semi, ref_system, v_ode, u_ode,
+                             filter_no_neighbors, smoothing_length, cut_off_bnd,
+                             clip_negative_pressure)
 
     return results
 end
@@ -74,10 +75,11 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     # Filter out particles without neighbors
     filter_no_neighbors = true
 
-    results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                         semi, ref_system, v_ode, u_ode,
-                                         filter_no_neighbors, smoothing_length, cut_off_bnd,
-                                         clip_negative_pressure)
+    results, _,
+    _ = interpolate_plane_2d(min_corner, max_corner, resolution,
+                             semi, ref_system, v_ode, u_ode,
+                             filter_no_neighbors, smoothing_length, cut_off_bnd,
+                             clip_negative_pressure)
 
     return results
 end
@@ -150,11 +152,12 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
     # Don't filter out particles without neighbors to keep 2D grid structure
     filter_no_neighbors = false
     @trixi_timeit timer() "interpolate plane" begin
-        results, x_range, y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                                         semi, ref_system, v_ode, u_ode,
-                                                         filter_no_neighbors,
-                                                         smoothing_length, cut_off_bnd,
-                                                         clip_negative_pressure)
+        results, x_range,
+        y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
+                                       semi, ref_system, v_ode, u_ode,
+                                       filter_no_neighbors,
+                                       smoothing_length, cut_off_bnd,
+                                       clip_negative_pressure)
     end
 
     density = reshape(results.density, length(x_range), length(y_range))
@@ -505,6 +508,8 @@ end
                                     neighborhood_searches;
                                     smoothing_length=initial_smoothing_length(ref_system),
                                     cut_off_bnd=true, clip_negative_pressure=false)
+    (; parallelization_backend) = semi
+
     n_points = size(point_coords, 2)
     ELTYPE = eltype(point_coords)
     interpolated_density = zeros(ELTYPE, n_points)
@@ -529,8 +534,9 @@ end
 
         neighbor_coords = current_coordinates(u, neighbor_system)
 
-        foreach_point_neighbor(point_coords, neighbor_coords,
-                               nhs) do point, neighbor, pos_diff, distance
+        foreach_point_neighbor(point_coords, neighbor_coords, nhs;
+                               parallelization_backend) do point, neighbor, pos_diff,
+                                                           distance
             m_a = hydrodynamic_mass(neighbor_system, neighbor)
             W_a = kernel(ref_smoothing_kernel, distance, smoothing_length)
 
