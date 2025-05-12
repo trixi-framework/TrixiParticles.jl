@@ -555,7 +555,7 @@ end
         end
     end
 
-    @threaded point_coords for point in axes(point_coords, 2)
+    @threaded parallelization_backend for point in axes(point_coords, 2)
         if other_density[point] > interpolated_density[point] ||
            shepard_coefficient[point] < eps()
             # Return NaN values that can be filtered out in ParaView
