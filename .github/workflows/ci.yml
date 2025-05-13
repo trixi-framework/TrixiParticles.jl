@@ -109,3 +109,11 @@ jobs:
           coverage: false
         env:
           TRIXIPARTICLES_TEST: examples
+
+      - name: Run validation tests
+        uses: julia-actions/julia-runtest@v1
+        with:
+          annotate: true
+          coverage: false
+        env:
+          TRIXIPARTICLES_TEST: validation
