@@ -1,13 +1,12 @@
-abstract type Geometry{BACKEND, NDIMS, ELTYPE} end
+abstract type Geometry{NDIMS, ELTYPE} end
 
 include("polygon.jl")
 include("triangle_mesh.jl")
 include("io.jl")
 
-@inline Base.ndims(::Geometry{BACKEND, NDIMS}) where {BACKEND, NDIMS} = NDIMS
+@inline Base.ndims(::Geometry{NDIMS}) where {NDIMS} = NDIMS
 
-@inline Base.eltype(::Geometry{BACKEND, NDIMS, ELTYPE}) where {BACKEND, NDIMS,
-                                                               ELTYPE} = ELTYPE
+@inline Base.eltype(::Geometry{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
 @inline eachface(mesh) = Base.OneTo(nfaces(mesh))
 

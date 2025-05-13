@@ -1,5 +1,5 @@
 # This is the data format returned by `load(file)` when used with `.asc` files
-struct Polygon{BACKEND, NDIMS, ELTYPE, VOV, VOTV, VOT} <: Geometry{BACKEND, NDIMS, ELTYPE}
+struct Polygon{BACKEND, NDIMS, ELTYPE, VOV, VOTV, VOT} <: Geometry{NDIMS, ELTYPE}
     vertices                :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
     edge_vertices           :: VOTV # `Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}`
     vertex_normals          :: VOTV # `Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}`

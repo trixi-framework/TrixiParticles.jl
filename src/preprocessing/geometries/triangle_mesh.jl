@@ -1,6 +1,6 @@
 # This is the data format returned by `load(file)` when used with `.stl` files
 struct TriangleMesh{BACKEND, NDIMS, ELTYPE, VOV, VOTV,
-                    VOT3, VOT2} <: Geometry{BACKEND, NDIMS, ELTYPE}
+                    VOT3, VOT2} <: Geometry{NDIMS, ELTYPE}
     vertices                :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
     face_vertices           :: VOTV # `Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}`
     face_vertices_ids       :: VOT3 # `Vector{NTuple{3, Int}}`
