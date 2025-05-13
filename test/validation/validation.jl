@@ -83,4 +83,12 @@
         # Verify number of plots
         @test length(axs_edac[1].scene.plots) >= 2
     end
+
+    @trixi_testset "TGV_2D" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "taylor_green_vortex_2d",
+                                                  "validation_taylor_green_vortex_2d.jl"))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
 end
