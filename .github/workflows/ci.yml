@@ -44,7 +44,8 @@ jobs:
         os:
           - ubuntu-latest
         include:
-          # ensure Windows/macOS also run on min/latest combos
+          # Also run tests on Windows and macOS-ARM, but only with the latest Julia release and minimum supported version.
+          # Don't use 'min' version, which will ignore hotfixes, i.e. 1.10.0 will be used instead of e.g. 1.10.8.
           - version: '1.10'
             os: windows-latest
           - version: '1.10'
@@ -54,7 +55,8 @@ jobs:
           - version: '1'
             os: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out project
+        uses: actions/checkout@v4
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
@@ -73,17 +75,20 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
+          # Only run coverage in one Job (Ubuntu and latest Julia version)
           coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
         env:
           TRIXIPARTICLES_TEST: unit
 
       - name: Process coverage results
+        # Only run coverage in one Job (Ubuntu and latest Julia version)
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
         uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,test
 
       - name: Upload coverage report to Codecov
+        # Only run coverage in one Job (Ubuntu and latest Julia version)
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
         uses: codecov/codecov-action@v5
         with:
@@ -110,7 +115,8 @@ jobs:
           - version: '1'
             os: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out project
+        uses: actions/checkout@v4
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
@@ -147,7 +153,8 @@ jobs:
           - version: '1'
             os: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out project
+        uses: actions/checkout@v4
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
