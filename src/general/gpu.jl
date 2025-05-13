@@ -17,7 +17,6 @@ Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar
 Adapt.@adapt_structure BoundaryMovement
 Adapt.@adapt_structure TotalLagrangianSPHSystem
-Adapt.@adapt_structure OpenBoundarySPHSystem
 Adapt.@adapt_structure BoundaryZone
 Adapt.@adapt_structure SystemBuffer
 
