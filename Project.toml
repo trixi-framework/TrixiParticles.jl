@@ -4,7 +4,6 @@ authors = ["erik.faulhaber <44124897+efaulhaber@users.noreply.github.com>"]
 version = "0.3.1-dev"
 
 [deps]
-AcceleratedKernels = "6a4ca0a5-0e36-4168-a932-d9be78d558f1"
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -41,7 +40,6 @@ OrdinaryDiffEqCore = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
 TrixiParticlesOrdinaryDiffEqExt = ["OrdinaryDiffEq", "OrdinaryDiffEqCore"]
 
 [compat]
-AcceleratedKernels = "0.3.3"
 Adapt = "4"
 CSV = "0.10"
 DataFrames = "1.6"

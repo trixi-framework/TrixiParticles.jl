@@ -281,49 +281,19 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
 
-    function map_sort!(a, b) # (a::Vector{Int}, b::Vector{Bool})
-        map!((true_value, idx) -> true_value ? -1 : idx, a, b, eachindex(b))
-
-        AcceleratedKernels.sort!(a; rev=true)
-
-        return a # [idx_1, idx_2, ..., -1, -1]
-    end
-
-    system.buffer.particle_outside .= false
-
     # Check the boundary particles whether they're leaving the boundary zone
     @threaded semi for particle in each_moving_particle(system)
         particle_coords = current_coords(u, system, particle)
 
         # Check if boundary particle is outside the boundary zone
         if !is_in_boundary_zone(boundary_zone, particle_coords)
-            system.buffer.particle_outside[particle] = true
+            convert_particle!(system, fluid_system, boundary_zone, particle,
+                              v, u, v_fluid, u_fluid)
         end
-    end
-
-    # Basically: # candidates = [candidate_1, candidate_2, ..., -1, -1]
-    map_sort!(system.buffer.candidates, .!(system.buffer.particle_outside))
-
-    # Basically: `available_particles = [inactive_1, inactive_2, ..., -1, -1]`
-    map_sort!(fluid_system.buffer.available_particles, fluid_system.buffer.active_particle)
-
-    fluid_system.buffer.next_particle .= 0
-
-    # Copy buffer particle information to the fluid system
-    @threaded semi for buffer_id in 1:count(system.buffer.particle_outside)
-        particle = system.buffer.candidates[buffer_id]
-
-        fluid_id = PointNeighbors.Atomix.@atomic fluid_system.buffer.next_particle[1] += 1
-        new_particle = fluid_system.buffer.available_particles[fluid_id]
-
-        convert_particle!(system, fluid_system, boundary_zone, particle, new_particle,
-                          v, u, v_fluid, u_fluid)
     end
 
     update_system_buffer!(system.buffer, semi)
     update_system_buffer!(fluid_system.buffer, semi)
-
-    fluid_system.buffer.particle_outside .= false
 
     # Check the fluid particles whether they're entering the boundary zone
     @threaded semi for fluid_particle in each_moving_particle(fluid_system)
@@ -331,27 +301,9 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
         # Check if fluid particle is in boundary zone
         if is_in_boundary_zone(boundary_zone, fluid_coords)
-            fluid_system.buffer.particle_outside[fluid_particle] = true
+            convert_particle!(fluid_system, system, boundary_zone, fluid_particle,
+                              v, u, v_fluid, u_fluid)
         end
-    end
-
-    # Basically: # candidates = [candidate_1, candidate_2, ..., -1, -1]
-    map_sort!(fluid_system.buffer.candidates, .!(fluid_system.buffer.particle_outside))
-
-    # Basically: `available_particles = [inactive_1, inactive_2, ..., -1, -1]`
-    map_sort!(system.buffer.available_particles, system.buffer.active_particle)
-
-    system.buffer.next_particle .= 0
-
-    # Copy fluid particle information to the buffer
-    @threaded semi for fluid_id in 1:count(fluid_system.buffer.particle_outside)
-        particle = fluid_system.buffer.candidates[fluid_id]
-
-        buffer_id = PointNeighbors.Atomix.@atomic system.buffer.next_particle[1] += 1
-        new_particle = system.buffer.available_particles[buffer_id]
-
-        convert_particle!(fluid_system, system, boundary_zone, particle, new_particle,
-                          v, u, v_fluid, u_fluid)
     end
 
     update_system_buffer!(system.buffer, semi)
@@ -362,8 +314,8 @@ end
 
 # Outflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone{OutFlow},
-                                   particle, new_partcile, v, u, v_fluid, u_fluid)
+                                   boundary_zone::BoundaryZone{OutFlow}, particle, v, u,
+                                   v_fluid, u_fluid)
     deactivate_particle!(system, particle, u)
 
     return system
@@ -371,12 +323,12 @@ end
 
 # Inflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone{InFlow},
-                                   particle, new_partcile, v, u, v_fluid, u_fluid)
+                                   boundary_zone::BoundaryZone{InFlow}, particle, v, u,
+                                   v_fluid, u_fluid)
     (; spanning_set) = boundary_zone
 
     # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, new_partcile, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
@@ -388,8 +340,8 @@ end
 
 # Buffer particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone{BidirectionalFlow},
-                                   particle, new_particle, v, u, v_fluid, u_fluid)
+                                   boundary_zone::BoundaryZone{BidirectionalFlow}, particle,
+                                   v, u, v_fluid, u_fluid)
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
@@ -401,7 +353,7 @@ end
     end
 
     # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, new_particle, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
@@ -413,10 +365,9 @@ end
 
 # Fluid particle is in boundary zone
 @inline function convert_particle!(fluid_system::FluidSystem, system,
-                                   boundary_zone,
-                                   particle, new_particle, v, u, v_fluid, u_fluid)
+                                   boundary_zone, particle, v, u, v_fluid, u_fluid)
     # Activate particle in boundary zone
-    transfer_particle!(system, fluid_system, particle, new_particle, v, u, v_fluid, u_fluid)
+    transfer_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
 
     # Deactivate particle in interior domain
     deactivate_particle!(fluid_system, particle, u_fluid)
@@ -424,9 +375,9 @@ end
     return fluid_system
 end
 
-@inline function transfer_particle!(system_new, system_old, particle_old, particle_new,
+@inline function transfer_particle!(system_new, system_old, particle_old,
                                     v_new, u_new, v_old, u_old)
-    system_new.buffer.active_particle[particle_new] = true
+    particle_new = activate_next_particle(system_new)
 
     # Transfer densities
     density = current_density(v_old, system_old, particle_old)

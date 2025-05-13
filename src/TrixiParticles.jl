@@ -2,7 +2,6 @@ module TrixiParticles
 
 using Reexport: @reexport
 
-using AcceleratedKernels: AcceleratedKernels
 using Adapt: Adapt
 using Base: @propagate_inbounds
 using CSV: CSV
