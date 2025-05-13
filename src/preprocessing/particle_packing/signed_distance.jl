@@ -36,14 +36,18 @@ function SignedDistanceField(geometry, particle_spacing;
                              max_signed_distance=4 * particle_spacing,
                              use_for_boundary_packing=false)
     NDIMS = ndims(geometry)
-    ELTYPE = eltype(max_signed_distance)
+    ELTYPE = eltype(geometry)
 
     sdf_factor = use_for_boundary_packing ? 2 : 1
 
     search_radius = sdf_factor * max_signed_distance
 
+    min_corner = geometry.min_corner .- search_radius
+    max_corner = geometry.max_corner .+ search_radius
+
     if neighborhood_search
-        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
+        cell_list = FullGridCellList(; min_corner, max_corner)
+        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius, cell_list)
     else
         nhs = TrivialNeighborhoodSearch{NDIMS}(eachpoint=eachface(geometry))
     end
@@ -51,9 +55,6 @@ function SignedDistanceField(geometry, particle_spacing;
     initialize!(nhs, geometry)
 
     if isnothing(points)
-        min_corner = geometry.min_corner .- search_radius
-        max_corner = geometry.max_corner .+ search_radius
-
         n_particles_per_dimension = Tuple(ceil.(Int,
                                                 (max_corner .- min_corner) ./
                                                 particle_spacing))
@@ -133,7 +134,7 @@ function calculate_signed_distances!(positions, distances, normals,
 
         for face in eachneighbor(point_coords, nhs)
             sign_bit, distance,
-            normal = signed_point_face_distance(point_coords, boundary, face)
+            normal = signed_point_face_distance(point_coords, geometry, face)
 
             if distance < distances[point]^2
                 # Found a face closer than the previous closest face
