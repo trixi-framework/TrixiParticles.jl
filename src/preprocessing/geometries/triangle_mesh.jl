@@ -1,149 +1,161 @@
 # This is the data format returned by `load(file)` when used with `.stl` files
-struct TriangleMesh{NDIMS, ELTYPE}
-    vertices          :: Vector{SVector{NDIMS, ELTYPE}}
-    face_vertices     :: Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}
-    face_vertices_ids :: Vector{NTuple{3, Int}}
-    face_edges_ids    :: Vector{NTuple{3, Int}}
-    edge_vertices_ids :: Vector{NTuple{2, Int}}
-    vertex_normals    :: Vector{SVector{NDIMS, ELTYPE}}
-    edge_normals      :: Vector{SVector{NDIMS, ELTYPE}}
-    face_normals      :: Vector{SVector{NDIMS, ELTYPE}}
-    min_corner        :: SVector{NDIMS, ELTYPE}
-    max_corner        :: SVector{NDIMS, ELTYPE}
+struct TriangleMesh{BACKEND, NDIMS, ELTYPE, VOV, VOTV,
+                    VOT3, VOT2} <: Geometry{BACKEND, NDIMS, ELTYPE}
+    vertices                :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
+    face_vertices           :: VOTV # `Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}`
+    face_vertices_ids       :: VOT3 # `Vector{NTuple{3, Int}}`
+    face_edges_ids          :: VOT3 # `Vector{NTuple{3, Int}}`
+    edge_vertices_ids       :: VOT2 # `Vector{NTuple{2, Int}}`
+    vertex_normals          :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
+    edge_normals            :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
+    face_normals            :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
+    min_corner              :: SVector{NDIMS, ELTYPE}
+    max_corner              :: SVector{NDIMS, ELTYPE}
+    parallelization_backend :: BACKEND
+end
 
-    function TriangleMesh(face_vertices, face_normals, vertices)
-        NDIMS = 3
+function TriangleMesh(face_vertices, face_normals, vertices;
+                      parallelization_backend=true)
+    NDIMS = 3
 
-        return TriangleMesh{NDIMS}(face_vertices, face_normals, vertices)
+    return TriangleMesh{NDIMS}(face_vertices, face_normals, vertices,
+                               parallelization_backend)
+end
+
+# Function barrier to make `NDIMS` static and therefore `SVector`s type-stable
+function TriangleMesh{NDIMS}(face_vertices, face_normals, vertices_,
+                             parallelization_backend) where {NDIMS}
+    BACKEND = typeof(parallelization_backend)
+
+    # Sort vertices by the first entry of the vector and return only unique vertices
+    vertices = unique_sorted(vertices_)
+
+    ELTYPE = eltype(first(face_normals))
+    n_faces = length(face_normals)
+
+    face_vertices_ids = fill((0, 0, 0), n_faces)
+
+    # TODO: Backend?
+    @threaded default_backend(face_vertices) for i in 1:n_faces
+        v1 = face_vertices[i][1]
+        v2 = face_vertices[i][2]
+        v3 = face_vertices[i][3]
+
+        # Since it's only sorted by the first entry, `v1` might be one of the following vertices
+        vertex_id1 = searchsortedfirst(vertices, v1 .- 1e-14)
+        for vertex_id in eachindex(vertices)[vertex_id1:end]
+            if isapprox(vertices[vertex_id], v1)
+                vertex_id1 = vertex_id
+                break
+            end
+        end
+
+        # Since it's only sorted by the first entry, `v2` might be one of the following vertices
+        vertex_id2 = searchsortedfirst(vertices, v2 .- 1e-14)
+        for vertex_id in eachindex(vertices)[vertex_id2:end]
+            if isapprox(vertices[vertex_id], v2)
+                vertex_id2 = vertex_id
+                break
+            end
+        end
+
+        # Since it's only sorted by the first entry, `v3` might be one of the following vertices
+        vertex_id3 = searchsortedfirst(vertices, v3 .- 1e-14)
+        for vertex_id in eachindex(vertices)[vertex_id3:end]
+            if isapprox(vertices[vertex_id], v3)
+                vertex_id3 = vertex_id
+                break
+            end
+        end
+
+        face_vertices_ids[i] = (vertex_id1, vertex_id2, vertex_id3)
     end
 
-    # Function barrier to make `NDIMS` static and therefore `SVector`s type-stable
-    function TriangleMesh{NDIMS}(face_vertices, face_normals, vertices_) where {NDIMS}
-        # Sort vertices by the first entry of the vector and return only unique vertices
-        vertices = unique_sorted(vertices_)
+    _edges = Dict{NTuple{2, Int}, Int}()
+    face_edges_ids = fill((0, 0, 0), n_faces)
+    edge_normals = fill(fill(zero(ELTYPE), SVector{NDIMS}), 3n_faces)
+    vertex_normals = fill(fill(zero(ELTYPE), SVector{NDIMS}), length(vertices))
+    edge_vertices_ids = fill((0, 0), 3n_faces)
 
-        ELTYPE = eltype(first(face_normals))
-        n_faces = length(face_normals)
+    # Not thread supported (yet)
+    edge_id = 0
+    for i in 1:n_faces
+        v1 = face_vertices_ids[i][1]
+        v2 = face_vertices_ids[i][2]
+        v3 = face_vertices_ids[i][3]
 
-        face_vertices_ids = fill((0, 0, 0), n_faces)
-
-        @threaded default_backend(face_vertices) for i in 1:n_faces
-            v1 = face_vertices[i][1]
-            v2 = face_vertices[i][2]
-            v3 = face_vertices[i][3]
-
-            # Since it's only sorted by the first entry, `v1` might be one of the following vertices
-            vertex_id1 = searchsortedfirst(vertices, v1 .- 1e-14)
-            for vertex_id in eachindex(vertices)[vertex_id1:end]
-                if isapprox(vertices[vertex_id], v1)
-                    vertex_id1 = vertex_id
-                    break
-                end
-            end
-
-            # Since it's only sorted by the first entry, `v2` might be one of the following vertices
-            vertex_id2 = searchsortedfirst(vertices, v2 .- 1e-14)
-            for vertex_id in eachindex(vertices)[vertex_id2:end]
-                if isapprox(vertices[vertex_id], v2)
-                    vertex_id2 = vertex_id
-                    break
-                end
-            end
-
-            # Since it's only sorted by the first entry, `v3` might be one of the following vertices
-            vertex_id3 = searchsortedfirst(vertices, v3 .- 1e-14)
-            for vertex_id in eachindex(vertices)[vertex_id3:end]
-                if isapprox(vertices[vertex_id], v3)
-                    vertex_id3 = vertex_id
-                    break
-                end
-            end
-
-            face_vertices_ids[i] = (vertex_id1, vertex_id2, vertex_id3)
+        # Make sure that edges are unique
+        if haskey(_edges, (v1, v2))
+            edge_id_1 = _edges[(v1, v2)]
+        elseif haskey(_edges, (v2, v1))
+            edge_id_1 = _edges[(v2, v1)]
+        else
+            edge_id += 1
+            _edges[(v1, v2)] = edge_id
+            edge_id_1 = edge_id
         end
+        edge_vertices_ids[edge_id_1] = (v1, v2)
 
-        _edges = Dict{NTuple{2, Int}, Int}()
-        face_edges_ids = fill((0, 0, 0), n_faces)
-        edge_normals = fill(fill(zero(ELTYPE), SVector{NDIMS}), 3n_faces)
-        vertex_normals = fill(fill(zero(ELTYPE), SVector{NDIMS}), length(vertices))
-        edge_vertices_ids = fill((0, 0), 3n_faces)
-
-        # Not thread supported (yet)
-        edge_id = 0
-        for i in 1:n_faces
-            v1 = face_vertices_ids[i][1]
-            v2 = face_vertices_ids[i][2]
-            v3 = face_vertices_ids[i][3]
-
-            # Make sure that edges are unique
-            if haskey(_edges, (v1, v2))
-                edge_id_1 = _edges[(v1, v2)]
-            elseif haskey(_edges, (v2, v1))
-                edge_id_1 = _edges[(v2, v1)]
-            else
-                edge_id += 1
-                _edges[(v1, v2)] = edge_id
-                edge_id_1 = edge_id
-            end
-            edge_vertices_ids[edge_id_1] = (v1, v2)
-
-            if haskey(_edges, (v2, v3))
-                edge_id_2 = _edges[(v2, v3)]
-            elseif haskey(_edges, (v3, v2))
-                edge_id_2 = _edges[(v3, v2)]
-            else
-                edge_id += 1
-                _edges[(v2, v3)] = edge_id
-                edge_id_2 = edge_id
-            end
-            edge_vertices_ids[edge_id_2] = (v2, v3)
-
-            if haskey(_edges, (v3, v1))
-                edge_id_3 = _edges[(v3, v1)]
-            elseif haskey(_edges, (v1, v3))
-                edge_id_3 = _edges[(v1, v3)]
-            else
-                edge_id += 1
-                _edges[(v3, v1)] = edge_id
-                edge_id_3 = edge_id
-            end
-            edge_vertices_ids[edge_id_3] = (v3, v1)
-
-            face_edges_ids[i] = (edge_id_1, edge_id_2, edge_id_3)
-
-            # Edge normal is the sum of the normals of the two adjacent faces
-            edge_normals[edge_id_1] += face_normals[i]
-            edge_normals[edge_id_2] += face_normals[i]
-            edge_normals[edge_id_3] += face_normals[i]
-
-            angles = incident_angles(face_vertices[i])
-
-            vertex_normals[v1] += angles[1] * face_normals[i]
-            vertex_normals[v2] += angles[2] * face_normals[i]
-            vertex_normals[v3] += angles[3] * face_normals[i]
+        if haskey(_edges, (v2, v3))
+            edge_id_2 = _edges[(v2, v3)]
+        elseif haskey(_edges, (v3, v2))
+            edge_id_2 = _edges[(v3, v2)]
+        else
+            edge_id += 1
+            _edges[(v2, v3)] = edge_id
+            edge_id_2 = edge_id
         end
+        edge_vertices_ids[edge_id_2] = (v2, v3)
 
-        resize!(edge_normals, length(_edges))
-        resize!(edge_vertices_ids, length(_edges))
-
-        min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
-        max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
-
-        for i in eachindex(edge_normals)
-            # Skip zero normals, which would be normalized to `NaN` vectors.
-            # The edge normals are only used for the `SignedDistanceField`, which is
-            # essential for the packing.
-            # Zero normals are caused by exactly or nearly duplicated faces.
-            if !iszero(norm(edge_normals[i]))
-                edge_normals[i] = normalize(edge_normals[i])
-            end
+        if haskey(_edges, (v3, v1))
+            edge_id_3 = _edges[(v3, v1)]
+        elseif haskey(_edges, (v1, v3))
+            edge_id_3 = _edges[(v1, v3)]
+        else
+            edge_id += 1
+            _edges[(v3, v1)] = edge_id
+            edge_id_3 = edge_id
         end
+        edge_vertices_ids[edge_id_3] = (v3, v1)
 
-        return new{NDIMS, ELTYPE}(vertices, face_vertices, face_vertices_ids,
-                                  face_edges_ids, edge_vertices_ids,
-                                  normalize.(vertex_normals), edge_normals,
-                                  face_normals, min_corner, max_corner)
+        face_edges_ids[i] = (edge_id_1, edge_id_2, edge_id_3)
+
+        # Edge normal is the sum of the normals of the two adjacent faces
+        edge_normals[edge_id_1] += face_normals[i]
+        edge_normals[edge_id_2] += face_normals[i]
+        edge_normals[edge_id_3] += face_normals[i]
+
+        angles = incident_angles(face_vertices[i])
+
+        vertex_normals[v1] += angles[1] * face_normals[i]
+        vertex_normals[v2] += angles[2] * face_normals[i]
+        vertex_normals[v3] += angles[3] * face_normals[i]
     end
+
+    resize!(edge_normals, length(_edges))
+    resize!(edge_vertices_ids, length(_edges))
+
+    min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
+    max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
+
+    for i in eachindex(edge_normals)
+        # Skip zero normals, which would be normalized to `NaN` vectors.
+        # The edge normals are only used for the `SignedDistanceField`, which is
+        # essential for the packing.
+        # Zero normals are caused by exactly or nearly duplicated faces.
+        if !iszero(norm(edge_normals[i]))
+            edge_normals[i] = normalize(edge_normals[i])
+        end
+    end
+
+    return TriangleMesh{BACKEND, NDIMS, ELTYPE, typeof(vertices), typeof(face_vertices),
+                        typeof(face_vertices_ids),
+                        typeof(edge_vertices_ids)}(vertices, face_vertices,
+                                                   face_vertices_ids,
+                                                   face_edges_ids, edge_vertices_ids,
+                                                   normalize.(vertex_normals), edge_normals,
+                                                   face_normals, min_corner, max_corner,
+                                                   parallelization_backend)
 end
 
 function Base.show(io::IO, geometry::TriangleMesh)
@@ -164,10 +176,6 @@ function Base.show(io::IO, ::MIME"text/plain", geometry::TriangleMesh)
         summary_footer(io)
     end
 end
-
-@inline Base.ndims(::TriangleMesh{NDIMS}) where {NDIMS} = NDIMS
-
-@inline Base.eltype(::TriangleMesh{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
 @inline face_normal(triangle, geometry::TriangleMesh) = geometry.face_normals[triangle]
 

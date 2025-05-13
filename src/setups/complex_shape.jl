@@ -43,11 +43,9 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 """
 function ComplexShape(geometry; particle_spacing, density,
                       pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
-                      point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
-                                                                        hierarchical_winding=true,
-                                                                        winding_number_factor=sqrt(eps())),
-                      store_winding_number=false, grid_offset::Real=0.0,
-                      max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
+                      point_in_geometry_algorithm=WindingNumberJacobson(geometry),
+                      grid_offset::Real=0.0, max_nparticles=10^7,
+                      pad_initial_particle_grid=2particle_spacing)
     if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHormann
         throw(ArgumentError("`WindingNumberHormann` only supports 2D geometries"))
     end
@@ -59,19 +57,31 @@ function ComplexShape(geometry; particle_spacing, density,
     grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
                          grid_offset, max_nparticles)
 
-    inpoly,
-    winding_numbers = point_in_geometry_algorithm(geometry, grid;
-                                                  store_winding_number)
+    if !(geometry.parallelization_backend isa Bool)
+        geometry_new = Adapt.adapt(geometry.parallelization_backend, geometry)
 
-    coordinates = stack(grid[inpoly])
+        point_in_geometry_algorithm_new = Adapt.adapt(geometry.parallelization_backend,
+                                                      point_in_geometry_algorithm)
+    else
+        geometry_new = geometry
+        point_in_geometry_algorithm_new = point_in_geometry_algorithm
+    end
 
+    inpoly = point_in_geometry_algorithm_new(geometry_new, grid)
+
+    coordinates = stack(Vector(grid)[Vector(inpoly)])
     initial_condition = InitialCondition(; coordinates, density, mass, velocity, pressure,
                                          particle_spacing)
 
-    # This is most likely only useful for debugging. Note that this is not public API.
-    if store_winding_number
-        return (; initial_condition=initial_condition, winding_numbers=winding_numbers,
-                grid=grid)
+    if store_winding_number(point_in_geometry_algorithm)
+        resize!(point_in_geometry_algorithm.cache.winding_numbers, length(grid))
+        resize!(point_in_geometry_algorithm.cache.grid, length(grid))
+
+        copyto!(point_in_geometry_algorithm.cache.grid, grid)
+
+        # Copy the winding numbers from the GPU to the CPU
+        copyto!(point_in_geometry_algorithm.cache.winding_numbers,
+                point_in_geometry_algorithm_new.cache.winding_numbers)
     end
 
     return initial_condition
@@ -158,5 +168,12 @@ function particle_grid(geometry, particle_spacing;
 
     grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                     min_corner; tlsph=true)
-    return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
+
+    if !(geometry.parallelization_backend isa Bool)
+        return Adapt.adapt(geometry.parallelization_backend,
+                           reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
+                                       grid))
+    else
+        return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
+    end
 end

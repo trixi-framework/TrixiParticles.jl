@@ -3,6 +3,7 @@ module TrixiParticles
 using Reexport: @reexport
 
 using Adapt: Adapt
+using ArraysOfArrays: VectorOfVectors
 using Base: @propagate_inbounds
 using CSV: CSV
 using Dates
@@ -54,10 +55,10 @@ include("callbacks/callbacks.jl")
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
+include("preprocessing/preprocessing.jl")
 include("general/gpu.jl")
 include("io/io.jl")
 include("visualization/recipes_plots.jl")
-include("preprocessing/preprocessing.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -85,7 +86,7 @@ export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
-export WindingNumberHormann, WindingNumberJacobson
+export WindingNumberHormann, WindingNumberJacobson, NaiveWinding, HierarchicalWinding
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
        sample_boundary
 export SourceTermDamping

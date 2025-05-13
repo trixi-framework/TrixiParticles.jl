@@ -36,14 +36,18 @@ function SignedDistanceField(geometry, particle_spacing;
                              max_signed_distance=4 * particle_spacing,
                              use_for_boundary_packing=false)
     NDIMS = ndims(geometry)
-    ELTYPE = eltype(max_signed_distance)
+    ELTYPE = eltype(geometry)
 
     sdf_factor = use_for_boundary_packing ? 2 : 1
 
     search_radius = sdf_factor * max_signed_distance
 
+    min_corner = geometry.min_corner .- search_radius
+    max_corner = geometry.max_corner .+ search_radius
+
     if neighborhood_search
-        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
+        cell_list = FullGridCellList(; min_corner, max_corner, max_points_per_cell=2000)
+        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius, cell_list)
     else
         nhs = TrivialNeighborhoodSearch{NDIMS}(eachpoint=eachface(geometry))
     end
@@ -51,9 +55,6 @@ function SignedDistanceField(geometry, particle_spacing;
     initialize!(nhs, geometry)
 
     if isnothing(points)
-        min_corner = geometry.min_corner .- search_radius
-        max_corner = geometry.max_corner .+ search_radius
-
         n_particles_per_dimension = Tuple(ceil.(Int,
                                                 (max_corner .- min_corner) ./
                                                 particle_spacing))
@@ -61,21 +62,34 @@ function SignedDistanceField(geometry, particle_spacing;
         grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                         min_corner; tlsph=true)
 
-        points = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
+        if geometry.parallelization_backend isa KernelAbstractions.Backend
+            points = Adapt.adapt(geometry.parallelization_backend,
+                                 reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid))
+        else
+            points = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
+        end
     end
 
     positions = copy(points)
 
+    if geometry.parallelization_backend isa KernelAbstractions.Backend
+        geometry_new = Adapt.adapt(geometry.parallelization_backend, geometry)
+        nhs_new = Adapt.adapt(geometry.parallelization_backend, nhs)
+
+    else
+        geometry_new = geometry
+        nhs_new = nhs
+    end
+
     # This gives a performance boost for large geometries
-    delete_positions_in_empty_cells!(positions, nhs)
+    positions_new = delete_positions_in_empty_cells!(positions, nhs_new, geometry_new)
 
-    normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(positions))
-    distances = fill(Inf, length(positions))
+    positions_, distances, normals = calculate_signed_distances!(positions_new,
+                                                                 geometry_new, sdf_factor,
+                                                                 max_signed_distance,
+                                                                 nhs_new)
 
-    calculate_signed_distances!(positions, distances, normals,
-                                geometry, sdf_factor, max_signed_distance, nhs)
-
-    return SignedDistanceField(positions, normals, distances, max_signed_distance,
+    return SignedDistanceField(positions_, normals, distances, max_signed_distance,
                                use_for_boundary_packing, particle_spacing)
 end
 
@@ -107,31 +121,40 @@ function trixi2vtk(signed_distance_field::SignedDistanceField;
               filename=filename, output_directory=output_directory)
 end
 
-delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch) = positions
+function delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch,
+                                          geometry)
+    return positions
+end
 
-function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch)
-    delete_positions = fill(false, length(positions))
+function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch, geometry)
+    delete_positions = allocate(geometry.parallelization_backend, Bool, length(positions))
+    delete_positions .= false
 
-    @threaded default_backend(positions) for point in eachindex(positions)
+    @threaded geometry for point in eachindex(positions)
         if isempty(eachneighbor(positions[point], nhs))
             delete_positions[point] = true
         end
     end
 
-    deleteat!(positions, delete_positions)
-
-    return positions
+    return positions[.!delete_positions]
 end
 
-function calculate_signed_distances!(positions, distances, normals,
-                                     boundary, sdf_factor, max_signed_distance, nhs)
-    @threaded default_backend(positions) for point in eachindex(positions)
+function calculate_signed_distances!(positions, geometry::Geometry{NDIMS, ELTYPE},
+                                     sdf_factor, max_signed_distance,
+                                     nhs) where {NDIMS, ELTYPE}
+    normals = allocate(geometry.parallelization_backend, SVector{NDIMS, ELTYPE},
+                       length(positions))
+    map!(i -> SVector(ntuple(dim -> Inf, NDIMS)), normals, eachindex(normals))
+
+    distances = allocate(geometry.parallelization_backend, ELTYPE, length(positions))
+    distances .= ELTYPE(Inf)
+
+    @threaded geometry for point in eachindex(positions)
         point_coords = positions[point]
 
         for face in eachneighbor(point_coords, nhs)
             sign_bit, distance,
-            normal = signed_point_face_distance(point_coords, boundary,
-                                                face)
+            normal = signed_point_face_distance(point_coords, geometry, face)
 
             if distance < distances[point]^2
                 # Found a face closer than the previous closest face
@@ -141,16 +164,13 @@ function calculate_signed_distances!(positions, distances, normals,
         end
     end
 
-    # Keep "larger" signed distance field outside `boundary` to guarantee
+    # Keep "larger" signed distance field outside `geometry` to guarantee
     # compact support for boundary particles.
     keep = -max_signed_distance .< distances .< sdf_factor * max_signed_distance
     delete_indices = .!keep
 
-    deleteat!(distances, delete_indices)
-    deleteat!(normals, delete_indices)
-    deleteat!(positions, delete_indices)
-
-    return positions
+    return Array(positions[.!delete_indices]), Array(distances[.!delete_indices]),
+           Array(normals[.!delete_indices])
 end
 
 function signed_point_face_distance(p::SVector{2}, boundary, edge_index)
@@ -200,7 +220,7 @@ end
 # Inspired by https://github.com/embree/embree/blob/master/tutorials/common/math/closest_point.h
 function signed_point_face_distance(p::SVector{3}, boundary, face_index)
     (; face_vertices, face_vertices_ids, edge_normals,
-     face_edges_ids, face_normals, vertex_normals) = boundary
+    face_edges_ids, face_normals, vertex_normals) = boundary
 
     a = face_vertices[face_index][1]
     b = face_vertices[face_index][2]
