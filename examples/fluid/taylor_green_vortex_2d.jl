@@ -79,7 +79,7 @@ if wcsph
                                                state_equation, smoothing_kernel,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
                                                smoothing_length,
-                                               viscosity=ViscosityAdami(; nu),
+                                               viscosity=ViscosityAdamiSGS(; nu, C_S=0.2),
                                                transport_velocity=TransportVelocityAdami(background_pressure))
 else
     density_calculator = SummationDensity()
@@ -100,7 +100,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-saving_callback = SolutionSavingCallback(dt=0.02)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="SGS")
 
 pp_callback = nothing
 
