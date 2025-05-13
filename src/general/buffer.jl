@@ -1,10 +1,10 @@
-struct SystemBuffer{VB, RI, VI}
+struct SystemBuffer{VB, RI, VI, NP}
     active_particle       :: VB  # Vector{Bool}
     active_particle_count :: RI  # Ref{Int}
     candidates            :: VI  # Vector{Int}
     particle_outside      :: VB  # Vector{Bool}
     available_particles   :: VI  # Vector{Int}
-    next_particle         :: VI  # Vector{Int}
+    next_particle         :: NP  # Vector{Int32}
     eachparticle          :: VI  # Vector{Int}
     buffer_size           :: Int
 end
@@ -18,7 +18,7 @@ function SystemBuffer(active_size, buffer_size::Integer)
     eachparticle = collect(eachindex(active_particle))
 
     return SystemBuffer(active_particle, Ref(active_size), candidates, particle_outside,
-                        available_particles, Int[1], eachparticle, buffer_size)
+                        available_particles, Int32[1], eachparticle, buffer_size)
 end
 
 allocate_buffer(initial_condition, ::Nothing) = initial_condition

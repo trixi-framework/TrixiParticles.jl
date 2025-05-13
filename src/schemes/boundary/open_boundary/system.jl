@@ -284,7 +284,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     function map_sort!(a, b) # (a::Vector{Int}, b::Vector{Bool})
         map!((true_value, idx) -> true_value ? -1 : idx, a, b, eachindex(b))
 
-        sort!(a, rev=true)
+        AcceleratedKernels.sort!(a; rev=true)
 
         return a # [idx_1, idx_2, ..., -1, -1]
     end
@@ -307,7 +307,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     # Basically: `available_particles = [inactive_1, inactive_2, ..., -1, -1]`
     map_sort!(fluid_system.buffer.available_particles, fluid_system.buffer.active_particle)
 
-    fluid_system.buffer.next_particle[1] = 0
+    fluid_system.buffer.next_particle .= 0
 
     # Copy buffer particle information to the fluid system
     @threaded semi for buffer_id in 1:count(system.buffer.particle_outside)
@@ -341,7 +341,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     # Basically: `available_particles = [inactive_1, inactive_2, ..., -1, -1]`
     map_sort!(system.buffer.available_particles, system.buffer.active_particle)
 
-    system.buffer.next_particle[1] = 0
+    system.buffer.next_particle .= 0
 
     # Copy fluid particle information to the buffer
     @threaded semi for fluid_id in 1:count(fluid_system.buffer.particle_outside)
