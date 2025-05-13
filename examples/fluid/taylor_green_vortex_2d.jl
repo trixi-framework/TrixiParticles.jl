@@ -79,7 +79,7 @@ if wcsph
                                                state_equation, smoothing_kernel,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
                                                smoothing_length,
-                                               viscosity=ViscosityAdamiSGS(; nu, C_S=0.2),
+                                               viscosity=ViscosityAdami(; nu),
                                                transport_velocity=TransportVelocityAdami(background_pressure))
 else
     density_calculator = SummationDensity()

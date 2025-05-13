@@ -47,12 +47,21 @@ smoothing_length = 1.75 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-# nu = 0.02 * smoothing_length * sound_speed/8
-# viscosity = ViscosityMorris(nu=nu)
-# viscosity = ViscosityMorrisSGS(nu=nu)
+alpha = 0.02
+viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+# A typical formula to convert Artificial viscosity to a
+# kinematic viscosity is provided by Monaghan as
+# nu = alpha * smoothing_length * sound_speed/8
+
+# Alternatively a kinematic viscosity for water can be set
+# nu = 1.0e-6
+
+# This allows the use of a physical viscosity model like:
 # viscosity = ViscosityAdami(nu=nu)
+# or with additional diffusion through the Smagorinsky model
 # viscosity = ViscosityAdamiSGS(nu=nu)
+# For more details see the documentation [Viscosity model overview](@ref viscosity_sph).
+
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
 # density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)

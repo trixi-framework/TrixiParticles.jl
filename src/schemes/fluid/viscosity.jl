@@ -177,8 +177,7 @@ struct ViscosityAdami{ELTYPE}
 end
 
 function adami_viscosity_force(smoothing_length_average, pos_diff, distance, grad_kernel,
-                               m_a,
-                               m_b, rho_a, rho_b, v_diff, nu_a, nu_b, epsilon)
+                               m_a, m_b, rho_a, rho_b, v_diff, nu_a, nu_b, epsilon)
     eta_a = nu_a * rho_a
     eta_b = nu_b * rho_b
 
@@ -241,8 +240,9 @@ end
 @doc raw"""
     ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.01)
 
-Viscosity model that extends the standard Adami formulation by incorporating a subgrid-scale (SGS)
-eddy viscosity via a Smagorinsky-type closure. The effective kinematic viscosity is defined as
+Viscosity model that extends the standard [Adami formulation](@ref ViscosityAdami)
+by incorporating a subgrid-scale (SGS) eddy viscosity via a Smagorinsky-type closure.
+The effective kinematic viscosity is defined as
 
 ```math
 \nu_{\mathrm{eff}} = \nu_{\\mathrm{std}} + \nu_{\\mathrm{SGS}},
@@ -278,10 +278,10 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 # Keywords
 - `nu`:      Standard kinematic viscosity.
 - `C_S`:     Smagorinsky constant.
-- `epsilon`: Epsilon for singularity prevention [e.g., 0.001]
+- `epsilon=0.01`: Parameter to prevent singularities
 """
 struct ViscosityAdamiSGS{ELTYPE}
-    nu::ELTYPE      # Standard (molecular) kinematic viscosity [e.g., 1e-6 m²/s]
+    nu::ELTYPE      # kinematic viscosity [e.g., 1e-6 m²/s]
     C_S::ELTYPE     # Smagorinsky constant [e.g., 0.1-0.2]
     epsilon::ELTYPE # Epsilon for singularity prevention [e.g., 0.001]
 end
@@ -379,10 +379,10 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 # Keywords
 - `nu`:      Standard kinematic viscosity.
 - `C_S`:     Smagorinsky constant.
-- `epsilon`: Epsilon for singularity prevention [e.g., 0.001]
+- `epsilon=0.01`: Parameter to prevent singularities
 """
 struct ViscosityMorrisSGS{ELTYPE}
-    nu::ELTYPE      # Standard (molecular) kinematic viscosity [e.g., 1e-6 m²/s]
+    nu::ELTYPE      # kinematic viscosity [e.g., 1e-6 m²/s]
     C_S::ELTYPE     # Smagorinsky constant [e.g., 0.1-0.2]
     epsilon::ELTYPE # Epsilon for singularity prevention [e.g., 0.001]
 end
