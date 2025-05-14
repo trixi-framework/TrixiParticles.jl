@@ -9,7 +9,7 @@ using TrixiParticles
 # The following resolutions are used in the paper:
 # particle_spacings = [0.02, 0.01, 0.005]
 
-# To save time only the configuration with 50x50 particles is used here.
+# To save time only the configuration with 50x50 particles are used here.
 particle_spacings = [0.02]
 
 # ==========================================================================================
