@@ -58,7 +58,7 @@ viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
 # This allows the use of a physical viscosity model like:
 # viscosity = ViscosityAdami(nu=nu)
-# or with additional diffusion through the Smagorinsky model
+# or with additional dissipation through a Smagorinsky model
 # viscosity = ViscosityAdamiSGS(nu=nu)
 # For more details see the documentation [Viscosity model overview](@ref viscosity_sph).
 
