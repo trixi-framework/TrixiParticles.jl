@@ -1,8 +1,6 @@
 using TrixiParticles
 using LinearAlgebra
 
-# The second type parameter of `System` can't be `Nothing`, or TrixiParticles will launch
-# GPU kernel for `foreach_point_neighbor` loops.
 struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
     initial_condition :: InitialCondition{ELTYPE}
     mass              :: Array{ELTYPE, 1} # [particle]

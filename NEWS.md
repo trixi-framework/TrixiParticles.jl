@@ -20,6 +20,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
+- **Explicit Contact Models:** Added explicit contact models, `LinearContactModel` and `HertzContactModel`, to the DEM solver. (#756)
+
 - **Particle Shifting Technique (PST) for Closed Systems:** Integrated the
   Particle Shifting Technique to enhance particle distribution, reduce clumping
   and prevent void regions due to tensile instability in closed system simulations. (#735)
@@ -88,6 +90,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Add particle packing for 2D (.asc) and 3D (.stl) geometries (#529)
 
 ### Compatibility Changes
+
 - Dropped support for Julia 1.9
 
 ## Version 0.2.4

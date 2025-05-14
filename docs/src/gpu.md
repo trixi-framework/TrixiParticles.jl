@@ -77,12 +77,11 @@ is included with the new neighborhood search.
 This requires the assignments `neighborhood_search = ...` and `parallelization_backend = ...`
 to be present in the original example file.
 Note that in `examples/fluid/dam_break_2d.jl`, we explicitly set
-`parallelization_backend=true`, even though this is the default value,
+`parallelization_backend=PolyesterBackend()`, even though this is the default value,
 so that we can use `trixi_include` to replace this value.
 
-To run this simulation on a GPU, simply update `parallelization_backend` to match the
-array type of the installed GPU.
-We can run this simulation on an Nvidia GPU as follows.
+To run this simulation on a GPU, simply update `parallelization_backend` to the backend
+of the installed GPU. We can run this simulation on an Nvidia GPU as follows.
 ```julia
 using CUDA
 trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), parallelization_backend=CUDABackend())

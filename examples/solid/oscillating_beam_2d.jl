@@ -54,7 +54,7 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
 # ==== Simulation
 semi = Semidiscretization(solid_system,
                           neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
-                          parallelization_backend=true)
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=1000)

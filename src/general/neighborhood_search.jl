@@ -7,5 +7,5 @@ function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                                                parallelization_backend=semi.parallelization_backend)
     neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
-                           points, parallel=parallelization_backend)
+                           points, parallelization_backend)
 end

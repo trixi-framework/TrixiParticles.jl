@@ -112,7 +112,7 @@ delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch) = po
 function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch)
     delete_positions = fill(false, length(positions))
 
-    @threaded positions for point in eachindex(positions)
+    @threaded default_backend(positions) for point in eachindex(positions)
         if isempty(eachneighbor(positions[point], nhs))
             delete_positions[point] = true
         end
@@ -125,7 +125,7 @@ end
 
 function calculate_signed_distances!(positions, distances, normals,
                                      boundary, sdf_factor, max_signed_distance, nhs)
-    @threaded positions for point in eachindex(positions)
+    @threaded default_backend(positions) for point in eachindex(positions)
         point_coords = positions[point]
 
         for face in eachneighbor(point_coords, nhs)
