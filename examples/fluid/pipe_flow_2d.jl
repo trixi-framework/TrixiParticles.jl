@@ -56,7 +56,6 @@ n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
 wcsph = false
 
 smoothing_length = 1.5 * particle_spacing
-
 smoothing_kernel = WendlandC2Kernel{NDIMS}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -130,7 +129,7 @@ open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
 # ==== Boundary
 viscosity_boundary = ViscosityAdami(nu=1e-4)
 boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundary.mass,
-                                              AdamiPressureExtrapolation(),
+                                             AdamiPressureExtrapolation(),
                                              state_equation=state_equation,
                                              viscosity=viscosity_boundary,
                                              smoothing_kernel, smoothing_length)
