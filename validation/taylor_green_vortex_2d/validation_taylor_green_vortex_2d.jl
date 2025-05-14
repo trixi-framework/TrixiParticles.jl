@@ -5,7 +5,7 @@ using TrixiParticles
 # P. Ramachandran, K. Puri
 # "Entropically damped artiﬁcial compressibility for SPH".
 # In: Computers and Fluids, Volume 179 (2019), pages 579-594.
-# https://doi.org/10.1016/j.compﬂuid.2018.11.023
+# https://doi.org/10.1016/j.compfluid.2018.11.023
 # The following resolutions are used in the paper:
 # particle_spacings = [0.02, 0.01, 0.005]
 

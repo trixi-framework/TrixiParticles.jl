@@ -241,7 +241,7 @@ end
     ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.01)
 
 Viscosity model that extends the standard [Adami formulation](@ref ViscosityAdami)
-by incorporating a subgrid-scale (SGS) eddy viscosity via a Smagorinsky-type closure.
+by incorporating a subgrid-scale (SGS) eddy viscosity via a Smagorinsky-type [Smagorinsky (1963)](@cite Smagorinsky1963) closure.
 The effective kinematic viscosity is defined as
 
 ```math
@@ -316,7 +316,7 @@ ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityAdamiSGS(nu, C_S, eps
     # ------------------------------------------------------------------------------
     # SGS part: Compute the subgrid-scale eddy viscosity.
     # ------------------------------------------------------------------------------
-    # In classical LES the Smagorinsky model defines:
+    # In classical LES [Lilly (1967)](@cite Lilly1967) the Smagorinsky model defines:
     #   ν_SGS = (C_S Δ)^2 |S|,
     # where |S| is the norm of the strain-rate tensor Sᵢⱼ = ½(∂ᵢvⱼ+∂ⱼvᵢ).
     #
@@ -354,7 +354,7 @@ end
     ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001)
 
 Subgrid-scale (SGS) viscosity model based on the formulation by [Morris (1997)](@cite Morris1997),
-extended with a Smagorinsky-type eddy viscosity term for modeling turbulent flows.
+extended with a Smagorinsky-type eddy viscosity term [Smagorinsky (1963)](@cite Smagorinsky1963) for modeling turbulent flows.
 
 The acceleration on particle `a` due to viscosity interaction with particle `b` is calculated as:
 ```math
@@ -416,7 +416,7 @@ ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, e
     # ------------------------------------------------------------------------------
     # SGS part: Compute the subgrid-scale eddy viscosity.
     # ------------------------------------------------------------------------------
-    # In classical LES the Smagorinsky model defines:
+    # In classical LES [Lilly (1967)](@cite Lilly1967) the Smagorinsky model defines:
     #   ν_SGS = (C_S Δ)^2 |S|,
     # where |S| is the norm of the strain-rate tensor Sᵢⱼ = ½(∂ᵢvⱼ+∂ⱼvᵢ).
     #
