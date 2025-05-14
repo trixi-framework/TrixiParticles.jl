@@ -100,7 +100,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="SGS")
+saving_callback = SolutionSavingCallback(dt=0.02)
 
 pp_callback = nothing
 
