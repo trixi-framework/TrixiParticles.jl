@@ -47,7 +47,9 @@ pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_densi
 # Shift pipe walls in negative x-direction for the inflow
 pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
-n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
+NDIMS = ndims(pipe.fluid)
+
+n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
 
 # ==========================================================================================
 # ==== Fluid
@@ -55,7 +57,6 @@ wcsph = false
 
 smoothing_length = 1.5 * particle_spacing
 
-NDIMS = ndims(pipe.fluid)
 smoothing_kernel = WendlandC2Kernel{NDIMS}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -129,7 +130,7 @@ open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
 # ==== Boundary
 viscosity_boundary = ViscosityAdami(nu=1e-4)
 boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundary.mass,
-                                             AdamiPressureExtrapolation(),
+                                              AdamiPressureExtrapolation(),
                                              state_equation=state_equation,
                                              viscosity=viscosity_boundary,
                                              smoothing_kernel, smoothing_length)
