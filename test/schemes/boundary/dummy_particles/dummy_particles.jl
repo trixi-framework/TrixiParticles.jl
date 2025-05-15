@@ -88,7 +88,8 @@
                     # Reset cache and perform pressure extrapolation
                     TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                                 boundary_system.boundary_model.viscosity)
-                    TrixiParticles.boundary_pressure_extrapolation!(boundary_model,
+                    TrixiParticles.boundary_pressure_extrapolation!(Val{true},
+                                                                    boundary_model,
                                                                     boundary_system,
                                                                     fluid_system,
                                                                     boundary.coordinates,
@@ -137,7 +138,8 @@
                     # Reset cache and perform pressure extrapolation
                     TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                                 boundary_system.boundary_model.viscosity)
-                    TrixiParticles.boundary_pressure_extrapolation!(boundary_model,
+                    TrixiParticles.boundary_pressure_extrapolation!(Val{true},
+                                                                    boundary_model,
                                                                     boundary_system,
                                                                     fluid_system,
                                                                     boundary.coordinates,
@@ -230,7 +232,8 @@
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         viscosity)
 
-            TrixiParticles.boundary_pressure_extrapolation!(boundary_model, boundary_system,
+            TrixiParticles.boundary_pressure_extrapolation!(Val{true}, boundary_model,
+                                                            boundary_system,
                                                             fluid_system1,
                                                             tank1.boundary.coordinates,
                                                             tank1.fluid.coordinates,
@@ -268,7 +271,8 @@
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         viscosity)
 
-            TrixiParticles.boundary_pressure_extrapolation!(boundary_model, boundary_system,
+            TrixiParticles.boundary_pressure_extrapolation!(Val{true}, boundary_model,
+                                                            boundary_system,
                                                             fluid_system2,
                                                             tank2.boundary.coordinates,
                                                             tank2.fluid.coordinates,
@@ -291,84 +295,91 @@
         # In this test, we initialize a fluid with a hydrostatic pressure gradient
         # and check that this gradient is extrapolated correctly.
         @testset "Hydrostatic Pressure Gradient" begin
-            tank3 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                    density, acceleration=[0.0, -9.81],
-                                    state_equation=state_equation, n_layers=n_layers,
-                                    faces=(true, true, true, false))
+            for flipped_condition in (Val(true), Val(false))
+                tank3 = RectangularTank(particle_spacing, (width, height), (width, height),
+                                        density, acceleration=[0.0, -9.81],
+                                        state_equation=state_equation, n_layers=n_layers,
+                                        faces=(true, true, true, false))
 
-            fluid_system3 = WeaklyCompressibleSPHSystem(tank3.fluid, SummationDensity(),
-                                                        state_equation,
-                                                        smoothing_kernel, smoothing_length,
-                                                        acceleration=[0.0, -9.81])
-            fluid_system3.cache.density .= tank3.fluid.density
-            v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system3))
-            TrixiParticles.compute_pressure!(fluid_system3, v_fluid, semi)
+                fluid_system3 = WeaklyCompressibleSPHSystem(tank3.fluid, SummationDensity(),
+                                                            state_equation,
+                                                            smoothing_kernel,
+                                                            smoothing_length,
+                                                            acceleration=[0.0, -9.81])
+                fluid_system3.cache.density .= tank3.fluid.density
+                v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system3))
+                TrixiParticles.compute_pressure!(fluid_system3, v_fluid, semi)
 
-            TrixiParticles.set_zero!(boundary_model.pressure)
-            TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
-                                        viscosity)
+                TrixiParticles.set_zero!(boundary_model.pressure)
+                TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
+                                            viscosity)
 
-            TrixiParticles.boundary_pressure_extrapolation!(boundary_model, boundary_system,
-                                                            fluid_system3,
-                                                            tank3.boundary.coordinates,
-                                                            tank3.fluid.coordinates,
-                                                            v_fluid,
-                                                            nothing, # Not used
-                                                            semi)
+                TrixiParticles.boundary_pressure_extrapolation!(flipped_condition,
+                                                                boundary_model,
+                                                                boundary_system,
+                                                                fluid_system3,
+                                                                tank3.boundary.coordinates,
+                                                                tank3.fluid.coordinates,
+                                                                v_fluid,
+                                                                nothing, # Not used
+                                                                semi)
 
-            for particle in TrixiParticles.eachparticle(boundary_system)
-                TrixiParticles.compute_adami_density!(boundary_model, boundary_system,
-                                                      tank3.boundary.coordinates, particle)
-            end
-
-            width_reference = particle_spacing * (n_particles + 2 * n_layers)
-            height_reference = particle_spacing * (n_particles + n_layers)
-
-            # Define another tank without a boundary, where the fluid has the same size
-            # as fluid plus boundary in the other tank.
-            # The pressure gradient of this fluid should be the same as the extrapolated pressure
-            # of the boundary in the first tank.
-            tank_reference = RectangularTank(particle_spacing,
-                                             (width_reference, height_reference),
-                                             (width_reference, height_reference),
-                                             density, acceleration=[0.0, -9.81],
-                                             state_equation=state_equation, n_layers=0,
-                                             faces=(true, true, true, false))
-
-            # Because it is a pain to deal with the linear indices of the pressure arrays,
-            # we convert the matrices to Cartesian indices based on the coordinates.
-            function set_pressure!(pressure, coordinates, offset, system, system_pressure)
-                for particle in TrixiParticles.eachparticle(system)
-                    # Coordinates as integer indices
-                    coords = coordinates[:, particle] ./ particle_spacing
-                    # Move bottom left corner to (1, 1)
-                    coords .+= offset
-                    # Round to integer index
-                    index = round.(Int, coords)
-                    pressure[index...] = system_pressure[particle]
+                for particle in TrixiParticles.eachparticle(boundary_system)
+                    TrixiParticles.compute_adami_density!(boundary_model, boundary_system,
+                                                          tank3.boundary.coordinates,
+                                                          particle)
                 end
+
+                width_reference = particle_spacing * (n_particles + 2 * n_layers)
+                height_reference = particle_spacing * (n_particles + n_layers)
+
+                # Define another tank without a boundary, where the fluid has the same size
+                # as fluid plus boundary in the other tank.
+                # The pressure gradient of this fluid should be the same as the extrapolated pressure
+                # of the boundary in the first tank.
+                tank_reference = RectangularTank(particle_spacing,
+                                                 (width_reference, height_reference),
+                                                 (width_reference, height_reference),
+                                                 density, acceleration=[0.0, -9.81],
+                                                 state_equation=state_equation, n_layers=0,
+                                                 faces=(true, true, true, false))
+
+                # Because it is a pain to deal with the linear indices of the pressure arrays,
+                # we convert the matrices to Cartesian indices based on the coordinates.
+                function set_pressure!(pressure, coordinates, offset, system,
+                                       system_pressure)
+                    for particle in TrixiParticles.eachparticle(system)
+                        # Coordinates as integer indices
+                        coords = coordinates[:, particle] ./ particle_spacing
+                        # Move bottom left corner to (1, 1)
+                        coords .+= offset
+                        # Round to integer index
+                        index = round.(Int, coords)
+                        pressure[index...] = system_pressure[particle]
+                    end
+                end
+
+                # Set up the combined pressure matrix to store the pressure values of fluid
+                # and boundary together.
+                pressure = zeros(n_particles + 2 * n_layers, n_particles + n_layers)
+
+                # The fluid starts at -0.5 * particle_spacing from (0, 0),
+                # so the boundary starts at -(n_layers + 0.5) * particle_spacing
+                set_pressure!(pressure, boundary_system.coordinates, n_layers + 0.5,
+                              boundary_system, boundary_system.boundary_model.pressure)
+
+                # The fluid starts at -0.5 * particle_spacing from (0, 0),
+                # so the boundary starts at -(n_layers + 0.5) * particle_spacing
+                set_pressure!(pressure, tank3.fluid.coordinates, n_layers + 0.5,
+                              fluid_system3, fluid_system3.pressure)
+                pressure_reference = similar(pressure)
+
+                # The fluid starts at -0.5 * particle_spacing from (0, 0)
+                set_pressure!(pressure_reference, tank_reference.fluid.coordinates, 0.5,
+                              tank_reference.fluid, tank_reference.fluid.pressure)
+
+                @test all(isapprox.(pressure, pressure_reference, atol=4.0))
             end
-
-            # Set up the combined pressure matrix to store the pressure values of fluid
-            # and boundary together.
-            pressure = zeros(n_particles + 2 * n_layers, n_particles + n_layers)
-
-            # The fluid starts at -0.5 * particle_spacing from (0, 0),
-            # so the boundary starts at -(n_layers + 0.5) * particle_spacing
-            set_pressure!(pressure, boundary_system.coordinates, n_layers + 0.5,
-                          boundary_system, boundary_system.boundary_model.pressure)
-
-            # The fluid starts at -0.5 * particle_spacing from (0, 0),
-            # so the boundary starts at -(n_layers + 0.5) * particle_spacing
-            set_pressure!(pressure, tank3.fluid.coordinates, n_layers + 0.5,
-                          fluid_system3, fluid_system3.pressure)
-            pressure_reference = similar(pressure)
-
-            # The fluid starts at -0.5 * particle_spacing from (0, 0)
-            set_pressure!(pressure_reference, tank_reference.fluid.coordinates, 0.5,
-                          tank_reference.fluid, tank_reference.fluid.pressure)
-
-            @test all(isapprox.(pressure, pressure_reference, atol=4.0))
         end
     end
 end
