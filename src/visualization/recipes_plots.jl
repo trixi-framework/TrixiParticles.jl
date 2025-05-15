@@ -21,22 +21,22 @@ RecipesBase.@recipe function f(sol::TrixiParticlesODESolution, semi::Semidiscret
 end
 
 RecipesBase.@recipe function f(v_ode::AbstractGPUArray, u_ode, semi::Semidiscretization;
-                               particle_spacings=nothing,
-                               size=(600, 400), # Default size
-                               xlims=(-Inf, Inf), ylims=(-Inf, Inf))
+                               particle_spacings = nothing,
+                               size = (600, 400), # Default size
+                               xlims = (-Inf, Inf), ylims = (-Inf, Inf))
     throw(ArgumentError("to plot GPU data, use `plot(sol, semi)`"))
 end
 
 RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
-                               particle_spacings=TrixiParticles.particle_spacings(semi),
-                               size=(600, 400), # Default size
-                               xlims=(-Inf, Inf), ylims=(-Inf, Inf))
+                               particle_spacings = TrixiParticles.particle_spacings(semi),
+                               size = (600, 400), # Default size
+                               xlims = (-Inf, Inf), ylims = (-Inf, Inf))
     return v_ode, u_ode, semi, particle_spacings
 end
 
 RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization, particle_spacings;
-                               size=(600, 400), # Default size
-                               xlims=(-Inf, Inf), ylims=(-Inf, Inf))
+                               size = (600, 400), # Default size
+                               xlims = (-Inf, Inf), ylims = (-Inf, Inf))
     systems_data = map(enumerate(semi.systems)) do (i, system)
         u = wrap_u(u_ode, system, semi)
         periodic_box = get_neighborhood_search(system, semi).periodic_box
@@ -51,8 +51,8 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization, particle_
             particle_spacing = 0.0
         end
 
-        x_min, y_min = minimum(coordinates, dims=2) .- 0.5particle_spacing
-        x_max, y_max = maximum(coordinates, dims=2) .+ 0.5particle_spacing
+        x_min, y_min = minimum(coordinates, dims = 2) .- 0.5particle_spacing
+        x_max, y_max = maximum(coordinates, dims = 2) .+ 0.5particle_spacing
 
         # `x_min`, `x_max`, etc. are used to automatically set the marker size.
         # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
@@ -63,7 +63,7 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization, particle_
         isfinite(last(ylims)) && (y_max = ylims[2])
 
         return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
-                label=timer_name(system))
+                label = timer_name(system))
     end
 
     return (semi, systems_data...)
@@ -74,7 +74,7 @@ function particle_spacings(semi::Semidiscretization)
 end
 
 RecipesBase.@recipe function f((initial_conditions::InitialCondition)...;
-                               xlims=(Inf, Inf), ylims=(Inf, Inf))
+                               xlims = (Inf, Inf), ylims = (Inf, Inf))
     idx = 0
     ics = map(initial_conditions) do ic
         x = collect(ic.coordinates[1, :])
@@ -85,8 +85,8 @@ RecipesBase.@recipe function f((initial_conditions::InitialCondition)...;
             particle_spacing = 0.0
         end
 
-        x_min, y_min = minimum(ic.coordinates, dims=2) .- 0.5particle_spacing
-        x_max, y_max = maximum(ic.coordinates, dims=2) .+ 0.5particle_spacing
+        x_min, y_min = minimum(ic.coordinates, dims = 2) .- 0.5particle_spacing
+        x_max, y_max = maximum(ic.coordinates, dims = 2) .+ 0.5particle_spacing
 
         # `x_min`, `x_max`, etc. are used to automatically set the marker size.
         # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
@@ -99,15 +99,16 @@ RecipesBase.@recipe function f((initial_conditions::InitialCondition)...;
         idx += 1
 
         return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
-                label="initial condition " * "$idx")
+                label = "initial condition " * "$idx")
     end
 
     return (first(initial_conditions), ics...)
 end
 
 RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
-                               data...; zcolor=nothing, size=(600, 400), colorbar_title="",
-                               xlims=(Inf, Inf), ylims=(Inf, Inf))
+                               data...; zcolor = nothing, size = (600, 400),
+                               colorbar_title = "",
+                               xlims = (Inf, Inf), ylims = (Inf, Inf))
     x_min = minimum(obj.x_min for obj in data)
     x_max = maximum(obj.x_max for obj in data)
 

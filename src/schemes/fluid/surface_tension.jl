@@ -15,7 +15,7 @@ See [`surface_tension`](@ref) for more details.
 struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
 
-    function CohesionForceAkinci(; surface_tension_coefficient=1.0)
+    function CohesionForceAkinci(; surface_tension_coefficient = 1.0)
         new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
@@ -38,7 +38,7 @@ See [`surface_tension`](@ref) for more details.
 struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
 
-    function SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
+    function SurfaceTensionAkinci(; surface_tension_coefficient = 1.0)
         new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
@@ -61,7 +61,7 @@ See [`surface_tension`](@ref) for more details.
 struct SurfaceTensionMorris{ELTYPE} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
 
-    function SurfaceTensionMorris(; surface_tension_coefficient=1.0)
+    function SurfaceTensionMorris(; surface_tension_coefficient = 1.0)
         new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
@@ -93,7 +93,7 @@ See [`surface_tension`](@ref) for more details.
 struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
 
-    function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
+    function SurfaceTensionMomentumMorris(; surface_tension_coefficient = 1.0)
         new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end

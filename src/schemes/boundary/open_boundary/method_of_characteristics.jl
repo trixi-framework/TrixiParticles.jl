@@ -16,7 +16,7 @@ For more information about the method see [description below](@ref method_of_cha
 """
 struct BoundaryModelLastiwka
     extrapolate_reference_values::Bool
-    function BoundaryModelLastiwka(; extrapolate_reference_values::Bool=false)
+    function BoundaryModelLastiwka(; extrapolate_reference_values::Bool = false)
         return new{}(extrapolate_reference_values)
     end
 end
@@ -165,8 +165,8 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                           points = each_moving_particle(system)) do particle, neighbor,
+                                                                     pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities

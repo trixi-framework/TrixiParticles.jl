@@ -74,22 +74,23 @@ for density_calculator in density_calculators, perturbation in perturb_coordinat
     output_directory = joinpath("out_tgv", name_density_calculator * name_perturbation,
                                 wcsph ? "wcsph" : "edac",
                                 "validation_run_taylor_green_vortex_2d_nparticles_$(n_particles_xy)x$(n_particles_xy)")
-    saving_callback = SolutionSavingCallback(dt=0.02,
-                                             output_directory=output_directory,
-                                             p_avg=diff_p_loc_p_avg)
+    saving_callback = SolutionSavingCallback(dt = 0.02,
+                                             output_directory = output_directory,
+                                             p_avg = diff_p_loc_p_avg)
 
-    pp_callback = PostprocessCallback(; dt=0.02,
-                                      L1v=compute_l1v_error,
-                                      L1p=compute_l1p_error,
-                                      output_directory=output_directory,
-                                      filename="errors",
-                                      write_csv=true, write_file_interval=1)
+    pp_callback = PostprocessCallback(; dt = 0.02,
+                                      L1v = compute_l1v_error,
+                                      L1p = compute_l1p_error,
+                                      output_directory = output_directory,
+                                      filename = "errors",
+                                      write_csv = true, write_file_interval = 1)
 
     # Import variables into scope
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fluid", "taylor_green_vortex_2d.jl"),
-                  density_calculator=density_calculator,
-                  perturb_coordinates=perturbation, wcsph=wcsph,
-                  particle_spacing=particle_spacing, reynolds_number=reynolds_number,
-                  tspan=tspan, saving_callback=saving_callback, pp_callback=pp_callback)
+                  density_calculator = density_calculator,
+                  perturb_coordinates = perturbation, wcsph = wcsph,
+                  particle_spacing = particle_spacing, reynolds_number = reynolds_number,
+                  tspan = tspan, saving_callback = saving_callback,
+                  pp_callback = pp_callback)
 end

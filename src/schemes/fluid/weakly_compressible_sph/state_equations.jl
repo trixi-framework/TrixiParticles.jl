@@ -19,7 +19,7 @@ struct StateEquationCole{ELTYPE, CLIP} # Boolean to clip negative pressure
     background_pressure :: ELTYPE
 
     function StateEquationCole(; sound_speed, reference_density, exponent,
-                               background_pressure=0.0, clip_negative_pressure=false)
+                               background_pressure = 0.0, clip_negative_pressure = false)
         new{typeof(sound_speed),
             clip_negative_pressure}(sound_speed, exponent, reference_density,
                                     background_pressure)
@@ -72,7 +72,8 @@ struct StateEquationIdealGas{ELTYPE, CLIP}
     background_pressure :: ELTYPE
 
     function StateEquationIdealGas(; sound_speed, reference_density, gamma,
-                                   background_pressure=0.0, clip_negative_pressure=false)
+                                   background_pressure = 0.0,
+                                   clip_negative_pressure = false)
         new{typeof(sound_speed), clip_negative_pressure}(sound_speed, reference_density,
                                                          gamma, background_pressure)
     end

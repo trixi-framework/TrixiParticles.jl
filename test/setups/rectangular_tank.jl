@@ -43,8 +43,8 @@
                                                (water_width, water_height),
                                                (tank_width, tank_height),
                                                water_density,
-                                               spacing_ratio=spacing_ratios[k],
-                                               min_coordinates=min_coordinates[i])
+                                               spacing_ratio = spacing_ratios[k],
+                                               min_coordinates = min_coordinates[i])
                         expected_fluid_coords_ = copy(expected_fluid_coords[j])
                         expected_bound_coords_ = copy(expected_bound_coords[j][k])
                         expected_fluid_coords_ .+= min_coordinates[i]
@@ -59,7 +59,7 @@
         @testset "Velocities" begin
             tank = RectangularTank(0.2, (water_width, water_height),
                                    (tank_width, tank_height), water_density,
-                                   velocity=(1.0, 2.5))
+                                   velocity = (1.0, 2.5))
 
             expected_velocities = [1.0 1.0 1.0 1.0; 2.5 2.5 2.5 2.5]
 
@@ -96,19 +96,19 @@
             str = "Info: The desired fluid length in x-direction 0.5"
             @test_warn str RectangularTank(particle_spacing, (water_width, water_height),
                                            (tank_width, tank_height), water_density,
-                                           spacing_ratio=3)
+                                           spacing_ratio = 3)
 
             error = ArgumentError("`tank_size` must be of length 2 for a 2D problem")
             @test_throws error RectangularTank(particle_spacing,
                                                (water_width, water_height),
                                                (tank_width, tank_height, 0),
-                                               water_density, spacing_ratio=3)
+                                               water_density, spacing_ratio = 3)
 
             error = ArgumentError("`tank_size` must be of length 3 for a 3D problem")
             @test_throws error RectangularTank(particle_spacing,
                                                (water_width, water_height, 0.5),
                                                (tank_width, tank_height),
-                                               water_density, spacing_ratio=3)
+                                               water_density, spacing_ratio = 3)
         end
     end
 
@@ -125,7 +125,7 @@
 
             tank = RectangularTank(0.5, (water_width, water_height),
                                    (tank_width, tank_height), water_density,
-                                   n_layers=3)
+                                   n_layers = 3)
 
             @test isapprox(tank.boundary.coordinates, expected_bound_coords)
         end
@@ -146,7 +146,7 @@
 
             @testset "$(name[i])" for i in eachindex(name)
                 tank = RectangularTank(0.1, (0.2, 0.2), (0.3, 0.3), water_density,
-                                       n_layers=3)
+                                       n_layers = 3)
 
                 positions = (0, 0.2, 0, 0.2)
 
@@ -157,7 +157,7 @@
 
             @testset "All Walls" begin
                 tank = RectangularTank(0.1, (0.2, 0.2), (0.2, 0.3), water_density,
-                                       n_layers=3)
+                                       n_layers = 3)
 
                 # Move all walls outwards by one particle spacing
                 positions = (-0.1, 0.3, -0.1, 0.4)
@@ -253,7 +253,7 @@
         @testset "$(n_layers[n]) Boundary Layer(s)" for n in eachindex(n_layers)
             @testset "faces=$(faces[i])" for i in eachindex(faces)
                 tank = RectangularTank(0.2, (0.6, 0.6), (0.8, 0.8), water_density,
-                                       n_layers=n_layers[n], faces=faces[i])
+                                       n_layers = n_layers[n], faces = faces[i])
 
                 @test isapprox(tank.boundary.coordinates, expected_bound_coords[n][i])
             end
@@ -314,8 +314,8 @@ end
                                                (water_width, water_height, water_depth),
                                                (tank_width, tank_height, tank_depth),
                                                water_density,
-                                               spacing_ratio=spacing_ratios[k],
-                                               min_coordinates=min_coordinates[i])
+                                               spacing_ratio = spacing_ratios[k],
+                                               min_coordinates = min_coordinates[i])
                         expected_fluid_coords_ = copy(expected_fluid_coords[j])
                         expected_bound_coords_ = copy(expected_bound_coords[j][k])
                         expected_fluid_coords_ .+= min_coordinates[i]
@@ -376,7 +376,7 @@ end
 
             tank = RectangularTank(0.5, (water_width, water_height, water_depth),
                                    (tank_width, tank_height, tank_depth),
-                                   water_density, n_layers=3)
+                                   water_density, n_layers = 3)
 
             @test isapprox(tank.boundary.coordinates, expected_bound_coords)
         end
@@ -403,7 +403,7 @@ end
 
             @testset "$(name[i])" for i in eachindex(name)
                 tank = RectangularTank(0.1, (0.2, 0.2, 0.2), (0.3, 0.3, 0.4), water_density,
-                                       n_layers=2)
+                                       n_layers = 2)
 
                 positions = (0.0, 0.2, 0.1, 0.0, 0.0, 0.2)
 
@@ -449,7 +449,7 @@ end
         @testset "$(n_layers[n]) Boundary Layer(s)" for n in eachindex(n_layers)
             @testset "faces=$(faces[i])" for i in eachindex(faces)
                 tank = RectangularTank(0.2, (0.6, 0.6, 0.6), (0.8, 0.8, 0.8), water_density,
-                                       n_layers=n_layers[n], faces=faces[i])
+                                       n_layers = n_layers[n], faces = faces[i])
 
                 @test isapprox(tank.boundary.coordinates, expected_bound_coords[n][i])
             end

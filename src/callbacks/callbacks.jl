@@ -15,7 +15,7 @@ end
 end
 
 @inline function condition_integrator_interval(integrator, interval;
-                                               save_final_solution=true)
+                                               save_final_solution = true)
     # With error-based step size control, some steps can be rejected. Thus,
     #   `integrator.iter >= integrator.stats.naccept`
     #    (total #steps)       (#accepted steps)

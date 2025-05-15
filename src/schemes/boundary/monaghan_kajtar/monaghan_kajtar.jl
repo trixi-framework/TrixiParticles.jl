@@ -25,7 +25,7 @@ end
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
-                                     viscosity=nothing)
+                                     viscosity = nothing)
     return BoundaryModelMonaghanKajtar(K, convert(typeof(K), beta),
                                        boundary_particle_spacing,
                                        mass, viscosity)

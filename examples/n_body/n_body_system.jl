@@ -37,7 +37,7 @@ function TrixiParticles.update_nhs!(neighborhood_search,
                                     u_system, u_neighbor, semi)
     TrixiParticles.PointNeighbors.update!(neighborhood_search,
                                           u_system, u_neighbor,
-                                          points_moving=(true, true))
+                                          points_moving = (true, true))
 end
 
 function TrixiParticles.compact_support(system::NBodySystem,
@@ -105,7 +105,8 @@ end
 
 TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem; write_meta_data=true)
+function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem;
+                                   write_meta_data = true)
     (; mass) = system
 
     vtk["velocity"] = v

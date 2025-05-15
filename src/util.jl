@@ -84,7 +84,7 @@ See also: [Infiltrator.jl](https://github.com/JuliaDebug/Infiltrator.jl)
     API of TrixiParticles.jl, and it thus can altered (or be removed) at any time without it being
     considered a breaking change.
 """
-macro autoinfiltrate(condition=true)
+macro autoinfiltrate(condition = true)
     pkgid = Base.PkgId(Base.UUID("5903a43b-9cc3-4c30-8d17-598619ec4e9b"), "Infiltrator")
     if !haskey(Base.loaded_modules, pkgid)
         try
@@ -128,7 +128,7 @@ function compute_git_hash()
 
     try
         git_cmd = Cmd(`git describe --tags --always --first-parent --dirty`,
-                      dir=pkg_directory)
+                      dir = pkg_directory)
         return string(readchomp(git_cmd))
     catch e
         return "UnknownVersion"

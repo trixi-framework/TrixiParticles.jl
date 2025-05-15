@@ -20,20 +20,20 @@
     TrixiParticles.compact_support(::System2, neighbor) = 0.2
 
     @testset verbose=true "Constructor" begin
-        semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
+        semi = Semidiscretization(system1, system2, neighborhood_search = nothing)
 
         # Verification
         @test semi.ranges_u == (1:6, 7:18)
         @test semi.ranges_v == (1:6, 7:12)
 
-        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:2),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:3)),
-               (TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:2),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:3)))
+        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius = 0.2,
+                                                            eachpoint = 1:2),
+                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius = 0.2,
+                                                            eachpoint = 1:3)),
+               (TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius = 0.2,
+                                                            eachpoint = 1:2),
+                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius = 0.2,
+                                                            eachpoint = 1:3)))
         @test semi.neighborhood_searches == nhs
     end
 
@@ -51,8 +51,8 @@
             kernel = Val(:smoothing_kernel)
             Base.ndims(::Val{:smoothing_kernel}) = 2
 
-            ic = InitialCondition(; particle_spacing=1.0, coordinates=ones(2, 2),
-                                  density=[1.0, 1.0])
+            ic = InitialCondition(; particle_spacing = 1.0, coordinates = ones(2, 2),
+                                  density = [1.0, 1.0])
 
             fluid_system = FluidSystemMock()
             model_a = BoundaryModelMock()
@@ -66,29 +66,29 @@
                         "specified when simulating a fluid-structure interaction."
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
                                                                      solid_system1,
-                                                                     neighborhood_search=nothing)
+                                                                     neighborhood_search = nothing)
 
             # FSI with boundary model
             solid_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
-                                                     boundary_model=model_a)
+                                                     boundary_model = model_a)
 
             @test_nowarn TrixiParticles.check_configuration((solid_system2, fluid_system))
 
             # FSI with wrong boundary model
             solid_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
-                                                     boundary_model=model_b)
+                                                     boundary_model = model_b)
 
             error_str = "`BoundaryModelDummyParticles` with density calculator " *
                         "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
             @test_throws ArgumentError(error_str) Semidiscretization(solid_system3,
                                                                      fluid_system,
-                                                                     neighborhood_search=nothing)
+                                                                     neighborhood_search = nothing)
         end
 
         @testset verbose=true "WCSPH-Boundary Interaction" begin
             kernel = SchoenbergCubicSplineKernel{2}()
-            ic = InitialCondition(; particle_spacing=1.0, coordinates=ones(2, 2),
-                                  density=[1.0, 1.0])
+            ic = InitialCondition(; particle_spacing = 1.0, coordinates = ones(2, 2),
+                                  density = [1.0, 1.0])
 
             boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                          SummationDensity(), kernel, 1.0)
@@ -104,7 +104,7 @@
     end
 
     @testset verbose=true "`show`" begin
-        semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
+        semi = Semidiscretization(system1, system2, neighborhood_search = nothing)
 
         show_compact = "Semidiscretization($System1(), $System2(), neighborhood_search=TrivialNeighborhoodSearch)"
         @test repr(semi) == show_compact
@@ -122,11 +122,11 @@
     end
 
     @testset verbose=true "Source Terms" begin
-        TrixiParticles.source_terms(::System1) = SourceTermDamping(damping_coefficient=0.1)
+        TrixiParticles.source_terms(::System1) = SourceTermDamping(damping_coefficient = 0.1)
         TrixiParticles.current_density(v, system::System1, particle) = 0.0
         TrixiParticles.current_pressure(v, system::System1, particle) = 0.0
 
-        semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
+        semi = Semidiscretization(system1, system2, neighborhood_search = nothing)
 
         dv_ode = zeros(3 * 2 + 2 * 3)
         du_ode = zeros(3 * 2 + 4 * 3)

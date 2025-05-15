@@ -101,7 +101,7 @@
                 dv_expected = copy(dv)
                 dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-                semi = DummySemidiscretization(parallelization_backend=backends[j])
+                semi = DummySemidiscretization(parallelization_backend = backends[j])
                 TrixiParticles.interact_solid_solid!(dv, system, system, semi)
 
                 @test dv ≈ dv_expected
@@ -165,7 +165,7 @@
             names = ["CPU code", "GPU code emulated on the CPU"]
             backends = [SerialBackend(), TrixiParticles.KernelAbstractions.CPU()]
             @testset "$(names[i])" for i in eachindex(names)
-                semi = Semidiscretization(system, parallelization_backend=backends[i])
+                semi = Semidiscretization(system, parallelization_backend = backends[i])
                 ode = semidiscretize(semi, tspan)
 
                 # Apply the deformation matrix
@@ -189,7 +189,7 @@
                 dv = TrixiParticles.wrap_v(dv_ode, system, semi)
 
                 @test isapprox(dv[:, particle], dv_expected_41[deformation],
-                               rtol=sqrt(eps()), atol=sqrt(eps()))
+                               rtol = sqrt(eps()), atol = sqrt(eps()))
             end
         end
     end

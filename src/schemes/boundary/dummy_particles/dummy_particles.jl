@@ -55,9 +55,9 @@ end
 # See the comments in general/gpu.jl for more details.
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
-                                     smoothing_length; viscosity=nothing,
-                                     state_equation=nothing, correction=nothing,
-                                     reference_particle_spacing=0.0)
+                                     smoothing_length; viscosity = nothing,
+                                     state_equation = nothing, correction = nothing,
+                                     reference_particle_spacing = 0.0)
     pressure = initial_boundary_pressure(initial_density, density_calculator,
                                          state_equation)
     NDIMS = ndims(smoothing_kernel)
@@ -73,10 +73,10 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing,
-                 initial_colorfield=zeros(ELTYPE, n_particles),
-                 colorfield=zeros(ELTYPE, n_particles),
-                 neighbor_count=zeros(ELTYPE, n_particles))
+                 reference_particle_spacing = reference_particle_spacing,
+                 initial_colorfield = zeros(ELTYPE, n_particles),
+                 colorfield = zeros(ELTYPE, n_particles),
+                 neighbor_count = zeros(ELTYPE, n_particles))
     end
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
@@ -111,7 +111,7 @@ struct AdamiPressureExtrapolation{ELTYPE}
     pressure_offset     :: ELTYPE
     allow_loop_flipping :: Bool
 
-    function AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
+    function AdamiPressureExtrapolation(; pressure_offset = 0, allow_loop_flipping = true)
         return new{eltype(pressure_offset)}(pressure_offset, allow_loop_flipping)
     end
 end
@@ -146,8 +146,8 @@ struct BernoulliPressureExtrapolation{ELTYPE}
     factor              :: ELTYPE
     allow_loop_flipping :: Bool
 
-    function BernoulliPressureExtrapolation(; pressure_offset=0, factor=1,
-                                            allow_loop_flipping=true)
+    function BernoulliPressureExtrapolation(; pressure_offset = 0, factor = 1,
+                                            allow_loop_flipping = true)
         return new{eltype(pressure_offset)}(pressure_offset, factor, allow_loop_flipping)
     end
 end
@@ -181,12 +181,12 @@ struct PressureZeroing end
 @inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
 function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
-    return (; kernel_correction_coefficient=similar(density))
+    return (; kernel_correction_coefficient = similar(density))
 end
 
 function create_cache_model(::KernelCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
-    return (; kernel_correction_coefficient=similar(density), dw_gamma)
+    return (; kernel_correction_coefficient = similar(density), dw_gamma)
 end
 
 function create_cache_model(::Union{GradientCorrection, BlendedGradientCorrection}, density,
@@ -198,7 +198,7 @@ end
 function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
-    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
+    return (; kernel_correction_coefficient = similar(density), dw_gamma, correction_matrix)
 end
 
 function create_cache_model(initial_density,
@@ -359,7 +359,7 @@ function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_od
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
+    summation_density!(system, semi, u, u_ode, density, particles = eachparticle(system))
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -490,8 +490,8 @@ end
 
     # This needs to be serial to avoid race conditions when writing into `system`
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
-                           parallelization_backend=SerialBackend()) do neighbor, particle,
-                                                                       pos_diff, distance
+                           parallelization_backend = SerialBackend()) do neighbor, particle,
+                                                                         pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         boundary_pressure_inner!(boundary_model, density_calculator, system,
@@ -516,8 +516,8 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
-                           points=eachparticle(system)) do particle, neighbor,
-                                                           pos_diff, distance
+                           points = eachparticle(system)) do particle, neighbor,
+                                                             pos_diff, distance
         boundary_pressure_inner!(boundary_model, density_calculator, system,
                                  neighbor_system, v, v_neighbor_system, particle, neighbor,
                                  pos_diff, distance, viscosity, cache, pressure,

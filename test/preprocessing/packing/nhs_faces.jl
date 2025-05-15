@@ -16,8 +16,7 @@
         @testset verbose=true "Axis Aligned Edge: cell size $(cell_size)" for (i,
                                                                                cell_size) in
                                                                               enumerate(cell_sizes)
-            nhs = TrixiParticles.FaceNeighborhoodSearch{2}(; search_radius=cell_size)
-
+            nhs = TrixiParticles.FaceNeighborhoodSearch{2}(; search_radius = cell_size)
             TrixiParticles.initialize!(nhs, edge_aligned)
 
             @test expected_ncells_bbox[i] ==
@@ -36,7 +35,7 @@
 
         @testset verbose=true "Arbitrary Edge: cell size $(cell_size)" for (i, cell_size) in
                                                                            enumerate(cell_sizes)
-            nhs = TrixiParticles.FaceNeighborhoodSearch{2}(; search_radius=cell_size)
+            nhs = TrixiParticles.FaceNeighborhoodSearch{2}(; search_radius = cell_size)
 
             TrixiParticles.initialize!(nhs, edge_arbitrary)
 
@@ -68,7 +67,7 @@
         @testset verbose=true "Axis Aligned Triangle: cell size $(cell_size)" for (i,
                                                                                    cell_size) in
                                                                                   enumerate(cell_sizes)
-            nhs = TrixiParticles.FaceNeighborhoodSearch{3}(; search_radius=cell_size)
+            nhs = TrixiParticles.FaceNeighborhoodSearch{3}(; search_radius = cell_size)
 
             TrixiParticles.initialize!(nhs, triangle_aligned)
 
@@ -97,7 +96,7 @@
         @testset verbose=true "Arbitrary Triangle: cell size $(cell_size)" for (i,
                                                                                 cell_size) in
                                                                                enumerate(cell_sizes)
-            nhs = TrixiParticles.FaceNeighborhoodSearch{3}(; search_radius=cell_size)
+            nhs = TrixiParticles.FaceNeighborhoodSearch{3}(; search_radius = cell_size)
 
             TrixiParticles.initialize!(nhs, triangle_arbitrary)
 

@@ -79,15 +79,16 @@ end
 function WeaklyCompressibleSPHSystem(initial_condition,
                                      density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
-                                     pressure_acceleration=nothing,
-                                     transport_velocity=nothing,
-                                     buffer_size=nothing,
-                                     viscosity=nothing, density_diffusion=nothing,
-                                     acceleration=ntuple(_ -> zero(eltype(initial_condition)),
-                                                         ndims(smoothing_kernel)),
-                                     correction=nothing, source_terms=nothing,
-                                     surface_tension=nothing, surface_normal_method=nothing,
-                                     reference_particle_spacing=0, color_value=1)
+                                     pressure_acceleration = nothing,
+                                     transport_velocity = nothing,
+                                     buffer_size = nothing,
+                                     viscosity = nothing, density_diffusion = nothing,
+                                     acceleration = ntuple(_ -> zero(eltype(initial_condition)),
+                                                           ndims(smoothing_kernel)),
+                                     correction = nothing, source_terms = nothing,
+                                     surface_tension = nothing,
+                                     surface_normal_method = nothing,
+                                     reference_particle_spacing = 0, color_value = 1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -142,14 +143,14 @@ function WeaklyCompressibleSPHSystem(initial_condition,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
              create_cache_tvf(Val(:wcsph), initial_condition, transport_velocity)...,
-             color=Int(color_value))
+             color = Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+                 reference_particle_spacing = reference_particle_spacing)
     end
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
@@ -292,7 +293,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
 end
 
 function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+                       update_from_callback = false)
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already

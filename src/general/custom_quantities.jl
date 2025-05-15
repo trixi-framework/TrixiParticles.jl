@@ -7,7 +7,7 @@ function kinetic_energy(system, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
 
     # If `each_moving_particle` is empty (no moving particles), return zero
-    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
+    return sum(each_moving_particle(system), init = zero(eltype(system))) do particle
         velocity = current_velocity(v, system, particle)
         return 0.5 * system.mass[particle] * dot(velocity, velocity)
     end

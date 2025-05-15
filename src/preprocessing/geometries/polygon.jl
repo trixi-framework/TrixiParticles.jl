@@ -19,8 +19,8 @@ struct Polygon{NDIMS, ELTYPE}
         n_vertices = size(vertices_, 2)
         ELTYPE = eltype(vertices_)
 
-        min_corner = SVector{NDIMS}(minimum(vertices_, dims=2))
-        max_corner = SVector{NDIMS}(maximum(vertices_, dims=2))
+        min_corner = SVector{NDIMS}(minimum(vertices_, dims = 2))
+        max_corner = SVector{NDIMS}(maximum(vertices_, dims = 2))
 
         vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_)
 
@@ -149,7 +149,7 @@ function volume(polygon::Polygon)
 
     # Compute the area of the polygon by the shoelace formula.
     # https://en.wikipedia.org/wiki/Polygon
-    volume = sum(polygon.edge_vertices_ids, init=zero(eltype(polygon))) do edge
+    volume = sum(polygon.edge_vertices_ids, init = zero(eltype(polygon))) do edge
         v1 = polygon.vertices[edge[1]]
         v2 = polygon.vertices[edge[2]]
 
