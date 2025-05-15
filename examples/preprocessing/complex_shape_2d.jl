@@ -26,5 +26,5 @@ coordinates = stack(shape_sampled.grid)
 # trixi2vtk(coordinates, w=shape_sampled.winding_numbers)
 
 # Plot the winding number field
-plot(InitialCondition(; coordinates, density=1.0, particle_spacing),
-     zcolor=shape_sampled.winding_numbers)
+plot(InitialCondition(; coordinates, density = 1.0, particle_spacing),
+     zcolor = shape_sampled.winding_numbers)

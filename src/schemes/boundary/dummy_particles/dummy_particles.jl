@@ -111,7 +111,7 @@ struct AdamiPressureExtrapolation{ELTYPE}
     pressure_offset     :: ELTYPE
     allow_loop_flipping :: Bool
 
-    function AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
+    function AdamiPressureExtrapolation(; pressure_offset = 0, allow_loop_flipping = true)
         return new{eltype(pressure_offset)}(pressure_offset, allow_loop_flipping)
     end
 end
@@ -146,8 +146,8 @@ struct BernoulliPressureExtrapolation{ELTYPE}
     factor              :: ELTYPE
     allow_loop_flipping :: Bool
 
-    function BernoulliPressureExtrapolation(; pressure_offset=0, factor=1,
-                                            allow_loop_flipping=true)
+    function BernoulliPressureExtrapolation(; pressure_offset = 0, factor = 1,
+                                            allow_loop_flipping = true)
         return new{eltype(pressure_offset)}(pressure_offset, factor, allow_loop_flipping)
     end
 end
@@ -490,8 +490,8 @@ end
 
     # This needs to be serial to avoid race conditions when writing into `system`
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
-                           parallelization_backend=SerialBackend()) do neighbor, particle,
-                                                                       pos_diff, distance
+                           parallelization_backend = SerialBackend()) do neighbor, particle,
+                                                                         pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         boundary_pressure_inner!(boundary_model, density_calculator, system,

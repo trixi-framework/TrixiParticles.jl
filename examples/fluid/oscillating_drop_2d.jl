@@ -47,7 +47,7 @@ smoothing_length = 1.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+viscosity = ArtificialViscosityMonaghan(alpha = 0.02, beta = 0.0)
 
 density_diffusion = DensityDiffusionAntuono(fluid, delta = 0.1)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,

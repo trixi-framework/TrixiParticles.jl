@@ -80,8 +80,8 @@ air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calcul
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, air_system_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
-                          parallelization_backend=PolyesterBackend())
+                          neighborhood_search = GridNeighborhoodSearch{2}(update_strategy = nothing),
+                          parallelization_backend = PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, RDPK3SpFSAL35(),

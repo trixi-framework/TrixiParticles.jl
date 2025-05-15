@@ -101,7 +101,7 @@
                 dv_expected = copy(dv)
                 dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-                semi = DummySemidiscretization(parallelization_backend=backends[j])
+                semi = DummySemidiscretization(parallelization_backend = backends[j])
                 TrixiParticles.interact_solid_solid!(dv, system, system, semi)
 
                 @test dv ≈ dv_expected

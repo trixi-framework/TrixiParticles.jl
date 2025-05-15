@@ -3,7 +3,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "general",
                                                   "investigate_relaxation.jl"),
-                                         tspan=(0.0, 1.0))
+                                         tspan = (0.0, 1.0))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
         # Verify number of plots
@@ -14,7 +14,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "oscillating_beam_2d",
                                                   "validation_oscillating_beam_2d.jl"),
-                                         tspan=(0.0, 1.0))
+                                         tspan = (0.0, 1.0))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
         @test isapprox(error_deflection_x, 0, atol = eps())
@@ -50,25 +50,25 @@
         if Sys.ARCH === :aarch64
             # MacOS ARM produces slightly different pressure values than x86.
             # Note that pressure values are in the order of 1e5.
-            @test isapprox(error_edac_P1, 0, atol=4e-6)
-            @test isapprox(error_edac_P2, 0, atol=4e-11)
-            @test isapprox(error_wcsph_P1, 0, atol=400.0)
-            @test isapprox(error_wcsph_P2, 0, atol=0.03)
+            @test isapprox(error_edac_P1, 0, atol = 4e-6)
+            @test isapprox(error_edac_P2, 0, atol = 4e-11)
+            @test isapprox(error_wcsph_P1, 0, atol = 400.0)
+            @test isapprox(error_wcsph_P2, 0, atol = 0.03)
         elseif VERSION < v"1.11"
             # 1.10 produces slightly different pressure values than 1.11.
             # This is most likely due to muladd and FMA instructions in the
             # density diffusion update (inside the StaticArrays matrix-vector product).
             # Note that pressure values are in the order of 1e5.
-            @test isapprox(error_edac_P1, 0, atol=eps())
-            @test isapprox(error_edac_P2, 0, atol=eps())
-            @test isapprox(error_wcsph_P1, 0, atol=8.0)
-            @test isapprox(error_wcsph_P2, 0, atol=5e-4)
+            @test isapprox(error_edac_P1, 0, atol = eps())
+            @test isapprox(error_edac_P2, 0, atol = eps())
+            @test isapprox(error_wcsph_P1, 0, atol = 8.0)
+            @test isapprox(error_wcsph_P2, 0, atol = 5e-4)
         else
             # Reference values are computed with 1.11
-            @test isapprox(error_edac_P1, 0, atol=eps())
-            @test isapprox(error_edac_P2, 0, atol=eps())
-            @test isapprox(error_wcsph_P1, 0, atol=eps())
-            @test isapprox(error_wcsph_P2, 0, atol=eps())
+            @test isapprox(error_edac_P1, 0, atol = eps())
+            @test isapprox(error_edac_P2, 0, atol = eps())
+            @test isapprox(error_wcsph_P1, 0, atol = eps())
+            @test isapprox(error_wcsph_P2, 0, atol = eps())
         end
 
         # Ignore method redefinitions from duplicate `include("../validation_util.jl")`

@@ -97,12 +97,12 @@ end
 function ParticlePackingSystem(shape::InitialCondition;
                                signed_distance_field::Union{SignedDistanceField,
                                                             Nothing},
-                               smoothing_kernel=SchoenbergQuinticSplineKernel{ndims(shape)}(),
-                               smoothing_length=shape.particle_spacing,
-                               smoothing_length_interpolation=smoothing_length,
-                               is_boundary=false, boundary_compress_factor=1,
-                               neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                               background_pressure, tlsph=false, fixed_system=false)
+                               smoothing_kernel = SchoenbergQuinticSplineKernel{ndims(shape)}(),
+                               smoothing_length = shape.particle_spacing,
+                               smoothing_length_interpolation = smoothing_length,
+                               is_boundary = false, boundary_compress_factor = 1,
+                               neighborhood_search = GridNeighborhoodSearch{ndims(shape)}(),
+                               background_pressure, tlsph = false, fixed_system = false)
     NDIMS = ndims(shape)
     ELTYPE = eltype(shape)
     mass = copy(shape.mass)
@@ -217,7 +217,7 @@ end
 
 update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
-function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data = true)
     vtk["velocity"] = [advection_velocity(v, system, particle)
                        for particle in active_particles(system)]
     if write_meta_data

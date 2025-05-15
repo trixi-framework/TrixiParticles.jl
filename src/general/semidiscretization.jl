@@ -68,8 +68,8 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS}
 end
 
 function Semidiscretization(systems::Union{System, Nothing}...;
-                            neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            parallelization_backend=PolyesterBackend())
+                            neighborhood_search = GridNeighborhoodSearch{ndims(first(systems))}(),
+                            parallelization_backend = PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.

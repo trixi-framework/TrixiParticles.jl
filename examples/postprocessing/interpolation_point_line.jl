@@ -14,7 +14,7 @@ position_x = tank_size[1] / 2
 println(interpolate_points([position_x; 0.01;;], semi, fluid_system, sol))
 # Or with an increased `smoothing_length` smoothing the result
 println(interpolate_points([position_x; 0.01;;], semi, fluid_system, sol,
-                           smoothing_length=2.0 * smoothing_length))
+                           smoothing_length = 2.0 * smoothing_length))
 
 # A point outside of the domain will result in properties with NaN values.
 # On the boundary a result can still be obtained.

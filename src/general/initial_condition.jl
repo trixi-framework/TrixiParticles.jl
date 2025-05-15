@@ -370,7 +370,7 @@ function find_too_close_particles(coords1, coords2, max_distance)
 
     # We are modifying the vector `result`, so this cannot be parallel
     foreach_point_neighbor(coords1, coords2, nhs;
-                           parallelization_backend=SerialBackend()) do particle, _, _, _
+                           parallelization_backend = SerialBackend()) do particle, _, _, _
         if !(particle in result)
             push!(result, particle)
         end
@@ -390,8 +390,8 @@ function find_too_close_particles(coords, min_distance)
 
     # We are modifying the vector `result`, so this cannot be parallel
     foreach_point_neighbor(coords, coords, nhs;
-                           parallelization_backend=SerialBackend()) do particle, neighbor,
-                                                                       _, _
+                           parallelization_backend = SerialBackend()) do particle, neighbor,
+                                                                         _, _
         # Only consider particles with neighbors that are not to be removed
         if particle != neighbor && !(particle in result) && !(neighbor in result)
             push!(result, particle)

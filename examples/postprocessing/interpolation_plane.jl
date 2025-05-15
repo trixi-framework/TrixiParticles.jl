@@ -34,7 +34,7 @@ interpolate_plane_2d_vtk(interpolation_start, interpolation_end, resolution,
 # can affect both the accuracy and smoothness of the interpolated results.
 double_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
                                               resolution, semi, fluid_system, sol,
-                                              smoothing_length=2.0 * smoothing_length)
+                                              smoothing_length = 2.0 * smoothing_length)
 double_x = double_smoothing_plane.point_coords[1, :]
 double_y = double_smoothing_plane.point_coords[2, :]
 double_pressure = double_smoothing_plane.pressure
@@ -46,7 +46,7 @@ double_pressure = double_smoothing_plane.pressure
 # balance between the detail of disturbances captured and the precision of fluid representation near surfaces.
 half_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
                                             resolution, semi, fluid_system, sol,
-                                            smoothing_length=0.5 * smoothing_length)
+                                            smoothing_length = 0.5 * smoothing_length)
 half_x = half_smoothing_plane.point_coords[1, :]
 half_y = half_smoothing_plane.point_coords[2, :]
 half_pressure = half_smoothing_plane.pressure

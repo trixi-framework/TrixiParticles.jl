@@ -45,8 +45,8 @@ contact_model = HertzContactModel(10e9, 0.3)
 # contact_model = LinearContactModel(2 * 10e5)
 
 # Construct the rock system using the new DEMSystem signature.
-rock_system = DEMSystem(tank.fluid, contact_model; damping_coefficient=0.0001,
-                        acceleration=(0.0, gravity), radius=0.4 * particle_spacing)
+rock_system = DEMSystem(tank.fluid, contact_model; damping_coefficient = 0.0001,
+                        acceleration = (0.0, gravity), radius = 0.4 * particle_spacing)
 
 # Construct the boundary system for the tank walls.
 boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)
@@ -60,8 +60,8 @@ semi = Semidiscretization(rock_system, boundary_system)
 tspan = (0.0, 4.0)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=5000)
-saving_callback = SolutionSavingCallback(dt=0.02)
+info_callback = InfoCallback(interval = 5000)
+saving_callback = SolutionSavingCallback(dt = 0.02)
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control

@@ -21,10 +21,10 @@ neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
 # Run the dam break simulation with this neighborhood search
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              neighborhood_search=neighborhood_search,
-              fluid_particle_spacing=fluid_particle_spacing,
-              tspan=tspan,
-              density_diffusion=density_diffusion,
-              boundary_layers=boundary_layers, spacing_ratio=spacing_ratio,
-              boundary_model=boundary_model,
-              parallelization_backend=PolyesterBackend())
+              neighborhood_search = neighborhood_search,
+              fluid_particle_spacing = fluid_particle_spacing,
+              tspan = tspan,
+              density_diffusion = density_diffusion,
+              boundary_layers = boundary_layers, spacing_ratio = spacing_ratio,
+              boundary_model = boundary_model,
+              parallelization_backend = PolyesterBackend())

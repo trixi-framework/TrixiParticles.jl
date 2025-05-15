@@ -83,8 +83,8 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
 # `nothing` will automatically choose the best update strategy. This is only to be able
 # to change this with `trixi_include`.
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
-                          parallelization_backend=PolyesterBackend())
+                          neighborhood_search = GridNeighborhoodSearch{2}(update_strategy = nothing),
+                          parallelization_backend = PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval = 100)
