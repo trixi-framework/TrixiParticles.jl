@@ -414,14 +414,14 @@ function compute_pressure!(boundary_model,
         n_boundary_particles = nparticles(system)
         n_fluid_particles = nparticles(neighbor_system)
         speedup = ceil(Int, Threads.nthreads() / 2)
-        parallelize = system_coords isa AbstractGPUArray ||
-                      n_boundary_particles < speedup * n_fluid_particles
+        is_gpu = system_coords isa AbstractGPUArray
+        condition_boundary = n_boundary_particles < speedup * n_fluid_particles
+        parallelize = is_gpu || condition_boundary || !allow_loop_flipping
 
         # Loop over boundary particles and then the neighboring fluid particles
         # to extrapolate fluid pressure to the boundaries.
-        boundary_pressure_extrapolation!(Val(parallelize || !allow_loop_flipping),
-                                         boundary_model, system, neighbor_system,
-                                         system_coords, neighbor_coords, v,
+        boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
+                                         neighbor_system, system_coords, neighbor_coords, v,
                                          v_neighbor_system, semi)
 
         @threaded semi for particle in eachparticle(system)
