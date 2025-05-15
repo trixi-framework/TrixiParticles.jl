@@ -239,8 +239,8 @@ end
 function calculate_sum_dij(system::ImplicitIncompressibleSPHSystem, particle, pressure,
                            grad_kernel, time_step)
     p_b = pressure[particle]
-    d_ij = calculate_dij(system, particle, grad_kernel, time_step)
-    return d_ij * p_b
+    d_ab = calculate_dij(system, particle, grad_kernel, time_step)
+    return d_ab * p_b
 end
 
 # Calculates the sum d_ij*p_j over all j for a given particle i ('IHMSEN et al' section 3.1.1)
@@ -278,8 +278,7 @@ function calculate_sum_term(system, neighbor_system::ImplicitIncompressibleSPHSy
     p_a = pressure[particle]
     p_b = pressure[neighbor]
     sum_db = get_sum_dj(neighbor_system, sum_dj, neighbor)
-    dba = -time_step^2 * hydrodynamic_mass(system, particle) /
-          particle_density(0, system, particle)^2 * -grad_kernel
+    dba = calculate_dij(system, particle, -grad_kernel, time_step)
     return m_b * dot(sum_da - d_b * p_b - (sum_db - dba * p_a), grad_kernel)
 end
 
@@ -442,11 +441,11 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
     (; max_iterations) = system
 
     rest_density = 1000.0 #TODO: not hardcoded
-    avg_density_error = 0.0
     l = 1
     check = false
     while (!check)
         set_zero!(sum_dij)
+        avg_density_error = 0.0 #TODO
         foreach_system(semi) do neighbor_system
             # Get neighbor system u and v values 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
@@ -502,7 +501,7 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
                 pressure[particle] = max((1-omega) * pressure[particle] +
                                          omega * 1/a[particle] *
                                          (rest_density - predicted_density[particle] -
-                                          s_term[particle]), 0) #version with pressure clamping (no negative pressure values)
+                                          s_term[particle]), 0)
             else
                 pressure[particle] = 0
             end
@@ -524,7 +523,7 @@ end
 # Calculates the pressure values by solving a linear system with a relaxed jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    time_step = 0.0001
+    time_step = 0.001
 
     @trixi_timeit timer() "predict advections" predict_advection(system, v, u, v_ode, u_ode,
                                                                  semi, t, time_step)
