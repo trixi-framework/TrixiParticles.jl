@@ -19,17 +19,17 @@
     )
 
     smoothing_length_dict = Dict(
-        "no_correction" => 3.0 * particle_spacing,
-        "shepard_kernel_correction" => 3.0 * particle_spacing,
-        "akinci_free_surf_correction" => 3.0 * particle_spacing,
-        "kernel_correction_summation_correction" => 4.0 * particle_spacing,
-        "kernel_correction_continuity_correction" => 3.5 * particle_spacing,
-        "blended_gradient_summation_correction" => 3.0 * particle_spacing,
-        "blended_gradient_continuity_correction" => 4.0 * particle_spacing,
-        "gradient_summation_correction" => 3.5 * particle_spacing,
-        "mixed_kernel_gradient_summation_correction" => 3.5 * particle_spacing,
+        "no_correction" => 1.5 * particle_spacing,
+        "shepard_kernel_correction" => 1.5 * particle_spacing,
+        "akinci_free_surf_correction" => 1.5 * particle_spacing,
+        "kernel_correction_summation_correction" => 2 * particle_spacing,
+        "kernel_correction_continuity_correction" => 1.75 * particle_spacing,
+        "blended_gradient_summation_correction" => 1.5 * particle_spacing,
+        "blended_gradient_continuity_correction" => 2 * particle_spacing,
+        "gradient_summation_correction" => 1.75 * particle_spacing,
+        "mixed_kernel_gradient_summation_correction" => 1.75 * particle_spacing,
         "gradient_continuity_correction" => 4.5 * particle_spacing,
-        "mixed_kernel_gradient_continuity_correction" => 4.0 * particle_spacing
+        "mixed_kernel_gradient_continuity_correction" => 2 * particle_spacing
     )
 
     density_calculator_dict = Dict(
@@ -61,6 +61,7 @@
     )
 
     @testset "continuity_reinit" begin
+<<<<<<< HEAD
         @test_nowarn_mod trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
                                        fluid_particle_spacing = particle_spacing,
@@ -71,6 +72,19 @@
                                        prefix = "continuity_reinit", tspan = tspan,
                                        fluid_density = fluid_density,
                                        density_diffusion = nothing)
+=======
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d.jl"),
+                                         fluid_particle_spacing=particle_spacing,
+                                         smoothing_length=1.5 * particle_spacing,
+                                         boundary_density_calculator=ContinuityDensity(),
+                                         fluid_density_calculator=ContinuityDensity(),
+                                         correction=nothing, use_reinit=true,
+                                         prefix="continuity_reinit", tspan=tspan,
+                                         fluid_density=fluid_density,
+                                         density_diffusion=nothing)
+>>>>>>> main
 
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
@@ -85,6 +99,7 @@
         println("="^100)
         println("fluid/dam_break_2d.jl with ", correction_name)
 
+<<<<<<< HEAD
         @test_nowarn_mod trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
                                        fluid_particle_spacing = particle_spacing,
@@ -99,6 +114,23 @@
                                        fluid_density = fluid_density,
                                        density_diffusion = nothing,
                                        boundary_layers = 5, sol = nothing)
+=======
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d.jl"),
+                                         fluid_particle_spacing=particle_spacing,
+                                         smoothing_length=smoothing_length,
+                                         boundary_density_calculator=SummationDensity(),
+                                         fluid_density_calculator=fluid_density_calculator,
+                                         correction=correction, use_reinit=false,
+                                         clip_negative_pressure=(fluid_density_calculator isa
+                                                                 SummationDensity),
+                                         smoothing_kernel=smoothing_kernel,
+                                         prefix="$(correction_name)", tspan=tspan,
+                                         fluid_density=fluid_density,
+                                         density_diffusion=nothing,
+                                         boundary_layers=5, sol=nothing)
+>>>>>>> main
 
         # Some correction methods require very small time steps at the beginning of the simulation.
         # An adaptive time integrator makes this easier and faster.

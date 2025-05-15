@@ -70,8 +70,13 @@ function ComplexShape(geometry; particle_spacing, density,
 
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
+<<<<<<< HEAD
         return (initial_condition = initial_condition, winding_numbers = winding_numbers,
                 grid = stack(grid))
+=======
+        return (; initial_condition=initial_condition, winding_numbers=winding_numbers,
+                grid=grid)
+>>>>>>> main
     end
 
     return initial_condition
@@ -111,7 +116,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 │ InitialCondition{Float64}                                                                        │
 │ ═════════════════════════                                                                        │
 │ #dimensions: ……………………………………………… 2                                                                │
-│ #particles: ………………………………………………… 677                                                              │
+│ #particles: ………………………………………………… 889                                                              │
 │ particle spacing: ………………………………… 0.03                                                             │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -131,7 +136,7 @@ function sample_boundary(signed_distance_field;
     end
 
     # Only keep the required part of the signed distance field
-    distance_to_boundary = tlsph ? particle_spacing : 0.5 * particle_spacing
+    distance_to_boundary = zero(particle_spacing)
     keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
 
     boundary_coordinates = stack(positions[keep_indices])

@@ -1,4 +1,5 @@
 using Test
+using TrixiTest: @trixi_test_nowarn
 using TrixiParticles
 using TrixiParticles: PointNeighbors
 using LinearAlgebra
@@ -32,7 +33,7 @@ macro trixi_testset(name, expr)
 
         # We also include this file again to provide the definition of
         # the other testing macros. This allows to use `@trixi_testset`
-        # in a nested fashion and also call `@test_nowarn_mod` from
+        # in a nested fashion and also call `@trixi_test_nowarn` from
         # there.
         include(@__FILE__)
 
@@ -43,6 +44,7 @@ macro trixi_testset(name, expr)
     end
 end
 
+<<<<<<< HEAD
 # Copied from TrixiBase.jl. See https://github.com/trixi-framework/TrixiBase.jl/issues/9.
 """
     @test_nowarn_mod expr
@@ -90,8 +92,18 @@ struct DummySemidiscretization
     parallelization_backend::Any
 
     function DummySemidiscretization(; parallelization_backend = false)
+=======
+struct DummySemidiscretization
+    parallelization_backend::Any
+
+    function DummySemidiscretization(; parallelization_backend=SerialBackend())
+>>>>>>> main
         new(parallelization_backend)
     end
+end
+
+@inline function PointNeighbors.parallel_foreach(f, iterator, semi::DummySemidiscretization)
+    PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
 end
 
 @inline function TrixiParticles.get_neighborhood_search(system, neighbor_system,

@@ -127,8 +127,8 @@ end
         (2, SchoenbergCubicSplineKernel{2}(), 0.2, 3.0, 1.0, (0.0, 0.0), 0.8),
         (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
         (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
-        (2, WendlandC2Kernel{2}(), 0.3, 2.0, 1.0, (0.0, 0.0), 1.4),
-        (3, WendlandC2Kernel{3}(), 0.3, 3.0, 1.0, (0.0, 0.0, 0.0), 0.6)
+        (2, WendlandC2Kernel{2}(), 0.3, 1.0, 1.0, (0.0, 0.0), 1.4),
+        (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
     ]
 
     for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
@@ -231,8 +231,8 @@ end
         (2, SchoenbergCubicSplineKernel{2}(), 0.2, 3.0, 1.0, (0.0, 0.0), 0.8),
         (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
         (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
-        (2, WendlandC2Kernel{2}(), 0.3, 2.0, 1.0, (0.0, 0.0), 1.4),
-        (3, WendlandC2Kernel{3}(), 0.3, 3.0, 1.0, (0.0, 0.0, 0.0), 0.6)
+        (2, WendlandC2Kernel{2}(), 0.3, 1.0, 1.0, (0.0, 0.0), 1.4),
+        (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
     ]
 
     for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
@@ -339,11 +339,19 @@ end
     system, bnd_system, semi,
     ode = create_fluid_system(coordinates, velocity, mass,
                               density, particle_spacing,
+<<<<<<< HEAD
                               SurfaceTensionMorris(surface_tension_coefficient = 0.072);
                               NDIMS = NDIMS,
                               smoothing_length = 3.0 *
                                                  particle_spacing,
                               wall = false, walldistance = 0.0)
+=======
+                              SurfaceTensionMorris(surface_tension_coefficient=0.072);
+                              NDIMS=NDIMS,
+                              smoothing_length=1.5 *
+                                               particle_spacing,
+                              wall=false, walldistance=0.0)
+>>>>>>> main
 
     # Compute surface normals
     compute_and_test_surface_values(system, semi, ode; NDIMS = NDIMS)

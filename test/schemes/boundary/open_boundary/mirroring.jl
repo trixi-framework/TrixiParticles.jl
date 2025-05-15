@@ -47,7 +47,7 @@
                                         pressure = pressure_function,
                                         velocity = velocity_function)
 
-        smoothing_length = 3.0 * particle_spacing
+        smoothing_length = 1.5 * particle_spacing
         smoothing_kernel = WendlandC2Kernel{ndims(domain_fluid)}()
         fluid_system = WeaklyCompressibleSPHSystem(domain_fluid, SummationDensity(),
                                                    nothing, smoothing_kernel,
@@ -145,7 +145,7 @@
                                         density = 1000.0, pressure = pressure_function,
                                         velocity = velocity_function)
 
-        smoothing_length = 3.0 * particle_spacing
+        smoothing_length = 1.5 * particle_spacing
         smoothing_kernel = WendlandC2Kernel{ndims(domain_fluid)}()
         fluid_system = WeaklyCompressibleSPHSystem(domain_fluid, SummationDensity(),
                                                    nothing, smoothing_kernel,

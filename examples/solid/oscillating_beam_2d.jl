@@ -41,9 +41,7 @@ solid = union(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Solid
-# The kernel in the reference uses a differently scaled smoothing length,
-# so this is equivalent to the smoothing length of `sqrt(2) * particle_spacing` used in the paper.
-smoothing_length = 2 * sqrt(2) * particle_spacing
+smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
@@ -55,8 +53,13 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(solid_system,
+<<<<<<< HEAD
                           neighborhood_search = PrecomputedNeighborhoodSearch{2}(),
                           parallelization_backend = true)
+=======
+                          neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
+                          parallelization_backend=PolyesterBackend())
+>>>>>>> main
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval = 1000)

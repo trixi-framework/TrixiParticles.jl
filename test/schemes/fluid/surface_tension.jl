@@ -110,7 +110,7 @@
                                      reference_density = 1.0,
                                      exponent = 1)
         kernel = WendlandC2Kernel{2}()
-        smoothing_length = 1.0
+        smoothing_length = 0.5
 
         # 3. Create the WeaklyCompressibleSPHSystem with Surface Tension
         system = WeaklyCompressibleSPHSystem(ic,
@@ -138,7 +138,7 @@
                                                SurfaceTensionMomentumMorris(),
                                                nothing, nothing,  # v, u (not needed for stress computation)
                                                nothing, nothing,  # v_ode, u_ode (not needed)
-                                               nothing,           # semi (not needed)
+                                               SerialBackend(),   # semi (only passed to `@threaded`)
                                                0.0)
 
         # 7. Define Reference Stress Tensors by Hand

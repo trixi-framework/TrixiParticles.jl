@@ -114,7 +114,7 @@ function (point_in_poly::WindingNumberJacobson)(geometry, points;
 
     divisor = ndims(geometry) == 2 ? 2pi : 4pi
 
-    @threaded points for query_point in eachindex(points)
+    @threaded default_backend(points) for query_point in eachindex(points)
         p = points[query_point]
 
         winding_number = winding(geometry, p) / divisor

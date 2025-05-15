@@ -3,7 +3,6 @@
 # file with this neighborhood search.
 # To run this example on a GPU, `parallelization_backend` needs to be changed to the
 # backend for the installed GPU. See the docs on GPU support for more information.
-
 using TrixiParticles
 
 # Load setup from dam break example
@@ -22,10 +21,10 @@ neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
 # Run the dam break simulation with this neighborhood search
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              neighborhood_search = neighborhood_search,
-              fluid_particle_spacing = fluid_particle_spacing,
-              tspan = tspan,
-              density_diffusion = density_diffusion,
-              boundary_layers = boundary_layers, spacing_ratio = spacing_ratio,
-              boundary_model = boundary_model,
-              parallelization_backend = true)
+              neighborhood_search=neighborhood_search,
+              fluid_particle_spacing=fluid_particle_spacing,
+              tspan=tspan,
+              density_diffusion=density_diffusion,
+              boundary_layers=boundary_layers, spacing_ratio=spacing_ratio,
+              boundary_model=boundary_model,
+              parallelization_backend=PolyesterBackend())

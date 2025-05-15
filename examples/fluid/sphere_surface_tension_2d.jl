@@ -18,11 +18,11 @@ state_equation = StateEquationCole(; sound_speed, reference_density = fluid_dens
                                    exponent = 7, clip_negative_pressure = true)
 
 # For all surface tension simulations, we need a compact support of `2 * particle_spacing`
-# smoothing_length = 2.0 * particle_spacing
+# smoothing_length = particle_spacing
 # smoothing_kernel = WendlandC2Kernel{2}()
 # nu = 0.01
 
-smoothing_length = 3.5 * particle_spacing
+smoothing_length = 1.75 * particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 # nu = 0.001 # SurfaceTensionMomentumMorris
 nu = 0.05 # SurfaceTensionMorris

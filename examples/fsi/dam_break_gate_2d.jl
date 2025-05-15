@@ -92,7 +92,7 @@ solid = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_length = 1.75 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -122,7 +122,7 @@ boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate,
 
 # ==========================================================================================
 # ==== Solid
-solid_smoothing_length = 2 * sqrt(2) * solid_particle_spacing
+solid_smoothing_length = sqrt(2) * solid_particle_spacing
 solid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
@@ -145,7 +145,11 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system_tank,
                           boundary_system_gate, solid_system,
+<<<<<<< HEAD
                           parallelization_backend = true)
+=======
+                          parallelization_backend=PolyesterBackend())
+>>>>>>> main
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval = 100)

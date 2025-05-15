@@ -15,7 +15,7 @@ function copy_semi_with_no_update_nhs(semi)
                                   for searches in semi.neighborhood_searches)
 
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
-                              neighborhood_searches, true)
+                              neighborhood_searches, SerialBackend())
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search
@@ -30,8 +30,14 @@ end
 
 # No update
 @inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
+<<<<<<< HEAD
                                         points_moving = (true, true),
                                         parallelization_backend = false)
+=======
+                                        points_moving=(true, true),
+                                        eachindex_y=eachindex(y),
+                                        parallelization_backend=SerialBackend())
+>>>>>>> main
     return search
 end
 

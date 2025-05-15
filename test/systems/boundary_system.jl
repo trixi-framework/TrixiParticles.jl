@@ -50,7 +50,8 @@
 
             # Moving
             t = 0.6
-            system.movement(system, t, false)
+            # semi is only passed to `@threaded`
+            system.movement(system, t, SerialBackend())
             if NDIMS == 2
                 new_coordinates = coordinates .+ [0.5 * t, 0.3 * t^2]
                 new_velocity = [0.5, 0.6 * t] .* ones(size(new_coordinates))
@@ -82,7 +83,8 @@
             system = BoundarySPHSystem(initial_condition, model, movement = bm)
 
             t = 0.1
-            system.movement(system, t, false)
+            # semi is only passed to `@threaded`
+            system.movement(system, t, SerialBackend())
 
             if NDIMS == 2
                 new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2]
