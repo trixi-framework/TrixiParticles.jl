@@ -1,36 +1,61 @@
+# ==========================================================================================
+# 3D Dam Break Simulation
+#
+# This example sets up a 3D dam break simulation using a weakly compressible SPH scheme.
+# It is analogous to the 2D dam break (`dam_break_2d.jl`) but extended to three dimensions.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
-# ==========================================================================================
-# ==== Resolution
+# ------------------------------------------------------------------------------
+# Resolution Parameters
+# ------------------------------------------------------------------------------
+
 fluid_particle_spacing = 0.08
 
+# Boundary particle parameters
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
-boundary_layers = 4
-spacing_ratio = 1
+boundary_layers = 4 # Number of boundary particle layers
+spacing_ratio = 1   # Ratio of fluid particle spacing to boundary particle spacing
 
 boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 
-# ==========================================================================================
-# ==== Experiment Setup
+# ------------------------------------------------------------------------------
+# Experiment Setup:
+# ------------------------------------------------------------------------------
+
+# Gravitational acceleration
 gravity = 9.81
+
+# Simulation time span
 tspan = (0.0, 5.7 / sqrt(gravity))
 
-# Boundary geometry and initial fluid particle positions
+# Define initial fluid domain and tank dimensions
 initial_fluid_size = (2.0, 1.0, 1.0)
-tank_size = (floor(5.366 / boundary_particle_spacing) * boundary_particle_spacing, 4.0, 1.0)
 
+# Tank: (width, height, depth)
+tank_size = (floor(5.366 / boundary_particle_spacing) * boundary_particle_spacing,
+             4.0, 1.0)
+
+# Fluid properties
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+state_equation = StateEquationCole(sound_speed=sound_speed,
+                                   reference_density=fluid_density,
                                    exponent=7)
 
+# Setup for the 3D rectangular tank with fluid and boundary particles
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity, 0.0), state_equation=state_equation)
+                       n_layers=boundary_layers,
+                       spacing_ratio=spacing_ratio,
+                       acceleration=(0.0, -gravity, 0.0),
+                       state_equation=state_equation)
 
-# ==========================================================================================
-# ==== Fluid
+# ------------------------------------------------------------------------------
+# Fluid System Setup
+# ------------------------------------------------------------------------------
+
 smoothing_length = 1.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{3}()
 
@@ -39,35 +64,44 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
+                                           state_equation,
+                                           smoothing_kernel, smoothing_length,
+                                           viscosity=viscosity,
                                            density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -gravity, 0.0))
+                                           acceleration=(0.0, -gravity, 0.0),
+                                           reference_particle_spacing=fluid_particle_spacing)
 
-# ==========================================================================================
-# ==== Boundary
+# ------------------------------------------------------------------------------
+# Boundary System Setup
+# ------------------------------------------------------------------------------
+
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
+                                             state_equation=state_equation, # Use same EoS for boundary pressure
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length,
+                                             reference_particle_spacing=fluid_particle_spacing)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
-# ==========================================================================================
-# ==== Simulation
+# ------------------------------------------------------------------------------
+# Simulation:
+# ------------------------------------------------------------------------------
 semi = Semidiscretization(fluid_system, boundary_system,
                           parallelization_backend=PolyesterBackend())
+
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=10)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+# Callbacks
+info_callback = InfoCallback(interval=10) # Print info every 10 simulation steps
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="") # Save solution every 0.02 time units
 callbacks = CallbackSet(info_callback, saving_callback)
+
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
 # When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+# with large time steps. Close to a wall, the stepsize has to be reduced drastically.
 # Sometimes, the method fails to do so because forces become extremely large when
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
