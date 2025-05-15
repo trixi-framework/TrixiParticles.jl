@@ -54,9 +54,9 @@ viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
 sphere_IISPH = ImplicitIncompressibleSPHSystem(sphere1, fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,viscosity=viscosity,
-                                                     acceleration=(0.0, -gravity),
-                                                     reference_particle_spacing=fluid_particle_spacing)
+                                               fluid_smoothing_length, viscosity=viscosity,
+                                               acceleration=(0.0, -gravity),
+                                               reference_particle_spacing=fluid_particle_spacing)
 
 sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
                                      state_equation, fluid_smoothing_kernel,
@@ -87,8 +87,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, SymplecticEuler(),
-            dt = 0.001,
+            dt=0.001,
             save_everystep=false, callback=callbacks);
-
 
 plot(sol)

@@ -498,7 +498,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        @trixi_timeit timer() "update positions" update_positions!(system, v, u, v_ode, u_ode, semi, t)
+        @trixi_timeit timer() "update positions" update_positions!(system, v, u, v_ode,
+                                                                   u_ode, semi, t)
     end
 
     # Update NHS
@@ -512,7 +513,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, v_ode, u_ode, semi, t)
+        @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, v_ode,
+                                                                     u_ode, semi, t)
     end
 
     # Perform correction and pressure calculation
@@ -528,7 +530,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        @trixi_timeit timer() "update final"  update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback)
+        @trixi_timeit timer() "update final" update_final!(system, v, u, v_ode, u_ode, semi,
+                                                           t; update_from_callback)
     end
 end
 
@@ -923,6 +926,50 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+end
+
+function check_configuration(fluid_system::ImplicitIncompressibleSPHSystem, systems)
+    (; min_iterations) = fluid_system
+    (; max_iterations) = fluid_system
+
+    if (min_iterations < 1)
+        throw(ArgumentError("'min_iterations' must be a positive number,
+         otherwise `ImplicitIncompressibleSPHSystem` can not be used"))
+    end
+
+    if (max_iterations < min_iterations)
+        throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used if
+                        'min_iterations' is 'larger than 'max_iterations' "))
+    end
+
+    foreach_system(systems) do neighbor
+        if neighbor isa WeaklyCompressibleSPHSystem
+            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used with
+            `WeaklyCompressibleSPHSystem`"))
+        end
+    end
+end
+
+function check_configuration(fluid_system::ImplicitIncompressibleSPHSystem, systems)
+    (; min_iterations) = fluid_system
+    (; max_iterations) = fluid_system
+
+    if (min_iterations < 1)
+        throw(ArgumentError("'min_iterations' must be a positive number,
+         otherwise `ImplicitIncompressibleSPHSystem` can not be used"))
+    end
+
+    if (max_iterations < min_iterations)
+        throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used if
+                        'min_iterations' is 'larger than 'max_iterations' "))
+    end
+
+    foreach_system(systems) do neighbor
+        if neighbor isa WeaklyCompressibleSPHSystem
+            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used with
+            `WeaklyCompressibleSPHSystem`"))
+        end
     end
 end
 
