@@ -30,6 +30,11 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
 - `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
 - `density_diffusion`:          Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
+- `pressure_acceleration`:      Pressure acceleration formulation for this system.
+                                By default, the correct formulation is chosen based on the
+                                density calculator and the correction method.
+                                To use [Tensile Instability Control](@ref tic), pass
+                                [`tensile_instability_control`](@ref) here.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
@@ -50,7 +55,6 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
 - `color_value`:                The value used to initialize the color of particles in the system.
-
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
                                    PF, TV, ST, B, SRFT, SRFN, PR, C} <: FluidSystem{NDIMS}
