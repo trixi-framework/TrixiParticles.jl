@@ -79,6 +79,7 @@ export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerr
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
        BernoulliPressureExtrapolation
+export HertzContactModel, LinearContactModel
 export BoundaryMovement
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
@@ -93,7 +94,7 @@ export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
 export nparticles
 export available_data, kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
-export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d,
+export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_plane_2d,
        interpolate_plane_2d_vtk
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
