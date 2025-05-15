@@ -260,24 +260,23 @@ Pages = [joinpath("preprocessing", "geometries", "io.jl")]
 To obtain a body-fitted and isotropic particle distribution, an initial configuration (see [Sampling of Geometries](@ref sampling_of_geometries)) is first generated. This configuration is then packed using a [`ParticlePackingSystem`](@ref).
 The preprocessing pipeline consists of the following steps:
 
-- Load geometry: Fig. (1), [`load_geometry`](@ref).
-- Compute the signed distance field (SDF): Fig. (2), [`SignedDistanceField`](@ref).
-- Generate boundary particles: Fig. (3), [`sample_boundary`](@ref).
-- Initial sampling of the interior particles with inside-outside segmentation: Fig. (4), [`ComplexShape`](@ref).
-- Pack the initial configuration of interior and boundary particles (Fig. (5)): Fig. (6), [`ParticlePackingSystem`](@ref).
+- Load geometry: Fig. 1, [`load_geometry`](@ref).
+- Compute the signed distance field (SDF): Fig. 2, [`SignedDistanceField`](@ref).
+- Generate boundary particles: Fig. 3, [`sample_boundary`](@ref).
+- Initial sampling of the interior particles with inside-outside segmentation: Fig. 4, [`ComplexShape`](@ref).
+- Pack the initial configuration of interior and boundary particles (Fig. 5): Fig. 6, [`ParticlePackingSystem`](@ref).
 
 The input data can either be a 3D triangulated surface mesh represented in STL-format or a 2D polygonal traversal of the geometry (see [`load_geometry`](@ref)).
-The second step involves generating the SDF (see [`SignedDistanceField`](@ref)), which is necessary for the final packing step, which requires a surface detection.
-The SDF is illustrated in Fig. (2), where the distances to the surface of the geometry are visualized as a color map.
-As depicted, the SDF is computed only within a narrow band around the geometry’s surface, enabling the use of a face-based neighborhood search (NHS) exclusively for the SDF generation step.
-Afterward, the NHS is no longer required for subsequent steps.
-In the third step, the initial configuration of the boundary particles is generated (orange particles in Fig. (3)).
-To create the boundary particles, the positions of the SDF points located outside the geometry and within a predefined boundary thickness are copied (see [`sample_boundary`](@ref)).
-In the fourth step, the initial configuration of the interior particles (green particles in Fig. (4)) is generated using the hierarchical winding number approach (see [Hierarchical Winding](@ref hierarchical_winding)).
-After steps (1) to (4), the initial configuration of both interior and boundary particles is obtained, as illustrated in Fig. (5).
+The second step involves generating the SDF (see [`SignedDistanceField`](@ref)), which is necessary for the final packing step as it requires a surface detection.
+The SDF is illustrated in Fig. 2, where the distances to the surface of the geometry are visualized as a color map.
+As shown, the SDF is computed only within a narrow band around the geometry’s surface, enabling  a face-based neighborhood search (NHS) to be used exclusively during this step.
+In the third step, the initial configuration of the boundary particles is generated (orange particles in Fig. 3).
+Boundary particles are created by copying the positions of SDF points located outside the geometry but within a predefined boundary thickness (see [`sample_boundary`](@ref)).
+In the fourth step, the initial configuration of the interior particles (green particles in Fig. 4) is generated using the hierarchical winding number approach (see [Hierarchical Winding](@ref hierarchical_winding)).
+After steps **1** through **4**, the initial configuration of both interior and boundary particles is obtained, as illustrated in Fig. 5.
 The interface of the geometry surface is not well resolved with the initial particle configuration.
-Therefore, in the final step, a packing algorithm [Zhu2021](@cite) is applied utilizing the SDF to simultaneously optimize the positions of both interior and boundary particles,
-yielding an isotropic distribution while accurately preserving the geometry surface, as illustrated in Fig. (6).
+Thus, in the final step, a packing algorithm by Zhu et al. [Zhu2021](@cite) is applied utilizing the SDF to simultaneously optimize the positions of both interior and boundary particles,
+yielding an isotropic distribution while accurately preserving the geometry surface, as illustrated in Fig. 6.
 
 ```@raw html
 <div style="display: flex; gap: 16px; flex-wrap: wrap;">
