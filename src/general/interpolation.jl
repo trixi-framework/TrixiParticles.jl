@@ -48,7 +48,7 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
 results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
 
 # output
-(density = ...)
+(computed_density = ...)
 ```
 """
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
@@ -267,7 +267,7 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
 results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], 0.1, semi, ref_system, sol)
 
 # output
-(density = ...)
+(computed_density = ...)
 ```
 """
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
@@ -365,7 +365,7 @@ See also: [`interpolate_points`](@ref), [`interpolate_plane_2d`](@ref),
 results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 
 # output
-(density = ...)
+(computed_density = ...)
 ```
 """
 function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolution;
@@ -441,7 +441,7 @@ points = [1.0 1.0 1.0; 0.5 0.6 0.7]
 results = interpolate_points(points, semi, ref_system, sol)
 
 # output
-(density = ...)
+(computed_density = ...)
 ```
 !!! note
     - This function is particularly useful for analyzing gradients or creating visualizations
