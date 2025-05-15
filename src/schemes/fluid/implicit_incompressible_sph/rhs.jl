@@ -6,8 +6,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::ImplicitIncompressibleSPHSystem,
                    neighbor_system)
-
-    sound_speed = system_sound_speed(particle_system)
+    sound_speed = system_sound_speed(particle_system) #TODO
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -28,8 +27,6 @@ function interact!(dv, v_particle_system, u_particle_system,
         # in this hot loop to avoid bounds checking when extracting particle quantities.
         rho_a = @inbounds particle_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_mean = (rho_a + rho_b) / 2
-
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
@@ -42,10 +39,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Only when the neighbor system is a `BoundarySPHSystem` or a `TotalLagrangianSPHSystem`
         # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
         # the pressure of the fluid particle.
-        p_a, p_b = @inbounds particle_neighbor_pressure(v_particle_system,
-                                                        v_neighbor_system,
-                                                        particle_system, neighbor_system,
-                                                        particle, neighbor)
+        p_a,
+        p_b = @inbounds particle_neighbor_pressure(v_particle_system,
+                                                   v_neighbor_system,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor)
 
         dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
                                             m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,

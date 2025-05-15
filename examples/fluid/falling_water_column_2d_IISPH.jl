@@ -13,8 +13,9 @@ spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
-gravity = 9.81 # gravity verändern
-tspan = (0.0, 0.45)
+
+gravity = 9.81
+tspan = (0.0, 0.35)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (1.0, 1.0)
@@ -23,8 +24,7 @@ tank_size = (2.0, 2.0)
 fluid_density = 1000.0
 
 # TODO: Was machen mit dem sound speed?
-#sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
-sound_speed = 1000.0 
+sound_speed = 1000.0
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio)
@@ -39,16 +39,15 @@ end
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-
+viscosity = ViscosityAdami(; nu=1.0 / 100.0)
 fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity, 
-                                           acceleration=(0.0, -gravity))
-
+                                               smoothing_length, viscosity=viscosity,
+                                               acceleration=(0.0, -gravity);
+                                               min_iterations=2, max_iterations=10)
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = PressureMirroring() #TODO PressureMirroring richtig oder Pressure zeoring oder was ganz anderes???
+boundary_density_calculator = PressureZeroing()
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=nothing,
@@ -68,7 +67,7 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 sol = solve(ode, SymplecticEuler(),
-            dt = 0.001,
+            dt=0.0001,
             save_everystep=false, callback=callbacks);
-plot(sol)
 
+plot(sol)

@@ -98,5 +98,4 @@ sol = solve(ode, RDPK3SpFSAL35(),
             reltol=1e-4, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);
 
-
 plot(sol)

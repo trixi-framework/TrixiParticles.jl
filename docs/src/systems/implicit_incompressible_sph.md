@@ -230,4 +230,4 @@ p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \left( \rho_0 - \rho_i^
 
 @autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "fluid", "implicit_incompressible_sph", "system.jl")]$$
+Pages = [joinpath("schemes", "fluid", "implicit_incompressible_sph", "system.jl")]
