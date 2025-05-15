@@ -1,45 +1,77 @@
-# In this example two circles of water drop to the floor demonstrating the difference
-# between the behavior with and without surface tension modelling.
+# ==========================================================================================
+# 2D Falling Water Spheres Simulation (With and Without Surface Tension)
+#
+# This example simulates two circular water "spheres" falling under gravity.
+# One sphere includes a surface tension model (Akinci et al.), while the other does not.
+# This demonstrates the effect of surface tension on fluid behavior.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
-# ==========================================================================================
-# ==== Resolution
+# ------------------------------------------------------------------------------
+# Resolution Parameters
+# ------------------------------------------------------------------------------
+
+# Particle spacing, determines the resolution of the simulation
 fluid_particle_spacing = 0.005
 
+# Boundary particle layers and spacing ratio for the tank
 boundary_layers = 3
 spacing_ratio = 1
 
-# ==========================================================================================
-# ==== Experiment Setup
-gravity = 9.81
+# ------------------------------------------------------------------------------
+# Experiment Setup
+# ------------------------------------------------------------------------------
+# Gravitational acceleration
+gravity = -9.81
+gravity_vec = (0.0, gravity)
+
+# Simulation time span
 tspan = (0.0, 0.3)
 
-# Boundary geometry and initial fluid particle positions
-initial_fluid_size = (0.0, 0.0)
-tank_size = (2.0, 0.5)
+# Tank dimensions (acts as a floor and side walls, open top)
+# Initial fluid size is (0,0) as fluid is defined by spheres, not a bulk volume.
+tank_initial_fluid_size = (0.0, 0.0)
+tank_dims = (2.0, 0.5) # width, height
 
-fluid_density = 1000.0
-sound_speed = 100
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+# Fluid properties
+fluid_density = 1000.0 # Reference density of water (kg/m^3)
+sound_speed = 100.0    # Speed of sound (m/s)
+
+# Equation of state for the fluid (weakly compressible)
+# Exponent 1 is often used with surface tension models or for less "bouncy" behavior.
+state_equation = StateEquationCole(sound_speed=sound_speed,
+                                   reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+# Setup for the rectangular tank (floor and walls)
+tank = RectangularTank(fluid_particle_spacing, tank_initial_fluid_size, tank_dims,
+                       fluid_density,
+                       n_layers=boundary_layers,
+                       spacing_ratio=spacing_ratio,
+                       faces=(true, true, true, false), # (left, right, bottom, top)
+                       acceleration=gravity_vec,
+                       state_equation=state_equation)
 
+# Define the two water spheres
 sphere_radius = 0.05
+initial_velocity_spheres = (0.0, -3.0) # Falling downwards
 
-sphere1_center = (0.5, 0.2)
-sphere2_center = (1.5, 0.2)
-sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
-                      fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -3.0))
-sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
-                      fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -3.0))
+sphere1_center = (0.5, 0.2) # Center coordinates of the first sphere
+sphere2_center = (1.5, 0.2) # Center coordinates of the second sphere
 
-# ==========================================================================================
-# ==== Fluid
+# Create sphere shapes. `VoxelSphere` creates a discretized sphere.
+sphere1_particles = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
+                                fluid_density, sphere_type=VoxelSphere(),
+                                velocity=initial_velocity_spheres)
+sphere2_particles = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
+                                fluid_density, sphere_type=VoxelSphere(),
+                                velocity=initial_velocity_spheres)
+
+# ------------------------------------------------------------------------------
+# Fluid Systems Setup
+# ------------------------------------------------------------------------------
 
 # Using a smoothing_length of exactly 1.0 * fluid_particle is necessary for this model to be accurate.
 # This yields some numerical issues though which can be circumvented by subtracting eps().
@@ -48,52 +80,78 @@ fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
-nu = 0.005
-alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
-viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
+# Physical kinematic viscosity (nu()
+physical_nu = 0.005
 
-sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,
-                                                     sound_speed, viscosity=viscosity,
-                                                     density_calculator=ContinuityDensity(),
-                                                     acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
-                                                     reference_particle_spacing=fluid_particle_spacing)
+# way to calculate alpha from physical viscosity as provided by Monaghan
+alpha_viscosity = 8 * physical_nu / (fluid_smoothing_length * sound_speed)
+viscosity_model = ArtificialViscosityMonaghan(alpha=alpha_viscosity, beta=0.0)
 
-sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
-                                     state_equation, fluid_smoothing_kernel,
-                                     fluid_smoothing_length, viscosity=viscosity,
-                                     density_diffusion=density_diffusion,
-                                     acceleration=(0.0, -gravity))
+# Density diffusion model used for the second sphere
+density_diffusion_model = DensityDiffusionAntuono(sphere2_particles, delta=0.1)
 
-# ==========================================================================================
-# ==== Boundary
+# System 1: Water sphere WITH surface tension (using Entropically Damped SPH)
+surface_tension_model_akinci = SurfaceTensionAkinci(surface_tension_coefficient=0.05)
+sphere1_system_surftens = EntropicallyDampedSPHSystem(sphere1_particles,
+                                                      fluid_smoothing_kernel,
+                                                      fluid_smoothing_length,
+                                                      sound_speed,
+                                                      viscosity=viscosity_model,
+                                                      density_calculator=ContinuityDensity(),
+                                                      acceleration=gravity_vec,
+                                                      surface_tension=surface_tension_model_akinci,
+                                                      reference_particle_spacing=fluid_particle_spacing)
+
+# System 2: Water sphere WITHOUT surface tension (using standard Weakly Compressible SPH)
+sphere2_system_nosurftens = WeaklyCompressibleSPHSystem(sphere2_particles,
+                                                        fluid_density_calculator,
+                                                        state_equation,
+                                                        fluid_smoothing_kernel,
+                                                        fluid_smoothing_length,
+                                                        viscosity=viscosity_model,
+                                                        density_diffusion=density_diffusion_model,
+                                                        acceleration=gravity_vec,
+                                                        reference_particle_spacing=fluid_particle_spacing)
+
+# ------------------------------------------------------------------------------
+# Boundary System Setup
+# ------------------------------------------------------------------------------
 boundary_density_calculator = AdamiPressureExtrapolation()
-wall_viscosity = nu
+
+# Viscosity for wall-fluid interaction (Adami boundary viscosity)
+wall_kinematic_viscosity = physical_nu
+boundary_viscosity_model = ViscosityAdami(nu=wall_kinematic_viscosity)
+
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=wall_viscosity),
+                                             fluid_smoothing_kernel,
+                                             fluid_smoothing_length,
+                                             viscosity=boundary_viscosity_model,
                                              reference_particle_spacing=fluid_particle_spacing)
 
+# Adhesion coefficient can model how much fluid "sticks" to the boundary.
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
                                     adhesion_coefficient=1.0)
 
-# ==========================================================================================
-# ==== Simulation
-semi = Semidiscretization(sphere_surface_tension, sphere, boundary_system)
+# ------------------------------------------------------------------------------
+# Simulation
+# ------------------------------------------------------------------------------
+
+semi = Semidiscretization(sphere1_system_surftens, sphere2_system_nosurftens,
+                          boundary_system,
+                          parallelization_backend=PolyesterBackend())
+
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=50)
+info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out",
                                          prefix="", write_meta_data=true)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-7, # Default abstol is 1e-6
-            reltol=1e-4, # Default reltol is 1e-3
-            save_everystep=false, callback=callbacks);
+            abstol=1e-7, # Absolute tolerance (default: 1e-6)
+            reltol=1e-4, # Relative tolerance (default: 1e-3)
+            save_everystep=false,
+            callback=callbacks)
