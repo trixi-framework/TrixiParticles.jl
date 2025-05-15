@@ -4,6 +4,14 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.3.1
+
+### Features
+
+- With all CPU backends, a new array type is used for the integration array, which defines
+  broadcasting to be multithreaded, leading to speedups of up to 5x with large thread counts
+  when combined with thread pinning (#722).
+
 ## Version 0.3
 
 ### API Changes
