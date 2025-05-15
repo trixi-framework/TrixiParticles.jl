@@ -50,15 +50,6 @@ trixi2vtk(boundary_sampled, filename = "boundary")
 # and can therefore arbitrarily be set to 1.
 background_pressure = 1.0
 
-<<<<<<< HEAD
-packing_system = ParticlePackingSystem(shape_sampled;
-                                       signed_distance_field, tlsph = tlsph,
-                                       background_pressure)
-
-boundary_system = ParticlePackingSystem(boundary_sampled;
-                                        is_boundary = true, signed_distance_field,
-                                        tlsph = tlsph, boundary_compress_factor = 0.8,
-=======
 smoothing_length = 0.8 * particle_spacing
 packing_system = ParticlePackingSystem(shape_sampled; smoothing_length=smoothing_length,
                                        signed_distance_field, tlsph=tlsph,
@@ -67,7 +58,6 @@ packing_system = ParticlePackingSystem(shape_sampled; smoothing_length=smoothing
 boundary_system = ParticlePackingSystem(boundary_sampled; smoothing_length=smoothing_length,
                                         is_boundary=true, signed_distance_field,
                                         tlsph=tlsph, boundary_compress_factor=0.8,
->>>>>>> main
                                         background_pressure)
 
 # ==========================================================================================
@@ -79,13 +69,8 @@ tspan = (0, 10.0)
 ode = semidiscretize(semi, tspan)
 
 # Use this callback to stop the simulation when it is sufficiently close to a steady state
-<<<<<<< HEAD
-steady_state = SteadyStateReachedCallback(; interval = 1, interval_size = 10,
-                                          abstol = 1.0e-5, reltol = 1.0e-3)
-=======
 steady_state = SteadyStateReachedCallback(; interval=10, interval_size=200,
                                           abstol=1.0e-7, reltol=1.0e-6)
->>>>>>> main
 
 info_callback = InfoCallback(interval = 50)
 
@@ -107,10 +92,6 @@ sol = solve(ode, RDPK3SpFSAL35();
 packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 
-<<<<<<< HEAD
-trixi2vtk(packed_ic, filename = "initial_condition_packed")
-trixi2vtk(packed_boundary_ic, filename = "initial_condition_boundary_packed")
-=======
 trixi2vtk(packed_ic, filename="initial_condition_packed")
 trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary_packed")
 
@@ -119,4 +100,3 @@ p1 = plot(shape_sampled, markerstrokewidth=1, label=nothing, layout=(1, 2))
 plot!(p1, shape, color=nothing, label=nothing, linewidth=2, subplot=1)
 plot!(p1, packed_ic, markerstrokewidth=1, label=nothing, subplot=2)
 plot!(p1, shape, color=nothing, label=nothing, linewidth=2, subplot=2, size=(850, 400))
->>>>>>> main

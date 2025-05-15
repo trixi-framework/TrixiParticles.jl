@@ -198,14 +198,8 @@ Convert coordinate data to VTK format.
 # Returns
 - `file::AbstractString`: Path to the generated VTK file.
 """
-<<<<<<< HEAD:src/visualization/write2vtk.jl
-function trixi2vtk(coordinates; output_directory = "out", prefix = "",
-                   filename = "coordinates",
-                   custom_quantities...)
-=======
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
                    particle_spacing=(-ones(size(coordinates, 2))), custom_quantities...)
->>>>>>> main:src/io/write_vtk.jl
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
            joinpath(output_directory, "$(prefix)_$filename")
@@ -253,15 +247,10 @@ function trixi2vtk(initial_condition::InitialCondition; output_directory = "out"
     (; coordinates, velocity, density, mass, pressure) = initial_condition
 
     return trixi2vtk(coordinates; output_directory, prefix, filename,
-<<<<<<< HEAD:src/visualization/write2vtk.jl
-                     density = density, initial_velocity = velocity, mass = mass,
-                     pressure = pressure, custom_quantities...)
-=======
                      density=density, initial_velocity=velocity, mass=mass,
                      particle_spacing=(initial_condition.particle_spacing .*
                                        ones(nparticles(initial_condition))),
                      pressure=pressure, custom_quantities...)
->>>>>>> main:src/io/write_vtk.jl
 end
 
 function write2vtk!(vtk, v, u, t, system; write_meta_data = true)
@@ -270,9 +259,6 @@ function write2vtk!(vtk, v, u, t, system; write_meta_data = true)
     return vtk
 end
 
-<<<<<<< HEAD:src/visualization/write2vtk.jl
-function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data = true)
-=======
 function write2vtk!(vtk, v, u, t, system::DEMSystem; write_meta_data=true)
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["mass"] = [hydrodynamic_mass(system, particle)
@@ -283,7 +269,6 @@ function write2vtk!(vtk, v, u, t, system::DEMSystem; write_meta_data=true)
 end
 
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
->>>>>>> main:src/io/write_vtk.jl
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
     vtk["density"] = current_density(v, system)

@@ -6,11 +6,6 @@
         mass = [1.25, 1.5]
         density = [990.0, 1000.0]
         initial_condition = InitialCondition(; coordinates, mass, density)
-<<<<<<< HEAD
-        system = DEMSystem(initial_condition, 2 * 10^5, 10e9, 0.3,
-                           acceleration = (0.0, 10.0))
-=======
->>>>>>> main
 
         # Create a Hertz contact model (only elastic modulus and Poisson's ratio).
         contact_model = HertzContactModel(1.0e10, 0.3)

@@ -138,11 +138,7 @@ boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
-<<<<<<< HEAD
-                          boundary_system, parallelization_backend = true)
-=======
                           boundary_system, parallelization_backend=PolyesterBackend())
->>>>>>> main
 
 ode = semidiscretize(semi, tspan)
 

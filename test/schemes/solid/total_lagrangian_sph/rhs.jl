@@ -90,20 +90,6 @@
             TrixiParticles.compact_support(::MockSystem, ::MockSystem) = 1000.0
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
 
-<<<<<<< HEAD
-            function TrixiParticles.get_neighborhood_search(system, neighbor_system,
-                                                            semi::Val{:semi_solid_interact})
-                return TrivialNeighborhoodSearch{2}(search_radius = 1000.0,
-                                                    eachpoint = eachneighbor)
-            end
-            TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
-            Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
-            function TrixiParticles.smoothing_length(::MockSystem, _)
-                Val{:mock_smoothing_length}()
-            end
-
-=======
->>>>>>> main
             #### Verification
             backends = [
                 SerialBackend(), # CPU code

@@ -68,17 +68,6 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     update_callback_used           :: UCU
     cache                          :: C
 
-<<<<<<< HEAD
-    function ParticlePackingSystem(shape::InitialCondition;
-                                   signed_distance_field::SignedDistanceField,
-                                   smoothing_kernel = SchoenbergCubicSplineKernel{ndims(shape)}(),
-                                   smoothing_length = 1.2 * shape.particle_spacing,
-                                   is_boundary = false, boundary_compress_factor = 1.0,
-                                   neighborhood_search = GridNeighborhoodSearch{ndims(shape)}(),
-                                   background_pressure, tlsph = true)
-        NDIMS = ndims(shape)
-        ELTYPE = eltype(shape)
-=======
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
@@ -104,7 +93,6 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                                                  buffer, update_callback_used, cache)
     end
 end
->>>>>>> main
 
 function ParticlePackingSystem(shape::InitialCondition;
                                signed_distance_field::Union{SignedDistanceField,
@@ -229,14 +217,9 @@ end
 
 update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
-<<<<<<< HEAD
-function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem, semi;
-                    write_meta_data = true)
-=======
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     vtk["velocity"] = [advection_velocity(v, system, particle)
                        for particle in active_particles(system)]
->>>>>>> main
     if write_meta_data
         vtk["signed_distances"] = system.signed_distances
     end

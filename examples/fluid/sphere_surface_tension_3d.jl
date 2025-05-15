@@ -17,16 +17,8 @@ nu = 0.04
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "sphere_surface_tension_2d.jl"),
-<<<<<<< HEAD
-              surface_tension_coefficient = 0.5, dt = 0.25,
-              tspan = (0.0, 100.0), nu = nu, smoothing_length = 3.0 * particle_spacing,
-              fluid_smoothing_kernel = WendlandC2Kernel{3}(),
-              particle_spacing = particle_spacing, sound_speed = sound_speed,
-              fluid_density = fluid_density, fluid_size = fluid_size)
-=======
               surface_tension_coefficient=0.5, dt=0.25,
               tspan=(0.0, 100.0), nu=nu, smoothing_length=1.5 * particle_spacing,
               fluid_smoothing_kernel=WendlandC2Kernel{3}(),
               particle_spacing=particle_spacing, sound_speed=sound_speed,
               fluid_density=fluid_density, fluid_size=fluid_size)
->>>>>>> main

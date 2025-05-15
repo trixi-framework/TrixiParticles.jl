@@ -29,53 +29,6 @@ struct SignedDistanceField{ELTYPE, P, D}
     max_signed_distance :: ELTYPE
     boundary_packing    :: Bool
     particle_spacing    :: ELTYPE
-<<<<<<< HEAD
-
-    function SignedDistanceField(geometry, particle_spacing;
-                                 points = nothing,
-                                 max_signed_distance = 4 * particle_spacing,
-                                 use_for_boundary_packing = false)
-        NDIMS = ndims(geometry)
-        ELTYPE = eltype(max_signed_distance)
-
-        sdf_factor = use_for_boundary_packing ? 2 : 1
-
-        search_radius = sdf_factor * max_signed_distance
-
-        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
-
-        initialize!(nhs, geometry)
-
-        if isnothing(points)
-            min_corner = geometry.min_corner .- search_radius
-            max_corner = geometry.max_corner .+ search_radius
-
-            n_particles_per_dimension = Tuple(ceil.(Int,
-                                                    (max_corner .- min_corner) ./
-                                                    particle_spacing))
-
-            grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                            min_corner; tlsph = true)
-
-            points = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
-        end
-
-        positions = copy(points)
-
-        # This gives a performance boost for large geometries
-        delete_positions_in_empty_cells!(positions, nhs)
-
-        normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(positions))
-        distances = fill(Inf, length(positions))
-
-        calculate_signed_distances!(positions, distances, normals,
-                                    geometry, sdf_factor, max_signed_distance, nhs)
-
-        return new{NDIMS, ELTYPE}(positions, normals, distances, max_signed_distance,
-                                  use_for_boundary_packing, particle_spacing)
-    end
-=======
->>>>>>> main
 end
 
 function SignedDistanceField(geometry, particle_spacing;

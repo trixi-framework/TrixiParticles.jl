@@ -5,17 +5,10 @@
 
     @testset verbose=true "Solid" begin
         @trixi_testset "solid/oscillating_beam_2d.jl" begin
-<<<<<<< HEAD
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "solid",
-                                                    "oscillating_beam_2d.jl"),
-                                           tspan = (0.0, 0.1))
-=======
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "solid",
                                                       "oscillating_beam_2d.jl"),
                                              tspan=(0.0, 0.1))
->>>>>>> main
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
@@ -23,72 +16,41 @@
 
     @testset verbose=true "FSI" begin
         @trixi_testset "fsi/falling_water_column_2d.jl" begin
-<<<<<<< HEAD
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "fsi",
-                                                    "falling_water_column_2d.jl"),
-                                           tspan = (0.0, 0.4))
-=======
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
                                                       "falling_water_column_2d.jl"),
                                              tspan=(0.0, 0.4))
->>>>>>> main
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl" begin
             # Use rounded dimensions to avoid warnings
-<<<<<<< HEAD
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "fsi",
-                                                    "dam_break_plate_2d.jl"),
-                                           initial_fluid_size = (0.15, 0.29),
-                                           tspan = (0.0, 0.4),
-                                           dtmax = 1e-3)
-=======
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
                                                       "dam_break_plate_2d.jl"),
                                              initial_fluid_size=(0.15, 0.29),
                                              tspan=(0.0, 0.4),
                                              dtmax=1e-3)
->>>>>>> main
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
 
         @trixi_testset "fsi/dam_break_gate_2d.jl" begin
-<<<<<<< HEAD
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "fsi",
-                                                    "dam_break_gate_2d.jl"),
-                                           tspan = (0.0, 0.4),
-                                           dtmax = 1e-3)
-=======
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
                                                       "dam_break_gate_2d.jl"),
                                              tspan=(0.0, 0.4),
                                              dtmax=1e-3)
->>>>>>> main
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
 
         @trixi_testset "fsi/falling_spheres_2d.jl" begin
-<<<<<<< HEAD
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "fsi",
-                                                    "falling_spheres_2d.jl"),
-                                           tspan = (0.0, 1.0))
-=======
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
                                                       "falling_spheres_2d.jl"),
                                              tspan=(0.0, 1.0))
->>>>>>> main
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
@@ -125,17 +87,10 @@
 
     @testset verbose=true "Postprocessing" begin
         @trixi_testset "postprocessing/interpolation_plane.jl" begin
-<<<<<<< HEAD
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "postprocessing",
-                                                    "interpolation_plane.jl"),
-                                           tspan = (0.0, 0.01)) [
-=======
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "postprocessing",
                                                       "interpolation_plane.jl"),
                                              tspan=(0.0, 0.01)) [
->>>>>>> main
                 r"WARNING: importing deprecated binding Makie.*\n",
                 r"WARNING: using deprecated binding Colors.*\n",
                 r"WARNING: using deprecated binding PlotUtils.*\n",
@@ -184,14 +139,6 @@
         end
     end
 
-<<<<<<< HEAD
-@testset verbose=true "DEM" begin
-    @trixi_testset "dem/rectangular_tank_2d.jl" begin
-        @test_nowarn_mod trixi_include(@__MODULE__,
-                                       joinpath(examples_dir(), "dem",
-                                                "rectangular_tank_2d.jl"),
-                                       tspan = (0.0, 0.1))
-=======
     @testset verbose=true "DEM" begin
         @trixi_testset "dem/rectangular_tank_2d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
@@ -207,7 +154,6 @@
                                          joinpath(examples_dir(), "dem",
                                                   "collapsing_sand_pile_3d.jl"),
                                          tspan=(0.0, 0.1))
->>>>>>> main
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end

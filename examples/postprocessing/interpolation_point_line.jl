@@ -13,13 +13,8 @@ position_x = tank_size[1] / 2
 # with the original kernel and `smoothing_length`.
 println(interpolate_points([position_x; 0.01;;], semi, fluid_system, sol))
 # Or with an increased `smoothing_length` smoothing the result
-<<<<<<< HEAD
-println(interpolate_point([position_x, 0.01], semi, fluid_system, sol,
-                          smoothing_length = 2.0 * smoothing_length))
-=======
 println(interpolate_points([position_x; 0.01;;], semi, fluid_system, sol,
                            smoothing_length=2.0 * smoothing_length))
->>>>>>> main
 
 # A point outside of the domain will result in properties with NaN values.
 # On the boundary a result can still be obtained.

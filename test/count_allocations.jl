@@ -30,14 +30,9 @@ end
 
 # No update
 @inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
-<<<<<<< HEAD
-                                        points_moving = (true, true),
-                                        parallelization_backend = false)
-=======
                                         points_moving=(true, true),
                                         eachindex_y=eachindex(y),
                                         parallelization_backend=SerialBackend())
->>>>>>> main
     return search
 end
 
