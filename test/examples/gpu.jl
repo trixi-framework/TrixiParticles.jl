@@ -29,11 +29,11 @@ end
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin
             if Main.supports_double_precision
-                @test_nowarn_mod trixi_include(@__MODULE__,
-                                               joinpath(examples_dir(), "fluid",
-                                                        "dam_break_2d_gpu.jl"),
-                                               tspan=(0.0, 0.1),
-                                               parallelization_backend=Main.parallelization_backend) [
+                @trixi_test_nowarn trixi_include(@__MODULE__,
+                                                 joinpath(examples_dir(), "fluid",
+                                                          "dam_break_2d_gpu.jl"),
+                                                 tspan=(0.0, 0.1),
+                                                 parallelization_backend=Main.parallelization_backend) [
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
@@ -69,13 +69,13 @@ end
                     println("═"^100)
                     println("$test_description")
 
-                    @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
-                                                                   joinpath(examples_dir(),
-                                                                            "fluid",
-                                                                            "dam_break_2d_gpu.jl");
-                                                                   tspan=(0.0f0, 0.1f0),
-                                                                   parallelization_backend=Main.parallelization_backend,
-                                                                   kwargs...) [
+                    @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                                     joinpath(examples_dir(),
+                                                                              "fluid",
+                                                                              "dam_break_2d_gpu.jl");
+                                                                     tspan=(0.0f0, 0.1f0),
+                                                                     parallelization_backend=Main.parallelization_backend,
+                                                                     kwargs...) [
                         r"┌ Info: The desired tank length in y-direction .*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
@@ -100,15 +100,15 @@ end
                                                          boundary_particle_spacing,
                                                          tank.boundary.mass)
 
-            @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
-                                                           joinpath(examples_dir(),
-                                                                    "fluid",
-                                                                    "dam_break_2d_gpu.jl");
-                                                           tspan=(0.0f0, 0.1f0),
-                                                           boundary_layers=1,
-                                                           spacing_ratio=3,
-                                                           boundary_model=boundary_model,
-                                                           parallelization_backend=Main.parallelization_backend) [
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "dam_break_2d_gpu.jl");
+                                                             tspan=(0.0f0, 0.1f0),
+                                                             boundary_layers=1,
+                                                             spacing_ratio=3,
+                                                             boundary_model=boundary_model,
+                                                             parallelization_backend=Main.parallelization_backend) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
@@ -241,13 +241,13 @@ end
                                                        parallelization_backend=Main.parallelization_backend)
 
                     # Run the simulation
-                    @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
-                                                                   joinpath(examples_dir(),
-                                                                            "fluid",
-                                                                            "hydrostatic_water_column_2d.jl");
-                                                                   semi=semi_fullgrid,
-                                                                   tspan=(0.0f0, 0.1f0),
-                                                                   kwargs...)
+                    @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                                     joinpath(examples_dir(),
+                                                                              "fluid",
+                                                                              "hydrostatic_water_column_2d.jl");
+                                                                     semi=semi_fullgrid,
+                                                                     tspan=(0.0f0, 0.1f0),
+                                                                     kwargs...)
 
                     @test sol.retcode == ReturnCode.Success
                     backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -275,11 +275,12 @@ end
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
 
-            @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
-                                                           joinpath(examples_dir(), "fluid",
-                                                                    "periodic_channel_2d.jl"),
-                                                           tspan=(0.0f0, 0.1f0),
-                                                           semi=semi_fullgrid)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "periodic_channel_2d.jl"),
+                                                             tspan=(0.0f0, 0.1f0),
+                                                             semi=semi_fullgrid)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -307,7 +308,7 @@ end
 
             # steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
 
-            # @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
+            # @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
             #                                                joinpath(examples_dir(), "fluid",
             #                                                         "pipe_flow_2d.jl"),
             #                                                extra_callback=steady_state_reached,
@@ -344,11 +345,12 @@ end
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
 
-            @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
-                                                           joinpath(examples_dir(), "solid",
-                                                                    "oscillating_beam_2d.jl"),
-                                                           tspan=(0.0f0, 0.1f0),
-                                                           semi=semi_fullgrid)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "solid",
+                                                                      "oscillating_beam_2d.jl"),
+                                                             tspan=(0.0f0, 0.1f0),
+                                                             semi=semi_fullgrid)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -376,13 +378,13 @@ end
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
 
-            @test_nowarn_mod trixi_include_changeprecision(Float32, @__MODULE__,
-                                                           joinpath(examples_dir(), "fsi",
-                                                                    "dam_break_gate_2d.jl"),
-                                                           tspan=(0.0f0, 0.4f0),
-                                                           semi=semi_fullgrid,
-                                                           # Needs <1500 steps on the CPU
-                                                           maxiters=1500)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(), "fsi",
+                                                                      "dam_break_gate_2d.jl"),
+                                                             tspan=(0.0f0, 0.4f0),
+                                                             semi=semi_fullgrid,
+                                                             # Needs <1500 steps on the CPU
+                                                             maxiters=1500)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
