@@ -269,7 +269,7 @@
     end
 
     @trixi_testset "fluid/periodic_channel_2d.jl with PST" begin
-        @test_nowarn_mod trixi_include(@__MODULE__,
+        @trixi_test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
                                                 "periodic_channel_2d.jl"),
                                        tspan=(0.0, 0.2),
@@ -279,7 +279,7 @@
     end
 
     @trixi_testset "fluid/periodic_channel_2d.jl with PST and TIC" begin
-        @test_nowarn_mod trixi_include(@__MODULE__,
+        @trixi_test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
                                                 "periodic_channel_2d.jl"),
                                        tspan=(0.0, 0.2),
