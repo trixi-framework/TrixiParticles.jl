@@ -144,7 +144,6 @@ boundary_model_cavity = BoundaryModelDummyParticles(cavity.boundary.density,
                                                     viscosity=viscosity_model,
                                                     reference_particle_spacing=particle_spacing)
 
-
 boundary_model_lid = BoundaryModelDummyParticles(lid_particles.density,
                                                  lid_particles.mass,
                                                  boundary_density_calculator,
@@ -155,7 +154,6 @@ boundary_model_lid = BoundaryModelDummyParticles(lid_particles.density,
                                                  reference_particle_spacing=particle_spacing)
 
 boundary_system_cavity = BoundarySPHSystem(cavity.boundary, boundary_model_cavity)
-
 
 boundary_system_lid = BoundarySPHSystem(lid_particles, boundary_model_lid,
                                         movement=lid_movement)

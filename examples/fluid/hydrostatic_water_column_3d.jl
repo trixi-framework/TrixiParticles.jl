@@ -43,5 +43,4 @@ trixi_include(@__MODULE__,
               tank_size=tank_size_3d,
               system_acceleration=system_acceleration_3d,
               smoothing_kernel=smoothing_kernel_3d,
-              tspan=tspan_3d
-              )
+              tspan=tspan_3d)
