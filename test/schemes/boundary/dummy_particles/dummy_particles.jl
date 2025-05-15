@@ -88,7 +88,7 @@
                     # Reset cache and perform pressure extrapolation
                     TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                                 boundary_system.boundary_model.viscosity)
-                    TrixiParticles.boundary_pressure_extrapolation!(Val{true},
+                    TrixiParticles.boundary_pressure_extrapolation!(Val(true),
                                                                     boundary_model,
                                                                     boundary_system,
                                                                     fluid_system,
@@ -138,7 +138,7 @@
                     # Reset cache and perform pressure extrapolation
                     TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                                 boundary_system.boundary_model.viscosity)
-                    TrixiParticles.boundary_pressure_extrapolation!(Val{true},
+                    TrixiParticles.boundary_pressure_extrapolation!(Val(true),
                                                                     boundary_model,
                                                                     boundary_system,
                                                                     fluid_system,
@@ -232,7 +232,7 @@
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         viscosity)
 
-            TrixiParticles.boundary_pressure_extrapolation!(Val{true}, boundary_model,
+            TrixiParticles.boundary_pressure_extrapolation!(Val(true), boundary_model,
                                                             boundary_system,
                                                             fluid_system1,
                                                             tank1.boundary.coordinates,
@@ -271,7 +271,7 @@
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         viscosity)
 
-            TrixiParticles.boundary_pressure_extrapolation!(Val{true}, boundary_model,
+            TrixiParticles.boundary_pressure_extrapolation!(Val(true), boundary_model,
                                                             boundary_system,
                                                             fluid_system2,
                                                             tank2.boundary.coordinates,
