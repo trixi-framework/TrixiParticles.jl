@@ -49,8 +49,10 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
               viscosity=water_viscosity, smoothing_length=smoothing_length,
               gravity=gravity, tspan=tspan, density_diffusion=nothing,
-              sound_speed=sound_speed, exponent=7, reference_particle_spacing=fluid_particle_spacing,
-              tank_size=(floor(5.366 * tank_height / fluid_particle_spacing) * fluid_particle_spacing,
+              sound_speed=sound_speed, exponent=7,
+              reference_particle_spacing=fluid_particle_spacing,
+              tank_size=(floor(5.366 * tank_height / fluid_particle_spacing) *
+                         fluid_particle_spacing,
                          2.6 * tank_height))
 
 # ------------------------------------------------------------------------------

@@ -11,7 +11,6 @@
 # This example sets up a 2D dam break simulation using a δ-SPH model.
 ################################################################################
 
-
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -39,14 +38,15 @@ tspan = (0.0, 5.7 / sqrt(gravity))
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (initial_water_width, initial_water_height)
-tank_size = (floor(5.366 * initial_water_height / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
+tank_size = (floor(5.366 * initial_water_height / boundary_particle_spacing) *
+             boundary_particle_spacing, 4.0)
 
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * initial_water_height)
 state_equation = StateEquationCole(; sound_speed,
-                                     reference_density=fluid_density,
-                                     exponent=1,
-                                     clip_negative_pressure=false)
+                                   reference_density=fluid_density,
+                                   exponent=1,
+                                   clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers,
