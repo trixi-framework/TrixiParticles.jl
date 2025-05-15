@@ -45,8 +45,10 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         # Set zero
         correction_matrix = zero(SMatrix{ndims(system) + 1, ndims(system) + 1,
                                          eltype(system)})
-        # extrapolated_pressure_correction = zero(SVector{ndims(system) + 1, eltype(system)})
+
         extrapolated_density_correction = zero(SVector{ndims(system) + 1, eltype(system)})
+
+        extrapolated_pressure_correction = zero(SVector{ndims(system) + 1, eltype(system)})
 
         extrapolated_velocity_correction = zero(SMatrix{ndims(system), ndims(system) + 1,
                                                         eltype(system)})
@@ -79,9 +81,9 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 
                 correction_matrix += L
 
-                # if !prescribed_pressure
-                #     extrapolated_pressure_correction += pressure_b * R
-                # end
+                if !prescribed_pressure && fluid_system isa EntropicallyDampedSPHSystem
+                    extrapolated_pressure_correction += pressure_b * R
+                end
 
                 if !prescribed_velocity
                     extrapolated_velocity_correction += v_b * R'
@@ -124,7 +126,6 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             end
         end
 
-        # Unlike Tafuni et al. (2018), we calculate the density using the inverse state-equation
         if prescribed_density
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)
@@ -138,8 +139,13 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         if prescribed_pressure
             pressure[particle] = reference_value(reference_pressure, pressure[particle],
                                                  particle_coords, t)
-        else
+        elseif fluid_system isa WeaklyCompressibleSPHSystem
             pressure[particle] = state_equation(density[particle])
+        else
+            f_d = L_inv * extrapolated_pressure_correction
+            df_d = f_d[two_to_end]
+
+            pressure[particle] = f_d[1] + dot(pos_diff, df_d)
         end
     end
 
