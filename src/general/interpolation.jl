@@ -512,9 +512,9 @@ end
 
     n_points = size(point_coords, 2)
     ELTYPE = eltype(point_coords)
-    interpolated_density = zeros(ELTYPE, n_points)
+    computed_density = zeros(ELTYPE, n_points)
     other_density = zeros(ELTYPE, n_points)
-    shepard_coefficient = zeros(ELTYPE, n_points)
+    shepard_weighting = zeros(ELTYPE, n_points)
     neighbor_count = zeros(Int, n_points)
 
     cache = create_cache_interpolation(ref_system, n_points)
@@ -541,12 +541,11 @@ end
             W_a = kernel(ref_smoothing_kernel, distance, smoothing_length)
 
             if system_id == ref_id
-                interpolated_density[point] += m_a * W_a
-                volume = m_a / current_density(v, neighbor_system, neighbor)
-                shepard_coefficient[point] += volume * W_a
+                computed_density[point] += m_a * W_a
+                shepard_weighting[point] += W_a
 
                 interpolate_system!(cache, v, neighbor_system,
-                                    point, neighbor, volume, W_a, clip_negative_pressure)
+                                    point, neighbor, W_a, clip_negative_pressure)
             else
                 other_density[point] += m_a * W_a
             end
@@ -556,10 +555,10 @@ end
     end
 
     @threaded parallelization_backend for point in axes(point_coords, 2)
-        if other_density[point] > interpolated_density[point] ||
-           shepard_coefficient[point] < eps()
+        if other_density[point] > computed_density[point] ||
+           shepard_weighting[point] < eps()
             # Return NaN values that can be filtered out in ParaView
-            interpolated_density[point] = NaN
+            computed_density[point] = NaN
             neighbor_count[point] = 0
 
             foreach(cache) do field
@@ -570,27 +569,26 @@ end
                 end
             end
         else
-            # Normalize all quantities by the shepard coefficient
-            interpolated_density[point] /= shepard_coefficient[point]
-
+            # Normalize all quantities by the shepard weighting
             foreach(cache) do field
                 if field isa AbstractVector
-                    field[point] /= shepard_coefficient[point]
+                    field[point] /= shepard_weighting[point]
                 else
-                    field[:, point] ./= shepard_coefficient[point]
+                    field[:, point] ./= shepard_weighting[point]
                 end
             end
         end
     end
 
-    return (; density=interpolated_density, neighbor_count, point_coords, cache...)
+    return (; computed_density=computed_density, neighbor_count, point_coords, cache...)
 end
 
 @inline function create_cache_interpolation(ref_system::FluidSystem, n_points)
     velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
     pressure = zeros(eltype(ref_system), n_points)
+    density = zeros(eltype(ref_system), n_points)
 
-    return (; velocity, pressure)
+    return (; velocity, pressure, density)
 end
 
 @inline function create_cache_interpolation(ref_system::SolidSystem, n_points)
@@ -604,17 +602,20 @@ end
 end
 
 @inline function interpolate_system!(cache, v, system::FluidSystem,
-                                     point, neighbor, volume, W_a, clip_negative_pressure)
+                                     point, neighbor, W_a, clip_negative_pressure)
     velocity = current_velocity(v, system, neighbor)
     for i in axes(cache.velocity, 1)
-        cache.velocity[i, point] += velocity[i] * (volume * W_a)
+        cache.velocity[i, point] += velocity[i] * W_a
     end
 
     pressure = current_pressure(v, system, neighbor)
     if clip_negative_pressure
         pressure = max(zero(eltype(pressure)), pressure)
     end
-    cache.pressure[point] += pressure * (volume * W_a)
+    cache.pressure[point] += pressure * W_a
+
+    density = current_density(v, system, neighbor)
+    cache.density[point] += density * W_a
 
     return cache
 end
@@ -623,15 +624,15 @@ end
                                      point, neighbor, volume, W_a, clip_negative_pressure)
     velocity = current_velocity(v, system, neighbor)
     for i in axes(cache.velocity, 1)
-        cache.velocity[i, point] += velocity[i] * (volume * W_a)
+        cache.velocity[i, point] += velocity[i] * W_a
     end
 
-    cache.jacobian[point] += det(deformation_gradient(system, neighbor)) * (volume * W_a)
-    cache.von_mises_stress[point] += von_mises_stress(system) * (volume * W_a)
+    cache.jacobian[point] += det(deformation_gradient(system, neighbor)) * W_a
+    cache.von_mises_stress[point] += von_mises_stress(system) * W_a
 
     sigma = cauchy_stress(system)
     for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)
-        cache.cauchy_stress[i, j, point] += sigma[i, j, neighbor] * (volume * W_a)
+        cache.cauchy_stress[i, j, point] += sigma[i, j, neighbor] * W_a
     end
 
     return cache
