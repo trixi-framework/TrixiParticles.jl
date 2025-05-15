@@ -13,7 +13,7 @@ const cylinder_diameter = 0.1
 
 factor_D = 0.08
 
-const particle_spacing = factor_D * cylinder_diameter
+particle_spacing = factor_D * cylinder_diameter
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
