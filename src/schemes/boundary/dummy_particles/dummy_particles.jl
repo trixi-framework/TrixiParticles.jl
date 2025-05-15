@@ -414,25 +414,15 @@ function compute_pressure!(boundary_model,
         n_boundary_particles = nparticles(system)
         n_fluid_particles = nparticles(neighbor_system)
         speedup = ceil(Int, Threads.nthreads() / 2)
-        parallelize = system_coords isa AbstractGPUArray ||
-                      n_boundary_particles < speedup * n_fluid_particles
-        if parallelize || !allow_loop_flipping
-            # Loop over boundary particles and then the neighboring fluid particles
-            # to extrapolate fluid pressure to the boundaries.
-            boundary_pressure_extrapolation!(boundary_model, system,
-                                             neighbor_system,
-                                             system_coords, neighbor_coords, v,
-                                             v_neighbor_system, semi)
-        else
-            # Loop over fluid particles and then the neighboring boundary particles
-            # to extrapolate fluid pressure to the boundaries.
-            # Note that this needs to be serial, as we are writing into the same
-            # pressure entry from different loop iterations.
-            boundary_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                      neighbor_system,
-                                                      system_coords, neighbor_coords, v,
-                                                      v_neighbor_system, semi)
-        end
+        is_gpu = system_coords isa AbstractGPUArray
+        condition_boundary = n_boundary_particles < speedup * n_fluid_particles
+        parallelize = is_gpu || condition_boundary || !allow_loop_flipping
+
+        # Loop over boundary particles and then the neighboring fluid particles
+        # to extrapolate fluid pressure to the boundaries.
+        boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
+                                         neighbor_system, system_coords, neighbor_coords, v,
+                                         v_neighbor_system, semi)
 
         @threaded semi for particle in eachparticle(system)
             # Limit pressure to be non-negative to avoid attractive forces between fluid and
@@ -474,41 +464,15 @@ function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZe
     return boundary_model
 end
 
-@inline function boundary_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                           neighbor_system, system_coords,
-                                                           neighbor_coords, v,
-                                                           v_neighbor_system, semi)
+@inline function boundary_pressure_extrapolation!(parallel, boundary_model, system,
+                                                  neighbor_system, system_coords,
+                                                  neighbor_coords, v, v_neighbor_system,
+                                                  semi)
     return boundary_model
 end
 
-@inline function boundary_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                           neighbor_system::FluidSystem,
-                                                           system_coords, neighbor_coords,
-                                                           v, v_neighbor_system, semi)
-    (; pressure, cache, viscosity, density_calculator) = boundary_model
-    (; pressure_offset) = density_calculator
-
-    # This needs to be serial to avoid race conditions when writing into `system`
-    foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
-                           parallelization_backend=SerialBackend()) do neighbor, particle,
-                                                                       pos_diff, distance
-        # Since neighbor and particle are switched
-        pos_diff = -pos_diff
-        boundary_pressure_inner!(boundary_model, density_calculator, system,
-                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
-                                 pos_diff, distance, viscosity, cache, pressure,
-                                 pressure_offset)
-    end
-end
-
-@inline function boundary_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                                  system_coords, neighbor_coords, v,
-                                                  v_neighbor_system, semi)
-    return boundary_model
-end
-
-@inline function boundary_pressure_extrapolation!(boundary_model, system,
-                                                  neighbor_system::FluidSystem,
+@inline function boundary_pressure_extrapolation!(parallel::Val{true}, boundary_model,
+                                                  system, neighbor_system::FluidSystem,
                                                   system_coords, neighbor_coords, v,
                                                   v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -518,6 +482,30 @@ end
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
+        boundary_pressure_inner!(boundary_model, density_calculator, system,
+                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
+                                 pos_diff, distance, viscosity, cache, pressure,
+                                 pressure_offset)
+    end
+end
+
+# Loop over fluid particles and then the neighboring boundary particles
+# to extrapolate fluid pressure to the boundaries.
+# Note that this needs to be serial, as we are writing into the same
+# pressure entry from different loop iterations.
+@inline function boundary_pressure_extrapolation!(parallel::Val{false}, boundary_model,
+                                                  system, neighbor_system::FluidSystem,
+                                                  system_coords, neighbor_coords,
+                                                  v, v_neighbor_system, semi)
+    (; pressure, cache, viscosity, density_calculator) = boundary_model
+    (; pressure_offset) = density_calculator
+
+    # This needs to be serial to avoid race conditions when writing into `system`
+    foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
+                           parallelization_backend=SerialBackend()) do neighbor, particle,
+                                                                       pos_diff, distance
+        # Since neighbor and particle are switched
+        pos_diff = -pos_diff
         boundary_pressure_inner!(boundary_model, density_calculator, system,
                                  neighbor_system, v, v_neighbor_system, particle, neighbor,
                                  pos_diff, distance, viscosity, cache, pressure,
