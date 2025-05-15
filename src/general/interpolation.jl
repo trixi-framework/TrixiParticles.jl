@@ -537,7 +537,6 @@ end
         foreach_point_neighbor(point_coords, neighbor_coords, nhs;
                                parallelization_backend) do point, neighbor, pos_diff,
                                                            distance
-            # Weighting mass
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume_b = m_b / current_density(v, neighbor_system, neighbor)
             W_ab = kernel(ref_smoothing_kernel, distance, smoothing_length)
@@ -574,7 +573,7 @@ end
                 end
             end
         else
-            # Normalize all quantities by the shepard weighting
+            # Normalize all quantities by the shepard coefficient
             foreach(cache) do field
                 if field isa AbstractVector
                     field[point] /= shepard_coefficient[point]
