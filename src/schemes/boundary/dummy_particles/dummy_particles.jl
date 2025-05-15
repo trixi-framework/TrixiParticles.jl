@@ -417,9 +417,10 @@ function compute_pressure!(boundary_model,
         parallelize = system_coords isa AbstractGPUArray ||
                       n_boundary_particles < speedup * n_fluid_particles
 
+        # Loop over boundary particles and then the neighboring fluid particles
+        # to extrapolate fluid pressure to the boundaries.
         boundary_pressure_extrapolation!(Val(parallelize || !allow_loop_flipping),
-                                         boundary_model, system,
-                                         neighbor_system,
+                                         boundary_model, system, neighbor_system,
                                          system_coords, neighbor_coords, v,
                                          v_neighbor_system, semi)
 
@@ -463,13 +464,6 @@ function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZe
     return boundary_model
 end
 
-@inline function boundary_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                           neighbor_system, system_coords,
-                                                           neighbor_coords, v,
-                                                           v_neighbor_system, semi)
-    return boundary_model
-end
-
 @inline function boundary_pressure_extrapolation!(parallel, boundary_model, system,
                                                   neighbor_system, system_coords,
                                                   neighbor_coords, v, v_neighbor_system,
@@ -495,7 +489,10 @@ end
     end
 end
 
-# Flipped Version
+# Loop over fluid particles and then the neighboring boundary particles
+# to extrapolate fluid pressure to the boundaries.
+# Note that this needs to be serial, as we are writing into the same
+# pressure entry from different loop iterations.
 @inline function boundary_pressure_extrapolation!(parallel::Val{false}, boundary_model,
                                                   system, neighbor_system::FluidSystem,
                                                   system_coords, neighbor_coords,
