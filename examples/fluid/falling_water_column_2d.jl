@@ -110,7 +110,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Absolute tolerance for time integration (default: 1e-6)
             reltol=1e-3, # Relative tolerance for time integration (default: 1e-3)
-                         # May need tuning to prevent boundary penetration or excessive damping.
+            # May need tuning to prevent boundary penetration or excessive damping.
             dtmax=1e-2,  # Maximum allowed time step
             save_everystep=false,
             callback=callbacks)

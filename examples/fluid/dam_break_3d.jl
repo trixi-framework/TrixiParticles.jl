@@ -97,7 +97,6 @@ info_callback = InfoCallback(interval=10) # Print info every 10 simulation steps
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="") # Save solution every 0.02 time units
 callbacks = CallbackSet(info_callback, saving_callback)
 
-
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
 # When particles are approaching a wall in a uniform way, they can be advanced

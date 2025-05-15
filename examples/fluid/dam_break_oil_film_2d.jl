@@ -41,8 +41,6 @@ nu_sim_water = nu_ratio_physical * nu_sim_oil
 water_viscosity_model = ViscosityMorris(nu=nu_sim_water)
 oil_viscosity_model = ViscosityMorris(nu=nu_sim_oil)
 
-
-
 # Simulation time span
 tspan = (0.0, 5.7 / sqrt(gravity))
 
@@ -102,7 +100,6 @@ oil_system = WeaklyCompressibleSPHSystem(oil_particles, fluid_density_calculator
                                          correction=AkinciFreeSurfaceCorrection(oil_density),
                                          reference_particle_spacing=fluid_particle_spacing)
 
-
 # Alternative oil system with physical surface tension model
 # oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
 #                                          oil_eos, smoothing_kernel,
@@ -110,7 +107,6 @@ oil_system = WeaklyCompressibleSPHSystem(oil_particles, fluid_density_calculator
 #                                          acceleration=(0.0, -gravity),
 #                                          surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.03),
 #                                          reference_particle_spacing=fluid_particle_spacing)
-
 
 # ------------------------------------------------------------------------------
 # Simulation:

@@ -83,5 +83,4 @@ trixi_include(@__MODULE__,
               fluid_smoothing_kernel=fluid_smoothing_kernel_3d,
               physical_nu=physical_nu_3d,
               alpha_viscosity=alpha_viscosity_3d,
-              surface_tension_model_akinci=surface_tension_model_akinci_3d
-              )
+              surface_tension_model_akinci=surface_tension_model_akinci_3d)
