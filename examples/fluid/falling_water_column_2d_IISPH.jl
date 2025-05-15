@@ -42,8 +42,7 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 viscosity = ViscosityAdami(; nu=1.0 / 100.0)
 fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
                                                smoothing_length, viscosity=viscosity,
-                                               acceleration=(0.0, -gravity);
-                                               min_iterations=2, max_iterations=10)
+                                               acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
@@ -67,7 +66,7 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 sol = solve(ode, SymplecticEuler(),
-            dt=0.0001,
+            dt=0.001,
             save_everystep=false, callback=callbacks);
 
 plot(sol)
