@@ -47,20 +47,8 @@ end
     (; active_particle) = buffer
 
     buffer.active_particle_count[] = sum(active_particle)
-    buffer.eachparticle .= -1
-
-    @threaded semi for i in 1:buffer.active_particle_count[]
-        active = 0
-        for j in eachindex(active_particle)
-            if active_particle[j] == true
-                active += 1
-                if active == i
-                    buffer.eachparticle[i] = j
-                    break
-                end
-            end
-        end
-    end
+    buffer.eachparticle[1:buffer.active_particle_count[]] .= findall(x -> x == true,
+                                                                     active_particle)
 
     return buffer
 end
