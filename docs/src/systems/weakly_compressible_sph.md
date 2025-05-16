@@ -147,7 +147,7 @@ where:
 - ``\rho_a, \rho_b`` is the density of particles ``a`` and ``b``, respectively.
 
 Note that we replaced ``\text{CFL} \cdot \text{Ma}`` by ``\Delta t \cdot v_\text{max} / h``,
-as explained on page 29, right above Equation 9.
+as explained in [Sun2018](@cite Sun2018) on page 29, right above Equation 9.
 
 The ``\delta``-SPH method (WCSPH with density diffusion) together with this formulation
 of PST is commonly referred to as ``\delta^+``-SPH.
