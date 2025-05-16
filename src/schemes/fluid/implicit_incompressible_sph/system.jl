@@ -31,7 +31,7 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 # See the comments in general/gpu.jl for more details.
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
                                        V, PF, SRFN, Dens, preDens, PV, D, A, SD, S, O, ME,
-                                       MINI, MAXI} <: FluidSystem{NDIMS, IC}
+                                       MINI, MAXI} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1} 
@@ -143,12 +143,12 @@ end
     return nothing
 end
 
-@propagate_inbounds function particle_pressure(v, system::ImplicitIncompressibleSPHSystem,
+@propagate_inbounds function current_pressure(v, system::ImplicitIncompressibleSPHSystem,
                                                particle)
     return system.pressure[particle]
 end
 
-@propagate_inbounds function particle_density(v, system::ImplicitIncompressibleSPHSystem,
+@propagate_inbounds function current_density(v, system::ImplicitIncompressibleSPHSystem,
                                               particle)
     return system.density[particle]
 end
@@ -226,13 +226,13 @@ end
 function calculate_dij(system::ImplicitIncompressibleSPHSystem, particle, grad_kernel,
                        time_step)
     return -time_step^2 * hydrodynamic_mass(system, particle) /
-           particle_density(0, system, particle)^2 * grad_kernel
+           current_density(0, system, particle)^2 * grad_kernel
 end
 
 # Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in 'IHMSEN et al'
 function calculate_dij(system::BoundarySystem, particle, grad_kernel, time_step)
     return -time_step^2 * hydrodynamic_mass(system, particle) /
-           particle_density(0, system, particle)^2 * grad_kernel
+           current_density(0, system, particle)^2 * grad_kernel
 end
 
 # Calculates the sum d_ij*p_j over all j for a given particle i ('IHMSEN et al' section 3.1.1)
@@ -331,7 +331,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t, time_step)
 
         foreach_point_neighbor(system, neighbor_system,
                                system_coords, neighbor_system_coords,
-                               nhs;
+                               semi;
                                points=each_moving_particle(system)) do particle,
                                                                        neighbor,
                                                                        pos_diff,
@@ -339,10 +339,10 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t, time_step)
             m_a = hydrodynamic_mass(system, particle)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-            rho_a = @inbounds particle_density(v_particle_system, system, particle)
-            rho_b = @inbounds particle_density(v_neighbor_system, neighbor_system, neighbor)
+            rho_a = @inbounds current_density(v_particle_system, system, particle)
+            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             dv_viscosity_ = @inbounds dv_viscosity(system, neighbor_system,
                                                    v_particle_system, v_neighbor_system,
@@ -377,7 +377,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t, time_step)
 
         foreach_point_neighbor(system, neighbor_system,
                                system_coords, neighbor_system_coords,
-                               nhs;
+                               semi;
                                points=each_moving_particle(system)) do particle,
                                                                        neighbor,
                                                                        pos_diff,
@@ -386,7 +386,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t, time_step)
             # Set initial pressure (p_0) to a half of the current pressure value
             pressure[particle] = 0.5 * pressure[particle]
 
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             # Compute dji
             d_ji = calculate_dij(system, particle, -grad_kernel, time_step)
@@ -411,14 +411,14 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t, time_step)
         nhs = get_neighborhood_search(system, neighbor_system, semi)
 
         foreach_point_neighbor(system, neighbor_system, system_coords,
-                               neighbor_system_coords, nhs,
+                               neighbor_system_coords, semi,
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             # Calculate the predicted velocity differences
             v_adv_diff = predicted_velocity(system, particle) -
                          predicted_velocity(neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
             # Update the predicted densit by adding all non-pressure accelerations
             predicted_density[particle] += time_step * m_b * dot(v_adv_diff, grad_kernel)
         end
@@ -456,13 +456,13 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
             nhs = get_neighborhood_search(system, neighbor_system, semi)
 
             foreach_point_neighbor(system, neighbor_system, system_coords,
-                                   neighbor_system_coords, nhs;
+                                   neighbor_system_coords, semi;
                                    points=each_moving_particle(system)) do particle,
                                                                            neighbor,
                                                                            pos_diff,
                                                                            distance
                 # Calculate the 'sum_dij' value for each particle
-                grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+                grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
                 sum_dij_ = calculate_sum_dij(neighbor_system, neighbor, pressure,
                                              grad_kernel, time_step)
                 for i in 1:ndims(system)
@@ -481,12 +481,12 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
             # Get neighborhood_search
             nhs = get_neighborhood_search(system, neighbor_system, semi)
             foreach_point_neighbor(system, neighbor_system, system_coords,
-                                   neighbor_system_coords, nhs;
+                                   neighbor_system_coords, semi;
                                    points=each_moving_particle(system)) do particle,
                                                                            neighbor,
                                                                            pos_diff,
                                                                            distance
-                grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+                grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
                 # Calculate sum_term ('s_term') for each fluid particle
                 s_term[particle] += calculate_sum_term(system, neighbor_system, particle,
                                                        neighbor, pressure, sum_dij, d,
