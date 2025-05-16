@@ -406,7 +406,8 @@ end
 function von_mises_stress(system)
     von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
 
-    @threaded von_mises_stress_vector for particle in each_moving_particle(system)
+    @threaded default_backend(von_mises_stress_vector) for particle in
+                                                           each_moving_particle(system)
         von_mises_stress_vector[particle] = von_mises_stress(system, particle)
     end
 
@@ -439,7 +440,8 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
     cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
                                   nparticles(system))
 
-    @threaded cauchy_stress_tensors for particle in each_moving_particle(system)
+    @threaded default_backend(cauchy_stress_tensors) for particle in
+                                                         each_moving_particle(system)
         F = deformation_gradient(system, particle)
         J = det(F)
         P = pk1_corrected(system, particle)
@@ -463,7 +465,7 @@ end
 
 function system_data(system::TotalLagrangianSPHSystem, v_ode, u_ode, semi)
     (; mass, material_density, deformation_grad, pk1_corrected, young_modulus,
-    poisson_ratio, lame_lambda, lame_mu) = system
+     poisson_ratio, lame_lambda, lame_mu) = system
 
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)

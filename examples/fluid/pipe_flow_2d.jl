@@ -53,7 +53,7 @@ n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 
 # ==== Fluid
 wcsph = false
 
-smoothing_length = 3.0 * particle_spacing
+smoothing_length = 1.5 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -110,7 +110,7 @@ open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
 
 boundary_type_out = OutFlow()
 plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
-outflow = BoundaryZone(; plane=plane_out, plane_normal=-flow_direction,
+outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        boundary_type=boundary_type_out)
 
@@ -137,7 +137,7 @@ boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
-                          boundary_system, parallelization_backend=true)
+                          boundary_system, parallelization_backend=PolyesterBackend())
 
 ode = semidiscretize(semi, tspan)
 

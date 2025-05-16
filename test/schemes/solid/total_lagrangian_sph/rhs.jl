@@ -36,7 +36,6 @@
             #### Setup
             each_moving_particle = [particle[i]] # Only calculate dv for this one particle
             eachparticle = [particle[i], neighbor[i]]
-            eachneighbor = [neighbor[i], particle[i]]
             initial_coordinates = 1000 * ones(2, 10) # Just something that's not zero to catch errors
             initial_coordinates[:, particle[i]] = initial_coordinates_particle[i]
             initial_coordinates[:, neighbor[i]] = initial_coordinates_neighbor[i]
@@ -88,22 +87,12 @@
                 return nothing
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
+            TrixiParticles.compact_support(::MockSystem, ::MockSystem) = 1000.0
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
-
-            function TrixiParticles.get_neighborhood_search(system, neighbor_system,
-                                                            semi::Val{:semi_solid_interact})
-                return TrivialNeighborhoodSearch{2}(search_radius=1000.0,
-                                                    eachpoint=eachneighbor)
-            end
-            TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
-            Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
-            function TrixiParticles.smoothing_length(::MockSystem, _)
-                Val{:mock_smoothing_length}()
-            end
 
             #### Verification
             backends = [
-                false, # CPU code
+                SerialBackend(), # CPU code
                 TrixiParticles.KernelAbstractions.CPU() # Emulate GPU code
             ]
             names = ["CPU code", "Emulate GPU"]
@@ -112,17 +101,8 @@
                 dv_expected = copy(dv)
                 dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-                function Base.getproperty(::Val{:semi_solid_interact}, f::Symbol)
-                    if f === :parallelization_backend
-                        return backends[j]
-                    end
-
-                    # For all other properties, return mock objects
-                    return Val(Symbol("mock_" * string(f)))
-                end
-
-                TrixiParticles.interact_solid_solid!(dv, system, system,
-                                                     Val(:semi_solid_interact))
+                semi = DummySemidiscretization(parallelization_backend=backends[j])
+                TrixiParticles.interact_solid_solid!(dv, system, system, semi)
 
                 @test dv ≈ dv_expected
             end
@@ -147,7 +127,8 @@
                 10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0
             ])
 
-        @testset verbose=true "Deformation Function: $deformation" for deformation in keys(deformations)
+        @testset verbose=true "Deformation Function: $deformation" for deformation in
+                                                                       keys(deformations)
             J = deformations[deformation]
             u = zeros(2, 81)
             v = zeros(2, 81)
@@ -166,7 +147,6 @@
 
             for y in 1:n_particles_per_dimension[2],
                 x in 1:n_particles_per_dimension[1]
-
                 particle = (x - 1) * n_particles_per_dimension[2] + y
 
                 # Coordinates
@@ -183,7 +163,7 @@
             tspan = (0.0, 1.0)
 
             names = ["CPU code", "GPU code emulated on the CPU"]
-            backends = [false, TrixiParticles.KernelAbstractions.CPU()]
+            backends = [SerialBackend(), TrixiParticles.KernelAbstractions.CPU()]
             @testset "$(names[i])" for i in eachindex(names)
                 semi = Semidiscretization(system, parallelization_backend=backends[i])
                 ode = semidiscretize(semi, tspan)
@@ -195,7 +175,12 @@
                 end
 
                 v_ode = ode.u0.x[1]
-                u_ode = vec(u)
+                if backends[i] isa TrixiParticles.KernelAbstractions.Backend
+                    u_ode = vec(u)
+                else
+                    u_ode = TrixiParticles.ThreadedBroadcastArray(vec(u);
+                                                                  parallelization_backend=backends[i])
+                end
 
                 @test typeof(v_ode) == typeof(u_ode)
                 @test length(v_ode) == length(u_ode)
