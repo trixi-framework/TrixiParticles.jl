@@ -6,8 +6,13 @@ Following the original paper, the callback is applied in every time step and not
 in every stage of a multi-stage time integration method to reduce the computational
 cost and improve the stability of the scheme.
 
-## References
-[Sun2017](@cite)
+See [Callbacks](@ref Callbacks) for more information on how to use this callback.
+See [Particle Shifting Technique](@ref shifting) for more information on the method itself.
+
+!!! warning
+    The Particle Shifting Technique needs to be disabled close to the free surface
+    and therefore requires a free surface detection method. This is not yet implemented.
+    **This callback cannot be used in a free surface simulation.**
 """
 function ParticleShiftingCallback()
     # The first one is the `condition`, the second the `affect!`
