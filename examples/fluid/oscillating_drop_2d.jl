@@ -51,11 +51,15 @@ state_equation = StateEquationCole(sound_speed=sound_speed,
 initial_Q_factor = (sigma_oscillation^2 + OMEGA^2) * fluid_density *
                    initial_drop_radius^2 / 2
 
-initial_pressure_field(coords) = initial_Q_factor *
-                                 (1 - (coords[1]^2 + coords[2]^2) / initial_drop_radius^2)
+function initial_pressure_field(coords)
+    initial_Q_factor *
+    (1 - (coords[1]^2 + coords[2]^2) / initial_drop_radius^2)
+end
 
-initial_density_field(coords) = TrixiParticles.inverse_state_equation(state_equation,
-                                                                      initial_pressure_field(coords))
+function initial_density_field(coords)
+    TrixiParticles.inverse_state_equation(state_equation,
+                                          initial_pressure_field(coords))
+end
 
 initial_velocity_field(coords) = sigma_oscillation .* SVector(coords[1], -coords[2])
 
@@ -97,10 +101,10 @@ saving_callback = SolutionSavingCallback(dt=0.04, prefix="oscillating_drop")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 sol = solve(ode, RDPK3SpFSAL49(),
-                abstol=1e-7,
-                reltol=1e-4,
-                save_everystep=false,
-                callback=callbacks)
+            abstol=1e-7,
+            reltol=1e-4,
+            save_everystep=false,
+            callback=callbacks)
 
 # ------------------------------------------------------------------------------
 # Post-processing: Compare with Analytical Solution (as in original file)
