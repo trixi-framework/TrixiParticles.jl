@@ -9,9 +9,9 @@ particle_spacings = [0.02, 0.01, 0.005]
 tspan = (0.0, 25.0)
 reynolds_numbers = [100.0, 1000.0, 10_000.0]
 
-interpolated_velocity(v, u, t, system) = nothing
+interpolated_velocity(system, v, u, semi, t) = nothing
 
-function interpolated_velocity(v, u, t, system::TrixiParticles.FluidSystem)
+function interpolated_velocity(system::TrixiParticles.FluidSystem, v, u, semi, t)
     if t < 24.8
         return nothing
     end
