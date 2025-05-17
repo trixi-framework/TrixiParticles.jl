@@ -5,14 +5,11 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-write_to_vtk = true
-
 # ==========================================================================================
 # ==== Resolution
+factor_d = 0.08
+
 const cylinder_diameter = 0.1
-
-factor_D = 0.08
-
 particle_spacing = factor_D * cylinder_diameter
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
@@ -34,14 +31,8 @@ domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
 flow_direction = [1.0, 0.0]
 reynolds_number = 200
 const prescribed_velocity = 1.0
-
 const fluid_density = 1000.0
-
-pressure = 0.0
-
 sound_speed = 10 * prescribed_velocity
-
-state_equation = nothing
 
 boundary_size = (domain_size[1] + 2 * particle_spacing * open_boundary_layers,
                  domain_size[2])
@@ -74,36 +65,19 @@ fluid_density_calculator = ContinuityDensity()
 
 kinematic_viscosity = prescribed_velocity * cylinder_diameter / reynolds_number
 
-# Alternatively the WCSPH scheme can be used
-if wcsph
-    state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                       exponent=7)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7)
+viscosity = ViscosityAdami(nu=kinematic_viscosity)
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
-    viscosity = ViscosityAdami(nu=kinematic_viscosity)
-
-    density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-
-    fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
-                                               state_equation, smoothing_kernel,
-                                               density_diffusion=density_diffusion,
-                                               smoothing_length, viscosity=viscosity,
-                                               buffer_size=n_buffer_particles)
-
-else
-    state_equation = nothing
-
-    viscosity = ViscosityAdami(nu=kinematic_viscosity)
-
-    fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                               smoothing_length,
-                                               sound_speed, viscosity=viscosity,
-                                               density_calculator=fluid_density_calculator,
-                                               buffer_size=n_buffer_particles)
-end
+fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           density_diffusion=density_diffusion,
+                                           smoothing_length, viscosity=viscosity,
+                                           buffer_size=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Open Boundary
-
 function velocity_function2d(pos, t)
     return SVector(prescribed_velocity, 0.0)
 end
@@ -117,6 +91,8 @@ inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_bounda
                       boundary_type=boundary_type_in)
 
 reference_velocity_in = velocity_function2d
+# At the inlet, neither pressure nor density are prescribed; instead,
+# these values are extrapolated from the fluid domain
 reference_pressure_in = nothing
 reference_density_in = nothing
 open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
@@ -132,6 +108,7 @@ outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        boundary_type=boundary_type_out)
 
+# At the outlet, we allow the flow to exit freely without imposing any boundary conditions
 reference_velocity_out = nothing
 reference_pressure_out = nothing
 reference_density_out = nothing
@@ -146,7 +123,6 @@ open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
 boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundary.mass,
                                              AdamiPressureExtrapolation(),
                                              state_equation=state_equation,
-                                             viscosity=nothing, # free-slip
                                              smoothing_kernel, smoothing_length)
 
 boundary_system_wall = BoundarySPHSystem(pipe.boundary, boundary_model)
@@ -165,7 +141,7 @@ circle = SphereShape(particle_spacing, (cylinder_diameter + particle_spacing) / 
                      cylinder_center, fluid_density, n_layers=1,
                      sphere_type=RoundSphere())
 
-# Points for pressure interpolation, located at the wall interface.
+# Points for pressure interpolation, located at the wall interface
 const data_points = reinterpret(reshape, SVector{ndims(circle), eltype(circle)},
                                 circle.coordinates)
 const center = SVector(cylinder_center)
@@ -213,11 +189,8 @@ info_callback = InfoCallback(interval=100)
 
 output_directory = "out_vortex_street_dp_$(factor_D)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
                    TrixiParticles.type2string(smoothing_kernel)
-if write_to_vtk
-    saving_callback = SolutionSavingCallback(; dt=0.02, prefix="", output_directory)
-else
-    saving_callback = nothing
-end
+
+saving_callback = SolutionSavingCallback(; dt=0.02, prefix="", output_directory)
 
 pp_callback = PostprocessCallback(; dt=0.02,
                                   f_l=calculate_lift_force, f_d=calculate_drag_force,
@@ -227,7 +200,8 @@ pp_callback = PostprocessCallback(; dt=0.02,
 extra_callback = nothing
 
 callbacks = CallbackSet(info_callback, UpdateCallback(), saving_callback,
-                        ParticleShiftingCallback(), pp_callback, extra_callback)
+                        ParticleShiftingCallback(), # To obtain a near-uniform particle distribution in the wake
+                        pp_callback, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
