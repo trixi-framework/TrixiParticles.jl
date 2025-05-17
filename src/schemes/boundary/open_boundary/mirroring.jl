@@ -29,7 +29,7 @@ update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = syst
 function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
                              semi, t; prescribed_density=false,
                              prescribed_pressure=false, prescribed_velocity=false)
-    (; pressure, density, fluid_system, boundary_zone, reference_density,
+    (; pressure, density, boundary_zone, reference_density,
      reference_velocity, reference_pressure) = system
 
     fluid_system = corresponding_fluid_system(system, semi)
