@@ -12,10 +12,12 @@ struct BoundaryModelTafuni end
 function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode,
                                      semi, t)
     @trixi_timeit timer() "extrapolate and correct values" begin
+        fluid_system = corresponding_fluid_system(system, semi)
+
         v_open_boundary = wrap_v(v_ode, system, semi)
-        v_fluid = wrap_v(v_ode, system.fluid_system, semi)
+        v_fluid = wrap_v(v_ode, fluid_system, semi)
         u_open_boundary = wrap_u(u_ode, system, semi)
-        u_fluid = wrap_u(u_ode, system.fluid_system, semi)
+        u_fluid = wrap_u(u_ode, fluid_system, semi)
 
         extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
                             semi, t; system.cache...)
@@ -27,16 +29,20 @@ update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = syst
 function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
                              semi, t; prescribed_density=false,
                              prescribed_pressure=false, prescribed_velocity=false)
-    (; pressure, density, fluid_system, boundary_zone, reference_density,
+    (; pressure, density, boundary_zone, reference_density,
      reference_velocity, reference_pressure) = system
 
-    state_equation = system_state_equation(system.fluid_system)
+    fluid_system = corresponding_fluid_system(system, semi)
+
+    state_equation = system_state_equation(fluid_system)
 
     # Static indices to avoid allocations
     two_to_end = SVector{ndims(system)}(2:(ndims(system) + 1))
 
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
-    neighborhood_search = get_neighborhood_search(fluid_system, fluid_system, semi)
+    nhs = get_neighborhood_search(fluid_system, fluid_system, semi)
+
+    fluid_coords = current_coordinates(u_fluid, fluid_system)
 
     @threaded semi for particle in each_moving_particle(system)
         particle_coords = current_coords(u_open_boundary, system, particle)
@@ -45,50 +51,53 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         # Set zero
         correction_matrix = zero(SMatrix{ndims(system) + 1, ndims(system) + 1,
                                          eltype(system)})
+
+        extrapolated_density_correction = zero(SVector{ndims(system) + 1, eltype(system)})
+
         extrapolated_pressure_correction = zero(SVector{ndims(system) + 1, eltype(system)})
 
         extrapolated_velocity_correction = zero(SMatrix{ndims(system), ndims(system) + 1,
                                                         eltype(system)})
 
-        for neighbor in PointNeighbors.eachneighbor(ghost_node_position,
-                                        neighborhood_search)
-            neighbor_coords = current_coords(u_fluid, fluid_system, neighbor)
-            pos_diff = ghost_node_position - neighbor_coords
-            distance2 = dot(pos_diff, pos_diff)
+        # TODO: Not public API
+        PointNeighbors.foreach_neighbor(fluid_coords, nhs, particle, ghost_node_position,
+                                        nhs.search_radius) do particle, neighbor, pos_diff,
+                                                              distance
+            m_b = hydrodynamic_mass(fluid_system, neighbor)
+            rho_b = current_density(v_fluid, fluid_system, neighbor)
+            pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
+            v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
-            if distance2 <= neighborhood_search.search_radius^2
-                distance = sqrt(distance2)
+            # Project `v_b` on the normal direction of the boundary zone
+            # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
+            # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
+            # only this component of interpolated velocity is kept [...]"
+            v_b = dot(v_b, boundary_zone.plane_normal) * boundary_zone.plane_normal
 
-                m_b = hydrodynamic_mass(fluid_system, neighbor)
-                rho_b = current_density(v_fluid, fluid_system, neighbor)
-                pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
-                v_b = current_velocity(v_fluid, fluid_system, neighbor)
+            kernel_value = smoothing_kernel(fluid_system, distance, particle)
+            grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
+                                                particle)
 
-                # Project `v_b` on the normal direction of the boundary zone
-                # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
-                # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
-                # only this component of interpolated velocity is kept [...]"
-                v_b = dot(v_b, boundary_zone.plane_normal) * boundary_zone.plane_normal
+            L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
 
-                kernel_value = smoothing_kernel(fluid_system, distance, particle)
-                grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
-                                                    particle)
+            # TODO: On GPU "unsupported dynamic function invocation (call to +)"
+            correction_matrix += L
 
-                L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
+            if !prescribed_pressure && fluid_system isa EntropicallyDampedSPHSystem
+                extrapolated_pressure_correction += pressure_b * R
+            end
 
-                correction_matrix += L
+            if !prescribed_velocity
+                extrapolated_velocity_correction += v_b * R'
+            end
 
-                if !prescribed_pressure
-                    extrapolated_pressure_correction += pressure_b * R
-                end
-
-                if !prescribed_velocity
-                    extrapolated_velocity_correction += v_b * R'
-                end
+            if !prescribed_density
+                extrapolated_density_correction += rho_b * R
             end
         end
 
         # See also `correction_matrix_inversion_step!` for an explanation
+        # TODO: On GPU "unsupported dynamic function invocation (call to det)" (also abs and <)
         if abs(det(correction_matrix)) < 1.0f-9
             L_inv = I
         else
@@ -104,16 +113,6 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         #
         # in order to get zero gradient at the outlet interface.
         # Note: This modification is mentioned here for reference only and is NOT applied in this implementation.
-        if prescribed_pressure
-            pressure[particle] = reference_value(reference_pressure, pressure[particle],
-                                                 particle_coords, t)
-        else
-            f_p = L_inv * extrapolated_pressure_correction
-            df_p = f_p[two_to_end]
-
-            pressure[particle] = f_p[1] + dot(pos_diff, df_p)
-        end
-
         if prescribed_velocity
             v_particle = current_velocity(v_open_boundary, system, particle)
             v_ref = reference_value(reference_velocity, v_particle, particle_coords, t)
@@ -129,12 +128,29 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             end
         end
 
-        # Unlike Tafuni et al. (2018), we calculate the density using the inverse state-equation
         if prescribed_density
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)
         else
-            inverse_state_equation!(density, state_equation, pressure, particle)
+            # TODO: On GPU "unsupported dynamic function invocation (call to *)"
+            f_d = L_inv * extrapolated_density_correction
+            # TODO: On GPU "unsupported dynamic function invocation (call to getindex)"
+            df_d = f_d[two_to_end]
+
+            density[particle] = f_d[1] + dot(pos_diff, df_d)
+        end
+
+        if prescribed_pressure
+            pressure[particle] = reference_value(reference_pressure, pressure[particle],
+                                                 particle_coords, t)
+        elseif fluid_system isa WeaklyCompressibleSPHSystem
+            pressure[particle] = state_equation(density[particle])
+        else
+            f_d = L_inv * extrapolated_pressure_correction
+            df_d = f_d[two_to_end]
+
+            # TODO: On GPU "unsupported dynamic function invocation (call to dot)"
+            pressure[particle] = f_d[1] + dot(pos_diff, df_d)
         end
     end
 
