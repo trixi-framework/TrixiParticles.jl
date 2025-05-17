@@ -5,7 +5,7 @@ using CSV, DataFrames
 strouhal_numbers = Float64[]
 
 # Results in [90k particles, 220k particles, 1.2M particles, 5M particles]
-resolution_factors = [0.08, 0.05, 0.02, 0.01]
+resolution_factors = [0.05] # [0.08, 0.05, 0.02, 0.01]
 
 for resolution_factor in resolution_factors
     # ======================================================================================
@@ -45,4 +45,4 @@ end
 # ==== Save the strouhal numbers
 df = DataFrame(Resolution=resolution_factors, StrouhalNumber=strouhal_numbers)
 
-CSV.write(joipnath(validation_dir(), "strouhal_numbers.csv"), df)
+CSV.write(joinpath(validation_dir(), "strouhal_numbers.csv"), df)
