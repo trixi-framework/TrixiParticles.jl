@@ -12,10 +12,12 @@ struct BoundaryModelTafuni end
 function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode,
                                      semi, t)
     @trixi_timeit timer() "extrapolate and correct values" begin
+        fluid_system = corresponding_fluid_system(system, semi)
+
         v_open_boundary = wrap_v(v_ode, system, semi)
-        v_fluid = wrap_v(v_ode, system.fluid_system, semi)
+        v_fluid = wrap_v(v_ode, fluid_system, semi)
         u_open_boundary = wrap_u(u_ode, system, semi)
-        u_fluid = wrap_u(u_ode, system.fluid_system, semi)
+        u_fluid = wrap_u(u_ode, fluid_system, semi)
 
         extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
                             semi, t; system.cache...)
@@ -30,7 +32,9 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
     (; pressure, density, fluid_system, boundary_zone, reference_density,
      reference_velocity, reference_pressure) = system
 
-    state_equation = system_state_equation(system.fluid_system)
+    fluid_system = corresponding_fluid_system(system, semi)
+
+    state_equation = system_state_equation(fluid_system)
 
     # Static indices to avoid allocations
     two_to_end = SVector{ndims(system)}(2:(ndims(system) + 1))
@@ -47,6 +51,9 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         # Set zero
         correction_matrix = zero(SMatrix{ndims(system) + 1, ndims(system) + 1,
                                          eltype(system)})
+
+        extrapolated_density_correction = zero(SVector{ndims(system) + 1, eltype(system)})
+
         extrapolated_pressure_correction = zero(SVector{ndims(system) + 1, eltype(system)})
 
         extrapolated_velocity_correction = zero(SMatrix{ndims(system), ndims(system) + 1,
@@ -75,12 +82,16 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 
             correction_matrix += L
 
-            if !prescribed_pressure
+            if !prescribed_pressure && fluid_system isa EntropicallyDampedSPHSystem
                 extrapolated_pressure_correction += pressure_b * R
             end
 
             if !prescribed_velocity
                 extrapolated_velocity_correction += v_b * R'
+            end
+
+            if !prescribed_density
+                extrapolated_density_correction += rho_b * R
             end
         end
 
@@ -100,16 +111,6 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         #
         # in order to get zero gradient at the outlet interface.
         # Note: This modification is mentioned here for reference only and is NOT applied in this implementation.
-        if prescribed_pressure
-            pressure[particle] = reference_value(reference_pressure, pressure[particle],
-                                                 particle_coords, t)
-        else
-            f_p = L_inv * extrapolated_pressure_correction
-            df_p = f_p[two_to_end]
-
-            pressure[particle] = f_p[1] + dot(pos_diff, df_p)
-        end
-
         if prescribed_velocity
             v_particle = current_velocity(v_open_boundary, system, particle)
             v_ref = reference_value(reference_velocity, v_particle, particle_coords, t)
@@ -125,12 +126,26 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             end
         end
 
-        # Unlike Tafuni et al. (2018), we calculate the density using the inverse state-equation
         if prescribed_density
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)
         else
-            inverse_state_equation!(density, state_equation, pressure, particle)
+            f_d = L_inv * extrapolated_density_correction
+            df_d = f_d[two_to_end]
+
+            density[particle] = f_d[1] + dot(pos_diff, df_d)
+        end
+
+        if prescribed_pressure
+            pressure[particle] = reference_value(reference_pressure, pressure[particle],
+                                                 particle_coords, t)
+        elseif fluid_system isa WeaklyCompressibleSPHSystem
+            pressure[particle] = state_equation(density[particle])
+        else
+            f_d = L_inv * extrapolated_pressure_correction
+            df_d = f_d[two_to_end]
+
+            pressure[particle] = f_d[1] + dot(pos_diff, df_d)
         end
     end
 
