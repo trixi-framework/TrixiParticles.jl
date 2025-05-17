@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 factor_d = 0.08
 
 const cylinder_diameter = 0.1
-particle_spacing = factor_D * cylinder_diameter
+particle_spacing = factor_d * cylinder_diameter
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
@@ -38,8 +38,7 @@ boundary_size = (domain_size[1] + 2 * particle_spacing * open_boundary_layers,
                  domain_size[2])
 
 pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_density,
-                       pressure=pressure, n_layers=boundary_layers,
-                       velocity=[prescribed_velocity, 0.0],
+                       n_layers=boundary_layers, velocity=[prescribed_velocity, 0.0],
                        faces=(false, false, true, true))
 
 # Shift pipe walls in negative x-direction for the inflow
@@ -187,8 +186,8 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-output_directory = joipnath(validation_dir(),
-                            "out_vortex_street_dp_$(factor_D)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
+output_directory = joinpath(validation_dir(),
+                            "out_vortex_street_dp_$(factor_d)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
                             TrixiParticles.type2string(smoothing_kernel))
 
 saving_callback = SolutionSavingCallback(; dt=0.02, prefix="", output_directory)
