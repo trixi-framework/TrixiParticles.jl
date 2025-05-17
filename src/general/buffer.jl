@@ -46,6 +46,7 @@ end
 @inline function update_system_buffer!(buffer::SystemBuffer, semi)
     (; active_particle) = buffer
 
+    # TODO: Parallelize (see https://github.com/trixi-framework/TrixiParticles.jl/issues/810)
     buffer.active_particle_count[] = sum(active_particle)
     buffer.eachparticle[1:buffer.active_particle_count[]] .= findall(x -> x == true,
                                                                      active_particle)
