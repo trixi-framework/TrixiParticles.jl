@@ -187,8 +187,9 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-output_directory = "out_vortex_street_dp_$(factor_D)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
-                   TrixiParticles.type2string(smoothing_kernel)
+output_directory = joipnath(validation_dir(),
+                            "out_vortex_street_dp_$(factor_D)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
+                            TrixiParticles.type2string(smoothing_kernel))
 
 saving_callback = SolutionSavingCallback(; dt=0.02, prefix="", output_directory)
 
