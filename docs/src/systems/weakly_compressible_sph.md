@@ -112,7 +112,7 @@ Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "density_diffus
 
 ## [Particle Shifting Technique](@id shifting)
 
-The Particle Shifting Technique (PST) is a technique to correct tensile instability
+The Particle Shifting Technique (PST) is used to correct tensile instability
 in regions of low pressure, as observed in viscous flow around an object.
 Without PST, tensile instability causes non-physical separation of the fluid
 from the object, introducing void regions behind the object.
