@@ -122,8 +122,8 @@ around a cylinder, as shown in this figure.
 ![particle_shifting](https://github.com/user-attachments/assets/70892b0b-af36-4531-b328-f73e63a5e33c)
 At higher resolutions, PST alone is not effective anymore; see the figure in
 [Tensile Instability Control](@ref tic).
-We generally recommend using PST and Tensile Instability Control together
-in such a simulation.
+We recommend using PST and Tensile Instability Control together
+in such simulations.
 
 ### Mathematical formulation
 
