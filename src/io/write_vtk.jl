@@ -365,8 +365,7 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system)
     return vtk
 end
 
-function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
-                    write_meta_data=true)
+function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system)
     vtk["hydrodynamic_density"] = current_density(v, system)
     vtk["pressure"] = model.pressure
 
