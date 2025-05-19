@@ -223,7 +223,7 @@ function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem)
 end
 
 function write2json!(vtk, v, u, t, system::ParticlePackingSystem)
-        meta_data["signed_distances"] = system.signed_distances
+    meta_data["signed_distances"] = system.signed_distances
 end
 
 # Skip for fixed systems

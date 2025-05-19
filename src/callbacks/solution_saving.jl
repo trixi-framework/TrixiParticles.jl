@@ -154,7 +154,7 @@ end
 # `affect!`
 function (solution_callback::SolutionSavingCallback)(integrator)
     (; interval, output_directory, custom_quantities, git_hash, verbose,
-    prefix, latest_saved_iter, max_coordinates) = solution_callback
+     prefix, latest_saved_iter, max_coordinates) = solution_callback
 
     vu_ode = integrator.u
     semi = integrator.p

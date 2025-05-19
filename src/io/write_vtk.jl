@@ -71,7 +71,8 @@ end
 
 # Convert data for a single TrixiParticle system to VTK format
 function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_directory="out",
-                   prefix="", iter=nothing, system_name=vtkname(system_), max_coordinates=Inf, git_hash=compute_git_hash(),
+                   prefix="", iter=nothing, system_name=vtkname(system_),
+                   max_coordinates=Inf, git_hash=compute_git_hash(),
                    custom_quantities...)
     mkpath(output_directory)
 
@@ -123,7 +124,7 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_direc
         vtk["ndims"] = ndims(system)
 
         vtk["particle_spacing"] = [particle_spacing(system, particle)
-        for particle in active_particles(system)]
+                                   for particle in active_particles(system)]
 
         # Extract custom quantities for this system
         for (key, quantity) in custom_quantities

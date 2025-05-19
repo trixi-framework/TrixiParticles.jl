@@ -111,7 +111,8 @@ function write2json!(meta_data, system::TotalLagrangianSPHSystem)
     meta_data["lame_lambda"] = system.lame_lambda
     meta_data["lame_mu"] = system.lame_mu
     meta_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
-    meta_data["smoothing_length_factor"] = initial_smoothing_length(system) / particle_spacing(system, 1)
+    meta_data["smoothing_length_factor"] = initial_smoothing_length(system) /
+                                           particle_spacing(system, 1)
 
     write2json!(meta_data, system.boundary_model, system)
 end
