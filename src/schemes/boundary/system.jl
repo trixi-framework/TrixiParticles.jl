@@ -170,11 +170,6 @@ end
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
-    if !(movement_function(0.0) isa SVector)
-        @warn "Return value of `movement_function` is not of type `SVector`. " *
-              "Returning regular `Vector`s causes allocations and significant performance overhead."
-    end
-
     # Default value is an empty vector, which will be resized in the `BoundarySPHSystem`
     # constructor to move all particles.
     moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
@@ -185,6 +180,13 @@ end
 create_cache_boundary(::Nothing, initial_condition) = (;)
 
 function create_cache_boundary(::BoundaryMovement, initial_condition)
+    pos = extract_svector(initial_condition.coordinates,
+                          Val(size(initial_condition.coordinates, 1)), 1)
+    if !(movement_function(pos, 0.0) isa SVector)
+        @warn "Return value of `movement_function` is not of type `SVector`. " *
+              "Returning regular `Vector`s causes allocations and significant performance overhead."
+    end
+
     initial_coordinates = copy(initial_condition.coordinates)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)
@@ -220,9 +222,11 @@ function (movement::BoundaryMovement)(system, t, semi)
     is_moving(t) || return system
 
     @threaded semi for particle in moving_particles
-        pos_new = initial_coords(system, particle) + movement_function(t)
-        vel = ForwardDiff.derivative(movement_function, t)
-        acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
+        pos_original = initial_coords(system, particle)
+        pos_new = movement_function(pos_original, t)
+        pos_deriv(t_) = ForwardDiff.derivative(t__ -> movement_function(pos_original, t__), t_)
+        vel = pos_deriv(t)
+        acc = ForwardDiff.derivative(pos_deriv, t)
 
         @inbounds for i in 1:ndims(system)
             coordinates[i, particle] = pos_new[i]
@@ -305,7 +309,8 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_acceleration(system::BoundarySPHSystem, movement::Nothing, particle)
+@inline function current_acceleration(system::BoundarySPHSystem, movement::Nothing,
+                                      particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
