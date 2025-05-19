@@ -287,9 +287,11 @@ function (movement::BoundaryMovement)(system::TotalLagrangianSPHSystem, t, semi)
     is_moving(t) || return system
 
     @threaded semi for particle in moving_particles
-        pos_new = initial_coords(system, particle) + movement_function(t)
-        vel = ForwardDiff.derivative(movement_function, t)
-        acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
+        pos_original = initial_coords(system, particle)
+        pos_new = movement_function(pos_original, t)
+        pos_deriv(t_) = ForwardDiff.derivative(t__ -> movement_function(pos_original, t__), t_)
+        vel = pos_deriv(t)
+        acc = ForwardDiff.derivative(pos_deriv, t)
 
         @inbounds for i in 1:ndims(system)
             current_coordinates[i, particle] = pos_new[i]
