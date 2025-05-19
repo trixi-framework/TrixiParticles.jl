@@ -97,11 +97,11 @@ where ``\rho_a`` and ``\rho_b`` denote the densities of particles ``a`` and ``b`
 and ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``.
 The symbol ``\nabla\rho^L_a`` denotes the renormalized density gradient defined as
 ```math
-\nabla\rho^L_a = -\sum_b (\rho_a - \rho_b) V_b L_a \nabla_{r_a} W(\Vert r_{ab} \Vert, h)
+\nabla\rho^L_a = -\sum_b (\rho_a - \rho_b) V_b L_a \nabla W_{ab}
 ```
 with
 ```math
-L_a := \left( -\sum_{b} V_b r_{ab} \otimes \nabla_{r_a} W(\Vert r_{ab} \Vert, h) \right)^{-1} \in \R^{d \times d},
+L_a := \left( -\sum_{b} V_b r_{ab} \otimes \nabla W_{ab} \right)^{-1} \in \R^{d \times d},
 ```
 where ``d`` is the number of dimensions.
 
