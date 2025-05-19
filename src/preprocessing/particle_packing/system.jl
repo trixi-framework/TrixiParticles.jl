@@ -9,7 +9,7 @@
                           background_pressure, tlsph=false, fixed_system=false)
 
 System to generate body-fitted particles for complex shapes.
-For more information on the methods, see description for [particle packing](@ref particle_packing).
+For more information on the methods, see [particle packing](@ref particle_packing).
 
 # Arguments
 - `shape`: [`InitialCondition`](@ref) to be packed.
@@ -40,6 +40,8 @@ For more information on the methods, see description for [particle packing](@ref
                            the signed distance from a particle to a face is required.
                            The precalculated signed distances will be interpolated
                            to each particle during the packing procedure.
+                           Set `signed_distance_field=nothing` when packing with a fixed system
+                           (see `fixed_system` description above).
 - `smoothing_kernel`:      Smoothing kernel to be used for this system.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:      Smoothing length to be used for the gradient estimation.

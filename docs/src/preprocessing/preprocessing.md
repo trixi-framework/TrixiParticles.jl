@@ -266,7 +266,7 @@ The preprocessing pipeline consists of the following steps:
 - Initial sampling of the interior particles with inside-outside segmentation: Fig. 4, [`ComplexShape`](@ref).
 - Pack the initial configuration of interior and boundary particles (Fig. 5): Fig. 6, [`ParticlePackingSystem`](@ref).
 
-The input data can either be a 3D triangulated surface mesh represented in STL-format or a 2D polygonal traversal of the geometry (see [`load_geometry`](@ref)).
+The input data can either be a 3D triangulated surface mesh represented in STL format or a 2D polygonal traversal of the geometry (see [`load_geometry`](@ref)).
 The second step involves generating the SDF (see [`SignedDistanceField`](@ref)), which is necessary for the final packing step as it requires a surface detection.
 The SDF is illustrated in Fig. 2, where the distances to the surface of the geometry are visualized as a color map.
 As shown, the SDF is computed only within a narrow band around the geometry’s surface, enabling  a face-based neighborhood search (NHS) to be used exclusively during this step.
