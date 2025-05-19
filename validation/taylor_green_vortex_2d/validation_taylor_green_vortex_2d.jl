@@ -81,11 +81,11 @@ for density_calculator in density_calculators, perturbation in perturb_coordinat
     output_directory = joinpath("out_tgv", name_density_calculator * name_perturbation,
                                 wcsph ? "wcsph" : "edac",
                                 "validation_run_taylor_green_vortex_2d_nparticles_$(n_particles_xy)x$(n_particles_xy)")
-    saving_callback = SolutionSavingCallback(dt=0.1,
+    saving_callback = SolutionSavingCallback(dt=1//10,
                                              output_directory=output_directory,
                                              p_avg=diff_p_loc_p_avg)
 
-    pp_callback = PostprocessCallback(; dt=0.02,
+    pp_callback = PostprocessCallback(; dt=2//100,
                                       L1v=compute_l1v_error,
                                       L1p=compute_l1p_error,
                                       output_directory=output_directory,
