@@ -266,7 +266,7 @@ end
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates, fixed_particle_movement) = system
 
-    fixed_particle_movement(system, v, u, t)
+    fixed_particle_movement(system, t, semi)
 
     # `current_coordinates` stores the coordinates of both integrated and fixed particles.
     # Copy the coordinates of the integrated particles from `u`.
@@ -277,7 +277,7 @@ function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode,
     end
 end
 
-function (movement::BoundaryMovement)(system::TotalLagrangianSPHSystem, v, u, t)
+function (movement::BoundaryMovement)(system::TotalLagrangianSPHSystem, t, semi)
     (; current_coordinates, cache) = system
     (; movement_function, is_moving, moving_particles) = movement
     (; acceleration, velocity) = cache
@@ -286,7 +286,7 @@ function (movement::BoundaryMovement)(system::TotalLagrangianSPHSystem, v, u, t)
 
     is_moving(t) || return system
 
-    @threaded system for particle in moving_particles
+    @threaded semi for particle in moving_particles
         pos_new = initial_coords(system, particle) + movement_function(t)
         vel = ForwardDiff.derivative(movement_function, t)
         acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
