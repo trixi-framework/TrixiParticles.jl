@@ -172,6 +172,8 @@ end
 
 function check_tvf_configuration(system::FluidSystem, ::TransportVelocityAdami,
                                  v, u, v_ode, u_ode, semi, t; update_from_callback=false)
+    # The `UpdateCallback` will set `system.cache.update_callback_used[]` to `true`
+    # in the initialization. However, other callbacks might update the system first, hence `update_from_callback`.
     if !update_from_callback && !(system.cache.update_callback_used[])
         throw(ArgumentError("`UpdateCallback` is required when using `TransportVelocityAdami`"))
     end
