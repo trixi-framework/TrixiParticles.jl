@@ -8,41 +8,51 @@ n_particles_y = 3
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 2.0
-tspan = (0.0, 2.0)
+tspan = (0.0, 0.5)
 
-elastic_beam = (length=0.45, thickness=0.02)
-material = (density=1000.0, E=5.0e7, nu=0.4)
+fin_length=0.5
+fin_thickness=0.02
+flexural_rigidity = 5.0
+poisson_ratio = 0.3
+modulus = 12 * (1 - poisson_ratio^2) * flexural_rigidity / (fin_thickness^3)
+
+fiber_volume_fraction = 0.6
+fiber_density = 1800.0
+epoxy_density = 1250.0
+density = fiber_volume_fraction * fiber_density +
+          (1 - fiber_volume_fraction) * epoxy_density
+
 clamp_radius = 0.05
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
-particle_spacing = elastic_beam.thickness / (n_particles_y - 1)
+particle_spacing = fin_thickness / (n_particles_y - 1)
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
 fixed_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing / 2,
-                              (0.0, elastic_beam.thickness / 2), material.density,
+                              (0.0, fin_thickness / 2), density,
                               cutout_min=(0.0, 0.0),
-                              cutout_max=(clamp_radius, elastic_beam.thickness),
+                              cutout_max=(clamp_radius, fin_thickness),
                               tlsph=true)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 
 # Beam and clamped particles
-n_particles_per_dimension = (round(Int, elastic_beam.length / particle_spacing) +
+n_particles_per_dimension = (round(Int, fin_length / particle_spacing) +
                              n_particles_clamp_x + 1, n_particles_y)
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
 # from the boundary, which is correct for fluids, but not for solids.
 # We therefore need to pass `tlsph=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (0.0, 0.0), density=material.density, tlsph=true)
+                        (0.0, 0.0), density=density, tlsph=true)
 
 solid = union(beam, fixed_particles)
 movement_amplitude = 0.1
-solid.coordinates .+= 0.4 - 0.5 * elastic_beam.thickness #+ movement_amplitude
+solid.coordinates .+= 0.4 - 0.5 * fin_thickness #+ movement_amplitude
 
 # Movement function
-movement_function(t) = SVector(0.0, movement_amplitude * sin(5 * pi * t) )#- movement_amplitude)
+movement_function(t) = SVector(0.0, movement_amplitude * sin(5 * pi * t))#- movement_amplitude)
 
 is_moving(t) = true
 
@@ -80,7 +90,7 @@ fluid = setdiff(tank.fluid, solid)
 # ==== Solid
 # The kernel in the reference uses a differently scaled smoothing length,
 # so this is equivalent to the smoothing length of `sqrt(2) * particle_spacing` used in the paper.
-smoothing_length = 2 * sqrt(2) * particle_spacing
+smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 boundary_density_calculator = AdamiPressureExtrapolation()
@@ -92,11 +102,12 @@ viscosity_wall = nothing
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * particle_spacing^2
 
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites, hydrodynamic_masses,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
-                                             viscosity=viscosity_wall)
+boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+                                                   hydrodynamic_masses,
+                                                   state_equation=state_equation,
+                                                   boundary_density_calculator,
+                                                   smoothing_kernel, smoothing_length,
+                                                   viscosity=viscosity_wall)
 # k_solid = 0.1
 # beta_solid = fluid_particle_spacing / particle_spacing
 # boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
@@ -104,7 +115,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites, hydrod
 #                                                    hydrodynamic_masses)
 
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
-                                        material.E, material.nu,
+                                        modulus, poisson_ratio,
                                         n_fixed_particles=nparticles(fixed_particles),
                                         movement=boundary_movement,
                                         boundary_model=boundary_model_solid,
@@ -112,7 +123,7 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_length = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -122,7 +133,8 @@ density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion)
+                                           density_diffusion=density_diffusion,
+                                           pressure_acceleration=tensile_instability_control)
 # fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
 #                                            sound_speed, viscosity=ViscosityAdami(; nu),
 #                                            transport_velocity=TransportVelocityAdami(10 * sound_speed^2 * fluid_density))
@@ -154,7 +166,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
+callbacks = CallbackSet(info_callback, saving_callback, ParticleShiftingCallback())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
