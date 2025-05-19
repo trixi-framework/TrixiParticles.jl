@@ -6,8 +6,13 @@ Following the original paper, the callback is applied in every time step and not
 in every stage of a multi-stage time integration method to reduce the computational
 cost and improve the stability of the scheme.
 
-## References
-[Sun2017](@cite)
+See [Callbacks](@ref Callbacks) for more information on how to use this callback.
+See [Particle Shifting Technique](@ref shifting) for more information on the method itself.
+
+!!! warning
+    The Particle Shifting Technique needs to be disabled close to the free surface
+    and therefore requires a free surface detection method. This is not yet implemented.
+    **This callback cannot be used in a free surface simulation.**
 """
 function ParticleShiftingCallback()
     # The first one is the `condition`, the second the `affect!`
@@ -76,8 +81,8 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            rho_a = particle_density(v, system, particle)
-            rho_b = particle_density(v_neighbor, neighbor_system, neighbor)
+            rho_a = current_density(v, system, particle)
+            rho_b = current_density(v_neighbor, neighbor_system, neighbor)
 
             kernel = smoothing_kernel(system, distance, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)

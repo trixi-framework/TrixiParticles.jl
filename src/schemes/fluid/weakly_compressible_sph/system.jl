@@ -2,9 +2,10 @@
     WeaklyCompressibleSPHSystem(initial_condition,
                                 density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length;
-                                viscosity=nothing, density_diffusion=nothing,
-                                transport_velocity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
+                                viscosity=nothing, density_diffusion=nothing,
+                                pressure_acceleration=nothing,
+                                transport_velocity=nothing,
                                 buffer_size=nothing,
                                 correction=nothing, source_terms=nothing,
                                 surface_tension=nothing, surface_normal_method=nothing,
@@ -26,11 +27,17 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
+- `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
-- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
 - `density_diffusion`:          Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
-- `acceleration`:               Acceleration vector for the system. (default: zero vector)
+- `pressure_acceleration`:      Pressure acceleration formulation for this system.
+                                By default, the correct formulation is chosen based on the
+                                density calculator and the correction method.
+                                To use [Tensile Instability Control](@ref tic), pass
+                                [`tensile_instability_control`](@ref) here.
+- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation).
+                                Default is no TVF.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
@@ -50,7 +57,6 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
 - `color_value`:                The value used to initialize the color of particles in the system.
-
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
                                    PF, TV, ST, B, SRFT, SRFN, PR, C} <: FluidSystem{NDIMS}
@@ -79,12 +85,12 @@ end
 function WeaklyCompressibleSPHSystem(initial_condition,
                                      density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
+                                     acceleration=ntuple(_ -> zero(eltype(initial_condition)),
+                                                         ndims(smoothing_kernel)),
+                                     viscosity=nothing, density_diffusion=nothing,
                                      pressure_acceleration=nothing,
                                      transport_velocity=nothing,
                                      buffer_size=nothing,
-                                     viscosity=nothing, density_diffusion=nothing,
-                                     acceleration=ntuple(_ -> zero(eltype(initial_condition)),
-                                                         ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
                                      reference_particle_spacing=0, color_value=1)
@@ -93,8 +99,9 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     particle_refinement = nothing # TODO
 
-    initial_condition, density_diffusion = allocate_buffer(initial_condition,
-                                                           density_diffusion, buffer)
+    initial_condition,
+    density_diffusion = allocate_buffer(initial_condition,
+                                        density_diffusion, buffer)
 
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
@@ -240,9 +247,24 @@ end
 
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 
-@propagate_inbounds function particle_pressure(v, system::WeaklyCompressibleSPHSystem,
-                                               particle)
-    return system.pressure[particle]
+@inline function current_density(v, system::WeaklyCompressibleSPHSystem)
+    return current_density(v, system.density_calculator, system)
+end
+
+@inline function current_density(v, ::SummationDensity,
+                                 system::WeaklyCompressibleSPHSystem)
+    # When using `SummationDensity`, the density is stored in the cache
+    return system.cache.density
+end
+
+@inline function current_density(v, ::ContinuityDensity,
+                                 system::WeaklyCompressibleSPHSystem)
+    # When using `ContinuityDensity`, the density is stored in the last row of `v`
+    return view(v, size(v, 1), :)
+end
+
+@inline function current_pressure(v, system::WeaklyCompressibleSPHSystem)
+    return system.pressure
 end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
@@ -350,7 +372,7 @@ end
 
 function compute_pressure!(system, v, semi)
     @threaded semi for particle in eachparticle(system)
-        apply_state_equation!(system, particle_density(v, system, particle), particle)
+        apply_state_equation!(system, current_density(v, system, particle), particle)
     end
 end
 

@@ -97,11 +97,11 @@ where ``\rho_a`` and ``\rho_b`` denote the densities of particles ``a`` and ``b`
 and ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``.
 The symbol ``\nabla\rho^L_a`` denotes the renormalized density gradient defined as
 ```math
-\nabla\rho^L_a = -\sum_b (\rho_a - \rho_b) V_b L_a \nabla_{r_a} W(\Vert r_{ab} \Vert, h)
+\nabla\rho^L_a = -\sum_b (\rho_a - \rho_b) V_b L_a \nabla W_{ab}
 ```
 with
 ```math
-L_a := \left( -\sum_{b} V_b r_{ab} \otimes \nabla_{r_a} W(\Vert r_{ab} \Vert, h) \right)^{-1} \in \R^{d \times d},
+L_a := \left( -\sum_{b} V_b r_{ab} \otimes \nabla W_{ab} \right)^{-1} \in \R^{d \times d},
 ```
 where ``d`` is the number of dimensions.
 
@@ -173,7 +173,7 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     (; normalized_density_gradient) = density_diffusion
 
     # Compute correction matrix
-    density_fun = @inline(particle->particle_density(v, system, particle))
+    density_fun = @inline(particle->current_density(v, system, particle))
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(density_diffusion.correction_matrix,
@@ -188,8 +188,8 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
         # Only consider particles with a distance > 0
         distance < sqrt(eps(typeof(distance))) && return
 
-        rho_a = particle_density(v, system, particle)
-        rho_b = particle_density(v, system, neighbor)
+        rho_a = current_density(v, system, particle)
+        rho_b = current_density(v, system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         L = correction_matrix(density_diffusion, particle)

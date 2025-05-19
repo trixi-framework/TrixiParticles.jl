@@ -28,7 +28,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                              semi, t; prescribed_density=false,
                              prescribed_pressure=false, prescribed_velocity=false)
     (; pressure, density, fluid_system, boundary_zone, reference_density,
-    reference_velocity, reference_pressure) = system
+     reference_velocity, reference_pressure) = system
 
     state_equation = system_state_equation(system.fluid_system)
 
@@ -51,7 +51,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                                                         eltype(system)})
 
         for neighbor in PointNeighbors.eachneighbor(ghost_node_position,
-                                                    neighborhood_search)
+                                        neighborhood_search)
             neighbor_coords = current_coords(u_fluid, fluid_system, neighbor)
             pos_diff = ghost_node_position - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
@@ -60,8 +60,8 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                 distance = sqrt(distance2)
 
                 m_b = hydrodynamic_mass(fluid_system, neighbor)
-                rho_b = particle_density(v_fluid, fluid_system, neighbor)
-                pressure_b = particle_pressure(v_fluid, fluid_system, neighbor)
+                rho_b = current_density(v_fluid, fluid_system, neighbor)
+                pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
                 v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
                 # Project `v_b` on the normal direction of the boundary zone

@@ -28,12 +28,12 @@ Convert Trixi simulation data to VTK format.
 - `max_coordinates=Inf`     The coordinates of particles will be clipped if their absolute
                             values exceed this threshold.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
-                            Each custom quantity must be a function of `(v, u, t, system)`,
-                            which will be called for every system, where `v` and `u` are the
-                            wrapped solution arrays for the corresponding system and `t` is
-                            the current simulation time. Note that working with these `v`
-                            and `u` arrays requires undocumented internal functions of
-                            TrixiParticles. See [Custom Quantities](@ref custom_quantities)
+                            Each custom quantity must be a function of `(system, data, t)`,
+                            which will be called for every system, where `data` is a named
+                            tuple with fields depending on the system type, and `t` is the
+                            current simulation time. Check the available data for each
+                            system with `available_data(system)`.
+                            See [Custom Quantities](@ref custom_quantities)
                             for a list of pre-defined custom quantities that can be used here.
 
 # Example
@@ -61,21 +61,18 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 
     foreach_system(semi) do system
         system_index = system_indices(system, semi)
-
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
         periodic_box = get_neighborhood_search(system, semi).periodic_box
 
-        trixi2vtk(v, u, t, system, periodic_box;
+        trixi2vtk(system, v_ode, u_ode, semi, t, periodic_box;
                   system_name=filenames[system_index], output_directory, iter, prefix,
                   git_hash, max_coordinates, custom_quantities...)
     end
 end
 
 # Convert data for a single TrixiParticle system to VTK format
-function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", prefix="",
-                   iter=nothing, system_name=vtkname(system_), max_coordinates=Inf,
-                   git_hash=compute_git_hash(), custom_quantities...)
+function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_directory="out",
+                   prefix="", iter=nothing, system_name=vtkname(system_), max_coordinates=Inf, git_hash=compute_git_hash(),
+                   custom_quantities...)
     mkpath(output_directory)
 
     # Skip empty systems
@@ -84,7 +81,10 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
     end
 
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
-    v, u, system = transfer2cpu(v_, u_, system_)
+    v_ode, u_ode, system, semi = transfer2cpu(v_ode_, u_ode_, system_, semi_)
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
 
     # handle "_" on optional pre/postfix strings
     add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
@@ -120,12 +120,14 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         # Store particle index
         vtk["index"] = active_particles(system)
         vtk["time"] = t
+        vtk["ndims"] = ndims(system)
+
         vtk["particle_spacing"] = [particle_spacing(system, particle)
         for particle in active_particles(system)]
 
         # Extract custom quantities for this system
         for (key, quantity) in custom_quantities
-            value = custom_quantity(quantity, v, u, t, system)
+            value = custom_quantity(quantity, system, v_ode, u_ode, semi, t)
             if value !== nothing
                 vtk[string(key)] = value
             end
@@ -137,25 +139,35 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
     vtk_save(pvd)
 end
 
-function transfer2cpu(v_::AbstractGPUArray, u_, system_)
+function transfer2cpu(v_::AbstractGPUArray, u_, system_, semi_)
     v = Adapt.adapt(Array, v_)
     u = Adapt.adapt(Array, u_)
-    system = Adapt.adapt(Array, system_)
+    semi = Adapt.adapt(Array, semi_)
+    system_index = system_indices(system_, semi_)
+    system = semi.systems[system_index]
 
-    return v, u, system
+    return v, u, system, semi
 end
 
-function transfer2cpu(v_, u_, system_)
-    return v_, u_, system_
+function transfer2cpu(v_, u_, system_, semi_)
+    return v_, u_, system_, semi_
 end
 
-function custom_quantity(quantity::AbstractArray, v, u, t, system)
+function custom_quantity(quantity::AbstractArray, system, v_ode, u_ode, semi, t)
     return quantity
 end
 
-function custom_quantity(quantity, v, u, t, system)
-    # Assume `quantity` is a function of `v`, `u`, `t`, and `system`
-    return quantity(v, u, t, system)
+function custom_quantity(quantity, system, v_ode, u_ode, semi, t)
+    # Check if `quantity` is a function of `system`, `v_ode`, `u_ode`, `semi` and `t`
+    if !isempty(methods(quantity,
+                        (typeof(system), typeof(v_ode), typeof(u_ode),
+                         typeof(semi), typeof(t))))
+        return quantity(system, v_ode, u_ode, semi, t)
+    end
+
+    # Assume `quantity` is a function of `data`
+    data = system_data(system, v_ode, u_ode, semi)
+    return quantity(system, data, t)
 end
 
 """
@@ -177,7 +189,7 @@ Convert coordinate data to VTK format.
 - `file::AbstractString`: Path to the generated VTK file.
 """
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
-                   custom_quantities...)
+                   particle_spacing=(-ones(size(coordinates, 2))), custom_quantities...)
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
            joinpath(output_directory, "$(prefix)_$filename")
@@ -188,6 +200,8 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     vtk_grid(file, points, cells) do vtk
         # Store particle index.
         vtk["index"] = [i for i in axes(coordinates, 2)]
+        vtk["ndims"] = size(coordinates, 1)
+        vtk["particle_spacing"] = particle_spacing
 
         # Extract custom quantities for this system.
         for (key, quantity) in custom_quantities
@@ -224,6 +238,8 @@ function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
 
     return trixi2vtk(coordinates; output_directory, prefix, filename,
                      density=density, initial_velocity=velocity, mass=mass,
+                     particle_spacing=(initial_condition.particle_spacing .*
+                                       ones(nparticles(initial_condition))),
                      pressure=pressure, custom_quantities...)
 end
 
@@ -233,12 +249,21 @@ function write2vtk!(vtk, v, u, t, system)
     return vtk
 end
 
+function write2vtk!(vtk, v, u, t, system::DEMSystem)
+    vtk["velocity"] = view(v, 1:ndims(system), :)
+    vtk["mass"] = [hydrodynamic_mass(system, particle)
+                   for particle in active_particles(system)]
+    vtk["radius"] = [particle_radius(system, particle)
+                     for particle in active_particles(system)]
+    return vtk
+end
+
 function write2vtk!(vtk, v, u, t, system::FluidSystem)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
-    vtk["density"] = [particle_density(v, system, particle)
-                      for particle in active_particles(system)]
-    vtk["pressure"] = [particle_pressure(v, system, particle)
+    vtk["density"] = current_density(v, system)
+    # Indexing the pressure is a workaround for slicing issue (see https://github.com/JuliaSIMD/StrideArrays.jl/issues/88)
+    vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in active_particles(system)]
 
     if system.surface_normal_method !== nothing
@@ -259,21 +284,17 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem)
 
         foreach_point_neighbor(system_coords, system_coords,
                                nhs) do particle, neighbor, pos_diff, distance
-            rho_a = particle_density(v, system, particle)
-            rho_b = particle_density(v, system, neighbor)
+            rho_a = current_density(v, system, particle)
+            rho_b = current_density(v, system, neighbor)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            surface_tension[1:ndims(system), particle] .+= surface_tension_force(surface_tension_a,
-                                                                                 surface_tension_b,
-                                                                                 system,
-                                                                                 system,
-                                                                                 particle,
-                                                                                 neighbor,
-                                                                                 pos_diff,
-                                                                                 distance,
-                                                                                 rho_a,
-                                                                                 rho_b,
-                                                                                 grad_kernel)
+            surface_tension[1:ndims(system),
+                            particle] .+= surface_tension_force(surface_tension_a,
+                                                                surface_tension_b,
+                                                                system, system, particle,
+                                                                neighbor, pos_diff,
+                                                                distance, rho_a, rho_b,
+                                                                grad_kernel)
         end
         vtk["surface_tension"] = surface_tension
 
@@ -326,10 +347,8 @@ end
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
-    vtk["density"] = [particle_density(v, system, particle)
-                      for particle in active_particles(system)]
-    vtk["pressure"] = [particle_pressure(v, system, particle)
-                       for particle in active_particles(system)]
+    vtk["density"] = current_density(v, system)
+    vtk["pressure"] = current_pressure(v, system)
 
     return vtk
 end
@@ -346,9 +365,9 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system)
     return vtk
 end
 
-function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system)
-    vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
-                                   for particle in eachparticle(system)]
+function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
+                    write_meta_data=true)
+    vtk["hydrodynamic_density"] = current_density(v, system)
     vtk["pressure"] = model.pressure
 
     if haskey(model.cache, :initial_colorfield)

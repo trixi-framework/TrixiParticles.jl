@@ -35,9 +35,11 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
+# `pressure_acceleration=nothing` is the default and can be overwritten with `trixi_include`
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity)
+                                           smoothing_length, viscosity=viscosity,
+                                           pressure_acceleration=nothing)
 
 # ==========================================================================================
 # ==== Boundary
@@ -60,13 +62,15 @@ periodic_box = PeriodicBox(min_corner=[0.0, -0.25], max_corner=[1.0, 0.75])
 neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box)
 
 semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search,
-                          parallelization_backend=true)
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+# This can be overwritten with `trixi_include`
+extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, extra_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.

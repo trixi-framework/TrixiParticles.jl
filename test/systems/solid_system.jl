@@ -257,7 +257,8 @@
         deformations = Dict("rotation" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)],
                             "stretch both" => [2.0 0.0; 0.0 3.0],
                             "rotate and stretch" => [cos(0.3) -sin(0.3);
-                                                     sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0]
+                                                     sin(0.3) cos(0.3)] *
+                                                    [2.0 0.0; 0.0 3.0]
                             )
 
         expected_pk2 = Dict("rotation" => zeros(2, 2), # No stress in rotations only
@@ -269,7 +270,8 @@
                             "stretch both" => [17.0 0.0; 0.0 40.5],
                             "rotate and stretch" => [cos(0.3) -sin(0.3);
                                                      sin(0.3) cos(0.3)] *
-                                                    [2.0 0.0; 0.0 3.0] * [8.5 0.0; 0.0 13.5]
+                                                    [2.0 0.0; 0.0 3.0] *
+                                                    [8.5 0.0; 0.0 13.5]
                             )
 
         @testset "Deformation Function: $deformation" for deformation in keys(deformations)
