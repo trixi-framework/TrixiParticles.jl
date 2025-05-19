@@ -7,7 +7,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-factor_d = 0.08
+factor_d = 0.08 # Resolution in the paper is `0.01` (5M particles)
 
 const cylinder_diameter = 0.1
 particle_spacing = factor_d * cylinder_diameter
@@ -23,7 +23,7 @@ open_boundary_layers = 8
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 50.0)
+tspan = (0.0, 20.0)
 
 # Boundary geometry and initial fluid particle positions
 domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
@@ -186,7 +186,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-output_directory = joinpath(validation_dir(),
+output_directory = joinpath(validation_dir(), "vortex_street_2d",
                             "out_vortex_street_dp_$(factor_d)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
                             TrixiParticles.type2string(smoothing_kernel))
 
