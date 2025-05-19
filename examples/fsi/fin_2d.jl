@@ -10,8 +10,8 @@ n_particles_y = 3
 gravity = 2.0
 tspan = (0.0, 0.5)
 
-fin_length=0.5
-fin_thickness=0.02
+fin_length = 0.5
+fin_thickness = 0.02
 flexural_rigidity = 5.0
 poisson_ratio = 0.3
 modulus = 12 * (1 - poisson_ratio^2) * flexural_rigidity / (fin_thickness^3)
@@ -48,11 +48,23 @@ beam = RectangularShape(particle_spacing, n_particles_per_dimension,
                         (0.0, 0.0), density=density, tlsph=true)
 
 solid = union(beam, fixed_particles)
-movement_amplitude = 0.1
-solid.coordinates .+= 0.4 - 0.5 * fin_thickness #+ movement_amplitude
+solid.coordinates .+= 0.4 - fin_thickness / 2
 
 # Movement function
-movement_function(t) = SVector(0.0, movement_amplitude * sin(5 * pi * t))#- movement_amplitude)
+const FREQUENCY = 1.3 # Hz
+const AMPLITUDE = 0.1
+rotation_deg = 10 # degrees
+const CENTER = (0.0, 0.4)
+const ROTATION_ANGLE = rotation_deg * pi / 180
+@inline function movement_function(x, t)
+    sin_scaled = sin(FREQUENCY * 2pi * t)
+    translation = SVector(0.0, AMPLITUDE * sin_scaled)
+    x_centered = x .- CENTER
+    angle = ROTATION_ANGLE * sin_scaled
+    rotated = SVector(x_centered[1] * cos(angle) - x_centered[2] * sin(angle),
+                      x_centered[1] * sin(angle) + x_centered[2] * cos(angle))
+    return rotated .+ CENTER .+ translation
+end
 
 is_moving(t) = true
 
@@ -94,9 +106,7 @@ smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 boundary_density_calculator = AdamiPressureExtrapolation()
-viscosity_wall = nothing
-# Activate to switch to no-slip walls
-#viscosity_wall = ViscosityAdami(nu=0.0025 * smoothing_length * sound_speed / 8)
+viscosity_fin = ViscosityAdami(nu=1e-6)
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
@@ -107,7 +117,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    state_equation=state_equation,
                                                    boundary_density_calculator,
                                                    smoothing_kernel, smoothing_length,
-                                                   viscosity=viscosity_wall)
+                                                   viscosity=viscosity_fin)
 # k_solid = 0.1
 # beta_solid = fluid_particle_spacing / particle_spacing
 # boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
@@ -142,15 +152,10 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
-viscosity_wall = nothing
-# Activate to switch to no-slip walls
-#viscosity_wall = ViscosityAdami(nu=0.0025 * smoothing_length * sound_speed / 8)
-
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
-                                             viscosity=viscosity_wall)
+                                             smoothing_kernel, smoothing_length)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
