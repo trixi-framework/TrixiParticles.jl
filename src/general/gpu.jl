@@ -44,11 +44,5 @@ function allocate(backend::KernelAbstractions.Backend, ELTYPE, size)
 end
 
 function allocate(backend, ELTYPE, size)
-    # Use CPU vectors for all CPU backends.
-    # These are wrapped in `ThreadedBroadcastArray`s
-    # to make broadcasting (which is done by OrdinaryDiffEq.jl) multithreaded.
-    # See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details.
-    a = Array{ELTYPE, length(size)}(undef, size)
-
-    return ThreadedBroadcastArray(a; parallelization_backend=semi.parallelization_backend)
+    return Array{ELTYPE, length(size)}(undef, size)
 end
