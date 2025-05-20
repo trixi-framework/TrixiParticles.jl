@@ -31,7 +31,7 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 # See the comments in general/gpu.jl for more details.
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
                                        V, PF, SRFN, SRFT, PR, Dens, preDens, PV, D, A, SD, S, O, ME,
-                                       MINI, MAXI} <: FluidSystem{NDIMS}
+                                       MINI, MAXI, TS} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1} 
@@ -55,6 +55,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
     max_error                         :: ME
     min_iterations                    :: MINI
     max_iterations                    :: MAXI
+    time_step                         :: TS
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -66,7 +67,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
                                                              ndims(smoothing_kernel)),
                                          surface_tension=nothing,
                                          reference_particle_spacing=0.0, omega=0.5,
-                                         max_error=0.1, min_iterations=2, max_iterations=20)
+                                         max_error=0.1, min_iterations=2, max_iterations=20, time_step=0.001)
 
     particle_refinement = nothing # TODO
 
@@ -102,7 +103,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
                                            pressure_acceleration, nothing,
                                            nothing, surface_tension, particle_refinement, density, predicted_density,
                                            v_adv, d, a, sum_dij, s_term, omega, max_error,
-                                           min_iterations, max_iterations)
+                                           min_iterations, max_iterations, time_step)
 end
 
 function reset_callback_flag!(system::ImplicitIncompressibleSPHSystem)
@@ -504,7 +505,6 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
                                                        grad_kernel, time_step)
             end
         end
-        last_pressure = pressure[330]
         # Update the pressure values
         for particle in eachparticle(system)
             # Removing instability by avoiding to divide through very low numbers for a_ii
@@ -524,10 +524,7 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
             end
 
         end
-        new_pressure = pressure[330]
-        println(l, ": ",new_pressure - last_pressure)
         avg_density_error /= nparticles(system)
-        #println(avg_density_error)
         eta = max_error * 0.01 * rest_density
         # Update termination condition
         check = (avg_density_error <= eta && l >= min_iterations) || l >= max_iterations
@@ -538,7 +535,7 @@ end
 # Calculates the pressure values by solving a linear system with a relaxed jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    time_step = 0.0001
+    (; time_step) = system
 
     @trixi_timeit timer() "predict advections" predict_advection(system, v, u, v_ode, u_ode,
                                                                  semi, t, time_step)
