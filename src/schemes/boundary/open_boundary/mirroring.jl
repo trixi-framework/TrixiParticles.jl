@@ -49,15 +49,18 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         ghost_node_position = mirror_position(particle_coords, boundary_zone)
 
         # Set zero
-        correction_matrix = zero(SMatrix{ndims(system) + 1, ndims(system) + 1,
-                                         eltype(system)})
+        correction_matrix = Ref(zero(SMatrix{ndims(system) + 1, ndims(system) + 1,
+                                             eltype(system)}))
 
-        extrapolated_density_correction = zero(SVector{ndims(system) + 1, eltype(system)})
+        extrapolated_density_correction = Ref(zero(SVector{ndims(system) + 1,
+                                                           eltype(system)}))
 
-        extrapolated_pressure_correction = zero(SVector{ndims(system) + 1, eltype(system)})
+        extrapolated_pressure_correction = Ref(zero(SVector{ndims(system) + 1,
+                                                            eltype(system)}))
 
-        extrapolated_velocity_correction = zero(SMatrix{ndims(system), ndims(system) + 1,
-                                                        eltype(system)})
+        extrapolated_velocity_correction = Ref(zero(SMatrix{ndims(system),
+                                                            ndims(system) + 1,
+                                                            eltype(system)}))
 
         # TODO: Not public API
         PointNeighbors.foreach_neighbor(fluid_coords, nhs, particle, ghost_node_position,
@@ -81,27 +84,27 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
 
             # TODO: On GPU "unsupported dynamic function invocation (call to +)"
-            correction_matrix += L
+            correction_matrix[] += L
 
             if !prescribed_pressure && fluid_system isa EntropicallyDampedSPHSystem
-                extrapolated_pressure_correction += pressure_b * R
+                extrapolated_pressure_correction[] += pressure_b * R
             end
 
             if !prescribed_velocity
-                extrapolated_velocity_correction += v_b * R'
+                extrapolated_velocity_correction[] += v_b * R'
             end
 
             if !prescribed_density
-                extrapolated_density_correction += rho_b * R
+                extrapolated_density_correction[] += rho_b * R
             end
         end
 
         # See also `correction_matrix_inversion_step!` for an explanation
         # TODO: On GPU "unsupported dynamic function invocation (call to det)" (also abs and <)
-        if abs(det(correction_matrix)) < 1.0f-9
-            L_inv = pinv(correction_matrix)
+        if abs(det(correction_matrix[])) < 1.0f-9
+            L_inv = typeof(correction_matrix[])(I)
         else
-            L_inv = inv(correction_matrix)
+            L_inv = inv(correction_matrix[])
         end
 
         pos_diff = particle_coords - ghost_node_position
@@ -121,7 +124,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             end
         else
             @inbounds for dim in eachindex(pos_diff)
-                f_v = L_inv * extrapolated_velocity_correction[dim, :]
+                f_v = L_inv * extrapolated_velocity_correction[][dim, :]
                 df_v = f_v[two_to_end]
 
                 v_open_boundary[dim, particle] = f_v[1] + dot(pos_diff, df_v)
@@ -133,7 +136,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                                                 particle_coords, t)
         else
             # TODO: On GPU "unsupported dynamic function invocation (call to *)"
-            f_d = L_inv * extrapolated_density_correction
+            f_d = L_inv * extrapolated_density_correction[]
             # TODO: On GPU "unsupported dynamic function invocation (call to getindex)"
             df_d = f_d[two_to_end]
 
@@ -146,7 +149,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         elseif fluid_system isa WeaklyCompressibleSPHSystem
             pressure[particle] = state_equation(density[particle])
         else
-            f_d = L_inv * extrapolated_pressure_correction
+            f_d = L_inv * extrapolated_pressure_correction[]
             df_d = f_d[two_to_end]
 
             # TODO: On GPU "unsupported dynamic function invocation (call to dot)"
