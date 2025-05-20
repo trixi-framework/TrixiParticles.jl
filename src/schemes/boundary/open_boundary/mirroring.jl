@@ -99,7 +99,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         # See also `correction_matrix_inversion_step!` for an explanation
         # TODO: On GPU "unsupported dynamic function invocation (call to det)" (also abs and <)
         if abs(det(correction_matrix)) < 1.0f-9
-            L_inv = I
+            L_inv = pinv(correction_matrix)
         else
             L_inv = inv(correction_matrix)
         end
