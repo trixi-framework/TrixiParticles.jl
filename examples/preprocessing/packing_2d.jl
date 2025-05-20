@@ -86,7 +86,7 @@ callbacks = CallbackSet(UpdateCallback(), saving_callback, info_callback, steady
                         pp_cb_ekin)
 
 sol = solve(ode, RDPK3SpFSAL35();
-            save_everystep=false, maxiters=1000, callback=callbacks, dtmax=1e-2)
+            save_everystep=false, maxiters=1000, callback=callbacks)
 
 packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
