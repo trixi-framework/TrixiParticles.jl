@@ -46,7 +46,7 @@ function SignedDistanceField(geometry, particle_spacing;
     max_corner = geometry.max_corner .+ search_radius
 
     if neighborhood_search
-        cell_list = FullGridCellList(; min_corner, max_corner)
+        cell_list = PointNeighbors.DictionaryCellList{NDIMS}()
         nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius, cell_list)
     else
         nhs = TrivialNeighborhoodSearch{NDIMS}(eachpoint=eachface(geometry))
