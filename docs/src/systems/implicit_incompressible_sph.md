@@ -76,7 +76,7 @@ Substituting this definition into the equation, leadsa linear system $\textbf{A}
 
 This linear system must be solved in order to get the pressure values, which is done by using a relaxed jacobi scheme. 
 
-This is a iterative nummerical method to solve a linear system $Ax=b$. In each iteration the new values of the variable $x$ get computed by the following formular
+This is a iterative numerical method to solve a linear system $Ax=b$. In each iteration the new values of the variable $x$ get computed by the following formular
 
 ```math 
 x_i^{(k+1)} = (1-\omega) x_i^{(k)} + \omega \left( \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} x_j^{(k)} \right)\right)
@@ -89,7 +89,7 @@ p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i^{adv} \sum_{j \neq i
 ```
 
 Therefore the diagonal elements $a_{ii}$ and the sum $\sum_{j \neq i} a_{ij}p_j^l$ need to be determined. 
-This can be done efficently by seperating the pressure force acceleration into two components: One that describes the influence of particle i's own pressure on its displacement, and one that describes the displacement due to the pressure values of the neighboring particles $j$. 
+This can be done efficiently by separating the pressure force acceleration into two components: One that describes the influence of particle i's own pressure on its displacement, and one that describes the displacement due to the pressure values of the neighboring particles $j$. 
 
 The pressure acceleration is given by:
 ```math
@@ -103,21 +103,21 @@ Using this new values the linear system can be rewritten as
 \rho_0 - \rho_i^{adv} = \sum_j m_j \left( d_{ii}p_i + \sum_j d_{ij}p_j - d_{jj}p_j - \sum_k d_{jk}p_k \right) \nabla W_{ij}
 ```
 
-where $k$ stands for the neighbor particles of the neigbor particle $j$ from $i$.
+where $k$ stands for the neighbor particles of the neighbor particle $j$ from $i$.
 So the sum over the neighboring pressure values $p_j$ also includes the pressure values $p_i$, since $i$ is a neighbor of $j$
-To seperate this sum it can be written as 
+To separate this sum it can be written as 
 
 ```math 
 \sum_k d_{jk} p_k = \sum_{k \neq i} d_{jk} p_k + d_{ji} p_i
 ```
 
-With this seperation the equation for the linear system can again be rewritten as 
+With this separation the equation for the linear system can again be rewritten as 
 
 ```math 
 \rho_0 - \rho_i^{adv} = p_i \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij}  + \sum_j m_j \left ( \sum_j d_{ij} p_j - d_{jj} p_j - \sum_{k \neq i} d_{jk}p_k \right) \nabla W_{ij}
 ```
 
-In this formulation all coefficients that are getting multiplied with the pressure value $p_i$ are seperated from the other. The diagonal elements $a_{ii}$ can therefore be defined as:
+In this formulation all coefficients that are getting multiplied with the pressure value $p_i$ are separated from the other. The diagonal elements $a_{ii}$ can therefore be defined as:
 
 ```math
 a_{ii} = \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij}
@@ -148,7 +148,7 @@ To avoid negative pressure values, one can enable pressure clamping. In this cas
 #### 2. Small diagonal elements
 If the diagonal element $a_{ii}$ becomes too small or even zero, the simulation may become unstable. This can occur, for example, if a particle is isolated and receives little or no influence from neighboring particles, or due to numerical cancellations. In such cases, the updated pressure value is set to zero.
 
-There are also other options, like setting $a_{ii}$ to the threshold value is its beneath and then updare with the known forumla, or just don't update the pressure value at all, and continue with the old value. By setting the pressure value to zero, the numerical error through this can not be so big to mess up a whole simulation, as long as it doesn't happens for too many particles. 
+There are also other options, like setting $a_{ii}$ to the threshold value is its beneath and then updare with the known formula, or just don't update the pressure value at all, and continue with the old value. By setting the pressure value to zero, the numerical error through this can not be so big to mess up a whole simulation, as long as it doesn't happens for too many particles. 
 
 
 ## Boundary Handling

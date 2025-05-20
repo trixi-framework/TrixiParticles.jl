@@ -23,8 +23,8 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `omega`:                      Relaxiaion parameter for the relaxed jacobi scheme(default: 0.5)
 - `max_error`:                  Maximal error for the termination condition in the relaxed jacobi scheme (default: 0.1)
-- `min_iterations`:             Minimal number of iterations in the relaxed jacobi scheme, idependent from the termination condition. (default: 2)
-- `max_iterations`:             Maximal number of iterations in the relaxed jacobi scheme, idependent from the termination condition. (default: 20)
+- `min_iterations`:             Minimal number of iterations in the relaxed jacobi scheme, independent from the termination condition. (default: 2)
+- `max_iterations`:             Maximal number of iterations in the relaxed jacobi scheme, independent from the termination condition. (default: 20)
 """
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -49,7 +49,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
     v_adv                             :: PV      # Array{ELTYPE, NDIMS}
     d                                 :: D       # Array{ELTYPE, NDIMS}
     a                                 :: A       # Array{ELTYPE, 1}
-    sum_dij                           :: SD      # Arry{ELTYPE, NDIMS}
+    sum_dij                           :: SD      # Array{ELTYPE, NDIMS}
     s_term                            :: S       # Array{ELTYPE, 1}
     omega                             :: O
     max_error                         :: ME
@@ -225,7 +225,7 @@ end
 # Calculates a summand for the calculation of the d_ii values (pressure mirroring) 
 function calculate_dii(system, boundary_model, density_calculator::PressureMirroring, m_b,
                        rho_a, grad_kernel, time_step)
-    return -time_step^2 * 2m_b / rho_a^2 * grad_kernel #for pressure mirroring
+    return -time_step^2 * 2*m_b / rho_a^2 * grad_kernel #for pressure mirroring
 end
 
 # Calculates a summand for the calculation of the d_ii values (pressure zeroing)
@@ -315,7 +315,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t, time_step)
     # Update density (with summation density)
     (; density) = system
     summation_density!(system, semi, u, u_ode, density)
-    # Get neccessary fields
+    # Get necessary fields
     (; predicted_density) = system
     predicted_density .= density
     (; d) = system
@@ -361,18 +361,17 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t, time_step)
                                                    particle, neighbor, pos_diff, distance,
                                                    sound_speed, m_a, m_b, rho_a, rho_b,
                                                    grad_kernel)
+            # Calculate predicted velocities
+            for i in 1:ndims(system)
+                v_adv[i,
+                      particle] += time_step * (dv_viscosity_[i] + system.acceleration[i])
+            end                      
 
             # Calculate d_ii with the formula in eq. 9 from 'IHMSEN et al'
             for i in 1:ndims(system)
                 d[i,
                   particle] += calculate_dii(neighbor_system, m_b, rho_a, grad_kernel[i],
                                              time_step)
-            end
-
-            # Calculate predicted velocities
-            for i in 1:ndims(system)
-                v_adv[i,
-                      particle] += time_step * (dv_viscosity_[i] + system.acceleration[i])
             end
         end
     end
@@ -439,7 +438,7 @@ end
 
 function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
     # Calculate pressure values with iterative pressure solver (relaxed jacobi scheme)
-    # Get neccessary fields
+    # Get neccesary fields
     (; sum_dij) = system
     (; s_term) = system
     (; pressure) = system
@@ -509,9 +508,9 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
         # Update the pressure values
         for particle in eachparticle(system)
             # Removing instability by avoiding to divide through very low numbers for a_ii
-            if abs(a[particle]) > 1e-9
+            if abs(a[particle]) > 1-9
                 pressure[particle] = max((1-omega) * pressure[particle] +
-                                         omega * 1/a[particle] *
+                                         omega / a[particle] *
                                          (rest_density - predicted_density[particle] -
                                           s_term[particle]), 0)
             else
