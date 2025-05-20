@@ -10,7 +10,8 @@ Supported file formats are `.stl` and `.asc`.
 # Keywords
 - `element_type`: Element type (default is `Float64`)
 """
-function load_geometry(filename; element_type=Float64, parallelization_backend=true)
+function load_geometry(filename; element_type=Float64,
+                       parallelization_backend=PolyesterBackend())
     ELTYPE = element_type
 
     file_extension = splitext(filename)[end]

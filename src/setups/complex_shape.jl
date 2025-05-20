@@ -144,7 +144,7 @@ function sample_boundary(signed_distance_field;
     distance_to_boundary = zero(particle_spacing)
     keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
 
-    boundary_coordinates = stack(positions[keep_indices])
+    boundary_coordinates = positions[:, keep_indices]
     return InitialCondition(; coordinates=boundary_coordinates, density=boundary_density,
                             particle_spacing)
 end

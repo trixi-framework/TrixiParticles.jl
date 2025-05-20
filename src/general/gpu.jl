@@ -21,6 +21,8 @@ Adapt.@adapt_structure Polygon
 Adapt.@adapt_structure TriangleMesh
 Adapt.@adapt_structure WindingNumberJacobson
 Adapt.@adapt_structure HierarchicalWinding
+Adapt.@adapt_structure SignedDistanceField
+Adapt.@adapt_structure ParticlePackingSystem
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
