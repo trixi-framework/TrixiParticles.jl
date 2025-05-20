@@ -30,7 +30,7 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
-                                       V, PF, SRFN, Dens, preDens, PV, D, A, SD, S, O, ME,
+                                       V, PF, SRFN, SRFT, PR, Dens, preDens, PV, D, A, SD, S, O, ME,
                                        MINI, MAXI} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
@@ -42,6 +42,8 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
     pressure_acceleration_formulation :: PF
     transport_velocity                :: Nothing # TODO
     surface_normal_method             :: SRFN
+    surface_tension                   :: SRFT
+    particle_refinement               :: PR  #TODO
     density                           :: Dens    # Array{ELTYPE, 1}
     predicted_density                 :: preDens # Array{ELTYPE, 1}
     v_adv                             :: PV      # Array{ELTYPE, NDIMS}
@@ -62,8 +64,12 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
                                          viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
+                                         surface_tension=nothing,
                                          reference_particle_spacing=0.0, omega=0.5,
                                          max_error=0.1, min_iterations=2, max_iterations=20)
+
+    particle_refinement = nothing # TODO
+
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -94,7 +100,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
                                            smoothing_kernel, smoothing_length,
                                            acceleration_, viscosity,
                                            pressure_acceleration, nothing,
-                                           nothing, density, predicted_density,
+                                           nothing, surface_tension, particle_refinement, density, predicted_density,
                                            v_adv, d, a, sum_dij, s_term, omega, max_error,
                                            min_iterations, max_iterations)
 end
@@ -110,7 +116,6 @@ function Base.show(io::IO, system::ImplicitIncompressibleSPHSystem)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.acceleration)
-    print(io, ", ", system.source_terms)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -132,6 +137,15 @@ function Base.show(io::IO, ::MIME"text/plain", system::ImplicitIncompressibleSPH
         summary_footer(io)
     end
 end
+@inline function Base.eltype(::ImplicitIncompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
+end
+
+initial_smoothing_length(system::ImplicitIncompressibleSPHSystem, ::Nothing) = system.smoothing_length
+
+function smoothing_length(system::ImplicitIncompressibleSPHSystem, particle)
+    return system.smoothing_length
+end
 
 @inline each_moving_particle(system::ImplicitIncompressibleSPHSystem) = Base.OneTo(n_moving_particles(system))
 @inline active_coordinates(u,
@@ -143,14 +157,12 @@ end
     return nothing
 end
 
-@propagate_inbounds function current_pressure(v, system::ImplicitIncompressibleSPHSystem,
-                                               particle)
-    return system.pressure[particle]
+@propagate_inbounds function current_pressure(v, system::ImplicitIncompressibleSPHSystem)
+    return system.pressure
 end
 
-@propagate_inbounds function current_density(v, system::ImplicitIncompressibleSPHSystem,
-                                              particle)
-    return system.density[particle]
+@propagate_inbounds function current_density(v, system::ImplicitIncompressibleSPHSystem)
+    return system.density
 end
 
 #TODO: Was machen mit dem Soundspeed? Wird für viscosity benötigt
@@ -493,7 +505,7 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
                                                        grad_kernel, time_step)
             end
         end
-
+        last_pressure = pressure[330]
         # Update the pressure values
         for particle in eachparticle(system)
             # Removing instability by avoiding to divide through very low numbers for a_ii
@@ -509,10 +521,14 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
             if (pressure[particle] != 0.0)
                 new_density = a[particle]*pressure[particle] + s_term[particle] -
                               (rest_density - predicted_density[particle]) + rest_density
-                avg_density_error += new_density - rest_density
+                avg_density_error += (new_density - rest_density)
             end
+
         end
+        new_pressure = pressure[330]
+        println(l, ": ",new_pressure - last_pressure)
         avg_density_error /= nparticles(system)
+        #println(avg_density_error)
         eta = max_error * 0.01 * rest_density
         # Update termination condition
         check = (avg_density_error <= eta && l >= min_iterations) || l >= max_iterations
@@ -523,7 +539,7 @@ end
 # Calculates the pressure values by solving a linear system with a relaxed jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    time_step = 0.001
+    time_step = 0.0001
 
     @trixi_timeit timer() "predict advections" predict_advection(system, v, u, v_ode, u_ode,
                                                                  semi, t, time_step)

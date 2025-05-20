@@ -3,9 +3,9 @@
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates the density
 # using the continuity equation.
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   v_neighbor_system, u_neighbor_system,
                    particle_system::ImplicitIncompressibleSPHSystem,
-                   neighbor_system)
+                   neighbor_system, semi)
     sound_speed = system_sound_speed(particle_system) #TODO
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -17,7 +17,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_system_coords,
-                           neighborhood_search;
+                           semi;
                            points=each_moving_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             pos_diff,
@@ -25,8 +25,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.
-        rho_a = @inbounds particle_density(v_particle_system, particle_system, particle)
-        rho_b = @inbounds particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
+        rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
@@ -48,7 +48,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_pressure =  pressure_acceleration(particle_system, neighbor_system,
                                              particle, neighbor,
                                              m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                             distance, grad_kernel, correction)
+                                             distance, grad_kernel, nothing)
 
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data

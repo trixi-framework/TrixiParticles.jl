@@ -15,7 +15,7 @@ spacing_ratio = 1
 # ==== Experiment Setup
 
 gravity = 9.81
-tspan = (0.0, 0.35)
+tspan = (0.0, 0.25)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (1.0, 1.0)
@@ -42,11 +42,11 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 viscosity = ViscosityAdami(; nu=1.0 / 100.0)
 fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
                                                smoothing_length, viscosity=viscosity,
-                                               acceleration=(0.0, -gravity))
+                                               acceleration=(0.0, -gravity), omega=0.5, min_iterations=10, max_iterations=30)
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = PressureZeroing()
+boundary_density_calculator = PressureMirroring()
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=nothing,
@@ -66,7 +66,7 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 sol = solve(ode, SymplecticEuler(),
-            dt=0.001,
+            dt=0.0001,
             save_everystep=false, callback=callbacks);
 
 plot(sol)
