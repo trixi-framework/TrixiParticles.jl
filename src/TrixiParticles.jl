@@ -83,7 +83,8 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 export HertzContactModel, LinearContactModel
 export BoundaryMovement
 export examples_dir, validation_dir
-export trixi2vtk, trixi2json, vtk2trixi
+export trixi2vtk, vtk2trixi
+export write_meta_data
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson

@@ -216,6 +216,7 @@ function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integra
     # Apply the callback
     cb(integrator)
 
+    write_meta_data(cb, integrator)
     return cb
 end
 
