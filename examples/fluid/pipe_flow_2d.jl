@@ -53,7 +53,7 @@ n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
 
 # ==========================================================================================
 # ==== Fluid
-wcsph = true
+wcsph = false
 
 smoothing_length = 1.5 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{NDIMS}()
@@ -92,7 +92,7 @@ function velocity_function2d(pos, t)
     return SVector(prescribed_velocity, 0.0)
 end
 
-open_boundary_model = BoundaryModelTafuni()
+open_boundary_model = BoundaryModelLastiwka()
 
 boundary_type_in = InFlow()
 plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
@@ -101,8 +101,8 @@ inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_bounda
                       boundary_type=boundary_type_in)
 
 reference_velocity_in = velocity_function2d
-reference_pressure_in = nothing
-reference_density_in = nothing
+reference_pressure_in = pressure
+reference_density_in = fluid_density
 open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
                                          boundary_model=open_boundary_model,
                                          buffer_size=n_buffer_particles,
@@ -116,9 +116,9 @@ outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        boundary_type=boundary_type_out)
 
-reference_velocity_out = nothing
-reference_pressure_out = nothing
-reference_density_out = nothing
+reference_velocity_out = velocity_function2d
+reference_pressure_out = pressure
+reference_density_out = fluid_density
 open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
                                           boundary_model=open_boundary_model,
                                           buffer_size=n_buffer_particles,
@@ -155,8 +155,7 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
-                        ParticleShiftingCallback(), extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)

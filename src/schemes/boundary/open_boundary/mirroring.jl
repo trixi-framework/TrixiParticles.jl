@@ -49,6 +49,8 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         ghost_node_position = mirror_position(particle_coords, boundary_zone)
 
         # Set zero
+        # Use `Ref` to ensure the variables are accessible and mutable within the closure
+        # (see https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured)
         correction_matrix = Ref(zero(SMatrix{ndims(system) + 1, ndims(system) + 1,
                                              eltype(system)}))
 
@@ -83,7 +85,6 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 
             L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
 
-            # TODO: On GPU "unsupported dynamic function invocation (call to +)"
             correction_matrix[] += L
 
             if !prescribed_pressure && fluid_system isa EntropicallyDampedSPHSystem
@@ -100,7 +101,6 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         end
 
         # See also `correction_matrix_inversion_step!` for an explanation
-        # TODO: On GPU "unsupported dynamic function invocation (call to det)" (also abs and <)
         if abs(det(correction_matrix[])) < 1.0f-9
             L_inv = typeof(correction_matrix[])(I)
         else
@@ -135,9 +135,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)
         else
-            # TODO: On GPU "unsupported dynamic function invocation (call to *)"
             f_d = L_inv * extrapolated_density_correction[]
-            # TODO: On GPU "unsupported dynamic function invocation (call to getindex)"
             df_d = f_d[two_to_end]
 
             density[particle] = f_d[1] + dot(pos_diff, df_d)
@@ -152,7 +150,6 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             f_d = L_inv * extrapolated_pressure_correction[]
             df_d = f_d[two_to_end]
 
-            # TODO: On GPU "unsupported dynamic function invocation (call to dot)"
             pressure[particle] = f_d[1] + dot(pos_diff, df_d)
         end
     end
