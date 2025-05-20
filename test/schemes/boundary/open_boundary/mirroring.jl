@@ -49,7 +49,7 @@
 
         smoothing_length = 1.5 * particle_spacing
         smoothing_kernel = WendlandC2Kernel{ndims(domain_fluid)}()
-        fluid_system = EntropicallyDampedSPHSystem(domain_fluid,smoothing_kernel,
+        fluid_system = EntropicallyDampedSPHSystem(domain_fluid, smoothing_kernel,
                                                    smoothing_length, 1.0)
 
         fluid_system.cache.density .= domain_fluid.density
