@@ -48,7 +48,7 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 alpha = 0.02
-viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 # A typical formula to convert Artificial viscosity to a
 # kinematic viscosity is provided by Monaghan as
 # nu = alpha * smoothing_length * sound_speed/8
@@ -57,10 +57,10 @@ viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 # nu = 1.0e-6
 
 # This allows the use of a physical viscosity model like:
-# viscosity = ViscosityAdami(nu=nu)
+# viscosity_fluid = ViscosityAdami(nu=nu)
 # or with additional dissipation through a Smagorinsky model
-# viscosity = ViscosityAdamiSGS(nu=nu)
-# For more details see the documentation [Viscosity model overview](@ref viscosity_sph).
+# viscosity_fluid = ViscosityAdamiSGS(nu=nu)
+# For more details see the documentation "Viscosity model overview".
 
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
@@ -69,7 +69,7 @@ density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
+                                           smoothing_length, viscosity=viscosity_fluid,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity), correction=nothing,
                                            surface_tension=nothing,
@@ -80,8 +80,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 boundary_density_calculator = AdamiPressureExtrapolation()
 viscosity_wall = nothing
 # For a no-slip condition the corresponding wall viscosity without SGS can be set
-#viscosity_wall = ViscosityAdami(nu=nu)
-#viscosity_wall = ViscosityMorris(nu=nu)
+# viscosity_wall = ViscosityAdami(nu=nu)
+# viscosity_wall = ViscosityMorris(nu=nu)
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,

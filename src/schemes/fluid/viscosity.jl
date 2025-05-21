@@ -245,32 +245,32 @@ by incorporating a subgrid-scale (SGS) eddy viscosity via a Smagorinsky-type [Sm
 The effective kinematic viscosity is defined as
 
 ```math
-\nu_{\mathrm{eff}} = \nu_{\\mathrm{std}} + \nu_{\\mathrm{SGS}},
+\nu_{\text{eff}} = \nu_{\text{std}} + \nu_{\text{SGS}},
 ```
 
 with
 
 ```math
-\nu_{\mathrm{SGS}} = (C_S * h)^2 * |S|,
+\nu_{\text{SGS}} = (C_S h)^2 |S|,
 ```
 
 and an approximation for the strain rate magnitude given by
 
 ```math
-|S| \approx \frac{\|v_a - v_b\|}{\|r_a - r_b\| + \epsilon},
+|S| \approx \frac{\|v_ab\|}{\|r_ab\| + \epsilon},
 ```
 
 where:
-- $C_S$ is the Smagorinsky constant (typically 0.1 to 0.2),
-- $h$ is the local smoothing length, and
+- ``C_S`` is the Smagorinsky constant (typically 0.1 to 0.2),
+- ``h`` is the local smoothing length.
 
 The effective dynamic viscosities are then computed as
 ```math
-\eta_{a,\mathrm{eff}} = \rho_a\, \nu_{\mathrm{eff}},
+\eta_{a,\text{eff}} = \rho_a\, \nu_{\text{eff}},
 ```
 and averaged as
 ```math
-\bar{\eta}_{ab} = \frac{2 \eta_{a,\mathrm{eff}} \eta_{b,\mathrm{eff}}}{\eta_{a,\mathrm{eff}}+\eta_{b,\mathrm{eff}}}.
+\bar{\eta}_{ab} = \frac{2 \eta_{a,\text{eff}} \eta_{b,\text{eff}}}{\eta_{a,\text{eff}}+\eta_{b,\text{eff}}}.
 ```
 
 This model is appropriate for turbulent flows where unresolved scales contribute additional dissipation.
@@ -281,12 +281,11 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 - `epsilon=0.01`: Parameter to prevent singularities
 """
 struct ViscosityAdamiSGS{ELTYPE}
-    nu::ELTYPE      # kinematic viscosity [e.g., 1e-6 m²/s]
-    C_S::ELTYPE     # Smagorinsky constant [e.g., 0.1-0.2]
-    epsilon::ELTYPE # Epsilon for singularity prevention [e.g., 0.001]
+    nu      :: ELTYPE      # kinematic viscosity [e.g., 1e-6 m²/s]
+    C_S     :: ELTYPE     # Smagorinsky constant [e.g., 0.1-0.2]
+    epsilon :: ELTYPE # Epsilon for singularity prevention [e.g., 0.001]
 end
 
-# Convenient constructor with default values for C_S and epsilon.
 ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityAdamiSGS(nu, C_S, epsilon)
 
 @propagate_inbounds function (viscosity::ViscosityAdamiSGS)(particle_system,
@@ -322,9 +321,9 @@ ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityAdamiSGS(nu, C_S, eps
     #
     # In SPH, one could compute ∂ᵢvⱼ via kernel gradients, but this is costly.
     # A common low-order surrogate is to approximate the strain‐rate magnitude by a
-    # finite-difference along each particle pair:
+    # finite difference along each particle pair:
     #
-    #   |S| ≈ ‖vₐ–v_b‖ / (‖rₐ–r_b‖ + δ),
+    #   |S| ≈ ‖v_ab‖ / (‖r_ab‖ + δ),
     #
     # where δ regularizes the denominator to avoid singularities when particles are very close.
     #
@@ -354,24 +353,36 @@ end
     ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001)
 
 Subgrid-scale (SGS) viscosity model based on the formulation by [Morris (1997)](@cite Morris1997),
-extended with a Smagorinsky-type eddy viscosity term [Smagorinsky (1963)](@cite Smagorinsky1963) for modeling turbulent flows.
+by incorporating a subgrid-scale (SGS) eddy viscosity via a Smagorinsky-type [Smagorinsky (1963)](@cite Smagorinsky1963) closure.
+The effective kinematic viscosity is defined as
 
-The acceleration on particle `a` due to viscosity interaction with particle `b` is calculated as:
 ```math
-\frac{d v_a}{dt} = \sum_b m_b \frac{\mu_{a,\mathrm{eff}} + \mu_{b,\mathrm{eff}}}{\rho_a \rho_b} \frac{r_{ab} \cdot \nabla_a W_{ab}}{r_{ab}^2 + \epsilon h_{ab}^2} v_{ab}
-where $v_{ab} = v_a - v_b$, $r_{ab} = r_a - r_b$, $r_{ab} = \|r_{ab}\|$, $h_{ab} = (h_a + h_b)/2$, $W_{ab}$ is the smoothing kernel, $\rho$ is density, $m$ is mass, and $\epsilon$ is a regularization parameter.
+\nu_{\text{eff}} = \nu_{\text{std}} + \nu_{\text{SGS}},
+```
 
-The effective dynamic viscosity $\mu_{i,\mathrm{eff}}$ for each particle `i` (a or b) includes both the standard molecular viscosity and an SGS eddy viscosity contribution:
+with
+
 ```math
-\mu_{i,\mathrm{eff}} = \rho_i \nu_{i,\mathrm{eff}} = \rho_i (\nu_{\mathrm{std}} + \nu_{i,\mathrm{SGS}})
+\nu_{\text{SGS}} = (C_S h)^2 |S|,
 ```
-The standard kinematic viscosity $\nu_{\mathrm{std}}$ is provided by the `nu` parameter. The SGS kinematic viscosity is calculated using the Smagorinsky model:
+
+and an approximation for the strain rate magnitude given by
+
 ```math
-\nu_{i,\mathrm{SGS}} = (C_S h_{ab})^2 |\bar{S}_{ab}|
+|S| \approx \frac{\|v_ab\|}{\|r_ab\| + \epsilon},
 ```
-where $C_S$ is the Smagorinsky constant. This implementation uses a simplified pairwise approximation for the strain rate tensor magnitude $|\bar{S}_{ab}|$:
+
+where:
+- ``C_S`` is the Smagorinsky constant (typically 0.1 to 0.2),
+- ``h`` is the local smoothing length.
+
+The effective dynamic viscosities are then computed as
 ```math
-|\bar{S}_{ab}| \approx \frac{\|v_a - v_b\|}{\|r_a - r_b\| + \epsilon}
+\eta_{a,\text{eff}} = \rho_a\, \nu_{\text{eff}},
+```
+and averaged as
+```math
+\bar{\eta}_{ab} = \frac{2 \eta_{a,\text{eff}} \eta_{b,\text{eff}}}{\eta_{a,\text{eff}}+\eta_{b,\text{eff}}}.
 ```
 
 This model is appropriate for turbulent flows where unresolved scales contribute additional dissipation.
@@ -413,26 +424,8 @@ ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, e
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
     v_diff = v_a - v_b
 
-    # ------------------------------------------------------------------------------
     # SGS part: Compute the subgrid-scale eddy viscosity.
-    # ------------------------------------------------------------------------------
-    # In classical LES [Lilly (1967)](@cite Lilly1967) the Smagorinsky model defines:
-    #   ν_SGS = (C_S Δ)^2 |S|,
-    # where |S| is the norm of the strain-rate tensor Sᵢⱼ = ½(∂ᵢvⱼ+∂ⱼvᵢ).
-    #
-    # In SPH, one could compute ∂ᵢvⱼ via kernel gradients, but this is costly.
-    # A common low-order surrogate is to approximate the strain‐rate magnitude by a
-    # finite-difference along each particle pair:
-    #
-    #   |S| ≈ ‖vₐ–v_b‖ / (‖rₐ–r_b‖ + δ),
-    #
-    # where δ regularizes the denominator to avoid singularities when particles are very close.
-    #
-    # This yields:
-    #   S_mag = norm(v_diff) / (distance + ε)
-    #
-    # and then the Smagorinsky eddy viscosity:
-    #   ν_SGS = (C_S * h̄)^2 * S_mag.
+    # See comments above for `ViscosityAdamiSGS`.
     S_mag = norm(v_diff) / (distance + epsilon)
     nu_SGS = (viscosity.C_S * smoothing_length_average)^2 * S_mag
 

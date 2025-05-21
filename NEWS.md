@@ -8,7 +8,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
-- New Viscosity model 'ViscosityMorrisSGS' and 'ViscosityAdamiSGS' were added which use simplified Smagorinsky type SGS (#753).
+- New viscosity models `ViscosityMorrisSGS` and `ViscosityAdamiSGS` were added, which use a simplified Smagorinsky-type SGS (#753).  
 
 - With all CPU backends, a new array type is used for the integration array, which defines
   broadcasting to be multithreaded, leading to speedups of up to 5x with large thread counts
