@@ -252,13 +252,13 @@ system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 end
 
 @inline function current_velocity(v, ::SummationDensity,
-                                   system::WeaklyCompressibleSPHSystem)
+                                  system::WeaklyCompressibleSPHSystem)
     # When using `SummationDensity`, `v` contains only the velocity
     return v
 end
 
 @inline function current_velocity(v, ::ContinuityDensity,
-                                   system::WeaklyCompressibleSPHSystem)
+                                  system::WeaklyCompressibleSPHSystem)
     # When using `ContinuityDensity`, the velocity is stored
     # in the first `ndims(system)` rows of `v`.
     return view(v, 1:ndims(system), :)
