@@ -1,75 +1,128 @@
-# In this example we can observe that the `SurfaceTensionAkinci` surface tension model correctly leads to a
-# surface minimization of the water square and approaches a sphere.
+# ==========================================================================================
+# 2D Sphere Formation via Surface Tension
+#
+# This example demonstrates how surface tension models in TrixiParticles.jl
+# can cause an initially square patch of fluid to minimize its surface area,
+# ideally forming a circular (2D sphere) shape.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
-fluid_density = 1000.0
+# ------------------------------------------------------------------------------
+# Parameters
+# ------------------------------------------------------------------------------
 
+# Fluid properties
+fluid_density_ref = 1000.0 # Reference density of the fluid (kg/m^3)
+sound_speed = 20.0         # Speed of sound (m/s)
+
+# Resolution and Geometry
+# A higher resolution (smaller `particle_spacing`) yields better results
+# but increases computation time.
 particle_spacing = 0.05
-# Use a higher resolution for a better result
 # particle_spacing = 0.025
 
-# Note: Only square shapes will result in a sphere.
-# Furthermore, changes of the coefficients might be necessary for higher resolutions or larger squares.
-fluid_size = (0.5, 0.5)
+# Initial shape: A square patch of fluid.
+# Only square shapes are expected to form a perfect circle under isotropic surface tension.
+# The size of the square might require tuning of model coefficients for optimal results.
+initial_fluid_size = (0.5, 0.5) # width, height
 
-sound_speed = 20.0
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7, clip_negative_pressure=true)
-
-# For all surface tension simulations, we need a compact support of `2 * particle_spacing`
-# smoothing_length = particle_spacing
-# smoothing_kernel = WendlandC2Kernel{2}()
-# nu = 0.01
-
+# SPH numerical parameters
+# Specific choices for smoothing length and kernel can be important for surface tension models.
+# Option 1: (Akinci model)
+#   - smoothing_length = 1.0 * particle_spacing
+#   - smoothing_kernel = WendlandC2Kernel{2}()
+# Option 2: (Morris model)
 smoothing_length = 1.75 * particle_spacing
-fluid_smoothing_kernel = WendlandC2Kernel{2}()
-# nu = 0.001 # SurfaceTensionMomentumMorris
-nu = 0.05 # SurfaceTensionMorris
+smoothing_kernel = WendlandC2Kernel{2}()
 
-fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_spacing),
-                         zeros(length(fluid_size)), density=fluid_density)
+# Viscosity or Damping
+# Physical kinematic viscosity `nu` or parameters for artificial viscosity.
+# For SurfaceTensionMorris with EDSPH:
+nu_morris = 0.05
+# For SurfaceTensionAkinci with WCSPH:
+# nu_akinci_artificial = 0.01
+# alpha_akinci = 8 * nu_akinci_artificial / (1.0 * particle_spacing * sound_speed)
 
-alpha = 8 * nu / (smoothing_length * sound_speed)
-source_terms = SourceTermDamping(; damping_coefficient=0.5)
-# fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
-#                                            state_equation, fluid_smoothing_kernel,
-#                                            smoothing_length,
-#                                            reference_particle_spacing=particle_spacing,
-#                                            viscosity=ArtificialViscosityMonaghan(alpha=alpha,
-#                                                                                  beta=0.0),
-#                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
-#                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
-#                                            source_terms=source_terms)
+# Surface tension coefficients
+surface_tension_coeff_morris = 50 * 0.0728 # Scaled value (0.0728 N/m is water-air surf. tens.)
+# surface_tension_coeff_akinci = 0.02
 
-# Alternatively can also be used with surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)
-fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
+# Simulation time span
+tspan = (0.0, 50.0) # Long enough to observe shape evolution
+
+# ------------------------------------------------------------------------------
+# Fluid System Setup
+# ------------------------------------------------------------------------------
+
+# Create initial square patch of fluid particles
+fluid_particles = RectangularShape(particle_spacing,
+                                   round.(Int, initial_fluid_size ./ particle_spacing),
+                                   zeros(length(initial_fluid_size)),
+                                   density=fluid_density_ref)
+
+# Select one of the following fluid system setups:
+
+density_calculator_edpsh = ContinuityDensity()
+viscosity_edpsh = ViscosityMorris(nu=nu_morris)
+surface_normal_method_colorfield = ColorfieldSurfaceNormal()
+surface_tension_model_morris = SurfaceTensionMorris(surface_tension_coefficient=surface_tension_coeff_morris)
+
+fluid_system = EntropicallyDampedSPHSystem(fluid_particles, smoothing_kernel,
                                            smoothing_length,
                                            sound_speed,
-                                           viscosity=ViscosityMorris(nu=nu),
-                                           density_calculator=ContinuityDensity(),
-                                           reference_particle_spacing=particle_spacing,
-                                           acceleration=zeros(length(fluid_size)),
-                                           surface_normal_method=ColorfieldSurfaceNormal(),
-                                           surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
-                                                                                                            0.0728))
+                                           density_calculator=density_calculator_edpsh,
+                                           viscosity=viscosity_edpsh,
+                                           surface_normal_method=surface_normal_method_colorfield,
+                                           surface_tension=surface_tension_model_morris,
+                                           acceleration=zeros(length(initial_fluid_size)),
+                                           reference_particle_spacing=particle_spacing)
 
-# ==========================================================================================
-# ==== Simulation
-semi = Semidiscretization(fluid_system)
+# == Alternative Setup: Weakly Compressible SPH with Akinci Surface Tension ==
+# density_calculator_wcsph = SummationDensity() # Or ContinuityDensity
+# viscosity_wcsph = ArtificialViscosityMonaghan(alpha=alpha_akinci, beta=0.0)
+# surface_tension_model_akinci = SurfaceTensionAkinci(surface_tension_coefficient=surface_tension_coeff_akinci)
+# free_surface_correction_akinci = AkinciFreeSurfaceCorrection(fluid_density_ref)
+# # Damping can help stabilize the system, especially during large deformations.
+# source_terms_damping = SourceTermDamping(damping_coefficient=0.5)
+#
+# state_equation = StateEquationCole(sound_speed=sound_speed,
+# reference_density=fluid_density_ref,
+# exponent=7,
+# clip_negative_pressure=true)
+#
+# fluid_system_wcsph = WeaklyCompressibleSPHSystem(fluid_particles, density_calculator_wcsph,
+#                                                  state_equation, smoothing_kernel,
+#                                                  smoothing_length, # Use appropriate S.L. for Akinci
+#                                                  viscosity=viscosity_wcsph,
+#                                                  surface_tension=surface_tension_model_akinci,
+#                                                  correction=free_surface_correction_akinci,
+#                                                  source_terms=source_terms_damping,
+#                                                  acceleration=zeros(length(initial_fluid_size)),
+#                                                  reference_particle_spacing=particle_spacing)
+# fluid_system = fluid_system_wcsph # Uncomment to activate this setup
 
-tspan = (0.0, 50.0)
+# ------------------------------------------------------------------------------
+# Simulation
+# ------------------------------------------------------------------------------
+# No explicit boundary systems in this example.
+semi = Semidiscretization(fluid_system,
+                          parallelization_backend=PolyesterBackend())
+
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
+# Callbacks
+info_callback = InfoCallback(interval=100) # Print info every 100 steps
 
-# For overwriting via `trixi_include`
-saving_callback = SolutionSavingCallback(dt=1.0)
-
-stepsize_callback = StepsizeCallback(cfl=1.0)
+# `saving_callback` can be overridden by `trixi_include` if this file is used as a base.
+saving_callback = SolutionSavingCallback(dt=1.0, prefix="") # Save every 1.0 time unit
+stepsize_callback = StepsizeCallback(cfl=1.0) # CFL-based adaptive time stepping
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
+# `dt=1.0` is an initial guess; `StepsizeCallback` will override it.
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
-            dt=1.0, # This is overwritten by the stepsize callback
-            save_everystep=false, callback=callbacks);
+            dt=1.0,
+            save_everystep=false,
+            callback=callbacks)

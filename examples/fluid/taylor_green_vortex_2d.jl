@@ -1,115 +1,167 @@
-# Taylor Green vortex
+# ==========================================================================================
+# 2D Taylor-Green Vortex Simulation
 #
-# P. Ramachandran, K. Puri
-# "Entropically damped artiﬁcial compressibility for SPH".
-# In: Computers and Fluids, Volume 179 (2019), pages 579-594.
-# https://doi.org/10.1016/j.compﬂuid.2018.11.023
+# Based on:
+#   P. Ramachandran, K. Puri.
+#   "Entropically damped artiﬁcial compressibility for SPH".
+#   Computers and Fluids, Volume 179 (2019), pages 579-594.
+#   https://doi.org/10.1016/j.compfluid.2018.11.023
+#
+# This example simulates the Taylor-Green vortex, a classic benchmark case for
+# incompressible viscous flow, characterized by an array of decaying vortices.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
 
-# ==========================================================================================
-# ==== Resolution
+# ------------------------------------------------------------------------------
+# Parameters
+# ------------------------------------------------------------------------------
+# Resolution
 particle_spacing = 0.02
 
-# ==========================================================================================
-# ==== Experiment Setup
-tspan = (0.0, 5.0)
+# Physical parameters
 reynolds_number = 100.0
+domain_box_length = 1.0   # Side length of the square periodic domain
+characteristic_velocity_U = 1.0 # Characteristic velocity (m/s)
+fluid_density_ref = 1.0     # Reference density of the fluid (kg/m^3)
 
-box_length = 1.0
+# Simulation time span
+tspan = (0.0, 5.0)
 
-U = 1.0 # m/s
-fluid_density = 1.0
-sound_speed = 10U
+# Choose fluid formulation:
+# `true` for WCSPH, `false` for EDSPH
+use_wcsph_formulation = false
 
-b = -8pi^2 / reynolds_number
+# Option to perturb initial particle coordinates.
+# This can help break symmetries and prevent stagnant streamlines, especially if
+# not using a transport velocity formulation or if initial density estimation is sensitive.
+perturb_initial_coordinates = true
 
-# Taylor Green Vortex Pressure Function
-function pressure_function(pos, t)
-    x = pos[1]
-    y = pos[2]
+# ------------------------------------------------------------------------------
+# Analytical Solution and Derived Parameters
+# ------------------------------------------------------------------------------
+# Speed of sound, typically ~10 times the characteristic velocity for low compressibility.
+sound_speed = 10 * characteristic_velocity_U
 
-    return -U^2 * exp(2 * b * t) * (cos(4pi * x) + cos(4pi * y)) / 4
+# Decay rate for Taylor-Green vortex analytical solution
+decay_rate_b = -8 * pi^2 / reynolds_number
+
+# Kinematic viscosity (nu = U * L / Re)
+kinematic_viscosity_nu = characteristic_velocity_U * domain_box_length / reynolds_number
+
+# Background pressure for transport velocity formulation (rho_0 * c_0^2)
+background_pressure_transport_velocity = fluid_density_ref * sound_speed^2
+
+# Analytical pressure function p(x, y, t) for Taylor-Green vortex
+function analytical_pressure(position, time)
+    x, y = position
+    term_exp = exp(2 * decay_rate_b * time)
+    term_cos = cos(4 * pi * x) + cos(4 * pi * y)
+    return -characteristic_velocity_U^2 * term_exp * term_cos / 4
 end
+initial_pressure_at_position(pos) = analytical_pressure(pos, 0.0)
 
-initial_pressure_function(pos) = pressure_function(pos, 0.0)
-
-# Taylor Green Vortex Velocity Function
-function velocity_function(pos, t)
-    x = pos[1]
-    y = pos[2]
-
-    vel = U * exp(b * t) * [-cos(2pi * x) * sin(2pi * y), sin(2pi * x) * cos(2pi * y)]
-
-    return SVector{2}(vel)
+# Analytical velocity function v(x, y, t) for Taylor-Green vortex
+function analytical_velocity(position, time)
+    x, y = position
+    vel_factor = characteristic_velocity_U * exp(decay_rate_b * time)
+    vx = -vel_factor * cos(2 * pi * x) * sin(2 * pi * y)
+    vy =  vel_factor * sin(2 * pi * x) * cos(2 * pi * y)
+    return SVector(vx, vy)
 end
+initial_velocity_at_position(pos) = analytical_velocity(pos, 0.0)
 
-initial_velocity_function(pos) = velocity_function(pos, 0.0)
-
-n_particles_xy = round(Int, box_length / particle_spacing)
-
-# ==========================================================================================
-# ==== Fluid
-wcsph = false
-
-nu = U * box_length / reynolds_number
-
-background_pressure = sound_speed^2 * fluid_density
+# ------------------------------------------------------------------------------
+# Fluid System Setup
+# ------------------------------------------------------------------------------
+# Number of particles along each dimension of the square domain
+num_particles_per_dim = round(Int, domain_box_length / particle_spacing)
 
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
-# To be set via `trixi_include`
-perturb_coordinates = true
-fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.0, 0.0),
-                         # Perturb particle coordinates to avoid stagnant streamlines without TVF
-                         coordinates_perturbation=perturb_coordinates ? 0.2 : nothing, # To avoid stagnant streamlines when not using TVF.
-                         density=fluid_density, pressure=initial_pressure_function,
-                         velocity=initial_velocity_function)
-if wcsph
-    # Using `SummationDensity()` with `perturb_coordinates = true` introduces noise in the simulation
-    # due to bad density estimates resulting from perturbed particle positions.
-    # Adami et al. 2013 use the final particle distribution from an relaxation step for the initial condition
-    # and impose the analytical velocity profile.
-    density_calculator = ContinuityDensity()
-    state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                       exponent=1)
-    fluid_system = WeaklyCompressibleSPHSystem(fluid, density_calculator,
-                                               state_equation, smoothing_kernel,
-                                               pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
+# Create initial fluid particles in a square domain
+coordinate_perturbation_factor = perturb_initial_coordinates ? 0.2 : nothing
+fluid_particles = RectangularShape(particle_spacing,
+                                   (num_particles_per_dim, num_particles_per_dim),
+                                   SVector(0.0, 0.0),
+                                   density=fluid_density_ref,
+                                   pressure=initial_pressure_at_position,
+                                   velocity=initial_velocity_at_position,
+                                   coordinates_perturbation=coordinate_perturbation_factor)
+
+# Viscosity and transport velocity models (common to both formulations)
+viscosity_model_adami = ViscosityAdami(nu=kinematic_viscosity_nu)
+transport_velocity_adami = TransportVelocityAdami(background_pressure_transport_velocity)
+
+if use_wcsph_formulation
+    # Note on WCSPH with perturbed coordinates:
+    # If using `SummationDensity` with perturbed coordinates, initial density estimates might be noisy.
+    # Adami et al. (2013) often use a particle relaxation step for initial positions.
+    # `ContinuityDensity` is generally more robust to initial particle arrangements.
+    density_calculator_wcsph = ContinuityDensity()
+    state_equation_wcsph = StateEquationCole(sound_speed=sound_speed,
+                                             reference_density=fluid_density_ref,
+                                             exponent=1)
+    # Inter-particle averaged pressure gradient (Adami et al. 2013, Eq. 17)
+    pressure_acceleration_wcsph = TrixiParticles.inter_particle_averaged_pressure
+
+    fluid_system = WeaklyCompressibleSPHSystem(fluid_particles, density_calculator_wcsph,
+                                               state_equation_wcsph, smoothing_kernel,
                                                smoothing_length,
-                                               viscosity=ViscosityAdami(; nu),
-                                               transport_velocity=TransportVelocityAdami(background_pressure))
+                                               pressure_acceleration=pressure_acceleration_wcsph,
+                                               viscosity=viscosity_model_adami,
+                                               transport_velocity=transport_velocity_adami,
+                                               reference_particle_spacing=particle_spacing)
 else
-    density_calculator = SummationDensity()
-    fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
+    density_calculator_edsph = SummationDensity()
+    fluid_system = EntropicallyDampedSPHSystem(fluid_particles, smoothing_kernel,
+                                               smoothing_length,
                                                sound_speed,
-                                               density_calculator=density_calculator,
-                                               transport_velocity=TransportVelocityAdami(background_pressure),
-                                               viscosity=ViscosityAdami(; nu))
+                                               density_calculator=density_calculator_edsph,
+                                               viscosity=viscosity_model_adami,
+                                               transport_velocity=transport_velocity_adami,
+                                               reference_particle_spacing=particle_spacing)
 end
 
-# ==========================================================================================
-# ==== Simulation
-periodic_box = PeriodicBox(min_corner=[0.0, 0.0], max_corner=[box_length, box_length])
+# ------------------------------------------------------------------------------
+# Simulation Setup
+# ------------------------------------------------------------------------------
+# Periodic boundary conditions in both x and y directions.
+periodic_box_domain = PeriodicBox(min_corner=SVector(0.0, 0.0),
+                                  max_corner=SVector(domain_box_length, domain_box_length))
+
+neighborhood_search = GridNeighborhoodSearch{2}(periodic_box=periodic_box_domain)
+
+# No explicit boundary systems, only fluid system with periodic conditions.
 semi = Semidiscretization(fluid_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(; periodic_box))
+                          neighborhood_search=neighborhood_search,
+                          parallelization_backend=PolyesterBackend())
 
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
-saving_callback = SolutionSavingCallback(dt=0.02)
+# `UpdateCallback` is important for periodic boundaries.
+update_callback = UpdateCallback()
+extra_callback = nothing # For potential `trixi_include` overrides
 
-pp_callback = nothing
+callbacks = CallbackSet(info_callback, saving_callback, update_callback, extra_callback)
 
-callbacks = CallbackSet(info_callback, saving_callback, pp_callback, UpdateCallback())
+# Estimate for maximum stable time step (dt_max) based on CFL condition and viscous diffusion.
+# This helps prevent the adaptive time stepper from choosing overly large steps.
+cfl_dt_max = smoothing_length / (4 * (sound_speed + characteristic_velocity_U))
+viscous_dt_max = smoothing_length^2 / (8 * kinematic_viscosity_nu)
+dt_max_simulation = min(cfl_dt_max, viscous_dt_max)
 
-dt_max = min(smoothing_length / 4 * (sound_speed + U), smoothing_length^2 / (8 * nu))
+# ------------------------------------------------------------------------------
+# Simulation
+# ------------------------------------------------------------------------------
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=dt_max, save_everystep=false, callback=callbacks);
+            dtmax=dt_max_simulation, save_everystep=false, callback=callbacks);
