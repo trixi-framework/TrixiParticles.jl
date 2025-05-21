@@ -64,16 +64,16 @@ fluid_particles = RectangularShape(particle_spacing,
 
 # Select one of the following fluid system setups:
 
-density_calculator_edpsh = ContinuityDensity()
-viscosity_edpsh = ViscosityMorris(nu=nu_morris)
+density_calculator_edsph = ContinuityDensity()
+viscosity_edsph = ViscosityMorris(nu=nu_morris)
 surface_normal_method_colorfield = ColorfieldSurfaceNormal()
 surface_tension_model_morris = SurfaceTensionMorris(surface_tension_coefficient=surface_tension_coeff_morris)
 
 fluid_system = EntropicallyDampedSPHSystem(fluid_particles, smoothing_kernel,
                                            smoothing_length,
                                            sound_speed,
-                                           density_calculator=density_calculator_edpsh,
-                                           viscosity=viscosity_edpsh,
+                                           density_calculator=density_calculator_edsph,
+                                           viscosity=viscosity_edsph,
                                            surface_normal_method=surface_normal_method_colorfield,
                                            surface_tension=surface_tension_model_morris,
                                            acceleration=zeros(length(initial_fluid_size)),

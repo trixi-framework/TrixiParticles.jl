@@ -84,8 +84,8 @@ fluid_density_calculator = ContinuityDensity()
 physical_nu = 0.005
 
 # way to calculate alpha from physical viscosity as provided by Monaghan
-alpha_viscosity = 8 * physical_nu / (smoothing_length * sound_speed)
-viscosity_model = ArtificialViscosityMonaghan(alpha=alpha_viscosity, beta=0.0)
+alpha = 8 * physical_nu / (smoothing_length * sound_speed)
+viscosity_model = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
 # Density diffusion model used for the second sphere
 density_diffusion_model = DensityDiffusionAntuono(sphere2_particles, delta=0.1)

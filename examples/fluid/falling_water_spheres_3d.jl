@@ -46,7 +46,7 @@ smoothing_length_3d = 1.0 * particle_spacing
 smoothing_kernel_3d = SchoenbergCubicSplineKernel{3}()
 
 # Monaghan artificial viscosity alpha parameter for 3D
-alpha_viscosity_3d = 10 * physical_nu_3d / (fluid_smoothing_length_3d * sound_speed_3d)
+alpha = 10 * physical_nu_3d / (fluid_smoothing_length_3d * sound_speed_3d)
 
 # Surface tension model for the first sphere in 3D
 surface_tension_model_akinci_3d = SurfaceTensionAkinci(surface_tension_coefficient=0.05)
@@ -82,5 +82,5 @@ trixi_include(@__MODULE__,
               smoothing_length=smoothing_length_3d,
               smoothing_kernel=smoothing_kernel_3d,
               physical_nu=physical_nu_3d,
-              alpha_viscosity=alpha_viscosity_3d,
+              alpha=alpha,
               surface_tension_model_akinci=surface_tension_model_akinci_3d)

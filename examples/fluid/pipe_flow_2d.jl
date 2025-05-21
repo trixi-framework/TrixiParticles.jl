@@ -99,8 +99,8 @@ if use_wcsph_formulation
                                              exponent=1,
                                              background_pressure=background_pressure)
     # Artificial viscosity for WCSPH
-    alpha_monaghan = 8 * kinematic_viscosity_nu / (smoothing_length * sound_speed)
-    viscosity_model = ArtificialViscosityMonaghan(alpha=alpha_monaghan, beta=0.0)
+    alpha = 8 * kinematic_viscosity_nu / (smoothing_length * sound_speed)
+    viscosity_model = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
     fluid_system = WeaklyCompressibleSPHSystem(pipe_particles_setup.fluid,
                                                fluid_density_calculator,
