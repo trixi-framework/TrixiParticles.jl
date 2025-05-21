@@ -97,4 +97,13 @@
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
+
+    @trixi_testset "LDC_2D" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "lid_driven_cavity_2d",
+                                                  "validation_lid_driven_cavity_2d.jl"))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
 end
