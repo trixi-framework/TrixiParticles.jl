@@ -11,7 +11,7 @@ using OrdinaryDiffEq
 # Resolution Parameters
 # ------------------------------------------------------------------------------
 # Particle spacing, determines the resolution of the simulation
-fluid_particle_spacing = 0.02
+particle_spacing = 0.02
 
 # For Monaghan-Kajtar boundary model, typical values are spacing_ratio=3 and boundary_layers=1.
 boundary_layers = 3 # Number of boundary particle layers
@@ -41,7 +41,7 @@ state_equation = StateEquationCole(sound_speed=sound_speed,
                                    exponent=7) # Tait-like equation of state
 
 # Setup for the rectangular tank with fluid and boundary particles
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+tank = RectangularTank(particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers,
                        spacing_ratio=spacing_ratio,
                        acceleration=gravity_vec,
@@ -61,7 +61,7 @@ end
 # Fluid System Setup
 # ------------------------------------------------------------------------------
 
-smoothing_length = 1.2 * fluid_particle_spacing
+smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Density calculation method and viscosity model
@@ -73,7 +73,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            smoothing_length,
                                            viscosity=viscosity_model,
                                            acceleration=gravity_vec,
-                                           reference_particle_spacing=fluid_particle_spacing)
+                                           reference_particle_spacing=particle_spacing)
 
 # ------------------------------------------------------------------------------
 # Boundary System Setup
@@ -84,7 +84,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
-                                             reference_particle_spacing=fluid_particle_spacing)
+                                             reference_particle_spacing=particle_spacing)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 

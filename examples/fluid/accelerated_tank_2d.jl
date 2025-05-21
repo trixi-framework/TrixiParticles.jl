@@ -12,7 +12,7 @@ using OrdinaryDiffEq
 # Parameters
 # ------------------------------------------------------------------------------
 # Resolution of the fluid
-fluid_particle_spacing = 0.05
+particle_spacing = 0.05
 
 # Function defining the boundary movement: tank accelerates upwards
 # S(t) = 0.5 * a * t^2, with a = g
@@ -37,7 +37,7 @@ boundary_movement = BoundaryMovement(movement_function, is_moving)
 #                          is modeled by the tank's upward acceleration.
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              fluid_particle_spacing=fluid_particle_spacing,
+              particle_spacing=particle_spacing,
               movement=boundary_movement,
               tspan=(0.0, 1.0),
               system_acceleration=(0.0, 0.0))

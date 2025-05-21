@@ -12,14 +12,14 @@ using OrdinaryDiffEq
 # Parameters
 # ------------------------------------------------------------------------------
 # Particle spacing, determines the resolution of the simulation
-fluid_particle_spacing = 0.05
+particle_spacing = 0.05
 
 # Number of boundary particle layers
 boundary_layers = 3
 
 # Gravitational acceleration
-gravity_magnitude = 9.81
-gravity_vec = (0.0, -gravity_magnitude)
+gravity = 9.81
+gravity_vec = (0.0, -gravity)
 
 # Simulation time span
 tspan = (0.0, 2.0)
@@ -33,7 +33,7 @@ tank_size = (4.0, 1.0)          # width, height of the overall domain
 
 # Fluid properties
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity_magnitude * initial_fluid_size[2])
+sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
 
 state_equation = StateEquationCole(sound_speed=sound_speed,
                                    reference_density=fluid_density,
@@ -41,7 +41,7 @@ state_equation = StateEquationCole(sound_speed=sound_speed,
 
 # Setup for the rectangular tank with fluid and boundary particles.
 # Initially, all walls are static.
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+tank = RectangularTank(particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers,
                        spacing_ratio=1.0,
                        acceleration=gravity_vec,
@@ -77,7 +77,7 @@ boundary_movement = BoundaryMovement(movement_function, is_moving_wall,
 # Fluid System Setup
 # ------------------------------------------------------------------------------
 
-smoothing_length = 1.2 * fluid_particle_spacing
+smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -88,7 +88,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            smoothing_length,
                                            viscosity=viscosity_model,
                                            acceleration=gravity_vec,
-                                           reference_particle_spacing=fluid_particle_spacing)
+                                           reference_particle_spacing=particle_spacing)
 
 # ------------------------------------------------------------------------------
 # Boundary System Setup
@@ -99,7 +99,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
-                                             reference_particle_spacing=fluid_particle_spacing)
+                                             reference_particle_spacing=particle_spacing)
 
 # Assign the defined movement to the boundary system.
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,

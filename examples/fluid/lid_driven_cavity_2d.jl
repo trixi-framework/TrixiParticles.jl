@@ -193,9 +193,9 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 # `UpdateCallback` can be used for tasks like re-evaluating particle lists for periodic boundaries
 # or other dynamic updates needed during the simulation. Here, it ensures the neighborhood search
 # handles the moving lid and periodic conditions correctly.
-extra_callbacks = UpdateCallback()
+extra_callback = UpdateCallback()
 
-callbacks = CallbackSet(info_callback, saving_callback, extra_callbacks)
+callbacks = CallbackSet(info_callback, saving_callback, extra_callback)
 
 # Time integration using a Runge-Kutta method with adaptive time stepping.
 sol = solve(ode, RDPK3SpFSAL49(),

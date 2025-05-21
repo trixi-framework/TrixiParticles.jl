@@ -13,7 +13,7 @@ using OrdinaryDiffEq
 # ------------------------------------------------------------------------------
 
 # Particle spacing, determines the resolution of the simulation
-fluid_particle_spacing = 0.05
+particle_spacing = 0.05
 
 # Number of boundary particle layers.
 # Chosen to ensure full kernel support for fluid particles near the boundary.
@@ -45,7 +45,7 @@ state_equation = StateEquationCole(sound_speed=sound_speed,
                                    clip_negative_pressure=false)
 
 # Setup for the rectangular tank with fluid and boundary particles.
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+tank = RectangularTank(particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers,
                        acceleration=system_acceleration,
                        state_equation=state_equation)
@@ -54,7 +54,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 # Fluid System Setup
 # ------------------------------------------------------------------------------
 
-smoothing_length = 1.2 * fluid_particle_spacing
+smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -68,7 +68,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            viscosity=viscosity,
                                            acceleration=system_acceleration,
                                            source_terms=nothing,
-                                           reference_particle_spacing=fluid_particle_spacing)
+                                           reference_particle_spacing=particle_spacing)
 
 # ------------------------------------------------------------------------------
 # Boundary System Setup
@@ -84,7 +84,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length, # Use fluid's kernel and S.L.
                                              viscosity=viscosity_wall,
-                                             reference_particle_spacing=fluid_particle_spacing)
+                                             reference_particle_spacing=particle_spacing)
 
 # `movement=nothing` indicates static boundaries by default. This can be overridden.
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, movement=nothing)

@@ -13,7 +13,6 @@
 
 using TrixiParticles
 using OrdinaryDiffEq
-using StaticArrays: SVector # For SVector in exact_solution_rhs
 
 # ------------------------------------------------------------------------------
 # Parameters
@@ -113,10 +112,10 @@ sol = solve(ode, RDPK3SpFSAL49(),
     sigma_oscillation, A, B = u
 
     dsigma = (sigma_oscillation^2 + OMEGA^2) * ((B^2 - A^2) / (B^2 + A^2))
-    dA = sigma_oscillation * A
-    dB = -sigma_oscillation * B
+    d_a = sigma_oscillation * A
+    d_b = -sigma_oscillation * B
 
-    return SVector(dsigma, dA, dB)
+    return SVector(dsigma, d_a, d_b)
 end
 
 exact_u0 = SVector(sigma_oscillation, initial_drop_radius, initial_drop_radius)

@@ -56,5 +56,4 @@ trixi_include(@__MODULE__,
               nu_morris=nu_3d,
               surface_tension_coefficient=surface_tension_coeff_3d,
               tspan=tspan_3d,
-              dt=dt_save_3d
-              )
+              dt=dt_save_3d)

@@ -14,7 +14,7 @@ using OrdinaryDiffEq
 # Parameters Specific to 3D or Overriding 2D Defaults
 # ------------------------------------------------------------------------------
 # Particle spacing (resolution)
-fluid_particle_spacing = 0.005
+particle_spacing = 0.005
 
 # Physical properties
 gravity = -9.81
@@ -32,18 +32,18 @@ sphere1_center_3d = (0.5, 0.5, 0.075)
 sphere2_center_3d = (1.5, 0.5, 0.075)
 
 # Create 3D sphere particle sets
-sphere1_particles_3d = SphereShape(fluid_particle_spacing, sphere_radius_3d,
+sphere1_particles_3d = SphereShape(particle_spacing, sphere_radius_3d,
                                    sphere1_center_3d, fluid_density_3d,
                                    sphere_type=VoxelSphere(),
                                    velocity=initial_velocity_spheres_3d)
 
-sphere2_particles_3d = SphereShape(fluid_particle_spacing, sphere_radius_3d,
+sphere2_particles_3d = SphereShape(particle_spacing, sphere_radius_3d,
                                    sphere2_center_3d, fluid_density_3d,
                                    sphere_type=VoxelSphere(),
                                    velocity=initial_velocity_spheres_3d)
 
-fluid_smoothing_length_3d = 1.0 * fluid_particle_spacing
-fluid_smoothing_kernel_3d = SchoenbergCubicSplineKernel{3}()
+smoothing_length_3d = 1.0 * particle_spacing
+smoothing_kernel_3d = SchoenbergCubicSplineKernel{3}()
 
 # Monaghan artificial viscosity alpha parameter for 3D
 alpha_viscosity_3d = 10 * physical_nu_3d / (fluid_smoothing_length_3d * sound_speed_3d)
@@ -70,7 +70,7 @@ tank_faces_3d = (true, true, true, true, true, false)
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl"),
               # Override basic parameters for 3D
-              fluid_particle_spacing=fluid_particle_spacing,
+              particle_spacing=particle_spacing,
               tspan=tspan_3d,
               gravity_vec=gravity_vec_3d,
               tank_initial_fluid_size=(0.0, 0.0, 0.0),
@@ -79,8 +79,8 @@ trixi_include(@__MODULE__,
               faces=tank_faces_3d,
               sphere1_particles=sphere1_particles_3d,
               sphere2_particles=sphere2_particles_3d,
-              fluid_smoothing_length=fluid_smoothing_length_3d,
-              fluid_smoothing_kernel=fluid_smoothing_kernel_3d,
+              smoothing_length=smoothing_length_3d,
+              smoothing_kernel=smoothing_kernel_3d,
               physical_nu=physical_nu_3d,
               alpha_viscosity=alpha_viscosity_3d,
               surface_tension_model_akinci=surface_tension_model_akinci_3d)

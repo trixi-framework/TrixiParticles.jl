@@ -11,7 +11,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "solid", "oscillating_beam_2
               sol=nothing) # Don't run simulation, only include the setup part
 
 # Fluid resolution
-fluid_particle_spacing = 3particle_spacing
+fluid_particle_spacing = 3 * particle_spacing
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -33,15 +33,15 @@ fluid = RectangularShape(fluid_particle_spacing,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 1.2 * fluid_particle_spacing
-fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_length = 1.2 * fluid_particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
-                                           state_equation, fluid_smoothing_kernel,
-                                           fluid_smoothing_length, viscosity=viscosity,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length, viscosity=viscosity,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================

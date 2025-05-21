@@ -67,7 +67,7 @@ function analytical_velocity(position, time)
     x, y = position
     vel_factor = characteristic_velocity_U * exp(decay_rate_b * time)
     vx = -vel_factor * cos(2 * pi * x) * sin(2 * pi * y)
-    vy =  vel_factor * sin(2 * pi * x) * cos(2 * pi * y)
+    vy = vel_factor * sin(2 * pi * x) * cos(2 * pi * y)
     return SVector(vx, vy)
 end
 initial_velocity_at_position(pos) = analytical_velocity(pos, 0.0)

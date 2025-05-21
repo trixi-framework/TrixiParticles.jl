@@ -38,7 +38,7 @@ tspan_3d = (0.0, 1.0)
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              fluid_particle_spacing=particle_spacing_3d,
+              particle_spacing=particle_spacing_3d,
               initial_fluid_size=initial_fluid_size_3d,
               tank_size=tank_size_3d,
               system_acceleration=system_acceleration_3d,

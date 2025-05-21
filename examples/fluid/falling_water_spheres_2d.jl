@@ -14,7 +14,7 @@ using OrdinaryDiffEq
 # ------------------------------------------------------------------------------
 
 # Particle spacing, determines the resolution of the simulation
-fluid_particle_spacing = 0.005
+particle_spacing = 0.005
 
 # Boundary particle layers and spacing ratio for the tank
 boundary_layers = 3
@@ -46,7 +46,7 @@ state_equation = StateEquationCole(sound_speed=sound_speed,
                                    exponent=1)
 
 # Setup for the rectangular tank (floor and walls)
-tank = RectangularTank(fluid_particle_spacing, tank_initial_fluid_size, tank_dims,
+tank = RectangularTank(particle_spacing, tank_initial_fluid_size, tank_dims,
                        fluid_density,
                        n_layers=boundary_layers,
                        spacing_ratio=spacing_ratio,
@@ -62,10 +62,10 @@ sphere1_center = (0.5, 0.2) # Center coordinates of the first sphere
 sphere2_center = (1.5, 0.2) # Center coordinates of the second sphere
 
 # Create sphere shapes. `VoxelSphere` creates a discretized sphere.
-sphere1_particles = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
+sphere1_particles = SphereShape(particle_spacing, sphere_radius, sphere1_center,
                                 fluid_density, sphere_type=VoxelSphere(),
                                 velocity=initial_velocity_spheres)
-sphere2_particles = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
+sphere2_particles = SphereShape(particle_spacing, sphere_radius, sphere2_center,
                                 fluid_density, sphere_type=VoxelSphere(),
                                 velocity=initial_velocity_spheres)
 
@@ -75,8 +75,8 @@ sphere2_particles = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_c
 
 # Using a smoothing_length of exactly 1.0 * fluid_particle is necessary for this model to be accurate.
 # This yields some numerical issues though which can be circumvented by subtracting eps().
-fluid_smoothing_length = 1.0 * fluid_particle_spacing - eps()
-fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_length = 1.0 * particle_spacing - eps()
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
@@ -84,7 +84,7 @@ fluid_density_calculator = ContinuityDensity()
 physical_nu = 0.005
 
 # way to calculate alpha from physical viscosity as provided by Monaghan
-alpha_viscosity = 8 * physical_nu / (fluid_smoothing_length * sound_speed)
+alpha_viscosity = 8 * physical_nu / (smoothing_length * sound_speed)
 viscosity_model = ArtificialViscosityMonaghan(alpha=alpha_viscosity, beta=0.0)
 
 # Density diffusion model used for the second sphere
@@ -93,25 +93,25 @@ density_diffusion_model = DensityDiffusionAntuono(sphere2_particles, delta=0.1)
 # System 1: Water sphere WITH surface tension (using Entropically Damped SPH)
 surface_tension_model_akinci = SurfaceTensionAkinci(surface_tension_coefficient=0.05)
 sphere1_system_surftens = EntropicallyDampedSPHSystem(sphere1_particles,
-                                                      fluid_smoothing_kernel,
-                                                      fluid_smoothing_length,
+                                                      smoothing_kernel,
+                                                      smoothing_length,
                                                       sound_speed,
                                                       viscosity=viscosity_model,
                                                       density_calculator=ContinuityDensity(),
                                                       acceleration=gravity_vec,
                                                       surface_tension=surface_tension_model_akinci,
-                                                      reference_particle_spacing=fluid_particle_spacing)
+                                                      reference_particle_spacing=particle_spacing)
 
 # System 2: Water sphere WITHOUT surface tension (using standard Weakly Compressible SPH)
 sphere2_system_nosurftens = WeaklyCompressibleSPHSystem(sphere2_particles,
                                                         fluid_density_calculator,
                                                         state_equation,
-                                                        fluid_smoothing_kernel,
-                                                        fluid_smoothing_length,
+                                                        smoothing_kernel,
+                                                        smoothing_length,
                                                         viscosity=viscosity_model,
                                                         density_diffusion=density_diffusion_model,
                                                         acceleration=gravity_vec,
-                                                        reference_particle_spacing=fluid_particle_spacing)
+                                                        reference_particle_spacing=particle_spacing)
 
 # ------------------------------------------------------------------------------
 # Boundary System Setup
@@ -125,10 +125,10 @@ boundary_viscosity_model = ViscosityAdami(nu=wall_kinematic_viscosity)
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel,
-                                             fluid_smoothing_length,
+                                             smoothing_kernel,
+                                             smoothing_length,
                                              viscosity=boundary_viscosity_model,
-                                             reference_particle_spacing=fluid_particle_spacing)
+                                             reference_particle_spacing=particle_spacing)
 
 # Adhesion coefficient can model how much fluid "sticks" to the boundary.
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,

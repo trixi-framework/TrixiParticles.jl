@@ -14,11 +14,11 @@ using OrdinaryDiffEq
 # Parameters
 # ------------------------------------------------------------------------------
 # Resolution
-fluid_particle_spacing = 0.0025 # High resolution for better surface effects
+particle_spacing = 0.0025 # High resolution for better surface effects
 
 # Physical parameters
-gravity_magnitude = 9.81
-gravity_vec = (0.0, -gravity_magnitude)
+gravity = 9.81
+gravity_vec = (0.0, -gravity)
 simulation_tspan = (0.0, 0.5)
 
 # Fluid properties
@@ -58,16 +58,17 @@ surface_tension_coeff_no_wetting = 2.0  # Higher surface tension
 # Fluid System Setup
 # ------------------------------------------------------------------------------
 # Create the initial fluid sphere
-fluid_sphere_particles = SphereShape(fluid_particle_spacing, sphere_radius_initial,
+fluid_sphere_particles = SphereShape(particle_spacing, sphere_radius_initial,
                                      sphere_center_initial, fluid_density_ref,
                                      sphere_type=VoxelSphere())
 
 # Subtracting eps() can help with numerical precision at kernel boundaries.
-fluid_smoothing_length_sphere = 1.0 * fluid_particle_spacing - eps()
+fluid_smoothing_length_sphere = 1.0 * particle_spacing - eps()
 fluid_smoothing_kernel_sphere = SchoenbergCubicSplineKernel{2}()
 
 # Viscosity model for the fluid sphere
-alpha_monaghan_sphere = 8 * nu_no_wetting / (fluid_smoothing_length_sphere * sound_speed_fluid)
+alpha_monaghan_sphere = 8 * nu_no_wetting /
+                        (fluid_smoothing_length_sphere * sound_speed_fluid)
 viscosity_sphere_model = ArtificialViscosityMonaghan(alpha=alpha_monaghan_sphere, beta=0.0)
 
 # Surface tension model (Akinci et al.) and free-surface correction
@@ -84,7 +85,7 @@ sphere_fluid_system = WeaklyCompressibleSPHSystem(fluid_sphere_particles,
                                                   acceleration=gravity_vec,
                                                   surface_tension=surface_tension_model_sphere,
                                                   correction=free_surface_correction_sphere,
-                                                  reference_particle_spacing=fluid_particle_spacing)
+                                                  reference_particle_spacing=particle_spacing)
 
 # ------------------------------------------------------------------------------
 # Boundary System Setup (Tank Floor) - Leverages `falling_water_spheres_2d.jl`
@@ -105,14 +106,13 @@ trixi_include(@__MODULE__,
               sphere1_system_surftens=sphere_fluid_system,
               sphere2_system_nosurftens=nothing,
               tank_dims=tank_domain_size,
-              fluid_particle_spacing=fluid_particle_spacing,
+              particle_spacing=particle_spacing,
               tspan=simulation_tspan,
               gravity_vec=gravity_vec,
               state_equation=fluid_state_equation,
               sound_speed=sound_speed_fluid,
               fluid_density=fluid_density_ref,
-              fluid_smoothing_length=fluid_smoothing_length_sphere,
-              fluid_smoothing_kernel=fluid_smoothing_kernel_sphere,
+              smoothing_length=smoothing_length_sphere,
+              smoothing_kernel=smoothing_kernel_sphere,
               adhesion_coefficient=adhesion_coeff_no_wetting,
-              wall_kinematic_viscosity=wall_kinematic_viscosity
-              )
+              wall_kinematic_viscosity=wall_kinematic_viscosity)
