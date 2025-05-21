@@ -68,7 +68,7 @@ fluid_smoothing_kernel_sphere = SchoenbergCubicSplineKernel{2}()
 
 # Viscosity model for the fluid sphere
 alpha = 8 * nu_no_wetting /
-                        (fluid_smoothing_length_sphere * sound_speed_fluid)
+        (fluid_smoothing_length_sphere * sound_speed_fluid)
 viscosity_sphere_model = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
 # Surface tension model (Akinci et al.) and free-surface correction
