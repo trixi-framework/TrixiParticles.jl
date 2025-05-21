@@ -512,12 +512,12 @@ end
 
     n_points = size(point_coords, 2)
     ELTYPE = eltype(point_coords)
-    computed_density = zeros(ELTYPE, n_points)
-    other_density = zeros(ELTYPE, n_points)
-    neighbor_count = zeros(Int, n_points)
-    shepard_coefficient = zeros(ELTYPE, n_points)
+    computed_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    other_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    shepard_coefficient = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
 
-    cache = create_cache_interpolation(ref_system, n_points)
+    cache = create_cache_interpolation(ref_system, n_points, semi)
 
     ref_id = system_indices(ref_system, semi)
     ref_smoothing_kernel = ref_system.smoothing_kernel
@@ -587,15 +587,22 @@ end
     return (; computed_density=computed_density, neighbor_count, point_coords, cache...)
 end
 
-@inline function create_cache_interpolation(ref_system::FluidSystem, n_points)
-    velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
-    pressure = zeros(eltype(ref_system), n_points)
-    density = zeros(eltype(ref_system), n_points)
+@inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)
+    velocity_ = zeros(eltype(ref_system), ndims(ref_system), n_points)
+    pressure_ = zeros(eltype(ref_system), n_points)
+
+    if semi.parallelization_backend isa KernelAbstractions.Backend
+        velocity = Adapt.adapt(semi.parallelization_backend, velocity_)
+        pressure = Adapt.adapt(semi.parallelization_backend, pressure_)
+    else
+        velocity = velocity_
+        pressure = pressure_
+    end
 
     return (; velocity, pressure, density)
 end
 
-@inline function create_cache_interpolation(ref_system::SolidSystem, n_points)
+@inline function create_cache_interpolation(ref_system::SolidSystem, n_points, semi)
     velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
     jacobian = zeros(eltype(ref_system), n_points)
     von_mises_stress = zeros(eltype(ref_system), n_points)
