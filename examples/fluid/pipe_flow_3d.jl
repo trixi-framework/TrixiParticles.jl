@@ -1,4 +1,9 @@
-# 3D channel flow simulation with open boundaries.
+# ==========================================================================================
+# 3D Pipe Flow Simulation with Open Boundaries (Inflow/Outflow)
+#
+# This example extends the 2D pipe flow simulation (`pipe_flow_2d.jl`) to three
+# dimensions.
+# ==========================================================================================
 
 using TrixiParticles
 

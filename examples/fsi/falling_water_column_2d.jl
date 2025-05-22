@@ -1,3 +1,11 @@
+# ==========================================================================================
+# 2D Falling Water Column on an Elastic Beam (FSI)
+#
+# This example simulates a column of water falling under gravity and impacting
+# an elastic beam, which is fixed at one end (cantilever).
+# It demonstrates Fluid-Structure Interaction where the fluid deforms the solid structure.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 

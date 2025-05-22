@@ -1,3 +1,10 @@
+# ==========================================================================================
+# 2D Hydrostatic Water Column Simulation
+#
+# This example simulates a column of water at rest in a tank under gravity.
+# It is a basic test case to verify hydrostatic pressure distribution and stability.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
