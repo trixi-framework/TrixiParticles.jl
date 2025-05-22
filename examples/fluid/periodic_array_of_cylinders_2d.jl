@@ -12,7 +12,6 @@
 # within a representative channel segment is simulated.
 # ==========================================================================================
 
-
 using TrixiParticles
 using OrdinaryDiffEq
 
