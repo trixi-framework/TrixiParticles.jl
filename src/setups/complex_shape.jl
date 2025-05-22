@@ -89,7 +89,7 @@ of the geometry.
 
 # Keywords
 - `boundary_thickness`: Thickness of the boundary
-- `tlsph`             : When `place_on_shell=true`, boundary particles will be placed
+- `place_on_shell`:     When `place_on_shell=true`, boundary particles will be placed
                         one particle spacing from the surface of the geometry.
                         Otherwise when `place_on_shell=true` (simulating fluid particles),
                         boundary particles will be placed half particle spacing away from the surface.
