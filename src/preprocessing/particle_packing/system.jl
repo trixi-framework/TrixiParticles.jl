@@ -6,7 +6,7 @@
                           smoothing_length_interpolation=smoothing_length,
                           is_boundary=false, boundary_compress_factor=1,
                           neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                          background_pressure, tlsph=false, fixed_system=false)
+                          background_pressure, place_on_shell=false, fixed_system=false)
 
 System to generate body-fitted particles for complex shapes.
 For more information on the methods, see [particle packing](@ref particle_packing).
@@ -18,10 +18,11 @@ For more information on the methods, see [particle packing](@ref particle_packin
 - `background_pressure`:   Constant background pressure to physically pack the particles.
                            A large `background_pressure` can cause high accelerations
                            which requires a properly adjusted time step.
-- `tlsph`:                 With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
-                           on the boundary of the shape and not half a particle spacing away,
-                           as for fluids. When `place_on_shell=true`, particles will be placed
-                           on the boundary of the shape.
+- `place_on_shell`:        If `place_on_shell=true`, particles will be placed
+                           on the shell of the geometry. For example,
+                           the [`TotalLagrangianSPHSystem`](@ref) requires particles to be placed
+                           on the shell of the geometry and not half a particle spacing away,
+                           as for fluids.
 - `is_boundary`:           When `shape` is inside the geometry that was used to create
                            `signed_distance_field`, set `is_boundary=false`.
                            Otherwise (`shape` is the sampled boundary), set `is_boundary=true`.
@@ -64,7 +65,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     smoothing_kernel               :: K
     smoothing_length_interpolation :: ELTYPE
     background_pressure            :: ELTYPE
-    tlsph                          :: Bool
+    place_on_shell                          :: Bool
     signed_distance_field          :: S
     is_boundary                    :: Bool
     shift_length                   :: ELTYPE
@@ -79,7 +80,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     # See the comments in general/gpu.jl for more details.
     function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
                                    smoothing_kernel, smoothing_length_interpolation,
-                                   background_pressure, tlsph, signed_distance_field,
+                                   background_pressure, place_on_shell, signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
                                    signed_distances, particle_refinement, buffer,
                                    update_callback_used, fixed_system, cache,
@@ -93,7 +94,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                                                  mass, density, particle_spacing,
                                                  smoothing_kernel,
                                                  smoothing_length_interpolation,
-                                                 background_pressure, tlsph,
+                                                 background_pressure, place_on_shell,
                                                  signed_distance_field, is_boundary,
                                                  shift_length, neighborhood_search,
                                                  signed_distances, particle_refinement,
@@ -108,7 +109,7 @@ function ParticlePackingSystem(shape::InitialCondition;
                                smoothing_length_interpolation=smoothing_length,
                                is_boundary=false, boundary_compress_factor=1,
                                neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                               background_pressure, tlsph=false, fixed_system=false)
+                               background_pressure, place_on_shell=false, fixed_system=false)
     NDIMS = ndims(shape)
     ELTYPE = eltype(shape)
     mass = copy(shape.mass)
@@ -147,12 +148,12 @@ function ParticlePackingSystem(shape::InitialCondition;
     # Its value is negative if the particle is inside the geometry.
     # Otherwise (if outside), the value is positive.
     if is_boundary
-        offset = tlsph ? shape.particle_spacing : shape.particle_spacing / 2
+        offset = place_on_shell ? shape.particle_spacing : shape.particle_spacing / 2
 
         shift_length = -boundary_compress_factor *
                        signed_distance_field.max_signed_distance - offset
     else
-        shift_length = tlsph ? zero(ELTYPE) : shape.particle_spacing / 2
+        shift_length = place_on_shell ? zero(ELTYPE) : shape.particle_spacing / 2
     end
 
     cache = (; create_cache_refinement(shape, particle_refinement, smoothing_length)...)
@@ -161,7 +162,7 @@ function ParticlePackingSystem(shape::InitialCondition;
 
     return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
                                  smoothing_kernel, smoothing_length_interpolation,
-                                 background_pressure, tlsph, signed_distance_field,
+                                 background_pressure, place_on_shell, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
                                  nothing, Ref(false), fixed_system, cache,
@@ -187,7 +188,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
                      system.neighborhood_search |> typeof |> nameof)
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "tlsph", system.tlsph ? "yes" : "no")
+        summary_line(io, "place_on_shell", system.place_on_shell ? "yes" : "no")
         summary_line(io, "boundary", system.is_boundary ? "yes" : "no")
         summary_footer(io)
     end
@@ -349,8 +350,8 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
     (; shift_length) = system
 
     # For fluid particles:
-    # - `tlsph = true`: `shift_length = 0`
-    # - `tlsph = false`: `shift_length = particle_spacing / 2`
+    # - `place_on_shell = true`: `shift_length = 0`
+    # - `place_on_shell = false`: `shift_length = particle_spacing / 2`
     # For boundary particles:
     # `shift_length` is the thickness of the boundary.
     if distance_signed >= -shift_length
@@ -365,7 +366,7 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
     system.is_boundary || return u
 
     particle_spacing = system.initial_condition.particle_spacing
-    shift_length_inner = system.tlsph ? particle_spacing : particle_spacing / 2
+    shift_length_inner = system.place_on_shell ? particle_spacing : particle_spacing / 2
 
     if distance_signed < shift_length_inner
         shift = (distance_signed - shift_length_inner) * normal_vector

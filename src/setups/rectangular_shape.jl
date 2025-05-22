@@ -40,9 +40,10 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 - `state_equation`: When calculating a hydrostatic pressure gradient by setting `acceleration`,
                     the `state_equation` will be used to set the corresponding density.
                     Cannot be used together with `density`.
-- `place_on_shell`: With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
-                    on the boundary of the shape and not one particle radius away, as for fluids.
-                    When `place_on_shell=true`, particles will be placed on the boundary of the shape.
+- `place_on_shell`: If `place_on_shell=true`, particles will be placed on the shell of the shape.
+                    For example, the [`TotalLagrangianSPHSystem`](@ref) requires particles
+                    to be placed on the shell of the shape and not half a particle spacing away,
+                    as for fluids.
 - `coordinates_perturbation`: Add a small random displacement to the particle positions,
                               where the amplitude is `coordinates_perturbation * particle_spacing`.
 

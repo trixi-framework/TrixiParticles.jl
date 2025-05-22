@@ -191,7 +191,8 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     x_range = range(min_corner[1], max_corner[1], length=n_points_per_dimension[1])
     y_range = range(min_corner[2], max_corner[2], length=n_points_per_dimension[2])
 
-    # Generate points within the plane. Use `place_on_shell=true` to generate points on the boundary
+    # Generate points within the plane. Use `place_on_shell=true` to generate points
+    # on the shell of the geometry
     point_coords = rectangular_shape_coords(resolution, n_points_per_dimension, min_corner,
                                             place_on_shell=true)
 
