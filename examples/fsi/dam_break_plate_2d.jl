@@ -1,145 +1,184 @@
-# 2D dam break flow against an elastic plate based on Section 6.5 of
+# ==========================================================================================
+# 2D Dam Break Flow Against an Elastic Plate
 #
-# L. Zhan, C. Peng, B. Zhang, W. Wu.
-# "A stabilized TL–WC SPH approach with GPU acceleration for three-dimensional fluid–structure interaction".
-# In: Journal of Fluids and Structures 86 (2019), pages 329-353.
-# https://doi.org/10.1016/j.jfluidstructs.2019.02.002
+# Based on Section 6.5 of:
+#   L. Zhan, C. Peng, B. Zhang, W. Wu.
+#   "A stabilized TL–WC SPH approach with GPU acceleration for three-dimensional fluid–structure interaction".
+#   Journal of Fluids and Structures, 86 (2019), pp. 329-353.
+#   https://doi.org/10.1016/j.jfluidstructs.2019.02.002
+#
+# This example simulates a 2D dam break where the collapsing water column impacts
+# a flexible elastic plate fixed at its base.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
 
-# ==========================================================================================
-# ==== Resolution
-fluid_particle_spacing = 0.01
-n_particles_x = 5
+# ------------------------------------------------------------------------------
+# Parameters
+# ------------------------------------------------------------------------------
+# Resolution Parameters
+fluid_particle_spacing = 0.01 # meters
+# Solid (elastic plate) particle parameters
+num_particles_plate_thickness = 5 # Number of particles across the plate's thickness
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
-boundary_layers = 4
-spacing_ratio = 1
+# Tank boundary particle layers and spacing ratio
+tank_boundary_layers = 4
+tank_spacing_ratio = 1 # Ratio of fluid particle spacing to tank boundary particle spacing
 
-# ==========================================================================================
-# ==== Experiment Setup
-gravity = 9.81
-tspan = (0.0, 1.0)
+# Physical Parameters
+gravity_magnitude = 9.81
+system_acceleration_vec = (0.0, -gravity_magnitude)
+simulation_tspan = (0.0, 1.0) # seconds
 
-# Boundary geometry and initial fluid particle positions
-initial_fluid_size = (0.146, 2 * 0.146)
-tank_size = 4 .* initial_fluid_size
+# Fluid Properties
+fluid_density_ref = 1000.0 # kg/m^3 (water)
+initial_fluid_height_H = 0.146 * 2 # H = 2 * 0.146m in paper notation
+sound_speed_fluid = 20 * sqrt(gravity_magnitude * initial_fluid_height_H)
+# Exponent 1 for state equation is common in FSI with WCSPH.
+fluid_state_equation = StateEquationCole(sound_speed=sound_speed_fluid,
+                                         reference_density=fluid_density_ref,
+                                         exponent=1)
 
-fluid_density = 1000.0
-sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=1)
+# Elastic Plate (Beam) Properties
+plate_length = 0.08   # meters (L_s in paper)
+plate_thickness = 0.012 # meters (W_s in paper)
+plate_solid_density = 2500.0 # kg/m^3
+youngs_modulus_E = 1.0e6  # Pa
+poissons_ratio_nu = 0.0   # Paper uses nu=0, implying a simplified material model
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+# ------------------------------------------------------------------------------
+# Experiment Setup: Tank, Fluid, and Elastic Plate
+# ------------------------------------------------------------------------------
+# Tank and Initial Fluid Column
+initial_fluid_width_W = 0.146 # W in paper notation
+initial_fluid_size = (initial_fluid_width_W, initial_fluid_height_H)
+# Tank size is 4 times the initial fluid dimensions (as per visual in paper)
+tank_domain_size = (4 * initial_fluid_width_W, 4 * initial_fluid_height_H)
 
-# Elastic plate/beam
-length_beam = 0.08
-thickness = 0.012
-solid_density = 2500
+tank_setup = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_domain_size,
+                             fluid_density_ref,
+                             n_layers=tank_boundary_layers,
+                             spacing_ratio=tank_spacing_ratio,
+                             acceleration=system_acceleration_vec,
+                             state_equation=fluid_state_equation)
 
-# Young's modulus and Poisson ratio
-E = 1e6
-nu = 0.0
+# Elastic Plate (Beam)
+solid_particle_spacing_plate = plate_thickness / (num_particles_plate_thickness - 1)
+num_particles_plate_length = round(Int, plate_length / solid_particle_spacing_plate) + 1
 
-# The structure starts at the position of the first particle and ends
-# at the position of the last particle.
-solid_particle_spacing = thickness / (n_particles_x - 1)
+# Position the plate: fixed base starts at x = 2 * W (initial_fluid_width)
+plate_fixed_end_x_position = 2 * initial_fluid_width_W
+plate_movable_start_y = solid_particle_spacing_plate # Movable part starts one spacing above base
 
-n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
+plate_movable_particles = RectangularShape(solid_particle_spacing_plate,
+                                           (num_particles_plate_thickness, num_particles_plate_length - 1),
+                                           (plate_fixed_end_x_position, plate_movable_start_y),
+                                           density=plate_solid_density, tlsph=true)
+plate_fixed_particles = RectangularShape(solid_particle_spacing_plate,
+                                         (num_particles_plate_thickness, 1),
+                                         (plate_fixed_end_x_position, 0.0),
+                                         density=plate_solid_density, tlsph=true)
+elastic_plate_particles = union(plate_movable_particles, plate_fixed_particles)
+num_fixed_particles_plate = num_particles_plate_thickness
 
-# The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
-# first particle half a particle spacing away from the boundary, which is correct for fluids,
-# but not for solids. We therefore need to pass `tlsph=true`.
-plate = RectangularShape(solid_particle_spacing,
-                         (n_particles_x, n_particles_y - 1),
-                         (2initial_fluid_size[1], solid_particle_spacing),
-                         density=solid_density, tlsph=true)
-fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_x, 1), (2initial_fluid_size[1], 0.0),
-                                   density=solid_density, tlsph=true)
-
-solid = union(plate, fixed_particles)
-
-# ==========================================================================================
-# ==== Fluid
-smoothing_length = 1.75 * fluid_particle_spacing
-smoothing_kernel = WendlandC2Kernel{2}()
+# ------------------------------------------------------------------------------
+# Fluid System Setup (Weakly Compressible SPH)
+# ------------------------------------------------------------------------------
+fluid_smoothing_length = 1.75 * fluid_particle_spacing
+fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+fluid_viscosity_model = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity))
+fluid_system = WeaklyCompressibleSPHSystem(tank_setup.fluid, fluid_density_calculator,
+                                           fluid_state_equation, fluid_smoothing_kernel,
+                                           fluid_smoothing_length,
+                                           viscosity=fluid_viscosity_model,
+                                           acceleration=system_acceleration_vec,
+                                           reference_particle_spacing=fluid_particle_spacing)
 
-# ==========================================================================================
-# ==== Boundary
-boundary_density_calculator = AdamiPressureExtrapolation()
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+# ------------------------------------------------------------------------------
+# Boundary System Setup (Tank Walls)
+# ------------------------------------------------------------------------------
+boundary_density_calculator_type = AdamiPressureExtrapolation()
+boundary_model_tank_walls = BoundaryModelDummyParticles(tank_setup.boundary.density,
+                                                        tank_setup.boundary.mass,
+                                                        fluid_state_equation,
+                                                        boundary_density_calculator_type,
+                                                        fluid_smoothing_kernel, fluid_smoothing_length,
+                                                        reference_particle_spacing=fluid_particle_spacing)
+boundary_system_tank_walls = BoundarySPHSystem(tank_setup.boundary, boundary_model_tank_walls)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+# ------------------------------------------------------------------------------
+# Solid System Setup (Elastic Plate - Total Lagrangian SPH)
+# ------------------------------------------------------------------------------
+solid_smoothing_length_plate = sqrt(2) * solid_particle_spacing_plate
+solid_smoothing_kernel_plate = WendlandC2Kernel{2}()
 
-# ==========================================================================================
-# ==== Solid
-solid_smoothing_length = sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = WendlandC2Kernel{2}()
+# Hydrodynamic properties for FSI boundary model on the solid
+hydrodynamic_densities_for_solid = fluid_density_ref .* ones(size(elastic_plate_particles.density))
+hydrodynamic_masses_for_solid = hydrodynamic_densities_for_solid .* solid_particle_spacing_plate^2
 
-# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-hydrodynamic_densites = fluid_density * ones(size(solid.density))
-hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
+# Choice of FSI boundary model for the solid:
+# Option 1: Monaghan-Kajtar (can introduce a gap, but less sensitive to plate thickness)
+# k_factor_monaghan_kajtar = gravity_magnitude * initial_fluid_height_H # Characteristic pressure scale
+# spacing_ratio_solid_fluid = fluid_particle_spacing / solid_particle_spacing_plate
+# solid_fsi_boundary_model = BoundaryModelMonaghanKajtar(k_factor_monaghan_kajtar,
+#                                                        spacing_ratio_solid_fluid,
+#                                                        solid_particle_spacing_plate,
+#                                                        hydrodynamic_masses_for_solid)
 
-k_solid = gravity * initial_fluid_size[2]
-spacing_ratio_solid = fluid_particle_spacing / solid_particle_spacing
-boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, spacing_ratio_solid,
-                                                   solid_particle_spacing,
-                                                   hydrodynamic_masses)
+# Option 2: Dummy Particles (often better but needs sufficient plate thickness) - Active by default if condition met
+# Condition: Plate thickness should be >= 2 * fluid_particle_spacing for full support.
+can_use_dummy_particles_for_solid = plate_thickness >= 2 * fluid_particle_spacing
+if can_use_dummy_particles_for_solid
+    solid_fsi_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densities_for_solid,
+                                                           hydrodynamic_masses_for_solid,
+                                                           fluid_state_equation,
+                                                           boundary_density_calculator_type,
+                                                           fluid_smoothing_kernel, fluid_smoothing_length,
+                                                           reference_particle_spacing=fluid_particle_spacing)
+    println("Using BoundaryModelDummyParticles for solid FSI.")
+else
+    k_factor_monaghan_kajtar = gravity_magnitude * initial_fluid_height_H
+    spacing_ratio_solid_fluid = fluid_particle_spacing / solid_particle_spacing_plate
+    solid_fsi_boundary_model = BoundaryModelMonaghanKajtar(k_factor_monaghan_kajtar,
+                                                           spacing_ratio_solid_fluid,
+                                                           solid_particle_spacing_plate,
+                                                           hydrodynamic_masses_for_solid)
+    println("Warning: Plate thickness is less than 2x fluid particle spacing. Using BoundaryModelMonaghanKajtar for solid FSI, which might introduce a gap.")
+end
 
-# `BoundaryModelDummyParticles` usually produces better results, since Monaghan-Kajtar BCs
-# tend to introduce a non-physical gap between fluid and boundary.
-# However, `BoundaryModelDummyParticles` can only be used when the plate thickness is
-# at least two fluid particle spacings, so that the compact support is fully sampled,
-# or fluid particles can penetrate the solid.
-# With higher fluid resolutions, uncomment the code below for better results.
-#
-# boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-#                                                    hydrodynamic_masses,
-#                                                    state_equation=state_equation,
-#                                                    boundary_density_calculator,
-#                                                    smoothing_kernel, smoothing_length)
 
-solid_system = TotalLagrangianSPHSystem(solid,
-                                        solid_smoothing_kernel, solid_smoothing_length,
-                                        E, nu, boundary_model=boundary_model_solid,
-                                        n_fixed_particles=n_particles_x,
-                                        acceleration=(0.0, -gravity),
-                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+# Penalty force for contact between solid particles (if needed, Ganzenmueller type)
+penalty_force_solid = PenaltyForceGanzenmueller(alpha=0.01) # From paper
 
-# ==========================================================================================
-# ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system, solid_system)
-ode = semidiscretize(semi, tspan)
+elastic_plate_system = TotalLagrangianSPHSystem(elastic_plate_particles,
+                                                solid_smoothing_kernel_plate,
+                                                solid_smoothing_length_plate,
+                                                youngs_modulus_E, poissons_ratio_nu,
+                                                boundary_model=solid_fsi_boundary_model,
+                                                n_fixed_particles=num_fixed_particles_plate,
+                                                acceleration=system_acceleration_vec,
+                                                penalty_force=penalty_force_solid,
+                                                reference_particle_spacing=solid_particle_spacing_plate)
 
+# ------------------------------------------------------------------------------
+# Simulation
+# ------------------------------------------------------------------------------
+semi = Semidiscretization(fluid_system, boundary_system_tank_walls, elastic_plate_system,
+                          parallelization_backend=PolyesterBackend())
+ode = semidiscretize(semi, simulation_tspan)
+
+# Callbacks
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
-
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="dam_break_plate_2d")
 callbacks = CallbackSet(info_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so because forces become extremely large when
-# fluid particles are very close to boundary particles, and the time integration method
-# interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-3, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+            abstol=1e-6,
+            reltol=1e-4,
+            dtmax=1e-3,
+            save_everystep=false,
+            callback=callbacks)
