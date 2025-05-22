@@ -28,7 +28,8 @@
         ]
 
         @testset "Direction $i" for i in eachindex(directions)
-            shape = extrude_geometry((point1, point2); direction=directions[i], place_on_shell=true,
+            shape = extrude_geometry((point1, point2); direction=directions[i],
+                                     place_on_shell=true,
                                      particle_spacing=0.15, n_extrude=5, density=1.0)
 
             @test shape.coordinates ≈ expected_coords[i]

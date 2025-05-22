@@ -41,7 +41,8 @@
             ]
 
             @testset "$(loop_orders[i])" for i in eachindex(loop_orders)
-                shape = RectangularShape(1.0, (2, 2), (0.0, 0.0), density=1.0, place_on_shell=true,
+                shape = RectangularShape(1.0, (2, 2), (0.0, 0.0), density=1.0,
+                                         place_on_shell=true,
                                          loop_order=loop_orders[i])
 
                 @test shape.coordinates == expected_coords[i]
