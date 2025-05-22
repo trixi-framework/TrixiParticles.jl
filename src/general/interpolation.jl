@@ -565,49 +565,105 @@ end
             computed_density[point] = NaN
             neighbor_count[point] = 0
 
-            foreach(cache) do field
-                if field isa AbstractVector
-                    field[point] = NaN
-                else
-                    field[:, point] .= NaN
-                end
-            end
+            set_NaN!(cache, point, ref_system)
         else
             # Normalize all quantities by the shepard coefficient
-            foreach(cache) do field
-                if field isa AbstractVector
-                    field[point] /= shepard_coefficient[point]
-                else
-                    field[:, point] ./= shepard_coefficient[point]
-                end
-            end
+            divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
+                                           ref_system)
         end
     end
 
-    return (; computed_density=computed_density, neighbor_count, point_coords, cache...)
+    cache_ = map(x -> Array(x), cache)
+
+    return (; computed_density=Array(computed_density), point_coords=Array(point_coords),
+            neighbor_count=Array(neighbor_count), cache_...)
+end
+
+function set_NaN!(cache, point, ref_system::FluidSystem)
+    for dim in 1:ndims(ref_system)
+        cache.velocity[dim, point] = NaN
+    end
+    cache.pressure[point] = NaN
+    cache.density[point] = NaN
+
+    return cache
+end
+
+function set_NaN!(cache, point, ref_system::SolidSystem)
+    for dim in 1:ndims(ref_system)
+        cache.velocity[dim, point] = NaN
+    end
+    cache.jacobian[point] = NaN
+    cache.von_mises_stress[point] = NaN
+
+    for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)
+        cache.cauchy_stress[i, j, point] = NaN
+    end
+
+    return cache
+end
+
+function divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
+                                        ref_system::FluidSystem)
+    for dim in 1:ndims(ref_system)
+        cache.velocity[dim, point] /= shepard_coefficient[point]
+    end
+    cache.pressure[point] /= shepard_coefficient[point]
+    cache.density[point] /= shepard_coefficient[point]
+
+    return cache
+end
+
+function divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
+                                        ref_system::SolidSystem)
+    for dim in 1:ndims(ref_system)
+        cache.velocity[dim, point] /= shepard_coefficient[point]
+    end
+    cache.jacobian[point] /= shepard_coefficient[point]
+    cache.von_mises_stress[point] /= shepard_coefficient[point]
+
+    for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)
+        cache.cauchy_stress[i, j, point] /= shepard_coefficient[point]
+    end
+    return cache
 end
 
 @inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)
     velocity_ = zeros(eltype(ref_system), ndims(ref_system), n_points)
     pressure_ = zeros(eltype(ref_system), n_points)
+    density_ = zeros(eltype(ref_system), n_points)
 
     if semi.parallelization_backend isa KernelAbstractions.Backend
         velocity = Adapt.adapt(semi.parallelization_backend, velocity_)
         pressure = Adapt.adapt(semi.parallelization_backend, pressure_)
+        density = Adapt.adapt(semi.parallelization_backend, density_)
     else
         velocity = velocity_
         pressure = pressure_
+        density = density_
     end
 
     return (; velocity, pressure, density)
 end
 
 @inline function create_cache_interpolation(ref_system::SolidSystem, n_points, semi)
-    velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
-    jacobian = zeros(eltype(ref_system), n_points)
-    von_mises_stress = zeros(eltype(ref_system), n_points)
-    cauchy_stress = zeros(eltype(ref_system), ndims(ref_system), ndims(ref_system),
-                          n_points)
+    velocity_ = zeros(eltype(ref_system), ndims(ref_system), n_points)
+    jacobian_ = zeros(eltype(ref_system), n_points)
+    von_mises_stress_ = zeros(eltype(ref_system), n_points)
+    cauchy_stress_ = zeros(eltype(ref_system), ndims(ref_system), ndims(ref_system),
+                           n_points)
+
+    if semi.parallelization_backend isa KernelAbstractions.Backend
+        velocity = Adapt.adapt(semi.parallelization_backend, velocity_)
+        jacobian = Adapt.adapt(semi.parallelization_backend, jacobian_)
+        von_mises_stress = Adapt.adapt(semi.parallelization_backend, von_mises_stress_)
+        cauchy_stress = Adapt.adapt(semi.parallelization_backend, cauchy_stress_)
+    else
+        velocity = velocity_
+        jacobian = jacobian_
+        von_mises_stress = von_mises_stress_
+        cauchy_stress = cauchy_stress_
+    end
 
     return (; velocity, jacobian, von_mises_stress, cauchy_stress)
 end
