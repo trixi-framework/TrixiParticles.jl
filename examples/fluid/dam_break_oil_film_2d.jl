@@ -29,7 +29,7 @@ oil_viscosity = ViscosityMorris(nu=nu_sim_oil)
 
 # TODO: broken if both systems use surface tension
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
+              sol=nothing, fluid_particle_spacing=fluid_particle_spacing, tspan=tspan,
               viscosity=ViscosityMorris(nu=nu_sim_water), smoothing_length=smoothing_length,
               gravity=gravity, density_diffusion=nothing, sound_speed=sound_speed,
               prefix="", reference_particle_spacing=fluid_particle_spacing)
