@@ -71,7 +71,7 @@ for reynolds_number in reynolds_numbers,
                                        name_density_calculator,
                                        "validation_run_lid_driven_cavity_2d_nparticles_$(n_particles_xy)x$(n_particles_xy)_Re_$Re")
 
-    saving_callback = SolutionSavingCallback(dt=0.1, output_directory=output_directory)
+    saving_callback = SolutionSavingCallback(dt=0.02, output_directory=output_directory)
 
     pp_callback = PostprocessCallback(; dt=0.02,
                                       interpolated_velocity=interpolated_velocity,
