@@ -65,7 +65,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     smoothing_kernel               :: K
     smoothing_length_interpolation :: ELTYPE
     background_pressure            :: ELTYPE
-    place_on_shell                          :: Bool
+    place_on_shell                 :: Bool
     signed_distance_field          :: S
     is_boundary                    :: Bool
     shift_length                   :: ELTYPE
@@ -80,7 +80,8 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     # See the comments in general/gpu.jl for more details.
     function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
                                    smoothing_kernel, smoothing_length_interpolation,
-                                   background_pressure, place_on_shell, signed_distance_field,
+                                   background_pressure, place_on_shell,
+                                   signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
                                    signed_distances, particle_refinement, buffer,
                                    update_callback_used, fixed_system, cache,
@@ -109,7 +110,8 @@ function ParticlePackingSystem(shape::InitialCondition;
                                smoothing_length_interpolation=smoothing_length,
                                is_boundary=false, boundary_compress_factor=1,
                                neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                               background_pressure, place_on_shell=false, fixed_system=false)
+                               background_pressure, place_on_shell=false,
+                               fixed_system=false)
     NDIMS = ndims(shape)
     ELTYPE = eltype(shape)
     mass = copy(shape.mass)

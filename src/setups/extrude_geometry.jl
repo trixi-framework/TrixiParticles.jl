@@ -99,7 +99,9 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
 
     geometry = shift_plane_corners(geometry, direction_, particle_spacing, place_on_shell)
 
-    face_coords, particle_spacing_ = sample_plane(geometry, particle_spacing; place_on_shell=place_on_shell)
+    face_coords,
+    particle_spacing_ = sample_plane(geometry, particle_spacing;
+                                     place_on_shell=place_on_shell)
 
     if !isapprox(particle_spacing, particle_spacing_, rtol=5e-2)
         @info "The desired size is not a multiple of the particle spacing $particle_spacing." *
@@ -126,7 +128,8 @@ function sample_plane(geometry::AbstractMatrix, particle_spacing; place_on_shell
         # Extruding a 2D shape results in a 3D shape
 
         # When `place_on_shell=true`, particles will be placed on the x-y plane
-        coords = vcat(geometry, fill(place_on_shell ? 0 : particle_spacing / 2, size(geometry, 2))')
+        coords = vcat(geometry,
+                      fill(place_on_shell ? 0 : particle_spacing / 2, size(geometry, 2))')
 
         # TODO: 2D shapes not only in x-y plane but in any user-defined plane
         return coords, particle_spacing
@@ -141,7 +144,8 @@ function sample_plane(shape::InitialCondition, particle_spacing; place_on_shell)
 
         # When `place_on_shell=true`, particles will be placed on the x-y plane
         coords = vcat(shape.coordinates,
-                      fill(place_on_shell ? 0 : particle_spacing / 2, size(shape.coordinates, 2))')
+                      fill(place_on_shell ? 0 : particle_spacing / 2,
+                           size(shape.coordinates, 2))')
 
         # TODO: 2D shapes not only in x-y plane but in any user-defined plane
         return coords, particle_spacing
@@ -222,7 +226,8 @@ function shift_plane_corners(plane_points, direction, particle_spacing, place_on
     shift_plane_corners(tuple(plane_points...), direction, particle_spacing, place_on_shell)
 end
 
-function shift_plane_corners(plane_points::NTuple{2}, direction, particle_spacing, place_on_shell)
+function shift_plane_corners(plane_points::NTuple{2}, direction, particle_spacing,
+                             place_on_shell)
     # With place_on_shell, particles need to be AT the min coordinates and not half a particle
     # spacing away from it.
     (place_on_shell) && (return plane_points)
@@ -240,7 +245,8 @@ function shift_plane_corners(plane_points::NTuple{2}, direction, particle_spacin
     return (plane_point1, plane_point2)
 end
 
-function shift_plane_corners(plane_points::NTuple{3}, direction, particle_spacing, place_on_shell)
+function shift_plane_corners(plane_points::NTuple{3}, direction, particle_spacing,
+                             place_on_shell)
     # With place_on_shell, particles need to be AT the min coordinates and not half a particle
     # spacing away from it.
     (place_on_shell) && (return plane_points)
