@@ -1,12 +1,16 @@
+# ==========================================================================================
+# === 3D Collapsing Sand Pile Simulation
+#
+# This example simulates the collapse of a cylindrical pile of sand under gravity
+# within a confined container using the Discrete Element Method (DEM).
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
 # Physical parameters
 gravity = -9.81
 acceleration = (0.0, 0.0, gravity)
-
-# ==========================================================================================
-# ==== Collapsing Sand Pile Simulation
 
 # Resolution
 particle_spacing = 0.1

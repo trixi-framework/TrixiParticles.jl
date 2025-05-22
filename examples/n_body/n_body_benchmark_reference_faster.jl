@@ -1,3 +1,4 @@
+# ==========================================================================================
 # The Computer Language Benchmarks Game
 # https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 #
@@ -10,6 +11,7 @@
 # unroll them. To convince llvm to do so, this script should be run
 # with the environment variable:
 # JULIA_LLVM_ARGS='-unroll-threshold=500'.
+# ==========================================================================================
 
 using Base.Cartesian
 

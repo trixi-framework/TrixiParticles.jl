@@ -1,3 +1,12 @@
+# ==========================================================================================
+# 2D Periodic Channel Flow Simulation
+#
+# This example simulates fluid flow in a 2D channel with periodic boundary
+# conditions in the flow direction (x-axis) and solid walls at the top and bottom.
+# The fluid is initialized with a uniform velocity.
+# This setup can be used to study Poiseuille flow or turbulent channel flow characteristics.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
