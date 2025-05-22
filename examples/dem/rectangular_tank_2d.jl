@@ -1,67 +1,116 @@
+# ==========================================================================================
+# 2D Falling Rocks in a Rectangular Tank (DEM)
+#
+# This example simulates a collection of "rocks" (represented as DEM particles)
+# falling under gravity within a 2D rectangular tank.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
-gravity = -9.81
+# ------------------------------------------------------------------------------
+# Physical Parameters
+# ------------------------------------------------------------------------------
+# Gravitational acceleration (acting in the negative y-direction)
+gravity = 9.81
+system_acceleration = (0.0, -gravity)
 
-# ==========================================================================================
-# ==== Falling Rocks Simulation Setup
-#
-# This example sets up a simulation of falling rocks within a rectangular tank.
-# The tank is generated using a helper function (RectangularTank) which creates
-# a "fluid" region (containing the rock particles) and a "boundary" region (representing walls).
-# ==========================================================================================
+# Rock particle properties
+rock_particle_density = 3000.0 # kg/m^3
 
-particle_spacing = 0.1
+# Contact model parameters for rock-rock and rock-boundary interaction
+# Option 1: Hertzian Contact Model (more physically based for elastic spheres)
+hertz_elastic_modulus = 1.0e10 # Pa (Young's modulus)
+hertz_poissons_ratio = 0.3    # Poisson's ratio
+# contact_model_rocks = HertzContactModel(hertz_elastic_modulus, hertz_poissons_ratio)
 
-rock_width = 2.0
-rock_height = 2.0
-rock_density = 3000.0
+# Option 2: Linear Contact Model (simpler, constant normal stiffness) - Active by default
+linear_contact_stiffness_rocks = 2.0e6 # Normal stiffness
+contact_model_rocks = LinearContactModel(linear_contact_stiffness_rocks)
 
-tank_width = 2.0
-tank_height = 4.0
+# Damping coefficient for inter-particle and particle-boundary collisions
+dem_damping_coefficient = 1.0e-4
 
-# Create a rectangular tank. The tank has a "fluid" region for the rock particles
-# and a "boundary" region for the container walls.
-tank = RectangularTank(particle_spacing, (rock_width, rock_height),
-                       (tank_width, tank_height), rock_density,
-                       n_layers=2)
+# Boundary (tank wall) properties
+boundary_contact_stiffness = 1.0e8 # Normal stiffness for particle-wall interaction
 
-# ==========================================================================================
-# ==== Systems
-#
-# We adjust the rock positions upward to allow them to fall under gravity.
-# Next, we create a contact model and use it to build the rock (DEM) system.
-# ==========================================================================================
+# ------------------------------------------------------------------------------
+# Simulation Geometry and Resolution
+# ------------------------------------------------------------------------------
+# Particle spacing (characteristic size of rock particles)
+particle_spacing = 0.1 # meters
 
-# Move the rock particles up to let them fall
-tank.fluid.coordinates[2, :] .+= 0.5
-# small perturbation
-tank.fluid.coordinates .+= 0.01 .* (2 .* rand(size(tank.fluid.coordinates)) .- 1)
+# Initial block of rocks: dimensions
+initial_rock_block_width = 2.0  # meters
+initial_rock_block_height = 2.0 # meters
+initial_rock_block_size = (initial_rock_block_width, initial_rock_block_height)
 
-# Create a contact model.
-# Option 1: Hertzian contact model (uses elastic modulus and Poisson's ratio)
-contact_model = HertzContactModel(10e9, 0.3)
-# Option 2 (alternative): Linear contact model (constant normal stiffness)
-# contact_model = LinearContactModel(2 * 10e5)
+# Tank dimensions (width, height)
+tank_width = 2.0  # meters
+tank_height = 4.0 # meters
+tank_domain_size = (tank_width, tank_height)
 
-# Construct the rock system using the new DEMSystem signature.
-rock_system = DEMSystem(tank.fluid, contact_model; damping_coefficient=0.0001,
-                        acceleration=(0.0, gravity), radius=0.4 * particle_spacing)
+# Number of boundary particle layers for the tank walls
+num_boundary_particle_layers_tank = 2
 
-# Construct the boundary system for the tank walls.
-boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)
+# ------------------------------------------------------------------------------
+# Particle Setup: Rocks and Tank Walls
+# ------------------------------------------------------------------------------
+# Create a RectangularTank object. This helper function generates two sets of particles:
+# 1. `tank.fluid`: Intended for fluid, but here used for the initial block of rock particles.
+# 2. `tank.boundary`: Particles representing the tank walls.
+tank_setup = RectangularTank(particle_spacing,
+                             initial_rock_block_size, # Size of the "fluid" region (rocks)
+                             tank_domain_size,        # Overall size of the tank
+                             rock_particle_density,   # Density for the rock particles
+                             n_layers=num_boundary_particle_layers_tank)
 
-# ==========================================================================================
-# ==== Simulation
-# ==========================================================================================
+# Adjust initial position of rock particles:
+# Move the block of rocks upwards to allow them to fall.
+vertical_shift_rocks = 0.5 # meters
+tank_setup.fluid.coordinates[2, :] .+= vertical_shift_rocks
 
-semi = Semidiscretization(rock_system, boundary_system)
+# Add a small random perturbation to initial rock particle positions
+# to break perfect symmetries and promote more natural packing/settling.
+perturbation_magnitude = 0.01 * particle_spacing
+tank_setup.fluid.coordinates .+= perturbation_magnitude .*
+                                 (2 .* rand(size(tank_setup.fluid.coordinates)) .- 1)
 
-tspan = (0.0, 4.0)
+# Extract rock particles and boundary particles from the tank setup
+rock_particles = tank_setup.fluid
+tank_wall_particles = tank_setup.boundary
+
+# ------------------------------------------------------------------------------
+# DEM System Setup
+# ------------------------------------------------------------------------------
+# Effective radius for DEM collision detection.
+dem_particle_radius = 0.4 * particle_spacing
+
+# DEM system for the rock particles
+rock_dem_system = DEMSystem(rock_particles, contact_model_rocks;
+                            damping_coefficient=dem_damping_coefficient,
+                            acceleration=system_acceleration,
+                            radius=dem_particle_radius)
+
+# Boundary DEM system for the tank walls
+tank_boundary_dem_system = BoundaryDEMSystem(tank_wall_particles,
+                                             boundary_contact_stiffness)
+
+# ------------------------------------------------------------------------------
+# Simulation
+# ------------------------------------------------------------------------------
+# Combine DEM systems into a semidiscretization
+semi = Semidiscretization(rock_dem_system, tank_boundary_dem_system,
+                          parallelization_backend=PolyesterBackend()) # Default neighborhood search
+
+# Simulation time span
+tspan = (0.0, 4.0) # seconds
+
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=5000)
-saving_callback = SolutionSavingCallback(dt=0.02)
+# Callbacks for monitoring and saving results
+info_callback = InfoCallback(interval=5000) # Print info every 5000 steps
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="") # Save every 0.02s
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
