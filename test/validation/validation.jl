@@ -104,7 +104,7 @@
                                          joinpath(validation_dir(),
                                                   "lid_driven_cavity_2d",
                                                   "validation_lid_driven_cavity_2d.jl"),
-                                         tspan=(0.0, 0.01))
+                                         tspan=(0.0, 0.02))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
