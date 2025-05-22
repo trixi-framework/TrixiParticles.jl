@@ -32,7 +32,7 @@ Returns an [`InitialCondition`](@ref).
                         will be overwritten when using an initial pressure function in the system.
 - `tlsph`:              With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
                         on the boundary of the shape and not one particle radius away, as for fluids.
-                        When `tlsph=true`, particles will be placed on the boundary of the shape.
+                        When `place_on_shell=true`, particles will be placed on the boundary of the shape.
 
 # Examples
 ```jldoctest; output = false
@@ -123,7 +123,7 @@ function sample_plane(geometry::AbstractMatrix, particle_spacing; tlsph)
     if size(geometry, 1) == 2
         # Extruding a 2D shape results in a 3D shape
 
-        # When `tlsph=true`, particles will be placed on the x-y plane
+        # When `place_on_shell=true`, particles will be placed on the x-y plane
         coords = vcat(geometry, fill(tlsph ? 0 : particle_spacing / 2, size(geometry, 2))')
 
         # TODO: 2D shapes not only in x-y plane but in any user-defined plane
@@ -137,7 +137,7 @@ function sample_plane(shape::InitialCondition, particle_spacing; tlsph)
     if ndims(shape) == 2
         # Extruding a 2D shape results in a 3D shape
 
-        # When `tlsph=true`, particles will be placed on the x-y plane
+        # When `place_on_shell=true`, particles will be placed on the x-y plane
         coords = vcat(shape.coordinates,
                       fill(tlsph ? 0 : particle_spacing / 2, size(shape.coordinates, 2))')
 

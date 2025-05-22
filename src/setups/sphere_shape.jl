@@ -37,7 +37,7 @@ coordinate directions as `cutout_min` and `cutout_max`.
                     cut out of the sphere.
 - `tlsph`:          With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
                     on the boundary of the shape and not one particle radius away, as for fluids.
-                    When `tlsph=true`, particles will be placed on the boundary of the shape.
+                    When `place_on_shell=true`, particles will be placed on the boundary of the shape.
 - `velocity`:   Either a function mapping each particle's coordinates to its velocity,
                 or, for a constant fluid velocity, a vector holding this velocity.
                 Velocity is constant zero by default.

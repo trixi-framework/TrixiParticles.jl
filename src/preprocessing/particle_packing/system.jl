@@ -20,7 +20,7 @@ For more information on the methods, see [particle packing](@ref particle_packin
                            which requires a properly adjusted time step.
 - `tlsph`:                 With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
                            on the boundary of the shape and not half a particle spacing away,
-                           as for fluids. When `tlsph=true`, particles will be placed
+                           as for fluids. When `place_on_shell=true`, particles will be placed
                            on the boundary of the shape.
 - `is_boundary`:           When `shape` is inside the geometry that was used to create
                            `signed_distance_field`, set `is_boundary=false`.
