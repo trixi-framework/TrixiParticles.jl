@@ -33,7 +33,8 @@ Open boundary system for in- and outflow particles.
     from the fluid domaim to the buffer zones (inflow and outflow) using ghost nodes.
 
 !!! warning "Experimental Implementation"
-	This is an experimental feature and may change in any future releases.
+    This is an experimental feature and may change in future releases.
+    It is GPU-compatible (e.g., with CUDA.jl and AMDGPU.jl), but currently **not** supported with Metal.jl.
 """
 struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BZ, RV,
                              RP, RD, B, UCU, C} <: System{NDIMS}

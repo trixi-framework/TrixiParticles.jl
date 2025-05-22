@@ -71,6 +71,9 @@ end
             # If this is `true`, the particle was active before and we need to continue.
             # This happens because a particle might have been activated by another thread
             # between the condition and the line below.
+            # Note: This doesn't work with Metal.jl. No error is thrown, but the operation is simply ignored.
+            # An atomic compare-and-swap operation is probably implemented for Metal.jl here:
+            # https://github.com/JuliaGPU/Metal.jl/blob/caf299690aa52448ee72ffc5688939b157fc1ba2/src/device/intrinsics/atomics.jl#L42
             was_active = PointNeighbors.Atomix.@atomicswap active_particle[particle] = true
 
             if was_active == false
