@@ -75,7 +75,7 @@ solid_particle_spacing = thickness / (n_particles_x - 1)
 n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 
 # The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
-# first particle half a particle spacing away from the shell of the geometry, which is
+# first particle half a particle spacing away from the shell of the shape, which is
 # correct for fluids, but not for solids. We therefore need to pass `place_on_shell=true`.
 #
 # The right end of the plate is 0.2 from the right end of the tank.
