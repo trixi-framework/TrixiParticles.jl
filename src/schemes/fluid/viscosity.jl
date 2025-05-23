@@ -257,7 +257,7 @@ with
 and an approximation for the strain rate magnitude given by
 
 ```math
-|S| \approx \frac{\|v_ab\|}{\|r_ab\| + \epsilon},
+|S| \approx \frac{\|v_{ab}\|}{\|r_{ab}\| + \epsilon},
 ```
 
 where:
@@ -369,7 +369,7 @@ with
 and an approximation for the strain rate magnitude given by
 
 ```math
-|S| \approx \frac{\|v_ab\|}{\|r_ab\| + \epsilon},
+|S| \approx \frac{\|v_{ab}\|}{\|r_{ab}\| + \epsilon},
 ```
 
 where:
