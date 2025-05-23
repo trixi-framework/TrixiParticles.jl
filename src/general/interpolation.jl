@@ -629,41 +629,34 @@ function divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
 end
 
 @inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)
-    velocity_ = zeros(eltype(ref_system), ndims(ref_system), n_points)
-    pressure_ = zeros(eltype(ref_system), n_points)
-    density_ = zeros(eltype(ref_system), n_points)
+    (; parallelization_backend) = semi
 
-    if semi.parallelization_backend isa KernelAbstractions.Backend
-        velocity = Adapt.adapt(semi.parallelization_backend, velocity_)
-        pressure = Adapt.adapt(semi.parallelization_backend, pressure_)
-        density = Adapt.adapt(semi.parallelization_backend, density_)
-    else
-        velocity = velocity_
-        pressure = pressure_
-        density = density_
-    end
+    velocity = allocate(parallelization_backend, eltype(ref_system),
+                        (ndims(ref_system), n_points))
+    pressure = allocate(parallelization_backend, eltype(ref_system), n_points)
+    density = allocate(parallelization_backend, eltype(ref_system), n_points)
+
+    set_zero!(velocity)
+    set_zero!(pressure)
+    set_zero!(density)
 
     return (; velocity, pressure, density)
 end
 
 @inline function create_cache_interpolation(ref_system::SolidSystem, n_points, semi)
-    velocity_ = zeros(eltype(ref_system), ndims(ref_system), n_points)
-    jacobian_ = zeros(eltype(ref_system), n_points)
-    von_mises_stress_ = zeros(eltype(ref_system), n_points)
-    cauchy_stress_ = zeros(eltype(ref_system), ndims(ref_system), ndims(ref_system),
-                           n_points)
+    (; parallelization_backend) = semi
 
-    if semi.parallelization_backend isa KernelAbstractions.Backend
-        velocity = Adapt.adapt(semi.parallelization_backend, velocity_)
-        jacobian = Adapt.adapt(semi.parallelization_backend, jacobian_)
-        von_mises_stress = Adapt.adapt(semi.parallelization_backend, von_mises_stress_)
-        cauchy_stress = Adapt.adapt(semi.parallelization_backend, cauchy_stress_)
-    else
-        velocity = velocity_
-        jacobian = jacobian_
-        von_mises_stress = von_mises_stress_
-        cauchy_stress = cauchy_stress_
-    end
+    velocity = allocate(parallelization_backend, eltype(ref_system),
+                        (ndims(ref_system), n_points))
+    jacobian = allocate(parallelization_backend, eltype(ref_system), n_points)
+    von_mises_stress = allocate(parallelization_backend, eltype(ref_system), n_points)
+    cauchy_stress = allocate(parallelization_backend, eltype(ref_system),
+                             (ndims(ref_system), ndims(ref_system), n_points))
+
+    set_zero!(velocity)
+    set_zero!(jacobian)
+    set_zero!(von_mises_stress)
+    set_zero!(cauchy_stress)
 
     return (; velocity, jacobian, von_mises_stress, cauchy_stress)
 end
