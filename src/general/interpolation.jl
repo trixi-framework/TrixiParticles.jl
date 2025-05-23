@@ -517,6 +517,11 @@ end
     shepard_coefficient = allocate(semi.parallelization_backend, ELTYPE, n_points)
     neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
 
+    set_zero!(computed_density)
+    set_zero!(other_density)
+    set_zero!(shepard_coefficient)
+    set_zero!(neighbor_count)
+
     cache = create_cache_interpolation(ref_system, n_points, semi)
 
     ref_id = system_indices(ref_system, semi)
