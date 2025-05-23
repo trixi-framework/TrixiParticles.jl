@@ -357,7 +357,9 @@ end
 
 write2vtk!(vtk, viscosity::Nothing) = vtk
 
-function write2vtk!(vtk, viscosity::Union{ViscosityAdami, ViscosityMorris})
+function write2vtk!(vtk,
+                    viscosity::Union{ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
+                                     ViscosityMorrisSGS})
     vtk["viscosity_nu"] = viscosity.nu
     vtk["viscosity_epsilon"] = viscosity.epsilon
 end
