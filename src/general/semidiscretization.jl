@@ -74,7 +74,7 @@ function Semidiscretization(systems::Union{System, Nothing}...;
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
-    check_configuration(systems)
+    check_configuration(systems, neighborhood_search)
 
     sizes_u = [u_nvariables(system) * n_moving_particles(system)
                for system in systems]
@@ -376,7 +376,8 @@ function initialize_neighborhood_searches!(semi)
         foreach_system(semi) do neighbor
             PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
                                        initial_coordinates(system),
-                                       initial_coordinates(neighbor))
+                                       initial_coordinates(neighbor),
+                                       eachindex_y=active_particles(neighbor))
         end
     end
 
@@ -669,7 +670,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -692,7 +693,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -705,7 +706,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -729,7 +730,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -764,7 +765,8 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], true))
+            semi, points_moving=(system.ismoving[], true),
+            eachindex_y=active_particles(neighbor))
 end
 
 # This function is the same as the one above to avoid ambiguous dispatch when using `Union`
@@ -841,20 +843,22 @@ function update_nhs!(neighborhood_search,
 end
 
 # Forward to PointNeighbors.jl
-function update!(neighborhood_search, x, y, semi; points_moving=(true, false))
-    PointNeighbors.update!(neighborhood_search, x, y; points_moving,
+function update!(neighborhood_search, x, y, semi; points_moving=(true, false),
+                 eachindex_y=axes(y, 2))
+    PointNeighbors.update!(neighborhood_search, x, y; points_moving, eachindex_y,
                            parallelization_backend=semi.parallelization_backend)
 end
 
-function check_configuration(systems)
+function check_configuration(systems,
+                             nhs::Union{Nothing, PointNeighbors.AbstractNeighborhoodSearch})
     foreach_system(systems) do system
-        check_configuration(system, systems)
+        check_configuration(system, systems, nhs)
     end
 
     check_system_color(systems)
 end
 
-check_configuration(system, systems) = nothing
+check_configuration(system::System, systems, nhs) = nothing
 
 function check_system_color(systems)
     if any(system isa FluidSystem && !(system isa ParticlePackingSystem) &&
@@ -871,7 +875,7 @@ function check_system_color(systems)
     end
 end
 
-function check_configuration(fluid_system::FluidSystem, systems)
+function check_configuration(fluid_system::FluidSystem, systems, nhs)
     if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
             if neighbor isa FluidSystem && isnothing(fluid_system.surface_tension) &&
@@ -882,8 +886,8 @@ function check_configuration(fluid_system::FluidSystem, systems)
     end
 end
 
-function check_configuration(boundary_system::BoundarySPHSystem, systems)
-    (; boundary_model) = boundary_system
+function check_configuration(system::BoundarySPHSystem, systems, nhs)
+    (; boundary_model) = system
 
     foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
@@ -895,7 +899,7 @@ function check_configuration(boundary_system::BoundarySPHSystem, systems)
     end
 end
 
-function check_configuration(system::TotalLagrangianSPHSystem, systems)
+function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     (; boundary_model) = system
 
     foreach_system(systems) do neighbor
@@ -912,12 +916,23 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
     end
 end
 
-function check_configuration(system::OpenBoundarySPHSystem, systems)
+function check_configuration(system::OpenBoundarySPHSystem, systems,
+                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
     (; boundary_model, boundary_zone) = system
+
+    fluid_system_index = findfirst(==(system.fluid_system), systems)
+
+    system.fluid_system_index[] = fluid_system_index
 
     if boundary_model isa BoundaryModelLastiwka &&
        boundary_zone isa BoundaryZone{BidirectionalFlow}
         throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
                             "Please specify inflow and outflow."))
+    end
+
+    if first(PointNeighbors.requires_update(neighborhood_search))
+        throw(ArgumentError("`OpenBoundarySPHSystem` requires a neighborhood search " *
+                            "that does not need an update for the `x` coordinates (e.g. `GridNeighborhoodSearch`). " *
+                            "See the PointNeighbors.jl documentation for more details."))
     end
 end

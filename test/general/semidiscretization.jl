@@ -72,7 +72,8 @@
             solid_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
                                                      boundary_model=model_a)
 
-            @test_nowarn TrixiParticles.check_configuration((solid_system2, fluid_system))
+            @test_nowarn TrixiParticles.check_configuration((solid_system2, fluid_system),
+                                                            nothing)
 
             # FSI with wrong boundary model
             solid_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
