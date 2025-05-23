@@ -570,7 +570,7 @@ end
             computed_density[point] = NaN
             neighbor_count[point] = 0
 
-            set_NaN!(cache, point, ref_system)
+            set_nan!(cache, point, ref_system)
         else
             # Normalize all quantities by the shepard coefficient
             divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
@@ -584,7 +584,7 @@ end
             neighbor_count=Array(neighbor_count), cache_...)
 end
 
-function set_NaN!(cache, point, ref_system::FluidSystem)
+function set_nan!(cache, point, ref_system::FluidSystem)
     for dim in 1:ndims(ref_system)
         cache.velocity[dim, point] = NaN
     end
@@ -594,7 +594,7 @@ function set_NaN!(cache, point, ref_system::FluidSystem)
     return cache
 end
 
-function set_NaN!(cache, point, ref_system::SolidSystem)
+function set_nan!(cache, point, ref_system::SolidSystem)
     for dim in 1:ndims(ref_system)
         cache.velocity[dim, point] = NaN
     end
