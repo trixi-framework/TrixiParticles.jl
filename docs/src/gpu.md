@@ -27,7 +27,7 @@ setup = :(
   )
 min_corner = minimum(tank.boundary.coordinates, dims=2)
 max_corner = maximum(tank.boundary.coordinates, dims=2)
-FullGridCellList(; min_corner, max_corner)
+cell_list = FullGridCellList(; min_corner, max_corner)
 ```
 
 We then need to pass this cell list to the neighborhood search and the neighborhood search
