@@ -2,7 +2,7 @@ using TrixiParticles
 
 # ==========================================================================================
 # ==== Resolution
-# particle_spacings = [0.02, 0.01, 0.005]
+# The paper provides reference data for particle spacings particle_spacings = [0.02, 0.01, 0.005]
 particle_spacing = 0.02
 
 # ==========================================================================================
@@ -72,7 +72,6 @@ end
 
 for density_calculator in density_calculators, perturbation in perturb_coordinates,
     wcsph in [false, true]
-    #particle_spacing in particle_spacings
     n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     name_density_calculator = density_calculator isa SummationDensity ?
