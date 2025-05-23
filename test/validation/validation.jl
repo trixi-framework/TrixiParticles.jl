@@ -105,7 +105,10 @@
                                                   "lid_driven_cavity_2d",
                                                   "validation_lid_driven_cavity_2d.jl"),
                                          tspan=(0.0, 0.02), dt=0.01,
-                                         sensor_capture_time=0.01)
+                                         sensor_capture_time=0.01) [
+            r"WARNING: Method definition lid_movement_function.*\n",
+            r"WARNING: Method definition is_moving.*\n"
+        ]
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
