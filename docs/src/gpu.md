@@ -13,7 +13,8 @@ Unlike the default cell list, which assumes an unbounded domain,
 this cell list requires a bounding box for the domain.
 For simulations that are bounded by a closed tank, we can simply use the boundary
 of the tank to obtain the bounding box as follows.
-```setup = :(
+```jldoctest gpu;
+setup = :(
     using TrixiParticles;
     trixi_include(@__MODULE__,
       joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
