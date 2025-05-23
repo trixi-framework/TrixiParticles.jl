@@ -10,10 +10,13 @@ particle_spacing = 0.02
 tspan = (0.0, 25.0)
 reynolds_numbers = [100.0, 1000.0, 10_000.0]
 
+const sensor_capture_time = 24.8
+const capture_started = Ref(false)
+
 interpolated_velocity(system, v, u, semi, t) = nothing
 
 function interpolated_velocity(system::TrixiParticles.FluidSystem, v, u, semi, t)
-    if t < 24.8
+    if t < sensor_capture_time
         return nothing
     end
 
@@ -33,7 +36,7 @@ function interpolated_velocity(system::TrixiParticles.FluidSystem, v, u, semi, t
 
     file = joinpath(output_directory, "interpolated_velocities.csv")
 
-    if isfile(file)
+    if capture_started[]
         data = TrixiParticles.CSV.read(file, TrixiParticles.DataFrame)
         vy_y_ = (data.vy_y .+ vy_y)
         vy_x_ = (data.vy_x .+ vy_x)
@@ -51,6 +54,7 @@ function interpolated_velocity(system::TrixiParticles.FluidSystem, v, u, semi, t
                                       counter=1, vy_y=vy_y, vy_x=vy_x, vx_y=vx_y, vx_x=vx_x)
 
         TrixiParticles.CSV.write(output_directory * "/interpolated_velocities.csv", df)
+        capture_started[] = true
     end
 
     return nothing
@@ -73,6 +77,7 @@ for reynolds_number in reynolds_numbers,
 
     saving_callback = SolutionSavingCallback(dt=0.02, output_directory=output_directory)
 
+    capture_started[] = false
     pp_callback = PostprocessCallback(; dt=0.02,
                                       interpolated_velocity=interpolated_velocity,
                                       filename="interpolated_velocities",
