@@ -19,7 +19,7 @@ max_corner = maximum(tank.boundary.coordinates, dims=2)
 cell_list = FullGridCellList(; min_corner, max_corner)
 
 # output
-FullGridCellList{PointNeighbors.DynamicVectorOfVectors{...}(Vector{Int32}[], nothing, [-0.12500000000000003, -0.12500000000000003], [1.125, 1.125])
+FullGridCellList{PointNeighbors.DynamicVectorOfVectors{...}(...)
 
 ```
 
