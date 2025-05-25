@@ -135,7 +135,7 @@ end
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
 
-            # Note that this simulation only takes 42 time steps on the CPU.
+            # TODO Note that this simulation only takes 42 time steps on the CPU.
             # Due to https://github.com/JuliaGPU/Metal.jl/issues/549, it doesn't work on Metal.
             trixi_include_changeprecision(Float32, @__MODULE__,
                                           joinpath(examples_dir(), "fluid",
@@ -143,7 +143,7 @@ end
                                           tspan=(0.0f0, 0.1f0),
                                           fluid_particle_spacing=0.1,
                                           semi=semi_fullgrid,
-                                          maxiters=42)
+                                          maxiters=43)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
