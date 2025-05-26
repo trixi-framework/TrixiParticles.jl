@@ -62,7 +62,7 @@ end
 
 for reynolds_number in reynolds_numbers,
     density_calculator in [SummationDensity(), ContinuityDensity()], wcsph in [false, true]
-    n_particles_xy in round(Int, 1.0 / particle_spacing)
+    n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     Re = Int(reynolds_number)
 
