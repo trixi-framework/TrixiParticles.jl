@@ -31,6 +31,7 @@ end
 # No update
 @inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
                                         points_moving=(true, true),
+                                        eachindex_y=eachindex(y),
                                         parallelization_backend=SerialBackend())
     return search
 end
@@ -38,7 +39,11 @@ end
 # Count allocations of one call to the right-hand side (`kick!` + `drift!`)
 function count_rhs_allocations(sol, semi)
     t = sol.t[end]
-    v_ode, u_ode = sol.u[end].x
+    v_ode_, u_ode_ = sol.u[end].x
+
+    # Make sure we don't use `ThreadedBroadcastArray`s here, which would cause allocations
+    v_ode = Array(v_ode_)
+    u_ode = Array(u_ode_)
     dv_ode = similar(v_ode)
     du_ode = similar(u_ode)
 
@@ -49,14 +54,11 @@ function count_rhs_allocations(sol, semi)
         # Disable timers, which cause extra allocations
         TrixiParticles.disable_debug_timings()
 
-        # Disable multithreading, which causes extra allocations
-        return disable_polyester_threads() do
-            # We need `@invokelatest` here to ensure that the most recent method of
-            # `TrixiParticles.timeit_debug_enabled()` is called, which is redefined in
-            # `disable_debug_timings` above.
-            return @invokelatest count_rhs_allocations_inner(dv_ode, du_ode, v_ode, u_ode,
-                                                             semi_no_nhs_update, t)
-        end
+        # We need `@invokelatest` here to ensure that the most recent method of
+        # `TrixiParticles.timeit_debug_enabled()` is called, which is redefined in
+        # `disable_debug_timings` above.
+        return @invokelatest count_rhs_allocations_inner(dv_ode, du_ode, v_ode, u_ode,
+                                                         semi_no_nhs_update, t)
     finally
         # Enable timers again
         @invokelatest TrixiParticles.enable_debug_timings()

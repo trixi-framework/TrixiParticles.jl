@@ -138,13 +138,21 @@
                                                       "packing_3d.jl"))
         end
     end
-end
 
-@testset verbose=true "DEM" begin
-    @trixi_testset "dem/rectangular_tank_2d.jl" begin
+    @testset verbose=true "DEM" begin
+        @trixi_testset "dem/rectangular_tank_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "dem",
+                                                      "rectangular_tank_2d.jl"),
+                                             tspan=(0.0, 0.1))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+    end
+    @trixi_testset "dem/collapsing_sand_pile_3d.jl" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "dem",
-                                                  "rectangular_tank_2d.jl"),
+                                                  "collapsing_sand_pile_3d.jl"),
                                          tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0

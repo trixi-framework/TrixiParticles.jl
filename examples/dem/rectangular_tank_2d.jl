@@ -39,6 +39,7 @@ tank2 = RectangularTank(particle_spacing, (rock_width, rock_height),
 # ==========================================================================================
 
 # Move the rock particles up to let them fall
+# Move the rock particles up to let them fall
 tank.fluid.coordinates[2, :] .+= 0.5
 # small perturbation
 tank.fluid.coordinates .+= 0.01 .* (2 .* rand(size(tank.fluid.coordinates)) .- 1)
