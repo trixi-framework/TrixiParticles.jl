@@ -332,6 +332,7 @@
                                          reference_density_in=nothing,
                                          reference_pressure_in=nothing,
                                          reference_density_out=nothing,
+                                         reference_pressure_out=nothing,
                                          reference_velocity_out=nothing)
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
