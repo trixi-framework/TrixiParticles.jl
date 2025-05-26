@@ -228,7 +228,7 @@ end
 
 function shift_plane_corners(plane_points::NTuple{2}, direction, particle_spacing,
                              place_on_shell)
-    # With place_on_shell, particles need to be AT the min coordinates and not half a particle
+    # With `place_on_shell`, particles need to be AT the min coordinates and not half a particle
     # spacing away from it.
     (place_on_shell) && (return plane_points)
 
@@ -247,7 +247,7 @@ end
 
 function shift_plane_corners(plane_points::NTuple{3}, direction, particle_spacing,
                              place_on_shell)
-    # With place_on_shell, particles need to be AT the min coordinates and not half a particle
+    # With `place_on_shell`, particles need to be AT the min coordinates and not half a particle
     # spacing away from it.
     (place_on_shell) && (return plane_points)
 
