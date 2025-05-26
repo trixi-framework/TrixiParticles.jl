@@ -391,3 +391,72 @@ end
         end
     end
 end
+
+@testset verbose=true "Postprocessing $TRIXIPARTICLES_TEST_" begin
+    @testset verbose=true "Interpolation" begin
+        # Import variables into scope
+        trixi_include_changeprecision(Float32, @__MODULE__,
+                                      joinpath(examples_dir(), "fluid",
+                                               "hydrostatic_water_column_2d.jl"),
+                                      sol=nothing, ode=nothing)
+
+        # Neighborhood search with `FullGridCellList` for GPU compatibility
+        min_corner = minimum(tank.boundary.coordinates, dims=2)
+        max_corner = maximum(tank.boundary.coordinates, dims=2)
+        cell_list = FullGridCellList(; min_corner, max_corner,
+                                     max_points_per_cell=500)
+        semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+                                           neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                         cell_list),
+                                           parallelization_backend=Main.parallelization_backend)
+
+        trixi_include_changeprecision(Float32, @__MODULE__,
+                                      joinpath(examples_dir(),
+                                               "fluid", "hydrostatic_water_column_2d.jl");
+                                      semi=semi_fullgrid, tspan=(0.0f0, 0.1f0))
+
+        # Interpolation parameters
+        position_x = tank_size[1] / 2
+        n_interpolation_points = 10
+        start_point = [position_x, -fluid_particle_spacing]
+        end_point = [position_x, tank_size[2]]
+
+        result = interpolate_line(start_point, end_point, n_interpolation_points,
+                                  semi, fluid_system, sol)
+        @test isapprocx(plane.computed_density,
+                        [NaN,
+                            1051.550381846236,
+                            1058.840859422405,
+                            1054.6636640426582,
+                            1040.437243621303,
+                            1031.95170017119,
+                            1023.5350903161437,
+                            1009.1916142262469,
+                            693.8269492612843,
+                            NaN])
+
+        @test isapporx(result.density,
+                       [NaN,
+                           1066.8978311276544,
+                           1058.4834534513207,
+                           1049.7765132420302,
+                           1040.2795841900875,
+                           1030.331702082792,
+                           1020.2045843019229,
+                           1010.3658109398008,
+                           1003.3921419243012,
+                           NaN])
+
+        @test isapporx(result.pressure,
+                       [NaN,
+                           8198.684648008579,
+                           6983.142465751377,
+                           5788.908403992583,
+                           4551.910032518114,
+                           3327.0608294382264,
+                           2149.986239483061,
+                           1071.880176298758,
+                           342.81444988598906,
+                           NaN])
+    end
+end
