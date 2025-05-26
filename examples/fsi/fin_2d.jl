@@ -1,5 +1,5 @@
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -8,10 +8,10 @@ n_particles_y = 3
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 2.0
-tspan = (0.0, 0.5)
+tspan = (0.0, 5.0)
 
-fin_length = 0.5
-fin_thickness = 0.02
+fin_length = 0.6
+fin_thickness = 10e-3
 flexural_rigidity = 5.0
 poisson_ratio = 0.3
 modulus = 12 * (1 - poisson_ratio^2) * flexural_rigidity / (fin_thickness^3)
@@ -24,15 +24,20 @@ density = fiber_volume_fraction * fiber_density +
 
 clamp_radius = 0.05
 
+tank_size = (2.0, 1.0)
+const CENTER = (tank_size[2] / 2, tank_size[2] / 2)
+initial_fluid_size = tank_size
+initial_velocity = (1.0, 0.0)
+
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 particle_spacing = fin_thickness / (n_particles_y - 1)
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
 fixed_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing / 2,
-                              (0.0, fin_thickness / 2), density,
-                              cutout_min=(0.0, 0.0),
-                              cutout_max=(clamp_radius, fin_thickness),
+                              CENTER, density,
+                              cutout_min=(CENTER[1], CENTER[2] - fin_thickness / 2),
+                              cutout_max=CENTER .+ (clamp_radius, fin_thickness / 2),
                               tlsph=true)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
@@ -45,16 +50,14 @@ n_particles_per_dimension = (round(Int, fin_length / particle_spacing) +
 # from the boundary, which is correct for fluids, but not for solids.
 # We therefore need to pass `tlsph=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (0.0, 0.0), density=density, tlsph=true)
+                        (CENTER[1], CENTER[2] - fin_thickness / 2), density=density, tlsph=true)
 
 solid = union(beam, fixed_particles)
-solid.coordinates .+= 0.4 - fin_thickness / 2
 
 # Movement function
 const FREQUENCY = 1.3 # Hz
-const AMPLITUDE = 0.1
-rotation_deg = 10 # degrees
-const CENTER = (0.0, 0.4)
+const AMPLITUDE = 0.15 # m
+rotation_deg = 12 # degrees
 const ROTATION_ANGLE = rotation_deg * pi / 180
 @inline function movement_function(x, t)
     sin_scaled = sin(FREQUENCY * 2pi * t)
@@ -81,11 +84,6 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 # tspan = (0.0, 2.0)
-
-# Boundary geometry and initial fluid particle positions
-tank_size = (2.0, 0.8)
-initial_fluid_size = tank_size
-initial_velocity = (0.0, 0.0)
 
 fluid_density = 1000.0
 nu = 0.1 / fluid_density # viscosity parameter
@@ -161,7 +159,9 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-periodic_box = PeriodicBox(min_corner=[0.0, -0.25], max_corner=[2.0, 1.0])
+min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
+max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
+periodic_box = PeriodicBox(; min_corner, max_corner)
 # cell_list = TrixiParticles.PointNeighbors.FullGridCellList(min_corner=[0.0, -0.25], max_corner=[1.0, 0.75])
 neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box)
 
@@ -184,4 +184,4 @@ sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+            save_everystep=false, callback=callbacks, maxiters=10^8);
