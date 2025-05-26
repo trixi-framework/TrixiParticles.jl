@@ -59,9 +59,9 @@ We provide six options to compute the boundary density and pressure, determined 
 1. (Recommended) With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
    fluid according to [Adami et al., 2012](@cite Adami2012), and the density is obtained by applying the inverse of the state equation.
    This option usually yields the best results of the options listed here.
-2. (Only relevant for FSI) With [`BernoulliPressureExtrapolation`](@ref), the pressure is extrapolated from the 
+2. (Only relevant for FSI) With [`BernoulliPressureExtrapolation`](@ref), the pressure is extrapolated from the
    pressure similar to the [`AdamiPressureExtrapolation`](@ref), but a relative velocity-dependent pressure part
-   is calculated between moving solids and fluids, which increases the boundary pressure in areas prone to 
+   is calculated between moving solids and fluids, which increases the boundary pressure in areas prone to
    penetrations.
 3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
@@ -100,7 +100,7 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 #### 2. [`BernoulliPressureExtrapolation`](@ref)
 Identical to the pressure ``p_b `` calculated via [`AdamiPressureExtrapolation`](@ref), but it adds the dynamic pressure component of the Bernoulli equation:
 ```math
-p_b = \frac{\sum_f (p_f + \frac{1}{2} \, \rho_{\text{neighbor}} \left( \frac{ (\mathbf{v}_f - \mathbf{v}_{\text{body}}) \cdot (\mathbf{x}_f - \mathbf{x}_{\text{neighbor}}) }{ \left\| \mathbf{x}_f - \mathbf{x}_{\text{neighbor}} \right\| } \right)^2 \times \text{factor} +\rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)} 
+p_b = \frac{\sum_f (p_f + \frac{1}{2} \, \rho_{\text{neighbor}} \left( \frac{ (\mathbf{v}_f - \mathbf{v}_{\text{body}}) \cdot (\mathbf{x}_f - \mathbf{x}_{\text{neighbor}}) }{ \left\| \mathbf{x}_f - \mathbf{x}_{\text{neighbor}} \right\| } \right)^2 \times \text{factor} +\rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)}
 ```
 where ``\mathbf{v}_f`` is the velocity of the fluid and ``\mathbf{v}_{\text{body}}`` is the velocity of the body.
 This adjustment provides a higher boundary pressure for solid bodies moving with a relative velocity to the fluid to prevent penetration.
@@ -235,6 +235,12 @@ Pages = [joinpath("schemes", "boundary", "open_boundary", "boundary_zones.jl")]
 ```
 
 # [Open Boundary Models](@id open_boundary_models)
+We offer two models for open boundaries, with the choice depending on the specific problem and flow characteristics near the boundary:
+1. [**Method of characteristics**](@ref method_of_characteristics): The method of characteristics is typically used in problems where tracking of wave propagation
+    or flow in a domain that interacts with open boundaries (e.g., shock waves, wave fronts, or any behavior that depends on the direction of propagation) is needed.
+    It avoids artificial reflections that could arise from boundary conditions.
+1. [**Mirroring**](@ref mirroring): The mirroring method is often applied when the flow near the boundary is expected to behave in a way that is easier to model by using symmetry
+    or when the fluid does not exhibit complex wave behavior near the boundary (e.g., free-surface flows and simple outflow).
 
 ## [Method of characteristics](@id method_of_characteristics)
 
@@ -298,3 +304,9 @@ u - u_{\text{ref}}= \frac{1}{2\rho c_s} \left( J_2 - J_3 \right),
 p - p_{\text{ref}} = \frac{1}{2} \left( J_2 + J_3 \right).
 ```
 With ``J_1``, ``J_2`` and ``J_3`` determined, we can easily solve for the actual variables for each particle.
+
+## [Mirroring](@id mirroring)
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "mirroring.jl")]
+```

@@ -1,6 +1,3 @@
-include("../test_util.jl")
-using StaticArrays
-
 @testset verbose=true "DEMSystem (HertzContactModel)" begin
     @trixi_testset "show" begin
         # Define a simple 2D initial condition.
@@ -116,7 +113,7 @@ Base.ndims(::DummySystem) = 2
         # -- Test 2: Nonzero relative velocity (elastic + damping contributions) --
         vA = reshape([1.0, 0.0], (2, 1))  # Particle A moving along x (nonzero velocity)
         vB = reshape([0.0, 0.0], (2, 1))
-        rel_vel_norm = dot(@SVector([1.0, 0.0]) - @SVector([0.0, 0.0]), normal)  # equals 1.0
+        rel_vel_norm = dot(SVector(1.0, 0.0) - SVector(0.0, 0.0), normal)  # equals 1.0
         # Effective mass: m_star = (m_A * m_B)/(m_A + m_B)
         m_star = (mass[1] * mass[1]) / (mass[1] + mass[1])
         # Critical damping coefficient: gamma_c = 2 * sqrt(m_star * normal_stiffness)

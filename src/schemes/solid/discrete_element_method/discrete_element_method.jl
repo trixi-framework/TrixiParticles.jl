@@ -1,2 +1,2 @@
-include("contact_models.jl")
 include("system.jl")
+include("contact_models.jl")

@@ -1,6 +1,7 @@
 """
-    DEMSystem(initial_condition, contact_model, normal_stiffness, elastic_modulus, poissons_ratio;
-     damping_coefficient=0.0001, acceleration=ntuple(_ -> 0.0, NDIMS), source_terms=nothing)
+    DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
+              acceleration=ntuple(_ -> 0.0, ndims(initial_condition)), source_terms=nothing,
+              radius=nothing)
 
 Constructs a Discrete Element Method (DEM) system for numerically simulating the dynamics of
 granular and particulate matter. DEM is employed to simulate and analyze the motion,
@@ -20,6 +21,7 @@ specified material properties and contact mechanics.
  - `source_terms`: Optional; additional forces or modifications to particle dynamics not
     captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
  - `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
+ - `radius=nothing`: Specifies the radius of the particles, defaults to `initial_condition.particle_spacing / 2`.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
@@ -27,7 +29,7 @@ specified material properties and contact mechanics.
 ## References
 [Bicanic2004](@cite), [Cundall1979](@cite), [DiRenzo2004](@cite)
 """
-struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIMS, IC}
+struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIMS}
     initial_condition   :: IC
     mass                :: ARRAY1D               # [particle]
     radius              :: ARRAY1D               # [particle]
@@ -39,12 +41,19 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIM
 
     function DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
                        acceleration=ntuple(_ -> 0.0,
-                                           ndims(initial_condition)), source_terms=nothing)
+                                           ndims(initial_condition)), source_terms=nothing,
+                       radius=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
         mass = copy(initial_condition.mass)
-        radius = 0.5 * initial_condition.particle_spacing * ones(length(mass))
+
+        if isnothing(radius)
+            radius = 0.5 * initial_condition.particle_spacing * ones(length(mass))
+        else
+            mass = (radius / (0.5 * initial_condition.particle_spacing))^3 * mass
+            radius = radius * ones(length(mass))
+        end
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -65,7 +74,7 @@ function Base.show(io::IO, system::DEMSystem)
 
     print(io, "DEMSystem{", ndims(system), "}(")
     print(io, system.initial_condition, ", ")
-    # Dispatch on the type of the contact_model to show the relevant parameters.
+    # TODO: Dispatch on the type of the contact_model to show the relevant parameters.
     if system.contact_model isa HertzContactModel
         print(io, "HertzContactModel: elastic_modulus = ",
               system.contact_model.elastic_modulus, ", poissons_ratio = ",
@@ -102,6 +111,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::DEMSystem)
     end
 end
 
+@inline function Base.eltype(::DEMSystem{<:Any, ELTYPE}) where {ELTYPE}
+    return ELTYPE
+end
+
 timer_name(::DEMSystem) = "solid"
 
 function TrixiParticles.write_u0!(u0, system::DEMSystem)
@@ -115,7 +128,7 @@ function TrixiParticles.write_v0!(v0, system::DEMSystem)
 end
 
 # Nothing to initialize for this system
-initialize!(system::DEMSystem, neighborhood_search) = system
+initialize!(system::DEMSystem, semi) = system
 
 function compact_support(system::DEMSystem, neighbor::DEMSystem)
     # we for now assume that the compact support is 3 * radius
@@ -127,4 +140,28 @@ function compact_support(system::DEMSystem, neighbor)
     # we for now assume that the compact support is 3 * radius
     # todo: needs to be changed for more complex simulations
     return 3 * maximum(system.radius)
+end
+
+@inline function hydrodynamic_mass(system::DEMSystem, particle)
+    return system.mass[particle]
+end
+
+@inline function particle_radius(system::DEMSystem, particle)
+    return system.radius[particle]
+end
+
+function system_data(system::DEMSystem, v_ode, u_ode, semi)
+    (; mass, radius, damping_coefficient) = system
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    coordinates = current_coordinates(u, system)
+    velocity = current_velocity(v, system)
+
+    return (; coordinates, velocity, mass, radius, damping_coefficient)
+end
+
+function available_data(::DEMSystem)
+    return (:coordinates, :velocity, :mass, :radius, :damping_coefficient)
 end
