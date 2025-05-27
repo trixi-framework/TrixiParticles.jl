@@ -15,7 +15,7 @@ spacing_ratio = 1
 # ==== Experiment Setup
 
 gravity = 9.81
-tspan = (0.0, 0.3)
+tspan = (0.0, 0.7)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (1.0, 1.0)
@@ -29,7 +29,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 # Move water column
 for i in axes(tank.fluid.coordinates, 2)
     tank.fluid.coordinates[:, i] .+= [0.5 * tank_size[1] - 0.5 * initial_fluid_size[1], 0.1]
-end=
+end
 
 # ==========================================================================================
 # ==== Fluid
