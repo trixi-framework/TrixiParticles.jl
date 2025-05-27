@@ -26,10 +26,10 @@ fluid_density = 1000.0
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio)
 
-#= Move water column
+# Move water column
 for i in axes(tank.fluid.coordinates, 2)
     tank.fluid.coordinates[:, i] .+= [0.5 * tank_size[1] - 0.5 * initial_fluid_size[1], 0.1]
-end=#
+end=
 
 # ==========================================================================================
 # ==== Fluid

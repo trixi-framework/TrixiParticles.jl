@@ -26,7 +26,7 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==== Experiment Setup
 gravity = 9.81
 
-tspan = (0.0, 1.6)#5.7 / sqrt(gravity))
+tspan = (0.0, 5.7 / sqrt(gravity))
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (W, H)
@@ -41,8 +41,8 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_length = 2.1 * fluid_particle_spacing
+smoothing_kernel = WendlandC6Kernel{2}()
 
 # viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 nu = 0.02 * smoothing_length * sound_speed/8
@@ -52,7 +52,7 @@ viscosity = ViscosityAdami(nu=nu)
 # which will run faster.
 # density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 # density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
-time_step=0.0001
+time_step=0.001
 fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
                                                 smoothing_length, fluid_density,
                                                 viscosity=viscosity,
@@ -62,7 +62,7 @@ fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = PressureZeroing()
+boundary_density_calculator = PressureMirroring()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=nothing,
                                              boundary_density_calculator,
