@@ -45,11 +45,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                    particle_system, neighbor_system,
                                                    particle, neighbor)
 
-        dv_pressure =  pressure_acceleration(particle_system, neighbor_system,
-                                             particle, neighbor,
-                                             m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                             distance, grad_kernel, nothing)
-
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system,
+                                            particle, neighbor,
+                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                            distance, grad_kernel, nothing)
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
         dv_viscosity_ = @inbounds dv_viscosity(particle_system, neighbor_system,

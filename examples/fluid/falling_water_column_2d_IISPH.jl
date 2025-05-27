@@ -15,7 +15,7 @@ spacing_ratio = 1
 # ==== Experiment Setup
 
 gravity = 9.81
-tspan = (0.0, 0.25)
+tspan = (0.0, 0.3)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (1.0, 1.0)
@@ -23,34 +23,32 @@ tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
 
-# TODO: Was machen mit dem sound speed?
-sound_speed = 1000.0
-
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio)
 
-# Move water column
+#= Move water column
 for i in axes(tank.fluid.coordinates, 2)
     tank.fluid.coordinates[:, i] .+= [0.5 * tank_size[1] - 0.5 * initial_fluid_size[1], 0.1]
-end
+end=#
 
 # ==========================================================================================
 # ==== Fluid
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-time_step = 0.0001
+time_step = 0.001
 
 viscosity = ViscosityAdami(; nu=1.0 / 100.0)
 fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
-                                               smoothing_length, viscosity=viscosity,
+                                               smoothing_length, fluid_density,
+                                               viscosity=viscosity,
                                                acceleration=(0.0, -gravity), omega=0.5,
                                                min_iterations=10, max_iterations=30,
                                                time_step=time_step)
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = PressureMirroring()
+boundary_density_calculator = PressureZeroing()
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=nothing,
