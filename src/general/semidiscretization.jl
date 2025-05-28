@@ -53,7 +53,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, IT}
     ranges_v                :: RV
     neighborhood_searches   :: NS
     parallelization_backend :: BACKEND
-    integrate_tlsph         :: IT
+    integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
