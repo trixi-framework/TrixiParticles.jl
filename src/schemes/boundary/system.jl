@@ -244,6 +244,24 @@ function (movement::Nothing)(system::System, t, semi)
     return system
 end
 
+function oscillating_movement(frequency, translation_vector,
+                              rotation_angle, rotation_center;
+                              tspan=(-Inf, Inf))
+    @inline function movement_function(x, t)
+        sin_scaled = sin(frequency * 2pi * t)
+        translation = sin_scaled * translation_vector
+        x_centered = x .- rotation_center
+        angle = rotation_angle * sin_scaled
+        rotated = SVector(x_centered[1] * cos(angle) - x_centered[2] * sin(angle),
+                          x_centered[1] * sin(angle) + x_centered[2] * cos(angle))
+        return rotated .+ rotation_center .+ translation
+    end
+
+    is_moving(t) = tspan[1] <= t <= tspan[2]
+
+    return BoundaryMovement(movement_function, is_moving)
+end
+
 @inline function nparticles(system::Union{BoundaryDEMSystem, BoundarySPHSystem})
     size(system.coordinates, 2)
 end
