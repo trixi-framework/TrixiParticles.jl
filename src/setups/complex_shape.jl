@@ -59,8 +59,9 @@ function ComplexShape(geometry; particle_spacing, density,
     grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
                          grid_offset, max_nparticles)
 
-    inpoly, winding_numbers = point_in_geometry_algorithm(geometry, grid;
-                                                          store_winding_number)
+    inpoly,
+    winding_numbers = point_in_geometry_algorithm(geometry, grid;
+                                                  store_winding_number)
 
     coordinates = stack(grid[inpoly])
 
@@ -69,8 +70,8 @@ function ComplexShape(geometry; particle_spacing, density,
 
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
-        return (initial_condition=initial_condition, winding_numbers=winding_numbers,
-                grid=stack(grid))
+        return (; initial_condition=initial_condition, winding_numbers=winding_numbers,
+                grid=grid)
     end
 
     return initial_condition
@@ -110,7 +111,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 │ InitialCondition{Float64}                                                                        │
 │ ═════════════════════════                                                                        │
 │ #dimensions: ……………………………………………… 2                                                                │
-│ #particles: ………………………………………………… 677                                                              │
+│ #particles: ………………………………………………… 889                                                              │
 │ particle spacing: ………………………………… 0.03                                                             │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -118,7 +119,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 function sample_boundary(signed_distance_field;
                          boundary_density, boundary_thickness, tlsph=true)
     (; max_signed_distance, boundary_packing,
-    positions, distances, particle_spacing) = signed_distance_field
+     positions, distances, particle_spacing) = signed_distance_field
 
     if !(boundary_packing)
         throw(ArgumentError("`SignedDistanceField` was not generated with `use_for_boundary_packing`"))
@@ -130,7 +131,7 @@ function sample_boundary(signed_distance_field;
     end
 
     # Only keep the required part of the signed distance field
-    distance_to_boundary = tlsph ? particle_spacing : 0.5 * particle_spacing
+    distance_to_boundary = zero(particle_spacing)
     keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
 
     boundary_coordinates = stack(positions[keep_indices])

@@ -65,7 +65,6 @@ end
 
 for density_calculator in density_calculators, perturbation in perturb_coordinates,
     particle_spacing in particle_spacings, wcsph in [false, true]
-
     n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     name_density_calculator = density_calculator isa SummationDensity ?

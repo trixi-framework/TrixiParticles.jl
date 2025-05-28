@@ -100,13 +100,13 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(post_callback, dt,
-                                initialize=initialize_postprocess_callback!,
+                                initialize=(initialize_postprocess_callback!),
                                 save_positions=(false, false), final_affect=true)
     else
         # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(post_callback, post_callback,
                                 save_positions=(false, false),
-                                initialize=initialize_postprocess_callback!)
+                                initialize=(initialize_postprocess_callback!))
     end
 end
 

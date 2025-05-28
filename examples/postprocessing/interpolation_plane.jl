@@ -17,8 +17,8 @@ resolution = 0.005
 # Per default the same `smoothing_length` will be used as during the simulation.
 original_plane = interpolate_plane_2d(interpolation_start, interpolation_end, resolution,
                                       semi, fluid_system, sol)
-original_x = [point[1] for point in original_plane.coord]
-original_y = [point[2] for point in original_plane.coord]
+original_x = original_plane.point_coords[1, :]
+original_y = original_plane.point_coords[2, :]
 original_pressure = original_plane.pressure
 
 # To export the interpolated plane as a VTI file, which can be read by tools like ParaView,
@@ -35,8 +35,8 @@ interpolate_plane_2d_vtk(interpolation_start, interpolation_end, resolution,
 double_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
                                               resolution, semi, fluid_system, sol,
                                               smoothing_length=2.0 * smoothing_length)
-double_x = [point[1] for point in double_smoothing_plane.coord]
-double_y = [point[2] for point in double_smoothing_plane.coord]
+double_x = double_smoothing_plane.point_coords[1, :]
+double_y = double_smoothing_plane.point_coords[2, :]
 double_pressure = double_smoothing_plane.pressure
 
 # Plane with half smoothing length.
@@ -47,8 +47,8 @@ double_pressure = double_smoothing_plane.pressure
 half_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
                                             resolution, semi, fluid_system, sol,
                                             smoothing_length=0.5 * smoothing_length)
-half_x = [point[1] for point in half_smoothing_plane.coord]
-half_y = [point[2] for point in half_smoothing_plane.coord]
+half_x = half_smoothing_plane.point_coords[1, :]
+half_y = half_smoothing_plane.point_coords[2, :]
 half_pressure = half_smoothing_plane.pressure
 
 scatter1 = Plots.scatter(original_x, original_y, zcolor=original_pressure, marker=:circle,
@@ -82,9 +82,9 @@ resolution = 0.025
 # We can also interpolate a 3D plane but in this case we have to provide 3 points instead!
 original_plane = interpolate_plane_3d(p1, p2, p3, resolution, semi,
                                       fluid_system, sol)
-original_x = [point[1] for point in original_plane.coord]
-original_y = [point[2] for point in original_plane.coord]
-original_z = [point[3] for point in original_plane.coord]
+original_x = original_plane.point_coords[1, :]
+original_y = original_plane.point_coords[2, :]
+original_z = original_plane.point_coords[3, :]
 original_pressure = original_plane.pressure
 
 scatter_3d = Plots.scatter3d(original_x, original_y, original_z, marker_z=original_pressure,
