@@ -25,7 +25,7 @@ density = fiber_volume_fraction * fiber_density +
 clamp_radius = 0.05
 
 tank_size = (2.0, 1.0)
-const CENTER = (tank_size[2] / 2, tank_size[2] / 2)
+center = (tank_size[2] / 2, tank_size[2] / 2)
 initial_fluid_size = tank_size
 initial_velocity = (1.0, 0.0)
 
@@ -35,9 +35,9 @@ particle_spacing = fin_thickness / (n_particles_y - 1)
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
 fixed_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing / 2,
-                              CENTER, density,
-                              cutout_min=(CENTER[1], CENTER[2] - fin_thickness / 2),
-                              cutout_max=CENTER .+ (clamp_radius, fin_thickness / 2),
+                              center, density,
+                              cutout_min=(center[1], center[2] - fin_thickness / 2),
+                              cutout_max=center .+ (clamp_radius, fin_thickness / 2),
                               tlsph=true)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
@@ -50,28 +50,21 @@ n_particles_per_dimension = (round(Int, fin_length / particle_spacing) +
 # from the boundary, which is correct for fluids, but not for solids.
 # We therefore need to pass `tlsph=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (CENTER[1], CENTER[2] - fin_thickness / 2), density=density, tlsph=true)
+                        (center[1], center[2] - fin_thickness / 2), density=density,
+                        tlsph=true)
 
 solid = union(beam, fixed_particles)
 
 # Movement function
-const FREQUENCY = 1.3 # Hz
-const AMPLITUDE = 0.15 # m
+frequency = 1.3 # Hz
+amplitude = 0.15 # m
 rotation_deg = 12 # degrees
-const ROTATION_ANGLE = rotation_deg * pi / 180
-@inline function movement_function(x, t)
-    sin_scaled = sin(FREQUENCY * 2pi * t)
-    translation = SVector(0.0, AMPLITUDE * sin_scaled)
-    x_centered = x .- CENTER
-    angle = ROTATION_ANGLE * sin_scaled
-    rotated = SVector(x_centered[1] * cos(angle) - x_centered[2] * sin(angle),
-                      x_centered[1] * sin(angle) + x_centered[2] * cos(angle))
-    return rotated .+ CENTER .+ translation
-end
+translation_vector = SVector(0.0, amplitude)
+rotation_angle = rotation_deg * pi / 180
 
-is_moving(t) = true
-
-boundary_movement = BoundaryMovement(movement_function, is_moving)
+boundary_movement = TrixiParticles.oscillating_movement(frequency,
+                                                        SVector(0.0, amplitude),
+                                                        rotation_angle, center)
 
 # ==========================================================================================
 # ==== Resolution
@@ -162,7 +155,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
 max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
 periodic_box = PeriodicBox(; min_corner, max_corner)
-# cell_list = TrixiParticles.PointNeighbors.FullGridCellList(min_corner=[0.0, -0.25], max_corner=[1.0, 0.75])
+cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box)
 
 semi = Semidiscretization(fluid_system, boundary_system, solid_system; neighborhood_search)
@@ -171,7 +164,9 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
-callbacks = CallbackSet(info_callback, saving_callback, ParticleShiftingCallback())
+split_integration = SplitIntegrationCallback(RDPK3SpFSAL35())
+callbacks = CallbackSet(info_callback, saving_callback, ParticleShiftingCallback(),
+                        split_integration)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
