@@ -56,8 +56,11 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
-    @trixi_timeit timer() "update systems" update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                                  update_from_callback=true)
+    @trixi_timeit timer() "update systems" begin
+        # Don't create subtimers here to avoid cluttering the timer output
+        @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
+                                                 update_from_callback=true)
+    end
 
     filenames = system_names(systems)
 

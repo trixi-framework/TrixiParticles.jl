@@ -34,14 +34,20 @@ function particle_shifting!(integrator)
     # Internal cache vector, which is safe to use as temporary array
     vu_cache = first(get_tmp_cache(integrator))
 
-    # Update quantities that are stored in the systems. These quantities (e.g. pressure)
-    # still have the values from the last stage of the previous step if not updated here.
-    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
+    @trixi_timeit timer() "particle shifting callback" begin
+        # Update quantities that are stored in the systems. These quantities (e.g. pressure)
+        # still have the values from the last stage of the previous step if not updated here.
+        @trixi_timeit timer() "update systems and nhs" begin
+            # Don't create subtimers here to avoid cluttering the timer output
+            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
+                                                     update_from_callback=true)
+        end
 
-    @trixi_timeit timer() "particle shifting" foreach_system(semi) do system
-        u = wrap_u(u_ode, system, semi)
-        v = wrap_v(v_ode, system, semi)
-        particle_shifting!(u, v, system, v_ode, u_ode, semi, vu_cache, dt)
+        @trixi_timeit timer() "particle shifting" foreach_system(semi) do system
+            u = wrap_u(u_ode, system, semi)
+            v = wrap_v(v_ode, system, semi)
+            particle_shifting!(u, v, system, v_ode, u_ode, semi, vu_cache, dt)
+        end
     end
 
     # Tell OrdinaryDiffEq that `u` has been modified
