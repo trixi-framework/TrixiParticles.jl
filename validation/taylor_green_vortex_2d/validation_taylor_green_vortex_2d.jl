@@ -6,11 +6,8 @@ using TrixiParticles
 # "Entropically damped artiﬁcial compressibility for SPH".
 # In: Computers and Fluids, Volume 179 (2019), pages 579-594.
 # https://doi.org/10.1016/j.compfluid.2018.11.023
-# The following resolutions are used in the paper:
-# particle_spacings = [0.02, 0.01, 0.005]
-
-# To save time only the configuration with 50x50 particles are used here.
-particle_spacings = [0.02]
+# The paper provides reference data for particle spacings particle_spacings = [0.02, 0.01, 0.005]
+particle_spacing = 0.02
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -78,7 +75,7 @@ function diff_p_loc_p_avg(system, v, u, semi, t)
 end
 
 for density_calculator in density_calculators, perturbation in perturb_coordinates,
-    particle_spacing in particle_spacings, wcsph in [false, true]
+    wcsph in [false, true]
     n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     name_density_calculator = density_calculator isa SummationDensity ?
