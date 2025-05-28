@@ -498,7 +498,7 @@ end
 # before calling `interact!` to compute forces.
 # `semi` and `update_nhs_fun` are overwritten by the `SplitIntegrationCallback`.
 function update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                systems=semi, update_nhs_fun=update_nhs!,
+                                systems=semi, update_nhs_fun=(update_nhs!),
                                 update_from_callback=false)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)

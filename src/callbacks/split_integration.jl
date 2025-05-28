@@ -14,7 +14,7 @@ function SplitIntegrationCallback(alg; kwargs...)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(split_integration_callback, split_integration_callback,
-                            initialize=initialize_split_integration!,
+                            initialize=(initialize_split_integration!),
                             save_positions=(false, false))
 end
 
@@ -122,8 +122,9 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
                                                                semi, semi_split)
 
     # Update the TLSPH systems with the other systems as neighbors
-    update_nhs_fun = (semi, u_ode) -> update_nhs_split!(semi, u_ode, u_ode_split,
-                                                        semi_split)
+    update_nhs_fun = (semi,
+                      u_ode) -> update_nhs_split!(semi, u_ode, u_ode_split,
+                                                  semi_split)
     @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
                                                                           semi, t;
                                                                           systems=semi_split.systems,
