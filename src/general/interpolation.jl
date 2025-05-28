@@ -512,12 +512,17 @@ end
 
     n_points = size(point_coords, 2)
     ELTYPE = eltype(point_coords)
-    computed_density = zeros(ELTYPE, n_points)
-    other_density = zeros(ELTYPE, n_points)
-    neighbor_count = zeros(Int, n_points)
-    shepard_coefficient = zeros(ELTYPE, n_points)
+    computed_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    other_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    shepard_coefficient = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
 
-    cache = create_cache_interpolation(ref_system, n_points)
+    set_zero!(computed_density)
+    set_zero!(other_density)
+    set_zero!(shepard_coefficient)
+    set_zero!(neighbor_count)
+
+    cache = create_cache_interpolation(ref_system, n_points, semi)
 
     ref_id = system_indices(ref_system, semi)
     ref_smoothing_kernel = ref_system.smoothing_kernel
@@ -565,42 +570,98 @@ end
             computed_density[point] = NaN
             neighbor_count[point] = 0
 
-            foreach(cache) do field
-                if field isa AbstractVector
-                    field[point] = NaN
-                else
-                    field[:, point] .= NaN
-                end
-            end
+            set_nan!(cache, point, ref_system)
         else
             # Normalize all quantities by the shepard coefficient
-            foreach(cache) do field
-                if field isa AbstractVector
-                    field[point] /= shepard_coefficient[point]
-                else
-                    field[:, point] ./= shepard_coefficient[point]
-                end
-            end
+            divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
+                                           ref_system)
         end
     end
 
-    return (; computed_density=computed_density, neighbor_count, point_coords, cache...)
+    cache_ = map(x -> Array(x), cache)
+
+    return (; computed_density=Array(computed_density), point_coords=Array(point_coords),
+            neighbor_count=Array(neighbor_count), cache_...)
 end
 
-@inline function create_cache_interpolation(ref_system::FluidSystem, n_points)
-    velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
-    pressure = zeros(eltype(ref_system), n_points)
-    density = zeros(eltype(ref_system), n_points)
+function set_nan!(cache, point, ref_system::FluidSystem)
+    for dim in 1:ndims(ref_system)
+        cache.velocity[dim, point] = NaN
+    end
+    cache.pressure[point] = NaN
+    cache.density[point] = NaN
+
+    return cache
+end
+
+function set_nan!(cache, point, ref_system::SolidSystem)
+    for dim in 1:ndims(ref_system)
+        cache.velocity[dim, point] = NaN
+    end
+    cache.jacobian[point] = NaN
+    cache.von_mises_stress[point] = NaN
+
+    for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)
+        cache.cauchy_stress[i, j, point] = NaN
+    end
+
+    return cache
+end
+
+function divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
+                                        ref_system::FluidSystem)
+    for dim in 1:ndims(ref_system)
+        cache.velocity[dim, point] /= shepard_coefficient[point]
+    end
+    cache.pressure[point] /= shepard_coefficient[point]
+    cache.density[point] /= shepard_coefficient[point]
+
+    return cache
+end
+
+function divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
+                                        ref_system::SolidSystem)
+    for dim in 1:ndims(ref_system)
+        cache.velocity[dim, point] /= shepard_coefficient[point]
+    end
+    cache.jacobian[point] /= shepard_coefficient[point]
+    cache.von_mises_stress[point] /= shepard_coefficient[point]
+
+    for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)
+        cache.cauchy_stress[i, j, point] /= shepard_coefficient[point]
+    end
+    return cache
+end
+
+@inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)
+    (; parallelization_backend) = semi
+
+    velocity = allocate(parallelization_backend, eltype(ref_system),
+                        (ndims(ref_system), n_points))
+    pressure = allocate(parallelization_backend, eltype(ref_system), n_points)
+    density = allocate(parallelization_backend, eltype(ref_system), n_points)
+
+    set_zero!(velocity)
+    set_zero!(pressure)
+    set_zero!(density)
 
     return (; velocity, pressure, density)
 end
 
-@inline function create_cache_interpolation(ref_system::SolidSystem, n_points)
-    velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
-    jacobian = zeros(eltype(ref_system), n_points)
-    von_mises_stress = zeros(eltype(ref_system), n_points)
-    cauchy_stress = zeros(eltype(ref_system), ndims(ref_system), ndims(ref_system),
-                          n_points)
+@inline function create_cache_interpolation(ref_system::SolidSystem, n_points, semi)
+    (; parallelization_backend) = semi
+
+    velocity = allocate(parallelization_backend, eltype(ref_system),
+                        (ndims(ref_system), n_points))
+    jacobian = allocate(parallelization_backend, eltype(ref_system), n_points)
+    von_mises_stress = allocate(parallelization_backend, eltype(ref_system), n_points)
+    cauchy_stress = allocate(parallelization_backend, eltype(ref_system),
+                             (ndims(ref_system), ndims(ref_system), n_points))
+
+    set_zero!(velocity)
+    set_zero!(jacobian)
+    set_zero!(von_mises_stress)
+    set_zero!(cauchy_stress)
 
     return (; velocity, jacobian, von_mises_stress, cauchy_stress)
 end

@@ -29,3 +29,11 @@ end
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
 end
+
+function allocate(backend::KernelAbstractions.Backend, ELTYPE, size)
+    return KernelAbstractions.allocate(backend, ELTYPE, size)
+end
+
+function allocate(backend, ELTYPE, size)
+    return Array{ELTYPE, length(size)}(undef, size)
+end
