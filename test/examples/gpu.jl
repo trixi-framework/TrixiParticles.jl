@@ -135,8 +135,9 @@ end
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
 
-            # TODO Note that this simulation only takes 42 time steps on the CPU.
-            # Due to https://github.com/JuliaGPU/Metal.jl/issues/549, it doesn't work on Metal.
+            # Note that this simulation only takes 42 time steps on the CPU.
+            # TODO This takes 43 time steps on Metal.
+            # Maybe related to https://github.com/JuliaGPU/Metal.jl/issues/549
             trixi_include_changeprecision(Float32, @__MODULE__,
                                           joinpath(examples_dir(), "fluid",
                                                    "dam_break_3d.jl"),
