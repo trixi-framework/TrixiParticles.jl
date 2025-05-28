@@ -329,6 +329,12 @@ function (movement::BoundaryMovement)(system::TotalLagrangianSPHSystem, t, semi)
     return system
 end
 
+function (movement::Nothing)(system::TotalLagrangianSPHSystem, t, semi)
+    system.fixed_particles_moving[] = false
+
+    return system
+end
+
 @inline function current_acceleration(system::TotalLagrangianSPHSystem, particle)
     return current_acceleration(system, system.fixed_particle_movement, particle)
 end
