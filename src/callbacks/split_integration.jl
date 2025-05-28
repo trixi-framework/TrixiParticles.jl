@@ -53,7 +53,9 @@ function initialize_split_integration!(cb, u, t, integrator)
     # Create the split integrator.
     # We need the timer here to keep the output clean because this will call `kick!` once.
     @trixi_timeit timer() "split integration" begin
-        split_integrator = SciMLBase.init(ode_split, alg; save_everystep=false, kwargs...)
+        @trixi_timeit timer() "init" begin
+            TimerOutputs.@notimeit timer() split_integrator = SciMLBase.init(ode_split, alg; save_everystep=false, kwargs...)
+        end
     end
 
     # Remove the `tstop` (equivalent to zero `tspan`)
@@ -97,12 +99,12 @@ function affect_inner!(integrator, split_integrator)
 
         # Integrate the split integrator to the new time
         add_tstop!(split_integrator, new_t)
-        SciMLBase.solve!(split_integrator)
+        @trixi_timeit timer() "solve" SciMLBase.solve!(split_integrator)
 
         v_ode_split, u_ode_split = split_integrator.u.x
 
         # Copy the solutions back to the original integrator
-        copy_from_split!(v_ode, u_ode, v_ode_split, u_ode_split, semi, semi_split)
+        @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode, v_ode_split, u_ode_split, semi, semi_split)
     end
 
     # Tell OrdinaryDiffEq that `u` has been modified
@@ -233,7 +235,7 @@ end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SplitIntegrationCallback})
     @nospecialize cb # reduce precompilation time
-    print(io, "SplitIntegrationCallback(integrator=", cb.affect!.integrator, ")")
+    print(io, "SplitIntegrationCallback(alg=", cb.affect!.alg, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -245,7 +247,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!
         setup = [
-            "integrator" => update_cb.integrator
+            "alg" => update_cb.alg
         ]
         summary_box(io, "SplitIntegrationCallback", setup)
     end
