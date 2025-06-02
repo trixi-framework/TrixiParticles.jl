@@ -1,15 +1,15 @@
 """
     ParticlePackingSystem(shape::InitialCondition;
-                          signed_distance_field::SignedDistanceField,
+                          signed_distance_field::Union{SignedDistanceField, Nothing},
                           smoothing_kernel=SchoenbergQuinticSplineKernel{ndims(shape)}(),
                           smoothing_length=shape.particle_spacing,
                           smoothing_length_interpolation=smoothing_length,
                           is_boundary=false, boundary_compress_factor=1,
                           neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                          background_pressure, tlsph=true, fixed_system=false)
+                          background_pressure, tlsph=false, fixed_system=false)
 
 System to generate body-fitted particles for complex shapes.
-For more information on the methods, see description below.
+For more information on the methods, see [particle packing](@ref particle_packing).
 
 # Arguments
 - `shape`: [`InitialCondition`](@ref) to be packed.
@@ -23,7 +23,7 @@ For more information on the methods, see description below.
                            as for fluids. When `tlsph=true`, particles will be placed
                            on the boundary of the shape.
 - `is_boundary`:           When `shape` is inside the geometry that was used to create
-                           `signed_distance_field, set `is_boundary=false`.
+                           `signed_distance_field`, set `is_boundary=false`.
                            Otherwise (`shape` is the sampled boundary), set `is_boundary=true`.
                            The thickness of the boundary is specified by creating
                            `signed_distance_field` with:
@@ -40,12 +40,19 @@ For more information on the methods, see description below.
                            the signed distance from a particle to a face is required.
                            The precalculated signed distances will be interpolated
                            to each particle during the packing procedure.
+                           Set `signed_distance_field=nothing` when packing with a fixed system
+                           (see `fixed_system` description above).
 - `smoothing_kernel`:      Smoothing kernel to be used for this system.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:      Smoothing length to be used for the gradient estimation.
                            See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length_interpolation`: Smoothing length to be used for interpolating the `SignedDistanceField` information.
                                     The default is `smoothing_length_interpolation = smoothing_length`.
+- `boundary_compress_factor`: Factor to compress the boundary particles by reducing the boundary thickness by a factor of `boundary_compress_factor`.
+                              The default value is `1`, which means no compression.
+                              Compression can be useful for highly convex geometries,
+                              where the boundary volume increases significantly while the mass of the boundary particles remains constant.
+                              Recommended values are `0.8` or `0.9`.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                              IC, M, D, K, N, SD, UCU} <: FluidSystem{NDIMS}
@@ -95,8 +102,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
 end
 
 function ParticlePackingSystem(shape::InitialCondition;
-                               signed_distance_field::Union{SignedDistanceField,
-                                                            Nothing},
+                               signed_distance_field::Union{SignedDistanceField, Nothing},
                                smoothing_kernel=SchoenbergQuinticSplineKernel{ndims(shape)}(),
                                smoothing_length=shape.particle_spacing,
                                smoothing_length_interpolation=smoothing_length,
