@@ -7,7 +7,7 @@ function write_meta_data(callback::Union{SolutionSavingCallback, PostprocessCall
     (; systems) = semi
 
     output_directory = callback.output_directory
-    prefix = callback.prefix
+    prefix = hasproperty(callback, :prefix) ? callback.prefix : ""
     git_hash = callback.git_hash
 
     filenames = system_names(systems)
@@ -42,6 +42,14 @@ function write_meta_data(system; system_name, output_directory, prefix, git_hash
     open(json_file, "w") do file
         JSON.print(file, meta_data, 2)
     end
+end
+
+function add_meta_data!(meta_data, system)
+    return meta_data
+end
+
+function add_meta_data!(meta_data, system::DEMSystem)
+    return meta_data
 end
 
 function add_meta_data!(meta_data, system::FluidSystem)
@@ -107,7 +115,6 @@ end
 function add_meta_data!(meta_data, system::OpenBoundarySPHSystem)
     meta_data["boundary_zone"] = type2string(system.boundary_zone)
     meta_data["width"] = round(system.boundary_zone.zone_width, digits=3)
-    meta_data["flow_direction"] = system.flow_direction
     meta_data["velocity_function"] = type2string(system.reference_velocity)
     meta_data["pressure_function"] = type2string(system.reference_pressure)
     meta_data["density_function"] = type2string(system.reference_density)
