@@ -3,6 +3,8 @@
 
 Load file and return corresponding type for [`ComplexShape`](@ref).
 Supported file formats are `.stl`, `.asc` and `dxf`.
+For comprehensive information about the supported file formats, refer to the documentation at
+[Read geometries from file](@ref read_geometries_from_file).
 
 # Arguments
 - `filename`: Name of the file to be loaded.
