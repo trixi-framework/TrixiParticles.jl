@@ -30,7 +30,7 @@ function write_meta_data(system; system_name, output_directory, prefix, git_hash
         "julia_version" => string(VERSION)
     )
 
-    get_meta_data!(meta_data, system)
+    add_meta_data!(meta_data, system)
 
     # handle "_" on optional prefix strings
     add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
@@ -44,10 +44,10 @@ function write_meta_data(system; system_name, output_directory, prefix, git_hash
     end
 end
 
-function get_meta_data!(meta_data, system::FluidSystem)
+function add_meta_data!(meta_data, system::FluidSystem)
     meta_data["acceleration"] = system.acceleration
     meta_data["viscosity"] = type2string(system.viscosity)
-    get_meta_data!(meta_data, system.viscosity)
+    add_meta_data!(meta_data, system.viscosity)
     meta_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
     meta_data["smoothing_length_factor"] = system.cache.smoothing_length_factor
     meta_data["density_calculator"] = type2string(system.density_calculator)
@@ -79,20 +79,20 @@ function get_meta_data!(meta_data, system::FluidSystem)
     return meta_data
 end
 
-get_meta_data!(meta_data, viscosity::Nothing) = meta_data
+add_meta_data!(meta_data, viscosity::Nothing) = meta_data
 
-function get_meta_data!(meta_data, viscosity::Union{ViscosityAdami, ViscosityMorris})
+function add_meta_data!(meta_data, viscosity::Union{ViscosityAdami, ViscosityMorris})
     meta_data["viscosity_nu"] = viscosity.nu
     meta_data["viscosity_epsilon"] = viscosity.epsilon
 end
 
-function get_meta_data!(meta_data, viscosity::ArtificialViscosityMonaghan)
+function add_meta_data!(meta_data, viscosity::ArtificialViscosityMonaghan)
     meta_data["viscosity_alpha"] = viscosity.alpha
     meta_data["viscosity_beta"] = viscosity.beta
     meta_data["viscosity_epsilon"] = viscosity.epsilon
 end
 
-function get_meta_data!(meta_data, system::TotalLagrangianSPHSystem)
+function add_meta_data!(meta_data, system::TotalLagrangianSPHSystem)
     meta_data["young_modulus"] = system.young_modulus
     meta_data["poisson_ratio"] = system.poisson_ratio
     meta_data["lame_lambda"] = system.lame_lambda
@@ -101,10 +101,10 @@ function get_meta_data!(meta_data, system::TotalLagrangianSPHSystem)
     meta_data["smoothing_length_factor"] = initial_smoothing_length(system) /
                                            particle_spacing(system, 1)
 
-    get_meta_data!(meta_data, system.boundary_model, system)
+    add_meta_data!(meta_data, system.boundary_model, system)
 end
 
-function get_meta_data!(meta_data, system::OpenBoundarySPHSystem)
+function add_meta_data!(meta_data, system::OpenBoundarySPHSystem)
     meta_data["boundary_zone"] = type2string(system.boundary_zone)
     meta_data["width"] = round(system.boundary_zone.zone_width, digits=3)
     meta_data["flow_direction"] = system.flow_direction
@@ -113,21 +113,21 @@ function get_meta_data!(meta_data, system::OpenBoundarySPHSystem)
     meta_data["density_function"] = type2string(system.reference_density)
 end
 
-function get_meta_data!(meta_data, system::BoundarySPHSystem)
-    get_meta_data!(meta_data, system.boundary_model, system)
+function add_meta_data!(meta_data, system::BoundarySPHSystem)
+    add_meta_data!(meta_data, system.boundary_model, system)
 end
 
-function get_meta_data!(meta_data, model::Nothing, system)
+function add_meta_data!(meta_data, model::Nothing, system)
     return meta_data
 end
 
-function get_meta_data!(meta_data, model::BoundaryModelMonaghanKajtar, system)
+function add_meta_data!(meta_data, model::BoundaryModelMonaghanKajtar, system)
     meta_data["boundary_model"] = "BoundaryModelMonaghanKajtar"
     meta_data["boundary_spacing_ratio"] = model.beta
     meta_data["boundary_K"] = model.K
 end
 
-function get_meta_data!(meta_data, model::BoundaryModelDummyParticles, system)
+function add_meta_data!(meta_data, model::BoundaryModelDummyParticles, system)
     meta_data["boundary_model"] = "BoundaryModelDummyParticles"
     meta_data["smoothing_kernel"] = type2string(model.smoothing_kernel)
     meta_data["smoothing_length"] = model.smoothing_length
@@ -136,6 +136,6 @@ function get_meta_data!(meta_data, model::BoundaryModelDummyParticles, system)
     meta_data["viscosity_model"] = type2string(model.viscosity)
 end
 
-function get_meta_data!(meta_data, system::BoundaryDEMSystem)
+function add_meta_data!(meta_data, system::BoundaryDEMSystem)
     return meta_data
 end

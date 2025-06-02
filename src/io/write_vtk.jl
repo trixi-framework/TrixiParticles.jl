@@ -115,7 +115,7 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_direc
     end
 
     @trixi_timeit timer() "write to vtk" vtk_grid(file, points, cells) do vtk
-        # dispatches based on the different system types e.g. FluidSystem, TotalLagrangianSPHSystem
+        # Dispatches based on the different system types e.g. FluidSystem, TotalLagrangianSPHSystem
         write2vtk!(vtk, v, u, t, system)
 
         # Store particle index
