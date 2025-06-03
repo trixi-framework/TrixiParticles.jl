@@ -8,10 +8,11 @@ include("solid/discrete_element_method/discrete_element_method.jl")
 # and the `TotalLagrangianSPHSystem`.
 include("boundary/monaghan_kajtar/monaghan_kajtar.jl")
 include("fluid/implicit_incompressible_sph/implicit_incompressible_sph.jl")
+
 # Include rhs for all schemes
-include("fluid/implicit_incompressible_sph/rhs.jl") #New NS
 include("fluid/weakly_compressible_sph/rhs.jl")
 include("fluid/entropically_damped_sph/rhs.jl")
+include("fluid/implicit_incompressible_sph/rhs.jl")
 include("boundary/rhs.jl")
 include("solid/total_lagrangian_sph/rhs.jl")
 include("solid/discrete_element_method/rhs.jl")

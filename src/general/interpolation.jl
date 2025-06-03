@@ -64,11 +64,6 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
                              semi, ref_system, v_ode, u_ode,
                              filter_no_neighbors, smoothing_length, cut_off_bnd,
                              clip_negative_pressure)
-    results, _,
-    _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                             semi, ref_system, v_ode, u_ode,
-                             filter_no_neighbors, smoothing_length, cut_off_bnd,
-                             clip_negative_pressure)
 
     return results
 end

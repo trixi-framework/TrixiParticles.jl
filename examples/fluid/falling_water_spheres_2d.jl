@@ -13,7 +13,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 0.03)
+tspan = (0.0, 0.3)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
@@ -97,5 +97,3 @@ sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-7, # Default abstol is 1e-6
             reltol=1e-4, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);
-
-plot(sol)

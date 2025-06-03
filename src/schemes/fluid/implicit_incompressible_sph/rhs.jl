@@ -10,10 +10,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # In order to visualize quantities like pressure forces or viscosity forces, uncomment
-    # the following code and the two other lines below that are marked as "debug example".
-    # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
-
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_system_coords,
@@ -59,29 +55,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i]
-            # Debug example
-            # debug_array[i, particle] += dv_pressure[i]
         end
     end
     return dv
 end
-#=
-@propagate_inbounds function particle_neighbor_pressure(v_particle_system,
-                                                        v_neighbor_system,
-                                                        particle_system, neighbor_system,
-                                                        particle, neighbor)
-    p_a = particle_pressure(v_particle_system, particle_system, particle)
-    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
-
-    return p_a, p_b
-end
-
-@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
-                                            particle_system,
-                                            neighbor_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
-                                            particle, neighbor)
-    p_a = particle_pressure(v_particle_system, particle_system, particle)
-
-    return p_a, p_a
-end
-=#

@@ -32,9 +32,10 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
-                                       V, PF, SRFN, SRFT, PR, Dens, preDens, PV, D, A, SD,
+                                       V, DC, PF, SRFN, SRFT, PR, Dens, preDens, PV, D, A,
+                                       SD,
                                        S, O, ME,
-                                       MINI, MAXI, TS} <: FluidSystem{NDIMS}
+                                       MINI, MAXI, TS, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -43,6 +44,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
     reference_density                 :: ELTYPE
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
+    density_calculator                :: DC
     pressure_acceleration_formulation :: PF
     transport_velocity                :: Nothing # TODO
     surface_normal_method             :: SRFN
@@ -60,6 +62,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, K,
     min_iterations                    :: MINI
     max_iterations                    :: MAXI
     time_step                         :: TS
+    cache                             :: C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -97,6 +100,17 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
         throw(ArgumentError("`reference_density` must be a positive number"))
     end
 
+    if (min_iterations < 1)
+        throw(ArgumentError("'min_iterations' must be a positive number,
+         otherwise `ImplicitIncompressibleSPHSystem` can not be used"))
+    end
+
+    if (max_iterations < min_iterations)
+        throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used if
+                        'min_iterations' is 'larger than 'max_iterations' "))
+    end
+
+    density_calculator = SummationDensity()
     pressure_acceleration = pressure_acceleration_summation_density
 
     density = copy(initial_condition.density)
@@ -106,16 +120,21 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
     v_adv = zeros(ELTYPE, NDIMS, n_particles)
     sum_d_ij = zeros(ELTYPE, NDIMS, n_particles)
     sum_term = zeros(ELTYPE, n_particles)
+
+    cache = (;
+             create_cache_refinement(initial_condition, particle_refinement,
+                                     smoothing_length)...,)
+
     return ImplicitIncompressibleSPHSystem(initial_condition, mass, pressure,
                                            smoothing_kernel, smoothing_length,
                                            reference_density,
-                                           acceleration_, viscosity,
+                                           acceleration_, viscosity, density_calculator,
                                            pressure_acceleration, nothing,
                                            nothing, surface_tension, particle_refinement,
                                            density, predicted_density,
                                            v_adv, d_ii, a_ii, sum_d_ij, sum_term, omega,
                                            max_error,
-                                           min_iterations, max_iterations, time_step)
+                                           min_iterations, max_iterations, time_step, cache)
 end
 
 function reset_callback_flag!(system::ImplicitIncompressibleSPHSystem)

@@ -12,7 +12,7 @@
                                 reference_particle_spacing=0.0))
 
 System for particles of a fluid.
-The weakly compressible SPH (WCSPH) ) scheme is used, wherein a stiff equation of state
+The weakly compressible SPH (WCSPH) scheme is used, wherein a stiff equation of state
 generates large pressure changes for small density variations.
 See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
