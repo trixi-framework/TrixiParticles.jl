@@ -693,7 +693,7 @@ function divide_by_shepard_coefficient!(field::AbstractArray{T, 2}, shepard_coef
         field[dim, point] /= shepard_coefficient[point]
     end
 
-    return cache
+    return field
 end
 
 function divide_by_shepard_coefficient!(field::AbstractArray{T, 3}, shepard_coefficient,
