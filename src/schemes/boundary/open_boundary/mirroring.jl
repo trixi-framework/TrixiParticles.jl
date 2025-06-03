@@ -87,7 +87,8 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 
             correction_matrix[] += L
 
-            if !prescribed_pressure && fluid_system isa EntropicallyDampedSPHSystem
+            # For a WCSPH system, the pressure is determined by the state equation if it is not prescribed
+            if !prescribed_pressure && !(fluid_system isa WeaklyCompressibleSPHSystem)
                 extrapolated_pressure_correction[] += pressure_b * R
             end
 
@@ -145,6 +146,8 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             pressure[particle] = reference_value(reference_pressure, pressure[particle],
                                                  particle_coords, t)
         elseif fluid_system isa WeaklyCompressibleSPHSystem
+            # For a WCSPH system, the pressure is determined by the state equation
+            # if it is not prescribed
             pressure[particle] = state_equation(density[particle])
         else
             f_d = L_inv * extrapolated_pressure_correction[]
