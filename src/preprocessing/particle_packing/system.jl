@@ -229,6 +229,10 @@ function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem)
     vtk["signed_distances"] = system.signed_distances
 end
 
+function add_meta_data!(meta_data, system::ParticlePackingSystem)
+    return meta_data
+end
+
 # Skip for fixed systems
 write_u0!(u0, system::ParticlePackingSystem{<:Any, true}) = u0
 
