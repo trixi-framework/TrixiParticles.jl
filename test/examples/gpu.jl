@@ -423,7 +423,7 @@ end
         end_point = [position_x, tank_size[2]]
 
         result = interpolate_line(start_point, end_point, n_interpolation_points,
-                                  semi_fullgrid, fluid_system, sol)
+                                  semi_fullgrid, semi_fullgrid.systems[1], sol)
 
         @test isapprox(plane.computed_density,
                        [NaN,
