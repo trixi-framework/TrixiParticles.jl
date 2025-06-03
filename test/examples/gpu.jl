@@ -423,8 +423,8 @@ end
         end_point = [position_x, tank_size[2]]
 
         result = interpolate_line(start_point, end_point, n_interpolation_points,
-                                  semi, fluid_system, sol)
-        @test isapprocx(plane.computed_density,
+                                  semi_fullgrid, fluid_system, sol)
+        @test isapprox(plane.computed_density,
                         [NaN,
                             1051.550381846236,
                             1058.840859422405,
@@ -436,7 +436,7 @@ end
                             693.8269492612843,
                             NaN])
 
-        @test isapporx(result.density,
+        @test isapprox(result.density,
                        [NaN,
                            1066.8978311276544,
                            1058.4834534513207,
@@ -448,7 +448,7 @@ end
                            1003.3921419243012,
                            NaN])
 
-        @test isapporx(result.pressure,
+        @test isapprox(result.pressure,
                        [NaN,
                            8198.684648008579,
                            6983.142465751377,
