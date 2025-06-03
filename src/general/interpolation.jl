@@ -688,7 +688,7 @@ function divide_by_shepard_coefficient!(field::AbstractVector, shepard_coefficie
 end
 
 function divide_by_shepard_coefficient!(field::AbstractArray{T, 2}, shepard_coefficient,
-                                        point)
+                                        point) where {T}
     for dim in axes(field, 1)
         field[dim, point] /= shepard_coefficient[point]
     end
@@ -697,7 +697,7 @@ function divide_by_shepard_coefficient!(field::AbstractArray{T, 2}, shepard_coef
 end
 
 function divide_by_shepard_coefficient!(field::AbstractArray{T, 3}, shepard_coefficient,
-                                        point)
+                                        point) where {T}
     for j in axes(field, 2), i in axes(field, 1)
         field[i, j, point] /= shepard_coefficient[point]
     end
