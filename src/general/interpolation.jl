@@ -570,11 +570,14 @@ end
             computed_density[point] = NaN
             neighbor_count[point] = 0
 
-            set_nan!(cache, point, ref_system)
+            foreach(Tuple(cache)) do field
+                set_nan!(field, point)
+            end
         else
             # Normalize all quantities by the shepard coefficient
-            divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
-                                           ref_system)
+            foreach(Tuple(cache)) do field
+                divide_by_shepard_coefficient!(field, shepard_coefficient, point)
+            end
         end
     end
 
@@ -582,55 +585,6 @@ end
 
     return (; computed_density=Array(computed_density), point_coords=Array(point_coords),
             neighbor_count=Array(neighbor_count), cache_...)
-end
-
-function set_nan!(cache, point, ref_system::FluidSystem)
-    for dim in 1:ndims(ref_system)
-        cache.velocity[dim, point] = NaN
-    end
-    cache.pressure[point] = NaN
-    cache.density[point] = NaN
-
-    return cache
-end
-
-function set_nan!(cache, point, ref_system::SolidSystem)
-    for dim in 1:ndims(ref_system)
-        cache.velocity[dim, point] = NaN
-    end
-    cache.jacobian[point] = NaN
-    cache.von_mises_stress[point] = NaN
-
-    for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)
-        cache.cauchy_stress[i, j, point] = NaN
-    end
-
-    return cache
-end
-
-function divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
-                                        ref_system::FluidSystem)
-    for dim in 1:ndims(ref_system)
-        cache.velocity[dim, point] /= shepard_coefficient[point]
-    end
-    cache.pressure[point] /= shepard_coefficient[point]
-    cache.density[point] /= shepard_coefficient[point]
-
-    return cache
-end
-
-function divide_by_shepard_coefficient!(cache, point, shepard_coefficient,
-                                        ref_system::SolidSystem)
-    for dim in 1:ndims(ref_system)
-        cache.velocity[dim, point] /= shepard_coefficient[point]
-    end
-    cache.jacobian[point] /= shepard_coefficient[point]
-    cache.von_mises_stress[point] /= shepard_coefficient[point]
-
-    for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)
-        cache.cauchy_stress[i, j, point] /= shepard_coefficient[point]
-    end
-    return cache
 end
 
 @inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)
@@ -703,4 +657,50 @@ end
     end
 
     return cache
+end
+
+function set_nan!(field::AbstractVector, point)
+    field[point] = NaN
+
+    return field
+end
+
+function set_nan!(field::AbstractArray{T, 2}, point)
+    for dim in axes(field, 1)
+        field[dim, point] = NaN
+    end
+
+    return field
+end
+
+function set_nan!(field::AbstractArray{T, 3}, point)
+    for j in axes(field, 2), i in axes(field, 1)
+        field[i, j, point] = NaN
+    end
+
+    return field
+end
+
+function divide_by_shepard_coefficient!(field::AbstractVector, shepard_coefficient, point)
+    field[point] /= shepard_coefficient[point]
+
+    return field
+end
+
+function divide_by_shepard_coefficient!(field::AbstractArray{T, 2}, shepard_coefficient,
+                                        point)
+    for dim in axes(field, 1)
+        field[dim, point] /= shepard_coefficient[point]
+    end
+
+    return cache
+end
+
+function divide_by_shepard_coefficient!(field::AbstractArray{T, 3}, shepard_coefficient,
+                                        point)
+    for j in axes(field, 2), i in axes(field, 1)
+        field[i, j, point] /= shepard_coefficient[point]
+    end
+
+    return field
 end
