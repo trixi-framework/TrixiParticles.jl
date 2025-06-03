@@ -424,17 +424,18 @@ end
 
         result = interpolate_line(start_point, end_point, n_interpolation_points,
                                   semi_fullgrid, fluid_system, sol)
+
         @test isapprox(plane.computed_density,
-                        [NaN,
-                            1051.550381846236,
-                            1058.840859422405,
-                            1054.6636640426582,
-                            1040.437243621303,
-                            1031.95170017119,
-                            1023.5350903161437,
-                            1009.1916142262469,
-                            693.8269492612843,
-                            NaN])
+                       [NaN,
+                           1051.550381846236,
+                           1058.840859422405,
+                           1054.6636640426582,
+                           1040.437243621303,
+                           1031.95170017119,
+                           1023.5350903161437,
+                           1009.1916142262469,
+                           693.8269492612843,
+                           NaN])
 
         @test isapprox(result.density,
                        [NaN,
