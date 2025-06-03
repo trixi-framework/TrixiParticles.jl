@@ -319,7 +319,16 @@ function semidiscretize(semi, tspan; reset_threads=true)
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
         # See the comments in general/gpu.jl for more details.
-        semi_new = Adapt.adapt(semi.parallelization_backend, semi)
+        semi_ = Adapt.adapt(semi.parallelization_backend, semi)
+
+        # After `adapt`, the system type information may change.
+        # As a result, systems can no longer be found using `system_indices`.
+        # For systems that have a corresponding linked system, we need to relink them
+        # after adaptation to ensure correct references.
+        semi_new = Semidiscretization(set_system_links.(semi_.systems, Ref(semi_)),
+                                      semi_.ranges_u, semi_.ranges_v,
+                                      semi_.neighborhood_searches,
+                                      semi_.parallelization_backend)
     else
         semi_new = semi
     end
@@ -935,4 +944,31 @@ function check_configuration(system::OpenBoundarySPHSystem, systems,
                             "that does not need an update for the `x` coordinates (e.g. `GridNeighborhoodSearch`). " *
                             "See the PointNeighbors.jl documentation for more details."))
     end
+end
+
+# After `adapt`, the system type information may change.
+# As a result, systems can no longer be found using `system_indices`.
+# For systems that have a corresponding linked system, we need to relink them
+# after adaptation to ensure correct references.
+set_system_links(system, semi) = system
+
+function set_system_links(system::OpenBoundarySPHSystem, semi)
+    fluid_system = semi.systems[system.fluid_system_index[]]
+
+    return OpenBoundarySPHSystem(system.boundary_model,
+                                 system.initial_condition,
+                                 fluid_system, # link to fluid system
+                                 system.fluid_system_index,
+                                 system.smoothing_length,
+                                 system.mass,
+                                 system.density,
+                                 system.volume,
+                                 system.pressure,
+                                 system.boundary_zone,
+                                 system.reference_velocity,
+                                 system.reference_pressure,
+                                 system.reference_density,
+                                 system.buffer,
+                                 system.update_callback_used,
+                                 system.cache)
 end

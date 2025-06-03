@@ -19,25 +19,7 @@ Adapt.@adapt_structure BoundaryMovement
 Adapt.@adapt_structure TotalLagrangianSPHSystem
 Adapt.@adapt_structure BoundaryZone
 Adapt.@adapt_structure SystemBuffer
-
-function Adapt.adapt_structure(to, system::OpenBoundarySPHSystem)
-    return OpenBoundarySPHSystem(Adapt.adapt(to, system.boundary_model),
-                                 Adapt.adapt(to, system.initial_condition),
-                                 nothing,  # Do not adapt `fluid_system``
-                                 Adapt.adapt(to, system.fluid_system_index),
-                                 Adapt.adapt(to, system.smoothing_length),
-                                 Adapt.adapt(to, system.mass),
-                                 Adapt.adapt(to, system.density),
-                                 Adapt.adapt(to, system.volume),
-                                 Adapt.adapt(to, system.pressure),
-                                 Adapt.adapt(to, system.boundary_zone),
-                                 Adapt.adapt(to, system.reference_velocity),
-                                 Adapt.adapt(to, system.reference_pressure),
-                                 Adapt.adapt(to, system.reference_density),
-                                 Adapt.adapt(to, system.buffer),
-                                 Adapt.adapt(to, system.update_callback_used),
-                                 Adapt.adapt(to, system.cache))
-end
+Adapt.@adapt_structure OpenBoundarySPHSystem
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)

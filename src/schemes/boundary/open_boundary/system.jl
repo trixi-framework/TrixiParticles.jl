@@ -227,7 +227,7 @@ end
 update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
 
 function corresponding_fluid_system(system::OpenBoundarySPHSystem, semi)
-    return semi.systems[system.fluid_system_index[]]
+    return system.fluid_system
 end
 
 function smoothing_length(system::OpenBoundarySPHSystem, particle)
