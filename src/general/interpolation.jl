@@ -665,7 +665,7 @@ function set_nan!(field::AbstractVector, point)
     return field
 end
 
-function set_nan!(field::AbstractArray{T, 2}, point)
+function set_nan!(field::AbstractArray{T, 2}, point) where {T}
     for dim in axes(field, 1)
         field[dim, point] = NaN
     end
@@ -673,7 +673,7 @@ function set_nan!(field::AbstractArray{T, 2}, point)
     return field
 end
 
-function set_nan!(field::AbstractArray{T, 3}, point)
+function set_nan!(field::AbstractArray{T, 3}, point) where {T}
     for j in axes(field, 2), i in axes(field, 1)
         field[i, j, point] = NaN
     end
