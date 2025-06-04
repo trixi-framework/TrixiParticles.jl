@@ -100,14 +100,18 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
         throw(ArgumentError("`reference_density` must be a positive number"))
     end
 
+    if max_error <= 0.0 || max_error >= 100.0
+        throw(ArgumentError("`max_error` is given in percentage, so it must be a number between 0 and 100"))
+    end
+
     if (min_iterations < 1)
-        throw(ArgumentError("'min_iterations' must be a positive number,
+        throw(ArgumentError("`min_iterations` must be a positive number,
          otherwise `ImplicitIncompressibleSPHSystem` can not be used"))
     end
 
     if (max_iterations < min_iterations)
         throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used if
-                        'min_iterations' is 'larger than 'max_iterations' "))
+                        `min_iterations` is larger than `max_iterations`"))
     end
 
     density_calculator = SummationDensity()
@@ -152,9 +156,15 @@ function Base.show(io::IO, system::ImplicitIncompressibleSPHSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "ImplicitIncompressibleSPHSystem{", ndims(system), "}(")
+    print(io, ", ", system.reference_density)
+    print(io, ", ", system.density_calculator)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.acceleration)
+    print(io, ", ", system.omega)
+    print(io, ", ", system.max_error)
+    print(io, ", ", system.min_iterations)
+    print(io, ", ", system.max_iterations)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -166,6 +176,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::ImplicitIncompressibleSPH
     else
         summary_header(io, "ImplicitIncompressibleSPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
+        summary_line(io, "reference_density", system.reference_density)
+        summary_line(io, "density_calculator", system.density_calculator) # always SummationDensity()
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "acceleration", system.acceleration)
@@ -344,7 +356,7 @@ end
 
 # Calculate pressure values with iterative pressure solver (relaxed jacobi scheme)
 function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
-    # Get neccesary fields
+    # Get necessary fields
     (; reference_density, max_error, min_iterations, max_iterations) = system
     avg_density_error = 0.0
     l = 1
@@ -363,7 +375,7 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t, time_step)
 end
 
 function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, time_step)
-    # Get neccesary fields
+    # Get necessary fields
     (; reference_density, sum_d_ij, sum_term, pressure, predicted_density, d_ii, a_ii,
      omega) = system
     set_zero!(sum_d_ij)
