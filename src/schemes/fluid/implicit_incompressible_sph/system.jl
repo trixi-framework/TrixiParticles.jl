@@ -105,13 +105,11 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
     end
 
     if (min_iterations < 1)
-        throw(ArgumentError("`min_iterations` must be a positive number,
-         otherwise `ImplicitIncompressibleSPHSystem` can not be used"))
+        throw(ArgumentError("`min_iterations` must be a positive number, otherwise `ImplicitIncompressibleSPHSystem` can not be used"))
     end
 
     if (max_iterations < min_iterations)
-        throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used if
-                        `min_iterations` is larger than `max_iterations`"))
+        throw(ArgumentError("`ImplicitIncompressibleSPHSystem` can not be used if `min_iterations` is larger than `max_iterations`"))
     end
 
     density_calculator = SummationDensity()
@@ -156,7 +154,7 @@ function Base.show(io::IO, system::ImplicitIncompressibleSPHSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "ImplicitIncompressibleSPHSystem{", ndims(system), "}(")
-    print(io, ", ", system.reference_density)
+    print(io, system.reference_density)
     print(io, ", ", system.density_calculator)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
@@ -176,8 +174,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::ImplicitIncompressibleSPH
     else
         summary_header(io, "ImplicitIncompressibleSPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
-        summary_line(io, "reference_density", system.reference_density)
-        summary_line(io, "density_calculator", system.density_calculator) # always SummationDensity()
+        summary_line(io, "reference density", system.reference_density)
+        summary_line(io, "density calculator", system.density_calculator) # always SummationDensity()
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "acceleration", system.acceleration)

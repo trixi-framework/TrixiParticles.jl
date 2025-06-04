@@ -26,7 +26,7 @@
             30
         ]
         @testset "$(i+1)D" for i in 1:2
-            @testset "$(typeof(density_calculator))"
+            #@testset "$(typeof(density_calculator))"
             NDIMS = i + 1
             coordinates = coordinates_[i]
             mass = [1.25, 1.5]
@@ -68,7 +68,6 @@
             @test system.max_iterations == max_iterations
             @test length(system.density) == size(coordinates, 2)
 
-
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str1) ImplicitIncompressibleSPHSystem(initial_condition,
                                                                                 smoothing_kernel,
@@ -84,27 +83,27 @@
 
             error_str3 = "`reference_density` must be a positive number"
             @test_throws ArgumentError(error_str3) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel2,
+                                                                                smoothing_kernel,
                                                                                 smoothing_length,
-                                                                                reference_density=0.0)
+                                                                                0.0)
 
             error_str4 = "`max_error` is given in percentage, so it must be a number between 0 and 100"
             @test_throws ArgumentError(error_str4) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel2,
+                                                                                smoothing_kernel,
                                                                                 smoothing_length,
                                                                                 reference_density,
                                                                                 max_error=0.0)
 
             error_str5 = "`min_iterations` must be a positive number, otherwise `ImplicitIncompressibleSPHSystem` can not be used"
             @test_throws ArgumentError(error_str5) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel2,
+                                                                                smoothing_kernel,
                                                                                 smoothing_length,
                                                                                 reference_density,
                                                                                 min_iterations=0)
 
-            error_str6 = "``ImplicitIncompressibleSPHSystem` cannot be used if `min_iterations` is larger than `max_iterations`"
+            error_str6 = "`ImplicitIncompressibleSPHSystem` can not be used if `min_iterations` is larger than `max_iterations`"
             @test_throws ArgumentError(error_str6) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel2,
+                                                                                smoothing_kernel,
                                                                                 smoothing_length,
                                                                                 reference_density,
                                                                                 min_iterations=10,
@@ -139,9 +138,9 @@
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
             smoothing_length = 0.362
 
-            @testset "$(typeof(density_calculator))"  density_calculator = SummationDensity()
+            density_calculator = SummationDensity()
 
-            system = ImplicitIncompressibleSPHSystem(setup, density_calculator,
+            system = ImplicitIncompressibleSPHSystem(setup,
                                                     smoothing_kernel,
                                                     smoothing_length,
                                                     reference_density)
@@ -164,17 +163,18 @@
         @testset "Wrong acceleration dimension" for i in eachindex(NDIMS_)
             setup = setups[i]
             NDIMS = NDIMS_[i]
+            reference_densitiy = 1.0
             smoothing_kernel = Val(:smoothing_kernel)
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
             smoothing_length = 0.362
 
-            @testset "$(typeof(density_calculator))" density_calculator = SummationDensity()
+            density_calculator = SummationDensity()
 
             error_str = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str) ImplicitIncompressibleSPHSystem(setup,
                                                                                 smoothing_kernel,
                                                                                 smoothing_length,
-                                                                                density,
+                                                                                reference_densitiy,
                                                                                 acceleration=(0.0))
         end
     end
@@ -204,9 +204,9 @@
         │ ImplicitIncompressibleSPHSystem{2}                                                               │
         │ ══════════════════════════════════                                                               │
         │ #particles: ………………………………………………… 2                                                                │
-        │ reference_density: ……………………………… 1000.0                                                           │
-        │ density calculator: …………………………… SummationDensity                                                 │
-        │ smoothing kernel: ………………………………… Val{:smoothing_kernel}()                                         │
+        │ reference density: ……………………………… 1000.0                                                           │
+        │ density calculator: …………………………… SummationDensity()                                               │
+        │ smoothing kernel: ………………………………… Val{:smoothing_kernel}                                           │
         │ viscosity: …………………………………………………… nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ omega: ……………………………………………………………… 0.5                                                              │
@@ -246,7 +246,6 @@
         mass = [1.25, 1.5]
         density = [990.0, 1000.0]
         reference_density = 1000.0
-        state_equation = Val(:state_equation)
         smoothing_kernel = Val(:smoothing_kernel)
         smoothing_length = 0.362
 
@@ -264,4 +263,5 @@
 
         @test v0 == velocity
     end
+
 end

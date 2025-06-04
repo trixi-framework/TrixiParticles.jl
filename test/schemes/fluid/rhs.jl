@@ -54,7 +54,8 @@
 
                         @testset verbose=true "$system_name" for system_name in [
                             "WCSPH",
-                            "EDAC"
+                            "EDAC",
+                            "IISPH"
                         ]
                             if system_name == "WCSPH"
                                 system = WeaklyCompressibleSPHSystem(fluid,
@@ -69,6 +70,10 @@
                                                                      smoothing_length, 0.0;
                                                                      density_calculator,
                                                                      pressure_acceleration)
+                            elseif system_name == "IISPH"
+                                system = ImplicitIncompressibleSPHSystem(fluid,
+                                                                        smoothing_kernel,
+                                                                        smoothing_length, 1000.0)
                             end
 
                             # Compute accelerations a -> b and b -> a
