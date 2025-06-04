@@ -393,7 +393,13 @@ function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
     # Convert to coordinate matrix
     points_coords_ = collect(reinterpret(reshape, eltype(start_svector), points_coords))
 
-    return interpolate_points(points_coords_, semi, ref_system, v_ode, u_ode;
+    if semi.parallelization_backend isa KernelAbstractions.Backend
+        points_coords_new = Adapt.adapt(semi.parallelization_backend, points_coords_)
+    else
+        points_coords_new = points_coords_
+    end
+
+    return interpolate_points(points_coords_new, semi, ref_system, v_ode, u_ode;
                               smoothing_length=smoothing_length,
                               cut_off_bnd=cut_off_bnd, clip_negative_pressure)
 end
