@@ -115,9 +115,9 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
 
             # Using the average of the values at the previous time step for particles which
             # are outside of the influence of fluid particles.
-            avg_J1 = zero(volume[particle])
-            avg_J2 = zero(volume[particle])
-            avg_J3 = zero(volume[particle])
+            avg_J1 = zero(eltype(volume))
+            avg_J2 = zero(eltype(volume))
+            avg_J3 = zero(eltype(volume))
             counter = 0
 
             for neighbor in each_moving_particle(system)

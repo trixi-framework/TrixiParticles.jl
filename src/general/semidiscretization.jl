@@ -321,10 +321,11 @@ function semidiscretize(semi, tspan; reset_threads=true)
         # See the comments in general/gpu.jl for more details.
         semi_ = Adapt.adapt(semi.parallelization_backend, semi)
 
-        # After `adapt`, the system type information may change.
-        # As a result, systems can no longer be found using `system_indices`.
-        # For systems that have a corresponding linked system, we need to relink them
-        # after adaptation to ensure correct references.
+        # We now have a new `Semidiscretization` with new systems.
+        # This means that systems linking to other systems still point to old systems.
+        # Therefore, we have to re-link them, which yields yet another `Semidiscretization`.
+        # Note that this re-creates systems containing links, so it only works as long
+        # as systems don't link to other systems containing links.
         semi_new = Semidiscretization(set_system_links.(semi_.systems, Ref(semi_)),
                                       semi_.ranges_u, semi_.ranges_v,
                                       semi_.neighborhood_searches,
@@ -929,8 +930,9 @@ function check_configuration(system::OpenBoundarySPHSystem, systems,
                              neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
     (; boundary_model, boundary_zone) = system
 
+    # Store index of the fluid system. This is necessary for re-linking
+    # in case we use Adapt.jl to create a new semidiscretization.
     fluid_system_index = findfirst(==(system.fluid_system), systems)
-
     system.fluid_system_index[] = fluid_system_index
 
     if boundary_model isa BoundaryModelLastiwka &&
@@ -941,15 +943,14 @@ function check_configuration(system::OpenBoundarySPHSystem, systems,
 
     if first(PointNeighbors.requires_update(neighborhood_search))
         throw(ArgumentError("`OpenBoundarySPHSystem` requires a neighborhood search " *
-                            "that does not need an update for the `x` coordinates (e.g. `GridNeighborhoodSearch`). " *
+                            "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
                             "See the PointNeighbors.jl documentation for more details."))
     end
 end
 
 # After `adapt`, the system type information may change.
-# As a result, systems can no longer be found using `system_indices`.
-# For systems that have a corresponding linked system, we need to relink them
-# after adaptation to ensure correct references.
+# This means that systems linking to other systems still point to old systems.
+# Therefore, we have to re-link them based on the stored system index.
 set_system_links(system, semi) = system
 
 function set_system_links(system::OpenBoundarySPHSystem, semi)

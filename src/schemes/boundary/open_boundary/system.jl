@@ -147,15 +147,17 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                        reference_density, reference_velocity,
                                        reference_pressure)
 
-    ucu = Ref(false) # Reference to check if the update callback is used
-    fsi = Ref(0) # Reference to the fluid system index
+    # These will be set later
+    update_callback_used = Ref(false)
+    fluid_system_index = Ref(0)
 
     smoothing_length = initial_smoothing_length(fluid_system)
 
-    return OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system, fsi,
-                                 smoothing_length, mass, density, volume, pressure,
-                                 boundary_zone, reference_velocity_, reference_pressure_,
-                                 reference_density_, buffer, ucu, cache)
+    return OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
+                                 fluid_system_index, smoothing_length, mass, density,
+                                 volume, pressure, boundary_zone, reference_velocity_,
+                                 reference_pressure_, reference_density_, buffer,
+                                 update_callback_used, cache)
 end
 
 function create_cache_open_boundary(boundary_model, initial_condition,

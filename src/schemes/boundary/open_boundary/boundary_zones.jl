@@ -123,8 +123,6 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                         flow_direction, plane_normal_, boundary_type)
 end
 
-@inline Base.ndims(::BoundaryZone) = error("`ndims` not defined for `BoundaryZone`")
-
 function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
                               particle_spacing, initial_condition, extrude_geometry,
                               open_boundary_layers; boundary_type)

@@ -11,7 +11,7 @@ function SystemBuffer(active_size, buffer_size::Integer)
     # Thus, `active_particle` is defined as a `Vector{UInt32}` because CUDA.jl
     # does not support atomic operations on `Bool`.
     # https://github.com/JuliaGPU/CUDA.jl/blob/2cc9285676a4cd28d0846ca62f0300c56d281d38/src/device/intrinsics/atomics.jl#L243
-    active_particle = vcat(fill(UInt32(1), active_size), fill(UInt32(0), buffer_size))
+    active_particle = vcat(fill(UInt32(true), active_size), fill(UInt32(false), buffer_size))
     eachparticle = collect(eachindex(active_particle))
 
     return SystemBuffer(active_particle, Ref(active_size), eachparticle, buffer_size)
@@ -68,10 +68,10 @@ end
 
     for particle in eachindex(active_particle)
         if PointNeighbors.Atomix.@atomic(active_particle[particle]) == false
-            # Activate this particle. The return value is the old value.
-            # If this is `true`, the particle was active before and we need to continue.
-            # This happens because a particle might have been activated by another thread
-            # between the condition and the line below.
+            # After we go into this condition, another thread might still activate this particle
+            # before we do. Therefore, we use an atomic swap, which activates the particle,
+            # but also returns the old value.
+            # If the old value is `true`, the particle was active before and we need to continue.
             # Note: This doesn't work with Metal.jl. No error is thrown, but the operation is simply ignored.
             # An atomic compare-and-swap operation is probably implemented for Metal.jl here:
             # https://github.com/JuliaGPU/Metal.jl/blob/caf299690aa52448ee72ffc5688939b157fc1ba2/src/device/intrinsics/atomics.jl#L42

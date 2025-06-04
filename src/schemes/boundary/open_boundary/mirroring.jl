@@ -44,13 +44,16 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 
     fluid_coords = current_coordinates(u_fluid, fluid_system)
 
+    # We cannot use `foreach_point_neighbor` here because we are looking for neighbors
+    # of the ghost node positions of each particle.
+    # We can do this because we require the neighborhood search to support querying neighbors
+    # of arbitrary positions (see `PointNeighbors.requires_update`).
     @threaded semi for particle in each_moving_particle(system)
         particle_coords = current_coords(u_open_boundary, system, particle)
         ghost_node_position = mirror_position(particle_coords, boundary_zone)
 
-        # Set zero
-        # Use `Ref` to ensure the variables are accessible and mutable within the closure
-        # (see https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured)
+        # Use `Ref` to ensure the variables are accessible and mutable within the closure below
+        # (see https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured).
         correction_matrix = Ref(zero(SMatrix{ndims(system) + 1, ndims(system) + 1,
                                              eltype(system)}))
 
