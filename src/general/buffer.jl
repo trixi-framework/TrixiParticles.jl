@@ -11,7 +11,8 @@ function SystemBuffer(active_size, buffer_size::Integer)
     # Thus, `active_particle` is defined as a `Vector{UInt32}` because CUDA.jl
     # does not support atomic operations on `Bool`.
     # https://github.com/JuliaGPU/CUDA.jl/blob/2cc9285676a4cd28d0846ca62f0300c56d281d38/src/device/intrinsics/atomics.jl#L243
-    active_particle = vcat(fill(UInt32(true), active_size), fill(UInt32(false), buffer_size))
+    active_particle = vcat(fill(UInt32(true), active_size),
+                           fill(UInt32(false), buffer_size))
     eachparticle = collect(eachindex(active_particle))
 
     return SystemBuffer(active_particle, Ref(active_size), eachparticle, buffer_size)
