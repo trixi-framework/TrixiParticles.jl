@@ -16,8 +16,7 @@ function write_meta_data(callback::Union{SolutionSavingCallback, PostprocessCall
         system_index = system_indices(system, semi)
 
         write_meta_data(system; system_name=filenames[system_index], output_directory,
-                        prefix,
-                        git_hash)
+                        prefix, git_hash)
     end
 end
 
