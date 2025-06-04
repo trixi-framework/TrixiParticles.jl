@@ -393,13 +393,7 @@ function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
     # Convert to coordinate matrix
     points_coords_ = collect(reinterpret(reshape, eltype(start_svector), points_coords))
 
-    if semi.parallelization_backend isa KernelAbstractions.Backend
-        points_coords_new = Adapt.adapt(semi.parallelization_backend, points_coords_)
-    else
-        points_coords_new = points_coords_
-    end
-
-    return interpolate_points(points_coords_new, semi, ref_system, v_ode, u_ode;
+    return interpolate_points(points_coords_, semi, ref_system, v_ode, u_ode;
                               smoothing_length=smoothing_length,
                               cut_off_bnd=cut_off_bnd, clip_negative_pressure)
 end
@@ -510,11 +504,17 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
 end
 
 # Interpolate points with given neighborhood searches
-@inline function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode,
+@inline function interpolate_points(point_coords_, semi, ref_system, v_ode, u_ode,
                                     neighborhood_searches;
                                     smoothing_length=initial_smoothing_length(ref_system),
                                     cut_off_bnd=true, clip_negative_pressure=false)
     (; parallelization_backend) = semi
+
+    if semi.parallelization_backend isa KernelAbstractions.Backend
+        point_coords = Adapt.adapt(semi.parallelization_backend, point_coords_)
+    else
+        point_coords = point_coords_
+    end
 
     n_points = size(point_coords, 2)
     ELTYPE = eltype(point_coords)
@@ -576,11 +576,13 @@ end
             computed_density[point] = NaN
             neighbor_count[point] = 0
 
+            # We need to convert the `NamedTuple` to a `Tuple` for GPU compatibility
             foreach(Tuple(cache)) do field
                 set_nan!(field, point)
             end
         else
-            # Normalize all quantities by the shepard coefficient
+            # Normalize all quantities by the shepard coefficient.
+            # We need to convert the `NamedTuple` to a `Tuple` for GPU compatibility.
             foreach(Tuple(cache)) do field
                 divide_by_shepard_coefficient!(field, shepard_coefficient, point)
             end
@@ -671,7 +673,7 @@ function set_nan!(field::AbstractVector, point)
     return field
 end
 
-function set_nan!(field::AbstractArray{T, 2}, point) where {T}
+function set_nan!(field::AbstractMatrix, point)
     for dim in axes(field, 1)
         field[dim, point] = NaN
     end
@@ -693,8 +695,7 @@ function divide_by_shepard_coefficient!(field::AbstractVector, shepard_coefficie
     return field
 end
 
-function divide_by_shepard_coefficient!(field::AbstractArray{T, 2}, shepard_coefficient,
-                                        point) where {T}
+function divide_by_shepard_coefficient!(field::AbstractMatrix, shepard_coefficient, point)
     for dim in axes(field, 1)
         field[dim, point] /= shepard_coefficient[point]
     end
