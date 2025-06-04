@@ -72,8 +72,9 @@
                                                                      pressure_acceleration)
                             elseif system_name == "IISPH"
                                 system = ImplicitIncompressibleSPHSystem(fluid,
-                                                                        smoothing_kernel,
-                                                                        smoothing_length, 1000.0)
+                                                                         smoothing_kernel,
+                                                                         smoothing_length,
+                                                                         1000.0)
                             end
 
                             # Compute accelerations a -> b and b -> a

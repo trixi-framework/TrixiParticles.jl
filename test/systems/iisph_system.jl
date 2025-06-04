@@ -45,13 +45,13 @@
 
             initial_condition = InitialCondition(; coordinates, mass, density)
             system = ImplicitIncompressibleSPHSystem(initial_condition,
-                                                    smoothing_kernel,
-                                                    smoothing_length,
-                                                    reference_density,
-                                                    omega=omega,
-                                                    max_error=max_error,
-                                                    min_iterations=min_iterations,
-                                                    max_iterations=max_iterations)
+                                                     smoothing_kernel,
+                                                     smoothing_length,
+                                                     reference_density,
+                                                     omega=omega,
+                                                     max_error=max_error,
+                                                     min_iterations=min_iterations,
+                                                     max_iterations=max_iterations)
 
             @test system isa ImplicitIncompressibleSPHSystem{NDIMS}
             @test system.initial_condition == initial_condition
@@ -70,44 +70,44 @@
 
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str1) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel,
-                                                                                smoothing_length,
-                                                                                density,
-                                                                                acceleration=(0.0))
+                                                                                   smoothing_kernel,
+                                                                                   smoothing_length,
+                                                                                   density,
+                                                                                   acceleration=(0.0))
 
             error_str2 = "smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str2) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel2,
-                                                                                smoothing_length,
-                                                                                reference_density)
+                                                                                   smoothing_kernel2,
+                                                                                   smoothing_length,
+                                                                                   reference_density)
 
             error_str3 = "`reference_density` must be a positive number"
             @test_throws ArgumentError(error_str3) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel,
-                                                                                smoothing_length,
-                                                                                0.0)
+                                                                                   smoothing_kernel,
+                                                                                   smoothing_length,
+                                                                                   0.0)
 
             error_str4 = "`max_error` is given in percentage, so it must be a number between 0 and 100"
             @test_throws ArgumentError(error_str4) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel,
-                                                                                smoothing_length,
-                                                                                reference_density,
-                                                                                max_error=0.0)
+                                                                                   smoothing_kernel,
+                                                                                   smoothing_length,
+                                                                                   reference_density,
+                                                                                   max_error=0.0)
 
             error_str5 = "`min_iterations` must be a positive number, otherwise `ImplicitIncompressibleSPHSystem` can not be used"
             @test_throws ArgumentError(error_str5) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel,
-                                                                                smoothing_length,
-                                                                                reference_density,
-                                                                                min_iterations=0)
+                                                                                   smoothing_kernel,
+                                                                                   smoothing_length,
+                                                                                   reference_density,
+                                                                                   min_iterations=0)
 
             error_str6 = "`ImplicitIncompressibleSPHSystem` can not be used if `min_iterations` is larger than `max_iterations`"
             @test_throws ArgumentError(error_str6) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                smoothing_kernel,
-                                                                                smoothing_length,
-                                                                                reference_density,
-                                                                                min_iterations=10,
-                                                                                max_iterations=5)
+                                                                                   smoothing_kernel,
+                                                                                   smoothing_length,
+                                                                                   reference_density,
+                                                                                   min_iterations=10,
+                                                                                   max_iterations=5)
         end
     end
 
@@ -126,7 +126,7 @@
             "RectangularShape 3D",
             "RectangularTank 2D",
             "RectangularTank 3D",
-            "SphereShape 2D",
+            "SphereShape 2D"
         ]
         NDIMS_ = [2, 3, 2, 3, 2]
         reference_densities = [1.0, 1.0, 1020.0, 1020.0, 1.0]
@@ -141,9 +141,9 @@
             density_calculator = SummationDensity()
 
             system = ImplicitIncompressibleSPHSystem(setup,
-                                                    smoothing_kernel,
-                                                    smoothing_length,
-                                                    reference_density)
+                                                     smoothing_kernel,
+                                                     smoothing_length,
+                                                     reference_density)
 
             @test system isa ImplicitIncompressibleSPHSystem{NDIMS}
             @test system.initial_condition == setup
@@ -172,10 +172,10 @@
 
             error_str = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str) ImplicitIncompressibleSPHSystem(setup,
-                                                                                smoothing_kernel,
-                                                                                smoothing_length,
-                                                                                reference_densitiy,
-                                                                                acceleration=(0.0))
+                                                                                  smoothing_kernel,
+                                                                                  smoothing_length,
+                                                                                  reference_densitiy,
+                                                                                  acceleration=(0.0))
         end
     end
 
@@ -193,9 +193,9 @@
 
         initial_condition = InitialCondition(; coordinates, mass, density)
         system = ImplicitIncompressibleSPHSystem(initial_condition,
-                                             smoothing_kernel,
-                                             smoothing_length,
-                                             reference_density)
+                                                 smoothing_kernel,
+                                                 smoothing_length,
+                                                 reference_density)
 
         show_compact = "ImplicitIncompressibleSPHSystem{2}(1000.0, SummationDensity(), Val{:smoothing_kernel}(), nothing, [0.0, 0.0], 0.5, 0.1, 2, 20) with 2 particles"
         @test repr(system) == show_compact
@@ -229,8 +229,8 @@
 
         initial_condition = InitialCondition(; coordinates, mass, density)
         system = ImplicitIncompressibleSPHSystem(initial_condition,
-                                              smoothing_kernel,
-                                             smoothing_length, reference_density)
+                                                 smoothing_kernel,
+                                                 smoothing_length, reference_density)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_moving_particles(system))
@@ -263,5 +263,4 @@
 
         @test v0 == velocity
     end
-
 end
