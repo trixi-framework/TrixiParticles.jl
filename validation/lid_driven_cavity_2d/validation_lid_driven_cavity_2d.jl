@@ -2,17 +2,21 @@ using TrixiParticles
 
 # ==========================================================================================
 # ==== Resolution
-particle_spacings = [0.02, 0.01, 0.005]
+# The paper provides reference data for particle spacings particle_spacings = [0.02, 0.01, 0.005]
+particle_spacing = 0.02
 
 # ==========================================================================================
 # ==== Experiment Setup
 tspan = (0.0, 25.0)
 reynolds_numbers = [100.0, 1000.0, 10_000.0]
 
-interpolated_velocity(v, u, t, system) = nothing
+const SENSOR_CAPTURE_TIME = 24.8
+const CAPTURE_STARTED = Ref(false)
 
-function interpolated_velocity(v, u, t, system::TrixiParticles.FluidSystem)
-    if t < 24.8
+interpolated_velocity(system, v, u, semi, t) = nothing
+
+function interpolated_velocity(system::TrixiParticles.FluidSystem, v, u, semi, t)
+    if t < SENSOR_CAPTURE_TIME
         return nothing
     end
 
@@ -32,7 +36,7 @@ function interpolated_velocity(v, u, t, system::TrixiParticles.FluidSystem)
 
     file = joinpath(output_directory, "interpolated_velocities.csv")
 
-    if isfile(file)
+    if CAPTURE_STARTED[]
         data = TrixiParticles.CSV.read(file, TrixiParticles.DataFrame)
         vy_y_ = (data.vy_y .+ vy_y)
         vy_x_ = (data.vy_x .+ vy_x)
@@ -50,12 +54,13 @@ function interpolated_velocity(v, u, t, system::TrixiParticles.FluidSystem)
                                       counter=1, vy_y=vy_y, vy_x=vy_x, vx_y=vx_y, vx_x=vx_x)
 
         TrixiParticles.CSV.write(output_directory * "/interpolated_velocities.csv", df)
+        CAPTURE_STARTED[] = true
     end
 
     return nothing
 end
 
-for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers,
+for reynolds_number in reynolds_numbers,
     density_calculator in [SummationDensity(), ContinuityDensity()], wcsph in [false, true]
     n_particles_xy = round(Int, 1.0 / particle_spacing)
 
@@ -68,8 +73,9 @@ for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers,
                                        name_density_calculator,
                                        "validation_run_lid_driven_cavity_2d_nparticles_$(n_particles_xy)x$(n_particles_xy)_Re_$Re")
 
-    saving_callback = SolutionSavingCallback(dt=0.1, output_directory=output_directory)
+    saving_callback = SolutionSavingCallback(dt=0.02, output_directory=output_directory)
 
+    CAPTURE_STARTED[] = false
     pp_callback = PostprocessCallback(; dt=0.02,
                                       interpolated_velocity=interpolated_velocity,
                                       filename="interpolated_velocities",

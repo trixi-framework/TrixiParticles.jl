@@ -83,4 +83,33 @@
         # Verify number of plots
         @test length(axs_edac[1].scene.plots) >= 2
     end
+
+    @trixi_testset "TGV_2D" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "taylor_green_vortex_2d",
+                                                  "validation_taylor_green_vortex_2d.jl"),
+                                         tspan=(0.0, 0.01)) [
+            r"WARNING: Method definition pressure_function.*\n",
+            r"WARNING: Method definition initial_pressure_function.*\n",
+            r"WARNING: Method definition velocity_function.*\n",
+            r"WARNING: Method definition initial_velocity_function.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "LDC_2D" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "lid_driven_cavity_2d",
+                                                  "validation_lid_driven_cavity_2d.jl"),
+                                         tspan=(0.0, 0.02), dt=0.01,
+                                         SENSOR_CAPTURE_TIME=0.01) [
+            r"WARNING: Method definition lid_movement_function.*\n",
+            r"WARNING: Method definition is_moving.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
 end
