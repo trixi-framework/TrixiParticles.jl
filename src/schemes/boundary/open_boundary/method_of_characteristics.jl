@@ -102,6 +102,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     set_zero!(volume)
 
     # Evaluate the characteristic variables with the fluid system
+    # The following function acts as a wrapper to keep the code organized and modular.
     evaluate_characteristics!(system, fluid_system, v, u, v_ode, u_ode, semi, t)
 
     # Only some of the in-/outlet particles are in the influence of the fluid particles.
