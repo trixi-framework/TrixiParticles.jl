@@ -96,10 +96,8 @@ end
         u[dim, particle] = eltype(system)(1e16)
     end
 
-    # To ensure thread safety, the buffer particle is only released for reuse
-    # after the write operation (`u`) has been completed.
-    # This guarantees that no other thread can access the active particle prematurely,
-    # avoiding race conditions.
+    # `activate_next_particle!` and `deactivate_particle!` are never called on the same buffer inside a kernel,
+    # so we don't have any race conditions on this `active_particle` vector.
     active_particle[particle] = false
 
     return system
