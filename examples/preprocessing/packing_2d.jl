@@ -21,7 +21,8 @@ boundary_thickness = 5 * particle_spacing
 # ==== Load complex geometry
 density = 1.0
 
-geometry = load_geometry(file)
+# TODO: Somehow broken with Float32
+geometry = load_geometry(file; element_type=typeof(particle_spacing))
 
 signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             use_for_boundary_packing=true,

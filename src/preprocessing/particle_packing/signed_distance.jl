@@ -58,6 +58,9 @@ function SignedDistanceField(geometry, particle_spacing;
     max_corner = geometry.max_corner .+ search_radius
 
     if neighborhood_search
+        # TODO: For GPU acceleration, a `FullGridNeighborhoodSearch` must be used.
+        # However, the parameter `max_points_per_cell` must be tuned according to the input geometry,
+        # as its optimal value can vary significantly depending on the geometric complexity.
         cell_list = PointNeighbors.DictionaryCellList{NDIMS}()
         nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius, cell_list)
     else
