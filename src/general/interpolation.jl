@@ -589,10 +589,8 @@ end
         end
     end
 
-    cache_ = map(x -> Array(x), cache)
-
-    return (; computed_density=Array(computed_density), point_coords=Array(point_coords),
-            neighbor_count=Array(neighbor_count), cache_...)
+    return (; computed_density=computed_density, point_coords=point_coords,
+            neighbor_count=neighbor_count, cache...)
 end
 
 @inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)

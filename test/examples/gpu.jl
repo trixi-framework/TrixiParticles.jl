@@ -414,17 +414,17 @@ end
                                           semi_new, semi_new.systems[1], sol;
                                           cut_off_bnd=false)
 
-                @test isapprox(result.computed_density,
+                @test isapprox(Array(result.computed_density),
                                Float32[500.33255, 893.09766, 997.7032, 1001.14355, 1001.234,
                                        1001.0098, 1000.4352, 999.7572, 999.1139, 989.6319])
 
-                @test isapprox(result.density,
+                @test isapprox(Array(result.density),
                                Float32[1002.3152, 1002.19653, 1001.99915, 1001.7685,
                                        1001.5382,
                                        1001.3093, 1001.0836, 1000.8649, 1000.635,
                                        1000.4053])
 
-                @test isapprox(result.pressure,
+                @test isapprox(Array(result.pressure),
                                Float32[5450.902, 5171.2856, 4706.551, 4163.9185, 3621.5042,
                                        3082.6948, 2551.5725, 2036.1208, 1494.8608,
                                        954.14355])
@@ -440,16 +440,16 @@ end
                                               sol;
                                               cut_off_bnd=false)
 
-                @test isapprox(result.computed_density,
+                @test isapprox(Array(result.computed_density),
                                Float32[250.18625, 500.34482, 499.77225, 254.3632, 499.58026,
                                        999.1413, 998.6351, 503.0122])
 
-                @test isapprox(result.density,
+                @test isapprox(Array(result.density),
                                Float32[1002.34467, 1002.3365, 1001.5021, 999.7109,
                                        1000.84863,
                                        1000.8373, 1000.3423, 1000.20734])
 
-                @test isapprox(result.pressure,
+                @test isapprox(Array(result.pressure),
                                Float32[5520.0513, 5501.1846, 3536.2256, -680.5194,
                                        1997.7814,
                                        1971.0717, 805.8584, 488.4068])
