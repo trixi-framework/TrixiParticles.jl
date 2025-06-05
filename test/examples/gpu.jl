@@ -391,4 +391,69 @@ end
             @test backend == Main.parallelization_backend
         end
     end
+
+    @testset verbose=true "Postprocessing $TRIXIPARTICLES_TEST_" begin
+        @testset verbose=true "Interpolation" begin
+            # Run the dam break example to get a solution
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fluid",
+                                                   "dam_break_2d_gpu.jl");
+                                          fluid_particle_spacing=0.05f0,
+                                          tspan=(0.0f0, 0.01f0),
+                                          parallelization_backend=Main.parallelization_backend)
+
+            semi_new = sol.prob.p
+
+            @testset verbose=true "Line" begin
+                # Interpolation parameters
+                n_interpolation_points = 10
+                start_point = Float32[0.5, 0.0]
+                end_point = Float32[0.5, 0.5]
+
+                result = interpolate_line(start_point, end_point, n_interpolation_points,
+                                          semi_new, semi_new.systems[1], sol;
+                                          cut_off_bnd=false)
+
+                @test isapprox(Array(result.computed_density),
+                               Float32[500.33255, 893.09766, 997.7032, 1001.14355, 1001.234,
+                                       1001.0098, 1000.4352, 999.7572, 999.1139, 989.6319])
+
+                @test isapprox(Array(result.density),
+                               Float32[1002.3152, 1002.19653, 1001.99915, 1001.7685,
+                                       1001.5382,
+                                       1001.3093, 1001.0836, 1000.8649, 1000.635,
+                                       1000.4053])
+
+                @test isapprox(Array(result.pressure),
+                               Float32[5450.902, 5171.2856, 4706.551, 4163.9185, 3621.5042,
+                                       3082.6948, 2551.5725, 2036.1208, 1494.8608,
+                                       954.14355])
+            end
+
+            @testset verbose=true "Plane" begin
+                interpolation_start = Float32[0.0, 0.0]
+                interpolation_end = Float32[1.0, 1.0]
+                resolution = 0.4f0
+
+                result = interpolate_plane_2d(interpolation_start, interpolation_end,
+                                              resolution, semi_new, semi_new.systems[1],
+                                              sol;
+                                              cut_off_bnd=false)
+
+                @test isapprox(Array(result.computed_density),
+                               Float32[250.18625, 500.34482, 499.77225, 254.3632, 499.58026,
+                                       999.1413, 998.6351, 503.0122])
+
+                @test isapprox(Array(result.density),
+                               Float32[1002.34467, 1002.3365, 1001.5021, 999.7109,
+                                       1000.84863,
+                                       1000.8373, 1000.3423, 1000.20734])
+
+                @test isapprox(Array(result.pressure),
+                               Float32[5520.0513, 5501.1846, 3536.2256, -680.5194,
+                                       1997.7814,
+                                       1971.0717, 805.8584, 488.4068])
+            end
+        end
+    end
 end
