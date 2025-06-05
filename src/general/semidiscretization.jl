@@ -282,16 +282,16 @@ function semidiscretize(semi, tspan; reset_threads=true)
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
 
+    # Use either the specified backend, e.g., `CUDABackend` or `MetalBackend` or
+    # use CPU vectors for all CPU backends.
     u0_ode_ = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_u))
     v0_ode_ = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_v))
 
     if semi.parallelization_backend isa KernelAbstractions.Backend
-        # Use the specified backend, e.g., `CUDABackend` or `MetalBackend`
         u0_ode = u0_ode_
         v0_ode = v0_ode_
     else
-        # Use CPU vectors for all CPU backends.
-        # These are wrapped in `ThreadedBroadcastArray`s
+        # CPU vectors are wrapped in `ThreadedBroadcastArray`s
         # to make broadcasting (which is done by OrdinaryDiffEq.jl) multithreaded.
         # See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details.
         u0_ode = ThreadedBroadcastArray(u0_ode_;
