@@ -22,12 +22,13 @@ using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
-using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
+using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
+                 add_tstop!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
-using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
+using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings, TrixiBase
 @reexport using TrixiBase: trixi_include, trixi_include_changeprecision
@@ -66,7 +67,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       ParticleShiftingCallback
+       ParticleShiftingCallback, SplitIntegrationCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
