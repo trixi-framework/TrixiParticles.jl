@@ -927,32 +927,10 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     end
 end
 
-function check_configuration(fluid_system::ImplicitIncompressibleSPHSystem, systems)
+function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
     foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem
             throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
-            `WeaklyCompressibleSPHSystem`"))
-        end
-    end
-end
-
-function check_configuration(fluid_system::ImplicitIncompressibleSPHSystem, systems)
-    (; min_iterations) = fluid_system
-    (; max_iterations) = fluid_system
-
-    if (min_iterations < 1)
-        throw(ArgumentError("'min_iterations' must be a positive number,
-         otherwise `ImplicitIncompressibleSPHSystem` can not be used"))
-    end
-
-    if (max_iterations < min_iterations)
-        throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used if
-                        'min_iterations' is 'larger than 'max_iterations' "))
-    end
-
-    foreach_system(systems) do neighbor
-        if neighbor isa WeaklyCompressibleSPHSystem
-            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used with
             `WeaklyCompressibleSPHSystem`"))
         end
     end
