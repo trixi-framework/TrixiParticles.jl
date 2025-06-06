@@ -142,20 +142,22 @@ circle = SphereShape(particle_spacing, (cylinder_diameter + particle_spacing) / 
                      sphere_type=RoundSphere())
 
 # Points for pressure interpolation, located at the wall interface
-const data_points = reinterpret(reshape, SVector{ndims(circle), eltype(circle)},
-                                circle.coordinates)
+const data_points =  copy(circle.coordinates)
 const center = SVector(cylinder_center)
 
 calculate_lift_force(system, v_ode, u_ode, semi, t) = nothing
 function calculate_lift_force(system::TrixiParticles.FluidSystem, v_ode, u_ode, semi, t)
-    force = zero(first(data_points))
+    force = zero(SVector{ndims(system), eltype(system)})
 
-    for point in data_points
-        values = interpolate_points(point, semi, system, v_ode, u_ode; cut_off_bnd=false,
-                                    clip_negative_pressure=false)
+    values = interpolate_points(data_points, semi, system, v_ode, u_ode; cut_off_bnd=false,
+                                clip_negative_pressure=false)
+    pressure = Array(values.pressure)
+
+    for i in axes(data_points, 2)
+        point = TrixiParticles.current_coords(data_points, system, i)
 
         # F = ∑ -p_i * A_i * n_i
-        force -= values.pressure * particle_spacing .*
+        force -= pressure[i] * particle_spacing .*
                  TrixiParticles.normalize(point - center)
     end
 
@@ -164,14 +166,17 @@ end
 
 calculate_drag_force(system, v_ode, u_ode, semi, t) = nothing
 function calculate_drag_force(system::TrixiParticles.FluidSystem, v_ode, u_ode, semi, t)
-    force = zero(first(data_points))
+    force = zero(SVector{ndims(system), eltype(system)})
 
-    for point in data_points
-        values = interpolate_points(point, semi, system, v_ode, u_ode; cut_off_bnd=false,
-                                    clip_negative_pressure=false)
+    values = interpolate_points(data_points, semi, system, v_ode, u_ode; cut_off_bnd=false,
+                                clip_negative_pressure=false)
+    pressure = Array(values.pressure)
+
+    for i in axes(data_points, 2)
+        point = TrixiParticles.current_coords(data_points, system, i)
 
         # F = ∑ -p_i * A_i * n_i
-        force -= values.pressure * particle_spacing .*
+        force -= pressure[i] * particle_spacing .*
                  TrixiParticles.normalize(point - center)
     end
 
@@ -180,8 +185,17 @@ end
 
 # ==========================================================================================
 # ==== Simulation
+min_corner = minimum(pipe.boundary.coordinates .- particle_spacing, dims=2)
+max_corner = maximum(pipe.boundary.coordinates .+ particle_spacing, dims=2)
+cell_list = FullGridCellList(; min_corner, max_corner)
+
+neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
+                                                update_strategy=ParallelUpdate())
+
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
-                          boundary_system_wall, boundary_system_cylinder)
+                          boundary_system_wall, boundary_system_cylinder;
+                          neighborhood_search=neighborhood_search,
+                          parallelization_backend=PolyesterBackend())
 
 ode = semidiscretize(semi, tspan)
 
