@@ -1,5 +1,6 @@
 using TrixiParticles
 using OrdinaryDiffEqLowStorageRK
+using OrdinaryDiffEqSymplecticRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -8,11 +9,11 @@ n_particles_y = 3
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 2.0
-tspan = (0.0, 5.0)
+tspan = (0.0, 3.0)
 
 fin_length = 0.6
 fin_thickness = 10e-3
-flexural_rigidity = 5.0
+flexural_rigidity = 6.0
 poisson_ratio = 0.3
 modulus = 12 * (1 - poisson_ratio^2) * flexural_rigidity / (fin_thickness^3)
 
@@ -34,37 +35,94 @@ initial_velocity = (1.0, 0.0)
 particle_spacing = fin_thickness / (n_particles_y - 1)
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
-fixed_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing / 2,
-                              center, density,
-                              cutout_min=(center[1], center[2] - fin_thickness / 2),
-                              cutout_max=center .+ (clamp_radius, fin_thickness / 2),
-                              tlsph=true)
+# fixed_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing / 2,
+#                               (center[1] - clamp_radius - particle_spacing, center[2] + fin_thickness / 2), density,
+#                             #   cutout_min=(center[1], center[2] - fin_thickness / 2),
+#                             #   cutout_max=center .+ (clamp_radius, fin_thickness / 2),
+#                               tlsph=true)
 
-n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
+# fixed_beam = RectangularShape(particle_spacing, (round(Int, 0.05 / particle_spacing) + 1,# + n_particles_clamp_x,
+#                              n_particles_y),
+#                               center, density=density, tlsph=true)
+
+# fixed_particles = union(fixed_particles, fixed_beam)
+
+# n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
+
+using TrixiParticles
+using PythonCall
+using CondaPkg
+
+CondaPkg.add("svgpathtools")
+CondaPkg.add("ezdxf")
+svgpath = pyimport("svgpathtools")
+
+svg_path = "M509.299 100.016C507.966 91.5871 505.915 85.7111 503.145 82.3879C498.991 77.4031 479.883 60.7871 475.521 58.2947C471.16 55.8023 455.167 49.1559 448.936 47.702C442.705 46.2481 355.471 30.463 339.893 28.8014C329.508 27.6937 287.761 23.5397 214.651 16.3394C199.727 15.7768 185.488 15.1656 171.934 14.5056C151.602 13.5157 106.318 5.19544 82.4982 0.830064C58.6781 -3.53532 3.26262 9.37214 0.279574 38.2664C-2.54326 65.6089 16.5085 89.4186 34.9345 99.2843C49.9801 107.34 58.7166 107.403 71.5338 114.275C101.912 130.564 100.849 169.8 123.353 175.939C145.856 182.078 146.637 180.9 155.986 179.279C162.22 178.199 199.267 168.32 267.129 149.644L359.355 117.398L405.801 102.863C446.849 101.008 472.412 100.061 482.489 100.022C497.605 99.9635 507.524 100.062 509.299 100.016Z"
+
+path = svgpath.parse_path(svg_path)
+t_range = range(0, 1, length=50 * length(path))
+points = [(pyconvert(Float64, p.real), -pyconvert(Float64, p.imag))
+          for p in (path.point(t) for t in t_range)]
+
+# ezdxf = pyimport("ezdxf")
+# doc = ezdxf.new(dxfversion="R2010")
+# msp = doc.modelspace()
+# msp.add_polyline2d(points)
+# doc.saveas("output.dxf")
+
+points_matrix = reinterpret(reshape, Float64, points)
+scaling = 0.3 / maximum(points_matrix, dims=2)[1]
+points_matrix .*= scaling
+points_matrix .+= (-0.3, -points_matrix[2, 1]) .+ center .- (0.0, 1e-4)
+geometry = TrixiParticles.Polygon(points_matrix)
+
+# trixi2vtk(geometry)
+
+point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
+                                                    winding_number_factor=0.4,
+                                                    hierarchical_winding=true)
+
+# Returns `InitialCondition`
+shape_sampled = ComplexShape(geometry; particle_spacing, density=density,
+                             store_winding_number=true, grid_offset=center,
+                             point_in_geometry_algorithm)
+
+fixed_particles = shape_sampled.initial_condition
+
+# trixi2vtk(shape_sampled.initial_condition)
+
+# coordinates = stack(shape_sampled.grid)
+# trixi2vtk(shape_sampled.signed_distance_field)
+# trixi2vtk(coordinates, w=shape_sampled.winding_numbers)
+
+# Plot the winding number field
+# plot(InitialCondition(; coordinates, density=1.0, particle_spacing),
+#      zcolor=shape_sampled.winding_numbers)
 
 # Beam and clamped particles
-n_particles_per_dimension = (round(Int, fin_length / particle_spacing) +
-                             n_particles_clamp_x + 1, n_particles_y)
+n_particles_per_dimension = (round(Int, fin_length / particle_spacing) + 1,# + n_particles_clamp_x,
+                             n_particles_y)
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
 # from the boundary, which is correct for fluids, but not for solids.
 # We therefore need to pass `tlsph=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (center[1], center[2] - fin_thickness / 2), density=density,
-                        tlsph=true)
+                        center, density=density, tlsph=true)
 
 solid = union(beam, fixed_particles)
 
 # Movement function
 frequency = 1.3 # Hz
-amplitude = 0.15 # m
-rotation_deg = 12 # degrees
+amplitude = 0.18 # m
+rotation_deg = 25 # degrees
+rotation_phase_offset = 0.12 # periods
 translation_vector = SVector(0.0, amplitude)
 rotation_angle = rotation_deg * pi / 180
 
 boundary_movement = TrixiParticles.oscillating_movement(frequency,
                                                         SVector(0.0, amplitude),
-                                                        rotation_angle, center)
+                                                        rotation_angle, center;
+                                                        rotation_phase_offset, ramp_up=0.5)
 
 # ==========================================================================================
 # ==== Resolution
@@ -97,7 +155,7 @@ smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 boundary_density_calculator = AdamiPressureExtrapolation()
-viscosity_fin = ViscosityAdami(nu=1e-6)
+viscosity = ViscosityAdami(nu=1e-6)
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
@@ -108,19 +166,19 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    state_equation=state_equation,
                                                    boundary_density_calculator,
                                                    smoothing_kernel, smoothing_length,
-                                                   viscosity=viscosity_fin)
+                                                   viscosity=viscosity)
 # k_solid = 0.1
 # beta_solid = fluid_particle_spacing / particle_spacing
 # boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
 #                                                    particle_spacing,
 #                                                    hydrodynamic_masses)
 
+n_fixed_particles = nparticles(solid) - nparticles(beam)
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
-                                        modulus, poisson_ratio,
-                                        n_fixed_particles=nparticles(fixed_particles),
-                                        movement=boundary_movement,
+                                        modulus, poisson_ratio;
+                                        n_fixed_particles, movement=boundary_movement,
                                         boundary_model=boundary_model_solid,
-                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
 # ==== Fluid
@@ -128,7 +186,6 @@ smoothing_length = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
@@ -164,9 +221,12 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
-split_integration = SplitIntegrationCallback(RDPK3SpFSAL35())
+split_dt = 2e-5
+split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false, dt=split_dt,
+                                             maxiters=10^8)
+stepsize_callback = StepsizeCallback(cfl=0.5)
 callbacks = CallbackSet(info_callback, saving_callback, ParticleShiftingCallback(),
-                        split_integration)
+                        split_integration, stepsize_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
@@ -175,8 +235,12 @@ callbacks = CallbackSet(info_callback, saving_callback, ParticleShiftingCallback
 # Sometimes, the method fails to do so because forces become extremely large when
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+# sol = solve(ode, RDPK3SpFSAL35(),
+#             abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+#             reltol=1e-6, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+#             dtmax=1e-2, # Limit stepsize to prevent crashing
+#             save_everystep=false, callback=callbacks, maxiters=10^8);
+
+sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+            dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks, maxiters=10^8);
