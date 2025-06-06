@@ -73,6 +73,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            density_diffusion=density_diffusion,
                                            smoothing_length, viscosity=viscosity,
+                                           pressure_acceleration=tensile_instability_control,
                                            buffer_size=n_buffer_particles)
 
 # ==========================================================================================
