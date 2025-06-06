@@ -246,13 +246,19 @@ function Base.show(io::IO, ::MIME"text/plain",
                    cb::DiscreteCallback{<:Any, <:SplitIntegrationCallback})
     @nospecialize cb # reduce precompilation time
 
+    (; alg) = cb.affect!
+
     if get(io, :compact, false)
         show(io, cb)
     else
-        update_cb = cb.affect!
-        setup = [
-            "alg" => update_cb.alg
-        ]
+        setup = Pair{String, Any}["time integrator" => alg |> typeof |> nameof]
+                                #   "adaptive" => integrator.opts.adaptive]
+        # if integrator.opts.adaptive
+        #     push!(setup,
+        #           "abstol" => integrator.opts.abstol,
+        #           "reltol" => integrator.opts.reltol,
+        #           "controller" => integrator.opts.controller)
+        # end
         summary_box(io, "SplitIntegrationCallback", setup)
     end
 end
