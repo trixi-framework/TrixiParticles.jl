@@ -374,6 +374,10 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
 
     add_source_terms!(dv_ode_split, v_ode_split, u_ode_split, semi_large, t;
                       semi_wrap=semi_split)
+
+    # foreach_system(semi_split) do system
+    #     save_acceleration!(system, dv_ode_split, semi_split)
+    # end
 end
 
 function drift_split!(du_ode, v_ode, u_ode, p, t)
