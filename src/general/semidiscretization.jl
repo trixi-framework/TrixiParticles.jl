@@ -74,7 +74,7 @@ function Semidiscretization(systems::Union{System, Nothing}...;
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
-    check_configuration(systems)
+    check_configuration(systems, neighborhood_search)
 
     sizes_u = [u_nvariables(system) * n_moving_particles(system)
                for system in systems]
@@ -318,7 +318,17 @@ function semidiscretize(semi, tspan; reset_threads=true)
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
         # See the comments in general/gpu.jl for more details.
-        semi_new = Adapt.adapt(semi.parallelization_backend, semi)
+        semi_ = Adapt.adapt(semi.parallelization_backend, semi)
+
+        # We now have a new `Semidiscretization` with new systems.
+        # This means that systems linking to other systems still point to old systems.
+        # Therefore, we have to re-link them, which yields yet another `Semidiscretization`.
+        # Note that this re-creates systems containing links, so it only works as long
+        # as systems don't link to other systems containing links.
+        semi_new = Semidiscretization(set_system_links.(semi_.systems, Ref(semi_)),
+                                      semi_.ranges_u, semi_.ranges_v,
+                                      semi_.neighborhood_searches,
+                                      semi_.parallelization_backend)
     else
         semi_new = semi
     end
@@ -375,7 +385,8 @@ function initialize_neighborhood_searches!(semi)
         foreach_system(semi) do neighbor
             PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
                                        initial_coordinates(system),
-                                       initial_coordinates(neighbor))
+                                       initial_coordinates(neighbor),
+                                       eachindex_y=active_particles(neighbor))
         end
     end
 
@@ -668,7 +679,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -691,7 +702,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -704,7 +715,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -728,7 +739,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -763,7 +774,8 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], true))
+            semi, points_moving=(system.ismoving[], true),
+            eachindex_y=active_particles(neighbor))
 end
 
 # This function is the same as the one above to avoid ambiguous dispatch when using `Union`
@@ -840,20 +852,22 @@ function update_nhs!(neighborhood_search,
 end
 
 # Forward to PointNeighbors.jl
-function update!(neighborhood_search, x, y, semi; points_moving=(true, false))
-    PointNeighbors.update!(neighborhood_search, x, y; points_moving,
+function update!(neighborhood_search, x, y, semi; points_moving=(true, false),
+                 eachindex_y=axes(y, 2))
+    PointNeighbors.update!(neighborhood_search, x, y; points_moving, eachindex_y,
                            parallelization_backend=semi.parallelization_backend)
 end
 
-function check_configuration(systems)
+function check_configuration(systems,
+                             nhs::Union{Nothing, PointNeighbors.AbstractNeighborhoodSearch})
     foreach_system(systems) do system
-        check_configuration(system, systems)
+        check_configuration(system, systems, nhs)
     end
 
     check_system_color(systems)
 end
 
-check_configuration(system, systems) = nothing
+check_configuration(system::System, systems, nhs) = nothing
 
 function check_system_color(systems)
     if any(system isa FluidSystem && !(system isa ParticlePackingSystem) &&
@@ -870,7 +884,7 @@ function check_system_color(systems)
     end
 end
 
-function check_configuration(fluid_system::FluidSystem, systems)
+function check_configuration(fluid_system::FluidSystem, systems, nhs)
     if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
             if neighbor isa FluidSystem && isnothing(fluid_system.surface_tension) &&
@@ -881,8 +895,8 @@ function check_configuration(fluid_system::FluidSystem, systems)
     end
 end
 
-function check_configuration(boundary_system::BoundarySPHSystem, systems)
-    (; boundary_model) = boundary_system
+function check_configuration(system::BoundarySPHSystem, systems, nhs)
+    (; boundary_model) = system
 
     foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
@@ -894,7 +908,7 @@ function check_configuration(boundary_system::BoundarySPHSystem, systems)
     end
 end
 
-function check_configuration(system::TotalLagrangianSPHSystem, systems)
+function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     (; boundary_model) = system
 
     foreach_system(systems) do neighbor
@@ -911,12 +925,50 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
     end
 end
 
-function check_configuration(system::OpenBoundarySPHSystem, systems)
+function check_configuration(system::OpenBoundarySPHSystem, systems,
+                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
     (; boundary_model, boundary_zone) = system
+
+    # Store index of the fluid system. This is necessary for re-linking
+    # in case we use Adapt.jl to create a new semidiscretization.
+    fluid_system_index = findfirst(==(system.fluid_system), systems)
+    system.fluid_system_index[] = fluid_system_index
 
     if boundary_model isa BoundaryModelLastiwka &&
        boundary_zone isa BoundaryZone{BidirectionalFlow}
         throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
                             "Please specify inflow and outflow."))
     end
+
+    if first(PointNeighbors.requires_update(neighborhood_search))
+        throw(ArgumentError("`OpenBoundarySPHSystem` requires a neighborhood search " *
+                            "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
+                            "See the PointNeighbors.jl documentation for more details."))
+    end
+end
+
+# After `adapt`, the system type information may change.
+# This means that systems linking to other systems still point to old systems.
+# Therefore, we have to re-link them based on the stored system index.
+set_system_links(system, semi) = system
+
+function set_system_links(system::OpenBoundarySPHSystem, semi)
+    fluid_system = semi.systems[system.fluid_system_index[]]
+
+    return OpenBoundarySPHSystem(system.boundary_model,
+                                 system.initial_condition,
+                                 fluid_system, # link to fluid system
+                                 system.fluid_system_index,
+                                 system.smoothing_length,
+                                 system.mass,
+                                 system.density,
+                                 system.volume,
+                                 system.pressure,
+                                 system.boundary_zone,
+                                 system.reference_velocity,
+                                 system.reference_pressure,
+                                 system.reference_density,
+                                 system.buffer,
+                                 system.update_callback_used,
+                                 system.cache)
 end
