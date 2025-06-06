@@ -246,15 +246,24 @@ end
 
 function oscillating_movement(frequency, translation_vector,
                               rotation_angle, rotation_center;
-                              tspan=(-Inf, Inf))
+                              rotation_phase_offset=0,
+                              tspan=(-Inf, Inf), ramp_up=0)
     @inline function movement_function(x, t)
         sin_scaled = sin(frequency * 2pi * t)
         translation = sin_scaled * translation_vector
         x_centered = x .- rotation_center
-        angle = rotation_angle * sin_scaled
+        sin_scaled_offset = sin(2pi * (frequency * t - rotation_phase_offset))
+        angle = rotation_angle * sin_scaled_offset
         rotated = SVector(x_centered[1] * cos(angle) - x_centered[2] * sin(angle),
                           x_centered[1] * sin(angle) + x_centered[2] * cos(angle))
-        return rotated .+ rotation_center .+ translation
+
+        result = rotated .+ rotation_center .+ translation
+        if ramp_up > 0 && t < ramp_up
+            # Apply a linear ramp-up for the first `ramp_up` seconds
+            ramp_factor = t / ramp_up
+            return result * ramp_factor + (1 - ramp_factor) * x
+        end
+        return result
     end
 
     is_moving(t) = tspan[1] <= t <= tspan[2]
