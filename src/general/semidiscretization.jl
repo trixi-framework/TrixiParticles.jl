@@ -475,6 +475,23 @@ function kick!(dv_ode, v_ode, u_ode, p, t)
     return dv_ode
 end
 
+@inline save_acceleration!(system, dv_ode, semi) = system
+
+@inline function save_acceleration!(system::TotalLagrangianSPHSystem, dv_ode, semi)
+    if semi.integrate_tlsph[]
+        # Save the acceleration in the system
+        dv = wrap_v(dv_ode, system, semi)
+
+        @threaded semi for particle in each_moving_particle(system)
+            for i in 1:ndims(system)
+                system.cache.acceleration[i, particle] = dv[i, particle]
+            end
+        end
+    end
+
+    return system
+end
+
 # Update the systems and neighborhood searches (NHS) for a simulation
 # before calling `interact!` to compute forces.
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
