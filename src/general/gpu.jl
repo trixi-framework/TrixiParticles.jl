@@ -23,6 +23,9 @@ Adapt.@adapt_structure WindingNumberJacobson
 Adapt.@adapt_structure HierarchicalWinding
 Adapt.@adapt_structure SignedDistanceField
 Adapt.@adapt_structure ParticlePackingSystem
+Adapt.@adapt_structure BoundaryZone
+Adapt.@adapt_structure SystemBuffer
+Adapt.@adapt_structure OpenBoundarySPHSystem
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
