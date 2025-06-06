@@ -117,8 +117,7 @@ semi = Semidiscretization(fluid_system, boundary_system, solid_system_1, solid_s
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=10)
-saving_callback = SolutionSavingCallback(dt=0.02, output_directory="out", prefix="",
-                                         write_meta_data=true)
+saving_callback = SolutionSavingCallback(dt=0.02, output_directory="out", prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
