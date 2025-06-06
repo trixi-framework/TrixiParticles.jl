@@ -163,7 +163,7 @@
         @testset "Wrong acceleration dimension" for i in eachindex(NDIMS_)
             setup = setups[i]
             NDIMS = NDIMS_[i]
-            reference_densitiy = 1.0
+            reference_density = 1.0
             smoothing_kernel = Val(:smoothing_kernel)
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
             smoothing_length = 0.362
@@ -174,7 +174,7 @@
             @test_throws ArgumentError(error_str) ImplicitIncompressibleSPHSystem(setup,
                                                                                   smoothing_kernel,
                                                                                   smoothing_length,
-                                                                                  reference_densitiy,
+                                                                                  reference_density,
                                                                                   acceleration=(0.0))
         end
     end

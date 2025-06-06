@@ -1,10 +1,10 @@
 # [Implicit Incompressible SPH](@id iisph)
 
-Implicit Incompressible SPH as introduced by [M. Ihmsen](@cite IHMSEN et al) is a scheme that computes pressure values, by iteratively solving a linear system using a relaxed jacobi system, to resolve the particles density deviation from the reference density. This method solves a linear system $Ax=b$ where the pressure values that are used for the pressure acceleration are the unknown variable $x$.  
+Implicit Incompressible SPH as introduced by [M. Ihmsen](@cite ihmsen2014) is a scheme that computes pressure values, by iteratively solving a linear system using a relaxed jacobi system, to resolve the particles density deviation from the reference density. This method solves a linear system $Ax=b$ where the pressure values that are used for the pressure acceleration are the unknown variable $x$.
 It does not use a state equation to generate pressure values like the [weakly compressible SPH scheme](weakly_compressible_sph.md).
 
 
-To derive the formulation for the linear system we start by discretizing the Continuity equation 
+To derive the formulation for the linear system we start by discretizing the Continuity equation
 
 ```math
 \frac{D\rho}{Dt} = - \rho \nabla \cdot v
@@ -14,7 +14,7 @@ For a particle $i$ a forward difference method is used to discretizie the left h
 
 ```math
 \frac{\rho_i(t+ \Delta t - \rho_i(t))}{\Delta t}.
-``` 
+```
 
 The right-hand side is discretized by the difference formulation of the divergence of the velocity field.
 
@@ -29,7 +29,7 @@ So all in all the following discretized version of the continuity equation for a
 \frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j \textbf{v}_{ij}(t+\Delta t) \nabla W_{ij}
 ```
 
-In this implicit formulation the unknown velocities $\textbf{v}_{ij}(t + \Delta t)$ are needed. 
+In this implicit formulation the unknown velocities $\textbf{v}_{ij}(t + \Delta t)$ are needed.
 
 They are given by adding all pressure and non-pressure accelerations to the current velocity:
 
@@ -39,10 +39,10 @@ They are given by adding all pressure and non-pressure accelerations to the curr
 
 $\textbf{F}_i^{adv}$ are all non-pressure forces such as gravity, viscosiy, surface tension and more, while $\textbf{F}_i^p(t)$ are the unknown pressure forces, which have to be determined.
 
-Note that the IISPH is an incompressible fluid system, which means that the density of the fluid remain constant over time. By assuming a fixed reference density $\rho_0$ for all fluid particle over the whole time of the simulation, the density value at the next time step $\rho_i(t + \Delta t)$ also has to be this rest density. So $\rho_0$ can be plugged in for $\rho_i(t + \Delta t)$ in the formula above. 
+Note that the IISPH is an incompressible fluid system, which means that the density of the fluid remain constant over time. By assuming a fixed reference density $\rho_0$ for all fluid particle over the whole time of the simulation, the density value at the next time step $\rho_i(t + \Delta t)$ also has to be this rest density. So $\rho_0$ can be plugged in for $\rho_i(t + \Delta t)$ in the formula above.
 
 The goal is to compute the pressure values required to obtain the pressure acceleration that ensures each particle reaches the rest density in the next time step. At the moment these pressure values are unknown in $t$, but all the non-pressure forces are already known.
-Therefore a predicted velocity can be calculated which depends only on the non-pressure forces $\textbf{F}_i^{adv}$: 
+Therefore a predicted velocity can be calculated which depends only on the non-pressure forces $\textbf{F}_i^{adv}$:
 
 ```math
 \textbf{v}_i^{adv}= \textbf{v}_i(t) + \Delta t \frac{\textbf{F}_i^{adv}(t)}{m_i},
@@ -74,11 +74,11 @@ Substituting this definition into the equation, leadsa linear system $\textbf{A}
 \sum_j a_{ij} p_i = b_i = \rho_0 - \rho_i^{adv}
 ```
 
-This linear system must be solved in order to get the pressure values, which is done by using a relaxed jacobi scheme. 
+This linear system must be solved in order to get the pressure values, which is done by using a relaxed jacobi scheme.
 
 This is a iterative numerical method to solve a linear system $Ax=b$. In each iteration the new values of the variable $x$ get computed by the following formular
 
-```math 
+```math
 x_i^{(k+1)} = (1-\omega) x_i^{(k)} + \omega \left( \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} x_j^{(k)} \right)\right)
 ```
 
@@ -88,8 +88,8 @@ In the context of the linear system for the pressure values the formula is
 p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i^{adv} \sum_{j \neq i} a_{ij}p_j^l}{a{ii}}
 ```
 
-Therefore the diagonal elements $a_{ii}$ and the sum $\sum_{j \neq i} a_{ij}p_j^l$ need to be determined. 
-This can be done efficiently by separating the pressure force acceleration into two components: One that describes the influence of particle i's own pressure on its displacement, and one that describes the displacement due to the pressure values of the neighboring particles $j$. 
+Therefore the diagonal elements $a_{ii}$ and the sum $\sum_{j \neq i} a_{ij}p_j^l$ need to be determined.
+This can be done efficiently by separating the pressure force acceleration into two components: One that describes the influence of particle i's own pressure on its displacement, and one that describes the displacement due to the pressure values of the neighboring particles $j$.
 
 The pressure acceleration is given by:
 ```math
@@ -105,15 +105,15 @@ Using this new values the linear system can be rewritten as
 
 where $k$ stands for the neighbor particles of the neighbor particle $j$ from $i$.
 So the sum over the neighboring pressure values $p_j$ also includes the pressure values $p_i$, since $i$ is a neighbor of $j$
-To separate this sum it can be written as 
+To separate this sum it can be written as
 
-```math 
+```math
 \sum_k d_{jk} p_k = \sum_{k \neq i} d_{jk} p_k + d_{ji} p_i
 ```
 
-With this separation the equation for the linear system can again be rewritten as 
+With this separation the equation for the linear system can again be rewritten as
 
-```math 
+```math
 \rho_0 - \rho_i^{adv} = p_i \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij}  + \sum_j m_j \left ( \sum_j d_{ij} p_j - d_{jj} p_j - \sum_{k \neq i} d_{jk}p_k \right) \nabla W_{ij}
 ```
 
@@ -124,7 +124,7 @@ a_{ii} = \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij}
 ```
 
 The remaining part of the equation represents the influence of the other pressure values $p_j$
-​	
+​
  . Hence, the final relaxed Jacobi iteration takes the form:
 
 ```math
@@ -148,7 +148,7 @@ To avoid negative pressure values, one can enable pressure clamping. In this cas
 #### 2. Small diagonal elements
 If the diagonal element $a_{ii}$ becomes too small or even zero, the simulation may become unstable. This can occur, for example, if a particle is isolated and receives little or no influence from neighboring particles, or due to numerical cancellations. In such cases, the updated pressure value is set to zero.
 
-There are also other options, like setting $a_{ii}$ to the threshold value is its beneath and then updare with the known formula, or just don't update the pressure value at all, and continue with the old value. By setting the pressure value to zero, the numerical error through this can not be so big to mess up a whole simulation, as long as it doesn't happens for too many particles. 
+There are also other options, like setting $a_{ii}$ to the threshold value is its beneath and then updare with the known formula, or just don't update the pressure value at all, and continue with the old value. By setting the pressure value to zero, the numerical error through this can not be so big to mess up a whole simulation, as long as it doesn't happens for too many particles.
 
 
 ## Boundary Handling
@@ -200,7 +200,7 @@ d_{ii} = -\Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij} - \Delta t^2 \sum
 
 The corresponding relaxed Jacobi iteration for pressure mirroring then becomes:
 
-```math 
+```math
 p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \left( \rho_0 - \rho_i^{adv} - \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} - \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right)
 ```
 
