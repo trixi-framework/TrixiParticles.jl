@@ -1,6 +1,7 @@
 using TrixiParticles
 using FFTW
 using CSV, DataFrames
+using Test
 
 # Results in [90k particles, 220k particles, 1.2M particles, 5M particles]
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
@@ -9,6 +10,7 @@ resolution_factor = 0.08 # [0.08, 0.05, 0.02, 0.01]
 # ======================================================================================
 # ==== Run the simulation
 trixi_include(joinpath(validation_dir(), "vortex_street_2d", "vortex_street_2d.jl"),
+              parallelization_backend=PolyesterBackend(),
               factor_d=resolution_factor, saving_callback=nothing, tspan=(0.0, 20.0))
 
 # ======================================================================================
@@ -42,19 +44,20 @@ f_dominant = frequencies[argmax(spectrum[1:div(N, 2)])]
 delta = 2 * (frequencies[2] - frequencies[1])
 frequency_band = (abs.(frequencies[1:div(N, 2)] .- f_dominant) .< delta)
 
+# ======================================================================================
+# ==== Save the strouhal numbers
+strouhal_number = f_dominant * cylinder_diameter / prescribed_velocity
+
+df = DataFrame(Resolution=resolution_factor, t_max=last(tspan),
+               frequency=f_dominant, StrouhalNumber=strouhal_number)
+
+CSV.write(joinpath(output_directory, "strouhal_number.csv"), df)
+
+# ======================================================================================
+# ==== Validate the frequency spectrum
 spectrum_half = spectrum[1:div(N, 2)]
 integral_total = sum(spectrum_half)
 integral_peak = sum(spectrum_half[frequency_band])
 
 # TODO: 0.4 is sufficient? Check for higher resolution.
 @test 0.4 < integral_peak / integral_total
-
-
-strouhal_number = f_dominant * cylinder_diameter / prescribed_velocity
-
-# ======================================================================================
-# ==== Save the strouhal numbers
-df = DataFrame(Resolution=resolution_factor, t_max=last(tspan),
-               frequency=f_dominant, StrouhalNumber=strouhal_number)
-
-CSV.write(joinpath(output_directory, "strouhal_number.csv"), df)
