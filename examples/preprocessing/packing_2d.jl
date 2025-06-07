@@ -28,9 +28,9 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             use_for_boundary_packing=true,
                                             max_signed_distance=boundary_thickness)
 
-point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
-                                                    winding_number_factor=0.4,
-                                                    hierarchical_winding=true)
+
+point_in_geometry_algorithm = WindingNumberJacobson(geometry)
+
 # Returns `InitialCondition`
 shape_sampled = ComplexShape(geometry; particle_spacing, density,
                              point_in_geometry_algorithm)

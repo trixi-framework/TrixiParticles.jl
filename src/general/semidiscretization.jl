@@ -332,6 +332,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     else
         semi_new = semi
     end
+
     # Initialize all particle systems
     foreach_system(semi_new) do system
         # Initialize this system
