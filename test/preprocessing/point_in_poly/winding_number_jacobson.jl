@@ -3,7 +3,7 @@
         data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
         geometry = load_geometry(joinpath(data_dir, "circle.asc"))
 
-        winding = WindingNumberJacobson(; hierarchical_winding=false)
+        winding = WindingNumberJacobson(geometry; winding=NaiveWinding())
 
         show_compact = "WindingNumberJacobson{NaiveWinding}()"
         @test repr(winding) == show_compact
@@ -17,7 +17,7 @@
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", winding) == show_box
 
-        winding = WindingNumberJacobson(; geometry, winding_number_factor=pi)
+        winding = WindingNumberJacobson(geometry; winding_number_factor=pi)
         show_compact = "WindingNumberJacobson{HierarchicalWinding}()"
         @test repr(winding) == show_compact
 

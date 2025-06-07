@@ -129,7 +129,7 @@
 
                 distances = data.signed_distances
 
-                @test isapprox(signed_distance_field.positions, points; rtol=1e-4)
+                @test isapprox(signed_distance_field.positions, stack(points); rtol=1e-4)
                 @test isapprox(signed_distance_field.normals, vertex_normals; rtol=1e-4)
                 @test isapprox(signed_distance_field.distances, distances; rtol=1e-4)
             end

@@ -1,10 +1,10 @@
 # This is the data format returned by `load(file)` when used with `.asc` files
-struct Polygon{BACKEND, NDIMS, ELTYPE, VOV, VOTV, VOT} <: Geometry{NDIMS, ELTYPE}
-    vertices                :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
-    edge_vertices           :: VOTV # `Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}`
-    vertex_normals          :: VOTV # `Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}`
-    edge_normals            :: VOV # `Vector{SVector{NDIMS, ELTYPE}}`
-    edge_vertices_ids       :: VOT # `Vector{NTuple{2, Int}}`
+struct Polygon{BACKEND, NDIMS, ELTYPE, V, EV, VN, EN, EVI} <: Geometry{NDIMS, ELTYPE}
+    vertices                :: V # `Vector{SVector{NDIMS, ELTYPE}}`
+    edge_vertices           :: EV # `Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}`
+    vertex_normals          :: VN # `Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}`
+    edge_normals            :: EN # `Vector{SVector{NDIMS, ELTYPE}}`
+    edge_vertices_ids       :: EVI # `Vector{NTuple{2, Int}}`
     min_corner              :: SVector{NDIMS, ELTYPE}
     max_corner              :: SVector{NDIMS, ELTYPE}
     parallelization_backend :: BACKEND
@@ -97,6 +97,7 @@ function Polygon{NDIMS}(vertices_, parallelization_backend) where {NDIMS}
     end
 
     return Polygon{BACKEND, NDIMS, ELTYPE, typeof(vertices), typeof(edge_vertices),
+                   typeof(vertex_normals), typeof(edge_normals),
                    typeof(edge_vertices_ids)}(vertices, edge_vertices, vertex_normals,
                                               edge_normals, edge_vertices_ids,
                                               min_corner, max_corner,

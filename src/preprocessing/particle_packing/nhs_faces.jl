@@ -8,7 +8,8 @@ struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
     cell_size     :: NTuple{NDIMS, ELTYPE} # Required to calculate cell index
 end
 
-function FaceNeighborhoodSearch{NDIMS}(; search_radius, cell_list) where {NDIMS}
+function FaceNeighborhoodSearch{NDIMS}(; search_radius,
+                                       cell_list=PointNeighbors.DictionaryCellList{NDIMS}()) where {NDIMS}
     cell_size = ntuple(_ -> search_radius, Val(NDIMS))
     n_cells = ntuple(_ -> -1, Val(NDIMS))
     cell_list_ = PointNeighbors.copy_cell_list(cell_list, search_radius, nothing)
