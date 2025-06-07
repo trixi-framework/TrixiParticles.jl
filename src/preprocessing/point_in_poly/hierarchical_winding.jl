@@ -3,13 +3,13 @@
 # faces and closing faces which are inside the bounding box.
 # TODO: docs
 struct HierarchicalWinding{VOVOT, VOSV, V}
-    depth         :: Int    # Depth of the tree
-    faces         :: VOVOT  # VectorOfVectors{NTuple{NDIMS, Int}}()
-    closing_faces :: VOVOT  # VectorOfVectors{NTuple{NDIMS, Int}}()
-    min_corners   :: VOSV   # Vector{SVector{NDIMS}}()
-    max_corners   :: VOSV   # Vector{SVector{NDIMS}}()
-    childs_left   :: V      # Vector{Int}
-    childs_right  :: V      # Vector{Int}
+    depth          :: Int    # Depth of the tree
+    faces          :: VOVOT  # VectorOfVectors{NTuple{NDIMS, Int}}()
+    closing_faces  :: VOVOT  # VectorOfVectors{NTuple{NDIMS, Int}}()
+    min_corners    :: VOSV   # Vector{SVector{NDIMS}}()
+    max_corners    :: VOSV   # Vector{SVector{NDIMS}}()
+    children_left  :: V      # Vector{Int}
+    children_right :: V      # Vector{Int}
 end
 
 function HierarchicalWinding(geometry::Geometry)
@@ -29,19 +29,19 @@ function HierarchicalWinding(geometry::Geometry)
     closing_faces = VectorOfVectors{NTuple{ndims(geometry), Int}}()
     min_corners = Vector{SVector{ndims(geometry), ELTYPE}}()
     max_corners = Vector{SVector{ndims(geometry), ELTYPE}}()
-    childs_left = Int[]
-    childs_right = Int[]
+    children_left = Int[]
+    children_right = Int[]
 
     build_tree!(faces, closing_faces, min_corners, max_corners,
-                childs_left, childs_right, directed_edges,
+                children_left, children_right, directed_edges,
                 geometry, eachface(geometry), min_corner, max_corner)
 
     return HierarchicalWinding(length(faces), faces, closing_faces, min_corners,
-                               max_corners, childs_left, childs_right)
+                               max_corners, children_left, children_right)
 end
 
 function build_tree!(faces, closing_faces, min_corners, max_corners,
-                     childs_left, childs_right, directed_edges,
+                     children_left, children_right, directed_edges,
                      geometry, face_ids, min_corner_local, max_corner_local)
     NDIMS = ndims(geometry)
 
@@ -52,8 +52,8 @@ function build_tree!(faces, closing_faces, min_corners, max_corners,
         push!(faces, faces_to_tuple(face_ids, geometry))
         push!(min_corners, min_corner_local)
         push!(max_corners, max_corner_local)
-        push!(childs_left, -1)
-        push!(childs_right, -1)
+        push!(children_left, -1)
+        push!(children_right, -1)
         push!(closing_faces, closing_faces_local)
 
         return length(faces) # Index of the new node
@@ -66,8 +66,8 @@ function build_tree!(faces, closing_faces, min_corners, max_corners,
         push!(faces, faces_to_tuple(face_ids, geometry))
         push!(min_corners, min_corner_local)
         push!(max_corners, max_corner_local)
-        push!(childs_left, -1)
-        push!(childs_right, -1)
+        push!(children_left, -1)
+        push!(children_right, -1)
         push!(closing_faces, closing_faces_local)
 
         return length(faces) # Index of the new node
@@ -87,18 +87,18 @@ function build_tree!(faces, closing_faces, min_corners, max_corners,
     faces_right = is_in_box(geometry, face_ids, min_corner_right, max_corner_local)
 
     left_index = build_tree!(faces, closing_faces, min_corners, max_corners,
-                             childs_left, childs_right, directed_edges,
+                             children_left, children_right, directed_edges,
                              geometry, faces_left, min_corner_local, max_corner_left)
     right_index = build_tree!(faces, closing_faces, min_corners, max_corners,
-                              childs_left, childs_right, directed_edges,
+                              children_left, children_right, directed_edges,
                               geometry, faces_right, min_corner_right, max_corner_local)
 
     push!(faces, faces_to_tuple(face_ids, geometry))
     push!(closing_faces, closing_faces_local)
     push!(min_corners, min_corner_local)
     push!(max_corners, max_corner_local)
-    push!(childs_left, left_index)
-    push!(childs_right, right_index)
+    push!(children_left, left_index)
+    push!(children_right, right_index)
 
     return length(faces) # Index of the new node
 end
@@ -124,8 +124,8 @@ function hierarchical_winding(tree::HierarchicalWinding, node_id, geometry, quer
     closing_faces = tree.closing_faces[node_id]
     min_corner = tree.min_corners[node_id]
     max_corner = tree.max_corners[node_id]
-    child_left = tree.childs_left[node_id]
-    child_right = tree.childs_right[node_id]
+    child_left = tree.children_left[node_id]
+    child_right = tree.children_right[node_id]
 
     if child_left < 0
         # node is a leaf
