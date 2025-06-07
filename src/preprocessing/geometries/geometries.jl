@@ -20,7 +20,7 @@ function Base.setdiff(initial_condition::InitialCondition, geometries::Geometry.
     coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
                          initial_condition.coordinates)
 
-    delete_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)
+    delete_indices = WindingNumberJacobson(geometry)(geometry, coords)
 
     coordinates = initial_condition.coordinates[:, .!delete_indices]
     velocity = initial_condition.velocity[:, .!delete_indices]
@@ -45,7 +45,7 @@ function Base.intersect(initial_condition::InitialCondition, geometries::Geometr
     coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
                          initial_condition.coordinates)
 
-    keep_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)
+    keep_indices = WindingNumberJacobson(geometry)(geometry, coords)
 
     coordinates = initial_condition.coordinates[:, keep_indices]
     velocity = initial_condition.velocity[:, keep_indices]

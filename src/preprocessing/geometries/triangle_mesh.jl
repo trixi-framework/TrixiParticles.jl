@@ -15,7 +15,7 @@ struct TriangleMesh{BACKEND, NDIMS, ELTYPE, VOV, VOTV,
 end
 
 function TriangleMesh(face_vertices, face_normals, vertices;
-                      parallelization_backend=true)
+                      parallelization_backend=default_backend(face_vertices))
     NDIMS = 3
 
     return TriangleMesh{NDIMS}(face_vertices, face_normals, vertices,

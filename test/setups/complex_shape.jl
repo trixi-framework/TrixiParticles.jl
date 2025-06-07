@@ -4,27 +4,28 @@
 
     @testset verbose=true "2D" begin
         @testset verbose=true "Shifted Rectangle" begin
-            algorithms = [
-                WindingNumberHormann(),
-                WindingNumberJacobson(; hierarchical_winding=false)
-            ]
+            algorithms = [:winding_horman, :winding_jacobson]
             shifts = [-0.5, 0.0, 0.5]
             particle_spacings = [0.03, 0.05]
 
             test_name(algorithm, shift,
-                      particle_spacing) = "Algorithm: $(TrixiParticles.type2string(algorithm))" *
+                      particle_spacing) = "Algorithm: $(algorithm)" *
                                           ", Shift: $shift" *
                                           ", Particle Spacing: $particle_spacing"
-            @testset verbose=true "$(test_name(point_in_geometry_algorithm, shift,
-            particle_spacing))" for point_in_geometry_algorithm in algorithms,
-                                    shift in shifts,
+            @testset verbose=true "$(test_name("$algorithm", shift,
+            particle_spacing))" for algorithm in algorithms, shift in shifts,
                                     particle_spacing in particle_spacings
                 points_rectangle = stack([[0.0, 0.0], [1.0, 0.0],
                                              [1.0, 0.5], [0.0, 0.5], [0.0, 0.0]]) .+ shift
 
                 geometry = TrixiParticles.Polygon(points_rectangle)
 
-                grid_offset = 0.5particle_spacing
+                point_in_geometry_algorithm = algorithm == :winding_horman ?
+                                              WindingNumberHormann() :
+                                              WindingNumberJacobson(geometry;
+                                                                    winding=NaiveWinding())
+
+                grid_offset = 0.5 * particle_spacing
                 shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0,
                                              point_in_geometry_algorithm, grid_offset)
 
@@ -42,22 +43,22 @@
 
         @testset verbose=true "Real World Data" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
-            algorithms = [
-                WindingNumberHormann(),
-                WindingNumberJacobson(; hierarchical_winding=false)
-            ]
+            algorithms = [:winding_horman, :winding_jacobson]
             algorithm_names = ["hormann", "jacobson"]
 
-            @testset verbose=true "Algorithm: $(TrixiParticles.type2string(algorithms[i]))" for i in
-                                                                                                1:2
-
+            @testset verbose=true "Algorithm: $(algorithms[i])" for i in 1:2
                 @testset verbose=true "Test File `$(files[j])`" for j in eachindex(files)
-                    point_in_geometry_algorithm = algorithms[i]
+                    geometry = load_geometry(joinpath(data_dir, files[j] * ".asc"))
+
+                    point_in_geometry_algorithm = algorithms[i] == :winding_horman ?
+                                                  WindingNumberHormann() :
+                                                  WindingNumberJacobson(geometry;
+                                                                        winding=NaiveWinding())
 
                     # Relaxed inside-outside segmentation for open geometry
                     if (i == 2 && j == 3)
-                        point_in_geometry_algorithm = WindingNumberJacobson(;
-                                                                            hierarchical_winding=false,
+                        point_in_geometry_algorithm = WindingNumberJacobson(geometry;
+                                                                            winding=NaiveWinding(),
                                                                             winding_number_factor=0.4)
                     end
 
@@ -71,8 +72,6 @@
                     # identifier name, we need to use `var"name"`.
                     # See https://docs.julialang.org/en/v1/base/base/#var%22name%22
                     coords = vcat((data.var"Points:0")', (data.var"Points:1")')
-
-                    geometry = load_geometry(joinpath(data_dir, files[j] * ".asc"))
 
                     shape_sampled = ComplexShape(geometry; particle_spacing=0.05,
                                                  density=1.0, point_in_geometry_algorithm)
@@ -145,10 +144,8 @@
                     shape_sampled = ComplexShape(geometry;
                                                  particle_spacing=particle_spacings[i],
                                                  density=1.0, grid_offset=0.1,
-                                                 point_in_geometry_algorithm=WindingNumberJacobson(;
-                                                                                                   geometry,
-                                                                                                   winding_number_factor=0.1,
-                                                                                                   hierarchical_winding=true))
+                                                 point_in_geometry_algorithm=WindingNumberJacobson(geometry;
+                                                                                                   winding_number_factor=0.1))
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
                 end
             end

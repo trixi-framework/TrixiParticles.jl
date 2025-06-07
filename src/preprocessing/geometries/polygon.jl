@@ -10,7 +10,7 @@ struct Polygon{BACKEND, NDIMS, ELTYPE, V, EV, VN, EN, EVI} <: Geometry{NDIMS, EL
     parallelization_backend :: BACKEND
 end
 
-function Polygon(vertices; parallelization_backend=true)
+function Polygon(vertices; parallelization_backend=default_backend(vertices))
     NDIMS = size(vertices, 1)
 
     return Polygon{NDIMS}(vertices, parallelization_backend)
