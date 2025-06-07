@@ -28,7 +28,6 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             use_for_boundary_packing=true,
                                             max_signed_distance=boundary_thickness)
 
-
 point_in_geometry_algorithm = WindingNumberJacobson(geometry)
 
 # Returns `InitialCondition`
@@ -63,7 +62,15 @@ boundary_system = ParticlePackingSystem(boundary_sampled; smoothing_length=smoot
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(packing_system, boundary_system)
+# Define a GPU-compatible neighborhood search
+min_corner = minimum(boundary_sampled.coordinates .- 5 * particle_spacing, dims=2)
+max_corner = maximum(boundary_sampled.coordinates .+ 5 * particle_spacing, dims=2)
+cell_list = FullGridCellList(; min_corner, max_corner)
+neighborhood_search = GridNeighborhoodSearch{ndims(geometry)}(; cell_list)
+
+semi = Semidiscretization(packing_system, boundary_system,
+                          neighborhood_search=neighborhood_search,
+                          parallelization_backend=PolyesterBackend())
 
 # Use a high `tspan` to guarantee that the simulation runs at least for `maxiters`
 tspan = (0, 10.0)

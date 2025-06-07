@@ -320,7 +320,7 @@ constrain_particles_onto_surface!(u, system::ParticlePackingSystem{Nothing}, sem
 
 function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, semi)
     (; neighborhood_search, signed_distance_field, smoothing_length_interpolation) = system
-    (; positions, distances, normals) = signed_distance_field
+    (; distances, normals) = signed_distance_field
 
     search_radius = compact_support(system, system)
     sdf_coords = signed_distance_field.positions
@@ -328,9 +328,11 @@ function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, sem
     @threaded semi for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
 
-        volume = zero(eltype(system))
-        distance_signed = zero(eltype(system))
-        normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
+        # Use `Ref` to ensure the variables are accessible and mutable within the closure below
+        # (see https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured).
+        volume = Ref(zero(eltype(system)))
+        distance_signed = Ref(zero(eltype(system)))
+        normal_vector = Ref(zero(SVector{ndims(system), eltype(system)}))
 
         # Interpolate signed distances and normals.
         # Here, `neighborhood_search` is an intern NHS and is thus not organized by `Semidiscretization`.
@@ -342,21 +344,21 @@ function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, sem
             kernel_weight = kernel(system.smoothing_kernel, distance,
                                    smoothing_length_interpolation)
 
-            distance_signed += distances[neighbor] * kernel_weight
+            distance_signed[] += distances[neighbor] * kernel_weight
 
-            normal_vector += normals[neighbor] * kernel_weight
+            normal_vector[] += normals[neighbor] * kernel_weight
 
-            volume += kernel_weight
+            volume[] += kernel_weight
         end
 
-        if volume > eps()
-            distance_signed /= volume
-            normal_vector /= volume
+        if volume[] > eps()
+            distance_signed[] /= volume[]
+            normal_vector[] /= volume[]
 
             # Store signed distance for visualization
-            system.signed_distances[particle] = distance_signed
+            system.signed_distances[particle] = distance_signed[]
 
-            constrain_particle!(u, system, particle, distance_signed, normal_vector)
+            constrain_particle!(u, system, particle, distance_signed[], normal_vector[])
         end
     end
 
