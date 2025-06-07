@@ -392,6 +392,41 @@ end
         end
     end
 
+    @testset verbose=true "Preprocessing" begin
+        @testset verbose=true "Complex shape" begin
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "preprocessing",
+                                                   "complex_shape_2d.jl");
+                                          parallelization_backend=Main.parallelization_backend)
+
+            expected_coordinates = Float32[-0.92073 -0.22073 2.57927 3.27927 3.97927 4.67927 -1.6207299 -0.92073 -0.22073 0.47926998 1.17927 1.87927 2.57927 3.27927 3.97927 4.67927 -1.6207299 -0.92073 -0.22073 0.47926998 2.57927 3.27927 3.97927 4.67927 5.37927 -2.32073 -1.6207299 -0.92073 -0.22073 0.47926998 3.27927 3.97927 4.67927 5.37927 -2.32073 -1.6207299 -0.92073 -0.22073 0.47926998 3.97927 4.67927 5.37927 -0.92073 -0.22073 4.67927 5.37927;
+                                           -1.4634099 -1.4634099 -1.4634099 -1.4634099 -1.4634099 -1.4634099 -0.76341 -0.76341 -0.76341 -0.76341 -0.76341 -0.76341 -0.76341 -0.76341 -0.76341 -0.76341 -0.063409984 -0.063409984 -0.063409984 -0.063409984 -0.063409984 -0.063409984 -0.063409984 -0.063409984 -0.063409984 0.63659 0.63659 0.63659 0.63659 0.63659 0.63659 0.63659 0.63659 0.63659 1.33659 1.33659 1.33659 1.33659 1.33659 1.33659 1.33659 1.33659 2.03659 2.03659 2.03659 2.03659]
+
+            if TRIXIPARTICLES_TEST_ == "metal"
+                # The segmentation currently fails on Metal
+                @test_skip isapprox(shape_sampled.coordinates, expected_coordinates)
+            else
+                @test isapprox(shape_sampled.coordinates, expected_coordinates)
+            end
+        end
+        @testset verbose=true "Packing" begin
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "preprocessing",
+                                                                      "packing_2d.jl");
+                                                             pp_cb_ekin=nothing,
+                                                             steady_state=nothing,
+                                                             maxiters=200,
+                                                             particle_spacing=0.4f0,
+                                                             parallelization_backend=Main.parallelization_backend)
+
+            expected_coordinates = Float32[-0.54062814 -0.1822883 0.18319 0.5424077 -0.6970367 -0.21124719 0.20958519 0.69549835 -0.69642335 -0.20970777 0.21168865 0.69859695 -0.5416072 -0.18389045 0.1810774 0.5401286;
+                                           -0.54145736 -0.69779885 -0.6967221 -0.5400321 -0.18300721 -0.21038264 -0.21137792 -0.18042353 0.18206 0.21135147 0.20971061 0.18462946 0.5405231 0.69809437 0.69600326 0.542027]
+
+            @test isapprox(packed_ic.coordinates, expected_coordinates)
+        end
+    end
+
     @testset verbose=true "Postprocessing $TRIXIPARTICLES_TEST_" begin
         @testset verbose=true "Interpolation" begin
             # Run the dam break example to get a solution
