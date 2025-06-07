@@ -142,7 +142,7 @@ circle = SphereShape(particle_spacing, (cylinder_diameter + particle_spacing) / 
                      sphere_type=RoundSphere())
 
 # Points for pressure interpolation, located at the wall interface
-const data_points =  copy(circle.coordinates)
+const data_points = copy(circle.coordinates)
 const center = SVector(cylinder_center)
 
 calculate_lift_force(system, v_ode, u_ode, semi, t) = nothing
@@ -185,8 +185,8 @@ end
 
 # ==========================================================================================
 # ==== Simulation
-min_corner = minimum(pipe.boundary.coordinates .- particle_spacing, dims=2)
-max_corner = maximum(pipe.boundary.coordinates .+ particle_spacing, dims=2)
+min_corner = minimum(pipe.boundary.coordinates .- 5 * particle_spacing, dims=2)
+max_corner = maximum(pipe.boundary.coordinates .+ 5 * particle_spacing, dims=2)
 cell_list = FullGridCellList(; min_corner, max_corner)
 
 neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
@@ -203,7 +203,8 @@ info_callback = InfoCallback(interval=100)
 
 output_directory = joinpath(validation_dir(), "vortex_street_2d",
                             "out_vortex_street_dp_$(factor_d)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
-                            TrixiParticles.type2string(smoothing_kernel))
+                            TrixiParticles.type2string(smoothing_kernel) *
+                            "_Re_$reynolds_number")
 
 saving_callback = SolutionSavingCallback(; dt=0.02, prefix="", output_directory)
 

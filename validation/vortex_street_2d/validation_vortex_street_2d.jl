@@ -3,15 +3,17 @@ using FFTW
 using CSV, DataFrames
 using Test
 
-# Results in [90k particles, 220k particles, 1.2M particles, 5M particles]
+# Results in [90k particles, 340k particles, 1.2M particles, 5M particles]
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
-resolution_factor = 0.08 # [0.08, 0.05, 0.02, 0.01]
+resolution_factor = 0.08 # [0.08, 0.04, 0.02, 0.01]
 
 # ======================================================================================
 # ==== Run the simulation
 trixi_include(joinpath(validation_dir(), "vortex_street_2d", "vortex_street_2d.jl"),
               parallelization_backend=PolyesterBackend(),
-              factor_d=resolution_factor, saving_callback=nothing, tspan=(0.0, 20.0))
+              sound_speed=10.0, reynolds_number=200, saving_callback=nothing,
+              smoothing_kernel=SchoenbergQuinticSplineKernel{2}(), h_factor=1.2,
+              factor_d=resolution_factor, tspan=(0.0, 20.0))
 
 # ======================================================================================
 # ==== Read results and compute the Strouhal number
