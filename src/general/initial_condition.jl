@@ -328,12 +328,14 @@ end
 
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
-function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
-                          min_particle_distance=(system.initial_condition.particle_spacing /
+function InitialCondition(sol::ODESolution, system_, semi_; use_final_velocity=false,
+                          min_particle_distance=(system_.initial_condition.particle_spacing /
                                                  4))
-    ic = system.initial_condition
+    # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
+    v_ode_, u_ode_ = sol.u[end].x
+    v_ode, u_ode, system, semi = transfer2cpu(v_ode_, u_ode_, system_, semi_)
 
-    v_ode, u_ode = sol.u[end].x
+    ic = system.initial_condition
 
     u = wrap_u(u_ode, system, semi)
     v = wrap_u(v_ode, system, semi)

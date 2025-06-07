@@ -12,10 +12,12 @@ function FaceNeighborhoodSearch{NDIMS}(; search_radius,
                                        cell_list=PointNeighbors.DictionaryCellList{NDIMS}()) where {NDIMS}
     cell_size = ntuple(_ -> search_radius, Val(NDIMS))
     n_cells = ntuple(_ -> -1, Val(NDIMS))
+    cell_list_ = PointNeighbors.copy_cell_list(cell_list, search_radius, nothing)
     neighbors = PointNeighbors.copy_cell_list(cell_list, search_radius, nothing)
 
-    return FaceNeighborhoodSearch(cell_list, neighbors, search_radius, nothing, n_cells,
-                                  cell_size)
+    FaceNeighborhoodSearch{NDIMS, typeof(cell_list_),
+                           eltype(search_radius)}(cell_list_, neighbors, search_radius,
+                                                  nothing, n_cells, cell_size)
 end
 
 @inline Base.ndims(::FaceNeighborhoodSearch{NDIMS}) where {NDIMS} = NDIMS
