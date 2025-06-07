@@ -71,7 +71,8 @@ struct WindingNumberJacobson{ELTYPE, W, C}
 end
 
 function WindingNumberJacobson(geometry::Geometry; winding=HierarchicalWinding(geometry),
-                               winding_number_factor=sqrt(eps()),
+                               winding_number_factor=eltype(geometry) == Float32 ?
+                                                     10 * sqrt(eps()) : sqrt(eps()),
                                store_winding_number=false)
     ELTYPE = eltype(geometry)
 
