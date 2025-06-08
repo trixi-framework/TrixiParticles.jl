@@ -4,10 +4,12 @@
         flow_direction = (1.0, 0.0)
 
         # Mock fluid system
-        struct FluidSystemMock2 <: TrixiParticles.FluidSystem{2, Nothing} end
+        struct FluidSystemMock2 <: TrixiParticles.FluidSystem{2} end
+        TrixiParticles.initial_smoothing_length(system::FluidSystemMock2) = 1.0
 
-        inflow = InFlow(; plane, particle_spacing=0.1,
-                        flow_direction, density=1.0, open_boundary_layers=2)
+        inflow = BoundaryZone(; plane, particle_spacing=0.1,
+                              plane_normal=flow_direction, density=1.0,
+                              open_boundary_layers=2, boundary_type=InFlow())
 
         error_str = "`reference_velocity` must be either a function mapping " *
                     "each particle's coordinates and time to its velocity, " *
@@ -52,8 +54,9 @@
                                                                     reference_pressure=0)
     end
     @testset "`show`" begin
-        inflow = InFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
-                        flow_direction=(1.0, 0.0), density=1.0, open_boundary_layers=4)
+        inflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
+                              plane_normal=(1.0, 0.0), density=1.0,
+                              open_boundary_layers=4, boundary_type=InFlow())
         system = OpenBoundarySPHSystem(inflow; buffer_size=0,
                                        boundary_model=BoundaryModelLastiwka(),
                                        reference_density=0.0,
@@ -71,8 +74,7 @@
         │ #buffer_particles: ……………………………… 0                                                                │
         │ fluid system: …………………………………………… FluidSystemMock2                                                 │
         │ boundary model: ……………………………………… BoundaryModelLastiwka                                            │
-        │ boundary: ……………………………………………………… InFlow                                                           │
-        │ flow direction: ……………………………………… [1.0, 0.0]                                                       │
+        │ boundary type: ………………………………………… InFlow                                                           │
         │ prescribed velocity: ………………………… constant_vector                                                  │
         │ prescribed pressure: ………………………… constant_scalar                                                  │
         │ prescribed density: …………………………… constant_scalar                                                  │
@@ -81,8 +83,9 @@
 
         @test repr("text/plain", system) == show_box
 
-        outflow = OutFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
-                          flow_direction=(1.0, 0.0), density=1.0, open_boundary_layers=4)
+        outflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
+                               plane_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
+                               boundary_type=OutFlow())
         system = OpenBoundarySPHSystem(outflow; buffer_size=0,
                                        boundary_model=BoundaryModelLastiwka(),
                                        reference_density=0.0,
@@ -100,8 +103,7 @@
         │ #buffer_particles: ……………………………… 0                                                                │
         │ fluid system: …………………………………………… FluidSystemMock2                                                 │
         │ boundary model: ……………………………………… BoundaryModelLastiwka                                            │
-        │ boundary: ……………………………………………………… OutFlow                                                          │
-        │ flow direction: ……………………………………… [1.0, 0.0]                                                       │
+        │ boundary type: ………………………………………… OutFlow                                                          │
         │ prescribed velocity: ………………………… constant_vector                                                  │
         │ prescribed pressure: ………………………… constant_scalar                                                  │
         │ prescribed density: …………………………… constant_scalar                                                  │

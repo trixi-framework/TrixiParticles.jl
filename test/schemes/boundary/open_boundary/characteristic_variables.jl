@@ -34,18 +34,23 @@
 
         @testset "Flow Direction $j" for j in eachindex(flow_directions)
             flow_direction = flow_directions[j]
-            inflow = InFlow(; plane=plane_points, particle_spacing, density,
-                            flow_direction, open_boundary_layers)
-            outflow = OutFlow(; plane=plane_points, particle_spacing, density,
-                              flow_direction, open_boundary_layers)
+            inflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
+                                  plane_normal=flow_direction, open_boundary_layers,
+                                  boundary_type=InFlow())
+            outflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
+                                   plane_normal=(-flow_direction), open_boundary_layers,
+                                   boundary_type=OutFlow())
 
             boundary_zones = [
                 inflow,
                 outflow
             ]
 
-            @testset "`$(nameof(typeof(boundary_zone)))`" for boundary_zone in boundary_zones
-                sign_ = (boundary_zone isa InFlow) ? 1 : -1
+            @testset "`$(TrixiParticles.boundary_type_name(boundary_zone))`" for boundary_zone in
+                                                                                 boundary_zones
+
+                sign_ = (first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow) ?
+                        1 : -1
                 fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,
                                          density, pressure,
                                          direction=(sign_ * flow_direction))
@@ -96,13 +101,13 @@
                                                          v, u, v0_ode, u0_ode, semi, t1)
                 evaluated_vars1 = boundary_system.cache.characteristics
 
-                if boundary_zone isa InFlow
+                if first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow
                     @test all(isapprox.(evaluated_vars1[1, :], 0.0))
                     @test all(isapprox.(evaluated_vars1[2, :], 0.0))
                     @test all(isapprox.(evaluated_vars1[3, 1:n_influenced], J3(t1)))
                     @test all(isapprox.(evaluated_vars1[3, (n_influenced + 1):end], 0.0))
 
-                elseif boundary_zone isa OutFlow
+                elseif first(typeof(boundary_zone).parameters) === TrixiParticles.OutFlow
                     @test all(isapprox.(evaluated_vars1[1, 1:n_influenced], J1(t1)))
                     @test all(isapprox.(evaluated_vars1[2, 1:n_influenced], J2(t1)))
                     @test all(isapprox.(evaluated_vars1[1:2, (n_influenced + 1):end], 0.0))
@@ -116,13 +121,13 @@
                                                          v, u, v0_ode, u0_ode, semi, t2)
                 evaluated_vars2 = boundary_system.cache.characteristics
 
-                if boundary_zone isa InFlow
+                if first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow
                     @test all(isapprox.(evaluated_vars2[1, :], 0.0))
                     @test all(isapprox.(evaluated_vars2[2, :], 0.0))
                     @test all(isapprox.(evaluated_vars2[3, 1:n_influenced], J3(t2)))
                     @test all(isapprox.(evaluated_vars2[3, (n_influenced + 1):end], J3(t1)))
 
-                elseif boundary_zone isa OutFlow
+                elseif first(typeof(boundary_zone).parameters) === TrixiParticles.OutFlow
                     @test all(isapprox.(evaluated_vars2[1, 1:n_influenced], J1(t2)))
                     @test all(isapprox.(evaluated_vars2[2, 1:n_influenced], J2(t2)))
                     @test all(isapprox.(evaluated_vars2[1, (n_influenced + 1):end], J1(t1)))

@@ -1,17 +1,17 @@
 # Interaction of boundary with other systems
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   v_neighbor_system, u_neighbor_system,
                    particle_system::Union{BoundarySystem, OpenBoundarySPHSystem},
-                   neighbor_system)
+                   neighbor_system, semi)
     # TODO Solids and moving boundaries should be considered in the continuity equation
     return dv
 end
 
 # For dummy particles with `ContinuityDensity`, solve the continuity equation
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   v_neighbor_system, u_neighbor_system,
                    particle_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                   neighbor_system::FluidSystem)
+                   neighbor_system::FluidSystem, semi)
     (; boundary_model) = particle_system
     fluid_density_calculator = neighbor_system.density_calculator
 
@@ -20,16 +20,16 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           neighborhood_search) do particle, neighbor, pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        rho_a = particle_density(v_particle_system, particle_system, particle)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = current_density(v_particle_system, particle_system, particle)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
                  current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-        grad_kernel = smoothing_kernel_grad(boundary_model, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
 
         continuity_equation!(dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
                              grad_kernel, particle)

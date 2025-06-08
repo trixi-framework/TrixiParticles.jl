@@ -3,9 +3,8 @@
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates the density
 # using the continuity equation.
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::WeaklyCompressibleSPHSystem,
-                   neighbor_system)
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
     (; density_calculator, state_equation, correction) = particle_system
     (; sound_speed) = state_equation
 
@@ -21,8 +20,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           neighborhood_search;
+                           system_coords, neighbor_system_coords, semi;
                            points=each_moving_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             pos_diff,
@@ -30,15 +28,15 @@ function interact!(dv, v_particle_system, u_particle_system,
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.
-        rho_a = @inbounds particle_density(v_particle_system, particle_system, particle)
-        rho_b = @inbounds particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
+        rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = (rho_a + rho_b) / 2
 
         # Determine correction factors.
         # This can be ignored, as these are all 1 when no correction is used.
         (viscosity_correction, pressure_correction,
-        surface_tension_correction) = free_surface_correction(correction, particle_system,
-                                                              rho_mean)
+         surface_tension_correction) = free_surface_correction(correction, particle_system,
+                                                               rho_mean)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
@@ -46,18 +44,20 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
         # The following call is equivalent to
-        #     `p_a = particle_pressure(v_particle_system, particle_system, particle)`
-        #     `p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)`
+        #     `p_a = current_pressure(v_particle_system, particle_system, particle)`
+        #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
         # Only when the neighbor system is a `BoundarySPHSystem` or a `TotalLagrangianSPHSystem`
         # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
         # the pressure of the fluid particle.
-        p_a, p_b = @inbounds particle_neighbor_pressure(v_particle_system,
-                                                        v_neighbor_system,
-                                                        particle_system, neighbor_system,
-                                                        particle, neighbor)
+        p_a,
+        p_b = @inbounds particle_neighbor_pressure(v_particle_system,
+                                                   v_neighbor_system,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor)
 
         dv_pressure = pressure_correction *
-                      pressure_acceleration(particle_system, neighbor_system, neighbor,
+                      pressure_acceleration(particle_system, neighbor_system,
+                                            particle, neighbor,
                                             m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                             distance, grad_kernel, correction)
 
@@ -69,20 +69,33 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                sound_speed, m_a, m_b, rho_a, rho_b,
                                                grad_kernel)
 
+        # Add convection term (only when using `TransportVelocityAdami`)
+        dv_convection = momentum_convection(particle_system, neighbor_system,
+                                            v_particle_system, v_neighbor_system,
+                                            rho_a, rho_b, m_a, m_b,
+                                            particle, neighbor, grad_kernel)
+
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
-                                                   particle, neighbor, pos_diff, distance)
+                                                   particle, neighbor, pos_diff, distance,
+                                                   rho_a, rho_b, grad_kernel)
 
         dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
-            @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] +
-                                         dv_surface_tension[i] + dv_adhesion[i]
+            @inbounds dv[i,
+                         particle] += dv_pressure[i] + dv_viscosity_[i] +
+                                      dv_convection[i] + dv_surface_tension[i] +
+                                      dv_adhesion[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
+
+        # Apply the transport velocity (only when using a transport velocity)
+        transport_velocity!(dv, particle_system, neighbor_system, particle, neighbor,
+                            m_a, m_b, grad_kernel)
 
         # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
@@ -138,8 +151,8 @@ end
                                                         v_neighbor_system,
                                                         particle_system, neighbor_system,
                                                         particle, neighbor)
-    p_a = particle_pressure(v_particle_system, particle_system, particle)
-    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+    p_a = current_pressure(v_particle_system, particle_system, particle)
+    p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
     return p_a, p_b
 end
@@ -148,7 +161,7 @@ end
                                             particle_system,
                                             neighbor_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
                                             particle, neighbor)
-    p_a = particle_pressure(v_particle_system, particle_system, particle)
+    p_a = current_pressure(v_particle_system, particle_system, particle)
 
     return p_a, p_a
 end
