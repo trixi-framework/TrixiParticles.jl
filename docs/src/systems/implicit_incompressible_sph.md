@@ -1,6 +1,6 @@
 # [Implicit Incompressible SPH](@id iisph)
 
-Implicit Incompressible SPH as introduced by [M. Ihmsen](@cite ihmsen2014) is a scheme that computes pressure values, by iteratively solving a linear system using a relaxed jacobi system, to resolve the particles density deviation from the reference density. This method solves a linear system $Ax=b$ where the pressure values that are used for the pressure acceleration are the unknown variable $x$.
+Implicit Incompressible SPH as introduced by [M. Ihmsen](@cite ihmsen2013) is a scheme that computes pressure values, by iteratively solving a linear system using a relaxed jacobi system, to resolve the particles density deviation from the reference density. This method solves a linear system $Ax=b$ where the pressure values that are used for the pressure acceleration are the unknown variable $x$.
 It does not use a state equation to generate pressure values like the [weakly compressible SPH scheme](weakly_compressible_sph.md).
 
 
