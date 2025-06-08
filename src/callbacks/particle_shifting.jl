@@ -6,8 +6,13 @@ Following the original paper, the callback is applied in every time step and not
 in every stage of a multi-stage time integration method to reduce the computational
 cost and improve the stability of the scheme.
 
-## References
-[Sun2017](@cite)
+See [Callbacks](@ref Callbacks) for more information on how to use this callback.
+See [Particle Shifting Technique](@ref shifting) for more information on the method itself.
+
+!!! warning
+    The Particle Shifting Technique needs to be disabled close to the free surface
+    and therefore requires a free surface detection method. This is not yet implemented.
+    **This callback cannot be used in a free surface simulation.**
 """
 function ParticleShiftingCallback()
     # The first one is the `condition`, the second the `affect!`
@@ -27,7 +32,7 @@ function particle_shifting!(integrator)
     v_ode, u_ode = integrator.u.x
     dt = integrator.dt
     # Internal cache vector, which is safe to use as temporary array
-    u_cache = first(get_tmp_cache(integrator))
+    vu_cache = first(get_tmp_cache(integrator))
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
@@ -36,7 +41,7 @@ function particle_shifting!(integrator)
     @trixi_timeit timer() "particle shifting" foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
         v = wrap_v(v_ode, system, semi)
-        particle_shifting!(u, v, system, v_ode, u_ode, semi, u_cache, dt)
+        particle_shifting!(u, v, system, v_ode, u_ode, semi, vu_cache, dt)
     end
 
     # Tell OrdinaryDiffEq that `u` has been modified
@@ -49,14 +54,19 @@ function particle_shifting!(u, v, system, v_ode, u_ode, semi, u_cache, dt)
     return u
 end
 
-function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi, u_cache, dt)
+function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
+                            vu_cache, dt)
     # Wrap the cache vector to an NDIMS x NPARTICLES matrix.
     # We need this buffer because we cannot safely update `u` while iterating over it.
+    _, u_cache = vu_cache.x
     delta_r = wrap_u(u_cache, system, semi)
     set_zero!(delta_r)
 
-    v_max = maximum(particle -> norm(current_velocity(v, system, particle)),
-                    eachparticle(system))
+    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # but is GPU-compatible.
+    v_max = maximum(x -> sqrt(dot(x, x)),
+                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                                current_velocity(v, system)))
 
     # TODO this needs to be adapted to multi-resolution.
     # Section 3.2 explains what else needs to be changed.
@@ -75,14 +85,14 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi, u_cac
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            rho_a = particle_density(v, system, particle)
-            rho_b = particle_density(v_neighbor, neighbor_system, neighbor)
+            rho_a = current_density(v, system, particle)
+            rho_b = current_density(v_neighbor, neighbor_system, neighbor)
 
             kernel = smoothing_kernel(system, distance, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             # According to p. 29 below Eq. 9
-            R = 0.2
+            R = 2 // 10
             n = 4
 
             # Eq. 7 in Sun et al. (2017).

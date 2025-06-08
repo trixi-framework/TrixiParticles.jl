@@ -47,14 +47,16 @@ pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_densi
 # Shift pipe walls in negative x-direction for the inflow
 pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
-n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
+NDIMS = ndims(pipe.fluid)
+
+n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
 
 # ==========================================================================================
 # ==== Fluid
 wcsph = false
 
-smoothing_length = 3.0 * particle_spacing
-smoothing_kernel = WendlandC2Kernel{2}()
+smoothing_length = 1.5 * particle_spacing
+smoothing_kernel = WendlandC2Kernel{NDIMS}()
 
 fluid_density_calculator = ContinuityDensity()
 
@@ -110,7 +112,7 @@ open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
 
 boundary_type_out = OutFlow()
 plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
-outflow = BoundaryZone(; plane=plane_out, plane_normal=-flow_direction,
+outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        boundary_type=boundary_type_out)
 
@@ -136,8 +138,15 @@ boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
+min_corner = minimum(pipe.boundary.coordinates .- particle_spacing, dims=2)
+max_corner = maximum(pipe.boundary.coordinates .+ particle_spacing, dims=2)
+
+nhs = GridNeighborhoodSearch{NDIMS}(; cell_list=FullGridCellList(; min_corner, max_corner),
+                                    update_strategy=ParallelUpdate())
+
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
-                          boundary_system, parallelization_backend=true)
+                          boundary_system, neighborhood_search=nhs,
+                          parallelization_backend=PolyesterBackend())
 
 ode = semidiscretize(semi, tspan)
 

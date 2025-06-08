@@ -235,12 +235,7 @@ end
 
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
-@inline function particle_density(v, ::ContinuityDensity,
-                                  system::EntropicallyDampedSPHSystem, particle)
-    return v[end - 1, particle]
-end
-
-@inline function particle_pressure(v, system::EntropicallyDampedSPHSystem, particle)
+@inline function current_pressure(v, system::EntropicallyDampedSPHSystem, particle)
     return v[end, particle]
 end
 
@@ -272,6 +267,26 @@ end
 
 @inline average_pressure(system, ::Nothing, particle) = zero(eltype(system))
 
+@inline function current_density(v, system::EntropicallyDampedSPHSystem)
+    return current_density(v, system.density_calculator, system)
+end
+
+@inline function current_density(v, ::SummationDensity,
+                                 system::EntropicallyDampedSPHSystem)
+    # When using `SummationDensity`, the density is stored in the cache
+    return system.cache.density
+end
+
+@inline function current_density(v, ::ContinuityDensity,
+                                 system::EntropicallyDampedSPHSystem)
+    # When using `ContinuityDensity`, the density is stored in the second to last row of `v`
+    return view(v, size(v, 1) - 1, :)
+end
+
+@inline function current_pressure(v, ::EntropicallyDampedSPHSystem)
+    return view(v, size(v, 1), :)
+end
+
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     compute_density!(system, u, u_ode, semi, system.density_calculator)
@@ -291,6 +306,10 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
+
+    # Check that TVF is only used together with `UpdateCallback`
+    check_tvf_configuration(system, system.transport_velocity, v, u, v_ode, u_ode, semi, t;
+                            update_from_callback)
 end
 
 function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
@@ -322,9 +341,9 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
                                semi;
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
-            pressure_average[particle] += particle_pressure(v_neighbor_system,
-                                                            neighbor_system,
-                                                            neighbor)
+            pressure_average[particle] += current_pressure(v_neighbor_system,
+                                                           neighbor_system,
+                                                           neighbor)
             neighbor_counter[particle] += 1
         end
     end

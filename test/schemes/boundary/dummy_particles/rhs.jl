@@ -120,7 +120,8 @@
         smoothing_length = 1.2particle_spacing
         search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
-        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
+        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
+                                                               density_calculators
             # Run three times with different seed for the random initial condition
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
@@ -166,9 +167,10 @@
                 end
 
                 # Create several neighbor systems to test fluid-neighbor interaction
-                systems, vu = second_systems(boundary, density_calculator,
-                                             state_equation,
-                                             smoothing_kernel, smoothing_length)
+                systems,
+                vu = second_systems(boundary, density_calculator,
+                                    state_equation,
+                                    smoothing_kernel, smoothing_length)
 
                 @testset "$key" for key in keys(systems)
                     neighbor_system = systems[key]
@@ -261,8 +263,8 @@
                     function deriv_energy(dv, v, u, v_neighbor, u_neighbor,
                                           system, neighbor_system, particle)
                         m_a = TrixiParticles.hydrodynamic_mass(system, particle)
-                        p_a = TrixiParticles.particle_pressure(v, system, particle)
-                        rho_a = TrixiParticles.particle_density(v, system, particle)
+                        p_a = TrixiParticles.current_pressure(v, system, particle)
+                        rho_a = TrixiParticles.current_density(v, system, particle)
 
                         if system isa WeaklyCompressibleSPHSystem
                             dc = system.density_calculator

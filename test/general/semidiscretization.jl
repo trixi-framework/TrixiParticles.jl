@@ -72,7 +72,8 @@
             solid_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
                                                      boundary_model=model_a)
 
-            @test_nowarn TrixiParticles.check_configuration((solid_system2, fluid_system))
+            @test_nowarn TrixiParticles.check_configuration((solid_system2, fluid_system),
+                                                            nothing)
 
             # FSI with wrong boundary model
             solid_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
@@ -123,8 +124,8 @@
 
     @testset verbose=true "Source Terms" begin
         TrixiParticles.source_terms(::System1) = SourceTermDamping(damping_coefficient=0.1)
-        TrixiParticles.particle_density(v, system::System1, particle) = 0.0
-        TrixiParticles.particle_pressure(v, system::System1, particle) = 0.0
+        TrixiParticles.current_density(v, system::System1, particle) = 0.0
+        TrixiParticles.current_pressure(v, system::System1, particle) = 0.0
 
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
