@@ -144,6 +144,7 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
     end
 
     cache = create_cache_open_boundary(boundary_model, initial_condition,
+                                       boundary_zone, fluid_system,
                                        reference_density, reference_velocity,
                                        reference_pressure)
 
@@ -161,16 +162,35 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
 end
 
 function create_cache_open_boundary(boundary_model, initial_condition,
+                                    boundary_zone, fluid_system,
                                     reference_density, reference_velocity,
                                     reference_pressure)
     ELTYPE = eltype(initial_condition)
+
+    if !(isnothing(boundary_zone.shift_zone))
+        # We need a neighborhood search for the boundary coordinates
+        (; boundary_coordinates) = boundary_zone.shift_zone
+        min_corner = minimum(boundary_coordinates, dims=2)
+        max_corner = maximum(boundary_coordinates, dims=2)
+        cell_list = FullGridCellList(; min_corner, max_corner)
+
+        NDIMS = ndims(initial_condition)
+        nhs = GridNeighborhoodSearch{NDIMS}(; cell_list, update_strategy=ParallelUpdate())
+
+        nhs_boundary = copy_neighborhood_search(nhs,
+                                                compact_support(fluid_system, fluid_system),
+                                                nparticles(initial_condition))
+        cache = (; nhs_boundary=nhs_boundary)
+    else
+        cache = (;)
+    end
 
     prescribed_pressure = isnothing(reference_pressure) ? false : true
     prescribed_velocity = isnothing(reference_velocity) ? false : true
     prescribed_density = isnothing(reference_density) ? false : true
 
     if boundary_model isa BoundaryModelTafuni
-        return (; prescribed_pressure=prescribed_pressure,
+        return (; cache..., prescribed_pressure=prescribed_pressure,
                 prescribed_density=prescribed_density,
                 prescribed_velocity=prescribed_velocity)
     end
@@ -178,7 +198,7 @@ function create_cache_open_boundary(boundary_model, initial_condition,
     characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
-    return (; characteristics=characteristics,
+    return (; cache..., characteristics=characteristics,
             previous_characteristics=previous_characteristics,
             prescribed_pressure=prescribed_pressure,
             prescribed_density=prescribed_density, prescribed_velocity=prescribed_velocity)
@@ -503,7 +523,8 @@ function particle_shifting!(u, v, system::OpenBoundarySPHSystem,
     isnothing(boundary_zone.shift_zone) && return u
 
     (; delta_r, spanning_set_shift_zone, shift_zone_origin,
-     nhs_boundary, boundary_coordinates) = boundary_zone.shift_zone
+     boundary_coordinates) = boundary_zone.shift_zone
+    (; nhs_boundary) = system.cache
 
     set_zero!(delta_r)
 

@@ -307,20 +307,9 @@ function set_up_shift_zone(::InFlow, boundary_coordinates, initial_condition,
     # to ensure a buffer before and after the shift zone.
     shift_zone_origin = zone_origin .- flow_direction * 4 * particle_spacing
 
-    # We need a neighborhood search for the boundary coordinates
-    min_corner = minimum(boundary_coordinates .- particle_spacing, dims=2)
-    max_corner = maximum(boundary_coordinates .+ particle_spacing, dims=2)
-    cell_list = FullGridCellList(; min_corner, max_corner)
-
-    nhs = GridNeighborhoodSearch{NDIMS}(; cell_list, update_strategy=ParallelUpdate())
-
-    nhs_boundary = copy_neighborhood_search(nhs, shift_zone_width,
-                                            nparticles(initial_condition))
-
     delta_r = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
 
-    return (; delta_r, spanning_set_shift_zone, shift_zone_origin, nhs_boundary,
-            boundary_coordinates)
+    return (; delta_r, spanning_set_shift_zone, shift_zone_origin, boundary_coordinates)
 end
 
 initialize_shift_zone!(boundary_zone, system) = boundary_zone
@@ -328,10 +317,10 @@ initialize_shift_zone!(boundary_zone, system) = boundary_zone
 function initialize_shift_zone!(boundary_zone::BoundaryZone{InFlow}, system)
     isnothing(boundary_zone.shift_zone) && return boundary_zone
 
-    (; nhs_boundary, boundary_coordinates) = boundary_zone.shift_zone
+    (; nhs_boundary) = system.cache
 
     PointNeighbors.initialize!(nhs_boundary, initial_coordinates(system),
-                               boundary_coordinates)
+                               boundary_zone.shift_zone.boundary_coordinates)
 
     return boundary_zone
 end

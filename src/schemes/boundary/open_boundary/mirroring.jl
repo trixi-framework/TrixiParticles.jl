@@ -12,6 +12,8 @@ struct BoundaryModelTafuni end
 function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode,
                                      semi, t)
     @trixi_timeit timer() "extrapolate and correct values" begin
+        (; prescribed_density, prescribed_pressure, prescribed_velocity) = system.cache
+
         fluid_system = corresponding_fluid_system(system, semi)
 
         v_open_boundary = wrap_v(v_ode, system, semi)
@@ -20,7 +22,8 @@ function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode,
         u_fluid = wrap_u(u_ode, fluid_system, semi)
 
         extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
-                            semi, t; system.cache...)
+                            semi, t;
+                            prescribed_density, prescribed_pressure, prescribed_velocity)
     end
 end
 
