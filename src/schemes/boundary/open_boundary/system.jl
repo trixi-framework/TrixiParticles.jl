@@ -509,7 +509,7 @@ function particle_shifting!(u, v, system::OpenBoundarySPHSystem,
     isnothing(boundary_zone.shift_zone) && return u
 
     (; delta_r, spanning_set_shift_zone, shift_zone_origin,
-    nhs_boundary, boundary_coordinates) = boundary_zone.shift_zone
+     nhs_boundary, boundary_coordinates) = boundary_zone.shift_zone
 
     set_zero!(delta_r)
 
