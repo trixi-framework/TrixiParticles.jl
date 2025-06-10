@@ -313,17 +313,18 @@ function set_up_shift_zone(::InFlow, boundary_coordinates, initial_condition,
 
     # We need a neighborhood search for the boundary coordinates
     nhs_boundary = Ref(GridNeighborhoodSearch{NDIMS}(; cell_list,
+                                                     search_radius=zero(ELTYPE),
                                                      update_strategy=ParallelUpdate()))
 
-    delta_r = zeros(NDIMS, nparticles(initial_condition))
+    delta_r = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
 
     return (; delta_r, spanning_set_shift_zone, shift_zone_origin, nhs_boundary,
             boundary_coordinates)
 end
 
-initialize_shift_zone!(boundary_zone, system, semi) = boundary_zone
+initialize_shift_zone!(boundary_zone, system) = boundary_zone
 
-function initialize_shift_zone!(boundary_zone::BoundaryZone{InFlow}, system, semi)
+function initialize_shift_zone!(boundary_zone::BoundaryZone{InFlow}, system)
     isnothing(boundary_zone.shift_zone) && return boundary_zone
 
     (; nhs_boundary, boundary_coordinates) = boundary_zone.shift_zone
