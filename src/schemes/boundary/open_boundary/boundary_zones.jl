@@ -298,10 +298,6 @@ function set_up_shift_zone(::InFlow, boundary_coordinates, initial_condition,
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
 
-    min_corner = minimum(boundary_coordinates, dims=2)
-    max_corner = maximum(boundary_coordinates, dims=2)
-    cell_list = FullGridCellList(; min_corner, max_corner)
-
     shift_zone_width = 4 * particle_spacing
     spanning_set_shift_zone_ = spanning_vectors(Tuple(plane), shift_zone_width)
     spanning_set_shift_zone = reinterpret(reshape, SVector{NDIMS, ELTYPE},
@@ -312,9 +308,14 @@ function set_up_shift_zone(::InFlow, boundary_coordinates, initial_condition,
     shift_zone_origin = zone_origin .- flow_direction * 4 * particle_spacing
 
     # We need a neighborhood search for the boundary coordinates
-    nhs_boundary = Ref(GridNeighborhoodSearch{NDIMS}(; cell_list,
-                                                     search_radius=zero(ELTYPE),
-                                                     update_strategy=ParallelUpdate()))
+    min_corner = minimum(boundary_coordinates .- particle_spacing, dims=2)
+    max_corner = maximum(boundary_coordinates .+ particle_spacing, dims=2)
+    cell_list = FullGridCellList(; min_corner, max_corner)
+
+    nhs = GridNeighborhoodSearch{NDIMS}(; cell_list, update_strategy=ParallelUpdate())
+
+    nhs_boundary = copy_neighborhood_search(nhs, shift_zone_width,
+                                            nparticles(initial_condition))
 
     delta_r = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
 
@@ -329,15 +330,8 @@ function initialize_shift_zone!(boundary_zone::BoundaryZone{InFlow}, system)
 
     (; nhs_boundary, boundary_coordinates) = boundary_zone.shift_zone
 
-    nhs = copy_neighborhood_search(nhs_boundary[],
-                                   compact_support(system.fluid_system,
-                                                   system.fluid_system),
-                                   size(boundary_coordinates, 2))
-
-    PointNeighbors.initialize!(nhs, initial_coordinates(system),
+    PointNeighbors.initialize!(nhs_boundary, initial_coordinates(system),
                                boundary_coordinates)
-
-    nhs_boundary[] = nhs
 
     return boundary_zone
 end

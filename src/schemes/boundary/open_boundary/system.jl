@@ -250,12 +250,6 @@ end
     return system.pressure
 end
 
-function initialize!(system::OpenBoundarySPHSystem, semi)
-    initialize_shift_zone!(system.boundary_zone, system, semi)
-
-    return system
-end
-
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
                        update_from_callback=false)
     if !update_from_callback && !(system.update_callback_used[])
@@ -537,6 +531,7 @@ function particle_shifting!(u, v, system::OpenBoundarySPHSystem,
 
     PointNeighbors.foreach_point_neighbor(system_coords, system_coords,
                                           neighborhood_search;
+                                          parallelization_backend=semi.parallelization_backend,
                                           points=shift_candidates) do particle,
                                                                       neighbor,
                                                                       pos_diff,
@@ -545,12 +540,13 @@ function particle_shifting!(u, v, system::OpenBoundarySPHSystem,
                         pos_diff, distance, v_max, Wdx, h, dt)
     end
 
-    PointNeighbors.update!(nhs_boundary[], system_coords, boundary_coordinates;
+    PointNeighbors.update!(nhs_boundary, system_coords, boundary_coordinates;
                            points_moving=(true, false),
                            parallelization_backend=semi.parallelization_backend)
 
     PointNeighbors.foreach_point_neighbor(system_coords, boundary_coordinates,
-                                          nhs_boundary[];
+                                          nhs_boundary;
+                                          parallelization_backend=semi.parallelization_backend,
                                           points=shift_candidates) do particle,
                                                                       neighbor,
                                                                       pos_diff,
