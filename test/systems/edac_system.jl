@@ -194,6 +194,9 @@
         TrixiParticles.write_v0!(v0, system)
 
         @test v0 == vcat(velocity, pressure')
+        @test TrixiParticles.current_velocity(v0, system) == velocity
+        @test TrixiParticles.current_density(v0, system) == system.cache.density
+        @test TrixiParticles.current_pressure(v0, system) == pressure
 
         initial_condition = InitialCondition(; coordinates, velocity, mass, density,
                                              pressure=pressure_function)
