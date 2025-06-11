@@ -261,7 +261,7 @@ end
                                   system::WeaklyCompressibleSPHSystem)
     # When using `ContinuityDensity`, the velocity is stored
     # in the first `ndims(system)` rows of `v`.
-    return view(v, 1:ndims(system), each_moving_particle(system))
+    return view(v, 1:ndims(system), :)
 end
 
 @inline function current_density(v, system::WeaklyCompressibleSPHSystem)
@@ -271,17 +271,17 @@ end
 @inline function current_density(v, ::SummationDensity,
                                  system::WeaklyCompressibleSPHSystem)
     # When using `SummationDensity`, the density is stored in the cache
-    return view(system.cache.density, each_moving_particle(system))
+    return system.cache.density
 end
 
 @inline function current_density(v, ::ContinuityDensity,
                                  system::WeaklyCompressibleSPHSystem)
     # When using `ContinuityDensity`, the density is stored in the last row of `v`
-    return view(v, size(v, 1), each_moving_particle(system))
+    return view(v, size(v, 1), :)
 end
 
 @inline function current_pressure(v, system::WeaklyCompressibleSPHSystem)
-    return view(system.pressure, each_moving_particle(system))
+    return system.pressure
 end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
