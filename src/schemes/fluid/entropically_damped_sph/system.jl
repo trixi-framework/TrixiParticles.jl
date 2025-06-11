@@ -240,7 +240,7 @@ system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 end
 
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
-    return view(v, 1:ndims(system), :)
+    return view(v, 1:ndims(system), each_moving_particle(system))
 end
 
 @inline system_state_equation(system::EntropicallyDampedSPHSystem) = nothing
@@ -287,8 +287,8 @@ end
     return view(v, size(v, 1) - 1, :)
 end
 
-@inline function current_pressure(v, ::EntropicallyDampedSPHSystem)
-    return view(v, size(v, 1), :)
+@inline function current_pressure(v, system::EntropicallyDampedSPHSystem)
+    return view(v, size(v, 1), each_moving_particle(system))
 end
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
