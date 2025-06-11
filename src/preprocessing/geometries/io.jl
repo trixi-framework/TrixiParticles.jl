@@ -73,7 +73,8 @@ function load_dxf!(points::Vector{Tuple{T, T}}, filename) where {T}
                             i += 1
                         end
                         x1 = parse(T, strip(lines[i + 1]))
-                        y1 = parse(T, strip(lines[i + 3])) # "20" is two lines further
+                        @assert strip(lines[i + 2]) == "20"
+                        y1 = parse(T, strip(lines[i + 3]))
 
                         push!(points, (x1, y1))
                     end
@@ -84,9 +85,10 @@ function load_dxf!(points::Vector{Tuple{T, T}}, filename) where {T}
                         i += 1
                     end
                     x2 = parse(T, strip(lines[i + 1]))
-                    y2 = parse(T, strip(lines[i + 3]))  # "21" is two lines further
+                    @assert strip(lines[i + 2]) == "21"
+                    y2 = parse(T, strip(lines[i + 3]))
 
-                    # Add end points of the line to the point list
+                    # Add end point of the line to the point list
                     push!(points, (x2, y2))
                 end
                 i += 1
@@ -105,7 +107,8 @@ function load_dxf!(points::Vector{Tuple{T, T}}, filename) where {T}
                         i += 1
                     end
                     x = parse(T, strip(lines[i + 1]))
-                    y = parse(T, strip(lines[i + 3])) # "20" is two lines further
+                    @assert strip(lines[i + 2]) == "20"
+                    y = parse(T, strip(lines[i + 3]))
 
                     # Add the vertex to the point list
                     push!(points, (x, y))

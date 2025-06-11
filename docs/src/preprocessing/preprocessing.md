@@ -256,7 +256,8 @@ Geometries can be imported using the [`load_geometry`](@ref) function.
 - For 2D geometries, the recommended format is DXF (`.dxf`), with optional support for a simple ASCII (`.asc`) format.
 
 ## ASCII Format (.asc)
-An .asc file contains a list of 2D coordinates, space-delimited, one point per line, where the first column are the x values and the second the y values.
+An .asc file contains a list of 2D coordinates, space-delimited, one point per line,
+where the first column are the x values and the second the y values.
 For example:
 ```plaintext
 # ASCII
@@ -289,7 +290,8 @@ For a less technical approach, we recommend using [Inkscape](https://inkscape.or
 ### Creating DXF Files with Inkscape
 SVG vector graphics can also be used as a basis for geometry.
 Use Inkscape to open or create the SVG.
-You can simply draw a Bezier curve by pressing "B" on your keyboard. We reommend the mode "Create spiro paths" for a smooth curve.
+You can simply draw a Bezier curve by pressing "B" on your keyboard.
+We reommend the mode "Create spiro paths" for a smooth curve.
 Select the relevant path and export it as DXF:
 - Go to "File > Save As...".
 - Choose "Desktop Cutting Plotter (AutoCAD DXF R12)(*.dxf)" format.
