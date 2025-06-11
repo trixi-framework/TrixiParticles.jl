@@ -193,6 +193,8 @@
                    TrixiParticles.n_moving_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
+        system.cache.density .= density
+
         @test v0 == vcat(velocity, pressure')
         @test TrixiParticles.current_velocity(v0, system) == velocity
         @test TrixiParticles.current_density(v0, system) == system.cache.density
