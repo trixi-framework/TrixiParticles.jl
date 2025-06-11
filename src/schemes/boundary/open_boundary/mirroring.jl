@@ -76,6 +76,12 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
             v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
+            # Project `v_b` on the normal direction of the boundary zone
+            # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
+            # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
+            # only this component of interpolated velocity is kept [...]"
+            v_b = dot(v_b, boundary_zone.plane_normal) * boundary_zone.plane_normal
+
             kernel_value = smoothing_kernel(fluid_system, distance, particle)
             grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
                                                 particle)
