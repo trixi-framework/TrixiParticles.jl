@@ -86,6 +86,8 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
                                                 particle)
 
+            # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper,
+            # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle
             L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
 
             correction_matrix[] += L
@@ -164,9 +166,12 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 end
 
 function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
-    x_ab = pos_diff[1]
-    y_ab = pos_diff[2]
-    z_ab = pos_diff[3]
+    # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper (Tafuni et al. 2018),
+    # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle.
+    # Note that in eq. (16) and (18) the indices are swapped, i.e. `x_{kl}` is used instead of `x_{lk}`.
+    x_ba = -pos_diff[1]
+    y_ba = -pos_diff[2]
+    z_ba = -pos_diff[3]
 
     grad_W_ab_x = grad_W_ab[1]
     grad_W_ab_y = grad_W_ab[2]
@@ -174,10 +179,10 @@ function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
 
     V_b = m_b / rho_b
 
-    M = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab W_ab*z_ab;
-                  grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab grad_W_ab_x*z_ab;
-                  grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab grad_W_ab_y*z_ab;
-                  grad_W_ab_z grad_W_ab_z*x_ab grad_W_ab_z*y_ab grad_W_ab_z*z_ab]
+    M = @SMatrix [W_ab W_ab*x_ba W_ab*y_ba W_ab*z_ba;
+                  grad_W_ab_x grad_W_ab_x*x_ba grad_W_ab_x*y_ba grad_W_ab_x*z_ba;
+                  grad_W_ab_y grad_W_ab_y*x_ba grad_W_ab_y*y_ba grad_W_ab_y*z_ba;
+                  grad_W_ab_z grad_W_ab_z*x_ba grad_W_ab_z*y_ba grad_W_ab_z*z_ba]
 
     L = V_b * M
 
@@ -187,17 +192,20 @@ function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
 end
 
 function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{2}, rho_b, m_b)
-    x_ab = pos_diff[1]
-    y_ab = pos_diff[2]
+    # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper,
+    # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle.
+    # Note that in eq. (16) and (18) the indices are swapped, i.e. `x_{kl}` is used instead of `x_{lk}`.
+    x_ba = -pos_diff[1]
+    y_ba = -pos_diff[2]
 
     grad_W_ab_x = grad_W_ab[1]
     grad_W_ab_y = grad_W_ab[2]
 
     V_b = m_b / rho_b
 
-    M = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab;
-                  grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab;
-                  grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab]
+    M = @SMatrix [W_ab W_ab*x_ba W_ab*y_ba;
+                  grad_W_ab_x grad_W_ab_x*x_ba grad_W_ab_x*y_ba;
+                  grad_W_ab_y grad_W_ab_y*x_ba grad_W_ab_y*y_ba]
     L = V_b * M
 
     R = V_b * SVector(W_ab, grad_W_ab_x, grad_W_ab_y)
