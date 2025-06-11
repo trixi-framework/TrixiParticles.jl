@@ -73,6 +73,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::FluidSystem, semi;
                    integrate_tlsph=semi.integrate_tlsph[])
+    (; boundary_model) = particle_system
+
     # Skip interaction if TLSPH systems are integrated separately
     integrate_tlsph || return dv
 
@@ -104,10 +106,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = current_density(v_particle_system, particle_system, particle)
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
-        # Use kernel from the fluid system in order to get the same force here in
-        # solid-fluid interaction as for fluid-solid interaction.
+        # Use kernel from the boundary model.
+        # This should generally be the same as the kernel and smoothing length
+        # of the fluid in order to get the same force here in solid-fluid interaction
+        # as for fluid-solid interaction.
         # TODO this will not use corrections if the fluid uses corrections.
-        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, particle)
+        grad_kernel = smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
 
         # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
         # corresponding to the chosen boundary model.
