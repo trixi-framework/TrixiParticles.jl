@@ -504,20 +504,31 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
 end
 
 # Interpolate points with given neighborhood searches
-@inline function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode,
+@inline function interpolate_points(point_coords_, semi, ref_system, v_ode, u_ode,
                                     neighborhood_searches;
                                     smoothing_length=initial_smoothing_length(ref_system),
                                     cut_off_bnd=true, clip_negative_pressure=false)
     (; parallelization_backend) = semi
 
+    if semi.parallelization_backend isa KernelAbstractions.Backend
+        point_coords = Adapt.adapt(semi.parallelization_backend, point_coords_)
+    else
+        point_coords = point_coords_
+    end
+
     n_points = size(point_coords, 2)
     ELTYPE = eltype(point_coords)
-    computed_density = zeros(ELTYPE, n_points)
-    other_density = zeros(ELTYPE, n_points)
-    neighbor_count = zeros(Int, n_points)
-    shepard_coefficient = zeros(ELTYPE, n_points)
+    computed_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    other_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    shepard_coefficient = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
 
-    cache = create_cache_interpolation(ref_system, n_points)
+    set_zero!(computed_density)
+    set_zero!(other_density)
+    set_zero!(shepard_coefficient)
+    set_zero!(neighbor_count)
+
+    cache = create_cache_interpolation(ref_system, n_points, semi)
 
     ref_id = system_indices(ref_system, semi)
     ref_smoothing_kernel = ref_system.smoothing_kernel
@@ -565,42 +576,52 @@ end
             computed_density[point] = NaN
             neighbor_count[point] = 0
 
-            foreach(cache) do field
-                if field isa AbstractVector
-                    field[point] = NaN
-                else
-                    field[:, point] .= NaN
-                end
+            # We need to convert the `NamedTuple` to a `Tuple` for GPU compatibility
+            foreach(Tuple(cache)) do field
+                set_nan!(field, point)
             end
         else
-            # Normalize all quantities by the shepard coefficient
-            foreach(cache) do field
-                if field isa AbstractVector
-                    field[point] /= shepard_coefficient[point]
-                else
-                    field[:, point] ./= shepard_coefficient[point]
-                end
+            # Normalize all quantities by the shepard coefficient.
+            # We need to convert the `NamedTuple` to a `Tuple` for GPU compatibility.
+            foreach(Tuple(cache)) do field
+                divide_by_shepard_coefficient!(field, shepard_coefficient, point)
             end
         end
     end
 
-    return (; computed_density=computed_density, neighbor_count, point_coords, cache...)
+    return (; computed_density=computed_density, point_coords=point_coords,
+            neighbor_count=neighbor_count, cache...)
 end
 
-@inline function create_cache_interpolation(ref_system::FluidSystem, n_points)
-    velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
-    pressure = zeros(eltype(ref_system), n_points)
-    density = zeros(eltype(ref_system), n_points)
+@inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)
+    (; parallelization_backend) = semi
+
+    velocity = allocate(parallelization_backend, eltype(ref_system),
+                        (ndims(ref_system), n_points))
+    pressure = allocate(parallelization_backend, eltype(ref_system), n_points)
+    density = allocate(parallelization_backend, eltype(ref_system), n_points)
+
+    set_zero!(velocity)
+    set_zero!(pressure)
+    set_zero!(density)
 
     return (; velocity, pressure, density)
 end
 
-@inline function create_cache_interpolation(ref_system::SolidSystem, n_points)
-    velocity = zeros(eltype(ref_system), ndims(ref_system), n_points)
-    jacobian = zeros(eltype(ref_system), n_points)
-    von_mises_stress = zeros(eltype(ref_system), n_points)
-    cauchy_stress = zeros(eltype(ref_system), ndims(ref_system), ndims(ref_system),
-                          n_points)
+@inline function create_cache_interpolation(ref_system::SolidSystem, n_points, semi)
+    (; parallelization_backend) = semi
+
+    velocity = allocate(parallelization_backend, eltype(ref_system),
+                        (ndims(ref_system), n_points))
+    jacobian = allocate(parallelization_backend, eltype(ref_system), n_points)
+    von_mises_stress = allocate(parallelization_backend, eltype(ref_system), n_points)
+    cauchy_stress = allocate(parallelization_backend, eltype(ref_system),
+                             (ndims(ref_system), ndims(ref_system), n_points))
+
+    set_zero!(velocity)
+    set_zero!(jacobian)
+    set_zero!(von_mises_stress)
+    set_zero!(cauchy_stress)
 
     return (; velocity, jacobian, von_mises_stress, cauchy_stress)
 end
@@ -642,4 +663,49 @@ end
     end
 
     return cache
+end
+
+function set_nan!(field::AbstractVector, point)
+    field[point] = NaN
+
+    return field
+end
+
+function set_nan!(field::AbstractMatrix, point)
+    for dim in axes(field, 1)
+        field[dim, point] = NaN
+    end
+
+    return field
+end
+
+function set_nan!(field::AbstractArray{T, 3}, point) where {T}
+    for j in axes(field, 2), i in axes(field, 1)
+        field[i, j, point] = NaN
+    end
+
+    return field
+end
+
+function divide_by_shepard_coefficient!(field::AbstractVector, shepard_coefficient, point)
+    field[point] /= shepard_coefficient[point]
+
+    return field
+end
+
+function divide_by_shepard_coefficient!(field::AbstractMatrix, shepard_coefficient, point)
+    for dim in axes(field, 1)
+        field[dim, point] /= shepard_coefficient[point]
+    end
+
+    return field
+end
+
+function divide_by_shepard_coefficient!(field::AbstractArray{T, 3}, shepard_coefficient,
+                                        point) where {T}
+    for j in axes(field, 2), i in axes(field, 1)
+        field[i, j, point] /= shepard_coefficient[point]
+    end
+
+    return field
 end
