@@ -17,7 +17,7 @@ TrixiTest = "0a316866-cbd0-4425-8bcb-08103b2c1f26"
 
 [compat]
 CSV = "0.10"
-CairoMakie = "0.13"
+CairoMakie = "0.13, 0.14"
 DataFrames = "1.6"
 GLM = "1.9"
 Glob = "1.3"
