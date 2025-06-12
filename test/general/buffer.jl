@@ -1,6 +1,7 @@
 @testset verbose=true "`SystemBuffer`" begin
     # Mock fluid system
-    struct FluidSystemMock3 <: TrixiParticles.FluidSystem{2, Nothing} end
+    struct FluidSystemMock3 <: TrixiParticles.FluidSystem{2} end
+    TrixiParticles.initial_smoothing_length(system::FluidSystemMock3) = 1.0
 
     zone = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
                         open_boundary_layers=2, density=1.0, plane_normal=[1.0, 0.0],
@@ -24,14 +25,16 @@
 
         particle_id = TrixiParticles.activate_next_particle(system_buffer)
 
-        TrixiParticles.update_system_buffer!(system_buffer.buffer)
+        TrixiParticles.update_system_buffer!(system_buffer.buffer,
+                                             DummySemidiscretization())
 
         @test TrixiParticles.each_moving_particle(system_buffer) == 1:(n_particles + 1)
 
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
                                             ones(2, particle_id))
 
-        TrixiParticles.update_system_buffer!(system_buffer.buffer)
+        TrixiParticles.update_system_buffer!(system_buffer.buffer,
+                                             DummySemidiscretization())
 
         @test TrixiParticles.each_moving_particle(system_buffer) == 1:n_particles
 
@@ -39,7 +42,8 @@
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
                                             ones(2, particle_id))
 
-        TrixiParticles.update_system_buffer!(system_buffer.buffer)
+        TrixiParticles.update_system_buffer!(system_buffer.buffer,
+                                             DummySemidiscretization())
 
         @test TrixiParticles.each_moving_particle(system_buffer) ==
               setdiff(1:n_particles, particle_id)

@@ -4,7 +4,8 @@
         flow_direction = (1.0, 0.0)
 
         # Mock fluid system
-        struct FluidSystemMock2 <: TrixiParticles.FluidSystem{2, Nothing} end
+        struct FluidSystemMock2 <: TrixiParticles.FluidSystem{2} end
+        TrixiParticles.initial_smoothing_length(system::FluidSystemMock2) = 1.0
 
         inflow = BoundaryZone(; plane, particle_spacing=0.1,
                               plane_normal=flow_direction, density=1.0,
