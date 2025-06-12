@@ -250,6 +250,51 @@ Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_hormann.jl")
 Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_jacobson.jl")]
 ```
+# [Read geometries from file](@id read_geometries_from_file)
+Geometries can be imported using the [`load_geometry`](@ref) function.
+- For 3D geometries, we support the binary (`.stl`) format.
+- For 2D geometries, the recommended format is DXF (`.dxf`), with optional support for a simple ASCII (`.asc`) format.
+
+## ASCII Format (.asc)
+An .asc file contains a list of 2D coordinates, space-delimited, one point per line,
+where the first column are the x values and the second the y values.
+For example:
+```plaintext
+# ASCII
+0.0 0.0
+1.0 0.0
+1.0 1.0
+0.0 1.0
+```
+It is the user’s responsibility to ensure the points are ordered correctly.
+This format is easy to generate and inspect manually.
+
+## DXF Format (.dxf) – recommended
+The DXF (Drawing Exchange Format) is a widely-used CAD format for 2D and 3D data.
+We recommend this format for defining 2D polygonal.
+Only DXF entities of type `LINE` or `POLYLINE` are supported.
+To create DXF files from scratch, we recommend using the open-source tool [FreeCAD](https://www.freecad.org/).
+For a less technical approach, we recommend using [Inkscape](https://inkscape.org/) to create SVG files and then export them as DXF.
+
+### Creating DXF Files with FreeCAD
+
+- Open FreeCAD and create a new document.
+- Switch to the Sketcher workbench and create a new sketch.
+- Choose the XY-plane orientation and draw your geometry.
+- Select the object to be exported.
+- Go to "File > Export..." and choose "AutoDesk DXF (*.dxf)" as the format.
+- Ensure the following Import-Export options are enabled:
+    - "Use legacy Python exporter".
+    - "Project exported objects along current view direction".
+
+### Creating DXF Files with Inkscape
+SVG vector graphics can also be used as a basis for geometry.
+Use Inkscape to open or create the SVG.
+You can simply draw a Bezier curve by pressing "B" on your keyboard.
+We reommend the mode "Create spiro paths" for a smooth curve.
+Select the relevant path and export it as DXF:
+- Go to "File > Save As...".
+- Choose "Desktop Cutting Plotter (AutoCAD DXF R12)(*.dxf)" format.
 
 ```@autodocs
 Modules = [TrixiParticles]
