@@ -5,8 +5,8 @@
                           smoothing_length=shape.particle_spacing,
                           smoothing_length_interpolation=smoothing_length,
                           is_boundary=false, boundary_compress_factor=1,
-                          neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                          background_pressure, tlsph=false, fixed_system=false)
+                          neighborhood_search=true, background_pressure, tlsph=false,
+                          fixed_system=false)
 
 System to generate body-fitted particles for complex shapes.
 For more information on the methods, see [particle packing](@ref particle_packing).
@@ -73,32 +73,42 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     particle_refinement            :: PR
     buffer                         :: Nothing
     update_callback_used           :: UCU
+    fixed_system                   :: Bool
     cache                          :: C
+end
 
-    # This constructor is necessary for Adapt.jl to work with this struct.
-    # See the comments in general/gpu.jl for more details.
-    function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
-                                   smoothing_kernel, smoothing_length_interpolation,
-                                   background_pressure, tlsph, signed_distance_field,
-                                   is_boundary, shift_length, neighborhood_search,
-                                   signed_distances, particle_refinement, buffer,
-                                   update_callback_used, fixed_system, cache,
-                                   advection_velocity)
-        return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
-                   eltype(density), typeof(particle_refinement), typeof(cache),
-                   typeof(advection_velocity), typeof(initial_condition), typeof(mass),
-                   typeof(density), typeof(smoothing_kernel), typeof(neighborhood_search),
-                   typeof(signed_distances),
-                   typeof(update_callback_used)}(initial_condition, advection_velocity,
-                                                 mass, density, particle_spacing,
-                                                 smoothing_kernel,
-                                                 smoothing_length_interpolation,
-                                                 background_pressure, tlsph,
-                                                 signed_distance_field, is_boundary,
-                                                 shift_length, neighborhood_search,
-                                                 signed_distances, particle_refinement,
-                                                 buffer, update_callback_used, cache)
-    end
+# This constructor is necessary for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function ParticlePackingSystem(initial_condition, advection_velocity,
+                               mass, density, particle_spacing,
+                               smoothing_kernel, smoothing_length_interpolation,
+                               background_pressure, tlsph, signed_distance_field,
+                               is_boundary, shift_length, neighborhood_search,
+                               signed_distances, particle_refinement, buffer,
+                               update_callback_used, fixed_system, cache)
+    S = typeof(signed_distance_field)
+    F = fixed_system
+    NDIMS = ndims(smoothing_kernel)
+    ELTYPE = eltype(initial_condition)
+    PR = typeof(particle_refinement)
+    C = typeof(cache)
+    AV = typeof(advection_velocity)
+    IC = typeof(initial_condition)
+    M = typeof(mass)
+    D = typeof(density)
+    K = typeof(smoothing_kernel)
+    N = typeof(neighborhood_search)
+    SD = typeof(signed_distances)
+    UCU = typeof(update_callback_used)
+
+    return ParticlePackingSystem{S, F, NDIMS, ELTYPE, PR, C, AV, IC, M, D, K, N, SD,
+                                 UCU}(initial_condition, advection_velocity, mass, density,
+                                      particle_spacing, smoothing_kernel,
+                                      smoothing_length_interpolation, background_pressure,
+                                      tlsph, signed_distance_field, is_boundary,
+                                      shift_length, neighborhood_search, signed_distances,
+                                      particle_refinement, buffer, update_callback_used,
+                                      fixed_system, cache)
 end
 
 function ParticlePackingSystem(shape::InitialCondition;
@@ -107,7 +117,7 @@ function ParticlePackingSystem(shape::InitialCondition;
                                smoothing_length=shape.particle_spacing,
                                smoothing_length_interpolation=smoothing_length,
                                is_boundary=false, boundary_compress_factor=1,
-                               neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
+                               neighborhood_search=true,
                                background_pressure, tlsph=false, fixed_system=false)
     NDIMS = ndims(shape)
     ELTYPE = eltype(shape)
@@ -127,15 +137,23 @@ function ParticlePackingSystem(shape::InitialCondition;
         nhs = nothing
         @info "No `SignedDistanceField` provided. Particles will not be constraint onto a geometric surface."
     else
-        nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
-               neighborhood_search
+        if neighborhood_search
+            min_corner = minimum(signed_distance_field.positions, dims=2)
+            max_corner = maximum(signed_distance_field.positions, dims=2)
+
+            cell_list = FullGridCellList(; min_corner, max_corner)
+
+            nhs_ = GridNeighborhoodSearch{NDIMS}(; cell_list)
+        else
+            nhs_ = TrivialNeighborhoodSearch{NDIMS}()
+        end
         nhs = copy_neighborhood_search(nhs_,
                                        compact_support(smoothing_kernel,
                                                        smoothing_length_interpolation),
-                                       length(signed_distance_field.positions))
+                                       size(signed_distance_field.positions, 2))
 
         # Initialize neighborhood search with signed distances
-        PointNeighbors.initialize_grid!(nhs, stack(signed_distance_field.positions))
+        PointNeighbors.initialize_grid!(nhs, signed_distance_field.positions)
     end
 
     # If `distance_signed >= -shift_length`, the particle position is modified
@@ -159,13 +177,12 @@ function ParticlePackingSystem(shape::InitialCondition;
 
     advection_velocity = copy(shape.velocity)
 
-    return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
-                                 smoothing_kernel, smoothing_length_interpolation,
-                                 background_pressure, tlsph, signed_distance_field,
-                                 is_boundary, shift_length, nhs,
+    return ParticlePackingSystem(shape, advection_velocity, mass, density,
+                                 shape.particle_spacing, smoothing_kernel,
+                                 smoothing_length_interpolation, background_pressure, tlsph,
+                                 signed_distance_field, is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
-                                 nothing, Ref(false), fixed_system, cache,
-                                 advection_velocity)
+                                 nothing, Ref(false), fixed_system, cache)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
@@ -303,42 +320,45 @@ constrain_particles_onto_surface!(u, system::ParticlePackingSystem{Nothing}, sem
 
 function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, semi)
     (; neighborhood_search, signed_distance_field, smoothing_length_interpolation) = system
-    (; positions, distances, normals) = signed_distance_field
+    (; distances, normals) = signed_distance_field
 
-    search_radius2 = compact_support(system, system)^2
+    search_radius = compact_support(system, system)
+    sdf_coords = signed_distance_field.positions
 
     @threaded semi for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
 
-        volume = zero(eltype(system))
-        distance_signed = zero(eltype(system))
-        normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
+        # Use `Ref` to ensure the variables are accessible and mutable within the closure below
+        # (see https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured).
+        volume = Ref(zero(eltype(system)))
+        distance_signed = Ref(zero(eltype(system)))
+        normal_vector = Ref(zero(SVector{ndims(system), eltype(system)}))
 
-        # Interpolate signed distances and normals
-        for neighbor in PointNeighbors.eachneighbor(particle_position, neighborhood_search)
-            pos_diff = positions[neighbor] - particle_position
-            distance2 = dot(pos_diff, pos_diff)
-            distance2 > search_radius2 && continue
-
-            distance = sqrt(distance2)
+        # Interpolate signed distances and normals.
+        # Here, `neighborhood_search` is an intern NHS and is thus not organized by `Semidiscretization`.
+        # TODO: Not public API, thus, add a warning in `check_configuration` if `PointNeighbors.requires_update(neighborhood_search)` is `false`.
+        PointNeighbors.foreach_neighbor(sdf_coords, neighborhood_search,
+                                        particle, particle_position,
+                                        search_radius) do particle, neighbor,
+                                                          pos_diff, distance
             kernel_weight = kernel(system.smoothing_kernel, distance,
                                    smoothing_length_interpolation)
 
-            distance_signed += distances[neighbor] * kernel_weight
+            distance_signed[] += distances[neighbor] * kernel_weight
 
-            normal_vector += normals[neighbor] * kernel_weight
+            normal_vector[] += normals[neighbor] * kernel_weight
 
-            volume += kernel_weight
+            volume[] += kernel_weight
         end
 
-        if volume > eps()
-            distance_signed /= volume
-            normal_vector /= volume
+        if volume[] > eps()
+            distance_signed[] /= volume[]
+            normal_vector[] /= volume[]
 
             # Store signed distance for visualization
-            system.signed_distances[particle] = distance_signed
+            system.signed_distances[particle] = distance_signed[]
 
-            constrain_particle!(u, system, particle, distance_signed, normal_vector)
+            constrain_particle!(u, system, particle, distance_signed[], normal_vector[])
         end
     end
 

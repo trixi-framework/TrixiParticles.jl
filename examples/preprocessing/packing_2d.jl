@@ -21,15 +21,15 @@ boundary_thickness = 5 * particle_spacing
 # ==== Load complex geometry
 density = 1.0
 
-geometry = load_geometry(file)
+# TODO: Somehow broken with Float32
+geometry = load_geometry(file; element_type=typeof(particle_spacing))
 
 signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             use_for_boundary_packing=true,
                                             max_signed_distance=boundary_thickness)
 
-point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
-                                                    winding_number_factor=0.4,
-                                                    hierarchical_winding=true)
+point_in_geometry_algorithm = WindingNumberJacobson(geometry)
+
 # Returns `InitialCondition`
 shape_sampled = ComplexShape(geometry; particle_spacing, density,
                              point_in_geometry_algorithm)
@@ -62,7 +62,15 @@ boundary_system = ParticlePackingSystem(boundary_sampled; smoothing_length=smoot
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(packing_system, boundary_system)
+# Define a GPU-compatible neighborhood search
+min_corner = minimum(boundary_sampled.coordinates .- 5 * particle_spacing, dims=2)
+max_corner = maximum(boundary_sampled.coordinates .+ 5 * particle_spacing, dims=2)
+cell_list = FullGridCellList(; min_corner, max_corner)
+neighborhood_search = GridNeighborhoodSearch{ndims(geometry)}(; cell_list)
+
+semi = Semidiscretization(packing_system, boundary_system,
+                          neighborhood_search=neighborhood_search,
+                          parallelization_backend=PolyesterBackend())
 
 # Use a high `tspan` to guarantee that the simulation runs at least for `maxiters`
 tspan = (0, 10.0)
@@ -86,7 +94,7 @@ callbacks = CallbackSet(UpdateCallback(), saving_callback, info_callback, steady
                         pp_cb_ekin)
 
 sol = solve(ode, RDPK3SpFSAL35();
-            save_everystep=false, maxiters=1000, callback=callbacks, dtmax=1e-2)
+            save_everystep=false, maxiters=1000, callback=callbacks)
 
 packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
