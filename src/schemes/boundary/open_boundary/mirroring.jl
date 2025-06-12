@@ -86,7 +86,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
                                                 particle)
 
-            # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper,
+            # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper (Tafuni et al., 2018),
             # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle
             L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
 
@@ -166,9 +166,9 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 end
 
 function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
-    # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper (Tafuni et al. 2018),
-    # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle.
-    # Note that in eq. (16) and (18) the indices are swapped, i.e. `x_{kl}` is used instead of `x_{lk}`.
+    # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper (Tafuni et al., 2018),
+    # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle
+    # Note that in eq. (16) and (17) the indices are swapped, i.e. `x_{lk}` is used instead of `x_{kl}`.
     x_ba = -pos_diff[1]
     y_ba = -pos_diff[2]
     z_ba = -pos_diff[3]
@@ -192,9 +192,9 @@ function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
 end
 
 function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{2}, rho_b, m_b)
-    # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper,
-    # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle.
-    # Note that in eq. (16) and (18) the indices are swapped, i.e. `x_{kl}` is used instead of `x_{lk}`.
+    # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper (Tafuni et al., 2018),
+    # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle
+    # Note that in eq. (16) and (17) the indices are swapped, i.e. `x_{lk}` is used instead of `x_{kl}`.
     x_ba = -pos_diff[1]
     y_ba = -pos_diff[2]
 
