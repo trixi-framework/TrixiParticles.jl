@@ -268,6 +268,27 @@
         @test count_rhs_allocations(sol, semi) == 0
     end
 
+    @trixi_testset "fluid/periodic_channel_2d.jl with PST" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "periodic_channel_2d.jl"),
+                                         tspan=(0.0, 0.2),
+                                         extra_callback=ParticleShiftingCallback())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/periodic_channel_2d.jl with PST and TIC" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "periodic_channel_2d.jl"),
+                                         tspan=(0.0, 0.2),
+                                         extra_callback=ParticleShiftingCallback(),
+                                         pressure_acceleration=tensile_instability_control)
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                          joinpath(examples_dir(), "fluid",
@@ -311,6 +332,7 @@
                                          reference_density_in=nothing,
                                          reference_pressure_in=nothing,
                                          reference_density_out=nothing,
+                                         reference_pressure_out=nothing,
                                          reference_velocity_out=nothing)
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
