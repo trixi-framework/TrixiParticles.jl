@@ -30,7 +30,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
                              semi, t; prescribed_density=false,
                              prescribed_pressure=false, prescribed_velocity=false)
     (; pressure, density, boundary_zone, reference_density,
-    reference_velocity, reference_pressure) = system
+     reference_velocity, reference_pressure) = system
 
     fluid_system = corresponding_fluid_system(system, semi)
 
@@ -74,15 +74,13 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             m_b = hydrodynamic_mass(fluid_system, neighbor)
             rho_b = current_density(v_fluid, fluid_system, neighbor)
             pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
-            v_b = current_velocity(v_fluid, fluid_system, neighbor)
+            v_b_ = current_velocity(v_fluid, fluid_system, neighbor)
 
-            if boundary_zone.boundary_type isa InFlow
-                # Project `v_b` on the normal direction of the boundary zone
-                # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
-                # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
-                # only this component of interpolated velocity is kept [...]"
-                v_b = dot(v_b, boundary_zone.plane_normal) * boundary_zone.plane_normal
-            end
+            # Project `v_b_` on the normal direction of the boundary zone (only for inflow boundaries).
+            # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
+            # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
+            # only this component of interpolated velocity is kept [...]"
+            v_b = project_velocity_on_plane_normal(v_b_, boundary_zone)
 
             kernel_value = smoothing_kernel(fluid_system, distance, particle)
             grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
@@ -220,4 +218,14 @@ function mirror_position(particle_coords, boundary_zone)
     dist = dot(particle_position, boundary_zone.plane_normal)
 
     return particle_coords - 2 * dist * boundary_zone.plane_normal
+end
+
+project_velocity_on_plane_normal(vel, boundary_zone) = vel
+
+function project_velocity_on_plane_normal(vel, boundary_zone::BoundaryZone{InFlow})
+    # Project `v_b` on the normal direction of the boundary zone
+    # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
+    # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
+    # only this component of interpolated velocity is kept [...]"
+    return dot(vel, boundary_zone.plane_normal) * boundary_zone.plane_normal
 end
