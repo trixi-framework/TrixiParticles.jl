@@ -300,6 +300,14 @@ function set_up_shift_zone(::InFlow, boundary_coordinates, initial_condition,
 
     shift_zone_width = 4 * particle_spacing
     spanning_set_shift_zone_ = spanning_vectors(Tuple(plane), shift_zone_width)
+
+    # First vector of `spanning_set_shift_zone` is normal to the boundary plane
+    dot_flow = dot(normalize(spanning_set_shift_zone_[:, 1]), flow_direction)
+
+    # The vector must point in upstream direction for an inflow boundary.
+    # Flip the normal vector to point in the opposite direction of `flow_direction`.
+    spanning_set_shift_zone_[:, 1] .*= -sign(dot_flow)
+
     spanning_set_shift_zone = reinterpret(reshape, SVector{NDIMS, ELTYPE},
                                           spanning_set_shift_zone_)
 
