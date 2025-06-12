@@ -135,6 +135,9 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 
                 v_open_boundary[dim, particle] = f_v[1] + dot(pos_diff, df_v)
             end
+
+            # In the inflow zone, the velocity must be oriented in the same direction as the prescribed flow direction.
+            check_velocity_direction!(v_open_boundary, system, particle, boundary_zone)
         end
 
         if prescribed_density
@@ -228,4 +231,27 @@ function project_velocity_on_plane_normal(vel, boundary_zone::BoundaryZone{InFlo
     # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
     # only this component of interpolated velocity is kept [...]"
     return dot(vel, boundary_zone.plane_normal) * boundary_zone.plane_normal
+end
+
+function check_velocity_direction!(v_open_boundary, system, particle, boundary_zone)
+    return v_open_boundary
+end
+
+# In the inflow zone, the velocity must be oriented in the same direction as the prescribed flow direction.
+function check_velocity_direction!(v_open_boundary, system, particle,
+                                   boundary_zone::BoundaryZone{InFlow})
+    (; flow_direction) = boundary_zone
+
+    v_particle = current_velocity(v_open_boundary, system, particle)
+
+    if dot(v_particle, flow_direction) < 0
+        # Reflect the velocity vector across the flow direction
+        v_reflected = v_particle - 2 * dot(v_particle, flow_direction) * flow_direction
+
+        @inbounds for dim in eachindex(v_particle)
+            v_open_boundary[dim, particle] = v_reflected[dim]
+        end
+    end
+
+    return v_open_boundary
 end
