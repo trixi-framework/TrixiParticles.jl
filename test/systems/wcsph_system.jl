@@ -266,7 +266,13 @@
                    TrixiParticles.n_moving_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
+        system.cache.density .= density
+        system.pressure .= zero(density)
+
         @test v0 == velocity
+        @test TrixiParticles.current_velocity(v0, system) == velocity
+        @test TrixiParticles.current_density(v0, system) == system.cache.density
+        @test TrixiParticles.current_pressure(v0, system) == system.pressure
 
         # ContinuityDensity
         system = WeaklyCompressibleSPHSystem(initial_condition,
