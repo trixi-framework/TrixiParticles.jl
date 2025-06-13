@@ -1,6 +1,10 @@
-# This setup is identical to `hydrostatic_water_column_2d.jl`, except that now there is
+# ==========================================================================================
+# 2D Accelerated Tank Example
+#
+# This setup is identical to `hydrostatic_water_column_2d.jl`, except that there is
 # no gravity, and the tank is accelerated upwards instead.
-# Note that the two setups are physically identical, but produce different numerical errors.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 

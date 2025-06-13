@@ -1,3 +1,10 @@
+# ==========================================================================================
+# 2D Moving Wall Simulation
+#
+# This example simulates a column of water in a tank where one of the vertical walls
+# moves horizontally, pushing the fluid.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 

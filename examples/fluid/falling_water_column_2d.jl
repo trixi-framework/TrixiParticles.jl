@@ -1,3 +1,9 @@
+# ==========================================================================================
+# 2D Falling Water Column Simulation
+#
+# This example simulates a column of water falling under gravity within a closed tank.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 

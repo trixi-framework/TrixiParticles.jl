@@ -1,3 +1,11 @@
+# ==========================================================================================
+# 2D Oscillating Elastic Beam (Cantilever) Simulation
+#
+# This example simulates the oscillation of a 2D elastic beam (cantilever)
+# fixed at one end and subjected to gravity. It uses the Total Lagrangian SPH (TLSPH)
+# method for solid mechanics.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 

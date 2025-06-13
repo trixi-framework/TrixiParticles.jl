@@ -1,9 +1,16 @@
-# 2D dam break simulation based on
+# ==========================================================================================
+# 2D Dam Break Simulation (δ-SPH Model)
 #
-# S. Marrone, M. Antuono, A. Colagrossi, G. Colicchio, D. le Touzé, G. Graziani.
-# "δ-SPH model for simulating violent impact flows".
-# In: Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011), pages 1526–1542.
-# https://doi.org/10.1016/J.CMA.2010.12.016
+# Based on:
+#   S. Marrone, M. Antuono, A. Colagrossi, G. Colicchio, D. le Touzé, G. Graziani.
+#   "δ-SPH model for simulating violent impact flows".
+#   Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011),
+#   pages 1526–1542.
+#   https://doi.org/10.1016/J.CMA.2010.12.016
+#
+# This example sets up a 2D dam break simulation using a weakly compressible SPH scheme
+# with a δ-SPH formulation for density calculation.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq

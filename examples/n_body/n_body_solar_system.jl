@@ -1,7 +1,8 @@
-#
+# ==========================================================================================
 # An n-body simulation of the solar system.
 # This example does not benefit from using multiple threads due to the small problem size.
-#
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 using Printf
