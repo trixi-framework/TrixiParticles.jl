@@ -92,7 +92,6 @@ function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
                      velocity=zeros(length(center_position)), mass=nothing, pressure=0)
-
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
