@@ -26,7 +26,6 @@
             30
         ]
         @testset "$(i+1)D" for i in 1:2
-            #@testset "$(typeof(density_calculator))"
             NDIMS = i + 1
             coordinates = coordinates_[i]
             mass = [1.25, 1.5]
