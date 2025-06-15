@@ -13,19 +13,11 @@ For more information about the method see [description below](@ref method_of_cha
   the reference values are not known a priori.
   **Note:** This feature is experimental and has not been fully validated yet.
   As of now, we are not aware of any published literature supporting its use.
-- `average_inflow_velocity=true`: (Only in combination with `extrapolate_reference_values=true`.)
-If `true`, the extrapolated inflow velocity is averaged to impose a uniform inflow profile.
-When no velocity is prescribed at the inflow and `extrapolate_reference_values=true`,
-the velocity is extrapolated from the fluid domain.
-Thus, turbulent flows near the inflow can lead to non-uniform buffer-particles distribution,
-resulting in a potential numerical instability. Averaging mitigates these effects.
 """
 struct BoundaryModelLastiwka
-    extrapolate_reference_values :: Bool
-    average_inflow_velocity      :: Bool
+    extrapolate_reference_values::Bool
 
-    function BoundaryModelLastiwka(; extrapolate_reference_values::Bool=false,
-                                   average_inflow_velocity::Bool=true)
+    function BoundaryModelLastiwka(; extrapolate_reference_values::Bool=false)
         return new{}(extrapolate_reference_values, average_inflow_velocity)
     end
 end

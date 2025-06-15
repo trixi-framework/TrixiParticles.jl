@@ -1,25 +1,13 @@
 @doc raw"""
-    BoundaryModelTafuni(; average_inflow_velocity::Bool=true)
+    BoundaryModelTafuni())
 
 Boundary model for the `OpenBoundarySPHSystem`.
 This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
 to the buffer zones (inflow and outflow) using ghost nodes.
 The position of the ghost nodes is obtained by mirroring the boundary particles
 into the fluid along a direction that is normal to the open boundary.
-
-# Keywords
-- `average_inflow_velocity=true`: If `true`, the extrapolated inflow velocity is averaged to impose a uniform inflow profile.
-When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
-Thus, turbulent flows near the inflow can lead to non-uniform buffer-particles distribution,
-resulting in a potential numerical instability. Averaging mitigates these effects.
 """
-struct BoundaryModelTafuni
-    average_inflow_velocity::Bool
-
-    function BoundaryModelTafuni(; average_inflow_velocity::Bool=true)
-        return new{}(average_inflow_velocity)
-    end
-end
+struct BoundaryModelTafuni end
 
 function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode,
                                      semi, t)
@@ -172,7 +160,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         end
     end
 
-    if !(prescribed_velocity) && system.boundary_model.average_inflow_velocity
+    if !(prescribed_velocity) && boundary_zone.average_inflow_velocity
         # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
         # Thus, turbulent flows near the inflow can lead to non-uniform buffer-particles distribution,
         # resulting in a potential numerical instability. Averaging mitigates these effects.
@@ -234,14 +222,14 @@ end
 average_velocity!(v, u, system, boundary_zone, semi) = v
 
 function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, semi)
-    (; spanning_set, zone_origin) = boundary_zone
+    (; plane_normal, zone_origin, initial_condition) = boundary_zone
 
     # We only use the extrapolated velocity in the vicinity of the transition region.
     # Otherwise, if the boundary zone is too large, averaging would be excessively influenced
     # by the fluid velocity farther away from the boundary.
-    max_dist2 = (3 / 2 * compact_support(system.fluid_system, system))^2
+    max_dist = initial_condition.particle_spacing
 
-    candidates = findall(x -> dot(x - zone_origin, spanning_set[1]) <= max_dist2,
+    candidates = findall(x -> dot(x - zone_origin, -plane_normal) <= max_dist,
                          reinterpret(reshape, SVector{ndims(system), eltype(u)},
                                      active_coordinates(u, system)))
 
