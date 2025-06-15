@@ -16,8 +16,9 @@ For more information about the method see [description below](@ref method_of_cha
 """
 struct BoundaryModelLastiwka
     extrapolate_reference_values::Bool
+
     function BoundaryModelLastiwka(; extrapolate_reference_values::Bool=false)
-        return new{}(extrapolate_reference_values)
+        return new{}(extrapolate_reference_values, average_inflow_velocity)
     end
 end
 
