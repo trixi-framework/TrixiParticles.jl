@@ -74,18 +74,20 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             m_b = hydrodynamic_mass(fluid_system, neighbor)
             rho_b = current_density(v_fluid, fluid_system, neighbor)
             pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
-            v_b = current_velocity(v_fluid, fluid_system, neighbor)
+            v_b_ = current_velocity(v_fluid, fluid_system, neighbor)
 
-            # Project `v_b` on the normal direction of the boundary zone
+            # Project `v_b_` on the normal direction of the boundary zone (only for inflow boundaries).
             # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
             # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
             # only this component of interpolated velocity is kept [...]"
-            v_b = dot(v_b, boundary_zone.plane_normal) * boundary_zone.plane_normal
+            v_b = project_velocity_on_plane_normal(v_b_, boundary_zone)
 
             kernel_value = smoothing_kernel(fluid_system, distance, particle)
             grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
                                                 particle)
 
+            # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper (Tafuni et al., 2018),
+            # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle
             L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
 
             correction_matrix[] += L
@@ -171,9 +173,12 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 end
 
 function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
-    x_ab = pos_diff[1]
-    y_ab = pos_diff[2]
-    z_ab = pos_diff[3]
+    # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper (Tafuni et al., 2018),
+    # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle
+    # Note that in eq. (16) and (17) the indices are swapped, i.e. `x_{lk}` is used instead of `x_{kl}`.
+    x_ba = -pos_diff[1]
+    y_ba = -pos_diff[2]
+    z_ba = -pos_diff[3]
 
     grad_W_ab_x = grad_W_ab[1]
     grad_W_ab_y = grad_W_ab[2]
@@ -181,10 +186,10 @@ function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
 
     V_b = m_b / rho_b
 
-    M = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab W_ab*z_ab;
-                  grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab grad_W_ab_x*z_ab;
-                  grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab grad_W_ab_y*z_ab;
-                  grad_W_ab_z grad_W_ab_z*x_ab grad_W_ab_z*y_ab grad_W_ab_z*z_ab]
+    M = @SMatrix [W_ab W_ab*x_ba W_ab*y_ba W_ab*z_ba;
+                  grad_W_ab_x grad_W_ab_x*x_ba grad_W_ab_x*y_ba grad_W_ab_x*z_ba;
+                  grad_W_ab_y grad_W_ab_y*x_ba grad_W_ab_y*y_ba grad_W_ab_y*z_ba;
+                  grad_W_ab_z grad_W_ab_z*x_ba grad_W_ab_z*y_ba grad_W_ab_z*z_ba]
 
     L = V_b * M
 
@@ -194,17 +199,20 @@ function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
 end
 
 function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{2}, rho_b, m_b)
-    x_ab = pos_diff[1]
-    y_ab = pos_diff[2]
+    # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper (Tafuni et al., 2018),
+    # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle
+    # Note that in eq. (16) and (17) the indices are swapped, i.e. `x_{lk}` is used instead of `x_{kl}`.
+    x_ba = -pos_diff[1]
+    y_ba = -pos_diff[2]
 
     grad_W_ab_x = grad_W_ab[1]
     grad_W_ab_y = grad_W_ab[2]
 
     V_b = m_b / rho_b
 
-    M = @SMatrix [W_ab W_ab*x_ab W_ab*y_ab;
-                  grad_W_ab_x grad_W_ab_x*x_ab grad_W_ab_x*y_ab;
-                  grad_W_ab_y grad_W_ab_y*x_ab grad_W_ab_y*y_ab]
+    M = @SMatrix [W_ab W_ab*x_ba W_ab*y_ba;
+                  grad_W_ab_x grad_W_ab_x*x_ba grad_W_ab_x*y_ba;
+                  grad_W_ab_y grad_W_ab_y*x_ba grad_W_ab_y*y_ba]
     L = V_b * M
 
     R = V_b * SVector(W_ab, grad_W_ab_x, grad_W_ab_y)
@@ -229,7 +237,9 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
     # by the fluid velocity farther away from the boundary.
     max_dist = initial_condition.particle_spacing
 
-    candidates = findall(x -> dot(x - zone_origin, -plane_normal) <= max_dist,
+    # This function is executed at every stage, so it is possible for buffer particles to temporarily leave the boundary zone.
+    # Thus, we use `abs()` because buffer particles may be located outside the boundary zone.
+    candidates = findall(x -> abs(dot(x - zone_origin, -plane_normal)) <= max_dist,
                          reinterpret(reshape, SVector{ndims(system), eltype(u)},
                                      active_coordinates(u, system)))
 
@@ -245,4 +255,14 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
     end
 
     return v
+end
+
+project_velocity_on_plane_normal(vel, boundary_zone) = vel
+
+function project_velocity_on_plane_normal(vel, boundary_zone::BoundaryZone{InFlow})
+    # Project `v_b` on the normal direction of the boundary zone
+    # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
+    # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
+    # only this component of interpolated velocity is kept [...]"
+    return dot(vel, boundary_zone.plane_normal) * boundary_zone.plane_normal
 end
