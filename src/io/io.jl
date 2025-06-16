@@ -51,7 +51,8 @@ function add_meta_data!(meta_data, system::DEMSystem)
     return meta_data
 end
 
-function add_meta_data!(meta_data, system::FluidSystem)
+function add_meta_data!(meta_data, system::WeaklyCompressibleSPHSystem)
+    # general `FLuidSystem`-Metadata
     meta_data["acceleration"] = system.acceleration
     meta_data["viscosity"] = type2string(system.viscosity)
     add_meta_data!(meta_data, system.viscosity)
@@ -59,31 +60,38 @@ function add_meta_data!(meta_data, system::FluidSystem)
     meta_data["smoothing_length_factor"] = system.cache.smoothing_length_factor
     meta_data["density_calculator"] = type2string(system.density_calculator)
 
-    if system isa WeaklyCompressibleSPHSystem
-        meta_data["state_equation"] = type2string(system.state_equation)
-        meta_data["state_equation_rho0"] = system.state_equation.reference_density
-        meta_data["state_equation_pa"] = system.state_equation.background_pressure
-        meta_data["state_equation_c"] = system.state_equation.sound_speed
-        meta_data["solver"] = "WCSPH"
-
-        meta_data["correction_method"] = type2string(system.correction)
-        if system.correction isa AkinciFreeSurfaceCorrection
-            meta_data["correction_rho0"] = system.correction.rho0
-        end
-        if system.state_equation isa StateEquationCole
-            meta_data["state_equation_exponent"] = system.state_equation.exponent
-        end
-        if system.state_equation isa StateEquationIdealGas
-            meta_data["state_equation_gamma"] = system.state_equation.gamma
-        end
-    else
-        meta_data["solver"] = "EDAC"
-        meta_data["sound_speed"] = system.sound_speed
-        meta_data["background_pressure_TVF"] = system.transport_velocity isa Nothing ? "-" :
-                                               system.transport_velocity.background_pressure
+    # specific `WCSPH`-Metadata
+    meta_data["solver"] = "WCSPH"
+    meta_data["state_equation"] = type2string(system.state_equation)
+    meta_data["state_equation_rho0"] = system.state_equation.reference_density
+    meta_data["state_equation_pa"] = system.state_equation.background_pressure
+    meta_data["state_equation_c"] = system.state_equation.sound_speed
+    meta_data["correction_method"] = type2string(system.correction)
+    if system.correction isa AkinciFreeSurfaceCorrection
+        meta_data["correction_rho0"] = system.correction.rho0
     end
+    if system.state_equation isa StateEquationCole
+        meta_data["state_equation_exponent"] = system.state_equation.exponent
+    end
+    if system.state_equation isa StateEquationIdealGas
+        meta_data["state_equation_gamma"] = system.state_equation.gamma
+    end
+end
 
-    return meta_data
+function add_meta_data!(meta_data, system::EntropicallyDampedSPHSystem)
+    # general `FLuidSystem`-Metadata
+    meta_data["acceleration"] = system.acceleration
+    meta_data["viscosity"] = type2string(system.viscosity)
+    add_meta_data!(meta_data, system.viscosity)
+    meta_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
+    meta_data["smoothing_length_factor"] = system.cache.smoothing_length_factor
+    meta_data["density_calculator"] = type2string(system.density_calculator)
+
+    # specific `EDAC`-Metadata
+    meta_data["solver"] = "EDAC"
+    meta_data["sound_speed"] = system.sound_speed
+    meta_data["background_pressure_TVF"] = system.transport_velocity isa Nothing ? "-" :
+                                           system.transport_velocity.background_pressure
 end
 
 add_meta_data!(meta_data, viscosity::Nothing) = meta_data
