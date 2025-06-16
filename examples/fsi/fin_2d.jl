@@ -191,8 +191,8 @@ smoothing_length = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+# density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
