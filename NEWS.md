@@ -8,14 +8,14 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
-- Simplified SGS Viscosity Models: Added ViscosityMorrisSGS and ViscosityAdamiSGS, 
+- **Simplified SGS Viscosity Models**: Added ViscosityMorrisSGS and ViscosityAdamiSGS, 
   which implement a simplified Smagorinsky-type sub-grid-scale viscosity. (#753)
 
-- Multithreaded Integration Array: Introduced a new array type for CPU backends 
+- **Multithreaded Integration Array**: Introduced a new array type for CPU backends 
   that enables multithreaded broadcasting, delivering speed-ups of up to 5× on systems
   with many threads when combined with thread pinning. (#722)
 
-- Tensile Instability Control (TIC): Implemented TIC to mitigate tensile
+- **Tensile Instability Control (TIC)**: Implemented TIC to mitigate tensile
   instability artifacts in simulations. (#769)
 
 
