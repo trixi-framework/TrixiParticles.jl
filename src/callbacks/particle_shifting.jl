@@ -101,6 +101,10 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
             # (see p. 29, right above Eq. 9), but this does not work when scaling h.
             # When setting CFL * Ma = Δt * v_max / (2 * Δx), PST works as expected
             # for both small and large smoothing length factors.
+            # We need to scale
+            # - quadratically with the smoothing length,
+            # - linearly with the particle spacing,
+            # - linearly with the time step.
             # See https://github.com/trixi-framework/TrixiParticles.jl/pull/834.
             delta_r_ = -dt * v_max * (2 * h)^2 / (2 * dx) * (1 + R * (kernel / Wdx)^n) *
                        m_b / (rho_a + rho_b) * grad_kernel
