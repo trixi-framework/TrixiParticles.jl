@@ -224,7 +224,8 @@ function (movement::BoundaryMovement)(system, t, semi)
     @threaded semi for particle in moving_particles
         pos_original = initial_coords(system, particle)
         pos_new = movement_function(pos_original, t)
-        pos_deriv(t_) = ForwardDiff.derivative(t__ -> movement_function(pos_original, t__), t_)
+        pos_deriv(t_) = ForwardDiff.derivative(t__ -> movement_function(pos_original, t__),
+                                               t_)
         vel = pos_deriv(t)
         acc = ForwardDiff.derivative(pos_deriv, t)
 
@@ -259,8 +260,8 @@ function oscillating_movement(frequency, translation_vector,
 
         result = rotated .+ rotation_center .+ translation
         if ramp_up > 0 && t < ramp_up
-            # Apply a linear ramp-up for the first `ramp_up` seconds
-            ramp_factor = t / ramp_up
+            # Apply a smoothstep ramp-up for the first `ramp_up` seconds
+            ramp_factor = 3 * (t / ramp_up)^2 - 2 * (t / ramp_up)^3
             return result * ramp_factor + (1 - ramp_factor) * x
         end
         return result
