@@ -403,8 +403,10 @@ end
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
-    vtk["density"] = current_density(v, system)
-    vtk["pressure"] = current_pressure(v, system)
+    vtk["density"] = [current_density(v, system, particle)
+                      for particle in active_particles(system)]
+    vtk["pressure"] = [current_pressure(v, system, particle)
+                       for particle in active_particles(system)]
 
     if write_meta_data
         vtk["boundary_zone"] = type2string(first(typeof(system.boundary_zone).parameters))
