@@ -3,43 +3,45 @@ include("read_vtk.jl")
 
 function write_meta_data(callback::Union{SolutionSavingCallback, PostprocessCallback},
                          integrator)
-    semi = integrator.p
-    (; systems) = semi
-
-    output_directory = callback.output_directory
-    prefix = hasproperty(callback, :prefix) ? callback.prefix : ""
-    git_hash = callback.git_hash
-
-    filenames = system_names(systems)
-
-    foreach_system(semi) do system
-        system_index = system_indices(system, semi)
-
-        write_meta_data(system; system_name=filenames[system_index], output_directory,
-                        prefix, git_hash)
-    end
-end
-
-function write_meta_data(system; system_name, output_directory, prefix, git_hash)
-    mkpath(output_directory)
-
-    meta_data = Dict{String, Any}(
-        "solver_name" => "TrixiParticles.jl",
-        "solver_version" => git_hash,
-        "julia_version" => string(VERSION)
-    )
-
-    add_meta_data!(meta_data, system)
-
     # handle "_" on optional prefix strings
     add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
 
-    # Write metadata to JSON-file
-    json_file = joinpath(output_directory,
-                         add_opt_str_pre(prefix) * "$(system_name)_metadata.json")
+    git_hash = callback.git_hash
+    prefix = hasproperty(callback, :prefix) ? callback.prefix : ""
+
+    semi = integrator.p
+    names = system_names(semi.systems)
+
+    # fill `systems` with metadata for each system
+    systems = Dict{String, Any}()
+    foreach_system(semi) do system
+        idx = system_indices(system, semi)
+        name = add_opt_str_pre(prefix) * "$(names[idx])"
+
+        meta_data = Dict{String, Any}()
+        add_meta_data!(meta_data, system)
+
+        systems[name] = meta_data
+    end
+
+    # initialize `simulation_meta_data` and add `systems`
+    simulation_meta_data = Dict{String, Any}(
+        "info" => Dict(
+            "solver_name" => "TrixiParticles.jl",
+            "solver_version" => git_hash,
+            "julia_version" => string(VERSION)
+        ),
+        "systems" => systems
+    )
+
+    # write JSON-file
+    output_directory = callback.output_directory
+    mkpath(output_directory)
+
+    json_file = joinpath(output_directory, "simulation_metadata.json")
 
     open(json_file, "w") do file
-        JSON.print(file, meta_data, 2)
+        JSON.print(file, simulation_meta_data, 2)
     end
 end
 
