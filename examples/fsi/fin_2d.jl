@@ -8,7 +8,6 @@ n_particles_y = 3
 
 # ==========================================================================================
 # ==== Experiment Setup
-gravity = 2.0
 tspan = (0.0, 3.0)
 
 fin_length = 0.6
@@ -100,16 +99,22 @@ fixed_particles = shape_sampled.initial_condition
 #      zcolor=shape_sampled.winding_numbers)
 
 # Beam and clamped particles
-n_particles_per_dimension = (round(Int, fin_length / particle_spacing) + 1,# + n_particles_clamp_x,
+length_clamp = round(Int, 0.15 / particle_spacing) * particle_spacing # m
+n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_spacing) + 2,# + n_particles_clamp_x,
                              n_particles_y)
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
 # from the boundary, which is correct for fluids, but not for solids.
 # We therefore need to pass `tlsph=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        center, density=density, tlsph=true)
+                        (center[1] - length_clamp, center[2]), density=density, tlsph=true)
+
+# Clamp the blade in one layer of particles by moving the foot down by a particle spacing
+fixed_particles.coordinates .-= (0.0, particle_spacing)
 
 solid = union(beam, fixed_particles)
+
+n_fixed_particles = nparticles(solid) - nparticles(beam)
 
 # Movement function
 frequency = 1.3 # Hz
@@ -137,10 +142,9 @@ spacing_ratio = 1
 # tspan = (0.0, 2.0)
 
 fluid_density = 1000.0
-nu = 0.1 / fluid_density # viscosity parameter
 sound_speed = 20.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7, background_pressure=10_000.0)
+                                   exponent=1)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -155,7 +159,8 @@ smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 boundary_density_calculator = AdamiPressureExtrapolation()
-viscosity = ViscosityAdami(nu=1e-6)
+viscosity_fluid = ViscosityAdami(nu=1e-4)
+viscosity_fin = ViscosityAdami(nu=1e-4)
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
@@ -165,15 +170,15 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    hydrodynamic_masses,
                                                    state_equation=state_equation,
                                                    boundary_density_calculator,
-                                                   smoothing_kernel, smoothing_length,
-                                                   viscosity=viscosity)
-# k_solid = 0.1
+                                                   smoothing_kernel, 2 * fluid_particle_spacing,
+                                                   viscosity=viscosity_fin)
+
+# k_solid = 1.0
 # beta_solid = fluid_particle_spacing / particle_spacing
 # boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
 #                                                    particle_spacing,
 #                                                    hydrodynamic_masses)
 
-n_fixed_particles = nparticles(solid) - nparticles(beam)
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
                                         modulus, poisson_ratio;
                                         n_fixed_particles, movement=boundary_movement,
@@ -186,11 +191,12 @@ smoothing_length = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
+                                           smoothing_length, viscosity=viscosity_fluid,
                                            density_diffusion=density_diffusion,
                                            pressure_acceleration=tensile_instability_control)
 # fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
@@ -213,13 +219,13 @@ min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacin
 max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
 periodic_box = PeriodicBox(; min_corner, max_corner)
 cell_list = FullGridCellList(; min_corner, max_corner)
-neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box)
+neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list, update_strategy=ParallelUpdate())
 
 semi = Semidiscretization(fluid_system, boundary_system, solid_system; neighborhood_search)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
 
 split_dt = 2e-5
 split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false, dt=split_dt,
@@ -241,6 +247,7 @@ callbacks = CallbackSet(info_callback, saving_callback, ParticleShiftingCallback
 #             dtmax=1e-2, # Limit stepsize to prevent crashing
 #             save_everystep=false, callback=callbacks, maxiters=10^8);
 
+dt_fluid = 1.25e-4
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
-            dt=1.0, # This is overwritten by the stepsize callback
+            dt=dt_fluid, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks, maxiters=10^8);
