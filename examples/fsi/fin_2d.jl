@@ -32,6 +32,11 @@ initial_velocity = (1.0, 0.0)
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 particle_spacing = fin_thickness / (n_particles_y - 1)
+fluid_particle_spacing = particle_spacing
+
+smoothing_length = sqrt(2) * particle_spacing
+smoothing_length = 2 * fluid_particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
 # fixed_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing / 2,
@@ -129,10 +134,6 @@ boundary_movement = TrixiParticles.oscillating_movement(frequency,
                                                         rotation_angle, center;
                                                         rotation_phase_offset, ramp_up=0.5)
 
-# ==========================================================================================
-# ==== Resolution
-fluid_particle_spacing = particle_spacing
-
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 4
 spacing_ratio = 1
@@ -153,11 +154,6 @@ fluid = setdiff(tank.fluid, solid)
 
 # ==========================================================================================
 # ==== Solid
-# The kernel in the reference uses a differently scaled smoothing length,
-# so this is equivalent to the smoothing length of `sqrt(2) * particle_spacing` used in the paper.
-smoothing_length = sqrt(2) * particle_spacing
-smoothing_kernel = WendlandC2Kernel{2}()
-
 boundary_density_calculator = AdamiPressureExtrapolation()
 viscosity_fluid = ViscosityAdami(nu=1e-4)
 viscosity_fin = ViscosityAdami(nu=1e-4)
@@ -170,7 +166,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    hydrodynamic_masses,
                                                    state_equation=state_equation,
                                                    boundary_density_calculator,
-                                                   smoothing_kernel, 2 * fluid_particle_spacing,
+                                                   smoothing_kernel, smoothing_length_fluid,
                                                    viscosity=viscosity_fin)
 
 # k_solid = 1.0
@@ -179,7 +175,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 #                                                    particle_spacing,
 #                                                    hydrodynamic_masses)
 
-solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
+solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length_solid,
                                         modulus, poisson_ratio;
                                         n_fixed_particles, movement=boundary_movement,
                                         boundary_model=boundary_model_solid,
@@ -187,16 +183,13 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 2 * fluid_particle_spacing
-smoothing_kernel = WendlandC2Kernel{2}()
-
 fluid_density_calculator = ContinuityDensity()
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 # density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity_fluid,
+                                           smoothing_length_fluid, viscosity=viscosity_fluid,
                                            density_diffusion=density_diffusion,
                                            pressure_acceleration=tensile_instability_control)
 # fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
@@ -209,7 +202,7 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length_fluid)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
