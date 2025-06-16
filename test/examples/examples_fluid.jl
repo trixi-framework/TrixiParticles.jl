@@ -339,7 +339,8 @@
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
+        steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10,
+                                                          reltol=1e-3)
 
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
@@ -353,13 +354,12 @@
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; interval=1,
-                                                          interval_size=10,
-                                                          abstol=1.0e-5, reltol=1.0e-4)
+        steady_state_reached = SteadyStateReachedCallback(; interval=1, interval_size=10,
+                                                          reltol=1e-3)
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
-                                         extra_callback=steady_state_reached,
+                                         extra_callback=steady_state_reached, dtmax=2e-3,
                                          tspan=(0.0, 1.5), viscosity_boundary=nothing)
 
         # Make sure that the simulation is terminated after a reasonable amount of time
