@@ -49,7 +49,7 @@ pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
 NDIMS = ndims(pipe.fluid)
 
-n_buffer_particles = 100 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
+n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
 
 # ==========================================================================================
 # ==== Fluid
@@ -98,7 +98,6 @@ boundary_type_in = InFlow()
 plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
 inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_boundary_layers,
                       density=fluid_density, particle_spacing,
-                      #   shift_particles=false, boundary_coordinates=pipe.boundary.coordinates,
                       boundary_type=boundary_type_in)
 
 reference_velocity_in = velocity_function2d
@@ -132,15 +131,15 @@ viscosity_boundary = ViscosityAdami(nu=1e-4)
 boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundary.mass,
                                              AdamiPressureExtrapolation(),
                                              state_equation=state_equation,
-                                             #  viscosity=viscosity_boundary,
+                                             viscosity=viscosity_boundary,
                                              smoothing_kernel, smoothing_length)
 
 boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-min_corner = minimum(pipe.boundary.coordinates .- 100 * particle_spacing, dims=2)
-max_corner = maximum(pipe.boundary.coordinates .+ 100 * particle_spacing, dims=2)
+min_corner = minimum(pipe.boundary.coordinates .- particle_spacing, dims=2)
+max_corner = maximum(pipe.boundary.coordinates .+ particle_spacing, dims=2)
 
 nhs = GridNeighborhoodSearch{NDIMS}(; cell_list=FullGridCellList(; min_corner, max_corner),
                                     update_strategy=ParallelUpdate())
@@ -153,8 +152,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
-
-particle_shifting = nothing
+particle_shifting = ParticleShiftingCallback()
 
 extra_callback = nothing
 

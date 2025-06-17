@@ -1,5 +1,5 @@
 @doc raw"""
-    BoundaryModelTafuni())
+    BoundaryModelTafuni()
 
 Boundary model for the `OpenBoundarySPHSystem`.
 This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
