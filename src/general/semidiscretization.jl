@@ -512,7 +512,9 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_quantities!(system, v, u, v_ode, u_ode, semi, t)
+        @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, v_ode,
+                                                                     u_ode,
+                                                                     semi, t)
     end
 
     # Perform correction and pressure calculation
@@ -528,7 +530,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback)
+        update_final!(system, v, u, v_ode, u_ode, semi,
+                      t; update_from_callback)
     end
 end
 
@@ -564,6 +567,7 @@ end
 
 @inline source_terms(system) = nothing
 @inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
+@inline source_terms(system::ImplicitIncompressibleSPHSystem) = nothing
 
 @inline add_acceleration!(dv, particle, system) = dv
 
@@ -922,6 +926,15 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+end
+
+function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
+    foreach_system(systems) do neighbor
+        if neighbor isa WeaklyCompressibleSPHSystem
+            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
+            `WeaklyCompressibleSPHSystem`"))
+        end
     end
 end
 
