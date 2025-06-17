@@ -441,8 +441,8 @@ function compute_adami_density!(boundary_model, system, system_coords, particle)
     # The summation is only over fluid particles, thus the volume stays zero when a boundary
     # particle isn't surrounded by fluid particles.
     # Check the volume to avoid NaNs in pressure and velocity.
-    if volume[particle] > eps()
-        pressure[particle] /= volume[particle]
+    if @inbounds volume[particle] > eps()
+        @inbounds pressure[particle] /= volume[particle]
 
         # To impose no-slip condition
         compute_wall_velocity!(viscosity, system, system_coords, particle)
@@ -450,7 +450,7 @@ function compute_adami_density!(boundary_model, system, system_coords, particle)
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
-    pressure[particle] = max(pressure[particle], 0)
+    @inbounds pressure[particle] = max(pressure[particle], 0)
 
     # Apply inverse state equation to compute density (not used with EDAC)
     inverse_state_equation!(density, state_equation, pressure, particle)
@@ -608,17 +608,17 @@ end
     # This velocity is zero when not using moving boundaries.
     v_boundary = current_velocity(system_coords, system, particle)
 
-    for dim in 1:ndims(system)
-        # The second term is the precalculated smoothed velocity field of the fluid.
-        wall_velocity[dim,
-                      particle] = 2 * v_boundary[dim] -
-                                  wall_velocity[dim, particle] / volume[particle]
+    for dim in eachindex(v_boundary)
+        # The second term is the precalculated smoothed velocity field of the fluid
+        new_velocity = @inbounds 2 * v_boundary[dim] -
+                                 wall_velocity[dim, particle] / volume[particle]
+        @inbounds wall_velocity[dim, particle] = new_velocity
     end
     return viscosity
 end
 
 @inline function inverse_state_equation!(density, state_equation, pressure, particle)
-    density[particle] = inverse_state_equation(state_equation, pressure[particle])
+    @inbounds density[particle] = inverse_state_equation(state_equation, pressure[particle])
     return density
 end
 
