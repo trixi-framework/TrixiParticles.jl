@@ -18,13 +18,17 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - **Tensile Instability Control (TIC)**: Implemented TIC to mitigate tensile
   instability artifacts in simulations. (#769)
 
-
+- **DXF file format support**: Import complex geometries using the DXF file format. (#821)
+  
 ### GPU
 
  - Fix tests on Apple M GPUs using Metal API (#817).
 
  - Make PST GPU-compatible (#813).
-
+   
+ - Make open boundaries GPU-compatible (#773).
+  
+ - Make interpolation GPU-compatible (#812).
 
 ### Important Bugfixes
  
