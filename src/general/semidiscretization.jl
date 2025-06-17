@@ -502,7 +502,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
     end
 
     # Update NHS
-    update_nhs!(semi, u_ode)
+    @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
 
     # Second update step.
     # This is used to calculate density and pressure of the fluid systems
@@ -512,7 +512,9 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_quantities!(system, v, u, v_ode, u_ode, semi, t)
+        @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, v_ode,
+                                                                     u_ode,
+                                                                     semi, t)
     end
 
     # Perform correction and pressure calculation

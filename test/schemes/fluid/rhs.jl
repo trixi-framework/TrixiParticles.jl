@@ -138,21 +138,33 @@
                                                           pressure_acceleration=nothing,
                                                           density_calculator=density_calculator,
                                                           smoothing_length, 0.0)
+
+                system_iisph = ImplicitIncompressibleSPHSystem(fluid, smoothing_kernel,
+                                                               smoothing_length, 1000.0)
+
                 n_particles = TrixiParticles.nparticles(system_edac)
 
                 # Overwrite `system.pressure` because we skip the update step
                 system_wcsph.pressure .= fluid.pressure
-                @testset "`$(nameof(typeof(system)))`" for system in (system_wcsph,
-                                                            system_edac)
+                system_iisph.pressure .= fluid.pressure
+                if density_calculator isa TrixiParticles.SummationDensity
+                    systems = (system_wcsph, system_edac, system_iisph)
+                else
+                    systems = (system_wcsph, system_edac)
+                end
+                @testset "`$(nameof(typeof(system)))`" for system in systems
                     u = fluid.coordinates
                     if density_calculator isa SummationDensity
                         # Density is stored in the cache
                         v = fluid.velocity
-                        system.cache.density .= fluid.density
-
-                        if system isa EntropicallyDampedSPHSystem
+                        if system isa ImplicitIncompressibleSPHSystem
+                            system.density .= fluid.density
+                        elseif system isa EntropicallyDampedSPHSystem
                             # pressure is integrated
+                            system.cache.density .= fluid.density
                             v = vcat(fluid.velocity, fluid.pressure')
+                        else
+                            system.cache.density .= fluid.density
                         end
                     else
                         # Density is integrated with `ContinuityDensity`
