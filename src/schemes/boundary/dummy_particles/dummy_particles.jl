@@ -423,12 +423,6 @@ function compute_pressure!(boundary_model,
         boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
                                          neighbor_system, system_coords, neighbor_coords, v,
                                          v_neighbor_system, semi)
-
-        @threaded semi for particle in eachparticle(system)
-            # Limit pressure to be non-negative to avoid attractive forces between fluid and
-            # boundary particles at free surfaces (sticking artifacts).
-            pressure[particle] = max(pressure[particle], 0)
-        end
     end
 
     @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
@@ -453,6 +447,10 @@ function compute_adami_density!(boundary_model, system, system_coords, particle)
         # To impose no-slip condition
         compute_wall_velocity!(viscosity, system, system_coords, particle)
     end
+
+    # Limit pressure to be non-negative to avoid attractive forces between fluid and
+    # boundary particles at free surfaces (sticking artifacts).
+    pressure[particle] = max(pressure[particle], 0)
 
     # Apply inverse state equation to compute density (not used with EDAC)
     inverse_state_equation!(density, state_equation, pressure, particle)
