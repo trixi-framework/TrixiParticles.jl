@@ -380,6 +380,10 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 
     vtk["von_mises_stress"] = von_mises_stress(system)
 
+    vtk["displacement"] = [current_coords(system, particle) -
+                           initial_coords(system, particle)
+                           for particle in eachparticle(system)]
+
     sigma = cauchy_stress(system)
     vtk["sigma_11"] = sigma[1, 1, :]
     vtk["sigma_22"] = sigma[2, 2, :]
