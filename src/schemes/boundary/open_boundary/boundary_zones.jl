@@ -7,7 +7,8 @@ struct OutFlow end
 @doc raw"""
     BoundaryZone(; plane, plane_normal, density, particle_spacing,
                  initial_condition=nothing, extrude_geometry=nothing,
-                 open_boundary_layers::Integer, boundary_type=BidirectionalFlow())
+                 open_boundary_layers::Integer, boundary_type=BidirectionalFlow(),
+                 average_inflow_velocity=true)
 
 Boundary zone for [`OpenBoundarySPHSystem`](@ref).
 
@@ -54,7 +55,7 @@ There are three ways to specify the actual shape of the boundary zone:
 - `extrude_geometry=nothing`: 1D shape in 2D or 2D shape in 3D, which lies on the plane
                               and is extruded upstream to obtain the inflow particles.
                               See point 2 above for more details.
-- `average_inflow_velocity=false`: If `true`, the extrapolated inflow velocity is averaged
+- `average_inflow_velocity=true`: If `true`, the extrapolated inflow velocity is averaged
                                   to impose a uniform inflow profile.
                                   When no velocity is prescribed at the inflow,
                                   the velocity is extrapolated from the fluid domain.
@@ -103,7 +104,7 @@ end
 function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, boundary_type=BidirectionalFlow(),
-                      average_inflow_velocity=false)
+                      average_inflow_velocity=true)
     if open_boundary_layers <= 0
         throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
     end
