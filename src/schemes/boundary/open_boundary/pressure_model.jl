@@ -35,9 +35,9 @@ function update_pressure_model!(system, model::RCRBoundaryModel, v, dt)
     (; boundary_zone) = system
 
     vel_normal = sum(each_moving_particle(system)) do particle
-        # TODO: Lu et al. (2024), p. 9:
-        # Is it the normal dircetion pointing into the fluid domain or the flow direction?
-        v_n = dot(current_velocity(v, system, particle), boundary_zone.flow_direction)
+        # Lu et al. (2024), equation on page 9. Page 10: "`n_o` is the outer normal vector"
+        v_n = dot(current_velocity(v, system, particle), boundary_zone.spanning_set[1])
+
         return v_n / system.buffer.active_particle_count[]
     end
 
@@ -59,7 +59,7 @@ function pressure_evolution!(dv, system, pressure_model::RCRBoundaryModel, v, u,
                   (capacitance[] * resistance_2[])
 
     # TODO: Check this.
-    # We calculate Q^n and Q^(n-1) for each time step, sow we use current `dt` from the callback here.
+    # We calculate Q^n and Q^(n-1) for each time step, so we use current `dt` from the callback here.
     # According to Lu et al. (2024), Eq. (41):
     # (dp/dt)^n = ... + ... + R_1 * (Q^n - Q^(n-1)) / Δt
     # Does the time integration cancel out  Δt in this context?
