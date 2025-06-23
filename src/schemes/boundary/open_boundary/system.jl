@@ -285,6 +285,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
+    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
+
     # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
     @trixi_timeit timer() "update boundary quantities" update_boundary_quantities!(system,
@@ -293,8 +295,6 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
                                                                                    v_ode,
                                                                                    u_ode,
                                                                                    semi, t)
-
-    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
     update_pressure_model!(system, system.pressure_model, v, dt)
 
