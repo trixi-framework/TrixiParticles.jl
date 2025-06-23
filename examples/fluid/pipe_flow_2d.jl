@@ -47,14 +47,16 @@ pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_densi
 # Shift pipe walls in negative x-direction for the inflow
 pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
-n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
+NDIMS = ndims(pipe.fluid)
+
+n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
 
 # ==========================================================================================
 # ==== Fluid
 wcsph = false
 
 smoothing_length = 1.5 * particle_spacing
-smoothing_kernel = WendlandC2Kernel{2}()
+smoothing_kernel = WendlandC2Kernel{NDIMS}()
 
 fluid_density_calculator = ContinuityDensity()
 
@@ -136,8 +138,15 @@ boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
+min_corner = minimum(pipe.boundary.coordinates .- particle_spacing, dims=2)
+max_corner = maximum(pipe.boundary.coordinates .+ particle_spacing, dims=2)
+
+nhs = GridNeighborhoodSearch{NDIMS}(; cell_list=FullGridCellList(; min_corner, max_corner),
+                                    update_strategy=ParallelUpdate())
+
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
-                          boundary_system, parallelization_backend=PolyesterBackend())
+                          boundary_system, neighborhood_search=nhs,
+                          parallelization_backend=PolyesterBackend())
 
 ode = semidiscretize(semi, tspan)
 
@@ -146,7 +155,8 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
+                        ParticleShiftingCallback(), extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
