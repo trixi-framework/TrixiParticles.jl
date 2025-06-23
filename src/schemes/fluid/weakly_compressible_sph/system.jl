@@ -59,7 +59,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `color_value`:                The value used to initialize the color of particles in the system.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
-                                   PF, TV, ST, B, SRFT, SRFN, PR, C} <: FluidSystem{NDIMS}
+                                   PF, TV, ST, B, SRFT, SRFN, PR, PS, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -77,6 +77,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, 
     surface_normal_method             :: SRFN
     buffer                            :: B
     particle_refinement               :: PR # TODO
+    particle_shifting                 :: PS
     cache                             :: C
 end
 
@@ -93,6 +94,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      buffer_size=nothing,
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
+                                     particle_shifting=nothing,
                                      reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
@@ -148,7 +150,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
              create_cache_tvf(Val(:wcsph), initial_condition, transport_velocity)...,
-             color=Int(color_value))
+             color=Int(color_value),
+             create_cache_shifting(particle_shifting, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -164,7 +167,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        density_diffusion, correction, pressure_acceleration,
                                        transport_velocity, source_terms, surface_tension,
                                        surface_normal_method, buffer, particle_refinement,
-                                       cache)
+                                       particle_shifting, cache)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -286,6 +289,8 @@ end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
 
+@inline particle_shifting(system::WeaklyCompressibleSPHSystem) = system.particle_shifting
+
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system
@@ -325,6 +330,12 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
     # Check that TVF is only used together with `UpdateCallback`
     check_tvf_configuration(system, system.transport_velocity, v, u, v_ode, u_ode, semi, t;
                             update_from_callback)
+end
+
+function update_final2!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
+    update_shifting!(system, particle_shifting(system), v, u, v_ode, u_ode, semi, t)
+
+    return system
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
