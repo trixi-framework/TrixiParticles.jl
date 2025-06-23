@@ -143,6 +143,10 @@ function update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback
     return system
 end
 
+function update_final2!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
 # Only for systems requiring a mandatory callback
 reset_callback_flag!(system) = system
 

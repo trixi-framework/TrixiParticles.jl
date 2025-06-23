@@ -56,8 +56,11 @@ end
 
 # Add momentum velocity.
 @inline function add_velocity!(du, v, particle, system, ::Nothing)
+    # This is zero unless `ParticleShiftingSun2019` is used
+    delta_v_ = delta_v(system, particle)
+
     for i in 1:ndims(system)
-        du[i, particle] = v[i, particle]
+        du[i, particle] = v[i, particle] + delta_v_[i]
     end
 
     return du
