@@ -229,6 +229,16 @@ end
 
 update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
 
+@inline function v_nvariables(system::OpenBoundarySPHSystem)
+    return v_nvariables(system, system.pressure_model)
+end
+
+@inline v_nvariables(system::OpenBoundarySPHSystem, ::Nothing) = ndims(system)
+
+@inline function v_nvariables(system::OpenBoundarySPHSystem, ::RCRBoundaryModel)
+    return ndims(system) + 1
+end
+
 function corresponding_fluid_system(system::OpenBoundarySPHSystem, semi)
     return system.fluid_system
 end
@@ -252,7 +262,7 @@ end
 end
 
 @inline function current_pressure(v, system::OpenBoundarySPHSystem, particle)
-    return current_pressure(v, system)[particle]
+    return v[end, particle]
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
@@ -414,6 +424,17 @@ function write_v0!(v0, system::OpenBoundarySPHSystem)
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
     indices = CartesianIndices(system.initial_condition.velocity)
     copyto!(v0, indices, system.initial_condition.velocity, indices)
+
+    write_v0!(v0, system, system.pressure_model)
+
+    return v0
+end
+
+write_v0!(v0, system::OpenBoundarySPHSystem, ::Nothing) = v0
+
+function write_v0!(v0, system::OpenBoundarySPHSystem, ::RCRBoundaryModel)
+    # Note that `.=` is very slightly faster, but not GPU-compatible
+    v0[end, :] = system.initial_condition.pressure
 
     return v0
 end

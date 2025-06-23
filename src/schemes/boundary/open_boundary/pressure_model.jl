@@ -44,6 +44,8 @@ function update_pressure_model!(system, model::RCRBoundaryModel, v, dt)
     model.previous_averaged_inflow[] = model.averaged_inflow[]
     model.averaged_inflow[] = vel_normal * pi * model.cross_section_area
     model.dt[] = dt
+
+    return system
 end
 
 pressure_evolution!(dv, system, ::Nothing, u, v, semi) = dv
@@ -63,7 +65,10 @@ function pressure_evolution!(dv, system, pressure_model::RCRBoundaryModel, v, u,
     # Does the time integration cancel out  Δt in this context?
     # Is it valid to omit 1/Δt?
     # I think only if we compute Q^n and Q^(n-1) for each stage, no?
-    third_term = resistance_1[] * (averaged_inflow[] - previous_averaged_inflow[]) / dt[]
+    third_term = dt[] > 0 ?
+                 resistance_1[] * (averaged_inflow[] - previous_averaged_inflow[]) / dt[] :
+                 zero(eltype(v))
+
 
     @threaded semi for particle in each_moving_particle(system)
         dv[end, particle] = factor * current_pressure(v, system, particle) + second_term +
