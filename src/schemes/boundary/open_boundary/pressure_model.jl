@@ -42,7 +42,7 @@ function update_pressure_model!(system, model::RCRBoundaryModel, v, dt)
     end
 
     model.previous_averaged_inflow[] = model.averaged_inflow[]
-    model.averaged_inflow[] = vel_normal * pi * model.cross_section_area
+    model.averaged_inflow[] = vel_normal * model.cross_section_area
     model.dt[] = dt
 
     return system
