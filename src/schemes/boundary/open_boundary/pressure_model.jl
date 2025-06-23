@@ -37,7 +37,7 @@ function update_pressure_model!(system, model::RCRBoundaryModel, v, dt)
     vel_normal = sum(each_moving_particle(system)) do particle
         # TODO: Lu et al. (2024), p. 9:
         # Is it the normal dircetion pointing into the fluid domain or the flow direction?
-        v_n = dot(current_velocity(v, system, particle), boundary_zone.plane_normal)
+        v_n = dot(current_velocity(v, system, particle), boundary_zone.flow_normal)
         return v_n / system.buffer.active_particle_count[]
     end
 
