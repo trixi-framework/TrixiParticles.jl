@@ -144,7 +144,11 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
         reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
     end
 
-    cache = create_cache_open_boundary(boundary_model, initial_condition,
+    if !(isnothing(pressure_model)) && !(isnothing(reference_pressure_))
+        throw(ArgumentError("`reference_pressure` must be `nothing` when using $(typeof(pressure_model)))"))
+    end
+
+    cache = create_cache_open_boundary(boundary_model, pressure_model, initial_condition,
                                        reference_density, reference_velocity,
                                        reference_pressure)
 
@@ -161,7 +165,7 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                  buffer, update_callback_used, cache)
 end
 
-function create_cache_open_boundary(boundary_model, initial_condition,
+function create_cache_open_boundary(boundary_model, pressure_model, initial_condition,
                                     reference_density, reference_velocity,
                                     reference_pressure)
     ELTYPE = eltype(initial_condition)
@@ -171,7 +175,8 @@ function create_cache_open_boundary(boundary_model, initial_condition,
     prescribed_density = isnothing(reference_density) ? false : true
 
     if boundary_model isa BoundaryModelTafuni
-        return (; prescribed_pressure=prescribed_pressure,
+        return (;
+                prescribed_pressure=isnothing(pressure_model) ? prescribed_pressure : true,
                 prescribed_density=prescribed_density,
                 prescribed_velocity=prescribed_velocity)
     end
