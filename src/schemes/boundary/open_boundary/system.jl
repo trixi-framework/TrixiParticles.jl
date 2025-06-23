@@ -267,7 +267,7 @@ end
 end
 
 @inline function current_pressure(v, system::OpenBoundarySPHSystem, particle)
-    return v[end, particle]
+    return current_pressure_open_boundary(v, system, system.pressure_model)[particle]
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;

@@ -148,7 +148,8 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         end
 
         if prescribed_pressure
-            pressure[particle] = reference_value(reference_pressure, pressure[particle],
+            p_a = current_pressure(v_open_boundary, system, particle)
+            pressure[particle] = reference_value(reference_pressure, p_a,
                                                  particle_coords, t)
         elseif fluid_system isa WeaklyCompressibleSPHSystem
             # For a WCSPH system, the pressure is determined by the state equation
