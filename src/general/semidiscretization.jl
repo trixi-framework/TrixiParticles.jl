@@ -330,7 +330,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
         semi_new = Semidiscretization(set_system_links.(semi_.systems, Ref(semi_)),
                                       semi_.ranges_u, semi_.ranges_v,
                                       semi_.neighborhood_searches,
-                                      semi_.parallelization_backend)
+                                      semi_.parallelization_backend, semi_.integrate_tlsph)
     else
         semi_new = semi
     end
