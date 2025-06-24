@@ -70,7 +70,8 @@ function pressure_evolution!(dv, system, pressure_model::RCRBoundaryModel, v, u,
                  zero(eltype(v))
 
 
-    @threaded semi for particle in each_moving_particle(system)
+    # It is necessary to iterate over all particles (including inactive ones) to ensure a consistent pressure field.
+    @threaded semi for particle in eachparticle(system)
         dv[end, particle] = factor * current_pressure(v, system, particle) + second_term +
                             third_term
     end
