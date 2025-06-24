@@ -269,7 +269,8 @@ end
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
-    vtk["density"] = current_density(v, system)
+    vtk["density"] = [current_density(v, system, particle)
+                      for particle in active_particles(system)]
     # Indexing the pressure is a workaround for slicing issue (see https://github.com/JuliaSIMD/StrideArrays.jl/issues/88)
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in active_particles(system)]
