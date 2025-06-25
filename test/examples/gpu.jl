@@ -178,13 +178,13 @@ end
                                                   clip_negative_pressure=true),
                 "WCSPH with ViscosityAdami" => (
                                                 # from 0.02*10.0*1.2*0.05/8
-                                                viscosity=ViscosityAdami(nu=0.0015f0),),
+                                                viscosity_fluid=ViscosityAdami(nu=0.0015f0),),
                 "WCSPH with ViscosityMorris" => (
                                                  # from 0.02*10.0*1.2*0.05/8
-                                                 viscosity=ViscosityMorris(nu=0.0015f0),),
+                                                 viscosity_fluid=ViscosityMorris(nu=0.0015f0),),
                 "WCSPH with ViscosityAdami and SummationDensity" => (
                                                                      # from 0.02*10.0*1.2*0.05/8
-                                                                     viscosity=ViscosityAdami(nu=0.0015f0),
+                                                                     viscosity_fluid=ViscosityAdami(nu=0.0015f0),
                                                                      fluid_density_calculator=SummationDensity(),
                                                                      maxiters=38, # 38 time steps on CPU
                                                                      clip_negative_pressure=true),
@@ -205,7 +205,7 @@ end
                                                                                              smoothing_kernel,
                                                                                              smoothing_length,
                                                                                              sound_speed,
-                                                                                             viscosity=viscosity,
+                                                                                             viscosity=viscosity_fluid,
                                                                                              density_calculator=ContinuityDensity(),
                                                                                              acceleration=(0.0,
                                                                                                            -gravity))),
@@ -213,7 +213,7 @@ end
                                                                                           smoothing_kernel,
                                                                                           smoothing_length,
                                                                                           sound_speed,
-                                                                                          viscosity=viscosity,
+                                                                                          viscosity=viscosity_fluid,
                                                                                           density_calculator=SummationDensity(),
                                                                                           acceleration=(0.0,
                                                                                                         -gravity)),)

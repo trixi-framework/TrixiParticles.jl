@@ -55,7 +55,7 @@
         fluid_system.cache.density .= domain_fluid.density
 
         @testset verbose=true "plane normal $i" for i in eachindex(files)
-            inflow = BoundaryZone(; plane=plane_boundary[i],
+            inflow = BoundaryZone(; plane=plane_boundary[i], boundary_type=InFlow(),
                                   plane_normal=plane_boundary_normal[i],
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
@@ -150,7 +150,7 @@
         fluid_system.cache.density .= domain_fluid.density
 
         @testset verbose=true "plane normal $i" for i in eachindex(files)
-            inflow = BoundaryZone(; plane=plane_boundary[i],
+            inflow = BoundaryZone(; plane=plane_boundary[i], boundary_type=InFlow(),
                                   plane_normal=plane_boundary_normal[i],
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 

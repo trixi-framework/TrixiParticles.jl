@@ -2,7 +2,9 @@
     load_geometry(filename; element_type=Float64)
 
 Load file and return corresponding type for [`ComplexShape`](@ref).
-Supported file formats are `.stl` and `.asc`.
+Supported file formats are `.stl`, `.asc` and `dxf`.
+For comprehensive information about the supported file formats, refer to the documentation at
+[Read geometries from file](@ref read_geometries_from_file).
 
 # Arguments
 - `filename`: Name of the file to be loaded.
@@ -17,10 +19,12 @@ function load_geometry(filename; element_type=Float64)
 
     if file_extension == ".asc"
         geometry = load_ascii(filename; ELTYPE, skipstart=1)
+    elseif file_extension == ".dxf"
+        geometry = load_dxf(filename; ELTYPE)
     elseif file_extension == ".stl"
         geometry = load(FileIO.query(filename); ELTYPE)
     else
-        throw(ArgumentError("Only `.stl` and `.asc` files are supported (yet)."))
+        throw(ArgumentError("Only `.stl`, `.asc` and `.dxf` files are supported (yet)."))
     end
 
     return geometry
@@ -33,6 +37,97 @@ function load_ascii(filename; ELTYPE=Float64, skipstart=1)
     points = DelimitedFiles.readdlm(filename, ' ', ELTYPE, '\n'; skipstart)[:, 1:2]
 
     return Polygon(copy(points'))
+end
+
+function load_dxf(filename; ELTYPE=Float64)
+    points = Tuple{ELTYPE, ELTYPE}[]
+
+    load_dxf!(points, filename)
+
+    return Polygon(stack(points))
+end
+
+function load_dxf!(points::Vector{Tuple{T, T}}, filename) where {T}
+    open(filename) do io
+        lines = readlines(io)
+
+        # Check if the DXF file contains line entities ("LINE") or polyline entities ("POLYLINE")
+        idx_first_line = findfirst(x -> strip(x) == "LINE", lines)
+        idx_first_polyline = findfirst(x -> strip(x) == "POLYLINE", lines)
+
+        if !isnothing(idx_first_line) && isnothing(idx_first_polyline)
+            # The file contains only simple line entities ("LINE")
+            i = idx_first_line
+
+            while i <= length(lines)
+                if strip(lines[i]) == "LINE"
+                    if idx_first_line == i
+                        # For a polygon, we only need to store the start point of the first line entity.
+                        # For subsequent lines, the end point of the previous edge is the start point of the current edge,
+                        # so storing all start points would result in duplicate vertices.
+                        # Therefore, we only push the start point for the very first line.
+
+                        # Search for the coordinates of the start point:
+                        # Group codes "10", "20", "30" represent x, y, z of the start point
+                        while i <= length(lines) && strip(lines[i]) != "10"
+                            i += 1
+                        end
+                        x1 = parse(T, strip(lines[i + 1]))
+                        @assert strip(lines[i + 2]) == "20"
+                        y1 = parse(T, strip(lines[i + 3]))
+
+                        push!(points, (x1, y1))
+                    end
+
+                    # Search for the end point coordinates:
+                    # Group codes "11", "21", "31" represent x, y, z of the end point
+                    while i <= length(lines) && strip(lines[i]) != "11"
+                        i += 1
+                    end
+                    x2 = parse(T, strip(lines[i + 1]))
+                    @assert strip(lines[i + 2]) == "21"
+                    y2 = parse(T, strip(lines[i + 3]))
+
+                    # Add end point of the line to the point list
+                    push!(points, (x2, y2))
+                end
+                i += 1
+            end
+
+        elseif isnothing(idx_first_line) && !isnothing(idx_first_polyline)
+            # The file contains only polyline entities ("POLYLINE")
+            i = idx_first_polyline
+
+            while i <= length(lines)
+                line = strip(lines[i])
+                if line == "VERTEX"
+                    # Search for the coordinates of the current vertex:
+                    # Group codes "10", "20", "30" represent x, y, z of the vertex
+                    while i <= length(lines) && strip(lines[i]) != "10"
+                        i += 1
+                    end
+                    x = parse(T, strip(lines[i + 1]))
+                    @assert strip(lines[i + 2]) == "20"
+                    y = parse(T, strip(lines[i + 3]))
+
+                    # Add the vertex to the point list
+                    push!(points, (x, y))
+
+                elseif line == "SEQEND"
+                    # End of the polyline reached
+                    break
+                end
+                i += 1
+            end
+        else
+            throw(ArgumentError("This entity type is not supported. Only 'LINE' OR 'POLYLINE' are allowed."))
+        end
+    end
+
+    # Remove duplicate points from the list
+    unique(points)
+
+    return points
 end
 
 # FileIO.jl docs:
