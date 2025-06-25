@@ -374,8 +374,8 @@ end
 function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_data=true)
     n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
-    vtk["velocity"] = hcat(view(v, 1:ndims(system), :),
-                           zeros(ndims(system), n_fixed_particles))
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in active_particles(system)]
     vtk["jacobian"] = [det(deformation_gradient(system, particle))
                        for particle in eachparticle(system)]
 
