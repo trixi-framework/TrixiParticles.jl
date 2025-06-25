@@ -36,7 +36,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
  - Calculate interpolated density instead of computed density when using interpolation (#808).
 
- - Fix memory leak with Julia 1.10 (#809).
+ - Fix allocations with Julia 1.10 (#809).
 
  - Fix Tafuni extrapolation for open boundaries (#829).
 
