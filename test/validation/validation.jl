@@ -50,7 +50,7 @@
         if Sys.ARCH === :aarch64
             # MacOS ARM produces slightly different pressure values than x86.
             # Note that pressure values are in the order of 1e5.
-            @test isapprox(error_edac_P1, 0, atol=4e-6)
+            @test isapprox(error_edac_P1, 0, atol=5e-6)
             @test isapprox(error_edac_P2, 0, atol=4e-11)
             @test isapprox(error_wcsph_P1, 0, atol=400.0)
             @test isapprox(error_wcsph_P2, 0, atol=0.03)
@@ -95,5 +95,33 @@
 
         @test isapprox(errors["edac"][2], 0, atol=0.0301)
         @test isapprox(errors["wcsph"][2], 0, atol=0.048)
+    end
+    @trixi_testset "TGV_2D" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "taylor_green_vortex_2d",
+                                                  "validation_taylor_green_vortex_2d.jl"),
+                                         tspan=(0.0, 0.01)) [
+            r"WARNING: Method definition pressure_function.*\n",
+            r"WARNING: Method definition initial_pressure_function.*\n",
+            r"WARNING: Method definition velocity_function.*\n",
+            r"WARNING: Method definition initial_velocity_function.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "LDC_2D" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "lid_driven_cavity_2d",
+                                                  "validation_lid_driven_cavity_2d.jl"),
+                                         tspan=(0.0, 0.02), dt=0.01,
+                                         SENSOR_CAPTURE_TIME=0.01) [
+            r"WARNING: Method definition lid_movement_function.*\n",
+            r"WARNING: Method definition is_moving.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
     end
 end

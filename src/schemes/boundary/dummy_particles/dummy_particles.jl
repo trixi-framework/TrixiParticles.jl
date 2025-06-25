@@ -502,6 +502,7 @@ end
 
     # This needs to be serial to avoid race conditions when writing into `system`
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
+                           points=each_moving_particle(neighbor_system),
                            parallelization_backend=SerialBackend()) do neighbor, particle,
                                                                        pos_diff, distance
         # Since neighbor and particle are switched
