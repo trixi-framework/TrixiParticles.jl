@@ -19,10 +19,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   instability artifacts in simulations. (#769)
 
 - **DXF file format support**: Import complex geometries using the DXF file format. (#821)
+
+- **Improved Plane interpolation**: Massively improved interpolation performance for planes (#763).
   
 ### GPU
-
- - Fix tests on Apple M GPUs using Metal API (#817).
 
  - Make PST GPU-compatible (#813).
    
@@ -39,11 +39,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
  - Fix allocations with Julia 1.10 (#809).
 
  - Fix Tafuni extrapolation for open boundaries (#829).
-
-
-### Refactoring
-
-- Improve plane interpolation performance (#763).
 
 ## Version 0.3
 
