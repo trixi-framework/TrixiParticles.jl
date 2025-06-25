@@ -8,6 +8,15 @@ struct RCRBoundaryModel{ELTYPE, PAI, AI, DT}
     dt                       :: DT
 end
 
+function RCRBoundaryModel(resistance_1, resistance_2, capacitance,
+                          cross_section_area, previous_averaged_inflow, averaged_inflow, dt)
+    return RCRBoundaryModel{ELTYPE, typeof(previous_averaged_inflow),
+                            typeof(averaged_inflow),
+                            typeof(dt)}(resistance_1, resistance_2, capacitance,
+                                        cross_section_area,
+                                        previous_averaged_inflow, averaged_inflow, dt)
+end
+
 function RCRBoundaryModel(; resistance_1, resistance_2, capacitance, pipe_radius)
     ELTYPE = eltype(resistance_1)
     cross_section_area = pi * pipe_radius^2
@@ -16,11 +25,8 @@ function RCRBoundaryModel(; resistance_1, resistance_2, capacitance, pipe_radius
     averaged_inflow = Ref(zero(ELTYPE))
     dt = Ref(zero(ELTYPE))
 
-    return RCRBoundaryModel{ELTYPE, typeof(previous_averaged_inflow),
-                            typeof(averaged_inflow),
-                            typeof(dt)}(resistance_1, resistance_2, capacitance,
-                                        cross_section_area,
-                                        previous_averaged_inflow, averaged_inflow, dt)
+    return RCRBoundaryModel(resistance_1, resistance_2, capacitance, cross_section_area,
+                            previous_averaged_inflow, averaged_inflow, dt)
 end
 
 @inline function current_pressure_open_boundary(v, system, pressure_model::RCRBoundaryModel)
@@ -68,7 +74,6 @@ function pressure_evolution!(dv, system, pressure_model::RCRBoundaryModel, v, u,
     third_term = dt[] > 0 ?
                  resistance_1[] * (averaged_inflow[] - previous_averaged_inflow[]) / dt[] :
                  zero(eltype(v))
-
 
     # It is necessary to iterate over all particles (including inactive ones) to ensure a consistent pressure field.
     @threaded semi for particle in eachparticle(system)
