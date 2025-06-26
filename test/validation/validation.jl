@@ -85,7 +85,7 @@
     end
 
     @trixi_testset "hydrostatic_water_column_2d" begin
-        @test_nowarn_mod trixi_include(@__MODULE__,
+        @trixi_test_nowarn trixi_include(@__MODULE__,
                                        joinpath(validation_dir(),
                                                 "hydrostatic_water_column_2d",
                                                 "validation.jl")) [
