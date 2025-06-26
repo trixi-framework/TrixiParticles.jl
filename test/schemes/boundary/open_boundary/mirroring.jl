@@ -249,6 +249,5 @@
         v_x_fluid_first = v_fluid[1, 1]
 
         @test all(isapprox(-v_x_fluid_first), v_open_boundary[1, :])
-
     end
 end
