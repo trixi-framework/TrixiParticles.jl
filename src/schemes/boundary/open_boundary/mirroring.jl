@@ -164,7 +164,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 
     if !(prescribed_velocity) && boundary_zone.average_inflow_velocity
         # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
-        # Thus, turbulent flows near the inflow can lead to non-uniform buffer-particles distribution,
+        # Thus, turbulent flows near the inflow can lead to non-uniform buffer particles distribution,
         # resulting in a potential numerical instability. Averaging mitigates these effects.
         average_velocity!(v_open_boundary, u_open_boundary, system, boundary_zone, semi)
     end
@@ -234,18 +234,18 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
 
     # We only use the extrapolated velocity in the vicinity of the transition region.
     # Otherwise, if the boundary zone is too large, averaging would be excessively influenced
-    # by the fluid velocity farther away from the boundary.
+    # by the fluid velocity further away from the boundary.
     max_dist = initial_condition.particle_spacing
 
-    # This function is executed at every stage, so it is possible for buffer particles to temporarily leave the boundary zone.
-    # Thus, we use `abs()` because buffer particles may be located outside the boundary zone.
-    candidates = findall(x -> abs(dot(x - zone_origin, -plane_normal)) <= max_dist,
+    candidates = findall(x -> dot(x - zone_origin, -plane_normal) <= max_dist,
                          reinterpret(reshape, SVector{ndims(system), eltype(u)},
                                      active_coordinates(u, system)))
 
     avg_velocity = sum(candidates) do particle
-        return current_velocity(v, system, particle) / length(candidates)
+        return current_velocity(v, system, particle)
     end
+
+    avg_velocity /= length(candidates)
 
     @threaded semi for particle in each_moving_particle(system)
         # Set the velocity of the ghost node to the average velocity of the fluid domain
