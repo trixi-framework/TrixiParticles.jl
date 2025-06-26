@@ -235,7 +235,7 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
     # We only use the extrapolated velocity in the vicinity of the transition region.
     # Otherwise, if the boundary zone is too large, averaging would be excessively influenced
     # by the fluid velocity further away from the boundary.
-    max_dist = initial_condition.particle_spacing
+    max_dist = initial_condition.particle_spacing * 110 / 100
 
     candidates = findall(x -> dot(x - zone_origin, -plane_normal) <= max_dist,
                          reinterpret(reshape, SVector{ndims(system), eltype(u)},
