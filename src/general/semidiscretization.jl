@@ -577,7 +577,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t;
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_final2!(system, v, u, v_ode, u_ode, semi, t)
+        update_final2!(system, v, u, v_ode, u_ode, semi, t; update_from_callback)
     end
 end
 
