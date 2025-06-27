@@ -332,8 +332,11 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
                             update_from_callback)
 end
 
-function update_final2!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
-    update_shifting!(system, particle_shifting(system), v, u, v_ode, u_ode, semi, t)
+function update_final2!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
+                        update_from_callback=false)
+    if !update_from_callback
+        update_shifting!(system, particle_shifting(system), v, u, v_ode, u_ode, semi, t)
+    end
 
     return system
 end

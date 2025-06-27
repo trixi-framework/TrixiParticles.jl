@@ -143,7 +143,7 @@ function update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback
     return system
 end
 
-function update_final2!(system, v, u, v_ode, u_ode, semi, t)
+function update_final2!(system, v, u, v_ode, u_ode, semi, t; update_from_callback=false)
     return system
 end
 
