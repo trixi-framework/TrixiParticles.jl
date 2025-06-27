@@ -1,6 +1,6 @@
 using TrixiParticles
 using OrdinaryDiffEqLowStorageRK
-using OrdinaryDiffEqSymplecticRK
+# using OrdinaryDiffEqSymplecticRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -34,8 +34,8 @@ initial_velocity = (1.0, 0.0)
 particle_spacing = fin_thickness / (n_particles_y - 1)
 fluid_particle_spacing = particle_spacing
 
-smoothing_length = sqrt(2) * particle_spacing
-smoothing_length = 2 * fluid_particle_spacing
+smoothing_length_solid = sqrt(2) * particle_spacing
+smoothing_length_fluid = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
@@ -78,6 +78,8 @@ points_matrix = reinterpret(reshape, Float64, points)
 scaling = 0.3 / maximum(points_matrix, dims=2)[1]
 points_matrix .*= scaling
 points_matrix .+= (-0.3, -points_matrix[2, 1]) .+ center .- (0.0, 1e-4)
+# # Clamp the blade in one layer of particles by moving the foot down by a particle spacing
+# points_matrix .-= (0.0, particle_spacing)
 geometry = TrixiParticles.Polygon(points_matrix)
 
 # trixi2vtk(geometry)
@@ -88,20 +90,7 @@ point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
 
 # Returns `InitialCondition`
 shape_sampled = ComplexShape(geometry; particle_spacing, density=density,
-                             store_winding_number=true, grid_offset=center,
-                             point_in_geometry_algorithm)
-
-fixed_particles = shape_sampled.initial_condition
-
-# trixi2vtk(shape_sampled.initial_condition)
-
-# coordinates = stack(shape_sampled.grid)
-# trixi2vtk(shape_sampled.signed_distance_field)
-# trixi2vtk(coordinates, w=shape_sampled.winding_numbers)
-
-# Plot the winding number field
-# plot(InitialCondition(; coordinates, density=1.0, particle_spacing),
-#      zcolor=shape_sampled.winding_numbers)
+                             grid_offset=center, point_in_geometry_algorithm)
 
 # Beam and clamped particles
 length_clamp = round(Int, 0.15 / particle_spacing) * particle_spacing # m
@@ -114,12 +103,85 @@ n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_s
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
                         (center[1] - length_clamp, center[2]), density=density, tlsph=true)
 
-# Clamp the blade in one layer of particles by moving the foot down by a particle spacing
-fixed_particles.coordinates .-= (0.0, particle_spacing)
+fixed_particles = setdiff(shape_sampled, beam)
 
-solid = union(beam, fixed_particles)
+# solid = union(beam, fixed_particles)
+
+# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+boundary_layers = 4
+spacing_ratio = 1
+fluid_density = 1000.0
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       faces=(false, false, true, true), velocity=initial_velocity)
+# fluid = setdiff(tank.fluid, solid)
+
+# ==========================================================================================
+# ==== Packing
+foot_sdf = SignedDistanceField(geometry, particle_spacing;
+                               max_signed_distance=4 * particle_spacing,
+                               use_for_boundary_packing=true)
+
+boundary_packing = sample_boundary(foot_sdf; boundary_density=density,
+                                   boundary_thickness=4 * particle_spacing)
+boundary_packing = setdiff(boundary_packing, beam)
+
+background_pressure = 1.0
+smoothing_length_packing = 0.8 * particle_spacing
+foot_packing_system = ParticlePackingSystem(fixed_particles; smoothing_length=smoothing_length_packing,
+                                            signed_distance_field=foot_sdf, background_pressure)
+
+fluid_packing_system = ParticlePackingSystem(boundary_packing; smoothing_length=smoothing_length_packing,
+                                             signed_distance_field=foot_sdf, is_boundary=true, background_pressure,
+                                             boundary_compress_factor=0.8)
+
+blade_packing_system = ParticlePackingSystem(beam; smoothing_length=smoothing_length_packing,
+                                             fixed_system=true, signed_distance_field=nothing, background_pressure)
+
+min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
+max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
+periodic_box = PeriodicBox(; min_corner, max_corner)
+cell_list = FullGridCellList(; min_corner, max_corner)
+neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list, update_strategy=ParallelUpdate())
+
+semi_packing = Semidiscretization(foot_packing_system, fluid_packing_system,
+                                  blade_packing_system; neighborhood_search)
+
+ode_packing = semidiscretize(semi_packing, (0.0, 10.0))
+
+sol_packing = solve(ode_packing, RDPK3SpFSAL35();
+            save_everystep=false,
+            callback=CallbackSet(InfoCallback(interval=50),
+                                #  SolutionSavingCallback(interval=50, prefix="packing"),
+                                 UpdateCallback()),
+            dtmax=1e-2)
+
+packed_foot = InitialCondition(sol_packing, foot_packing_system, semi_packing)
+solid = union(beam, packed_foot)
+fluid = setdiff(tank.fluid, solid)
 
 n_fixed_particles = nparticles(solid) - nparticles(beam)
+
+fluid_packing_system = ParticlePackingSystem(fluid; smoothing_length=smoothing_length_packing,
+                                             signed_distance_field=nothing, background_pressure)
+
+packing_boundary = union(solid, tank.boundary)
+boundary_packing_system = ParticlePackingSystem(packing_boundary; smoothing_length=smoothing_length_packing,
+                                                fixed_system=true, signed_distance_field=nothing, background_pressure)
+
+semi_packing = Semidiscretization(fluid_packing_system, boundary_packing_system;
+                                  neighborhood_search)
+
+ode_packing = semidiscretize(semi_packing, (0.0, 5.0))
+
+sol_packing = solve(ode_packing, RDPK3SpFSAL35();
+            save_everystep=false,
+            callback=CallbackSet(InfoCallback(interval=50),
+                                #  SolutionSavingCallback(interval=50, prefix="packing"),
+                                 UpdateCallback()),
+            dtmax=1e-2)
+
+fluid = InitialCondition(sol_packing, fluid_packing_system, semi_packing)
 
 # Movement function
 frequency = 1.3 # Hz
@@ -134,23 +196,9 @@ boundary_movement = TrixiParticles.oscillating_movement(frequency,
                                                         rotation_angle, center;
                                                         rotation_phase_offset, ramp_up=0.5)
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
-boundary_layers = 4
-spacing_ratio = 1
-
-# ==========================================================================================
-# ==== Experiment Setup
-# tspan = (0.0, 2.0)
-
-fluid_density = 1000.0
 sound_speed = 20.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=1)
-
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       faces=(false, false, true, true), velocity=initial_velocity)
-fluid = setdiff(tank.fluid, solid)
+                                   exponent=1, background_pressure=0.0)
 
 # ==========================================================================================
 # ==== Solid
@@ -191,6 +239,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length_fluid, viscosity=viscosity_fluid,
                                            density_diffusion=density_diffusion,
+                                           particle_shifting=TrixiParticles.ParticleShiftingSun2019(0.1 * sound_speed),
                                            pressure_acceleration=tensile_instability_control)
 # fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
 #                                            sound_speed, viscosity=ViscosityAdami(; nu),
@@ -214,7 +263,8 @@ periodic_box = PeriodicBox(; min_corner, max_corner)
 cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list, update_strategy=ParallelUpdate())
 
-semi = Semidiscretization(fluid_system, boundary_system, solid_system; neighborhood_search)
+semi = Semidiscretization(fluid_system, boundary_system, solid_system; neighborhood_search,
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
@@ -224,7 +274,8 @@ split_dt = 2e-5
 split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false, dt=split_dt,
                                              maxiters=10^8)
 stepsize_callback = StepsizeCallback(cfl=0.5)
-callbacks = CallbackSet(info_callback, saving_callback, ParticleShiftingCallback(),
+shifting_callback = ParticleShiftingCallback()
+callbacks = CallbackSet(info_callback, saving_callback, shifting_callback,
                         split_integration, stepsize_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
