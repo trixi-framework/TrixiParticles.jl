@@ -118,3 +118,124 @@ plot!(p5, Plots.Shape, geometry, linestyle=:dash, label=nothing, axis=false, gri
 # As shown in the plot, the interface of the geometry surface is not well resolved yet.
 # In other words, there is no body-fitted configuration.
 # This is where the particle packing will come into play.
+# If we want to assign the mass of each sampled partcle consistently with its density,
+# we can adjust it as follows:
+shape_sampled.mass .= density * TrixiParticles.volume(geometry) / nparticles(shape_sampled)
+
+# # Particle packing
+
+# In the following, we will essentially follow the same steps described in
+# "Setting up your simulation from scratch" (TODO: ref).
+# That means we will generate systems that are then passed to the [`Semidiscretization`](@ref Semidiscretization).
+# The difference from a typical physical simulation is that we use [`ParticlePackingSystem`](@ref ParticlePackingSystem),
+# which does not represent any physical law. Instead, we only use the simulation framework to time-integrate
+# the packing process.
+
+# We first need to import [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
+using OrdinaryDiffEq
+
+# Next, we set a background pressure. This can be chosen arbitrarily.
+# A higher value results in smaller time steps, but the final packed state
+# will remain the same after running the same number of steps.
+background_pressure = 1.0
+
+# For particle interaction, we select a [smoothing kernel](@ref smoothing_kernel)
+# with a suitable smoothing length. Empirically, a factor of `0.8` times the
+# particle spacing gives good results [neher2025robustefficientpreprocessingtechniques](@cite).
+smoothing_kernel = SchoenbergQuinticSplineKernel{ndims(geometry)}()
+smoothing_length = 0.8 * particle_spacing
+
+# Now we can create the packing system. For learning purposes, let’s first try
+# passing no signed distance field (SDF) and see what happens.
+packing_system = ParticlePackingSystem(shape_sampled;
+                                       smoothing_kernel=smoothing_kernel,
+                                       smoothing_length=smoothing_length,
+                                       signed_distance_field=nothing, background_pressure)
+
+# We now proceed with the familiar steps
+# "Semidiscretization" and "Time integration" from the tutorial (TODO: ref)
+semi = Semidiscretization(packing_system)
+
+## Use a high `tspan` to guarantee that the simulation runs for at least `maxiters`
+tspan = (0, 10000.0)
+ode = semidiscretize(semi, tspan)
+
+maxiters = 100
+callbacks = CallbackSet(UpdateCallback())
+time_integrator = RDPK3SpFSAL35()
+
+sol = solve(ode, time_integrator;
+            abstol=1e-7, reltol=1e-4, save_everystep=false, maxiters=maxiters,
+            callback=callbacks)
+
+packed_ic = InitialCondition(sol, packing_system, semi)
+
+p_not_constrained = plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
+plot!(p_not_constrained, Plots.Shape, geometry, xlims=my_xlims, ylims=my_ylims)
+
+# As we can see in the plot, the particles are not constrained to the
+# geometric surface.
+
+# We therefore add an SDF for the geometry and repeat the same procedure.
+packing_system = ParticlePackingSystem(shape_sampled;
+                                       smoothing_kernel=smoothing_kernel,
+                                       smoothing_length=smoothing_length,
+                                       signed_distance_field,
+                                       background_pressure)
+
+# Again, we follow the same steps for semidiscretization and time integration.
+semi = Semidiscretization(packing_system)
+
+tspan = (0, 10000.0)
+ode = semidiscretize(semi, tspan)
+
+maxiters = 1000
+callbacks = CallbackSet(UpdateCallback())
+time_integrator = RDPK3SpFSAL35()
+
+sol = solve(ode, time_integrator;
+            abstol=1e-7, reltol=1e-4, save_everystep=false, maxiters=maxiters,
+            callback=callbacks)
+
+packed_ic = InitialCondition(sol, packing_system, semi)
+
+p = plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
+plot!(p, Plots.Shape, geometry, xlims=my_xlims, ylims=my_ylims)
+
+# We can see that the particles now stay inside the geometry,
+# but their distribution on the boundary is still not optimal.
+# Therefore, we set up a dedicated boundary packing system.
+# To do this, we set `is_boundary = true`.
+# For highly convex geometries, it is useful to slightly compress the
+# boundary layer thickness. The background for this is that the true
+# geometric volume is often larger than what was assumed when sampling
+# the boundary particles, because the mass was computed assuming an
+# interior particle volume.
+# A `boundary_compress_factor` of `0.8` or `0.9` works well for most shapes.
+# Since we have a relatively large particle spacing compared to the
+# geometry size in this example, we will choose `0.7`.
+boundary_system = ParticlePackingSystem(boundary_sampled;
+                                        is_boundary=true,
+                                        smoothing_kernel=smoothing_kernel,
+                                        smoothing_length=smoothing_length,
+                                        boundary_compress_factor=0.7,
+                                        signed_distance_field, background_pressure)
+
+# We can now couple the boundary system with the interior system:
+semi = Semidiscretization(packing_system, boundary_system)
+
+tspan = (0, 10000.0)
+ode = semidiscretize(semi, tspan)
+
+maxiters = 1000
+callbacks = CallbackSet(UpdateCallback())
+time_integrator = RDPK3SpFSAL35()
+
+sol = solve(ode, time_integrator;
+            abstol=1e-7, reltol=1e-4, save_everystep=false, maxiters=maxiters,
+            callback=callbacks)
+
+packed_ic = InitialCondition(sol, packing_system, semi)
+packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
+p_final = plot(packed_ic, packed_boundary_ic, xlims=my_xlims, ylims=my_ylims)
+plot(p_final, Plots.Shape, geometry, xlims=my_xlims, ylims=my_ylims, linestyle=:dash)
