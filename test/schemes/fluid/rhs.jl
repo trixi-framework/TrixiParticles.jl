@@ -74,7 +74,8 @@
                                 system = ImplicitIncompressibleSPHSystem(fluid,
                                                                          smoothing_kernel,
                                                                          smoothing_length,
-                                                                         1000.0)
+                                                                         1000.0,
+                                                                         time_step=0.001)
                             end
 
                             # Compute accelerations a -> b and b -> a
@@ -140,7 +141,8 @@
                                                           smoothing_length, 0.0)
 
                 system_iisph = ImplicitIncompressibleSPHSystem(fluid, smoothing_kernel,
-                                                               smoothing_length, 1000.0)
+                                                               smoothing_length, 1000.0,
+                                                               time_step=0.001)
 
                 n_particles = TrixiParticles.nparticles(system_edac)
 
