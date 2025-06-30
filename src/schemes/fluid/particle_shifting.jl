@@ -44,9 +44,9 @@ end
     return dv
 end
 
+# `BoundarySPHSystem` and `TotalLagrangianSPHSystem` don't have a `delta_v`
 @inline function shifting_continuity_equation!(dv, ::ParticleShiftingSun2019, v_a, v_b,
-                                               m_b, rho_a, rho_b, system,
-                                               neighbor_system::BoundarySystem,
+                                               m_b, rho_a, rho_b, system, neighbor_system,
                                                particle, neighbor, grad_kernel)
     delta_v_diff = rho_a * delta_v(system, particle)
     rho_v = rho_a * delta_v(system, particle)
