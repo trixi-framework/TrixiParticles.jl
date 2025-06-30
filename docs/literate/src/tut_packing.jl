@@ -1,12 +1,14 @@
+# # Preprocessing
+
 # In this tutorial, we will guide you through the complete pipeline of particle packing.
 # The algorithmic background is explained in [Particle Packing](@ref particle_packing).
 # Throughout this tutorial, we will refer to the initially sampled particles as the "initial configuration",
 # and the configuration after packing as the "packed configuration".
-# The interior particles, created by an inside–outside segmentation of the geometry,
+# The particles, created by an inside–outside segmentation of the geometry,
 # are referred to as "interior particles", while the particles on the surface of the geometry
 # are called "boundary particles".
 
-# # Load geometry
+# ## Load geometry
 
 # As a first step, we will load a geometry.
 # Supported file formats are described in [Read geometries from file](@ref read_geometries_from_file).
@@ -23,13 +25,11 @@ my_ylims = (-1.3, 0.3)
 p1 = plot(Plots.Shape, geometry, axis=false, label=nothing, xlims=my_xlims, ylims=my_ylims,
           markersize=5)
 
-# As shown in the plot, the 2D geometry is represented by its edges.
-# Similarly, for 3D geometries, the boundaries are represented by triangles.
+# As shown in the plot, the 2D geometry (`TrixiParticles.Polygon`) is represented by its edges.
+# Similarly, for 3D geometries (`TrixiParticles.TriangleMesh`), the boundaries are represented by triangles.
 # In this tutorial, we will stay with a 2D geometry, but the steps are identical for 3D geometries.
-# In 2D, the geometry is represented by the `TrixiParticles.Polygon` type,
-# and in 3D by the `TrixiParticles.TriangleMesh` type.
 
-# # Create signed distance field
+# ## Create signed distance field
 
 # For the actual packing process, this geometry representation is not used directly.
 # What we need is only the information about the surface of the geometry.
@@ -65,7 +65,7 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             use_for_boundary_packing=true,
                                             max_signed_distance=boundary_thickness)
 
-# We can see in the plot that the SDF has been extended to twice the distance.
+# We can see in the plot that the SDF has been extended outwards to twice `max_signed_distance`.
 sdf_2 = InitialCondition(; coordinates=stack(signed_distance_field.positions),
                          density=1.0, particle_spacing=particle_spacing)
 
@@ -75,7 +75,7 @@ p3 = plot(sdf_2, zcolor=signed_distance_field.distances, label=nothing,
 plot!(p3, Plots.Shape, geometry, linestyle=:dash, label=nothing, axis=false, grid=false,
       xlims=my_xlims, ylims=my_ylims)
 
-# # Create initial configuration of boundary particles
+# ## Create initial configuration of boundary particles
 
 # To create the initial configuration of the boundary particles,
 # we use the sampled points of the SDF whose signed distance lies between 0
@@ -86,11 +86,13 @@ plot!(p3, Plots.Shape, geometry, linestyle=:dash, label=nothing, axis=false, gri
 density = 1.0
 boundary_sampled = sample_boundary(signed_distance_field; boundary_density=density,
                                    boundary_thickness)
+
+## Plotting the initial configuration of the boundary particles
 p4 = plot(boundary_sampled, xlims=my_xlims, ylims=my_ylims, label=nothing)
 plot!(p4, Plots.Shape, geometry, linestyle=:dash, label=nothing, axis=false, grid=false,
       xlims=my_xlims, ylims=my_ylims)
 
-# # Create initial configuration of interior particles
+# ## Create initial configuration of interior particles
 
 # Next, we need to create the initial configuration of the interior particles.
 # This step is independent of the other steps in the packing pipeline.
@@ -109,6 +111,10 @@ point_in_geometry_algorithm = WindingNumberJacobson(; geometry)
 shape_sampled = ComplexShape(geometry; particle_spacing, density=density,
                              point_in_geometry_algorithm)
 
+# If we want to assign the mass of each sampled particle consistently with its density,
+# we can adjust it as follows:
+shape_sampled.mass .= density * TrixiParticles.volume(geometry) / nparticles(shape_sampled);
+
 # Now we can plot the initial configuration of the interior particles
 # together with the boundary particles.
 p5 = plot(shape_sampled, boundary_sampled, xlims=my_xlims, ylims=my_ylims, label=nothing)
@@ -118,11 +124,8 @@ plot!(p5, Plots.Shape, geometry, linestyle=:dash, label=nothing, axis=false, gri
 # As shown in the plot, the interface of the geometry surface is not well resolved yet.
 # In other words, there is no body-fitted configuration.
 # This is where the particle packing will come into play.
-# If we want to assign the mass of each sampled partcle consistently with its density,
-# we can adjust it as follows:
-shape_sampled.mass .= density * TrixiParticles.volume(geometry) / nparticles(shape_sampled)
 
-# # Particle packing
+# ## Particle packing
 
 # In the following, we will essentially follow the same steps described in
 # "Setting up your simulation from scratch" (TODO: ref).
@@ -136,13 +139,13 @@ using OrdinaryDiffEq
 
 # Next, we set a background pressure. This can be chosen arbitrarily.
 # A higher value results in smaller time steps, but the final packed state
-# will remain the same after running the same number of steps.
+# will remain the same after running the same number of iterations.
 background_pressure = 1.0
 
 # For particle interaction, we select a [smoothing kernel](@ref smoothing_kernel)
 # with a suitable smoothing length. Empirically, a factor of `0.8` times the
 # particle spacing gives good results [neher2025robustefficientpreprocessingtechniques](@cite).
-smoothing_kernel = SchoenbergQuinticSplineKernel{ndims(geometry)}()
+smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 smoothing_length = 0.8 * particle_spacing
 
 # Now we can create the packing system. For learning purposes, let’s first try
@@ -199,14 +202,15 @@ sol = solve(ode, time_integrator;
 
 packed_ic = InitialCondition(sol, packing_system, semi)
 
+## Plotting the final configuration
 p = plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
 plot!(p, Plots.Shape, geometry, xlims=my_xlims, ylims=my_ylims)
 
 # We can see that the particles now stay inside the geometry,
-# but their distribution on the boundary is still not optimal.
-# Therefore, we set up a dedicated boundary packing system.
-# To do this, we set `is_boundary = true`.
-# For highly convex geometries, it is useful to slightly compress the
+# but their distribution near the surface can still be improved by adding boundary particles [neher2025robustefficientpreprocessingtechniques](@cite).
+# Therefore, we set up a dedicated boundary packing system
+# by setting `is_boundary = true`.
+# For convex geometries, it is useful to slightly compress the
 # boundary layer thickness. The background for this is that the true
 # geometric volume is often larger than what was assumed when sampling
 # the boundary particles, because the mass was computed assuming an
@@ -237,19 +241,23 @@ sol = solve(ode, time_integrator;
 
 packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
+
+## Plotting the final configuration
 p_final = plot(packed_ic, packed_boundary_ic, xlims=my_xlims, ylims=my_ylims)
 plot(p_final, Plots.Shape, geometry, xlims=my_xlims, ylims=my_ylims, linestyle=:dash)
-# # Multi-body packing
-# So far, we have focused on optimally packing a single body.
-# However, it is often useful to also pack a surrounding complex domain in a way
+
+# ## Multi-body packing
+
+# So far, we have focused on packing a single body.
+# However, it is often useful to also pack a surrounding (complex) body in a way
 # that the interface between both domains is well represented.
 # We will demonstrate this using a simple rectangular domain:
 # first we will pack the entire domain, then only a selected (necessary) part of it.
 
-# We will reuse the final configuration of our complex geometry to create a packing system.
-# Since we are satisfied with this particle configuration, we set `fixed_system=true`.
-# This means this system will not be integrated and will stay fixed,
-# effectively serving as a boundary for the other packing systems.
+# We will reuse the final configuration of our geometry to create a packing system.
+# Because we are satisfied with this particle distribution, we want it to remain unchanged.
+# Therefore, we set `fixed_system=true` so that this system is not integrated further
+# but instead serves as a static boundary for the packing of other domains.
 fixed_system = ParticlePackingSystem(packed_ic;
                                      smoothing_kernel=smoothing_kernel,
                                      smoothing_length=smoothing_length,
@@ -262,22 +270,21 @@ fixed_system = ParticlePackingSystem(packed_ic;
 tank_domain = RectangularTank(particle_spacing, (4, 4), (0, 0), min_coordinates=(-1, -2),
                               density)
 
-sampled_fluid_domain = setdiff(tank_domain.fluid, packed_ic)
+sampled_outer_domain = setdiff(tank_domain.fluid, packed_ic)
 
-# If we plot these two `InitialCondition` objects, we can see
+# If we plot these two `InitialCondition`s, we can see
 # that the geometry interface is not properly represented yet.
-plot(sampled_fluid_domain, packed_ic)
+plot(sampled_outer_domain, packed_ic)
 
 # Next, we create a packing system for the outer domain.
-packing_system = ParticlePackingSystem(sampled_fluid_domain;
+packing_system = ParticlePackingSystem(sampled_outer_domain;
                                        smoothing_kernel=smoothing_kernel,
                                        smoothing_length=smoothing_length,
                                        signed_distance_field=nothing,
                                        background_pressure)
 
 # Since we do not want to sample a boundary for the outer domain,
-# we can set up a periodic box to ensure that all outer particles
-# have full kernel support.
+# we can set up a periodic box to ensure that all outer particles have full kernel support.
 periodic_box = PeriodicBox(min_corner=[-1.0, -2.0], max_corner=[3.0, 2.0])
 neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box)
 
@@ -293,13 +300,14 @@ time_integrator = RDPK3SpFSAL35()
 sol_1 = solve(ode, time_integrator; abstol=1e-7, reltol=1e-4,
               save_everystep=false, maxiters=maxiters, callback=callbacks)
 
-packed_fluid_domain = InitialCondition(sol_1, packing_system, semi)
+packed_outer_domain = InitialCondition(sol_1, packing_system, semi)
 
 # We see that after packing, the geometry interface is well represented.
-plot(packed_fluid_domain, packed_ic)
+plot(packed_outer_domain, packed_ic)
 
-# However, from the plot we can also see that only the particles
-# near the interface actually moved.
+# However, from the plot we can also see that the particles
+# near the interface were primarily affected by the packing algorithm,
+# while the rest of the domain remains almost unchanged.
 # It is often more efficient to pack only a local region instead of the full domain.
 # Therefore, we define a rectangle that encloses the complex geometry:
 pack_window = TrixiParticles.Polygon(stack([
@@ -311,9 +319,9 @@ pack_window = TrixiParticles.Polygon(stack([
                                            ]))
 
 # Then, we extract the particles that fall inside this window
-pack_domain = intersect(sampled_fluid_domain, pack_window)
+pack_domain = intersect(sampled_outer_domain, pack_window)
 # and those outside the window
-fixed_domain = setdiff(sampled_fluid_domain, pack_window)
+fixed_domain = setdiff(sampled_outer_domain, pack_window)
 
 plot(pack_domain, fixed_domain, packed_ic)
 
