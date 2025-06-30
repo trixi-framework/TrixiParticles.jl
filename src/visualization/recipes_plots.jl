@@ -213,7 +213,6 @@ RecipesBase.@recipe function f(::Polygon,
     color --> color
     line_width --> line_width
 
-
     for obj in data
         @series begin
             markersize --> markersize

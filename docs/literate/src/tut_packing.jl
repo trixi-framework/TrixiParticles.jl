@@ -239,3 +239,125 @@ packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 p_final = plot(packed_ic, packed_boundary_ic, xlims=my_xlims, ylims=my_ylims)
 plot(p_final, Plots.Shape, geometry, xlims=my_xlims, ylims=my_ylims, linestyle=:dash)
+# # Multi-body packing
+# So far, we have focused on optimally packing a single body.
+# However, it is often useful to also pack a surrounding complex domain in a way
+# that the interface between both domains is well represented.
+# We will demonstrate this using a simple rectangular domain:
+# first we will pack the entire domain, then only a selected (necessary) part of it.
+
+# We will reuse the final configuration of our complex geometry to create a packing system.
+# Since we are satisfied with this particle configuration, we set `fixed_system=true`.
+# This means this system will not be integrated and will stay fixed,
+# effectively serving as a boundary for the other packing systems.
+fixed_system = ParticlePackingSystem(packed_ic;
+                                     smoothing_kernel=smoothing_kernel,
+                                     smoothing_length=smoothing_length,
+                                     signed_distance_field=nothing,
+                                     background_pressure,
+                                     fixed_system=true)
+
+# Now we define a rectangular domain that we want to pack.
+# In practice, you could create any `InitialCondition` that encloses your complex geometry.
+tank_domain = RectangularTank(particle_spacing, (4, 4), (0, 0), min_coordinates=(-1, -2),
+                              density)
+
+sampled_fluid_domain = setdiff(tank_domain.fluid, packed_ic)
+
+# If we plot these two `InitialCondition` objects, we can see
+# that the geometry interface is not properly represented yet.
+plot(sampled_fluid_domain, packed_ic)
+
+# Next, we create a packing system for the outer domain.
+packing_system = ParticlePackingSystem(sampled_fluid_domain;
+                                       smoothing_kernel=smoothing_kernel,
+                                       smoothing_length=smoothing_length,
+                                       signed_distance_field=nothing,
+                                       background_pressure)
+
+# Since we do not want to sample a boundary for the outer domain,
+# we can set up a periodic box to ensure that all outer particles
+# have full kernel support.
+periodic_box = PeriodicBox(min_corner=[-1.0, -2.0], max_corner=[3.0, 2.0])
+neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box)
+
+semi = Semidiscretization(packing_system, fixed_system; neighborhood_search)
+
+tspan = (0, 10000.0)
+ode = semidiscretize(semi, tspan)
+
+maxiters = 1000
+callbacks = CallbackSet(UpdateCallback())
+time_integrator = RDPK3SpFSAL35()
+
+sol_1 = solve(ode, time_integrator; abstol=1e-7, reltol=1e-4,
+              save_everystep=false, maxiters=maxiters, callback=callbacks)
+
+packed_fluid_domain = InitialCondition(sol_1, packing_system, semi)
+
+# We see that after packing, the geometry interface is well represented.
+plot(packed_fluid_domain, packed_ic)
+
+# However, from the plot we can also see that only the particles
+# near the interface actually moved.
+# It is often more efficient to pack only a local region instead of the full domain.
+# Therefore, we define a rectangle that encloses the complex geometry:
+pack_window = TrixiParticles.Polygon(stack([
+                                               [-0.5, -1.5],
+                                               [2.5, -1.5],
+                                               [2.5, 0.5],
+                                               [-0.5, 0.5],
+                                               [-0.5, -1.5]
+                                           ]))
+
+# Then, we extract the particles that fall inside this window
+pack_domain = intersect(sampled_fluid_domain, pack_window)
+# and those outside the window
+fixed_domain = setdiff(sampled_fluid_domain, pack_window)
+
+plot(pack_domain, fixed_domain, packed_ic)
+
+# We can now treat the particles outside the window, along with the already
+# finalized configuration of the complex geometry, as fixed systems:
+fixed_system_1 = ParticlePackingSystem(fixed_domain;
+                                       smoothing_kernel=smoothing_kernel,
+                                       smoothing_length=smoothing_length,
+                                       signed_distance_field=nothing,
+                                       background_pressure, fixed_system=true)
+
+fixed_system_2 = ParticlePackingSystem(packed_ic;
+                                       smoothing_kernel=smoothing_kernel,
+                                       smoothing_length=smoothing_length,
+                                       signed_distance_field=nothing,
+                                       background_pressure, fixed_system=true)
+
+# The window that we want to pack is passed to a moving packing system:
+packing_system = ParticlePackingSystem(pack_domain;
+                                       smoothing_kernel=smoothing_kernel,
+                                       smoothing_length=smoothing_length,
+                                       signed_distance_field=nothing,
+                                       background_pressure)
+
+semi = Semidiscretization(packing_system, fixed_system_1, fixed_system_2)
+
+tspan = (0, 10000.0)
+ode = semidiscretize(semi, tspan)
+
+maxiters = 1000
+callbacks = CallbackSet(UpdateCallback())
+time_integrator = RDPK3SpFSAL35()
+
+sol_2 = solve(ode, time_integrator; abstol=1e-7, reltol=1e-4,
+              save_everystep=false, maxiters=maxiters, callback=callbacks)
+
+packed_fluid_domain = InitialCondition(sol_2, packing_system, semi)
+
+# We see that this still gives us a good result
+plot(fixed_domain, packed_fluid_domain, packed_ic)
+
+# Finally, we can show the size of our integration arrays:
+@show length(sol_1.u[1].x[1]);
+@show length(sol_2.u[1].x[1]);
+
+# This shows that we can avoid integrating unnecessary particles by restricting
+# the packing to a relevant window.
