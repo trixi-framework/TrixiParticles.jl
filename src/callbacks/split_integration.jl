@@ -94,7 +94,7 @@ function initialize_split_integration!(cb, u, t, integrator)
     end
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
-    sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
+    sizes_v = (v_nvariables(system) * nparticles(system) for system in systems)
 
     v_ode, u_ode = integrator.u.x
     v0_ode_split = similar(v_ode, sum(sizes_v))
@@ -196,9 +196,9 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
                                                            u_ode_split, semi, t;
                                                            semi_wrap=semi_split)
 
-    # foreach_system(semi_split) do system
-    #     save_acceleration!(system, dv_ode_split, semi_split)
-    # end
+    foreach_system(semi_split) do system
+        save_acceleration!(system, dv_ode_split, semi_split)
+    end
 end
 
 function drift_split!(du_ode, v_ode, u_ode, p, t)
@@ -289,12 +289,14 @@ end
         u_split = wrap_u(u_ode_split, system, semi_split)
 
         @threaded semi for particle in each_moving_particle(system)
-            for i in axes(v, 1)
-                v_split[i, particle] = v[i, particle]
-            end
-
             for i in axes(u, 1)
                 u_split[i, particle] = u[i, particle]
+            end
+        end
+
+        @threaded semi for particle in eachparticle(system)
+            for i in axes(v, 1)
+                v_split[i, particle] = v[i, particle]
             end
         end
     end
@@ -309,12 +311,13 @@ end
         u_split = wrap_u(u_ode_split, system, semi_split)
 
         @threaded semi for particle in each_moving_particle(system)
-            for i in axes(v, 1)
-                v[i, particle] = v_split[i, particle]
-            end
-
             for i in axes(u, 1)
                 u[i, particle] = u_split[i, particle]
+            end
+        end
+        @threaded semi for particle in eachparticle(system)
+            for i in axes(v, 1)
+                v[i, particle] = v_split[i, particle]
             end
         end
     end

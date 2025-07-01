@@ -463,6 +463,8 @@ end
 function write_v0!(v0, system::TotalLagrangianSPHSystem)
     (; initial_condition, boundary_model) = system
 
+    v0 .= 0
+
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
     indices = CartesianIndices((ndims(system), each_moving_particle(system)))
     copyto!(v0, indices, initial_condition.velocity, indices)
@@ -481,10 +483,11 @@ function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
-    for particle in each_moving_particle(system)
-        # Set particle densities
-        v0[ndims(system) + 1, particle] = initial_density[particle]
-    end
+    # for particle in eachparticle(system)
+    #     # Set particle densities
+    #     v0[ndims(system) + 1, particle] = initial_density[particle]
+    # end
+    copyto!(view(v0, ndims(system) + 1, eachparticle(system)), initial_density)
 
     return v0
 end
