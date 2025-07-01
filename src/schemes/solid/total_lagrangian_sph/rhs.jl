@@ -143,13 +143,75 @@ function interact!(dv, v_particle_system, u_particle_system,
             dv[i, particle] += dv_particle[i] * m_b / particle_system.mass[particle]
         end
 
-        continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                             particle, neighbor, pos_diff, distance,
-                             m_b, rho_a, rho_b,
-                             particle_system, neighbor_system, grad_kernel)
+        # continuity_equation!(dv, v_particle_system, v_neighbor_system,
+        #                      particle, neighbor, pos_diff, distance,
+        #                      m_b, rho_a, rho_b,
+        #                      particle_system, neighbor_system, grad_kernel)
+    end
+
+    if particle_system.boundary_model isa BoundaryModelDummyParticles{ContinuityDensity}
+        foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
+                            semi;
+                            points=eachparticle(particle_system)) do particle, neighbor,
+                                                                                pos_diff, distance
+            # Only consider particles with a distance > 0.
+            distance < sqrt(eps()) && return
+
+            # Apply the same force to the solid particle
+            # that the fluid particle experiences due to the solid particle.
+            # Note that the same arguments are passed here as in fluid-solid interact!,
+            # except that pos_diff has a flipped sign.
+            #
+            # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
+            # corresponding to the rest density of the fluid and not the material density.
+            m_a = hydrodynamic_mass(particle_system, particle)
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+            rho_a = current_density(v_particle_system, particle_system, particle)
+            rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
+
+
+            v_a = current_velocity(v_particle_system, particle_system, particle)
+            v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+            # Use kernel from the boundary model.
+            # This should generally be the same as the kernel and smoothing length
+            # of the fluid in order to get the same force here in solid-fluid interaction
+            # as for fluid-solid interaction.
+            # TODO this will not use corrections if the fluid uses corrections.
+            grad_kernel = smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
+
+            continuity_equation!(dv, v_particle_system, v_neighbor_system,
+                                particle, neighbor, pos_diff, distance,
+                                m_b, rho_a, rho_b,
+                                particle_system, neighbor_system, grad_kernel)
+
+            shifting_continuity_equation!(dv, particle_shifting(neighbor_system), v_a, v_b, m_b, rho_a, rho_b,
+                                        particle_system, neighbor_system, particle, neighbor,
+                                        grad_kernel)
+
+            density_diffusion!(dv, neighbor_system.density_diffusion, v_particle_system, particle, neighbor,
+                        pos_diff, distance, m_b, rho_a, rho_b, particle_system, neighbor_system, # TODO neighbor_system
+                        grad_kernel)
+        end
     end
 
     return dv
+end
+
+@inline function density_diffusion!(dv, density_diffusion, v_particle_system, particle, neighbor,
+                       pos_diff, distance, m_b, rho_a, rho_b, particle_system, neighbor_system,
+                       grad_kernel)
+    return dv
+end
+
+@inline function density_diffusion!(dv, density_diffusion, v_particle_system, particle, neighbor,
+                       pos_diff, distance, m_b, rho_a, rho_b,
+                       particle_system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                       neighbor_system, grad_kernel)
+    density_diffusion!(dv, density_diffusion, v_particle_system, particle, neighbor,
+                       pos_diff, distance, m_b, rho_a, rho_b, neighbor_system,
+                       grad_kernel)
 end
 
 @inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
