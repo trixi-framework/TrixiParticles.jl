@@ -52,8 +52,8 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `color_value`:                The value used to initialize the color of particles in the system.
 
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
-                                   PF, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
+                                   ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
@@ -62,7 +62,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, TV,
     viscosity                         :: V
     nu_edac                           :: ELTYPE
     acceleration                      :: SVector{NDIMS, ELTYPE}
-    correction                        :: Nothing
+    correction                        :: COR
     pressure_acceleration_formulation :: PF
     transport_velocity                :: TV
     source_terms                      :: ST
@@ -151,8 +151,9 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
 
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                                 typeof(density_calculator), typeof(smoothing_kernel),
-                                typeof(viscosity), typeof(transport_velocity),
-                                typeof(pressure_acceleration), typeof(source_terms),
+                                typeof(viscosity), typeof(correction),
+                                typeof(pressure_acceleration),
+                                typeof(transport_velocity), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_normal_method),
                                 typeof(buffer), Nothing,
                                 typeof(cache)}(initial_condition, mass, density_calculator,
