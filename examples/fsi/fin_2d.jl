@@ -38,49 +38,8 @@ smoothing_length_solid = sqrt(2) * particle_spacing
 smoothing_length_fluid = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-# Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
-# fixed_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing / 2,
-#                               (center[1] - clamp_radius - particle_spacing, center[2] + fin_thickness / 2), density,
-#                             #   cutout_min=(center[1], center[2] - fin_thickness / 2),
-#                             #   cutout_max=center .+ (clamp_radius, fin_thickness / 2),
-#                               tlsph=true)
-
-# fixed_beam = RectangularShape(particle_spacing, (round(Int, 0.05 / particle_spacing) + 1,# + n_particles_clamp_x,
-#                              n_particles_y),
-#                               center, density=density, tlsph=true)
-
-# fixed_particles = union(fixed_particles, fixed_beam)
-
-# n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
-
-using TrixiParticles
-using PythonCall
-using CondaPkg
-
-CondaPkg.add("svgpathtools")
-CondaPkg.add("ezdxf")
-svgpath = pyimport("svgpathtools")
-
-svg_path = "M509.299 100.016C507.966 91.5871 505.915 85.7111 503.145 82.3879C498.991 77.4031 479.883 60.7871 475.521 58.2947C471.16 55.8023 455.167 49.1559 448.936 47.702C442.705 46.2481 355.471 30.463 339.893 28.8014C329.508 27.6937 287.761 23.5397 214.651 16.3394C199.727 15.7768 185.488 15.1656 171.934 14.5056C151.602 13.5157 106.318 5.19544 82.4982 0.830064C58.6781 -3.53532 3.26262 9.37214 0.279574 38.2664C-2.54326 65.6089 16.5085 89.4186 34.9345 99.2843C49.9801 107.34 58.7166 107.403 71.5338 114.275C101.912 130.564 100.849 169.8 123.353 175.939C145.856 182.078 146.637 180.9 155.986 179.279C162.22 178.199 199.267 168.32 267.129 149.644L359.355 117.398L405.801 102.863C446.849 101.008 472.412 100.061 482.489 100.022C497.605 99.9635 507.524 100.062 509.299 100.016Z"
-
-path = svgpath.parse_path(svg_path)
-t_range = range(0, 1, length=50 * length(path))
-points = [(pyconvert(Float64, p.real), -pyconvert(Float64, p.imag))
-          for p in (path.point(t) for t in t_range)]
-
-# ezdxf = pyimport("ezdxf")
-# doc = ezdxf.new(dxfversion="R2010")
-# msp = doc.modelspace()
-# msp.add_polyline2d(points)
-# doc.saveas("output.dxf")
-
-points_matrix = reinterpret(reshape, Float64, points)
-scaling = 0.3 / maximum(points_matrix, dims=2)[1]
-points_matrix .*= scaling
-points_matrix .+= (-0.3, -points_matrix[2, 1]) .+ center .- (0.0, 1e-4)
-# # Clamp the blade in one layer of particles by moving the foot down by a particle spacing
-# points_matrix .-= (0.0, particle_spacing)
-geometry = TrixiParticles.Polygon(points_matrix)
+file = joinpath(examples_dir(), "preprocessing", "data", "fin.dxf")
+geometry = load_geometry(file)
 
 # trixi2vtk(geometry)
 
@@ -101,7 +60,7 @@ n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_s
 # from the boundary, which is correct for fluids, but not for solids.
 # We therefore need to pass `tlsph=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (center[1] - length_clamp, center[2]), density=density, tlsph=true)
+                        (-length_clamp, 0.0), density=density, tlsph=true)
 
 fixed_particles = setdiff(shape_sampled, beam)
 
@@ -157,22 +116,46 @@ sol_packing = solve(ode_packing, RDPK3SpFSAL35();
             dtmax=1e-2)
 
 packed_foot = InitialCondition(sol_packing, foot_packing_system, semi_packing)
+
+# Move the fin to the center of the tank
+packed_foot.coordinates .+= center
+beam.coordinates .+= center
+
 solid = union(beam, packed_foot)
 fluid = setdiff(tank.fluid, solid)
 
 n_fixed_particles = nparticles(solid) - nparticles(beam)
 
-fluid_packing_system = ParticlePackingSystem(fluid; smoothing_length=smoothing_length_packing,
+# Pack the fluid against the fin and the tank boundary
+pack_window = TrixiParticles.Polygon(stack([
+                                               [0.15, 0.42],
+                                               [0.3, 0.42],
+                                               [0.44, 0.48],
+                                               [1.12, 0.48],
+                                               [1.12, 0.52],
+                                               [0.55, 0.52],
+                                               [0.5, 0.56],
+                                               [0.24, 0.6],
+                                               [0.15, 0.6],
+                                               [0.15, 0.42]
+                                           ]))
+
+# Then, we extract the particles that fall inside this window
+pack_fluid = intersect(fluid, pack_window)
+# and those outside the window
+fixed_fluid = setdiff(fluid, pack_fluid)
+fixed_union = union(fixed_fluid, solid)
+
+fluid_packing_system = ParticlePackingSystem(pack_fluid; smoothing_length=smoothing_length_packing,
                                              signed_distance_field=nothing, background_pressure)
 
-packing_boundary = union(solid, tank.boundary)
-boundary_packing_system = ParticlePackingSystem(packing_boundary; smoothing_length=smoothing_length_packing,
-                                                fixed_system=true, signed_distance_field=nothing, background_pressure)
+fixed_packing_system = ParticlePackingSystem(fixed_union; smoothing_length=smoothing_length_packing,
+                                             fixed_system=true, signed_distance_field=nothing, background_pressure)
 
-semi_packing = Semidiscretization(fluid_packing_system, boundary_packing_system;
+semi_packing = Semidiscretization(fluid_packing_system, fixed_packing_system;
                                   neighborhood_search)
 
-ode_packing = semidiscretize(semi_packing, (0.0, 5.0))
+ode_packing = semidiscretize(semi_packing, (0.0, 2.0))
 
 sol_packing = solve(ode_packing, RDPK3SpFSAL35();
             save_everystep=false,
@@ -182,6 +165,7 @@ sol_packing = solve(ode_packing, RDPK3SpFSAL35();
             dtmax=1e-2)
 
 fluid = InitialCondition(sol_packing, fluid_packing_system, semi_packing)
+fluid = union(fluid, fixed_fluid)
 
 # Movement function
 frequency = 1.3 # Hz
