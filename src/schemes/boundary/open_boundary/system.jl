@@ -150,7 +150,7 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
     pressure = copy(reference_value.(reference_pressure_, initial_condition.pressure,
                                      coordinates_svector, 0))
     density = copy(reference_value.(reference_density_, initial_condition.density,
-                                     coordinates_svector, 0))
+                                    coordinates_svector, 0))
     mass = copy(initial_condition.mass)
     volume = similar(initial_condition.density)
 
