@@ -433,14 +433,14 @@ function compute_pressure!(boundary_model,
 
     @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
                                                                       eachparticle(system)
-        compute_adami_density!(boundary_model, system, system_coords, particle)
+        compute_adami_density!(boundary_model, system, v, particle)
     end
 end
 
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-function compute_adami_density!(boundary_model, system, system_coords, particle)
+function compute_adami_density!(boundary_model, system, v, particle)
     (; pressure, state_equation, cache, viscosity) = boundary_model
     (; volume, density) = cache
 
@@ -451,7 +451,7 @@ function compute_adami_density!(boundary_model, system, system_coords, particle)
         pressure[particle] /= volume[particle]
 
         # To impose no-slip condition
-        compute_wall_velocity!(viscosity, system, system_coords, particle)
+        compute_wall_velocity!(viscosity, system, v, particle)
     end
 
     # Apply inverse state equation to compute density (not used with EDAC)
@@ -597,14 +597,14 @@ end
     return viscosity
 end
 
-@inline function compute_wall_velocity!(viscosity, system, system_coords, particle)
+@inline function compute_wall_velocity!(viscosity, system, v, particle)
     (; boundary_model) = system
     (; cache) = boundary_model
     (; volume, wall_velocity) = cache
 
     # Prescribed velocity of the boundary particle.
     # This velocity is zero when not using moving boundaries.
-    v_boundary = current_velocity(system_coords, system, particle)
+    v_boundary = current_velocity(v, system, particle)
 
     for dim in 1:ndims(system)
         # The second term is the precalculated smoothed velocity field of the fluid.
