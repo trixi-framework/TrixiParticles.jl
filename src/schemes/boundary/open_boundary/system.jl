@@ -158,8 +158,8 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
 
     smoothing_length = initial_smoothing_length(fluid_system)
 
-    boundary_candidates = fill(UInt32(false), nparticles(initial_condition))
-    fluid_candidates = fill(UInt32(false), nparticles(fluid_system))
+    boundary_candidates = fill(false, nparticles(initial_condition))
+    fluid_candidates = fill(false, nparticles(fluid_system))
 
     return OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                  fluid_system_index, smoothing_length, mass, density,
@@ -305,7 +305,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         end
     end
 
-    crossed_boundary_particles = findall(x -> x == true, boundary_candidates)
+    crossed_boundary_particles = findall(boundary_candidates)
     available_fluid_particles = findall(x -> x == false,
                                         fluid_system.buffer.active_particle)
 
@@ -334,7 +334,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         end
     end
 
-    crossed_fluid_particles = findall(x -> x == true, fluid_candidates)
+    crossed_fluid_particles = findall(fluid_candidates)
     available_boundary_particles = findall(x -> x == false, system.buffer.active_particle)
 
     @assert length(crossed_fluid_particles)<=length(available_boundary_particles) "Not enough boundary buffer particles available"
@@ -343,6 +343,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     @threaded semi for i in eachindex(crossed_fluid_particles)
         particle = crossed_fluid_particles[i]
         particle_new = available_boundary_particles[i]
+
         convert_particle!(fluid_system, system, boundary_zone, particle, particle_new,
                           v, u, v_fluid, u_fluid)
     end

@@ -7,12 +7,7 @@ end
 
 function SystemBuffer(active_size, buffer_size::Integer)
     # Using a `BitVector` is not an option as writing to it is not thread-safe.
-    # Also, to ensure thread-safe particle activation, we use an `atomic_cas` operation.
-    # Thus, `active_particle` is defined as a `Vector{UInt32}` because CUDA.jl
-    # does not support atomic operations on `Bool`.
-    # https://github.com/JuliaGPU/CUDA.jl/blob/2cc9285676a4cd28d0846ca62f0300c56d281d38/src/device/intrinsics/atomics.jl#L243
-    active_particle = vcat(fill(UInt32(true), active_size),
-                           fill(UInt32(false), buffer_size))
+    active_particle = vcat(fill(true, active_size), fill(false, buffer_size))
     eachparticle = collect(eachindex(active_particle))
 
     return SystemBuffer(active_particle, Ref(active_size), eachparticle, buffer_size)
@@ -49,9 +44,8 @@ end
 
     # TODO: Parallelize (see https://github.com/trixi-framework/TrixiParticles.jl/issues/810)
     # Update the number of active particles and the active particle indices
-    buffer.active_particle_count[] = sum(active_particle)
-    buffer.eachparticle[1:buffer.active_particle_count[]] .= findall(x -> x == true,
-                                                                     active_particle)
+    buffer.active_particle_count[] = count(active_particle)
+    buffer.eachparticle[1:buffer.active_particle_count[]] .= findall(active_particle)
 
     return buffer
 end
