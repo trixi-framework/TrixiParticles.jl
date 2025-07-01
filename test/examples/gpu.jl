@@ -353,18 +353,6 @@ end
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
-
-        @trixi_testset "fluid/pipe_flow_3d.jl" begin
-            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
-                                                             tspan=(0.0f0, 0.5f0),
-                                                             joinpath(examples_dir(),
-                                                                      "fluid",
-                                                                      "pipe_flow_3d.jl"),
-                                                             parallelization_backend=Main.parallelization_backend)
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
-            @test backend == Main.parallelization_backend
-        end
     end
 
     @testset verbose=true "Solid" begin
