@@ -82,7 +82,7 @@ function Semidiscretization(systems::Union{System, Nothing}...;
                for system in systems]
     ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
                      for i in eachindex(sizes_u))
-    sizes_v = [v_nvariables(system) * n_moving_particles(system)
+    sizes_v = [v_nvariables(system) * nparticles(system)
                for system in systems]
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
@@ -282,7 +282,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
-    sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
+    sizes_v = (v_nvariables(system) * nparticles(system) for system in systems)
 
     # Use either the specified backend, e.g., `CUDABackend` or `MetalBackend` or
     # use CPU vectors for all CPU backends.
@@ -402,10 +402,10 @@ end
 
     range = ranges_v[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
+    @boundscheck @assert length(range) == v_nvariables(system) * nparticles(system)
 
     return wrap_array(v_ode, range,
-                      (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+                      (StaticInt(v_nvariables(system)), nparticles(system)))
 end
 
 @inline function wrap_u(u_ode, system, semi)
@@ -573,7 +573,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t;
     end
 
     # Final update step for all remaining systems
-    foreach_system(semi) do system
+    foreach_system(systems) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
@@ -1008,11 +1008,11 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
         end
     end
 
-    if boundary_model isa BoundaryModelDummyParticles &&
-       boundary_model.density_calculator isa ContinuityDensity
-        throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
-                            "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
-    end
+    # if boundary_model isa BoundaryModelDummyParticles &&
+    #    boundary_model.density_calculator isa ContinuityDensity
+    #     throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
+    #                         "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    # end
 end
 
 function check_configuration(system::OpenBoundarySPHSystem, systems,

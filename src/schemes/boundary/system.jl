@@ -180,12 +180,12 @@ end
 create_cache_boundary(::Nothing, initial_condition) = (;)
 
 function create_cache_boundary(::BoundaryMovement, initial_condition)
-    pos = extract_svector(initial_condition.coordinates,
-                          Val(size(initial_condition.coordinates, 1)), 1)
-    if !(movement_function(pos, 0.0) isa SVector)
-        @warn "Return value of `movement_function` is not of type `SVector`. " *
-              "Returning regular `Vector`s causes allocations and significant performance overhead."
-    end
+    # pos = extract_svector(initial_condition.coordinates,
+    #                       Val(size(initial_condition.coordinates, 1)), 1)
+    # if !(movement_function(pos, 0.0) isa SVector)
+    #     @warn "Return value of `movement_function` is not of type `SVector`. " *
+    #           "Returning regular `Vector`s causes allocations and significant performance overhead."
+    # end
 
     initial_coordinates = copy(initial_condition.coordinates)
     velocity = zero(initial_condition.velocity)
@@ -416,10 +416,11 @@ function write_v0!(v0,
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
-    for particle in eachparticle(system)
-        # Set particle densities
-        v0[1, particle] = initial_density[particle]
-    end
+    # for particle in eachparticle(system)
+    #     # Set particle densities
+    #     v0[1, particle] = initial_density[particle]
+    # end
+    copyto!(view(v0, 1, each_moving_particle(system)), initial_density)
 
     return v0
 end
