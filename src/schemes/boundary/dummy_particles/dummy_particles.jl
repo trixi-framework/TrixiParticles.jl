@@ -423,12 +423,6 @@ function compute_pressure!(boundary_model,
         boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
                                          neighbor_system, system_coords, neighbor_coords, v,
                                          v_neighbor_system, semi)
-
-        @threaded semi for particle in eachparticle(system)
-            # Limit pressure to be non-negative to avoid attractive forces between fluid and
-            # boundary particles at free surfaces (sticking artifacts).
-            pressure[particle] = max(pressure[particle], 0)
-        end
     end
 
     @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
@@ -447,12 +441,16 @@ function compute_adami_density!(boundary_model, system, system_coords, particle)
     # The summation is only over fluid particles, thus the volume stays zero when a boundary
     # particle isn't surrounded by fluid particles.
     # Check the volume to avoid NaNs in pressure and velocity.
-    if volume[particle] > eps()
-        pressure[particle] /= volume[particle]
+    if @inbounds volume[particle] > eps()
+        @inbounds pressure[particle] /= volume[particle]
 
         # To impose no-slip condition
         compute_wall_velocity!(viscosity, system, system_coords, particle)
     end
+
+    # Limit pressure to be non-negative to avoid attractive forces between fluid and
+    # boundary particles at free surfaces (sticking artifacts).
+    @inbounds pressure[particle] = max(pressure[particle], 0)
 
     # Apply inverse state equation to compute density (not used with EDAC)
     inverse_state_equation!(density, state_equation, pressure, particle)
@@ -519,26 +517,30 @@ end
                                           v_neighbor_system, particle, neighbor, pos_diff,
                                           distance, viscosity, cache, pressure,
                                           pressure_offset)
-    density_neighbor = current_density(v_neighbor_system, neighbor_system, neighbor)
+    density_neighbor = @inbounds current_density(v_neighbor_system, neighbor_system,
+                                                 neighbor)
 
+    # Fluid pressure term
+    fluid_pressure = @inbounds current_pressure(v_neighbor_system, neighbor_system,
+                                                neighbor)
+
+    # Hydrostatic pressure term from fluid and boundary acceleration
     resulting_acceleration = neighbor_system.acceleration -
-                             current_acceleration(system, particle)
+                             @inbounds current_acceleration(system, particle)
+    hydrostatic_pressure = dot(resulting_acceleration, density_neighbor * pos_diff)
+
+    # Additional dynamic pressure term (only with `BernoulliPressureExtrapolation`)
+    dynamic_pressure_ = dynamic_pressure(boundary_density_calculator, density_neighbor,
+                                         v, v_neighbor_system, pos_diff, distance,
+                                         particle, neighbor, system, neighbor_system)
+
+    sum_pressures = pressure_offset + fluid_pressure + dynamic_pressure_ +
+                    hydrostatic_pressure
 
     kernel_weight = smoothing_kernel(boundary_model, distance, particle)
 
-    pressure[particle] += (pressure_offset
-                           +
-                           current_pressure(v_neighbor_system, neighbor_system,
-                                            neighbor)
-                           +
-                           dynamic_pressure(boundary_density_calculator, density_neighbor,
-                                            v, v_neighbor_system, pos_diff, distance,
-                                            particle, neighbor, system, neighbor_system)
-                           +
-                           dot(resulting_acceleration, density_neighbor * pos_diff)) *
-                          kernel_weight
-
-    cache.volume[particle] += kernel_weight
+    @inbounds pressure[particle] += sum_pressures * kernel_weight
+    @inbounds cache.volume[particle] += kernel_weight
 
     compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
                                kernel_weight, particle, neighbor)
@@ -586,8 +588,8 @@ function compute_smoothed_velocity!(cache, viscosity::ViscosityAdami, neighbor_s
                                     v_neighbor_system, kernel_weight, particle, neighbor)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    for dim in 1:ndims(neighbor_system)
-        cache.wall_velocity[dim, particle] += kernel_weight * v_b[dim]
+    for dim in eachindex(v_b)
+        @inbounds cache.wall_velocity[dim, particle] += kernel_weight * v_b[dim]
     end
 
     return cache
@@ -606,17 +608,17 @@ end
     # This velocity is zero when not using moving boundaries.
     v_boundary = current_velocity(system_coords, system, particle)
 
-    for dim in 1:ndims(system)
-        # The second term is the precalculated smoothed velocity field of the fluid.
-        wall_velocity[dim,
-                      particle] = 2 * v_boundary[dim] -
-                                  wall_velocity[dim, particle] / volume[particle]
+    for dim in eachindex(v_boundary)
+        # The second term is the precalculated smoothed velocity field of the fluid
+        new_velocity = @inbounds 2 * v_boundary[dim] -
+                                 wall_velocity[dim, particle] / volume[particle]
+        @inbounds wall_velocity[dim, particle] = new_velocity
     end
     return viscosity
 end
 
 @inline function inverse_state_equation!(density, state_equation, pressure, particle)
-    density[particle] = inverse_state_equation(state_equation, pressure[particle])
+    @inbounds density[particle] = inverse_state_equation(state_equation, pressure[particle])
     return density
 end
 
