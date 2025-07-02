@@ -450,6 +450,9 @@ end
 
 function check_reference_values!(boundary_model::BoundaryModelLastiwka,
                                  reference_density, reference_pressure, reference_velocity)
+
+                                 # TODO
+                                 return boundary_model
     boundary_model.extrapolate_reference_values && return boundary_model
 
     if any(isnothing.([reference_density, reference_pressure, reference_velocity]))
