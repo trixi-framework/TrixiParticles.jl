@@ -90,7 +90,7 @@ bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_s
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{BT, IC, S, ZO, ZW, FD, PN}
+struct BoundaryZone{BT, IC, S, ZO, ZW, FD, PN, SZ}
     initial_condition       :: IC
     spanning_set            :: S
     zone_origin             :: ZO
@@ -99,11 +99,13 @@ struct BoundaryZone{BT, IC, S, ZO, ZW, FD, PN}
     plane_normal            :: PN
     boundary_type           :: BT
     average_inflow_velocity :: Bool
+    shift_zone              :: SZ
 end
 
 function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, boundary_type=BidirectionalFlow(),
+                      shift_particles=false, boundary_coordinates=nothing,
                       average_inflow_velocity=true)
     if open_boundary_layers <= 0
         throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
@@ -130,9 +132,21 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                                       extrude_geometry, open_boundary_layers;
                                       boundary_type=boundary_type)
 
+    if shift_particles
+        if isnothing(boundary_coordinates)
+            throw(ArgumentError("`boundary_coordinates` must be provided when `shift_particles` is true"))
+        end
+
+        shift_zone = set_up_shift_zone(boundary_type, boundary_coordinates, ic, plane,
+                                       flow_direction, zone_origin, particle_spacing,
+                                       open_boundary_layers, zone_width)
+    else
+        shift_zone = nothing
+    end
+
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, plane_normal_, boundary_type,
-                        average_inflow_velocity)
+                        average_inflow_velocity, shift_zone)
 end
 
 function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
@@ -241,10 +255,10 @@ end
     (; zone_origin, spanning_set) = boundary_zone
     particle_position = particle_coords - zone_origin
 
-    return is_in_boundary_zone(spanning_set, particle_position)
+    return is_in_oriented_bbox(spanning_set, particle_position)
 end
 
-@inline function is_in_boundary_zone(spanning_set::AbstractArray,
+@inline function is_in_oriented_bbox(spanning_set::AbstractArray,
                                      particle_position::SVector{NDIMS}) where {NDIMS}
     for dim in 1:NDIMS
         span_dim = spanning_set[dim]
@@ -270,9 +284,63 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
         current_position = current_coords(coordinates, initial_condition, particle)
         particle_position = current_position - zone_origin
 
-        in_zone[particle] = is_in_boundary_zone(spanning_set, particle_position)
+        in_zone[particle] = is_in_oriented_bbox(spanning_set, particle_position)
     end
 
     return InitialCondition(; coordinates=coordinates[:, in_zone], density=first(density),
                             particle_spacing)
+end
+
+function set_up_shift_zone(boundary_type, boundary_coordinates, initial_condition,
+                           plane, flow_direction, zone_origin, particle_spacing,
+                           open_boundary_layers, zone_width)
+    error("Not supported for boundary type $boundary_type")
+end
+
+function set_up_shift_zone(::InFlow, boundary_coordinates, initial_condition,
+                           plane, flow_direction, zone_origin, particle_spacing,
+                           open_boundary_layers, zone_width)
+    # Assume a shift zone of length `4 * particle_spacing` is sufficient.
+    # A buffer of `4 * particle_spacing` before and after the shift zone should be enough.
+    # This results in `12` open boundary layers.
+    if open_boundary_layers < 12
+        throw(ArgumentError("`open_boundary_layers` must be at least 12 when applying particle shifting"))
+    end
+
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+
+    shift_zone_width = 4 * particle_spacing
+    spanning_set_shift_zone_ = spanning_vectors(Tuple(plane), shift_zone_width)
+
+    # First vector of `spanning_set_shift_zone` is normal to the boundary plane
+    dot_flow = dot(normalize(spanning_set_shift_zone_[:, 1]), flow_direction)
+
+    # The vector must point in upstream direction for an inflow boundary.
+    # Flip the normal vector to point in the opposite direction of `flow_direction`.
+    spanning_set_shift_zone_[:, 1] .*= -sign(dot_flow)
+
+    spanning_set_shift_zone = reinterpret(reshape, SVector{NDIMS, ELTYPE},
+                                          spanning_set_shift_zone_)
+
+    # Shift the origin of the shift zone in upstream direction by `4 * particle_spacing`
+    # to ensure a buffer before and after the shift zone.
+    shift_zone_origin = zone_origin .- flow_direction * 4 * particle_spacing
+
+    delta_r = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
+
+    return (; delta_r, spanning_set_shift_zone, shift_zone_origin, boundary_coordinates)
+end
+
+initialize_shift_zone!(boundary_zone, system) = boundary_zone
+
+function initialize_shift_zone!(boundary_zone::BoundaryZone{InFlow}, system)
+    isnothing(boundary_zone.shift_zone) && return boundary_zone
+
+    (; nhs_boundary) = system.cache
+
+    PointNeighbors.initialize!(nhs_boundary, initial_coordinates(system),
+                               boundary_zone.shift_zone.boundary_coordinates)
+
+    return boundary_zone
 end

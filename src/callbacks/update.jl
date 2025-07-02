@@ -72,6 +72,7 @@ end
 
 # `affect!`
 function (update_callback!::UpdateCallback)(integrator)
+    dt = integrator.dt
     t = integrator.t
     dt = integrator.dt
     semi = integrator.p
