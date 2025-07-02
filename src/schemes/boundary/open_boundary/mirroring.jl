@@ -163,6 +163,13 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
         end
     end
 
+    if !(prescribed_velocity) && boundary_zone.average_inflow_velocity
+        # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
+        # Thus, turbulent flows near the inflow can lead to non-uniform buffer particles distribution,
+        # resulting in a potential numerical instability. Averaging mitigates these effects.
+        average_velocity!(v_open_boundary, u_open_boundary, system, boundary_zone, semi)
+    end
+
     return system
 end
 
@@ -219,6 +226,36 @@ function mirror_position(particle_coords, boundary_zone)
     dist = dot(particle_position, boundary_zone.plane_normal)
 
     return particle_coords - 2 * dist * boundary_zone.plane_normal
+end
+
+average_velocity!(v, u, system, boundary_zone, semi) = v
+
+function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, semi)
+    (; plane_normal, zone_origin, initial_condition) = boundary_zone
+
+    # We only use the extrapolated velocity in the vicinity of the transition region.
+    # Otherwise, if the boundary zone is too large, averaging would be excessively influenced
+    # by the fluid velocity further away from the boundary.
+    max_dist = initial_condition.particle_spacing * 110 / 100
+
+    candidates = findall(x -> dot(x - zone_origin, -plane_normal) <= max_dist,
+                         reinterpret(reshape, SVector{ndims(system), eltype(u)},
+                                     active_coordinates(u, system)))
+
+    avg_velocity = sum(candidates) do particle
+        return current_velocity(v, system, particle)
+    end
+
+    avg_velocity /= length(candidates)
+
+    @threaded semi for particle in each_moving_particle(system)
+        # Set the velocity of the ghost node to the average velocity of the fluid domain
+        @inbounds for dim in eachindex(avg_velocity)
+            v[dim, particle] = avg_velocity[dim]
+        end
+    end
+
+    return v
 end
 
 project_velocity_on_plane_normal(vel, boundary_zone) = vel
