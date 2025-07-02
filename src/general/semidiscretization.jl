@@ -970,6 +970,7 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.reference_velocity,
                                  system.reference_pressure,
                                  system.reference_density,
+                                 system.pressure_model,
                                  system.buffer,
                                  system.update_callback_used,
                                  system.cache)

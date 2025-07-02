@@ -37,7 +37,7 @@ Open boundary system for in- and outflow particles.
     It is GPU-compatible (e.g., with CUDA.jl and AMDGPU.jl), but currently **not** supported with Metal.jl.
 """
 struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZ, RV,
-                             RP, RD, B, UCU, C} <: System{NDIMS}
+                             RP, RD, PM, B, UCU, C} <: System{NDIMS}
     boundary_model       :: BM
     initial_condition    :: IC
     fluid_system         :: FS
@@ -53,6 +53,7 @@ struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZ
     reference_velocity   :: RV
     reference_pressure   :: RP
     reference_density    :: RD
+    pressure_model       :: PM
     buffer               :: B
     update_callback_used :: UCU
     cache                :: C
@@ -62,27 +63,28 @@ function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                fluid_system_index, smoothing_length, mass, density, volume,
                                pressure, boundary_candidates, fluid_candidates,
                                boundary_zone, reference_velocity,
-                               reference_pressure, reference_density, buffer,
-                               update_callback_used, cache)
+                               reference_pressure, reference_density, pressure_model,
+                               buffer, update_callback_used, cache)
     OpenBoundarySPHSystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                           typeof(initial_condition), typeof(fluid_system),
                           typeof(fluid_system_index), typeof(mass),
                           typeof(boundary_candidates), typeof(fluid_candidates),
                           typeof(boundary_zone), typeof(reference_velocity),
                           typeof(reference_pressure), typeof(reference_density),
-                          typeof(buffer), typeof(update_callback_used),
+                          typeof(pressure_model), typeof(buffer),
+                          typeof(update_callback_used),
                           typeof(cache)}(boundary_model, initial_condition, fluid_system,
                                          fluid_system_index, smoothing_length, mass,
                                          density, volume, pressure, boundary_candidates,
                                          fluid_candidates, boundary_zone,
                                          reference_velocity, reference_pressure,
-                                         reference_density, buffer, update_callback_used,
-                                         cache)
+                                         reference_density, pressure_model, buffer,
+                                         update_callback_used, cache)
 end
 
 function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                fluid_system::FluidSystem,
-                               buffer_size::Integer, boundary_model,
+                               buffer_size::Integer, boundary_model, pressure_model=nothing,
                                reference_velocity=nothing,
                                reference_pressure=nothing,
                                reference_density=nothing)
@@ -159,7 +161,11 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
     mass = copy(initial_condition.mass)
     volume = similar(initial_condition.density)
 
-    cache = create_cache_open_boundary(boundary_model, initial_condition,
+    if !(isnothing(pressure_model)) && !(isnothing(reference_pressure_))
+        throw(ArgumentError("`reference_pressure` must be `nothing` when using $(typeof(pressure_model)))"))
+    end
+
+    cache = create_cache_open_boundary(boundary_model, pressure_model, initial_condition,
                                        reference_density, reference_velocity,
                                        reference_pressure)
 
@@ -176,11 +182,11 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                  fluid_system_index, smoothing_length, mass, density,
                                  volume, pressure, boundary_candidates, fluid_candidates,
                                  boundary_zone, reference_velocity_,
-                                 reference_pressure_, reference_density_, buffer,
-                                 update_callback_used, cache)
+                                 reference_pressure_, reference_density_, pressure_model,
+                                 buffer, update_callback_used, cache)
 end
 
-function create_cache_open_boundary(boundary_model, initial_condition,
+function create_cache_open_boundary(boundary_model, pressure_model, initial_condition,
                                     reference_density, reference_velocity,
                                     reference_pressure)
     ELTYPE = eltype(initial_condition)
@@ -190,7 +196,8 @@ function create_cache_open_boundary(boundary_model, initial_condition,
     prescribed_density = isnothing(reference_density) ? false : true
 
     if boundary_model isa BoundaryModelTafuni
-        return (; prescribed_pressure=prescribed_pressure,
+        return (;
+                prescribed_pressure=isnothing(pressure_model) ? prescribed_pressure : true,
                 prescribed_density=prescribed_density,
                 prescribed_velocity=prescribed_velocity)
     end
@@ -248,6 +255,16 @@ end
 
 update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
 
+@inline function v_nvariables(system::OpenBoundarySPHSystem)
+    return v_nvariables(system, system.pressure_model)
+end
+
+@inline v_nvariables(system::OpenBoundarySPHSystem, ::Nothing) = ndims(system)
+
+@inline function v_nvariables(system::OpenBoundarySPHSystem, ::RCRBoundaryModel)
+    return ndims(system) + 1
+end
+
 function corresponding_fluid_system(system::OpenBoundarySPHSystem, semi)
     return system.fluid_system
 end
@@ -263,7 +280,15 @@ end
 end
 
 @inline function current_pressure(v, system::OpenBoundarySPHSystem)
+    current_pressure_open_boundary(v, system::OpenBoundarySPHSystem, system.pressure_model)
+end
+
+@inline function current_pressure_open_boundary(v, system::OpenBoundarySPHSystem, ::Nothing)
     return system.pressure
+end
+
+@inline function current_pressure(v, system::OpenBoundarySPHSystem, particle)
+    return current_pressure_open_boundary(v, system, system.pressure_model)[particle]
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
@@ -277,9 +302,11 @@ end
 
 # This function is called by the `UpdateCallback`, as the integrator array might be modified
 function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode,
-                                        semi, t)
+                                        semi, dt, t)
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
+
+    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
     # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
@@ -290,12 +317,12 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
                                                                                    u_ode,
                                                                                    semi, t)
 
-    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
+    update_pressure_model!(system, system.pressure_model, v, dt)
 
     return system
 end
 
-update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
+update_open_boundary_eachstep!(system, v_ode, u_ode, semi, dt, t) = system
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
     (; boundary_zone, boundary_candidates, fluid_candidates) = system
@@ -408,6 +435,15 @@ end
     # Activate a new particle in simulation domain
     transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
 
+    # If the number of active particles exceeds 250% of the initially sampled particles,
+    # this particle can be removed to free up available particle slots.
+    n_particles_full_sampled = nparticles(system) - system.buffer.buffer_size
+    if system.buffer.active_particle_count[] > n_particles_full_sampled * 250 / 100
+        deactivate_particle!(system, particle, u)
+
+        return system
+    end
+
     # Reset position of boundary particle
     for dim in 1:ndims(system)
         u[dim, particle] += boundary_zone.spanning_set[1][dim]
@@ -455,6 +491,17 @@ function write_v0!(v0, system::OpenBoundarySPHSystem)
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
     indices = CartesianIndices(system.initial_condition.velocity)
     copyto!(v0, indices, system.initial_condition.velocity, indices)
+
+    write_v0!(v0, system, system.pressure_model)
+
+    return v0
+end
+
+write_v0!(v0, system::OpenBoundarySPHSystem, ::Nothing) = v0
+
+function write_v0!(v0, system::OpenBoundarySPHSystem, ::RCRBoundaryModel)
+    # Note that `.=` is very slightly faster, but not GPU-compatible
+    v0[end, :] = system.initial_condition.pressure
 
     return v0
 end
