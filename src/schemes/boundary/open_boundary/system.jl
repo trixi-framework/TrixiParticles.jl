@@ -91,11 +91,7 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
     initial_condition = allocate_buffer(initial_condition, buffer)
 
     NDIMS = ndims(initial_condition)
-
-    pressure = copy(initial_condition.pressure)
-    mass = copy(initial_condition.mass)
-    density = copy(initial_condition.density)
-    volume = similar(initial_condition.density)
+    ELTYPE = eltype(initial_condition)
 
     if !(reference_velocity isa Function || isnothing(reference_velocity) ||
          (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
@@ -142,6 +138,21 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
         end
         reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
     end
+
+    coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE},
+                                      initial_condition.coordinates)
+    velocities_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE},
+                                     initial_condition.velocity)
+
+    initial_condition.velocity .= stack(reference_value.(reference_velocity_,
+                                                         velocities_svector,
+                                                         coordinates_svector, 0))
+    pressure = copy(reference_value.(reference_pressure_, initial_condition.pressure,
+                                     coordinates_svector, 0))
+    density = copy(reference_value.(reference_density_, initial_condition.density,
+                                    coordinates_svector, 0))
+    mass = copy(initial_condition.mass)
+    volume = similar(initial_condition.density)
 
     cache = create_cache_open_boundary(boundary_model, initial_condition,
                                        reference_density, reference_velocity,

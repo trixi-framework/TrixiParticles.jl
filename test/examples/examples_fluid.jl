@@ -289,6 +289,14 @@
         @test count_rhs_allocations(sol, semi) == 0
     end
 
+    @trixi_testset "fluid/simple_advection_2d.jl.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                         joinpath(examples_dir(), "fluid",
+                                                  "simple_advection_2d.jl"))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                          joinpath(examples_dir(), "fluid",
