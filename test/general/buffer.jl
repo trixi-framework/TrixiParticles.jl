@@ -2,6 +2,7 @@
     # Mock fluid system
     struct FluidSystemMock3 <: TrixiParticles.FluidSystem{2} end
     TrixiParticles.initial_smoothing_length(system::FluidSystemMock3) = 1.0
+    TrixiParticles.nparticles(system::FluidSystemMock3) = 1
 
     zone = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
                         open_boundary_layers=2, density=1.0, plane_normal=[1.0, 0.0],
@@ -23,7 +24,9 @@
 
         @test TrixiParticles.each_moving_particle(system_buffer) == 1:n_particles
 
-        particle_id = TrixiParticles.activate_next_particle(system_buffer)
+        # Activate a particle
+        particle_id = findfirst(x -> x == false, system_buffer.buffer.active_particle)
+        system_buffer.buffer.active_particle[particle_id] = true
 
         TrixiParticles.update_system_buffer!(system_buffer.buffer,
                                              DummySemidiscretization())

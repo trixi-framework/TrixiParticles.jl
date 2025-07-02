@@ -7,12 +7,7 @@ end
 
 function SystemBuffer(active_size, buffer_size::Integer)
     # Using a `BitVector` is not an option as writing to it is not thread-safe.
-    # Also, to ensure thread-safe particle activation, we use an `atomic_cas` operation.
-    # Thus, `active_particle` is defined as a `Vector{UInt32}` because CUDA.jl
-    # does not support atomic operations on `Bool`.
-    # https://github.com/JuliaGPU/CUDA.jl/blob/2cc9285676a4cd28d0846ca62f0300c56d281d38/src/device/intrinsics/atomics.jl#L243
-    active_particle = vcat(fill(UInt32(true), active_size),
-                           fill(UInt32(false), buffer_size))
+    active_particle = vcat(fill(true, active_size), fill(false, buffer_size))
     eachparticle = collect(eachindex(active_particle))
 
     return SystemBuffer(active_particle, Ref(active_size), eachparticle, buffer_size)
@@ -49,9 +44,8 @@ end
 
     # TODO: Parallelize (see https://github.com/trixi-framework/TrixiParticles.jl/issues/810)
     # Update the number of active particles and the active particle indices
-    buffer.active_particle_count[] = sum(active_particle)
-    buffer.eachparticle[1:buffer.active_particle_count[]] .= findall(x -> x == true,
-                                                                     active_particle)
+    buffer.active_particle_count[] = count(active_particle)
+    buffer.eachparticle[1:buffer.active_particle_count[]] .= findall(active_particle)
 
     return buffer
 end
@@ -64,29 +58,6 @@ end
     return view(buffer.eachparticle, 1:buffer.active_particle_count[])
 end
 
-@inline function activate_next_particle(system)
-    (; active_particle) = system.buffer
-
-    for particle in eachindex(active_particle)
-        if PointNeighbors.Atomix.@atomic(active_particle[particle]) == false
-            # After we go into this condition, another thread might still activate this particle
-            # before we do. Therefore, we use an atomic swap, which activates the particle,
-            # but also returns the old value.
-            # If the old value is `true`, the particle was active before and we need to continue.
-            # Note: This doesn't work with Metal.jl. No error is thrown, but the operation is simply ignored.
-            # An atomic compare-and-swap operation is probably implemented for Metal.jl here:
-            # https://github.com/JuliaGPU/Metal.jl/blob/caf299690aa52448ee72ffc5688939b157fc1ba2/src/device/intrinsics/atomics.jl#L42
-            was_active = PointNeighbors.Atomix.@atomicswap active_particle[particle] = true
-
-            if was_active == false
-                return particle
-            end
-        end
-    end
-
-    error("No buffer particles available")
-end
-
 @inline function deactivate_particle!(system, particle, u)
     (; active_particle) = system.buffer
 
@@ -96,7 +67,8 @@ end
         u[dim, particle] = eltype(system)(1e16)
     end
 
-    # `activate_next_particle!` and `deactivate_particle!` are never called on the same buffer inside a kernel,
+    # `deactivate_particle!` and `active_particle[particle] = true`
+    # are never called on the same buffer inside a kernel,
     # so we don't have any race conditions on this `active_particle` vector.
     active_particle[particle] = false
 
