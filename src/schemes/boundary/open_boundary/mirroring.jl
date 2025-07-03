@@ -136,13 +136,6 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             end
         end
 
-        if prescribed_density
-            density[particle] = reference_value(reference_density, density[particle],
-                                                particle_coords, t)
-        else
-            inverse_state_equation!(density, state_equation, pressure, particle)
-        end
-
         if prescribed_pressure
             pressure[particle] = reference_value(reference_pressure, pressure[particle],
                                                  particle_coords, t)
@@ -151,6 +144,13 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             df_d = f_d[two_to_end]
 
             pressure[particle] = f_d[1] + dot(pos_diff, df_d)
+        end
+
+        if prescribed_density
+            density[particle] = reference_value(reference_density, density[particle],
+                                                particle_coords, t)
+        else
+            inverse_state_equation!(density, state_equation, pressure, particle)
         end
     end
 
