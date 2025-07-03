@@ -15,12 +15,13 @@ using JSON
 # ============================================================================
 # Experiment Parameters
 # ============================================================================
-n_particles_plate_y = 3                # paper uses 5 to 40 (3 for short runtime in CI)
+# The paper uses 5 to 40 (3 for short runtime in CI)
+n_particles_plate_y = 3
 boundary_layers = 3
 spacing_ratio = 1
-
 gravity = 9.81
-tspan = (0.0, 0.3)     # recommended: run at least to 0.5 (paper runs to 1.0); using 0.3 for speed in CI
+# Recommended: run at least to 0.5 (paper runs to 1.0); using 0.3 for speed in CI
+tspan = (0.0, 0.3)
 
 initial_fluid_size = (1.0, 2.0)
 plate_size = (1.0, 0.05)
@@ -44,7 +45,7 @@ analytical_value = -0.0026 * gravity *
                     solid_density * plate_size[2]) / D
 
 # ============================================================================
-# Geometry Definitions: Tank, Beam, and Fixed Particles
+# ==== Geometry Definitions: Tank, Beam, and Fixed Particles
 # ============================================================================
 n_particles_plate_x = round(Int, plate_size[1] / solid_particle_spacing + 1)
 n_particles_per_dimension = (n_particles_plate_x, n_particles_plate_y)
@@ -52,22 +53,25 @@ n_particles_per_dimension = (n_particles_plate_x, n_particles_plate_y)
 plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
                          (0.0, -plate_size[2]), density=solid_density, tlsph=true)
 
-fixed_particles_1 = RectangularShape(solid_particle_spacing, (3, n_particles_plate_y),
+left_wall = RectangularShape(solid_particle_spacing, (3, n_particles_plate_y),
                                      (-3 * solid_particle_spacing, -plate_size[2]),
                                      density=solid_density, tlsph=true)
-fixed_particles_2 = RectangularShape(solid_particle_spacing, (3, n_particles_plate_y),
+right_wall = RectangularShape(solid_particle_spacing, (3, n_particles_plate_y),
                                      (plate_size[1] + solid_particle_spacing,
                                       -plate_size[2]), density=solid_density, tlsph=true)
-fixed_particles = union(fixed_particles_1, fixed_particles_2)
+fixed_particles = union(left_wall, right_wall)
 
 solid_geometry = union(plate, fixed_particles)
 
 # ============================================================================
 # Smoothing Kernel, Boundary, and Related Quantities
 # ============================================================================
-smoothing_kernel = WendlandC2Kernel{2}()
-smoothing_length_solid = 2 * sqrt(2) * solid_particle_spacing
-smoothing_length_fluid = 2 * sqrt(2) * fluid_particle_spacing
+# smoothing_kernel = WendlandC2Kernel{2}()
+smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
+smoothing_length_solid = sqrt(2) * solid_particle_spacing
+
+# Note: Setting this to something else than the solid particle spacing results in a larger error
+smoothing_length_fluid = sqrt(2) * fluid_particle_spacing
 
 hydrodynamic_densities = fluid_density * ones(size(solid_geometry.density))
 hydrodynamic_masses = hydrodynamic_densities * solid_particle_spacing^ndims(solid_geometry)
@@ -76,13 +80,13 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 # ============================================================================
 # Sensor Function (for Postprocessing)
 # ============================================================================
-function y_deflection(v, u, t, system::TotalLagrangianSPHSystem)
+function y_deflection(system::TotalLagrangianSPHSystem, v, u, semi, t)
     # Choose the particle in the middle of the beam along x.
     particle_id = Int(n_particles_per_dimension[1] * (n_particles_plate_y + 1) / 2 -
                       (n_particles_per_dimension[1] + 1) / 2 + 1)
     return TrixiParticles.current_coords(u, system, particle_id)[2] + plate_size[2] / 2
 end
-y_deflection(v, u, t, system) = nothing
+y_deflection(system, v, u, semi, t) = nothing
 
 # ============================================================================
 # Run Simulations and Compute Errors
@@ -105,15 +109,17 @@ for method in ["edac", "wcsph"]
     if method == "edac"
         fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel,
                                                    smoothing_length_fluid, sound_speed,
-                                                   acceleration=(0.0, -gravity))
+                                                   acceleration=(0.0, -gravity),
+                                                   correction=ShepardKernelCorrection())
     else
-        fluid_density_calculator = ContinuityDensity()
+        fluid_density_calculator = SummationDensity()
         density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
         fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                                    local_state_equation, smoothing_kernel,
                                                    smoothing_length_fluid,
                                                    density_diffusion=density_diffusion,
-                                                   acceleration=(0.0, -gravity))
+                                                   acceleration=(0.0, -gravity),
+                                                   correction=ShepardKernelCorrection())
     end
 
     boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
@@ -133,7 +139,13 @@ for method in ["edac", "wcsph"]
                                             n_fixed_particles=nparticles(fixed_particles),
                                             acceleration=(0.0, -gravity))
 
-    semi = Semidiscretization(solid_system, fluid_system, boundary_system)
+
+
+    min_corner = [-1; -1]
+    max_corner = [3; 3]
+    cell_list = FullGridCellList(; min_corner, max_corner)
+    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
+    semi = Semidiscretization(solid_system, fluid_system, boundary_system, neighborhood_search=neighborhood_search, parallelization_backend=PolyesterBackend())
     ode = semidiscretize(semi, tspan)
 
     pp_filename = "validation_result_hyd_" * method * "_" * string(n_particles_plate_y)

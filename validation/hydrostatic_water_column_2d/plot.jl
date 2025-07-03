@@ -23,16 +23,16 @@ end
 # ----------------------------------------------------------------------------
 # 2. Directories, Files & Global Y-Limits for Simulation Plots
 # ----------------------------------------------------------------------------
-case_dir = joinpath(validation_dir(), "hydrostatic_water_column_2d")
-edac_files = sort(glob("validation_reference_edac*.json", case_dir),
-                  by=extract_number_from_filename)
-wcsph_files = sort(glob("validation_reference_wcsph*.json", case_dir),
-                   by=extract_number_from_filename)
-
-# edac_sim_files = sort(glob("validation_result_hyd_edac*.json", "out/"),
+# case_dir = joinpath(validation_dir(), "hydrostatic_water_column_2d")
+# edac_files = sort(glob("validation_reference_edac*.json", case_dir),
+#                   by=extract_number_from_filename)
+# wcsph_files = sort(glob("validation_reference_wcsph*.json", case_dir),
 #                    by=extract_number_from_filename)
-# wcsph_sim_files = sort(glob("validation_result_hyd_wcsph*.json", "out/"),
-#                     by=extract_number_from_filename)
+
+edac_files = sort(glob("validation_result_hyd_edac*.json", "out/"),
+                   by=extract_number_from_filename)
+wcsph_files = sort(glob("validation_result_hyd_wcsph*.json", "out/"),
+                    by=extract_number_from_filename)
 
 all_y = Float64[]
 for file in vcat(edac_files, wcsph_files)
