@@ -138,7 +138,7 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
         end
 
         shift_zone = set_up_shift_zone(boundary_type, boundary_coordinates, ic, plane,
-                                       flow_direction, zone_origin, particle_spacing,
+                                       plane_normal, zone_origin, particle_spacing,
                                        open_boundary_layers, zone_width)
     else
         shift_zone = nothing
@@ -292,13 +292,7 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
 end
 
 function set_up_shift_zone(boundary_type, boundary_coordinates, initial_condition,
-                           plane, flow_direction, zone_origin, particle_spacing,
-                           open_boundary_layers, zone_width)
-    error("Not supported for boundary type $boundary_type")
-end
-
-function set_up_shift_zone(::InFlow, boundary_coordinates, initial_condition,
-                           plane, flow_direction, zone_origin, particle_spacing,
+                           plane, plane_normal, zone_origin, particle_spacing,
                            open_boundary_layers, zone_width)
     # Assume a shift zone of length `4 * particle_spacing` is sufficient.
     # A buffer of `4 * particle_spacing` before and after the shift zone should be enough.
@@ -314,18 +308,17 @@ function set_up_shift_zone(::InFlow, boundary_coordinates, initial_condition,
     spanning_set_shift_zone_ = spanning_vectors(Tuple(plane), shift_zone_width)
 
     # First vector of `spanning_set_shift_zone` is normal to the boundary plane
-    dot_flow = dot(normalize(spanning_set_shift_zone_[:, 1]), flow_direction)
+    dot_flow = dot(normalize(spanning_set_shift_zone_[:, 1]), plane_normal)
 
-    # The vector must point in upstream direction for an inflow boundary.
-    # Flip the normal vector to point in the opposite direction of `flow_direction`.
+    # Flip the normal vector to point in the opposite direction of `plane_normal`.
     spanning_set_shift_zone_[:, 1] .*= -sign(dot_flow)
 
     spanning_set_shift_zone = reinterpret(reshape, SVector{NDIMS, ELTYPE},
                                           spanning_set_shift_zone_)
 
-    # Shift the origin of the shift zone in upstream direction by `4 * particle_spacing`
+    # Shift the origin of the shift zone by `4 * particle_spacing`
     # to ensure a buffer before and after the shift zone.
-    shift_zone_origin = zone_origin .- flow_direction * 4 * particle_spacing
+    shift_zone_origin = zone_origin .- plane_normal * 4 * particle_spacing
 
     delta_r = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
 
