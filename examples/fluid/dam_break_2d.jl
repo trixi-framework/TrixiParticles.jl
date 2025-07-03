@@ -35,7 +35,7 @@ tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_sp
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * H)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=1, clip_negative_pressure=false)
+                                   exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -64,8 +64,8 @@ viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
-# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -73,6 +73,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity), correction=nothing,
                                            surface_tension=nothing,
+                                           pressure_acceleration=TrixiParticles.pressure_acceleration_summation_density,
                                            reference_particle_spacing=0)
 
 # ==========================================================================================
@@ -120,7 +121,7 @@ use_reinit = false
 density_reinit_cb = use_reinit ?
                     DensityReinitializationCallback(semi.systems[1], interval=10) :
                     nothing
-stepsize_callback = StepsizeCallback(cfl=0.9)
+stepsize_callback = StepsizeCallback(cfl=0.5)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
                         density_reinit_cb, saving_paper)

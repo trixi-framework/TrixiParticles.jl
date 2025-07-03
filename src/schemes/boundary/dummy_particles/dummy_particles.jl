@@ -450,7 +450,7 @@ function compute_adami_density!(boundary_model, system, system_coords, particle)
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
-    @inbounds pressure[particle] = max(pressure[particle], 0)
+    # @inbounds pressure[particle] = max(pressure[particle], 0)
 
     # Apply inverse state equation to compute density (not used with EDAC)
     inverse_state_equation!(density, state_equation, pressure, particle)
