@@ -384,15 +384,6 @@ end
     # Activate a new particle in simulation domain
     transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
 
-    # If the number of active particles exceeds 250% of the initially sampled particles,
-    # this particle can be removed to free up available particle slots.
-    n_particles_full_sampled = nparticles(system) - system.buffer.buffer_size
-    if system.buffer.active_particle_count[] > n_particles_full_sampled * 250 / 100
-        deactivate_particle!(system, particle, u)
-
-        return system
-    end
-
     # Reset position of boundary particle
     for dim in 1:ndims(system)
         u[dim, particle] += boundary_zone.spanning_set[1][dim]
