@@ -1,8 +1,7 @@
 # Interaction of boundary with other systems
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::Union{BoundarySystem, OpenBoundarySPHSystem},
-                   neighbor_system, semi)
+                   particle_system::BoundarySystem, neighbor_system, semi)
     # TODO Solids and moving boundaries should be considered in the continuity equation
     return dv
 end
@@ -34,6 +33,19 @@ function interact!(dv, v_particle_system, u_particle_system,
         continuity_equation!(dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
                              grad_kernel, particle)
     end
+
+    return dv
+end
+
+# Interaction of boundary with other systems
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::OpenBoundarySPHSystem,
+                   neighbor_system, semi)
+    (; pressure_model) = particle_system
+
+    pressure_evolution!(dv, particle_system, pressure_model,
+                        v_particle_system, u_particle_system, semi)
 
     return dv
 end
