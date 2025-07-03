@@ -245,6 +245,8 @@ end
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates) = system
 
+    # `current_coordinates` stores the coordinates of both integrated and fixed particles.
+    # Copy the coordinates of the integrated particles from `u`.
     @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             current_coordinates[i, particle] = u[i, particle]
