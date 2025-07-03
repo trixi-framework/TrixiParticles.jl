@@ -7,12 +7,24 @@ using Test
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
 resolution_factor = 0.08 # [0.08, 0.04, 0.02, 0.01]
 
+sound_speed = 10.0
+reynolds_number = 200
+smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
+h_factor = 1.2
+
+output_directory = joinpath(validation_dir(), "vortex_street_2d",
+                            "out_vortex_street_dp_$(resolution_factor)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
+                            TrixiParticles.type2string(smoothing_kernel) *
+                            "_Re_$reynolds_number")
+
 # ======================================================================================
 # ==== Run the simulation
-trixi_include(joinpath(validation_dir(), "vortex_street_2d", "vortex_street_2d.jl"),
+trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
               parallelization_backend=PolyesterBackend(),
-              sound_speed=10.0, reynolds_number=200, saving_callback=nothing,
-              smoothing_kernel=SchoenbergQuinticSplineKernel{2}(), h_factor=1.2,
+              sound_speed=sound_speed, reynolds_number=reynolds_number,
+              saving_callback=nothing, h_factor=h_factor,
+              smoothing_kernel=smoothing_kernel,
+              output_directory=output_directory,
               factor_d=resolution_factor, tspan=(0.0, 20.0))
 
 # ======================================================================================

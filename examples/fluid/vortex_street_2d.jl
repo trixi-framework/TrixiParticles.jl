@@ -56,7 +56,7 @@ fluid = setdiff(pipe.fluid, cylinder)
 # ==== Fluid
 wcsph = true
 
-h_factor = 4.0
+h_factor = 1.5
 smoothing_length = h_factor * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
@@ -201,10 +201,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-output_directory = joinpath(validation_dir(), "vortex_street_2d",
-                            "out_vortex_street_dp_$(factor_d)D_c_$(sound_speed)_h_factor_$(h_factor)_" *
-                            TrixiParticles.type2string(smoothing_kernel) *
-                            "_Re_$reynolds_number")
+output_directory = "out"
 
 saving_callback = SolutionSavingCallback(; dt=0.02, prefix="", output_directory)
 
