@@ -19,6 +19,7 @@ Adapt.@adapt_structure BoundaryMovement
 Adapt.@adapt_structure TotalLagrangianSPHSystem
 Adapt.@adapt_structure BoundaryZone
 Adapt.@adapt_structure SystemBuffer
+Adapt.@adapt_structure RCRBoundaryModel
 Adapt.@adapt_structure OpenBoundarySPHSystem
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()

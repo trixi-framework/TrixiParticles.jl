@@ -63,7 +63,7 @@ export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem
-export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
+export BoundaryZone, InFlow, OutFlow, BidirectionalFlow, RCRBoundaryModel
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        ParticleShiftingCallback

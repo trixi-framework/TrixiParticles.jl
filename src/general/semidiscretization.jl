@@ -945,6 +945,8 @@ function check_configuration(system::OpenBoundarySPHSystem, systems,
                             "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
                             "See the PointNeighbors.jl documentation for more details."))
     end
+
+    initialize_shift_zone!(boundary_zone, system)
 end
 
 # After `adapt`, the system type information may change.
@@ -964,10 +966,13 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.density,
                                  system.volume,
                                  system.pressure,
+                                 system.boundary_candidates,
+                                 system.fluid_candidates,
                                  system.boundary_zone,
                                  system.reference_velocity,
                                  system.reference_pressure,
                                  system.reference_density,
+                                 system.pressure_model,
                                  system.buffer,
                                  system.update_callback_used,
                                  system.cache)
