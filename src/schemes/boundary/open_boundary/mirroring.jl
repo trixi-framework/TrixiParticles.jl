@@ -150,7 +150,10 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)
         else
-            inverse_state_equation!(density, state_equation, pressure, particle)
+            f_d = L_inv * extrapolated_density_correction[]
+            df_d = f_d[two_to_end]
+
+            density[particle] = f_d[1] + dot(pos_diff, df_d)
         end
     end
 
