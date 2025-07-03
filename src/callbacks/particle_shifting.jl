@@ -90,26 +90,8 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
                                semi;
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            rho_a = current_density(v, system, particle)
-            rho_b = current_density(v_neighbor, neighbor_system, neighbor)
-
-            kernel = smoothing_kernel(system, distance, particle)
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-
-            # According to p. 29 below Eq. 9
-            R = 2 // 10
-            n = 4
-
-            # Eq. 7 in Sun et al. (2017).
-            # CFL * Ma can be rewritten as Δt * v_max / h (see p. 29, right above Eq. 9).
-            delta_r_ = -dt * v_max * 4 * h * (1 + R * (kernel / Wdx)^n) *
-                       m_b / (rho_a + rho_b) * grad_kernel
-
-            # Write into the buffer
-            for i in eachindex(delta_r_)
-                @inbounds delta_r[i, particle] += delta_r_[i]
-            end
+            apply_shifting!(delta_r, system, neighbor_system, v, v_neighbor,
+                            particle, neighbor, pos_diff, distance, v_max, Wdx, h, dt)
         end
     end
 
@@ -121,6 +103,33 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
     end
 
     return u
+end
+
+function apply_shifting!(delta_r, system, neighbor_system, v, v_neighbor,
+                         particle, neighbor, pos_diff, distance, v_max, Wdx, h, dt)
+    # Calculate the hydrodynamic mass and density
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    rho_a = current_density(v, system, particle)
+    rho_b = current_density(v_neighbor, neighbor_system, neighbor)
+
+    kernel = smoothing_kernel(system, distance, particle)
+    grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+    # According to p. 29 below Eq. 9
+    R = 2 // 10
+    n = 4
+
+    # Eq. 7 in Sun et al. (2017).
+    # CFL * Ma can be rewritten as Δt * v_max / h (see p. 29, right above Eq. 9).
+    delta_r_ = -dt * v_max * 4 * h * (1 + R * (kernel / Wdx)^n) *
+               m_b / (rho_a + rho_b) * grad_kernel
+
+    # Write into the buffer
+    for i in eachindex(delta_r_)
+        @inbounds delta_r[i, particle] += delta_r_[i]
+    end
+
+    return delta_r
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, typeof(particle_shifting!)})
