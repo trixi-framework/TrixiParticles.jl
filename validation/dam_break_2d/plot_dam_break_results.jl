@@ -19,22 +19,23 @@ normalization_factor_pressure = 1000 * 9.81 * H
 
 case_dir = joinpath(validation_dir(), "dam_break_2d")
 
-edac_reference_files = glob("validation_reference_edac*.json",
-                            case_dir)
+edac_reference_files = []#glob("validation_reference_edac*.json",
+                         #   case_dir)
 edac_sim_files = glob("validation_result_dam_break_edac*.json",
                       "out/")
 
 merged_files = vcat(edac_reference_files, edac_sim_files)
 edac_files = sort(merged_files, by=extract_number_from_filename)
 
-wcsph_reference_files = glob("validation_reference_wcsph*.json",
-                             case_dir)
+wcsph_reference_files = [] #glob("validation_reference_wcsph*.json",
+                           #  case_dir)
 wcsph_sim_files = glob("validation_result_dam_break_wcsph*.json",
                        "out/")
 
 merged_files = vcat(wcsph_reference_files, wcsph_sim_files)
 wcsph_files = sort(merged_files, by=extract_number_from_filename)
 
+# Read in external reference data
 surge_front = CSV.read(joinpath(case_dir, "exp_surge_front.csv"), DataFrame)
 
 exp_P1 = CSV.read(joinpath(case_dir, "exp_pressure_sensor_P1.csv"), DataFrame)
@@ -58,15 +59,13 @@ function plot_results(axs, ax_max, files)
         ylims!(ax, -0.1, 1.0)
     end
 
-    # Define a regex to extract the sensor number from the key names
-    sensor_number_regex = r"pressure_P(\d+)_fluid_\d+"
-
     for (file_number, json_file) in enumerate(files)
+        println("Processing file: $json_file")
         json_data = JSON.parsefile(json_file)
-        time = json_data["pressure_P1_fluid_1"]["time"] .* normalization_factor_time
-        pressure_P1 = json_data["pressure_P1_fluid_1"]["values"] ./
+        time = json_data["interpolated_pressure_P1_fluid_1"]["time"] .* normalization_factor_time
+        pressure_P1 = json_data["interpolated_pressure_P1_fluid_1"]["values"] ./
                       normalization_factor_pressure
-        pressure_P2 = json_data["pressure_P2_fluid_1"]["values"] ./
+        pressure_P2 = json_data["interpolated_pressure_P2_fluid_1"]["values"] ./
                       normalization_factor_pressure
 
         label_prefix = occursin("reference", json_file) ? "Reference " : ""
@@ -131,4 +130,4 @@ Legend(fig[6, 2], ax_max_x_wcsph, tellwidth=false, orientation=:horizontal, vali
 
 fig
 # Uncomment to save the figure
-# save("dam_break_validation.svg", fig)
+save("dam_break_validation.svg", fig)
