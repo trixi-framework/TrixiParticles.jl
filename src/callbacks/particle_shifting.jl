@@ -90,25 +90,83 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
                                semi;
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            rho_a = current_density(v, system, particle)
-            rho_b = current_density(v_neighbor, neighbor_system, neighbor)
+            apply_shifting!(delta_r, system, neighbor_system, v, v_neighbor, u, u_neighbor,
+                            particle, neighbor, pos_diff, distance, v_max, Wdx, h, dt)
+        end
+    end
 
-            kernel = smoothing_kernel(system, distance, particle)
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+    # Add δ_r from the buffer to the current coordinates
+    @threaded semi for particle in eachparticle(system)
+        for i in axes(delta_r, 1)
+            @inbounds u[i, particle] += delta_r[i, particle]
+        end
+    end
 
-            # According to p. 29 below Eq. 9
-            R = 2 // 10
-            n = 4
+    return u
+end
 
-            # Eq. 7 in Sun et al. (2017).
-            # CFL * Ma can be rewritten as Δt * v_max / h (see p. 29, right above Eq. 9).
-            delta_r_ = -dt * v_max * 4 * h * (1 + R * (kernel / Wdx)^n) *
-                       m_b / (rho_a + rho_b) * grad_kernel
+function particle_shifting!(u, v, system::OpenBoundarySPHSystem, v_ode, u_ode, semi,
+                            vu_cache, dt)
+    particle_shifting!(u, v, system, system.boundary_zone, v_ode, u_ode, semi,
+                       vu_cache, dt)
+end
 
-            # Write into the buffer
-            for i in eachindex(delta_r_)
-                @inbounds delta_r[i, particle] += delta_r_[i]
+function particle_shifting!(u, v, system::OpenBoundarySPHSystem, ::BoundaryZone{OutFlow},
+                            v_ode, u_ode, semi, vu_cache, dt)
+    return system
+end
+
+function particle_shifting!(u, v, system::OpenBoundarySPHSystem, ::BoundaryZone{InFlow},
+                            v_ode, u_ode, semi, vu_cache, dt)
+    (; zone_origin, spanning_set) = system.boundary_zone
+
+    # Wrap the cache vector to an NDIMS x NPARTICLES matrix.
+    # We need this buffer because we cannot safely update `u` while iterating over it.
+    _, u_cache = vu_cache.x
+    delta_r = wrap_u(u_cache, system, semi)
+    set_zero!(delta_r)
+
+    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # but is GPU-compatible.
+    v_max = maximum(x -> sqrt(dot(x, x)),
+                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                                current_velocity(v, system)))
+
+    # TODO this needs to be adapted to multi-resolution.
+    # Section 3.2 explains what else needs to be changed.
+    Wdx = smoothing_kernel(system, particle_spacing(system, 1), 1)
+    h = smoothing_length(system, 1)
+
+    fluid_system = corresponding_fluid_system(system, semi)
+
+    max_dist2 = (compact_support(system_smoothing_kernel(system.fluid_system),
+                                 smoothing_length(system, 1)) / 2)^2
+
+    shift_candidates = findall(x -> dot(x - zone_origin, spanning_set[1]) <= max_dist2,
+                               reinterpret(reshape, SVector{ndims(system), eltype(u)},
+                                           active_coordinates(u, system)))
+
+    foreach_system(semi) do neighbor_system
+        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+
+        neighborhood_search = get_neighborhood_search(fluid_system, neighbor_system, semi)
+
+        neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+
+        @threaded semi for particle in shift_candidates
+            particle_coords = current_coords(u, system, particle)
+
+            # TODO: Not public API
+            PointNeighbors.foreach_neighbor(neighbor_coords, neighborhood_search,
+                                            particle, particle_coords,
+                                            neighborhood_search.search_radius) do particle,
+                                                                                  neighbor,
+                                                                                  pos_diff,
+                                                                                  distance
+                apply_shifting!(delta_r, system, neighbor_system, v, v_neighbor, u,
+                                u_neighbor, particle, neighbor, pos_diff, distance,
+                                v_max, Wdx, h, dt)
             end
         end
     end
@@ -121,6 +179,34 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
     end
 
     return u
+end
+
+function apply_shifting!(delta_r, system, neighbor_system,
+                         v, v_neighbor, u, u_neighbor,
+                         particle, neighbor, pos_diff, distance, v_max, Wdx, h, dt)
+    # Calculate the hydrodynamic mass and density
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    rho_a = current_density(v, system, particle)
+    rho_b = current_density(v_neighbor, neighbor_system, neighbor)
+
+    kernel = smoothing_kernel(system, distance, particle)
+    grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+    # According to p. 29 below Eq. 9
+    R = 2 // 10
+    n = 4
+
+    # Eq. 7 in Sun et al. (2017).
+    # CFL * Ma can be rewritten as Δt * v_max / h (see p. 29, right above Eq. 9).
+    delta_r_ = -dt * v_max * 4 * h * (1 + R * (kernel / Wdx)^n) *
+               m_b / (rho_a + rho_b) * grad_kernel
+
+    # Write into the buffer
+    for i in eachindex(delta_r_)
+        @inbounds delta_r[i, particle] += delta_r_[i]
+    end
+
+    return delta_r
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, typeof(particle_shifting!)})
