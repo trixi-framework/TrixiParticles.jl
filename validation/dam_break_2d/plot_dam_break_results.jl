@@ -51,39 +51,63 @@ axs_wcsph = [Axis(fig[3, i], title="Sensor P$i with WCSPH") for i in 1:n_sensors
 ax_max_x_edac = Axis(fig[5, 1], title="Surge Front with EDAC")
 ax_max_x_wcsph = Axis(fig[5, 2], title="Surge Front with WCSPH")
 
-function plot_results(axs, ax_max, files)
+function plot_sensor_results(axs, files)
     for ax in axs
-        ax.xlabel = "Time"
-        ax.ylabel = "Pressure"
-        xlims!(ax, 0.0, 8.0)
-        ylims!(ax, -0.1, 1.0)
+        ax.xlabel = "Time [s]"
+        ax.ylabel = "P/(ρ g H)"
+        xlims!(ax, 0, 8)
+        ylims!(ax, -0.1, 1.5)
     end
 
-    for (file_number, json_file) in enumerate(files)
+    for (idx, json_file) in enumerate(files)
         println("Processing file: $json_file")
-        json_data = JSON.parsefile(json_file)
-        time = json_data["interpolated_pressure_P1_fluid_1"]["time"] .* normalization_factor_time
-        pressure_P1 = json_data["interpolated_pressure_P1_fluid_1"]["values"] ./
-                      normalization_factor_pressure
-        pressure_P2 = json_data["interpolated_pressure_P2_fluid_1"]["values"] ./
-                      normalization_factor_pressure
 
-        label_prefix = occursin("reference", json_file) ? "Reference " : ""
+        jd  = JSON.parsefile(json_file)
+        t   = jd["interpolated_pressure_P1_fluid_1"]["time"] .* normalization_factor_time
+        pressure_P1 = jd["interpolated_pressure_P1_fluid_1"]["values"] / normalization_factor_pressure
+        pressure_P2 = jd["interpolated_pressure_P2_fluid_1"]["values"] / normalization_factor_pressure
 
-        lines!(axs[1], time, pressure_P1,
-               label="$(label_prefix)dp=$(extract_resolution_from_filename(json_file))",
-               color=file_number, colormap=:tab10, colorrange=(1, 10))
-        lines!(axs[2], time, pressure_P2,
-               label="$(label_prefix)dp=$(extract_resolution_from_filename(json_file))",
-               color=file_number, colormap=:tab10, colorrange=(1, 10))
-        value = json_data["max_x_coord_fluid_1"]
-        lines!(ax_max, value["time"] .* sqrt(9.81), Float64.(value["values"]) ./ W,
-               label="$(label_prefix)dp=$(extract_resolution_from_filename(json_file))")
+        lab = occursin("reference", json_file) ? "Reference " : ""
+        res = extract_resolution_from_filename(json_file)
+
+        lines!(axs[1], t, pressure_P1; label = "$lab dp=$res",
+                         color = idx, colormap = :tab10, colorrange = (1,10))
+        lines!(axs[2], t, pressure_P2; label = "$lab dp=$res",
+                         color = idx, colormap = :tab10, colorrange = (1,10))
     end
 end
 
-plot_results(axs_edac, ax_max_x_edac, edac_files)
-plot_results(axs_wcsph, ax_max_x_wcsph, wcsph_files)
+function plot_surge_results(ax, files)
+    ax.xlabel = "Time [s]"
+    ax.ylabel = "x / W"
+    xlims!(ax, 0, 3)
+    ylims!(ax, 1, 3)
+
+    for (idx, jf) in enumerate(files)
+        jd = JSON.parsefile(jf)
+        val = jd["max_x_coord_fluid_1"]
+        lines!(ax, val["time"] .* sqrt(9.81),
+                   Float64.(val["values"]) ./ W;
+                   label = "dp=$(extract_resolution_from_filename(jf))",
+                   color = idx, colormap = :tab10, colorrange = (1,10))
+    end
+
+    # experimental reference
+    scatter!(ax, surge_front.time, surge_front.surge_front;
+             color = :black, marker = :utriangle, markersize = 6,
+             label = "Martin & Moyce 1952 (exp)")
+end
+
+# ------------------------------------------------------------
+# 1) Pressure-sensor figure
+# ------------------------------------------------------------
+n_sensors = 2
+fig_sensors      = Figure(size = (1200, 1000))
+axs_edac         = [Axis(fig_sensors[1, i], title = "Sensor P$i with EDAC")  for i in 1:n_sensors]
+axs_wcsph        = [Axis(fig_sensors[3, i], title = "Sensor P$i with WCSPH") for i in 1:n_sensors]
+
+plot_sensor_results(axs_edac,  edac_files)
+plot_sensor_results(axs_wcsph, wcsph_files)
 
 # Plot reference values
 function plot_experiment(ax, time, data, label, color=:black, marker=:utriangle,
@@ -94,6 +118,7 @@ end
 function plot_simulation(ax, time, data, label, color=:red, linestyle=:dash, linewidth=3)
     lines!(ax, time, data; color, linestyle, linewidth, label)
 end
+
 
 # Plot for Pressure Sensor P1
 plot_experiment(axs_edac[1], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
@@ -107,27 +132,26 @@ plot_simulation(axs_edac[2], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 (sim
 plot_experiment(axs_wcsph[2], exp_P2.time, exp_P2.P2, "Buchner 2002 (exp)")
 plot_simulation(axs_wcsph[2], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 (sim)")
 
-# Plot for Surge Front
-for ax_max in [ax_max_x_edac, ax_max_x_wcsph]
-    ax_max.xlabel = "Time"
-    ax_max.ylabel = "Surge Front"
-    xlims!(ax_max, 0.0, 3.0)
-    ylims!(ax_max, 1, 3.0)
-    plot_experiment(ax_max, surge_front.time, surge_front.surge_front,
-                    "Martin and Moyce 1952 (exp)")
-end
-
 for (i, ax) in enumerate(axs_edac)
-    Legend(fig[2, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
+    Legend(fig_sensors[2, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
 end
 for (i, ax) in enumerate(axs_wcsph)
-    Legend(fig[4, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
+    Legend(fig_sensors[4, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
 end
-Legend(fig[6, 1], ax_max_x_edac, tellwidth=false, orientation=:horizontal, valign=:top,
-       nbanks=2)
-Legend(fig[6, 2], ax_max_x_wcsph, tellwidth=false, orientation=:horizontal, valign=:top,
-       nbanks=2)
 
-fig
-# Uncomment to save the figure
-save("dam_break_validation.svg", fig)
+display(fig_sensors)         # or save("dam_break_pressure.svg", fig_sensors)
+
+# ------------------------------------------------------------
+# 2) Surge-front figure
+# ------------------------------------------------------------
+fig_surge        = Figure(size = (900, 400))
+ax_surge_edac    = Axis(fig_surge[1,1], title = "Surge Front – EDAC")
+ax_surge_wcsph   = Axis(fig_surge[1,2], title = "Surge Front – WCSPH")
+
+plot_surge_results(ax_surge_edac,  edac_files)
+plot_surge_results(ax_surge_wcsph, wcsph_files)
+
+Legend(fig_surge[2,1], ax_surge_edac;  orientation = :horizontal, valign = :top, nbanks = 3)
+Legend(fig_surge[2,2], ax_surge_wcsph; orientation = :horizontal, valign = :top, nbanks = 3)
+
+display(fig_surge)           # or save("dam_break_surge_front.svg", fig_surge)
