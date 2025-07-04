@@ -10,6 +10,9 @@ using Glob
 using Printf
 using TrixiParticles
 
+# save figures?
+save_figures = false
+
 # Initial width of the fluid
 H = 0.6
 W = 2 * H
@@ -44,19 +47,12 @@ exp_P2 = CSV.read(joinpath(case_dir, "exp_pressure_sensor_P2.csv"), DataFrame)
 sim_P1 = CSV.read(joinpath(case_dir, "sim_pressure_sensor_P1.csv"), DataFrame)
 sim_P2 = CSV.read(joinpath(case_dir, "sim_pressure_sensor_P2.csv"), DataFrame)
 
-n_sensors = 2
-fig = Figure(size=(1200, 1200))
-axs_edac = [Axis(fig[1, i], title="Sensor P$i with EDAC") for i in 1:n_sensors]
-axs_wcsph = [Axis(fig[3, i], title="Sensor P$i with WCSPH") for i in 1:n_sensors]
-ax_max_x_edac = Axis(fig[5, 1], title="Surge Front with EDAC")
-ax_max_x_wcsph = Axis(fig[5, 2], title="Surge Front with WCSPH")
-
 function plot_sensor_results(axs, files)
     for ax in axs
         ax.xlabel = "Time [s]"
         ax.ylabel = "P/(ρ g H)"
-        xlims!(ax, 0, 8)
-        ylims!(ax, -0.1, 1.5)
+        xlims!(ax, 2, 8)
+        ylims!(ax, -0.2, 1.0)
     end
 
     for (idx, json_file) in enumerate(files)
@@ -66,13 +62,18 @@ function plot_sensor_results(axs, files)
         t   = jd["interpolated_pressure_P1_fluid_1"]["time"] .* normalization_factor_time
         pressure_P1 = jd["interpolated_pressure_P1_fluid_1"]["values"] / normalization_factor_pressure
         pressure_P2 = jd["interpolated_pressure_P2_fluid_1"]["values"] / normalization_factor_pressure
-
+        probe_P1 = jd["particle_pressure_P1_fluid_1"]["values"] / normalization_factor_pressure
+        probe_P2 = jd["particle_pressure_P2_fluid_1"]["values"] / normalization_factor_pressure
         lab = occursin("reference", json_file) ? "Reference " : ""
         res = extract_resolution_from_filename(json_file)
 
         lines!(axs[1], t, pressure_P1; label = "$lab dp=$res",
                          color = idx, colormap = :tab10, colorrange = (1,10))
         lines!(axs[2], t, pressure_P2; label = "$lab dp=$res",
+                         color = idx, colormap = :tab10, colorrange = (1,10))
+        lines!(axs[3], t, probe_P1; label = "$lab dp=$res",
+                         color = idx, colormap = :tab10, colorrange = (1,10))
+        lines!(axs[4], t, probe_P2; label = "$lab dp=$res",
                          color = idx, colormap = :tab10, colorrange = (1,10))
     end
 end
@@ -101,10 +102,10 @@ end
 # ------------------------------------------------------------
 # 1) Pressure-sensor figure
 # ------------------------------------------------------------
-n_sensors = 2
-fig_sensors      = Figure(size = (1200, 1000))
-axs_edac         = [Axis(fig_sensors[1, i], title = "Sensor P$i with EDAC")  for i in 1:n_sensors]
-axs_wcsph        = [Axis(fig_sensors[3, i], title = "Sensor P$i with WCSPH") for i in 1:n_sensors]
+n_sensors = 4
+fig_sensors      = Figure(size = (2400, 1000))
+axs_edac         = [Axis(fig_sensors[1, i], title = (i>2) ? "Boundary values at P$(i-2) (EDAC)" : "Sensor P$i (EDAC)")  for i in 1:n_sensors]
+axs_wcsph        = [Axis(fig_sensors[3, i], title = (i>2) ? "Boundary values at P$(i-2) (WCSPH)"  : "Sensor P$i (WCSPH)") for i in 1:n_sensors]
 
 plot_sensor_results(axs_edac,  edac_files)
 plot_sensor_results(axs_wcsph, wcsph_files)
@@ -122,15 +123,23 @@ end
 
 # Plot for Pressure Sensor P1
 plot_experiment(axs_edac[1], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[1], sim_P1.time, sim_P1.h320, "Marrone et al. 2011 (sim)")
+plot_simulation(axs_edac[1], sim_P1.time, sim_P1.h320, "Marrone et al. 2011 dp=0.001875 (sim)")
 plot_experiment(axs_wcsph[1], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
-plot_simulation(axs_wcsph[1], sim_P1.time, sim_P1.h320, "Marrone et al. 2011 (sim)")
+plot_simulation(axs_wcsph[1], sim_P1.time, sim_P1.h320, "Marrone et al. 2011 dp=0.001875 (sim)")
+plot_experiment(axs_edac[3], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
+plot_simulation(axs_edac[3], sim_P1.time, sim_P1.h320, "Marrone et al. 2011 dp=0.001875 (sim)")
+plot_experiment(axs_wcsph[3], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
+plot_simulation(axs_wcsph[3], sim_P1.time, sim_P1.h320, "Marrone et al. 2011 dp=0.001875 (sim)")
 
 # Plot for Pressure Sensor P2
 plot_experiment(axs_edac[2], exp_P2.time, exp_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[2], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 (sim)")
+plot_simulation(axs_edac[2], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 dp=0.001875 (sim)")
 plot_experiment(axs_wcsph[2], exp_P2.time, exp_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_wcsph[2], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 (sim)")
+plot_simulation(axs_wcsph[2], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 dp=0.001875 (sim)")
+plot_experiment(axs_edac[4], exp_P2.time, exp_P2.P2, "Buchner 2002 (exp)")
+plot_simulation(axs_edac[4], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 dp=0.001875 (sim)")
+plot_experiment(axs_wcsph[4], exp_P2.time, exp_P2.P2, "Buchner 2002 (exp)")
+plot_simulation(axs_wcsph[4], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 dp=0.001875 (sim)")
 
 for (i, ax) in enumerate(axs_edac)
     Legend(fig_sensors[2, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
@@ -139,7 +148,12 @@ for (i, ax) in enumerate(axs_wcsph)
     Legend(fig_sensors[4, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
 end
 
-display(fig_sensors)         # or save("dam_break_pressure.svg", fig_sensors)
+if save_figures
+    save("dam_break_pressure.svg", fig_sensors)
+else
+    display(fig_sensors)
+end
+
 
 # ------------------------------------------------------------
 # 2) Surge-front figure
@@ -154,4 +168,8 @@ plot_surge_results(ax_surge_wcsph, wcsph_files)
 Legend(fig_surge[2,1], ax_surge_edac;  orientation = :horizontal, valign = :top, nbanks = 3)
 Legend(fig_surge[2,2], ax_surge_wcsph; orientation = :horizontal, valign = :top, nbanks = 3)
 
-display(fig_surge)           # or save("dam_break_surge_front.svg", fig_surge)
+if save_figures
+    save("dam_break_surge_front.svg", fig_surge)
+else
+    display(fig_surge)
+end
