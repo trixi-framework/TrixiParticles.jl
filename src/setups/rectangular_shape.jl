@@ -3,7 +3,7 @@
                      velocity=zeros(length(n_particles_per_dimension)),
                      mass=nothing, density=nothing, pressure=0.0,
                      acceleration=nothing, state_equation=nothing,
-                     tlsph=false, loop_order=nothing)
+                     place_on_shell=false, loop_order=nothing)
 
 Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 
@@ -40,9 +40,10 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 - `state_equation`: When calculating a hydrostatic pressure gradient by setting `acceleration`,
                     the `state_equation` will be used to set the corresponding density.
                     Cannot be used together with `density`.
-- `tlsph`:          With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
-                    on the boundary of the shape and not one particle radius away, as for fluids.
-                    When `tlsph=true`, particles will be placed on the boundary of the shape.
+- `place_on_shell`: If `place_on_shell=true`, particles will be placed on the shell of the shape.
+                    For example, the [`TotalLagrangianSPHSystem`](@ref) requires particles
+                    to be placed on the shell of the shape and not half a particle spacing away,
+                    as for fluids.
 - `coordinates_perturbation`: Add a small random displacement to the particle positions,
                               where the amplitude is `coordinates_perturbation * particle_spacing`.
 
@@ -75,7 +76,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
                           coordinates_perturbation=nothing,
                           mass=nothing, density=nothing, pressure=0.0,
                           acceleration=nothing, state_equation=nothing,
-                          tlsph=false, loop_order=nothing)
+                          place_on_shell=false, loop_order=nothing)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -95,7 +96,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
     n_particles = prod(n_particles_per_dimension)
 
     coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                           min_coordinates, tlsph=tlsph,
+                                           min_coordinates, place_on_shell=place_on_shell,
                                            loop_order=loop_order)
 
     if !isnothing(coordinates_perturbation)
@@ -190,15 +191,15 @@ function loop_permutation(loop_order, NDIMS::Val{3})
 end
 
 function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                  min_coordinates; tlsph=false, loop_order=nothing)
+                                  min_coordinates; place_on_shell=false, loop_order=nothing)
     ELTYPE = eltype(particle_spacing)
     NDIMS = length(n_particles_per_dimension)
 
     coordinates = Array{ELTYPE, 2}(undef, NDIMS, prod(n_particles_per_dimension))
 
-    # With TLSPH, particles need to be AT the min coordinates and not half a particle
+    # With place_on_shell, particles need to be AT the min coordinates and not half a particle
     # spacing away from it.
-    if tlsph
+    if place_on_shell
         min_coordinates = min_coordinates .- 0.5particle_spacing
     end
 
