@@ -10,7 +10,7 @@ using Glob
 using Printf
 using TrixiParticles
 
-# save figures?
+# Set to save figures as SVG
 save_figures = false
 
 # Initial width of the fluid
