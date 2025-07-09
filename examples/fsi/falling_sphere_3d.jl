@@ -1,7 +1,7 @@
 # ==========================================================================================
 # 3D Single Falling Sphere in Fluid (FSI)
 #
-# This example simulates a single elastic sphere falling through a fluid in a 3D tank.
+# This example simulates a single elastic sphere falling into a fluid in a 3D tank.
 # ==========================================================================================
 
 using TrixiParticles

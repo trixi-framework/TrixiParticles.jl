@@ -11,7 +11,7 @@
 #
 # Note: To run this example on an actual GPU, the `parallelization_backend`
 # needs to be changed to a GPU-specific backend like `CUDABackend()` (for NVIDIA GPUs)
-# or `AMDGPUBackend()` (for AMD GPUs), and the corresponding GPU packages
+# or `ROCBackend()` (for AMD GPUs), and the corresponding GPU packages
 # (e.g., `CUDA.jl`) must be installed.
 # See the TrixiParticles.jl documentation on GPU support for more details.
 # ==========================================================================================

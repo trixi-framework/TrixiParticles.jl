@@ -2,7 +2,7 @@
 # 2D and 3D Plane Interpolation Example
 #
 # This example demonstrates how to interpolate SPH particle data (e.g., pressure)
-# onto a regular 2D or 3D plane using TrixiParticles.jl.#
+# onto a regular 2D or 3D plane using TrixiParticles.jl.
 # A hydrostatic water column simulation is used as the base for generating particle data.
 # ==========================================================================================
 

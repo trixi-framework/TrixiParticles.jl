@@ -2,7 +2,7 @@
 # 2D Falling Spheres in Fluid (FSI) - Base Setup
 #
 # This file provides a base setup for simulating one or two elastic spheres
-# falling through a fluid in a tank.
+# falling into a fluid in a tank.
 # ==========================================================================================
 
 using TrixiParticles

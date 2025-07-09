@@ -8,7 +8,7 @@
 #   https://doi.org/10.1016/j.enganabound.2019.03.033
 #
 # This example simulates a 2D dam break where the water column collapses and flows
-# towards a vertically moving gate and a flexible elastic plate (beam) positioned
+# through a vertically moving gate towards a flexible elastic plate (beam) positioned
 # behind the gate.
 #
 # Note: To accurately reproduce results from the reference paper, a significantly

@@ -12,7 +12,7 @@
 # fluid motion within a square cavity.
 #
 # The simulation can be run with either a Weakly Compressible SPH (WCSPH)
-# or an Entropically Damped SPH (EDSPH) formulation for the fluid.
+# or an Entropically Damped SPH (EDAC) formulation for the fluid.
 # ==========================================================================================
 
 using TrixiParticles

@@ -7,7 +7,7 @@
 # 3. Optionally create a Signed Distance Field (SDF) from the geometry.
 # 4. Export the results to VTK files for visualization.
 #
-# The Winding Number algorithm is typically used for robust point-in-volume tests for 3D.
+# The Winding Number algorithm is typically used for robust point-in-volume tests in 3D.
 # ==========================================================================================
 
 using TrixiParticles
