@@ -1,4 +1,9 @@
-# 2D dam break simulation with an air layer on top
+# ==========================================================================================
+# 2D Two-Phase Dam Break Simulation (Water and Air)
+#
+# This example simulates a 2D dam break with an air layer above the water.
+# It demonstrates how to set up a multi-fluid simulation in TrixiParticles.jl.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq

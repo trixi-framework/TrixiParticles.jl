@@ -1,3 +1,12 @@
+# ==========================================================================================
+# 3D Particle Packing within a Complex Geometry (e.g., Sphere STL)
+#
+# This example demonstrates 3D particle packing by leveraging the 2D packing script
+# (`packing_2d.jl`). It loads a 3D geometry (STL file), sets 3D-specific parameters,
+# and then includes the 2D script, which will perform the packing logic adapted
+# for 3D.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 

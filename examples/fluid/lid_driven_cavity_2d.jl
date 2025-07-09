@@ -1,9 +1,19 @@
-# Lid-driven cavity
+# ==========================================================================================
+# 2D Lid-Driven Cavity Simulation
 #
-# S. Adami et al
-# "A transport-velocity formulation for smoothed particle hydrodynamics".
-# In: Journal of Computational Physics, Volume 241 (2013), pages 292-307.
-# https://doi.org/10.1016/j.jcp.2013.01.043
+# Based on:
+#   S. Adami, X. Y. Hu, N. A. Adams.
+#   "A transport-velocity formulation for smoothed particle hydrodynamics".
+#   Journal of Computational Physics, Volume 241 (2013), pages 292-307.
+#   https://doi.org/10.1016/j.jcp.2013.01.043
+#
+# This example simulates a 2D lid-driven cavity flow using SPH with a
+# transport velocity formulation. The top lid moves horizontally, driving the
+# fluid motion within a square cavity.
+#
+# The simulation can be run with either a Weakly Compressible SPH (WCSPH)
+# or an Entropically Damped SPH (EDAC) formulation for the fluid.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
