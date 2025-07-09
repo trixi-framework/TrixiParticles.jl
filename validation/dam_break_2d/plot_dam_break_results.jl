@@ -12,6 +12,7 @@ using TrixiParticles
 
 # Set to save figures as SVG
 save_figures = false
+include_sim_results = false
 
 # Initial width of the fluid
 H = 0.6
@@ -24,16 +25,16 @@ case_dir = joinpath(validation_dir(), "dam_break_2d")
 
 edac_reference_files = glob("validation_reference_edac*.json",
                             case_dir)
-edac_sim_files = glob("validation_result_dam_break_edac*.json",
-                      "out/")
+edac_sim_files = include_sim_results ? glob("validation_result_dam_break_edac*.json",
+                       "out/") : []
 
 merged_files = vcat(edac_reference_files, edac_sim_files)
 edac_files = sort(merged_files, by=extract_number_from_filename)
 
 wcsph_reference_files = glob("validation_reference_wcsph*.json",
                              case_dir)
-wcsph_sim_files = glob("validation_result_dam_break_wcsph*.json",
-                       "out/")
+wcsph_sim_files = include_sim_results ? glob("validation_result_dam_break_wcsph*.json",
+                       "out/") : []
 
 merged_files = vcat(wcsph_reference_files, wcsph_sim_files)
 wcsph_files = sort(merged_files, by=extract_number_from_filename)
@@ -62,8 +63,8 @@ function plot_sensor_results(axs, files)
         t   = jd["interpolated_pressure_P1_fluid_1"]["time"] .* normalization_factor_time
         pressure_P1 = jd["interpolated_pressure_P1_fluid_1"]["values"] / normalization_factor_pressure
         pressure_P2 = jd["interpolated_pressure_P2_fluid_1"]["values"] / normalization_factor_pressure
-        probe_P1 = jd["particle_pressure_P1_fluid_1"]["values"] / normalization_factor_pressure
-        probe_P2 = jd["particle_pressure_P2_fluid_1"]["values"] / normalization_factor_pressure
+        probe_P1 = jd["particle_pressure_P1_boundary_1"]["values"] / normalization_factor_pressure
+        probe_P2 = jd["particle_pressure_P2_boundary_1"]["values"] / normalization_factor_pressure
         lab = occursin("reference", json_file) ? "Ref. " : ""
         res = extract_resolution_from_filename(json_file)
 
