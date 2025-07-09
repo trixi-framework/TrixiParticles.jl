@@ -460,7 +460,8 @@ function system_data(system::BoundarySPHSystem, v_ode, u_ode, semi)
     u = wrap_u(u_ode, system, semi)
 
     coordinates = current_coordinates(u, system)
-    velocity = [current_velocity(v, system, system.movement, i) for i in 1:nparticles(system)]
+    velocity = [current_velocity(v, system, system.movement, i)
+                for i in 1:nparticles(system)]
     density = current_density(v, system)
     pressure = current_pressure(v, system)
 

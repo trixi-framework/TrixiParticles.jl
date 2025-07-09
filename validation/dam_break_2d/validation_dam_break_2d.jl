@@ -22,8 +22,10 @@ resolution = 40
 
 # EDAC simulation
 ############################################################################################
-trixi_include(@__MODULE__, joinpath(validation_dir(), "dam_break_2d",
-                                    "setup_marrone_2011.jl"), use_edac=true, particles_per_height=resolution)
+trixi_include(@__MODULE__,
+              joinpath(validation_dir(), "dam_break_2d",
+                       "setup_marrone_2011.jl"), use_edac=true,
+              particles_per_height=resolution)
 
 reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
                                     "validation_reference_edac_$formatted_string.json")
@@ -45,8 +47,10 @@ error_edac_P2 = interpolated_mse(reference_data["interpolated_pressure_P2_fluid_
 
 # WCSPH simulation
 ############################################################################################
-trixi_include(@__MODULE__, joinpath(validation_dir(), "dam_break_2d",
-                                    "setup_marrone_2011.jl"), use_edac=false, particles_per_height=resolution)
+trixi_include(@__MODULE__,
+              joinpath(validation_dir(), "dam_break_2d",
+                       "setup_marrone_2011.jl"), use_edac=false,
+              particles_per_height=resolution)
 
 reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",
                                      "validation_reference_wcsph_$formatted_string.json")

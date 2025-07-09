@@ -116,7 +116,8 @@ density_reinit_cb = use_reinit ?
                     nothing
 stepsize_callback = StepsizeCallback(cfl=0.9)
 
-callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback, extra_callback2,
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
+                        extra_callback2,
                         density_reinit_cb)
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),

@@ -4,7 +4,8 @@ end
 
 function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system, semi) end
 
-function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system::TrixiParticles.FluidSystem, semi)
+function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t,
+                               system::TrixiParticles.FluidSystem, semi)
     # use at least 5 interpolation points for low resolution simulations
     # otherwise use at least the number of particles present
     n_interpolation_points = min(5, Int(ceil(sensor_size / particle_spacing)))
@@ -20,7 +21,8 @@ end
 
 function pressure_probe(coord_top, coord_bottom, v_ode, u_ode, t, system, semi) end
 
-function pressure_probe(coord_top, coord_bottom, v_ode, u_ode, t, system::TrixiParticles.BoundarySystem, semi)
+function pressure_probe(coord_top, coord_bottom, v_ode, u_ode, t,
+                        system::TrixiParticles.BoundarySystem, semi)
     # The sensor is at the right wall, so its x-coordinate is the same for top and bottom.
     x_sensor = coord_top[1]
 

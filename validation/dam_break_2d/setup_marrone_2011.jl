@@ -60,69 +60,69 @@ tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing -
                     0.5 * particle_spacing
 
 interpolated_pressure_P1 = (system, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
-                                           [tank_right_wall_x, P1_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
+                            t) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
+                                                        [tank_right_wall_x, P1_y_bottom],
+                                                        v_ode, u_ode, t, system, semi)
 interpolated_pressure_P2 = (system, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
-                                           [tank_right_wall_x, P2_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
+                            t) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
+                                                        [tank_right_wall_x, P2_y_bottom],
+                                                        v_ode, u_ode, t, system, semi)
 interpolated_pressure_P3 = (system, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
-                                           [tank_right_wall_x, P3_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
+                            t) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
+                                                        [tank_right_wall_x, P3_y_bottom],
+                                                        v_ode, u_ode, t, system, semi)
 
 particle_pressure_P1 = (system, v_ode, u_ode, semi,
-               t) -> pressure_probe([tank_right_wall_x, P1_y_top],
-                                           [tank_right_wall_x, P1_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
+                        t) -> pressure_probe([tank_right_wall_x, P1_y_top],
+                                             [tank_right_wall_x, P1_y_bottom],
+                                             v_ode, u_ode, t, system, semi)
 particle_pressure_P2 = (system, v_ode, u_ode, semi,
-               t) -> pressure_probe([tank_right_wall_x, P2_y_top],
-                                           [tank_right_wall_x, P2_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
+                        t) -> pressure_probe([tank_right_wall_x, P2_y_top],
+                                             [tank_right_wall_x, P2_y_bottom],
+                                             v_ode, u_ode, t, system, semi)
 particle_pressure_P3 = (system, v_ode, u_ode, semi,
-               t) -> pressure_probe([tank_right_wall_x, P3_y_top],
-                                           [tank_right_wall_x, P3_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
+                        t) -> pressure_probe([tank_right_wall_x, P3_y_top],
+                                             [tank_right_wall_x, P3_y_bottom],
+                                             v_ode, u_ode, t, system, semi)
 
 if use_edac
     method = "edac"
     state_equation = nothing
 
-    tank_edac = RectangularTank(particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                            n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                            acceleration=(0.0, -gravity), state_equation=nothing)
+    tank_edac = RectangularTank(particle_spacing, initial_fluid_size, tank_size,
+                                fluid_density,
+                                n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                                acceleration=(0.0, -gravity), state_equation=nothing)
 
     alpha = 0.02
     viscosity_edac = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
     fluid_system = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kernel,
-                                                    smoothing_length,
-                                                    sound_speed, viscosity=viscosity_edac,
-                                                    density_calculator=ContinuityDensity(),
-                                                    pressure_acceleration=nothing,
-                                                    acceleration=(0.0, -gravity))
-
+                                               smoothing_length,
+                                               sound_speed, viscosity=viscosity_edac,
+                                               density_calculator=ContinuityDensity(),
+                                               pressure_acceleration=nothing,
+                                               acceleration=(0.0, -gravity))
 
 else
     method = "wcsph"
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=1, clip_negative_pressure=false)
+                                       exponent=1, clip_negative_pressure=false)
     tank = RectangularTank(particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                           n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                           acceleration=(0.0, -gravity), state_equation=state_equation)
 
     alpha = 0.02
     viscosity_wcsph = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
     density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
     fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(),
-                                            state_equation, smoothing_kernel,
-                                            smoothing_length, viscosity=viscosity_wcsph,
-                                            density_diffusion=density_diffusion,
-                                            acceleration=(0.0, -gravity), correction=nothing,
-                                            surface_tension=nothing,
-                                            reference_particle_spacing=0)
-
+                                               state_equation, smoothing_kernel,
+                                               smoothing_length, viscosity=viscosity_wcsph,
+                                               density_diffusion=density_diffusion,
+                                               acceleration=(0.0, -gravity),
+                                               correction=nothing,
+                                               surface_tension=nothing,
+                                               reference_particle_spacing=0)
 end
 
 formatted_string = replace(string(particle_spacing), "." => "")
@@ -130,13 +130,15 @@ formatted_string = replace(string(particle_spacing), "." => "")
 postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
                                         filename="validation_result_dam_break_" *
                                                  method * "_" * formatted_string,
-                                        write_csv=false, exclude_boundary=false, max_x_coord,
-                                        interpolated_pressure_P1, interpolated_pressure_P2, interpolated_pressure_P3,
-                                        particle_pressure_P1, particle_pressure_P2, particle_pressure_P3)
+                                        write_csv=false, exclude_boundary=false,
+                                        max_x_coord,
+                                        interpolated_pressure_P1, interpolated_pressure_P2,
+                                        interpolated_pressure_P3,
+                                        particle_pressure_P1, particle_pressure_P2,
+                                        particle_pressure_P3)
 
 # Disable loop flipping to produce consistent results over different thread numbers
 boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=false)
-
 
 # Save at certain timepoints which allows comparison to the results of Marrone et al.,
 # i.e. (1.5, 2.36, 3.0, 5.7, 6.45).
