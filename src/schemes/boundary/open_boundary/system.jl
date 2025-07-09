@@ -309,6 +309,9 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     update_system_buffer!(system.buffer, semi)
     update_system_buffer!(fluid_system.buffer, semi)
 
+    # Since particles have been transferred, the neighborhood searches must be updated
+    update_nhs!(semi, u_ode)
+
     return system
 end
 
