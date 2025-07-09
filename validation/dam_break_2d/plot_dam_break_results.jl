@@ -22,16 +22,16 @@ normalization_factor_pressure = 1000 * 9.81 * H
 
 case_dir = joinpath(validation_dir(), "dam_break_2d")
 
-edac_reference_files = []#glob("validation_reference_edac*.json",
-                         #   case_dir)
+edac_reference_files = glob("validation_reference_edac*.json",
+                            case_dir)
 edac_sim_files = glob("validation_result_dam_break_edac*.json",
                       "out/")
 
 merged_files = vcat(edac_reference_files, edac_sim_files)
 edac_files = sort(merged_files, by=extract_number_from_filename)
 
-wcsph_reference_files = [] #glob("validation_reference_wcsph*.json",
-                           #  case_dir)
+wcsph_reference_files = glob("validation_reference_wcsph*.json",
+                             case_dir)
 wcsph_sim_files = glob("validation_result_dam_break_wcsph*.json",
                        "out/")
 
@@ -64,7 +64,7 @@ function plot_sensor_results(axs, files)
         pressure_P2 = jd["interpolated_pressure_P2_fluid_1"]["values"] / normalization_factor_pressure
         probe_P1 = jd["particle_pressure_P1_fluid_1"]["values"] / normalization_factor_pressure
         probe_P2 = jd["particle_pressure_P2_fluid_1"]["values"] / normalization_factor_pressure
-        lab = occursin("reference", json_file) ? "Reference " : ""
+        lab = occursin("reference", json_file) ? "Ref. " : ""
         res = extract_resolution_from_filename(json_file)
 
         lines!(axs[1], t, pressure_P1; label = "$lab dp=$res",
@@ -84,12 +84,13 @@ function plot_surge_results(ax, files)
     xlims!(ax, 0, 3)
     ylims!(ax, 1, 3)
 
-    for (idx, jf) in enumerate(files)
-        jd = JSON.parsefile(jf)
+    for (idx, json_file) in enumerate(files)
+        jd = JSON.parsefile(json_file)
+        lab = occursin("reference", json_file) ? "Ref. " : ""
         val = jd["max_x_coord_fluid_1"]
         lines!(ax, val["time"] .* sqrt(9.81),
                    Float64.(val["values"]) ./ W;
-                   label = "dp=$(extract_resolution_from_filename(jf))",
+                   label = "$lab dp=$(extract_resolution_from_filename(json_file))",
                    color = idx, colormap = :tab10, colorrange = (1,10))
     end
 
@@ -158,7 +159,7 @@ end
 # ------------------------------------------------------------
 # 2) Surge-front figure
 # ------------------------------------------------------------
-fig_surge        = Figure(size = (900, 400))
+fig_surge        = Figure(size = (1200, 400))
 ax_surge_edac    = Axis(fig_surge[1,1], title = "Surge Front – EDAC")
 ax_surge_wcsph   = Axis(fig_surge[1,2], title = "Surge Front – WCSPH")
 
