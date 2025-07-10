@@ -1,5 +1,5 @@
 @doc raw"""
-    BoundaryModelLastiwka(; extrapolate_reference_values::Bool=false)
+    BoundaryModelLastiwka(; extrapolate_reference_values=nothing)
 
 Boundary model for [`OpenBoundarySPHSystem`](@ref).
 This model uses the characteristic variables to propagate the appropriate values
@@ -8,15 +8,19 @@ It requires a specific flow direction to be passed to the [`BoundaryZone`](@ref)
 For more information about the method see [description below](@ref method_of_characteristics).
 
 # Keywords
-- `extrapolate_reference_values=false`: If `true`, the reference values are extrapolated
-  from the fluid domain to the boundary particles.
+- `extrapolate_reference_values=nothing`: If one of the follwoing mirror methods is choosen,
+  the reference values are extrapolated from the fluid domain to the boundary particles.
+    - [`ZerothOrderMirroring`](@ref)
+    - [`FirstOrderMirroring`](@ref)
+    - [`SimpleMirroring`](@ref)
+
   **Note:** This feature is experimental and has not been fully validated yet.
   As of now, we are not aware of any published literature supporting its use.
 """
-struct BoundaryModelLastiwka
-    extrapolate_reference_values::Bool
-    function BoundaryModelLastiwka(; extrapolate_reference_values::Bool=false)
-        return new{}(extrapolate_reference_values)
+struct BoundaryModelLastiwka{T}
+    extrapolate_reference_values::T
+    function BoundaryModelLastiwka(; extrapolate_reference_values=nothing)
+        return new{typeof(extrapolate_reference_values)}(extrapolate_reference_values)
     end
 end
 
@@ -31,13 +35,14 @@ end
 
     sound_speed = system_sound_speed(fluid_system)
 
-    if boundary_model.extrapolate_reference_values
+    if !isnothing(boundary_model.extrapolate_reference_values)
         (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
         v_fluid = wrap_v(v_ode, fluid_system, semi)
         u_fluid = wrap_u(u_ode, fluid_system, semi)
 
         @trixi_timeit timer() "extrapolate and correct values" begin
-            extrapolate_values!(system, v, v_fluid, u, u_fluid, semi, t;
+            extrapolate_values!(system, boundary_model.extrapolate_reference_values,
+                                v, v_fluid, u, u_fluid, semi, t;
                                 prescribed_pressure, prescribed_velocity,
                                 prescribed_density)
         end

@@ -1,16 +1,28 @@
 @doc raw"""
-    BoundaryModelTafuni()
+    BoundaryModelTafuni(; mirror_method=FirstOrderMirroring(; firstorder_tolerance=1e-3))
 
 Boundary model for the `OpenBoundarySPHSystem`.
 This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
 to the buffer zones (inflow and outflow) using ghost nodes.
 The position of the ghost nodes is obtained by mirroring the boundary particles
 into the fluid along a direction that is normal to the open boundary.
+Fluid properties are then interpolated at these ghost node positions using surrounding fluid particles.
+The values are then mirrored back to the boundary particles.
+We provide three different mirroring methods:
+    - [`ZerothOrderMirroring`](@ref): Uses a Shepard interpolation to interpolate the values.
+    - [`FirstOrderMirroring`](@ref): Uses a first order correction based on the gradient of the interpolated values .
+    - [`SimpleMirroring`](@ref): Similar to the first order mirroring, but does not use the gradient of the interpolated values.
 """
 struct BoundaryModelTafuni{MM}
     mirror_method::MM
 end
 
+"""
+    FirstOrderMirroring
+
+Fluid properties are interpolated onto ghost nodes using the method propsed by [Liu and Liu (2006)](@cite Liu2006),
+to retrieve first oder kernel and particle consistency.
+"""
 struct FirstOrderMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
     function FirstOrderMirroring(; firstorder_tolerance::ELTYPE=1e-3) where {ELTYPE}
@@ -18,6 +30,12 @@ struct FirstOrderMirroring{ELTYPE}
     end
 end
 
+"""
+    SimpleMirroring
+
+This method is similar to [`FirstOrderMirroring`](@ref), but does not use
+the corrected gradient as proposed by [Negi et al. (2022)](@cite Negi2022).
+"""
 struct SimpleMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
     function SimpleMirroring(; firstorder_tolerance::Real=1e-3)
@@ -25,6 +43,14 @@ struct SimpleMirroring{ELTYPE}
     end
 end
 
+"""
+    ZerothOrderMirroring
+
+Fluid properties are interpolated onto ghost nodes using Shepard interpolation.
+The position of the ghost nodes is obtained by mirroring the boundary particles
+into the fluid along a direction that is normal to the open boundary.
+The interpolated values at the ghost nodes are then assigned to the corresponding boundary particles.
+"""
 struct ZerothOrderMirroring end
 
 function BoundaryModelTafuni(;
