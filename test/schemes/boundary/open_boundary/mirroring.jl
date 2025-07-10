@@ -72,7 +72,8 @@
 
             TrixiParticles.set_zero!(open_boundary.pressure)
 
-            TrixiParticles.extrapolate_values!(open_boundary, v_open_boundary, v_fluid,
+            TrixiParticles.extrapolate_values!(open_boundary, FirstOrderMirroring(),
+                                               v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
                                                domain_fluid.coordinates, semi, 0.0;
                                                prescribed_pressure=false,
@@ -168,7 +169,8 @@
 
             TrixiParticles.set_zero!(open_boundary.pressure)
 
-            TrixiParticles.extrapolate_values!(open_boundary, v_open_boundary, v_fluid,
+            TrixiParticles.extrapolate_values!(open_boundary, FirstOrderMirroring(),
+                                               v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
                                                domain_fluid.coordinates, semi, 0.0;
                                                prescribed_pressure=false,
@@ -240,7 +242,8 @@
 
         TrixiParticles.set_zero!(open_boundary_in.pressure)
 
-        TrixiParticles.extrapolate_values!(open_boundary_in, v_open_boundary, v_fluid,
+        TrixiParticles.extrapolate_values!(open_boundary_in, FirstOrderMirroring(),
+                                           v_open_boundary, v_fluid,
                                            inflow.initial_condition.coordinates,
                                            domain_fluid.coordinates, semi, 0.0)
 
