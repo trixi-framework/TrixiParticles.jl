@@ -18,10 +18,14 @@ struct BoundaryModelTafuni{MM}
 end
 
 """
-    FirstOrderMirroring
+    FirstOrderMirroring(; firstorder_tolerance::ELTYPE=1e-3)
 
 Fluid properties are interpolated onto ghost nodes using the method proposed by [Liu and Liu (2006)](@cite Liu2006),
 to retrieve first order kernel and particle consistency.
+
+# Keywords
+- `firstorder_tolerance`: If the determinant of the correction matrix is smaller than this value,
+  the method falls back to [`ZerothOrderMirroring`](@ref). Default is `1e-3`.
 """
 struct FirstOrderMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
@@ -31,10 +35,14 @@ struct FirstOrderMirroring{ELTYPE}
 end
 
 """
-    SimpleMirroring
+    SimpleMirroring(; firstorder_tolerance::ELTYPE=1e-3))
 
 This method is similar to [`FirstOrderMirroring`](@ref), but does not use
 the corrected gradient as proposed by [Negi et al. (2022)](@cite Negi2022).
+
+# Keywords
+- `firstorder_tolerance`: If the determinant of the correction matrix is smaller than this value,
+  the method falls back to [`ZerothOrderMirroring`](@ref). Default is `1e-3`.
 """
 struct SimpleMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
