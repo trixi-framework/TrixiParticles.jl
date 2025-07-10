@@ -20,8 +20,8 @@ end
 """
     FirstOrderMirroring
 
-Fluid properties are interpolated onto ghost nodes using the method propsed by [Liu and Liu (2006)](@cite Liu2006),
-to retrieve first oder kernel and particle consistency.
+Fluid properties are interpolated onto ghost nodes using the method proposed by [Liu and Liu (2006)](@cite Liu2006),
+to retrieve first order kernel and particle consistency.
 """
 struct FirstOrderMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE

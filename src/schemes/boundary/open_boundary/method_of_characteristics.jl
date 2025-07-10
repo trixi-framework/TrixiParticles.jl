@@ -8,8 +8,8 @@ It requires a specific flow direction to be passed to the [`BoundaryZone`](@ref)
 For more information about the method see [description below](@ref method_of_characteristics).
 
 # Keywords
-- `extrapolate_reference_values=nothing`: If one of the follwoing mirror methods is choosen,
-  the reference values are extrapolated from the fluid domain to the boundary particles.
+- `extrapolate_reference_values=nothing`: If one of the following mirroring methods is selected,
+  the reference values are extrapolated from the fluid domain to the boundary particles:
     - [`ZerothOrderMirroring`](@ref)
     - [`FirstOrderMirroring`](@ref)
     - [`SimpleMirroring`](@ref)
