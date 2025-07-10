@@ -522,8 +522,8 @@
         ]
 
         @testset verbose=true "$method" for (i, method) in enumerate(("simple mirroring",
-                                                                      "first order mirroring",
-                                                                      "zeroth order mirroring"))
+                                                       "first order mirroring",
+                                                       "zeroth order mirroring"))
             @test isapprox(pressures[i], pressures_expected[i])
         end
     end
