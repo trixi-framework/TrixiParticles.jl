@@ -49,7 +49,7 @@ pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
 NDIMS = ndims(pipe.fluid)
 
-n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
+n_buffer_particles = 5 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
 
 # ==========================================================================================
 # ==== Fluid
