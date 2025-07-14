@@ -1,5 +1,11 @@
-# Example for using interpolation
-#######################################################################################
+# ==========================================================================================
+# Point and Line Interpolation Example
+#
+# This example demonstrates how to interpolate SPH particle data (e.g., density, pressure)
+# at specific points or along a line using TrixiParticles.jl.
+# A hydrostatic water column simulation is used as the base for generating particle data.
+# ==========================================================================================
+
 using TrixiParticles
 # this needs to be commented out to use PythonPlot
 using Plots
