@@ -12,6 +12,8 @@ struct BoundaryModelTafuni end
 function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode,
                                      semi, t)
     @trixi_timeit timer() "extrapolate and correct values" begin
+        (; prescribed_density, prescribed_pressure, prescribed_velocity) = system.cache
+
         fluid_system = corresponding_fluid_system(system, semi)
 
         v_open_boundary = wrap_v(v_ode, system, semi)
@@ -20,7 +22,8 @@ function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode,
         u_fluid = wrap_u(u_ode, fluid_system, semi)
 
         extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
-                            semi, t; system.cache...)
+                            semi, t;
+                            prescribed_density, prescribed_pressure, prescribed_velocity)
     end
 end
 
@@ -92,8 +95,7 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
 
             correction_matrix[] += L
 
-            # For a WCSPH system, the pressure is determined by the state equation if it is not prescribed
-            if !prescribed_pressure && !(fluid_system isa WeaklyCompressibleSPHSystem)
+            if !prescribed_pressure
                 extrapolated_pressure_correction[] += pressure_b * R
             end
 
@@ -141,19 +143,13 @@ function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, 
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)
         else
-            f_d = L_inv * extrapolated_density_correction[]
-            df_d = f_d[two_to_end]
-
-            density[particle] = f_d[1] + dot(pos_diff, df_d)
+            inverse_state_equation!(density, state_equation, pressure, particle)
         end
 
         if prescribed_pressure
-            pressure[particle] = reference_value(reference_pressure, pressure[particle],
+            p_a = current_pressure(v_open_boundary, system, particle)
+            pressure[particle] = reference_value(reference_pressure, p_a,
                                                  particle_coords, t)
-        elseif fluid_system isa WeaklyCompressibleSPHSystem
-            # For a WCSPH system, the pressure is determined by the state equation
-            # if it is not prescribed
-            pressure[particle] = state_equation(density[particle])
         else
             f_d = L_inv * extrapolated_pressure_correction[]
             df_d = f_d[two_to_end]
