@@ -28,7 +28,7 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
 using StrideArrays: PtrArray, StaticInt
-using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
+using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings, TrixiBase
 @reexport using TrixiBase: trixi_include, trixi_include_changeprecision
