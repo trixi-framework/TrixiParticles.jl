@@ -212,22 +212,6 @@ function calculate_spanning_vectors(plane, zone_width)
     return spanning_vectors(Tuple(plane), zone_width), SVector(plane[1]...)
 end
 
-function calculate_spanning_vectors(plane::TriangleMesh, zone_width)
-    plane_normal = normalize(sum(plane.face_normals) / nfaces(plane))
-
-    plane_points = oriented_bounding_box(stack(plane.vertices))
-
-    # Vectors spanning the plane
-    edge1 = plane_points[:, 2] - plane_points[:, 1]
-    edge2 = plane_points[:, 3] - plane_points[:, 1]
-
-    if !isapprox(abs.(normalize(cross(edge2, edge1))), abs.(plane_normal), atol=1e-2)
-        throw(ArgumentError("`plane` might be not planar"))
-    end
-
-    return hcat(plane_normal * zone_width, edge1, edge2), SVector(plane_points[:, 1]...)
-end
-
 function spanning_vectors(plane_points::NTuple{2}, zone_width)
     plane_size = plane_points[2] - plane_points[1]
 
