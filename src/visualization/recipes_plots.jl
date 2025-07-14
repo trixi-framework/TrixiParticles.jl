@@ -158,79 +158,24 @@ RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
     end
 end
 
-RecipesBase.@recipe function f(plots_shape, (geometries::Polygon)...;
-                               xlims=(Inf, Inf), ylims=(Inf, Inf))
-    idx = 0
-    gs = map(geometries) do geometry
-        shape = plots_shape(stack(geometry.vertices)[1, :], stack(geometry.vertices)[2, :])
+RecipesBase.@recipe function f(geometry::Polygon)
+    x = stack(geometry.vertices)[1, :]
+    y = stack(geometry.vertices)[2, :]
 
-        x_min, y_min = geometry.min_corner
-        x_max, y_max = geometry.max_corner
-
-        # `x_min`, `x_max`, etc. are used to automatically set the marker size.
-        # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
-        isfinite(first(xlims)) && (x_min = xlims[1])
-        isfinite(last(xlims)) && (x_max = xlims[2])
-
-        isfinite(first(ylims)) && (y_min = ylims[1])
-        isfinite(last(ylims)) && (y_max = ylims[2])
-
-        idx += 1
-
-        return (; shape, x_min, x_max, y_min, y_max,
-                label="geometry " * "$idx")
-    end
-
-    return (first(geometries), gs...)
-end
-
-RecipesBase.@recipe function f(::Polygon,
-                               data...; color=nothing, size=(600, 400), colorbar_title="",
-                               xlims=(Inf, Inf), ylims=(Inf, Inf),
-                               markersize=0, line_width=1, linestyle=:solid)
-    x_min = minimum(obj.x_min for obj in data)
-    x_max = maximum(obj.x_max for obj in data)
-
-    y_min = minimum(obj.y_min for obj in data)
-    y_max = maximum(obj.y_max for obj in data)
-
-    # `x_min`, `x_max`, etc. are used to automatically set the marker size.
-    # When `xlims` or `ylims` are passed explicitly, we have to update these to get the correct marker size.
-    isfinite(first(xlims)) && (x_min = xlims[1])
-    isfinite(last(xlims)) && (x_max = xlims[2])
-
-    isfinite(first(ylims)) && (y_min = ylims[1])
-    isfinite(last(ylims)) && (y_max = ylims[2])
-
-    xlims --> (x_min - markersize, x_max + markersize)
-    ylims --> (y_min - markersize, y_max + markersize)
     aspect_ratio --> :equal
-
-    # seriestype --> :scatter
-    markerstrokewidth --> 0
     grid --> false
-    colorbar_title --> colorbar_title
-    color --> color
-    line_width --> line_width
 
-    for obj in data
-        @series begin
-            markersize --> markersize
-            label --> nothing
-            seriestype --> :scatter
-
-            # Return data for plotting
-            obj.shape.x, obj.shape.y
-        end
+    # First plot the vertices as a scatter plot
+    @series begin
+        seriestype --> :scatter
+        return (x, y)
     end
 
-    for obj in data
-        @series begin
-            label --> obj.label
-            linestyle --> linestyle
-
-            # Return data for plotting
-            obj.shape
-        end
+    # Now plot the edges as a line plot
+    @series begin
+        # Ignore series in legend and color cycling. Note that `:=` forces the attribute,
+        # whereas `-->` would only set it if it is not already set.
+        primary := false
+        return (x, y)
     end
 end

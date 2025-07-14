@@ -32,7 +32,7 @@ p1 = plot(Plots.Shape, geometry, axis=false, label=nothing, xlims=my_xlims, ylim
 # ## Create signed distance field
 
 # For the actual packing process, this geometry representation is not used directly.
-# What we need is only the information about the surface of the geometry.
+# What we need is only the distance to the surface of the geometry.
 # To obtain this, we create a signed distance field (SDF).
 # The SDF is constructed within a band around the geometry surface.
 # The "thickness" of this band is controlled by `max_signed_distance`.
@@ -43,7 +43,6 @@ p1 = plot(Plots.Shape, geometry, axis=false, label=nothing, xlims=my_xlims, ylim
 # The resolution of the SDF is defined by `particle_spacing`, which should ideally
 # be identical to the `particle_spacing` of the initial configuration.
 particle_spacing = 0.05
-
 boundary_thickness = 3 * particle_spacing
 
 signed_distance_field = SignedDistanceField(geometry, particle_spacing;

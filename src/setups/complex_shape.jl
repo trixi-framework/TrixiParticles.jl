@@ -89,7 +89,7 @@ of the geometry.
 
 # Keywords
 - `boundary_thickness`: Thickness of the boundary
-- `boundary_density`: Density of the boundary particles.
+- `boundary_density`: Density of each boundary particle.
 - `tlsph`             : When `tlsph=true`, boundary particles will be placed
                         one particle spacing from the surface of the geometry.
                         Otherwise when `tlsph=true` (simulating fluid particles),
