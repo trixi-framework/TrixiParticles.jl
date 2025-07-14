@@ -1,9 +1,15 @@
-# Oscillating drop in a central force field, based on
+# ==========================================================================================
+# 2D Oscillating Drop Simulation
 #
-# J. J. Monaghan, Ashkan Rafiee.
-# "A Simple SPH Algorithm for Multi-Fluid Flow with High Density Ratios."
-# In: International Journal for Numerical Methods in Fluids 71, no. 5 (2013), pages 537-61.
-# https://doi.org/10.1002/fld.3671.
+# Based on:
+#   J. J. Monaghan, Ashkan Rafiee.
+#   "A Simple SPH Algorithm for Multi-Fluid Flow with High Density Ratios."
+#   International Journal for Numerical Methods in Fluids, 71(5) (2013), pp. 537-561.
+#   https://doi.org/10.1002/fld.3671.
+#
+# This example simulates a 2D elliptical drop of fluid oscillating under a central
+# force field.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
