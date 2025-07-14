@@ -25,7 +25,7 @@
         @test TrixiParticles.each_moving_particle(system_buffer) == 1:n_particles
 
         # Activate a particle
-        particle_id = findfirst(x -> x == false, system_buffer.buffer.active_particle)
+        particle_id = findfirst(==(false), system_buffer.buffer.active_particle)
         system_buffer.buffer.active_particle[particle_id] = true
 
         TrixiParticles.update_system_buffer!(system_buffer.buffer,

@@ -311,6 +311,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     @assert length(crossed_boundary_particles)<=length(available_fluid_particles) "Not enough fluid buffer particles available"
 
+    # Convert open boundary particles in the fluid domain to fluid particles
     @threaded semi for i in eachindex(crossed_boundary_particles)
         particle = crossed_boundary_particles[i]
         particle_new = available_fluid_particles[i]
@@ -335,11 +336,11 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     end
 
     crossed_fluid_particles = findall(fluid_candidates)
-    available_boundary_particles = findall(x -> x == false, system.buffer.active_particle)
+    available_boundary_particles = findall(==(false), system.buffer.active_particle)
 
     @assert length(crossed_fluid_particles)<=length(available_boundary_particles) "Not enough boundary buffer particles available"
 
-    # Check the fluid particles whether they're entering the boundary zone
+    # Convert fluid particles in the open boundary zone to open boundary particles
     @threaded semi for i in eachindex(crossed_fluid_particles)
         particle = crossed_fluid_particles[i]
         particle_new = available_boundary_particles[i]
