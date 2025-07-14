@@ -306,8 +306,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     end
 
     crossed_boundary_particles = findall(boundary_candidates)
-    available_fluid_particles = findall(x -> x == false,
-                                        fluid_system.buffer.active_particle)
+    available_fluid_particles = findall(==(false), fluid_system.buffer.active_particle)
 
     @assert length(crossed_boundary_particles)<=length(available_fluid_particles) "Not enough fluid buffer particles available"
 
