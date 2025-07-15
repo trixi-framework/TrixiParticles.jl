@@ -265,7 +265,8 @@ function extrapolate_values!(system,
         # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
         # Thus, turbulent flows near the inflow can lead to non-uniform buffer particles distribution,
         # resulting in a potential numerical instability. Averaging mitigates these effects.
-        average_velocity!(v_open_boundary, u_open_boundary, system, boundary_zone, semi)
+        average_velocity!(v_open_boundary, u_open_boundary, system, boundary_model,
+                          boundary_zone, semi)
     end
 
     return system
@@ -438,9 +439,10 @@ function mirror_position(particle_coords, boundary_zone)
     return particle_coords - 2 * dist * boundary_zone.plane_normal
 end
 
-average_velocity!(v, u, system, boundary_zone, semi) = v
+average_velocity!(v, u, system, ::BoundaryModelTafuni, boundary_zone, semi) = v
 
-function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, semi)
+function average_velocity!(v, u, system, ::BoundaryModelTafuni,
+                           boundary_zone::BoundaryZone{InFlow}, semi)
     (; plane_normal, zone_origin, initial_condition) = boundary_zone
 
     # We only use the extrapolated velocity in the vicinity of the transition region.

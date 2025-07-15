@@ -75,6 +75,13 @@ end
         end
     end
 
+    if boundary_zone.average_inflow_velocity
+        # Even if the velocity is prescribed, this boundary model computes the velocity for each particle individually.
+        # Thus, turbulent flows near the inflow can lead to non-uniform buffer particles distribution,
+        # resulting in a potential numerical instability. Averaging mitigates these effects.
+        average_velocity!(v, u, system, boundary_model, boundary_zone, semi)
+    end
+
     return system
 end
 
@@ -221,4 +228,26 @@ end
     characteristics[2, particle] = zero(eltype(characteristics))
 
     return characteristics
+end
+
+function average_velocity!(v, u, system, ::BoundaryModelLastiwka, boundary_zone, semi)
+    return v
+end
+
+function average_velocity!(v, u, system, ::BoundaryModelLastiwka, ::BoundaryZone{InFlow},
+                           semi)
+    avg_velocity = sum(each_moving_particle(system)) do particle
+        return current_velocity(v, system, particle)
+    end
+
+    avg_velocity /= system.buffer.active_particle_count[]
+
+    @threaded semi for particle in each_moving_particle(system)
+        # Set the velocity of the ghost node to the average velocity of the fluid domain
+        @inbounds for dim in eachindex(avg_velocity)
+            v[dim, particle] = avg_velocity[dim]
+        end
+    end
+
+    return v
 end
