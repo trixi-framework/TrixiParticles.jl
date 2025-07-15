@@ -11,7 +11,7 @@
 # ## Load geometry
 
 # As a first step, we will load a geometry.
-# Supported file formats are described in [Read geometries from file](@ref read_geometries_from_file).
+# Supported file formats are described in the documentation.
 using TrixiParticles
 using Plots
 
@@ -98,7 +98,6 @@ plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
 # Later more on this.
 # Different inside–outside segmentation algorithms can be applied here.
 # In this tutorial, we will use a winding number approach.
-# See also [Sampling of Geometries](@ref sampling_of_geometries) for details.
 # We initialize the winding number algorithm with the geometry.
 point_in_geometry_algorithm = WindingNumberJacobson(; geometry)
 
