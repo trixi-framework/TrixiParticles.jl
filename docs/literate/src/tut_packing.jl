@@ -22,11 +22,10 @@ geometry = load_geometry(file)
 my_xlims = (-0.3, 2.3)
 my_ylims = (-1.3, 0.3)
 
-p1 = plot(Plots.Shape, geometry, axis=false, label=nothing, xlims=my_xlims, ylims=my_ylims,
-          markersize=5)
+plot(geometry, showaxis=false, label=nothing, color=:black, xlims=my_xlims, ylims=my_ylims)
 
 # As shown in the plot, the 2D geometry (`TrixiParticles.Polygon`) is represented by its edges.
-# Similarly, for 3D geometries (`TrixiParticles.TriangleMesh`), the boundaries are represented by triangles.
+# Similarly, 3D geometries (`TrixiParticles.TriangleMesh`), are represented by triangles.
 # In this tutorial, we will stay with a 2D geometry, but the steps are identical for 3D geometries.
 
 # ## Create signed distance field
@@ -38,8 +37,8 @@ p1 = plot(Plots.Shape, geometry, axis=false, label=nothing, xlims=my_xlims, ylim
 # The "thickness" of this band is controlled by `max_signed_distance`.
 # For example, a `max_signed_distance` of 0.1 means that the SDF is created
 # up to 0.1 units inside and 0.1 units outside of the geometry interface.
-# It is a good practice to choose `max_signed_distance` on the same order of magnitude
-# as the compact support of the [smoothing kernel](@ref smoothing_kernel) that will be used in the later simulation.
+# It is a good practice to choose `max_signed_distance` equal to or larger than
+# the compact support of the [smoothing kernel](@ref smoothing_kernel) that will be used in the later simulation.
 # The resolution of the SDF is defined by `particle_spacing`, which should ideally
 # be identical to the `particle_spacing` of the initial configuration.
 particle_spacing = 0.05
@@ -50,13 +49,13 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
 
 # We can also visualize the SDF by simply creating an `InitialCondition` from the sampled points and plot it.
 # The color coding represents the signed distance to the geometry surface.
-sdf_1 = InitialCondition(; coordinates=stack(signed_distance_field.positions),
-                         density=1.0, particle_spacing=particle_spacing)
+sdf_ic = InitialCondition(; coordinates=stack(signed_distance_field.positions),
+                          density=1.0, particle_spacing=particle_spacing)
 
-p2 = plot(sdf_1, zcolor=signed_distance_field.distances, label=nothing,
-          xlims=my_xlims, ylims=my_ylims, color=:coolwarm)
-plot!(p2, Plots.Shape, geometry, linestyle=:dash, label=nothing, axis=false, grid=false,
-      xlims=my_xlims, ylims=my_ylims)
+plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing,
+     xlims=my_xlims, ylims=my_ylims, color=:coolwarm)
+plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
+      xlims=my_xlims, ylims=my_ylims, seriestype=:path)
 
 # Since we will later also pack boundary particles, we need to extend the SDF to the outside.
 # For that, we set `use_for_boundary_packing=true`.
@@ -65,14 +64,14 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
                                             max_signed_distance=boundary_thickness)
 
 # We can see in the plot that the SDF has been extended outwards to twice `max_signed_distance`.
-sdf_2 = InitialCondition(; coordinates=stack(signed_distance_field.positions),
-                         density=1.0, particle_spacing=particle_spacing)
+sdf_ic = InitialCondition(; coordinates=stack(signed_distance_field.positions),
+                          density=1.0, particle_spacing=particle_spacing)
 
-p3 = plot(sdf_2, zcolor=signed_distance_field.distances, label=nothing,
-          xlims=my_xlims, ylims=my_ylims, color=:coolwarm)
+plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing,
+     xlims=my_xlims, ylims=my_ylims, color=:coolwarm)
 
-plot!(p3, Plots.Shape, geometry, linestyle=:dash, label=nothing, axis=false, grid=false,
-      xlims=my_xlims, ylims=my_ylims)
+plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
+      xlims=my_xlims, ylims=my_ylims, seriestype=:path)
 
 # ## Create initial configuration of boundary particles
 
@@ -87,9 +86,9 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=densi
                                    boundary_thickness)
 
 ## Plotting the initial configuration of the boundary particles
-p4 = plot(boundary_sampled, xlims=my_xlims, ylims=my_ylims, label=nothing)
-plot!(p4, Plots.Shape, geometry, linestyle=:dash, label=nothing, axis=false, grid=false,
-      xlims=my_xlims, ylims=my_ylims)
+plot(boundary_sampled, xlims=my_xlims, ylims=my_ylims, label=nothing)
+plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
+      xlims=my_xlims, ylims=my_ylims, seriestype=:path)
 
 # ## Create initial configuration of interior particles
 
@@ -116,9 +115,9 @@ shape_sampled.mass .= density * TrixiParticles.volume(geometry) / nparticles(sha
 
 # Now we can plot the initial configuration of the interior particles
 # together with the boundary particles.
-p5 = plot(shape_sampled, boundary_sampled, xlims=my_xlims, ylims=my_ylims, label=nothing)
-plot!(p5, Plots.Shape, geometry, linestyle=:dash, label=nothing, axis=false, grid=false,
-      xlims=my_xlims, ylims=my_ylims)
+plot(shape_sampled, boundary_sampled, xlims=my_xlims, ylims=my_ylims, label=nothing)
+plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
+      xlims=my_xlims, ylims=my_ylims, seriestype=:path)
 
 # As shown in the plot, the interface of the geometry surface is not well resolved yet.
 # In other words, there is no body-fitted configuration.
@@ -172,8 +171,8 @@ sol = solve(ode, time_integrator;
 
 packed_ic = InitialCondition(sol, packing_system, semi)
 
-p_not_constrained = plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
-plot!(p_not_constrained, Plots.Shape, geometry, xlims=my_xlims, ylims=my_ylims)
+plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
+plot!(geometry, xlims=my_xlims, ylims=my_ylims, seriestype=:path, color=:black)
 
 # As we can see in the plot, the particles are not constrained to the
 # geometric surface.
@@ -202,8 +201,8 @@ sol = solve(ode, time_integrator;
 packed_ic = InitialCondition(sol, packing_system, semi)
 
 ## Plotting the final configuration
-p = plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
-plot!(p, Plots.Shape, geometry, xlims=my_xlims, ylims=my_ylims)
+plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
+plot!(geometry, xlims=my_xlims, ylims=my_ylims, seriestype=:path, color=:black)
 
 # We can see that the particles now stay inside the geometry,
 # but their distribution near the surface can still be improved by adding boundary particles [neher2025robustefficientpreprocessingtechniques](@cite).
@@ -242,8 +241,9 @@ packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 
 ## Plotting the final configuration
-p_final = plot(packed_ic, packed_boundary_ic, xlims=my_xlims, ylims=my_ylims)
-plot(p_final, Plots.Shape, geometry, xlims=my_xlims, ylims=my_ylims, linestyle=:dash)
+plot(packed_ic, packed_boundary_ic, xlims=my_xlims, ylims=my_ylims)
+plot!(geometry, xlims=my_xlims, ylims=my_ylims, seriestype=:path, color=:black,
+      linestyle=:dash)
 
 # ## Multi-body packing
 

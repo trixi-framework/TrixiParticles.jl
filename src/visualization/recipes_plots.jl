@@ -164,6 +164,7 @@ RecipesBase.@recipe function f(geometry::Polygon)
 
     aspect_ratio --> :equal
     grid --> false
+    label --> "geometry"
 
     # First plot the vertices as a scatter plot
     @series begin
@@ -176,6 +177,7 @@ RecipesBase.@recipe function f(geometry::Polygon)
         # Ignore series in legend and color cycling. Note that `:=` forces the attribute,
         # whereas `-->` would only set it if it is not already set.
         primary := false
+
         return (x, y)
     end
 end
