@@ -1,9 +1,16 @@
-# Channel ﬂow through periodic array of cylinders
+# ==========================================================================================
+# 2D Channel Flow Through a Periodic Array of Cylinders
 #
-# S. Adami et al.
-# "A transport-velocity formulation for smoothed particle hydrodynamics".
-# In: Journal of Computational Physics, Volume 241 (2013), pages 292-307.
-# https://doi.org/10.1016/j.jcp.2013.01.043
+# Based on:
+#   S. Adami, X. Y. Hu, N. A. Adams.
+#   "A transport-velocity formulation for smoothed particle hydrodynamics".
+#   Journal of Computational Physics, Volume 241 (2013), pages 292-307.
+#   https://doi.org/10.1016/J.JCP.2013.01.043
+#
+# This example simulates fluid flow driven by a body force through a channel
+# containing a periodic array of cylinders. Due to periodicity, only one cylinder
+# within a representative channel segment is simulated.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq

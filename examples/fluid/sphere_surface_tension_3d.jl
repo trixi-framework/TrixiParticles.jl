@@ -1,5 +1,12 @@
-# In this example we can observe that the `SurfaceTensionAkinci` surface tension model correctly leads to a
-# surface minimization of the water cube and approaches a sphere.
+# ==========================================================================================
+# 3D Sphere Formation via Surface Tension
+#
+# This example extends the 2D sphere formation simulation (`sphere_surface_tension_2d.jl`)
+# to three dimensions. It demonstrates how an initially cubical patch of fluid
+# minimizes its surface area under the influence of a surface tension model,
+# ideally forming a spherical shape.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
