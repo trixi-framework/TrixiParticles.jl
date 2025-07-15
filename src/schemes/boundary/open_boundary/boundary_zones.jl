@@ -137,9 +137,9 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
             throw(ArgumentError("`boundary_coordinates` must be provided when `shift_particles` is true"))
         end
 
-        shift_zone = set_up_shift_zone(boundary_type, boundary_coordinates, ic, plane,
+        shift_zone = set_up_shift_zone(boundary_coordinates, ic, spanning_set_,
                                        plane_normal, zone_origin, particle_spacing,
-                                       open_boundary_layers, zone_width)
+                                       open_boundary_layers)
     else
         shift_zone = nothing
     end
@@ -291,9 +291,9 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
                             particle_spacing)
 end
 
-function set_up_shift_zone(boundary_type, boundary_coordinates, initial_condition,
-                           plane, plane_normal, zone_origin, particle_spacing,
-                           open_boundary_layers, zone_width)
+function set_up_shift_zone(boundary_coordinates, initial_condition,
+                           spanning_set, plane_normal, zone_origin, particle_spacing,
+                           open_boundary_layers)
     # Assume a shift zone of length `4 * particle_spacing` is sufficient.
     # A buffer of `4 * particle_spacing` before and after the shift zone should be enough.
     # This results in `12` open boundary layers.
@@ -305,16 +305,11 @@ function set_up_shift_zone(boundary_type, boundary_coordinates, initial_conditio
     ELTYPE = eltype(initial_condition)
 
     shift_zone_width = 4 * particle_spacing
-    spanning_set_shift_zone_ = spanning_vectors(Tuple(plane), shift_zone_width)
 
-    # First vector of `spanning_set_shift_zone` is normal to the boundary plane
-    dot_flow = dot(normalize(spanning_set_shift_zone_[:, 1]), plane_normal)
-
-    # Flip the normal vector to point in the opposite direction of `plane_normal`.
-    spanning_set_shift_zone_[:, 1] .*= -sign(dot_flow)
-
-    spanning_set_shift_zone = reinterpret(reshape, SVector{NDIMS, ELTYPE},
-                                          spanning_set_shift_zone_)
+    # Copy the spanning set of the boundary zone and resize width
+    spanning_set_shift_zone = copy(spanning_set)
+    spanning_set_shift_zone[1] = normalize(first(spanning_set_shift_zone)) *
+                                 shift_zone_width
 
     # Shift the origin of the shift zone by `4 * particle_spacing`
     # to ensure a buffer before and after the shift zone.
