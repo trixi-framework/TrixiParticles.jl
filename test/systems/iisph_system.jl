@@ -121,12 +121,12 @@
 
             error_str7 = "`time_step must be a positive number"
             @test_throws ArgumentError(error_str6) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                    smoothing_kernel,
-                                                                                    smoothing_length,
-                                                                                    reference_density,
-                                                                                    min_iterations=10,
-                                                                                    max_iterations=5,
-                                                                                    time_step=0)
+                                                                                   smoothing_kernel,
+                                                                                   smoothing_length,
+                                                                                   reference_density,
+                                                                                   min_iterations=10,
+                                                                                   max_iterations=5,
+                                                                                   time_step=0)
         end
     end
 
@@ -249,7 +249,7 @@
         initial_condition = InitialCondition(; coordinates, mass, density)
         system = ImplicitIncompressibleSPHSystem(initial_condition,
                                                  smoothing_kernel,
-                                                 smoothing_length,reference_density,
+                                                 smoothing_length, reference_density,
                                                  time_step=0.001)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
