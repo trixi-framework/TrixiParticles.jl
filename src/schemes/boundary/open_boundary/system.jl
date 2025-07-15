@@ -294,7 +294,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
-    particle_shifting!(u, v, system, system.boundary_zone, v_ode, u_ode, semi, dt)
+    particle_shifting!(u, v, system, system.boundary_zone.shift_zone, semi, dt)
 
     # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
@@ -559,12 +559,9 @@ end
 
 # This is a slightly adapted version of the method used in `ParticleShiftingCallback`.
 # "Slightly adapted" here means we restrict iteration to particles located within the shift zone.
-function particle_shifting!(u, v, system::OpenBoundarySPHSystem,
-                            boundary_zone::BoundaryZone{InFlow}, v_ode, u_ode, semi, dt)
-    isnothing(boundary_zone.shift_zone) && return u
-
+function particle_shifting!(u, v, system::OpenBoundarySPHSystem, shift_zone, semi, dt)
     (; delta_r, spanning_set_shift_zone, shift_zone_origin,
-     boundary_coordinates) = boundary_zone.shift_zone
+     boundary_coordinates) = shift_zone
     (; nhs_boundary) = system.cache
 
     set_zero!(delta_r)
@@ -646,7 +643,6 @@ function particle_shifting!(u, v, system::OpenBoundarySPHSystem,
     return u
 end
 
-function particle_shifting!(u, v, system::OpenBoundarySPHSystem, boundary_zone,
-                            v_ode, u_ode, semi, dt)
+function particle_shifting!(u, v, system::OpenBoundarySPHSystem, ::Nothing, semi, dt)
     return u
 end
