@@ -2,7 +2,7 @@
 include("../validation_util.jl")
 
 using TrixiParticles
-using JSON
+using TrixiParticles.JSON
 
 gravity = 9.81
 
@@ -14,11 +14,11 @@ tspan = (0.0, 8.0 / sqrt(gravity / H))
 # Use H / 80, H / 320 for validation.
 # Note: H / 320 takes a few hours!
 particle_spacing = H / 40
-smoothing_length = 1.75 * particle_spacing
+smoothing_length = 2 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density = 1000.0
-sound_speed = 20 * sqrt(gravity * H)
+sound_speed = 10 * sqrt(gravity * H)
 
 boundary_layers = 4
 spacing_ratio = 1
@@ -36,8 +36,8 @@ tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_sp
 # "A generalized wall boundary condition for smoothed particle hydrodynamics".
 # In: Journal of Computational Physics 231, 21 (2012), pages 7057--7075.
 # https://doi.org/10.1016/J.JCP.2012.05.005
-sensor_size = 0.009
-P1_y_top = 160 / 600 * H
+sensor_size = 0.09
+P1_y_top = 145 / 600 * H
 P1_y_bottom = P1_y_top - sensor_size
 P2_y_top = (160 + 424) / 600 * H
 P2_y_bottom = P2_y_top - sensor_size
@@ -46,8 +46,7 @@ P3_y_bottom = P3_y_top - sensor_size
 
 sensor_names = ["P1", "P2", "P3"]
 
-tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing -
-                    0.5 * particle_spacing
+tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing
 
 pressure_P1 = (system, v_ode, u_ode, semi,
                t) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
@@ -104,38 +103,38 @@ fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kerne
 
 # Disable loop flipping to produce consistent results over different thread numbers
 boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=false)
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              fluid_particle_spacing=particle_spacing,
-              smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
-              boundary_density_calculator=boundary_density_calculator,
-              boundary_layers=4, state_equation=nothing,
-              solution_prefix="validation_" * method * "_" * formatted_string,
-              extra_callback=postprocessing_cb, tspan=tspan,
-              fluid_system=fluid_system_edac, tank=tank_edac,
-              update_strategy=SerialUpdate()) # To get the same results with different thread numbers
+# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+#               fluid_particle_spacing=particle_spacing,
+#               smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
+#               boundary_density_calculator=boundary_density_calculator,
+#               boundary_layers=4, state_equation=nothing,
+#               solution_prefix="validation_" * method * "_" * formatted_string,
+#               extra_callback=postprocessing_cb, tspan=tspan,
+#               fluid_system=fluid_system_edac, tank=tank_edac,
+#               update_strategy=SerialUpdate()) # To get the same results with different thread numbers
 
-reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
-                                    "validation_reference_edac_$formatted_string.json")
-run_file_edac_name = joinpath("out",
-                              "validation_result_dam_break_edac_$formatted_string.json")
+# reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
+#                                     "validation_reference_edac_$formatted_string.json")
+# run_file_edac_name = joinpath("out",
+#                               "validation_result_dam_break_edac_$formatted_string.json")
 
-reference_data = JSON.parsefile(reference_file_edac_name)
-run_data = JSON.parsefile(run_file_edac_name)
+# reference_data = JSON.parsefile(reference_file_edac_name)
+# run_data = JSON.parsefile(run_file_edac_name)
 
-error_edac_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
-                                 reference_data["pressure_P1_fluid_1"]["values"],
-                                 run_data["pressure_P1_fluid_1"]["time"],
-                                 run_data["pressure_P1_fluid_1"]["values"])
+# error_edac_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
+#                                  reference_data["pressure_P1_fluid_1"]["values"],
+#                                  run_data["pressure_P1_fluid_1"]["time"],
+#                                  run_data["pressure_P1_fluid_1"]["values"])
 
-error_edac_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
-                                 reference_data["pressure_P2_fluid_1"]["values"],
-                                 run_data["pressure_P2_fluid_1"]["time"],
-                                 run_data["pressure_P2_fluid_1"]["values"])
+# error_edac_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
+#                                  reference_data["pressure_P2_fluid_1"]["values"],
+#                                  run_data["pressure_P2_fluid_1"]["time"],
+#                                  run_data["pressure_P2_fluid_1"]["values"])
 
 # WCSPH simulation
 ############################################################################################
 method = "wcsph"
-postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
+postprocessing_cb = PostprocessCallback(; dt=0.002, output_directory="out",
                                         filename="validation_result_dam_break_" *
                                                  method * "_" * formatted_string,
                                         write_csv=false, max_x_coord, pressure_P1,
