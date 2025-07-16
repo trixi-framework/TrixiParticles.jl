@@ -10,7 +10,7 @@ include("sensors.jl")
 using TrixiParticles
 using JSON
 
-use_edac = true # Set to false to use WCSPH
+use_edac = false # Set to false to use WCSPH
 
 gravity = 9.81
 H = 0.6

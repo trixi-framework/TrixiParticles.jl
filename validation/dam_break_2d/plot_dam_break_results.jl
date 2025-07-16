@@ -52,7 +52,7 @@ sim_P2 = CSV.read(joinpath(case_dir, "sim_pressure_sensor_P2.csv"), DataFrame)
 
 function plot_sensor_results(axs, files)
     for ax in axs
-        ax.xlabel = "Time [s]"
+        ax.xlabel = "t(g / H)^0.5"
         ax.ylabel = "P/(ρ g H)"
         xlims!(ax, 2, 8)
         ylims!(ax, -0.2, 1.0)
@@ -61,26 +61,26 @@ function plot_sensor_results(axs, files)
     for (idx, json_file) in enumerate(files)
         println("Processing file: $json_file")
 
-        jd = JSON.parsefile(json_file)
-        t = jd["interpolated_pressure_P1_fluid_1"]["time"] .* normalization_factor_time
-        pressure_P1 = jd["interpolated_pressure_P1_fluid_1"]["values"] /
+        json_data = JSON.parsefile(json_file)
+        t = json_data["interpolated_pressure_P1_fluid_1"]["time"] .* normalization_factor_time
+        pressure_P1 = json_data["interpolated_pressure_P1_fluid_1"]["values"] /
                       normalization_factor_pressure
-        pressure_P2 = jd["interpolated_pressure_P2_fluid_1"]["values"] /
+        pressure_P2 = json_data["interpolated_pressure_P2_fluid_1"]["values"] /
                       normalization_factor_pressure
-        probe_P1 = jd["particle_pressure_P1_boundary_1"]["values"] /
+        probe_P1 = json_data["particle_pressure_P1_boundary_1"]["values"] /
                    normalization_factor_pressure
-        probe_P2 = jd["particle_pressure_P2_boundary_1"]["values"] /
+        probe_P2 = json_data["particle_pressure_P2_boundary_1"]["values"] /
                    normalization_factor_pressure
-        lab = occursin("reference", json_file) ? "Ref. " : ""
+        label_prefix = occursin("reference", json_file) ? "Ref. " : ""
         res = extract_resolution_from_filename(json_file)
 
-        lines!(axs[1], t, pressure_P1; label="$lab dp=$res",
+        lines!(axs[1], t, pressure_P1; label="$label_prefix dp=$res",
                color=idx, colormap=:tab10, colorrange=(1, 10))
-        lines!(axs[2], t, pressure_P2; label="$lab dp=$res",
+        lines!(axs[2], t, pressure_P2; label="$label_prefix dp=$res",
                color=idx, colormap=:tab10, colorrange=(1, 10))
-        lines!(axs[3], t, probe_P1; label="$lab dp=$res",
+        lines!(axs[3], t, probe_P1; label="$label_prefix dp=$res",
                color=idx, colormap=:tab10, colorrange=(1, 10))
-        lines!(axs[4], t, probe_P2; label="$lab dp=$res",
+        lines!(axs[4], t, probe_P2; label="$label_prefix dp=$res",
                color=idx, colormap=:tab10, colorrange=(1, 10))
     end
 end
@@ -92,16 +92,16 @@ function plot_surge_results(ax, files)
     ylims!(ax, 1, 3)
 
     for (idx, json_file) in enumerate(files)
-        jd = JSON.parsefile(json_file)
-        lab = occursin("reference", json_file) ? "Ref. " : ""
-        val = jd["max_x_coord_fluid_1"]
+        json_data = JSON.parsefile(json_file)
+        label_prefix = occursin("reference", json_file) ? "Ref. " : ""
+        val = json_data["max_x_coord_fluid_1"]
         lines!(ax, val["time"] .* sqrt(9.81),
                Float64.(val["values"]) ./ W;
-               label="$lab dp=$(extract_resolution_from_filename(json_file))",
+               label="$label_prefix dp=$(extract_resolution_from_filename(json_file))",
                color=idx, colormap=:tab10, colorrange=(1, 10))
     end
 
-    # experimental reference
+    # Experimental reference
     scatter!(ax, surge_front.time, surge_front.surge_front;
              color=:black, marker=:utriangle, markersize=6,
              label="Martin & Moyce 1952 (exp)")
