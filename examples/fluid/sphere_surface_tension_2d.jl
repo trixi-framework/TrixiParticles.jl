@@ -1,5 +1,11 @@
-# In this example we can observe that the `SurfaceTensionAkinci` surface tension model correctly leads to a
-# surface minimization of the water square and approaches a sphere.
+# ==========================================================================================
+# 2D Sphere Formation via Surface Tension
+#
+# This example demonstrates how surface tension models in TrixiParticles.jl
+# can cause an initially square patch of fluid to minimize its surface area,
+# ideally forming a circular (2D sphere) shape.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
