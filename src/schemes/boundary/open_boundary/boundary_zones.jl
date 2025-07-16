@@ -7,7 +7,8 @@ struct OutFlow end
 @doc raw"""
     BoundaryZone(; plane, plane_normal, density, particle_spacing,
                  initial_condition=nothing, extrude_geometry=nothing,
-                 open_boundary_layers::Integer, boundary_type=BidirectionalFlow())
+                 open_boundary_layers::Integer, boundary_type=BidirectionalFlow(),
+                 average_inflow_velocity=true)
 
 Boundary zone for [`OpenBoundarySPHSystem`](@ref).
 
@@ -54,6 +55,14 @@ There are three ways to specify the actual shape of the boundary zone:
 - `extrude_geometry=nothing`: 1D shape in 2D or 2D shape in 3D, which lies on the plane
                               and is extruded upstream to obtain the inflow particles.
                               See point 2 above for more details.
+- `average_inflow_velocity=true`: If `true`, the extrapolated inflow velocity is averaged
+                                  to impose a uniform inflow profile.
+                                  When no velocity is prescribed at the inflow,
+                                  the velocity is extrapolated from the fluid domain.
+                                  Thus, turbulent flows near the inflow can lead to
+                                  anisotropic buffer-particles distribution,
+                                  resulting in a potential numerical instability.
+                                  Averaging mitigates these effects.
 
 # Examples
 ```julia
@@ -82,18 +91,20 @@ bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_s
     This is an experimental feature and may change in any future releases.
 """
 struct BoundaryZone{BT, IC, S, ZO, ZW, FD, PN}
-    initial_condition :: IC
-    spanning_set      :: S
-    zone_origin       :: ZO
-    zone_width        :: ZW
-    flow_direction    :: FD
-    plane_normal      :: PN
-    boundary_type     :: BT
+    initial_condition       :: IC
+    spanning_set            :: S
+    zone_origin             :: ZO
+    zone_width              :: ZW
+    flow_direction          :: FD
+    plane_normal            :: PN
+    boundary_type           :: BT
+    average_inflow_velocity :: Bool
 end
 
 function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
-                      open_boundary_layers::Integer, boundary_type=BidirectionalFlow())
+                      open_boundary_layers::Integer, boundary_type=BidirectionalFlow(),
+                      average_inflow_velocity=true)
     if open_boundary_layers <= 0
         throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
     end
@@ -120,7 +131,8 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                                       boundary_type=boundary_type)
 
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
-                        flow_direction, plane_normal_, boundary_type)
+                        flow_direction, plane_normal_, boundary_type,
+                        average_inflow_velocity)
 end
 
 function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
