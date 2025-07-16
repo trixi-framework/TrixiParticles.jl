@@ -62,7 +62,8 @@ function plot_sensor_results(axs, files)
         println("Processing file: $json_file")
 
         json_data = JSON.parsefile(json_file)
-        t = json_data["interpolated_pressure_P1_fluid_1"]["time"] .* normalization_factor_time
+        t = json_data["interpolated_pressure_P1_fluid_1"]["time"] .*
+            normalization_factor_time
         pressure_P1 = json_data["interpolated_pressure_P1_fluid_1"]["values"] /
                       normalization_factor_pressure
         pressure_P2 = json_data["interpolated_pressure_P2_fluid_1"]["values"] /
