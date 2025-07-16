@@ -1,3 +1,12 @@
+# ==========================================================================================
+# Postprocessing Callback Example
+#
+# This example demonstrates how to use the `PostprocessCallback` in TrixiParticles.jl
+# to compute and save custom quantities during a simulation, or to execute
+# arbitrary user-defined functions at specified intervals.
+# A hydrostatic water column simulation is used as the base.
+# ==========================================================================================
+
 using TrixiParticles
 using Plots
 using CSV

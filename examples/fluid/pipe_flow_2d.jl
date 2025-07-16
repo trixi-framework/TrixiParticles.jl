@@ -1,4 +1,11 @@
-# 2D channel flow simulation with open boundaries.
+# ==========================================================================================
+# 2D Pipe Flow Simulation with Open Boundaries (Inflow/Outflow)
+#
+# This example simulates fluid flow through a 2D pipe (channel) with an inflow
+# boundary condition on one end and an outflow boundary condition on the other.
+# Solid walls form the top and bottom of the pipe.
+# The simulation demonstrates the use of open boundary conditions in TrixiParticles.jl.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
