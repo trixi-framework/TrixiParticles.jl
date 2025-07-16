@@ -1,3 +1,18 @@
+# ==========================================================================================
+# 2D Oscillating Elastic Beam (Cantilever) Simulation
+#
+# This example simulates the oscillation of a 2D elastic beam (cantilever)
+# fixed at one end and subjected to gravity. It uses the Total Lagrangian SPH (TLSPH)
+# method for solid mechanics.
+#
+# Based on:
+# J. O'Connor and B.D. Rogers
+# "A fluid-structure interaction model for free-surface flows and
+# flexible structures using smoothed particle hydrodynamics on a GPU",
+# Journal of Fluids and Structures, Volume 104, 2021.
+# DOI: 10.1016/j.jfluidstructs.2021.103312
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
