@@ -33,7 +33,7 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==== Experiment Setup
 gravity = 9.81
 
-tspan = (0.0, 5.7 / sqrt(gravity))
+tspan = (0.0, 5.7 / sqrt(gravity / H))
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (W, H)
@@ -50,7 +50,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.75 * fluid_particle_spacing
+smoothing_length = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -69,10 +69,11 @@ viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 # viscosity_fluid = ViscosityAdamiSGS(nu=nu)
 # For more details see the documentation "Viscosity model overview".
 
-# Alternatively the density diffusion model by Molteni & Colagrossi can be used,
-# which will run faster.
-# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+# The density diffusion model by Molteni and Colagrossi shows unphysical effects at the
+# free surface in long-running simulations, but is significantly faster than the model
+# by Antuono. This simulation is short enough to use the faster model.
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
