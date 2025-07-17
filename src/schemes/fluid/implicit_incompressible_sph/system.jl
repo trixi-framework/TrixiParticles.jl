@@ -51,7 +51,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     advection_velocity                :: ARRAY2D # Array{ELTYPE, 2}
     d_ii                              :: ARRAY2D # Eq. 9
     a_ii                              :: ARRAY1D # Diagonal elements of the implicit pressure equation (Eq. 6)
-    sum_d_ij                          :: ARRAY2D # \sum_j d_{ij} p_j (Eq. 10)
+    sum_d_ij_pj                       :: ARRAY2D # \sum_j d_{ij} p_j (Eq. 10)
     sum_term                          :: ARRAY1D # Sum term of Eq. 13
     omega                             :: ELTYPE  # Relaxed Jacobi parameter
     max_error                         :: ELTYPE
@@ -118,7 +118,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
     a_ii = zeros(ELTYPE, n_particles)
     d_ii = zeros(ELTYPE, NDIMS, n_particles)
     advection_velocity = zeros(ELTYPE, NDIMS, n_particles)
-    sum_d_ij = zeros(ELTYPE, NDIMS, n_particles)
+    sum_d_ij_pj = zeros(ELTYPE, NDIMS, n_particles)
     sum_term = zeros(ELTYPE, n_particles)
 
     cache = (;
@@ -132,7 +132,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
                                            pressure_acceleration, nothing,
                                            nothing, surface_tension, particle_refinement,
                                            density, predicted_density,
-                                           advection_velocity, d_ii, a_ii, sum_d_ij,
+                                           advection_velocity, d_ii, a_ii, sum_d_ij_pj,
                                            sum_term, omega,
                                            max_error,
                                            min_iterations, max_iterations, time_step, cache)
@@ -456,7 +456,7 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@propagate_inbounds function sum_dij(system::ImplicitIncompressibleSPHSystem, particle)
+@propagate_inbounds function sum_dij_pj(system::ImplicitIncompressibleSPHSystem, particle)
     return extract_svector(system.sum_d_ij, system, particle)
 end
 
@@ -518,7 +518,7 @@ function calculate_sum_term(system, neighbor_system::ImplicitIncompressibleSPHSy
     d_jj = d_ii(neighbor_system, neighbor)
     p_i = pressure[particle]
     p_j = pressure[neighbor]
-    sum_djk_pk = sum_dij(neighbor_system, neighbor)
+    sum_djk_pk = sum_dij_pj(neighbor_system, neighbor)
     d_ji = calculate_d_ij(system, particle, -grad_kernel, time_step)
 
     # Equation 13 of Ihmsen et al. (2013):
