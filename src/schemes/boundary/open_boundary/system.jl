@@ -173,6 +173,7 @@ function create_cache_open_boundary(boundary_model, initial_condition,
                                     reference_density, reference_velocity,
                                     reference_pressure)
     ELTYPE = eltype(initial_condition)
+    NDIMS = ndims(initial_condition)
 
     prescribed_pressure = isnothing(reference_pressure) ? false : true
     prescribed_velocity = isnothing(reference_velocity) ? false : true
@@ -182,6 +183,32 @@ function create_cache_open_boundary(boundary_model, initial_condition,
         return (; prescribed_pressure=prescribed_pressure,
                 prescribed_density=prescribed_density,
                 prescribed_velocity=prescribed_velocity)
+    end
+
+    if boundary_model isa BoundaryModelZhang
+        (; boundary_pressure) = boundary_model
+
+        if boundary_pressure isa Function
+            test_result = boundary_pressure(zeros(NDIMS), 0)
+            if length(test_result) != 1
+                throw(ArgumentError("`boundary_pressure` function in `BoundaryModelZhang` must be a scalar function"))
+            end
+        end
+
+        boundary_pressure_function = wrap_reference_function(boundary_pressure, Val(NDIMS))
+
+        coords_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE},
+                                     initial_condition.coordinates)
+
+        boundary_pressure = copy(reference_value.(boundary_pressure_function,
+                                                  initial_condition.pressure,
+                                                  coords_svector, 0))
+
+        return (; prescribed_pressure=prescribed_pressure,
+                prescribed_density=prescribed_density,
+                prescribed_velocity=prescribed_velocity,
+                boundary_pressure_function=boundary_pressure_function,
+                boundary_pressure=boundary_pressure)
     end
 
     characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
@@ -229,6 +256,16 @@ end
     return ELTYPE
 end
 
+function system_smoothing_kernel(system::OpenBoundarySPHSystem)
+    system.fluid_system.smoothing_kernel
+end
+
+@inline function v_nvariables(system::OpenBoundarySPHSystem)
+    return v_nvariables(system, system.boundary_model)
+end
+
+@inline v_nvariables(system, boundary_model) = ndims(system)
+
 function reset_callback_flag!(system::OpenBoundarySPHSystem)
     system.update_callback_used[] = false
 
@@ -248,11 +285,19 @@ end
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
 
 @inline function current_density(v, system::OpenBoundarySPHSystem)
+    return current_density(v, system.boundary_model, system)
+end
+
+@inline function current_density(v, boundary_model, system::OpenBoundarySPHSystem)
     return system.density
 end
 
 @inline function current_pressure(v, system::OpenBoundarySPHSystem)
     return system.pressure
+end
+
+@inline function current_acceleration(system::OpenBoundarySPHSystem, particle)
+    return system.fluid_system.acceleration
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
@@ -270,6 +315,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
+    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi, t)
+
     # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
     @trixi_timeit timer() "update boundary quantities" update_boundary_quantities!(system,
@@ -278,15 +325,12 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
                                                                                    v_ode,
                                                                                    u_ode,
                                                                                    semi, t)
-
-    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
-
     return system
 end
 
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
 
-function check_domain!(system, v, u, v_ode, u_ode, semi)
+function check_domain!(system, v, u, v_ode, u_ode, semi, t)
     (; boundary_zone, boundary_candidates, fluid_candidates) = system
     fluid_system = corresponding_fluid_system(system, semi)
 
@@ -316,7 +360,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         particle_new = available_fluid_particles[i]
 
         convert_particle!(system, fluid_system, boundary_zone, particle, particle_new,
-                          v, u, v_fluid, u_fluid)
+                          v, u, v_fluid, u_fluid, t)
     end
 
     update_system_buffer!(system.buffer, semi)
@@ -345,11 +389,14 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         particle_new = available_boundary_particles[i]
 
         convert_particle!(fluid_system, system, boundary_zone, particle, particle_new,
-                          v, u, v_fluid, u_fluid)
+                          v, u, v_fluid, u_fluid, t)
     end
 
     update_system_buffer!(system.buffer, semi)
     update_system_buffer!(fluid_system.buffer, semi)
+
+    # Since particles have been transferred, the neighborhood searches must be updated
+    update_nhs!(semi, u_ode)
 
     return system
 end
@@ -357,7 +404,7 @@ end
 # Outflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
                                    boundary_zone::BoundaryZone{OutFlow}, particle,
-                                   particle_new, v, u, v_fluid, u_fluid)
+                                   particle_new, v, u, v_fluid, u_fluid, t)
     deactivate_particle!(system, particle, u)
 
     return system
@@ -366,7 +413,7 @@ end
 # Inflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
                                    boundary_zone::BoundaryZone{InFlow}, particle,
-                                   particle_new, v, u, v_fluid, u_fluid)
+                                   particle_new, v, u, v_fluid, u_fluid, t)
     (; spanning_set) = boundary_zone
 
     # Activate a new particle in simulation domain
@@ -383,7 +430,7 @@ end
 # Buffer particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
                                    boundary_zone::BoundaryZone{BidirectionalFlow},
-                                   particle, particle_new, v, u, v_fluid, u_fluid)
+                                   particle, particle_new, v, u, v_fluid, u_fluid, t)
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
@@ -402,13 +449,15 @@ end
         u[dim, particle] += boundary_zone.spanning_set[1][dim]
     end
 
+    impose_new_density!(v, u, system, system.boundary_model, particle, t)
+
     return system
 end
 
 # Fluid particle is in boundary zone
 @inline function convert_particle!(fluid_system::FluidSystem, system,
                                    boundary_zone, particle, particle_new,
-                                   v, u, v_fluid, u_fluid)
+                                   v, u, v_fluid, u_fluid, t)
     # Activate particle in boundary zone
     transfer_particle!(system, fluid_system, particle, particle_new, v, u, v_fluid, u_fluid)
 
@@ -444,6 +493,8 @@ function write_v0!(v0, system::OpenBoundarySPHSystem)
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
     indices = CartesianIndices(system.initial_condition.velocity)
     copyto!(v0, indices, system.initial_condition.velocity, indices)
+
+    write_v0!(v0, system, system.boundary_model)
 
     return v0
 end
@@ -513,7 +564,8 @@ end
 end
 
 # When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
-@inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
+@inline viscosity_model(system,
+                        neighbor_system::OpenBoundarySPHSystem) = neighbor_system.fluid_system.viscosity
 
 function system_data(system::OpenBoundarySPHSystem, v_ode, u_ode, semi)
     v = wrap_v(v_ode, system, semi)

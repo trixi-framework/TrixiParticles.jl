@@ -154,6 +154,12 @@ end
     return 0.0
 end
 
+@inline function compact_support(system::OpenBoundarySPHSystem{<:BoundaryModelZhang},
+                                 neighbor::OpenBoundarySPHSystem{<:BoundaryModelZhang})
+    # Use the compact support of the fluid
+    return compact_support(system.fluid_system, neighbor.fluid_system)
+end
+
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
     # This NHS is never used
     return 0.0
@@ -683,7 +689,9 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::FluidSystem, neighbor::BoundarySPHSystem,
+                     system::Union{FluidSystem,
+                                   OpenBoundarySPHSystem{<:BoundaryModelZhang}},
+                     neighbor::BoundarySPHSystem,
                      u_system, u_neighbor, semi)
     # Boundary coordinates only change over time when `neighbor.ismoving[]`
     update!(neighborhood_search,
@@ -707,6 +715,20 @@ end
 
 function update_nhs!(neighborhood_search,
                      system::OpenBoundarySPHSystem, neighbor::FluidSystem,
+                     u_system, u_neighbor, semi)
+    # The current coordinates of both open boundaries and fluids change over time.
+
+    # TODO: Update only `active_coordinates` of open boundaries.
+    # Problem: Removing inactive particles from neighboring lists is necessary.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySPHSystem{<:BoundaryModelZhang},
+                     neighbor::OpenBoundarySPHSystem{<:BoundaryModelZhang},
                      u_system, u_neighbor, semi)
     # The current coordinates of both open boundaries and fluids change over time.
 
