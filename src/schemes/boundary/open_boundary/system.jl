@@ -245,6 +245,10 @@ function smoothing_length(system::OpenBoundarySPHSystem, particle)
     return system.smoothing_length
 end
 
+function system_smoothing_kernel(system::OpenBoundarySPHSystem)
+    return system.fluid_system.smoothing_kernel
+end
+
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
 
 @inline function current_density(v, system::OpenBoundarySPHSystem)
