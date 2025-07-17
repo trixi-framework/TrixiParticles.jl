@@ -945,6 +945,8 @@ function check_configuration(system::OpenBoundarySPHSystem, systems,
                             "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
                             "See the PointNeighbors.jl documentation for more details."))
     end
+
+    initialize_shift_zone!(boundary_zone, system)
 end
 
 # After `adapt`, the system type information may change.

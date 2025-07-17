@@ -149,6 +149,7 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
     end
 
     cache = create_cache_open_boundary(boundary_model, initial_condition,
+                                       boundary_zone, fluid_system,
                                        reference_density, reference_velocity,
                                        reference_pressure)
 
@@ -170,16 +171,35 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
 end
 
 function create_cache_open_boundary(boundary_model, initial_condition,
+                                    boundary_zone, fluid_system,
                                     reference_density, reference_velocity,
                                     reference_pressure)
     ELTYPE = eltype(initial_condition)
+
+    if !(isnothing(boundary_zone.shift_zone))
+        # We need a neighborhood search for the boundary coordinates
+        (; boundary_coordinates) = boundary_zone.shift_zone
+        min_corner = minimum(boundary_coordinates, dims=2)
+        max_corner = maximum(boundary_coordinates, dims=2)
+        cell_list = FullGridCellList(; min_corner, max_corner)
+
+        NDIMS = ndims(initial_condition)
+        nhs = GridNeighborhoodSearch{NDIMS}(; cell_list, update_strategy=ParallelUpdate())
+
+        nhs_boundary = copy_neighborhood_search(nhs,
+                                                compact_support(fluid_system, fluid_system),
+                                                nparticles(initial_condition))
+        cache = (; nhs_boundary=nhs_boundary)
+    else
+        cache = (;)
+    end
 
     prescribed_pressure = isnothing(reference_pressure) ? false : true
     prescribed_velocity = isnothing(reference_velocity) ? false : true
     prescribed_density = isnothing(reference_density) ? false : true
 
     if boundary_model isa BoundaryModelTafuni
-        return (; prescribed_pressure=prescribed_pressure,
+        return (; cache..., prescribed_pressure=prescribed_pressure,
                 prescribed_density=prescribed_density,
                 prescribed_velocity=prescribed_velocity)
     end
@@ -187,7 +207,7 @@ function create_cache_open_boundary(boundary_model, initial_condition,
     characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
-    return (; characteristics=characteristics,
+    return (; cache..., characteristics=characteristics,
             previous_characteristics=previous_characteristics,
             prescribed_pressure=prescribed_pressure,
             prescribed_density=prescribed_density, prescribed_velocity=prescribed_velocity)
@@ -245,6 +265,10 @@ function smoothing_length(system::OpenBoundarySPHSystem, particle)
     return system.smoothing_length
 end
 
+function system_smoothing_kernel(system::OpenBoundarySPHSystem)
+    return system.fluid_system.smoothing_kernel
+end
+
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
 
 @inline function current_density(v, system::OpenBoundarySPHSystem)
@@ -266,9 +290,11 @@ end
 
 # This function is called by the `UpdateCallback`, as the integrator array might be modified
 function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode,
-                                        semi, t)
+                                        semi, dt, t)
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
+
+    particle_shifting!(u, v, system, system.boundary_zone.shift_zone, semi, dt)
 
     # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
@@ -284,7 +310,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     return system
 end
 
-update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
+update_open_boundary_eachstep!(system, v_ode, u_ode, semi, dt, t) = system
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
     (; boundary_zone, boundary_candidates, fluid_candidates) = system
@@ -529,4 +555,94 @@ end
 
 function available_data(::OpenBoundarySPHSystem)
     return (:coordinates, :velocity, :density, :pressure)
+end
+
+# This is a slightly adapted version of the method used in `ParticleShiftingCallback`.
+# "Slightly adapted" here means we restrict iteration to particles located within the shift zone.
+function particle_shifting!(u, v, system::OpenBoundarySPHSystem, shift_zone, semi, dt)
+    (; delta_r, spanning_set_shift_zone, shift_zone_origin,
+     boundary_coordinates) = shift_zone
+    (; nhs_boundary) = system.cache
+
+    set_zero!(delta_r)
+
+    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # but is GPU-compatible.
+    v_max = maximum(x -> sqrt(dot(x, x)),
+                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                                current_velocity(v, system)))
+
+    # We assume that an open boundary system does not support multi-resolution.
+    Wdx = smoothing_kernel(system.fluid_system, particle_spacing(system, 1), 1)
+    h = smoothing_length(system, 1)
+
+    shift_candidates = findall(x -> is_in_oriented_bbox(spanning_set_shift_zone,
+                                                        x - shift_zone_origin),
+                               reinterpret(reshape, SVector{ndims(system), eltype(u)},
+                                           active_coordinates(u, system)))
+
+    # Use the fluid-open boundary neighborhood search.
+    # We can do this because we require the neighborhood search to support querying neighbors
+    # of arbitrary positions (see `PointNeighbors.requires_update`).
+    neighborhood_search = get_neighborhood_search(system.fluid_system, system, semi)
+
+    system_coords = current_coordinates(u, system)
+
+    PointNeighbors.foreach_point_neighbor(system_coords, system_coords,
+                                          neighborhood_search;
+                                          parallelization_backend=semi.parallelization_backend,
+                                          points=shift_candidates) do particle,
+                                                                      neighbor,
+                                                                      pos_diff,
+                                                                      distance
+        apply_shifting!(delta_r, system, system, v, v, particle, neighbor,
+                        pos_diff, distance, v_max, Wdx, h, dt)
+    end
+
+    PointNeighbors.update!(nhs_boundary, system_coords, boundary_coordinates;
+                           points_moving=(true, false),
+                           parallelization_backend=semi.parallelization_backend)
+
+    PointNeighbors.foreach_point_neighbor(system_coords, boundary_coordinates,
+                                          nhs_boundary;
+                                          parallelization_backend=semi.parallelization_backend,
+                                          points=shift_candidates) do particle,
+                                                                      neighbor,
+                                                                      pos_diff,
+                                                                      distance
+        # Calculate the hydrodynamic mass and density
+        m_b = hydrodynamic_mass(system, particle)
+        rho_a = current_density(v, system, particle)
+        rho_b = rho_a
+
+        kernel = smoothing_kernel(system, distance, particle)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+        # According to p. 29 below Eq. 9
+        R = 2 // 10
+        n = 4
+
+        # Eq. 7 in Sun et al. (2017).
+        # CFL * Ma can be rewritten as Δt * v_max / h (see p. 29, right above Eq. 9).
+        delta_r_ = -dt * v_max * 4 * h * (1 + R * (kernel / Wdx)^n) *
+                   m_b / (rho_a + rho_b) * grad_kernel
+
+        # Write into the buffer
+        for i in eachindex(delta_r_)
+            @inbounds delta_r[i, particle] += delta_r_[i]
+        end
+    end
+
+    # Add δ_r from the buffer to the current coordinates
+    @threaded semi for particle in shift_candidates
+        for i in axes(delta_r, 1)
+            @inbounds u[i, particle] += delta_r[i, particle]
+        end
+    end
+
+    return u
+end
+
+function particle_shifting!(u, v, system::OpenBoundarySPHSystem, ::Nothing, semi, dt)
+    return u
 end
