@@ -225,8 +225,9 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 end
 
 function predict_advection(system, v, u, v_ode, u_ode, semi, t)
-    (; density, predicted_density, d_ii, a_ii, advection_velocity, pressure,
+    (; density, predicted_density, a_ii, advection_velocity, pressure,
      time_step) = system
+     d_ii_array = system.d_ii
     sound_speed = system_sound_speed(system) # TODO
 
     # Compute density by kernel summation
@@ -235,7 +236,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     # Initialize arrays
     v_particle_system = wrap_v(v_ode, system, semi)
     predicted_density .= density
-    set_zero!(d_ii)
+    set_zero!(d_ii_array)
     set_zero!(a_ii)
     @threaded semi for particle in each_moving_particle(system)
         # Initialize the advection velocity with the current velocity plus the system acceleration
@@ -280,7 +281,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
             end
             # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
             for i in 1:ndims(system)
-                d_ii[i,
+                d_ii_array[i,
                      particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
                                                  grad_kernel[i],
                                                  time_step)
@@ -317,7 +318,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
             d_ji_ = -time_step^2 * hydrodynamic_mass(system, particle) /
                     system.density[particle]^2 * (-grad_kernel)
 
-            d_ii_ = dii(system, particle)
+            d_ii_ = d_ii(system, particle)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
             # According to eq. 12 in Ihmsen et al. (2013)
@@ -370,8 +371,9 @@ end
 
 function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, time_step)
     # Get necessary fields
-    (; reference_density, sum_d_ij_pj, sum_term, pressure, predicted_density, d_ii, a_ii,
+    (; reference_density, sum_d_ij_pj, sum_term, pressure, predicted_density, a_ii,
      omega) = system
+    #d_ii_array = system.d_ii
 
     set_zero!(sum_d_ij_pj)
 
@@ -385,8 +387,8 @@ function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, tim
                                                                    distance
         # Calculate the sum d_ij * p_j over all neighbors j for each particle i (Ihmsen et al. 2013, eq. 13)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-        p_b = pressure[particle]
-        d_ab = calculate_d_ij(system, particle, grad_kernel, time_step)
+        p_b = pressure[neighbor]
+        d_ab = calculate_d_ij(system, neighbor, grad_kernel, time_step)
         sum_dij_pj_ = d_ab * p_b
 
         for i in 1:ndims(system)
@@ -448,11 +450,11 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@propagate_inbounds function dii(system::ImplicitIncompressibleSPHSystem, particle)
+@propagate_inbounds function d_ii(system::ImplicitIncompressibleSPHSystem, particle)
     return extract_svector(system.d_ii, system, particle)
 end
 
-@propagate_inbounds function dii(system::BoundarySystem, particle)
+@propagate_inbounds function d_ii(system::BoundarySystem, particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
@@ -515,7 +517,7 @@ function calculate_sum_term(system, neighbor_system::ImplicitIncompressibleSPHSy
                             particle, neighbor, pressure, grad_kernel, time_step)
     m_j = hydrodynamic_mass(neighbor_system, neighbor)
     sum_dik_pk = sum_dij_pj(system, particle)
-    d_jj = dii(neighbor_system, neighbor)
+    d_jj = d_ii(neighbor_system, neighbor)
     p_i = pressure[particle]
     p_j = pressure[neighbor]
     sum_djk_pk = sum_dij_pj(neighbor_system, neighbor)
