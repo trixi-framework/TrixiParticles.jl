@@ -66,8 +66,11 @@ solid_geometry = union(plate, fixed_particles)
 # ============================================================================
 # Smoothing Kernel, Boundary, and Related Quantities
 # ============================================================================
-# smoothing_kernel = WendlandC2Kernel{2}()
-smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
+smoothing_kernel = WendlandC2Kernel{2}()
+if n_particles_plate_y >= 5
+    # For higher resolutions quintic outperforms the Wendland kernel but is unstable for the resolution run in CI
+    smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
+end
 smoothing_length_solid = sqrt(2) * solid_particle_spacing
 
 # Note: Setting this to something else than the solid particle spacing results in a larger error
@@ -110,7 +113,8 @@ for method in ["edac", "wcsph"]
         fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel,
                                                    smoothing_length_fluid, sound_speed,
                                                    acceleration=(0.0, -gravity),
-                                                   correction=ShepardKernelCorrection())
+                                                   correction=ShepardKernelCorrection(),
+                                                   source_terms = SourceTermDamping(; damping_coefficient=0.5))
     else
         fluid_density_calculator = SummationDensity()
         density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
@@ -119,7 +123,8 @@ for method in ["edac", "wcsph"]
                                                    smoothing_length_fluid,
                                                    density_diffusion=density_diffusion,
                                                    acceleration=(0.0, -gravity),
-                                                   correction=ShepardKernelCorrection())
+                                                   correction=ShepardKernelCorrection(),
+                                                   source_terms = SourceTermDamping(; damping_coefficient=0.5))
     end
 
     boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
@@ -140,11 +145,12 @@ for method in ["edac", "wcsph"]
                                             acceleration=(0.0, -gravity))
 
 
+    # semi = Semidiscretization(solid_system, fluid_system, boundary_system)
 
     min_corner = [-1; -1]
     max_corner = [3; 3]
     cell_list = FullGridCellList(; min_corner, max_corner)
-    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
+    neighborhood_search = GridNeighborhoodSearch{2}(update_strategy=SerialUpdate(); cell_list)
     semi = Semidiscretization(solid_system, fluid_system, boundary_system, neighborhood_search=neighborhood_search, parallelization_backend=PolyesterBackend())
     ode = semidiscretize(semi, tspan)
 
@@ -154,7 +160,7 @@ for method in ["edac", "wcsph"]
     info_callback = InfoCallback(interval=1000)
     saving_callback = SolutionSavingCallback(dt=0.5, prefix="")
     callbacks = CallbackSet(info_callback, saving_callback, pp)
-    sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
+    sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, abstol=1e-7, save_everystep=false, callback=callbacks)
 
     # Load the run JSON file and add the analytical solution as a single point.
     run_filename = joinpath("out", pp_filename * ".json")
