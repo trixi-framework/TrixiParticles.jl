@@ -33,6 +33,9 @@ mkdir -p "$TRIXI_SUBMIT_OUTPUT_DIR"
 declare -a _threads_arr
 declare -a _cmds_arr
 
+# use prefix to extract meaningful part for job names
+trixi_prefix='trixi_include(@__MODULE__, joinpath(validation_dir(),'
+
 while IFS=$'\t' read -r tag cmd; do
   [[ -z "$cmd" || "${cmd:0:1}" == "#" ]] && continue
 
@@ -43,8 +46,15 @@ while IFS=$'\t' read -r tag cmd; do
     threads="$tag"
   fi
 
+    # extract substring after prefix for naming
+  if [[ "$cmd" == *"$trixi_prefix"* ]]; then
+    body="${cmd#*${trixi_prefix}}"
+  else
+    body="$cmd"
+  fi
+
   # sanitize job name
-  name=$(echo "$cmd" \
+  name=$(echo "$body" \
     | sed -e 's/[^[:alnum:]]\+/_/g' -e 's/^_//' -e 's/_$//')
 
   # properly escape double quotes in the Julia command for --eval
