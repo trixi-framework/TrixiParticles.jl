@@ -114,7 +114,7 @@ for method in ["edac", "wcsph"]
                                                    smoothing_length_fluid, sound_speed,
                                                    acceleration=(0.0, -gravity),
                                                    correction=ShepardKernelCorrection(),
-                                                   source_terms = SourceTermDamping(; damping_coefficient=0.5))
+                                                   source_terms = SourceTermDamping(; damping_coefficient=0.05))
     else
         fluid_density_calculator = SummationDensity()
         density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
@@ -124,7 +124,7 @@ for method in ["edac", "wcsph"]
                                                    density_diffusion=density_diffusion,
                                                    acceleration=(0.0, -gravity),
                                                    correction=ShepardKernelCorrection(),
-                                                   source_terms = SourceTermDamping(; damping_coefficient=0.5))
+                                                   source_terms = SourceTermDamping(; damping_coefficient=0.05))
     end
 
     boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
@@ -158,9 +158,9 @@ for method in ["edac", "wcsph"]
     pp = PostprocessCallback(; dt=0.0025, filename=pp_filename, y_deflection,
                              kinetic_energy)
     info_callback = InfoCallback(interval=1000)
-    saving_callback = SolutionSavingCallback(dt=0.5, prefix="")
+    saving_callback = SolutionSavingCallback(dt=0.5, prefix=pp_filename)
     callbacks = CallbackSet(info_callback, saving_callback, pp)
-    sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, abstol=1e-7, save_everystep=false, callback=callbacks)
+    sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, abstol=1e-7, maxiters=1e6, save_everystep=false, callback=callbacks)
 
     # Load the run JSON file and add the analytical solution as a single point.
     run_filename = joinpath("out", pp_filename * ".json")
