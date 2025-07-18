@@ -30,9 +30,9 @@ end
 #                    by=extract_number_from_filename)
 
 edac_files = sort(glob("validation_result_hyd_edac*.json", "out/"),
-                   by=extract_number_from_filename)
+                  by=extract_number_from_filename)
 wcsph_files = sort(glob("validation_result_hyd_wcsph*.json", "out/"),
-                    by=extract_number_from_filename)
+                   by=extract_number_from_filename)
 
 all_y = Float64[]
 for file in vcat(edac_files, wcsph_files)
