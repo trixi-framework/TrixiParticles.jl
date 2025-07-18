@@ -67,10 +67,6 @@ solid_geometry = union(plate, fixed_particles)
 # Smoothing Kernel, Boundary, and Related Quantities
 # ============================================================================
 smoothing_kernel = WendlandC2Kernel{2}()
-if n_particles_plate_y >= 5
-    # For higher resolutions quintic outperforms the Wendland kernel but is unstable for the resolution run in CI
-    smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
-end
 smoothing_length_solid = sqrt(2) * solid_particle_spacing
 
 # Note: Setting this to something else than the solid particle spacing results in a larger error
