@@ -22,7 +22,6 @@ TRIXI_SUBMIT_OUTPUT_DIR="${TRIXI_SUBMIT_OUTPUT_DIR:-~/slurm_output}"
 TRIXI_SUBMIT_SBATCH_TIME="${TRIXI_SUBMIT_SBATCH_TIME:-23:00:00}"
 TRIXI_SUBMIT_SBATCH_PARTITION="${TRIXI_SUBMIT_SBATCH_PARTITION:-pNode}"
 # ─── END USER CONFIG ───────────────────────────────────────────────────────────
-
 # regenerate commands; python emits "1" or "X"
 env TRIXI_SUBMIT_THREADS="$TRIXI_SUBMIT_THREADS" \
     python3 "$TRIXI_SUBMIT_PY_GENERATOR" \
@@ -46,11 +45,10 @@ while IFS=$'\t' read -r tag cmd; do
 
   # sanitize job name
   name=$(echo "$cmd" \
-    | sed -e 's/[^[:alnum:]]\+/_/g' \
-          -e 's/^_//' -e 's/_$//')
+    | sed -e 's/[^[:alnum:]]\+/_/g' -e 's/^_//' -e 's/_$//')
 
-  # escape double quotes inside the Julia command
-  escaped_cmd=${cmd//"/\\"}
+  # properly escape double quotes in the Julia command for --eval
+  escaped_cmd="${cmd//\"/\\\"}"
 
   if [[ "$TEST_MODE" -eq 1 ]]; then
     _threads_arr+=("$threads")
@@ -70,7 +68,7 @@ set -euo pipefail
 
 mkdir -p "$TRIXI_SUBMIT_WORKDIR/$name"
 cd "$TRIXI_SUBMIT_WORKDIR/$name"
-echo "Running command: $cmd"
+echo "Running command: $escaped_cmd"
 
 srun julia --project="$TRIXI_SUBMIT_PROJECT_PATH" \
            -t "$threads" \
@@ -83,14 +81,14 @@ done < "$TRIXI_SUBMIT_COMMANDS_FILE"
 if [[ "$TEST_MODE" -eq 1 ]]; then
   cat <<EOF
 Configuration settings:
-  TRIXI_SUBMIT_PROJECT_PATH = $TRIXI_SUBMIT_PROJECT_PATH
-  TRIXI_SUBMIT_JULIA_SRC     = $TRIXI_SUBMIT_JULIA_SRC
-  TRIXI_SUBMIT_COMMANDS_FILE = $TRIXI_SUBMIT_COMMANDS_FILE
-  TRIXI_SUBMIT_WORKDIR       = $TRIXI_SUBMIT_WORKDIR
-  TRIXI_SUBMIT_MPI_TASKS     = $TRIXI_SUBMIT_MPI_TASKS
-  TRIXI_SUBMIT_THREADS       = $TRIXI_SUBMIT_THREADS
-  TRIXI_SUBMIT_OUTPUT_DIR    = $TRIXI_SUBMIT_OUTPUT_DIR
-  TRIXI_SUBMIT_SBATCH_TIME   = $TRIXI_SUBMIT_SBATCH_TIME
+  TRIXI_SUBMIT_PROJECT_PATH  = $TRIXI_SUBMIT_PROJECT_PATH
+  TRIXI_SUBMIT_JULIA_SRC      = $TRIXI_SUBMIT_JULIA_SRC
+  TRIXI_SUBMIT_COMMANDS_FILE  = $TRIXI_SUBMIT_COMMANDS_FILE
+  TRIXI_SUBMIT_WORKDIR        = $TRIXI_SUBMIT_WORKDIR
+  TRIXI_SUBMIT_MPI_TASKS      = $TRIXI_SUBMIT_MPI_TASKS
+  TRIXI_SUBMIT_THREADS        = $TRIXI_SUBMIT_THREADS
+  TRIXI_SUBMIT_OUTPUT_DIR     = $TRIXI_SUBMIT_OUTPUT_DIR
+  TRIXI_SUBMIT_SBATCH_TIME    = $TRIXI_SUBMIT_SBATCH_TIME
   TRIXI_SUBMIT_SBATCH_PARTITION = $TRIXI_SUBMIT_SBATCH_PARTITION
 EOF
   echo
