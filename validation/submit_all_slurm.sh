@@ -1,4 +1,3 @@
-```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -17,18 +16,25 @@ TRIXI_SUBMIT_SBATCH_TIME="${TRIXI_SUBMIT_SBATCH_TIME:-23:00:00}"
 TRIXI_SUBMIT_SBATCH_PARTITION="${TRIXI_SUBMIT_SBATCH_PARTITION:-pNode}"
 # ─── END USER CONFIG ───────────────────────────────────────────────────────────
 
-# regenerate the list of trixi_include(...) commands with thread counts
-python3 "$TRIXI_SUBMIT_PY_GENERATOR" \
+# regenerate commands; python script emits "1" or "X"
+env TRIXI_SUBMIT_THREADS="$TRIXI_SUBMIT_THREADS" \
+    python3 "$TRIXI_SUBMIT_PY_GENERATOR" \
     "$TRIXI_SUBMIT_JULIA_SRC" \
     "$TRIXI_SUBMIT_COMMANDS_FILE"
 
 mkdir -p "$TRIXI_SUBMIT_OUTPUT_DIR"
 
-while IFS=$'\t' read -r threads cmd; do
-  # skip blank lines or comments
+while IFS=$'\t' read -r tag cmd; do
   [[ -z "$cmd" || "${cmd:0:1}" == "#" ]] && continue
 
-  # make a safe job name from the command
+  # decide threads: tag=="X"? use default, else use numeric
+  if [[ "$tag" == "X" ]]; then
+    threads="$TRIXI_SUBMIT_THREADS"
+  else
+    threads="$tag"
+  fi
+
+  # safe job name
   name=$(echo "$cmd" \
     | sed -e 's/[^[:alnum:]]\+/_/g' \
           -e 's/^_//' -e 's/_$//')
@@ -45,15 +51,12 @@ while IFS=$'\t' read -r threads cmd; do
 #!/usr/bin/env bash
 set -euo pipefail
 
-# create and switch into a per‐job working directory
 mkdir -p "$TRIXI_SUBMIT_WORKDIR/$name"
 cd "$TRIXI_SUBMIT_WORKDIR/$name"
 
-# run the MPI‑Julia job with the assigned thread count
 srun julia --project="$TRIXI_SUBMIT_PROJECT_PATH" \
            -t "$threads" \
            --eval "using TrixiParticles; $cmd"
 EOF
 
 done < "$TRIXI_SUBMIT_COMMANDS_FILE"
-```
