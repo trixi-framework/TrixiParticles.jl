@@ -11,3 +11,6 @@
 
 ## Fluid-Structure Interaction
 - [Setting up a falling structure](tutorials/tut_falling.md)
+
+## Preprocessing
+- [Particle packing](tutorials/tut_packing.md)
