@@ -16,7 +16,7 @@ using JSON
 # Experiment Parameters
 # ============================================================================
 # The paper uses 5 to 40 (3 for short runtime in CI)
-n_particles_plate_y = 3
+n_particles_plate_y = 5
 boundary_layers = 3
 spacing_ratio = 1
 gravity = 9.81
@@ -66,7 +66,7 @@ solid_geometry = union(plate, fixed_particles)
 # ============================================================================
 # Smoothing Kernel, Boundary, and Related Quantities
 # ============================================================================
-smoothing_kernel = WendlandC2Kernel{2}()
+ smoothing_kernel = WendlandC2Kernel{2}()
 smoothing_length_solid = sqrt(2) * solid_particle_spacing
 
 # Note: Setting this to something else than the solid particle spacing results in a larger error
@@ -112,15 +112,14 @@ for method in ["edac", "wcsph"]
                                                    correction=ShepardKernelCorrection(),
                                                    source_terms = SourceTermDamping(; damping_coefficient=0.05))
     else
-        fluid_density_calculator = SummationDensity()
+        fluid_density_calculator = ContinuityDensity()
         density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
         fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                                    local_state_equation, smoothing_kernel,
                                                    smoothing_length_fluid,
                                                    density_diffusion=density_diffusion,
                                                    acceleration=(0.0, -gravity),
-                                                   correction=ShepardKernelCorrection(),
-                                                   source_terms = SourceTermDamping(; damping_coefficient=0.05))
+                                                   correction=ShepardKernelCorrection())
     end
 
     boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
