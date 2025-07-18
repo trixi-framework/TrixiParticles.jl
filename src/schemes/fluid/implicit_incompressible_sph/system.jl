@@ -373,7 +373,6 @@ function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, tim
     # Get necessary fields
     (; reference_density, sum_d_ij_pj, sum_term, pressure, predicted_density, a_ii,
      omega) = system
-    #d_ii_array = system.d_ii
 
     set_zero!(sum_d_ij_pj)
 
