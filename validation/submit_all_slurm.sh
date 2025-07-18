@@ -71,6 +71,7 @@ set -euo pipefail
 
 mkdir -p "$TRIXI_SUBMIT_WORKDIR/$name"
 cd "$TRIXI_SUBMIT_WORKDIR/$name"
+echo "Running command: $cmd"
 
 srun julia --project="$TRIXI_SUBMIT_PROJECT_PATH" \
            -t "$threads" \
