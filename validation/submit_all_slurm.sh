@@ -29,18 +29,15 @@ env TRIXI_SUBMIT_THREADS="$TRIXI_SUBMIT_THREADS" \
     "$TRIXI_SUBMIT_JULIA_SRC" \
     "$TRIXI_SUBMIT_COMMANDS_FILE"
 
-# prepare output directory
 mkdir -p "$TRIXI_SUBMIT_OUTPUT_DIR"
 
-# arrays to capture commands in test mode
 declare -a _threads_arr
 declare -a _cmds_arr
 
-# read and either test or submit
 while IFS=$'\t' read -r tag cmd; do
   [[ -z "$cmd" || "${cmd:0:1}" == "#" ]] && continue
 
-  # determine thread count
+  # determine threads
   if [[ "$tag" == "X" ]]; then
     threads="$TRIXI_SUBMIT_THREADS"
   else
@@ -49,14 +46,16 @@ while IFS=$'\t' read -r tag cmd; do
 
   # sanitize job name
   name=$(echo "$cmd" \
-    | sed -e 's/[^[:alnum:]]\+/_/g' -e 's/^_//' -e 's/_$//')
+    | sed -e 's/[^[:alnum:]]\+/_/g' \
+          -e 's/^_//' -e 's/_$//')
+
+  # escape double quotes inside the Julia command
+  escaped_cmd=${cmd//"/\\"}
 
   if [[ "$TEST_MODE" -eq 1 ]]; then
-    # capture for later display
     _threads_arr+=("$threads")
     _cmds_arr+=("$cmd")
   else
-    # actual submission
     sbatch \
       --job-name="$name" \
       --output="${TRIXI_SUBMIT_OUTPUT_DIR}/${name}.out" \
@@ -75,25 +74,24 @@ echo "Running command: $cmd"
 
 srun julia --project="$TRIXI_SUBMIT_PROJECT_PATH" \
            -t "$threads" \
-           --eval "using TrixiParticles; $cmd"
+           --eval "using TrixiParticles; $escaped_cmd"
 EOF
   fi
 
 done < "$TRIXI_SUBMIT_COMMANDS_FILE"
 
-# if in test mode, print config and commands table
 if [[ "$TEST_MODE" -eq 1 ]]; then
-  echo "Configuration settings:"
   cat <<EOF
-TRIXI_SUBMIT_PROJECT_PATH = $TRIXI_SUBMIT_PROJECT_PATH
-TRIXI_SUBMIT_JULIA_SRC     = $TRIXI_SUBMIT_JULIA_SRC
-TRIXI_SUBMIT_COMMANDS_FILE = $TRIXI_SUBMIT_COMMANDS_FILE
-TRIXI_SUBMIT_WORKDIR       = $TRIXI_SUBMIT_WORKDIR
-TRIXI_SUBMIT_MPI_TASKS     = $TRIXI_SUBMIT_MPI_TASKS
-TRIXI_SUBMIT_THREADS       = $TRIXI_SUBMIT_THREADS
-TRIXI_SUBMIT_OUTPUT_DIR    = $TRIXI_SUBMIT_OUTPUT_DIR
-TRIXI_SUBMIT_SBATCH_TIME   = $TRIXI_SUBMIT_SBATCH_TIME
-TRIXI_SUBMIT_SBATCH_PARTITION = $TRIXI_SUBMIT_SBATCH_PARTITION
+Configuration settings:
+  TRIXI_SUBMIT_PROJECT_PATH = $TRIXI_SUBMIT_PROJECT_PATH
+  TRIXI_SUBMIT_JULIA_SRC     = $TRIXI_SUBMIT_JULIA_SRC
+  TRIXI_SUBMIT_COMMANDS_FILE = $TRIXI_SUBMIT_COMMANDS_FILE
+  TRIXI_SUBMIT_WORKDIR       = $TRIXI_SUBMIT_WORKDIR
+  TRIXI_SUBMIT_MPI_TASKS     = $TRIXI_SUBMIT_MPI_TASKS
+  TRIXI_SUBMIT_THREADS       = $TRIXI_SUBMIT_THREADS
+  TRIXI_SUBMIT_OUTPUT_DIR    = $TRIXI_SUBMIT_OUTPUT_DIR
+  TRIXI_SUBMIT_SBATCH_TIME   = $TRIXI_SUBMIT_SBATCH_TIME
+  TRIXI_SUBMIT_SBATCH_PARTITION = $TRIXI_SUBMIT_SBATCH_PARTITION
 EOF
   echo
   echo "Planned jobs (CPUS_PER_TASK | Command):"
