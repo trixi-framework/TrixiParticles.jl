@@ -80,7 +80,7 @@ mkdir -p "$TRIXI_SUBMIT_WORKDIR/$name"
 cd "$TRIXI_SUBMIT_WORKDIR/$name"
 echo "Running command: $escaped_cmd"
 
-srun julia --project="$TRIXI_SUBMIT_PROJECT_PATH" \
+julia --project="$TRIXI_SUBMIT_PROJECT_PATH" \
            -t "$threads" \
            --eval "using TrixiParticles; $escaped_cmd"
 EOF
