@@ -16,7 +16,7 @@ using JSON
 # Experiment Parameters
 # ============================================================================
 # The paper uses 5 to 40 (3 for short runtime in CI)
-n_particles_plate_y = 5
+n_particles_plate_y = 3
 boundary_layers = 3
 spacing_ratio = 1
 gravity = 9.81

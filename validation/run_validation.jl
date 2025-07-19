@@ -8,21 +8,24 @@ using TrixiParticles
 trixi_include(@__MODULE__,
               joinpath(validation_dir(),
                        "hydrostatic_water_column_2d",
-                       "validation.jl"), tspan=(0.0, 0.3))
+                       "validation.jl"), tspan=(0.0, 0.3),
+              n_particles_plate_y=3)
 
 # TRIXIP: SEQUENTIAL
-# TIME ESTIMATE: 80m
+# TIME ESTIMATE: 800m
 trixi_include(@__MODULE__,
               joinpath(validation_dir(),
                        "hydrostatic_water_column_2d",
                        "validation.jl"), tspan=(0.0, 0.5),
               n_particles_plate_y=5)
+
 # TIME ESTIMATE: 7200m
 trixi_include(@__MODULE__,
               joinpath(validation_dir(),
                        "hydrostatic_water_column_2d",
                        "validation.jl"), tspan=(0.0, 0.5),
               n_particles_plate_y=11)
+
 # TIME ESTIMATE: 10400m
 trixi_include(@__MODULE__,
               joinpath(validation_dir(),
