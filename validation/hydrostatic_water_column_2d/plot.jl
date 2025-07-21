@@ -40,7 +40,8 @@ for file in vcat(edac_files, wcsph_files)
     json_data = JSON.parsefile(file)
     time_vals = json_data["y_deflection_solid_1"]["time"]
     inds = findall(t -> t <= 0.5, time_vals)
-    global global_ymin, global_ymax = extrema(json_data["y_deflection_solid_1"]["values"][inds])
+    global global_ymin,
+           global_ymax = extrema(json_data["y_deflection_solid_1"]["values"][inds])
     # The analytical solution is constant
     global_ymin = min(global_ymin, json_data["analytical_solution"]["values"][1])
     global_ymax = max(global_ymax, json_data["analytical_solution"]["values"][1])
@@ -179,14 +180,17 @@ end
 # 7. Simulation Legend (Row 2)
 # ----------------------------------------------------------------------------
 legend_scene_dummy = Scene()
-analytical_ref = lines!(legend_scene_dummy, [0.0, 1.0], [0.0, 1.0]; color=:black, linestyle=:dash,
+analytical_ref = lines!(legend_scene_dummy, [0.0, 1.0], [0.0, 1.0]; color=:black,
+                        linestyle=:dash,
                         linewidth=4)
 avg_ref = lines!(legend_scene_dummy, [0.0, 1.0], [0.0, 1.0]; color=:black, linestyle=:dot,
                  linewidth=4)
-sim_refs = [lines!(legend_scene_dummy, [0.0, 1.0], [0.0, 1.0]; color=sim_color_map[resolution],
+sim_refs = [lines!(legend_scene_dummy, [0.0, 1.0], [0.0, 1.0];
+                   color=sim_color_map[resolution],
                    linestyle=:solid, linewidth=2) for resolution in unique_resolution]
 sim_group_entries = [[analytical_ref], sim_refs, [avg_ref]]
-sim_group_labels = [["Analytical"], ["Simulation (t/dp=$(resolution))" for resolution in unique_resolution],
+sim_group_labels = [["Analytical"],
+    ["Simulation (t/dp=$(resolution))" for resolution in unique_resolution],
     ["Sim avg (0.25≤t≤0.5)"]]
 sim_group_titles = ["Line Style", "Color", "Mean Style"]
 sim_leg = Legend(fig, sim_group_entries, sim_group_labels, sim_group_titles;
