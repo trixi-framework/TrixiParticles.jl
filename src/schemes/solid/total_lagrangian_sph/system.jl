@@ -227,7 +227,8 @@ end
 @inline function deformation_gradient(system::TotalLagrangianSPHSystem, particle)
     extract_smatrix(system.deformation_grad, system, particle)
 end
-@inline function pk1_corrected(system::TotalLagrangianSPHSystem, particle)
+
+@inline function pk1_corrected(system, particle)
     extract_smatrix(system.pk1_corrected, system, particle)
 end
 
