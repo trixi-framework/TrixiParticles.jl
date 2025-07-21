@@ -1,9 +1,9 @@
 include("../validation_util.jl")
 using CairoMakie
+using CairoMakie.Colors
 using JSON
 using Glob
 using TrixiParticles
-using Colors
 
 # ----------------------------------------------------------------------------
 # 1. Color Adjustment Functions
@@ -34,31 +34,31 @@ wcsph_files = sort(glob("validation_reference_wcsph*.json", case_dir),
 # wcsph_files = sort(glob("validation_result_hyd_wcsph*.json", "out/"),
 #                    by=extract_number_from_filename)
 
-all_y = Float64[]
+global_ymin = -Inf
+global_ymax = Inf
 for file in vcat(edac_files, wcsph_files)
-    println("Processing file: ", file)
     json_data = JSON.parsefile(file)
     time_vals = json_data["y_deflection_solid_1"]["time"]
     inds = findall(t -> t <= 0.5, time_vals)
-    append!(all_y, json_data["y_deflection_solid_1"]["values"][inds])
-    # For analytical solution (a constant), push its single value.
-    push!(all_y, json_data["analytical_solution"]["values"][1])
+    global global_ymin, global_ymax = extrema(json_data["y_deflection_solid_1"]["values"][inds])
+    # The analytical solution is constant
+    global_ymin = min(global_ymin, json_data["analytical_solution"]["values"][1])
+    global_ymax = max(global_ymax, json_data["analytical_solution"]["values"][1])
 end
-global_ymin = minimum(all_y)
-global_ymax = maximum(all_y)
 
 # ----------------------------------------------------------------------------
 # 3. Map Resolution Labels to Colors
 # ----------------------------------------------------------------------------
-res_labels = map(file -> extract_resolution_from_filename(file), edac_files)
-unique_res = sort(unique(res_labels))
-cmap = cgrad(:tab10, length(unique_res))
+resolution_labels = map(file -> extract_resolution_from_filename(file), edac_files)
+unique_resolution = sort(unique(resolution_labels))
+cmap = cgrad(:tab10, length(unique_resolution))
 sim_color_map = Dict{String, RGB}()
 avg_color_map = Dict{String, RGB}()
-for (i, res) in enumerate(unique_res)
+for (i, resolution) in enumerate(unique_resolution)
     base_color = cmap[i]
-    sim_color_map[res] = lighten(base_color, 0.15)
-    avg_color_map[res] = darken(base_color, 0.15)
+    sim_color_map[resolution] = lighten(base_color, 0.15)
+    # Make the average markers slightly darker than the simulation plots
+    avg_color_map[resolution] = darken(base_color, 0.15)
 end
 
 # ----------------------------------------------------------------------------
@@ -78,17 +78,18 @@ function compute_errors(json_file)
     res_str = extract_resolution_from_filename(json_file)
     res_val = try
         parse(Float64, res_str)
-    catch missing
+    catch
+        missing
     end
     return res_val, abs_err, rel_err
 end
 
-edac_res = Float64[];
+edac_resolution = Float64[];
 edac_abs_err = Float64[];
 edac_rel_err = Float64[];
 for file in edac_files
     res_val, abs_err, rel_err = compute_errors(file)
-    push!(edac_res, res_val !== missing ? res_val : length(edac_res) + 1.0)
+    push!(edac_resolution, res_val !== missing ? res_val : length(edac_resolution) + 1.0)
     push!(edac_abs_err, abs_err)
     push!(edac_rel_err, rel_err)
 end
@@ -103,9 +104,9 @@ for file in wcsph_files
     push!(wcsph_rel_err, rel_err)
 end
 
-edac_sorted = sort(collect(zip(edac_res, edac_abs_err, edac_rel_err)),
+edac_sorted = sort(collect(zip(edac_resolution, edac_abs_err, edac_rel_err)),
                    lt=(a, b) -> a[1] < b[1])
-edac_res_sorted = [x for (x, _, _) in edac_sorted]
+edac_resolution_sorted = [x for (x, _, _) in edac_sorted]
 edac_abs_err_sorted = [y for (_, y, _) in edac_sorted]
 edac_rel_err_sorted = [z for (_, _, z) in edac_sorted]
 
@@ -116,7 +117,7 @@ wcsph_abs_err_sorted = [y for (_, y, _) in wcsph_sorted]
 wcsph_rel_err_sorted = [z for (_, _, z) in wcsph_sorted]
 
 # For error plots, rescale resolution (example: nondimensionalize by 0.05)
-edac_res_sorted = 0.05 ./ edac_res_sorted
+edac_resolution_sorted = 0.05 ./ edac_resolution_sorted
 wcsph_res_sorted = 0.05 ./ wcsph_res_sorted
 
 # ----------------------------------------------------------------------------
@@ -140,26 +141,26 @@ function plot_dataset!(ax, json_file)
     time_vals = json_data["y_deflection_solid_1"]["time"]
     sim_vals = json_data["y_deflection_solid_1"]["values"]
     # Analytical solution is constant.
-    anal_val = json_data["analytical_solution"]["values"][1]
+    analytic_val = json_data["analytical_solution"]["values"][1]
 
     inds_plot = findall(t -> t <= 0.5, time_vals)
     time_plot = time_vals[inds_plot]
     sim_plot = sim_vals[inds_plot]
-    anal_plot = fill(anal_val, length(time_plot))
+    analytic_plot = fill(analytic_val, length(time_plot))
 
-    res = extract_resolution_from_filename(json_file)
-    sim_col = sim_color_map[res]
+    resolution = extract_resolution_from_filename(json_file)
+    sim_col = sim_color_map[resolution]
 
     inds_avg = findall(t -> 0.25 <= t <= 0.5, time_vals)
     avg_sim = sum(sim_vals[inds_avg]) / length(sim_vals[inds_avg])
 
     lines!(ax, time_plot, sim_plot; color=sim_col, linestyle=:solid, linewidth=2)
-    lines!(ax, time_plot, anal_plot; color=:black, linestyle=:solid, linewidth=4)
+    lines!(ax, time_plot, analytic_plot; color=:black, linestyle=:dash, linewidth=3)
     lines!(ax, [time_plot[1], time_plot[end]], [avg_sim, avg_sim];
-           color=darken(sim_col, 0.2), linestyle=:dot, linewidth=4)
+           color=darken(sim_col, 0.2), linestyle=(:dot, :loose), linewidth=4)
 end
 
-# Plot simulation datasets.
+# Plot simulation datasets
 for file in edac_files
     plot_dataset!(ax_edac, file)
 end
@@ -177,15 +178,15 @@ end
 # ----------------------------------------------------------------------------
 # 7. Simulation Legend (Row 2)
 # ----------------------------------------------------------------------------
-sim_dummy = Scene()
-analytical_ref = lines!(sim_dummy, [0.0, 1.0], [0.0, 1.0]; color=:black, linestyle=:solid,
+legend_scene_dummy = Scene()
+analytical_ref = lines!(legend_scene_dummy, [0.0, 1.0], [0.0, 1.0]; color=:black, linestyle=:dash,
                         linewidth=4)
-avg_ref = lines!(sim_dummy, [0.0, 1.0], [0.0, 1.0]; color=:black, linestyle=:dot,
+avg_ref = lines!(legend_scene_dummy, [0.0, 1.0], [0.0, 1.0]; color=:black, linestyle=:dot,
                  linewidth=4)
-sim_refs = [lines!(sim_dummy, [0.0, 1.0], [0.0, 1.0]; color=sim_color_map[res],
-                   linestyle=:solid, linewidth=2) for res in unique_res]
+sim_refs = [lines!(legend_scene_dummy, [0.0, 1.0], [0.0, 1.0]; color=sim_color_map[resolution],
+                   linestyle=:solid, linewidth=2) for resolution in unique_resolution]
 sim_group_entries = [[analytical_ref], sim_refs, [avg_ref]]
-sim_group_labels = [["Analytical"], ["Simulation (t/dp=$(res))" for res in unique_res],
+sim_group_labels = [["Analytical"], ["Simulation (t/dp=$(resolution))" for resolution in unique_resolution],
     ["Sim avg (0.25≤t≤0.5)"]]
 sim_group_titles = ["Line Style", "Color", "Mean Style"]
 sim_leg = Legend(fig, sim_group_entries, sim_group_labels, sim_group_titles;
@@ -208,22 +209,22 @@ ax_rel = Axis(fig[3, 2], title="Relative Error", xlabel="Resolution",
 # https://doi.org/10.1016/j.jfluidstructs.2021.103312
 ############################################################################################
 reference_res = [0.0025, 0.005, 0.01]
-reference_error = [8E-7, 6E-6, 1E-5]
+reference_error = [8e-7, 6e-6, 1e-5]
 scatter!(ax_abs, reference_res, reference_error; marker=:diamond, markersize=10,
          color=:black)
 lines!(ax_abs, reference_res, reference_error; color=:black, linestyle=:solid, linewidth=2)
 
-# Plot EDAC errors (blue, circle).
-scatter!(ax_abs, edac_res_sorted, edac_abs_err_sorted; marker=:circle, markersize=10,
+# Plot EDAC errors (blue, circle)
+scatter!(ax_abs, edac_resolution_sorted, edac_abs_err_sorted; marker=:circle, markersize=10,
          color=:blue)
-lines!(ax_abs, edac_res_sorted, edac_abs_err_sorted; color=:blue, linestyle=:solid,
+lines!(ax_abs, edac_resolution_sorted, edac_abs_err_sorted; color=:blue, linestyle=:solid,
        linewidth=2)
-scatter!(ax_rel, edac_res_sorted, edac_rel_err_sorted; marker=:circle, markersize=10,
+scatter!(ax_rel, edac_resolution_sorted, edac_rel_err_sorted; marker=:circle, markersize=10,
          color=:blue)
-lines!(ax_rel, edac_res_sorted, edac_rel_err_sorted; color=:blue, linestyle=:solid,
+lines!(ax_rel, edac_resolution_sorted, edac_rel_err_sorted; color=:blue, linestyle=:solid,
        linewidth=2)
 
-# Plot WCSPH errors (red, xcross).
+# Plot WCSPH errors (red, xcross)
 scatter!(ax_abs, wcsph_res_sorted, wcsph_abs_err_sorted; marker=:xcross, markersize=10,
          color=:red)
 lines!(ax_abs, wcsph_res_sorted, wcsph_abs_err_sorted; color=:red, linestyle=:solid,
@@ -251,5 +252,5 @@ fig[4, 1:2] = err_leg
 # ----------------------------------------------------------------------------
 # 10. Display & Save Figure
 # ----------------------------------------------------------------------------
-fig
 save("hydrostatic_water_column_validation.svg", fig)
+fig

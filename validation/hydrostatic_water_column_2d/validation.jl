@@ -162,7 +162,7 @@ for method in ["edac", "wcsph"]
     sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, abstol=1e-7, maxiters=1e6,
                 save_everystep=false, callback=callbacks)
 
-    # Load the run JSON file and add the analytical solution as a single point.
+    # Load the run JSON file and add the analytical solution as a single point
     run_filename = joinpath("out", pp_filename * ".json")
     run_data = nothing
     open(run_filename, "r") do io
@@ -181,7 +181,7 @@ for method in ["edac", "wcsph"]
         JSON.print(io, run_data, 2)
     end
 
-    # Compute errors using data from t ∈ [0.25, 0.5] for the sensor starting with "y_deflection".
+    # Compute errors using data from t ∈ [0.25, 0.5] for the sensor starting with "y_deflection"
     sensor_key = first(filter(k -> startswith(k, "y_deflection"), keys(run_data)))
     time_vals = run_data[sensor_key]["time"]
     sim_vals = run_data[sensor_key]["values"]
