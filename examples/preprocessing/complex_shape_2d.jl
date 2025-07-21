@@ -1,3 +1,16 @@
+# ==========================================================================================
+# 2D Complex Shape Sampling and Winding Number Visualization
+#
+# This example demonstrates how to:
+# 1. Load a 2D geometry from an ASCII file (e.g., a curve).
+# 2. Sample particles within this complex geometry using the `ComplexShape` functionality.
+# 3. Utilize the Winding Number algorithm to determine if points are inside or outside.
+# 4. Visualize the sampled particles and the winding number field.
+#
+# The example uses an "inverted_open_curve" geometry, where standard inside/outside
+# definitions might be ambiguous without a robust point-in-polygon test like winding numbers.
+# ==========================================================================================
+
 using TrixiParticles
 using Plots
 
