@@ -1,8 +1,9 @@
-#
+# ==========================================================================================
 # An n-body benchmark from "The Computer Language Benchmarks Game" translated to TrixiParticles.
 # This example does not benefit from using multiple threads.
 # Multithreading is disabled below.
-#
+# ==========================================================================================
+
 using TrixiParticles
 using Printf
 using Polyester
