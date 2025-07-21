@@ -47,8 +47,6 @@ decourcy_P2 = CSV.read(joinpath(case_dir, "decourcy_pressure_sensor_P2.csv"), Da
 decourcy_P3 = CSV.read(joinpath(case_dir, "decourcy_pressure_sensor_P3.csv"), DataFrame)
 decourcy_P4 = CSV.read(joinpath(case_dir, "decourcy_pressure_sensor_P4.csv"), DataFrame)
 
-sim_sensor = CSV.read(joinpath(case_dir, "sim_pressure_sensor.csv"), DataFrame)
-
 function plot_sensor_results(axs, files)
     for ax in axs
         ax.xlabel = "t(g / H)^0.5"
@@ -132,7 +130,7 @@ end
 
 # Plot for Pressure Sensor P1
 # plot_experiment(axs_edac[1], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[1], sim_sensor.time, sim_sensor.P1,
+plot_simulation(axs_edac[1], decourcy_P1.time, decourcy_P1.P1,
                 "De Courcy 2024 (sim)")
 # plot_experiment(axs_wcsph[1], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
 plot_simulation(axs_wcsph[1], decourcy_P1.time, decourcy_P1.P1,
@@ -141,7 +139,7 @@ plot_simulation(axs_wcsph[1], decourcy_P1.time, decourcy_P1.P1,
 
 # Plot for Pressure Sensor P2
 # plot_experiment(axs_edac[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[2], sim_sensor.time, sim_sensor.P2,
+plot_simulation(axs_edac[2], decourcy_P2.time, decourcy_P2.P2,
                 "De Courcy 2024 (sim)")
 # plot_experiment(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
 plot_simulation(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2,
@@ -149,7 +147,7 @@ plot_simulation(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2,
 
 # Plot for Pressure Sensor P3
 # plot_experiment(axs_edac[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[3], sim_sensor.time, sim_sensor.P3,
+plot_simulation(axs_edac[3], decourcy_P3.time, decourcy_P3.P3,
                 "De Courcy 2024 (sim)")
 # plot_experiment(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
 plot_simulation(axs_wcsph[3], decourcy_P3.time, decourcy_P3.P3,
@@ -157,7 +155,7 @@ plot_simulation(axs_wcsph[3], decourcy_P3.time, decourcy_P3.P3,
 
 # Plot for Pressure Sensor P4
 # plot_experiment(axs_edac[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[4], sim_sensor.time, sim_sensor.P4,
+plot_simulation(axs_edac[4], decourcy_P4.time, decourcy_P4.P4,
                 "De Courcy 2024 (sim)")
 # plot_experiment(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
 plot_simulation(axs_wcsph[4], decourcy_P4.time, decourcy_P4.P4,

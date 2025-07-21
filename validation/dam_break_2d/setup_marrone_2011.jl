@@ -6,7 +6,7 @@
 # https://doi.org/10.1016/J.CMA.2010.12.016
 
 using TrixiParticles
-using JSON
+using TrixiParticles.JSON
 
 include("sensors.jl")
 
