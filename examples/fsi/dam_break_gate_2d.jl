@@ -1,12 +1,20 @@
-# 2D dam break flow against an elastic plate based on
+# ==========================================================================================
+# 2D Dam Break Flow Against an Elastic Gate with Opening Motion
 #
-# P.N. Sun, D. Le Touzé, A.-M. Zhang.
-# "Study of a complex fluid-structure dam-breaking benchmark problem using a multi-phase SPH method with APR".
-# In: Engineering Analysis with Boundary Elements 104 (2019), pages 240-258.
-# https://doi.org/10.1016/j.enganabound.2019.03.033
+# Based on:
+#   P.N. Sun, D. Le Touzé, A.-M. Zhang.
+#   "Study of a complex fluid-structure dam-breaking benchmark problem using a multi-phase SPH method with APR".
+#   Engineering Analysis with Boundary Elements, 104 (2019), pp. 240-258.
+#   https://doi.org/10.1016/j.enganabound.2019.03.033
 #
-# Use a higher resolution and see the comments below regarding plate thickness
-# to reproduce the results from the paper.
+# This example simulates a 2D dam break where the water column collapses and flows
+# through a vertically moving gate towards a flexible elastic plate (beam) positioned
+# behind the gate.
+#
+# Note: To accurately reproduce results from the reference paper, a significantly
+# higher fluid resolution and a plate thickness closer to the paper's value (0.004m)
+# are required. This example uses a coarser resolution and thicker plate for tractability.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq

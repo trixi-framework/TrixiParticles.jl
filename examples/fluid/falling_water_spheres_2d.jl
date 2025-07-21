@@ -1,5 +1,11 @@
-# In this example two circles of water drop to the floor demonstrating the difference
-# between the behavior with and without surface tension modelling.
+# ==========================================================================================
+# 2D Falling Water Spheres Simulation (With and Without Surface Tension)
+#
+# This example simulates two circular water "spheres" falling under gravity.
+# One sphere includes a surface tension model (Akinci et al.), while the other does not.
+# This demonstrates the effect of surface tension on fluid behavior.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
