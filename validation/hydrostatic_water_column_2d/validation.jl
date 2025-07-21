@@ -13,6 +13,7 @@ using OrdinaryDiffEq
 using JSON
 
 n_particles_plate_y = 3
+tspan=(0.0, 0.3)
 
 # ============================================================================
 # Sensor Function (for Postprocessing)
@@ -42,6 +43,7 @@ for method in ["edac", "wcsph"]
               tspan=(0.0, 0.3),
               update_strategy=SerialUpdate(),
               dt=0.5,
+              tspan=tspan,
               prefix=pp_filename,
               extra_callback=pp,
               sol=nothing)
