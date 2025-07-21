@@ -170,3 +170,15 @@ end
 @inline @fastpow function ideal_neighbor_count(::Val{3}, particle_spacing, compact_support)
     return floor(Int, 4 // 3 * pi * compact_support^3 / particle_spacing^3)
 end
+
+@inline function correction_matrix(system, particle)
+    extract_smatrix(system.correction_matrix, system, particle)
+end
+
+@inline function deformation_gradient(system, particle)
+    extract_smatrix(system.deformation_grad, system, particle)
+end
+
+@inline function pk1_corrected(system, particle)
+    extract_smatrix(system.pk1_corrected, system, particle)
+end
