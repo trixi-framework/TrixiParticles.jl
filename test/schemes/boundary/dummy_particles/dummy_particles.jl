@@ -95,7 +95,8 @@
 
         for boundary_system in boundary_systems
             system_name = boundary_system |> typeof |> nameof
-            density_calculator = boundary_system.boundary_model.density_calculator |> typeof |> nameof
+            density_calculator = boundary_system.boundary_model.density_calculator |>
+                                 typeof |> nameof
             @testset "$system_name with $density_calculator" begin
                 boundary_model = boundary_system.boundary_model
 
@@ -165,7 +166,8 @@
                                                                     fluid_system,
                                                                     boundary.coordinates,
                                                                     fluid.coordinates,
-                                                                    v_boundary, v_fluid, semi)
+                                                                    v_boundary, v_fluid,
+                                                                    semi)
 
                     # Compute wall velocities
                     for particle in TrixiParticles.eachparticle(boundary_system)
