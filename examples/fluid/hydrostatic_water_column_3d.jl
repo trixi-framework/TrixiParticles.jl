@@ -1,3 +1,10 @@
+# ==========================================================================================
+# 3D Hydrostatic Water Column Simulation
+#
+# This example sets up a 3D hydrostatic water column by including and modifying
+# the 2D `hydrostatic_water_column_2d.jl` setup.
+# ==========================================================================================
+
 using TrixiParticles
 
 trixi_include(@__MODULE__,
