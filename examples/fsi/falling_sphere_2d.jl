@@ -1,3 +1,9 @@
+# ==========================================================================================
+# 2D Single Falling Sphere in Fluid (FSI)
+#
+# This example simulates a single elastic sphere falling into a fluid in a tank.
+# ==========================================================================================
+
 using TrixiParticles
 
 trixi_include(@__MODULE__,

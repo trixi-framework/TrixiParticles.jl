@@ -1,4 +1,9 @@
-# 2D dam break simulation with an air layer on top
+# ==========================================================================================
+# 2D Two-Phase Dam Break Simulation (Water and Air)
+#
+# This example simulates a 2D dam break with an air layer above the water.
+# It demonstrates how to set up a multi-fluid simulation in TrixiParticles.jl.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -37,7 +42,7 @@ water_viscosity = ViscosityMorris(nu=nu_sim_water)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
-              viscosity=water_viscosity, smoothing_length=smoothing_length,
+              viscosity_fluid=water_viscosity, smoothing_length=smoothing_length,
               gravity=gravity, tspan=tspan, density_diffusion=nothing,
               sound_speed=sound_speed, exponent=7,
               tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing,

@@ -1,8 +1,3 @@
-using TrixiParticles
-using OrdinaryDiffEq
-
-gravity = -9.81
-
 # ==========================================================================================
 # ==== Falling Rocks Simulation Setup
 #
@@ -10,6 +5,11 @@ gravity = -9.81
 # The tank is generated using a helper function (RectangularTank) which creates
 # a "fluid" region (containing the rock particles) and a "boundary" region (representing walls).
 # ==========================================================================================
+
+using TrixiParticles
+using OrdinaryDiffEq
+
+gravity = -9.81
 
 particle_spacing = 0.1
 

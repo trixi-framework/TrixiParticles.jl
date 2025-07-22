@@ -27,7 +27,7 @@ function create_cache_density(ic, ::ContinuityDensity)
 end
 
 function create_cache_refinement(initial_condition, ::Nothing, smoothing_length)
-    smoothing_length_factor = initial_condition.particle_spacing / smoothing_length
+    smoothing_length_factor = smoothing_length / initial_condition.particle_spacing
     return (; smoothing_length, smoothing_length_factor)
 end
 

@@ -1,3 +1,17 @@
+# ==========================================================================================
+# 2D Particle Packing within a Complex Geometry
+#
+# This example demonstrates how to:
+# 1. Load a 2D geometry (e.g., a circle defined by a boundary curve).
+# 2. Generate an initial, potentially overlapping, distribution of "fluid" particles
+#    inside the geometry and "boundary" particles forming a layer around it.
+# 3. Use the `ParticlePackingSystem` to run a pseudo-SPH simulation that relaxes
+#    the particle positions, achieving a more uniform and non-overlapping distribution.
+# 4. Visualize the initial and packed particle configurations.
+#
+# This is a common preprocessing step to create stable initial conditions for SPH simulations.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq, Plots
 

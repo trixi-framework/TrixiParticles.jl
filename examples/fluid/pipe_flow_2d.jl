@@ -1,4 +1,11 @@
-# 2D channel flow simulation with open boundaries.
+# ==========================================================================================
+# 2D Pipe Flow Simulation with Open Boundaries (Inflow/Outflow)
+#
+# This example simulates fluid flow through a 2D pipe (channel) with an inflow
+# boundary condition on one end and an outflow boundary condition on the other.
+# Solid walls form the top and bottom of the pipe.
+# The simulation demonstrates the use of open boundary conditions in TrixiParticles.jl.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -152,10 +159,12 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+particle_shifting = ParticleShiftingCallback()
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
+                        particle_shifting, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)

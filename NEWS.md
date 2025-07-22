@@ -8,9 +8,37 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
-- With all CPU backends, a new array type is used for the integration array, which defines
-  broadcasting to be multithreaded, leading to speedups of up to 5x with large thread counts
-  when combined with thread pinning (#722).
+- **Simplified SGS Viscosity Models**: Added ViscosityMorrisSGS and ViscosityAdamiSGS, 
+  which implement a simplified Smagorinsky-type sub-grid-scale viscosity. (#753)
+
+- **Multithreaded Integration Array**: Introduced a new array type for CPU backends 
+  that enables multithreaded broadcasting, delivering speed-ups of up to 5× on systems
+  with many threads when combined with thread pinning. (#722)
+
+- **Tensile Instability Control (TIC)**: Implemented TIC to mitigate tensile
+  instability artifacts in simulations. (#769)
+
+- **DXF file format support**: Import complex geometries using the DXF file format. (#821)
+
+- **Improved Plane interpolation**: Massively improved interpolation performance for planes (#763).
+  
+### GPU
+
+ - Make PST GPU-compatible (#813).
+   
+ - Make open boundaries GPU-compatible (#773).
+  
+ - Make interpolation GPU-compatible (#812).
+
+### Important Bugfixes
+ 
+ - Fix validation setups (#801).
+
+ - Calculate interpolated density instead of computed density when using interpolation (#808).
+
+ - Fix allocations with Julia 1.10 (#809).
+
+ - Fix Tafuni extrapolation for open boundaries (#829).
 
 ## Version 0.3
 

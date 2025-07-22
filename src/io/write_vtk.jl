@@ -56,8 +56,11 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
-    @trixi_timeit timer() "update systems" update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                                  update_from_callback=true)
+    @trixi_timeit timer() "update systems" begin
+        # Don't create sub-timers here to avoid cluttering the timer output
+        @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
+                                                 update_from_callback=true)
+    end
 
     filenames = system_names(systems)
 
@@ -269,7 +272,8 @@ end
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
-    vtk["density"] = current_density(v, system)
+    vtk["density"] = [current_density(v, system, particle)
+                      for particle in active_particles(system)]
     # Indexing the pressure is a workaround for slicing issue (see https://github.com/JuliaSIMD/StrideArrays.jl/issues/88)
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in active_particles(system)]
@@ -357,7 +361,9 @@ end
 
 write2vtk!(vtk, viscosity::Nothing) = vtk
 
-function write2vtk!(vtk, viscosity::Union{ViscosityAdami, ViscosityMorris})
+function write2vtk!(vtk,
+                    viscosity::Union{ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
+                                     ViscosityMorrisSGS})
     vtk["viscosity_nu"] = viscosity.nu
     vtk["viscosity_epsilon"] = viscosity.epsilon
 end
@@ -371,12 +377,16 @@ end
 function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_data=true)
     n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
-    vtk["velocity"] = hcat(view(v, 1:ndims(system), :),
-                           zeros(ndims(system), n_fixed_particles))
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in active_particles(system)]
     vtk["jacobian"] = [det(deformation_gradient(system, particle))
                        for particle in eachparticle(system)]
 
     vtk["von_mises_stress"] = von_mises_stress(system)
+
+    vtk["displacement"] = [current_coords(system, particle) -
+                           initial_coords(system, particle)
+                           for particle in eachparticle(system)]
 
     sigma = cauchy_stress(system)
     vtk["sigma_11"] = sigma[1, 1, :]
@@ -401,8 +411,10 @@ end
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
-    vtk["density"] = current_density(v, system)
-    vtk["pressure"] = current_pressure(v, system)
+    vtk["density"] = [current_density(v, system, particle)
+                      for particle in active_particles(system)]
+    vtk["pressure"] = [current_pressure(v, system, particle)
+                       for particle in active_particles(system)]
 
     if write_meta_data
         vtk["boundary_zone"] = type2string(first(typeof(system.boundary_zone).parameters))
