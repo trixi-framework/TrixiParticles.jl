@@ -237,10 +237,8 @@ end
 function average_velocity!(v, u, system, ::BoundaryModelLastiwka, ::BoundaryZone{InFlow},
                            semi)
     avg_velocity = sum(each_moving_particle(system)) do particle
-        return current_velocity(v, system, particle)
+        return current_velocity(v, system, particle) / system.buffer.active_particle_count[]
     end
-
-    avg_velocity /= system.buffer.active_particle_count[]
 
     @threaded semi for particle in each_moving_particle(system)
         # Set the velocity of the ghost node to the average velocity of the fluid domain
