@@ -238,6 +238,7 @@
         TrixiParticles.initialize_neighborhood_searches!(semi)
 
         v_open_boundary = zero(inflow.initial_condition.velocity)
+        u_open_boundary = inflow.initial_condition.coordinates
         v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
         TrixiParticles.set_zero!(open_boundary_in.pressure)
@@ -246,6 +247,9 @@
                                            v_open_boundary, v_fluid,
                                            inflow.initial_condition.coordinates,
                                            domain_fluid.coordinates, semi, 0.0)
+
+        TrixiParticles.average_velocity!(v_open_boundary, u_open_boundary, open_boundary_in,
+                                         inflow, semi)
 
         # Since the velocity profile increases linearly in positive x-direction,
         # we can use the first velocity entry as a representative value.

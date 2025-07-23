@@ -3,7 +3,7 @@
 
 Boundary model for [`OpenBoundarySPHSystem`](@ref).
 This model uses the characteristic variables to propagate the appropriate values
-to the outlet or inlet and have been proposed by Lastiwka et al. (2009).
+to the outlet or inlet and was proposed by Lastiwka et al. (2009).
 It requires a specific flow direction to be passed to the [`BoundaryZone`](@ref).
 For more information about the method see [description below](@ref method_of_characteristics).
 
@@ -77,7 +77,7 @@ end
 
     if boundary_zone.average_inflow_velocity
         # Even if the velocity is prescribed, this boundary model computes the velocity for each particle individually.
-        # Thus, turbulent flows near the inflow can lead to non-uniform buffer particles distribution,
+        # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
         # resulting in a potential numerical instability. Averaging mitigates these effects.
         average_velocity!(v, u, system, boundary_model, boundary_zone, semi)
     end

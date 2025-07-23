@@ -68,7 +68,8 @@ end
 
 function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni,
                                      v, u, v_ode, u_ode, semi, t)
-    (; reference_pressure, reference_density, reference_velocity, cache) = system
+    (; reference_pressure, reference_density, reference_velocity, boundary_zone,
+     cache) = system
     (; prescribed_pressure, prescribed_density, prescribed_velocity) = cache
 
     @trixi_timeit timer() "extrapolate and correct values" begin
@@ -82,9 +83,16 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
                             prescribed_density, prescribed_velocity)
     end
 
+    if !(prescribed_velocity) && boundary_zone.average_inflow_velocity
+        # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
+        # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
+        # resulting in a potential numerical instability. Averaging mitigates these effects.
+        average_velocity!(v, u, system, boundary_zone, semi)
+    end
+
     if prescribed_pressure
         @threaded semi for particle in each_moving_particle(system)
-            particle_coords = current_coords(u_open_boundary, system, particle)
+            particle_coords = current_coords(u, system, particle)
 
             pressure[particle] = reference_value(reference_pressure, pressure[particle],
                                                  particle_coords, t)
@@ -93,7 +101,7 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
 
     if prescribed_density
         @threaded semi for particle in each_moving_particle(system)
-            particle_coords = current_coords(u_open_boundary, system, particle)
+            particle_coords = current_coords(u, system, particle)
 
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)
@@ -102,8 +110,8 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
 
     if prescribed_velocity
         @threaded semi for particle in each_moving_particle(system)
-            particle_coords = current_coords(u_open_boundary, system, particle)
-            v_particle = current_velocity(v_open_boundary, system, particle)
+            particle_coords = current_coords(u, system, particle)
+            v_particle = current_velocity(v, system, particle)
 
             v_ref = reference_value(reference_velocity, v_particle, particle_coords, t)
 
@@ -228,6 +236,8 @@ function extrapolate_values!(system,
 
             # pressure
             if !(prescribed_pressure)
+                # Only the first entry is used, as the subsequent entries represent gradient
+                # components that are not required for zeroth-order interpolation
                 interpolated_pressure = first(interpolated_pressure_correction[])
                 zeroth_order_scalar_interpolation!(pressure, particle, shepard_coefficient,
                                                    interpolated_pressure)
@@ -235,6 +245,8 @@ function extrapolate_values!(system,
 
             # density
             if !(prescribed_density)
+                # Only the first entry is used, as the subsequent entries represent gradient
+                # components that are not required for zeroth-order interpolation
                 interpolated_density = first(interpolated_density_correction[])
                 zeroth_order_scalar_interpolation!(density, particle, shepard_coefficient,
                                                    interpolated_density)
@@ -242,6 +254,8 @@ function extrapolate_values!(system,
 
             # velocity
             if !(prescribed_velocity)
+                # Only the first column is used, as the subsequent entries represent gradient
+                # components that are not required for zeroth-order interpolation
                 interpolated_velocity = interpolated_velocity_correction[][:, 1]
                 zeroth_order_velocity_interpolation!(v_open_boundary, system, particle,
                                                      shepard_coefficient,
@@ -255,13 +269,6 @@ function extrapolate_values!(system,
                                                   boundary_zone)
             end
         end
-    end
-
-    if !(prescribed_velocity) && boundary_zone.average_inflow_velocity
-        # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
-        # Thus, turbulent flows near the inflow can lead to non-uniform buffer particles distribution,
-        # resulting in a potential numerical instability. Averaging mitigates these effects.
-        average_velocity!(v_open_boundary, u_open_boundary, system, boundary_zone, semi)
     end
 
     return system
@@ -350,13 +357,6 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
                                                   boundary_zone)
             end
         end
-    end
-
-    if !(prescribed_velocity) && boundary_zone.average_inflow_velocity
-        # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
-        # Thus, turbulent flows near the inflow can lead to non-uniform buffer particles distribution,
-        # resulting in a potential numerical instability. Averaging mitigates these effects.
-        average_velocity!(v_open_boundary, u_open_boundary, system, boundary_zone, semi)
     end
 
     return system
