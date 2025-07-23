@@ -147,7 +147,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                           n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
-             create_cache_tvf(Val(:wcsph), initial_condition, transport_velocity)...,
+             create_cache_tvf_wcsph(initial_condition, transport_velocity)...,
              color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -221,12 +221,13 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
     end
 end
 
-create_cache_tvf(::Val{:wcsph}, initial_condition, ::Nothing) = (;)
+create_cache_tvf_wcsph(initial_condition, ::Nothing) = (;)
 
-function create_cache_tvf(::Val{:wcsph}, initial_condition, ::TransportVelocityAdami)
+function create_cache_tvf_wcsph(initial_condition, ::TransportVelocityAdami)
+    delta_v = zeros(eltype(initial_condition), ndims(initial_condition), nparticles(initial_condition))
     update_callback_used = Ref(false)
 
-    return (; update_callback_used)
+    return (; delta_v, update_callback_used)
 end
 
 @inline function Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
@@ -237,12 +238,12 @@ end
     return v_nvariables(system, system.density_calculator)
 end
 
-@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, density_calculator)
-    return ndims(system) * factor_tvf(system)
+@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, ::SummationDensity)
+    return ndims(system)
 end
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
-    return ndims(system) * factor_tvf(system) + 1
+    return ndims(system) + 1
 end
 
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
@@ -286,6 +287,8 @@ end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
 
+@inline transport_velocity(system::WeaklyCompressibleSPHSystem) = system.transport_velocity
+
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system
@@ -321,10 +324,15 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
+end
 
-    # Check that TVF is only used together with `UpdateCallback`
-    check_tvf_configuration(system, system.transport_velocity, v, u, v_ode, u_ode, semi, t;
-                            update_from_callback)
+function update_final2!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
+                        update_from_callback=false)
+    if !update_from_callback
+        update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
+    end
+
+    return system
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,

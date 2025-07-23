@@ -70,10 +70,11 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                grad_kernel)
 
         # Add convection term (only when using `TransportVelocityAdami`)
-        dv_convection = momentum_convection(particle_system, neighbor_system,
-                                            v_particle_system, v_neighbor_system,
-                                            rho_a, rho_b, m_a, m_b,
-                                            particle, neighbor, grad_kernel)
+        dv_convection = dv_transport_velocity(transport_velocity(particle_system),
+                                              particle_system, neighbor_system,
+                                              v_particle_system, v_neighbor_system,
+                                              rho_a, rho_b, m_a, m_b,
+                                              particle, neighbor, grad_kernel)
 
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,
@@ -92,10 +93,6 @@ function interact!(dv, v_particle_system, u_particle_system,
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
-
-        # Apply the transport velocity (only when using a transport velocity)
-        transport_velocity!(dv, particle_system, neighbor_system, particle, neighbor,
-                            m_a, m_b, grad_kernel)
 
         # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         # Propagate `@inbounds` to the continuity equation, which accesses particle data

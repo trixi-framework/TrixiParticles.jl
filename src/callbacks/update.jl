@@ -89,10 +89,6 @@ function (update_callback!::UpdateCallback)(integrator)
         update_particle_packing(system, v_ode, u_ode, semi, integrator)
     end
 
-    @trixi_timeit timer() "update TVF" foreach_system(semi) do system
-        update_transport_velocity!(system, v_ode, semi)
-    end
-
     # Tell OrdinaryDiffEq that `u` has been modified
     u_modified!(integrator, true)
 
