@@ -193,7 +193,6 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
     end
 end
 
-
 # 2D
 function compute_normals(boundary, fluid, face_indices)
     (; coordinates) = boundary
@@ -242,7 +241,7 @@ function compute_normals(boundary, fluid, face_indices)
     y_pos_boundary = minimum(coordinates[2, face_indices[4]]) - offset
     z_neg_boundary = maximum(coordinates[3, face_indices[5]]) + offset
     z_pos_boundary = minimum(coordinates[3, face_indices[6]]) - offset
-    
+
     #### +x boundary
     for idx in face_indices[1]
         normals[1, idx] = abs(coordinates[1, idx] - x_neg_boundary)
@@ -278,28 +277,25 @@ function compute_normals(boundary, fluid, face_indices)
     return normals
 end
 
-
 function plot_coords(fluid::Matrix{T}, boundary::Matrix{T}, normals=nothing) where {T}
-
     if size(fluid)[1] == 2
         x_f, y_f = eachrow(fluid)
         x_b, y_b = eachrow(boundary)
 
-        plot(x_f, y_f, seriestype = :scatter, color = :red, label = "Fluid")
-        scatter!(x_b, y_b, color = :blue, label = "Boundary")
+        plot(x_f, y_f, seriestype=:scatter, color=:red, label="Fluid")
+        scatter!(x_b, y_b, color=:blue, label="Boundary")
 
         if normals !== nothing
             u, v = eachrow(normals)
             quiver!(x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
         end
 
-
     elseif size(fluid)[1] == 3
-        x_f, y_f, z_f = Tuple(eachrow(fluid))
+        x_f, y_f, z_f = eachrow(fluid)
         x_b, y_b, z_b = eachrow(boundary)
 
-        plot(x_f, y_f, z_f, seriestype = :scatter, color = :red, label = "Fluid")
-        scatter!(x_b, y_b, z_b, color = :blue, label = "Boundary")
+        plot(x_f, y_f, z_f, seriestype=:scatter, color=:red, label="Fluid")
+        scatter!(x_b, y_b, z_b, color=:blue, label="Boundary")
     end
 end
 
@@ -876,5 +872,3 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
 
     return rectangular_tank
 end
-
-
