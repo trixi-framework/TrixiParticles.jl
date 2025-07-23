@@ -100,7 +100,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                              boundary_density=fluid_density,
                              n_layers=1, spacing_ratio=1,
                              min_coordinates=zeros(length(fluid_size)),
-                             faces=Tuple(trues(2 * length(fluid_size))))
+                             faces=Tuple(trues(2 * length(fluid_size))),
+                             normal=false)
         NDIMS = length(fluid_size)
         ELTYPE = eltype(particle_spacing)
         fluid_size_ = Tuple(ELTYPE.(fluid_size))
@@ -184,6 +185,116 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                              faces, face_indices,
                                              particle_spacing, spacing_ratio, n_layers,
                                              n_particles_per_dim)
+    end
+end
+
+
+# 2D
+function compute_normals(boundary, fluid, face_indices)
+    (; coordinates) = boundary
+    normals = zeros(size(coordinates))
+    offset = (boundary.particle_spacing + fluid.particle_spacing) / 2
+
+    left_boundary = maximum(coordinates[1, face_indices[1]]) + offset
+    right_boundary = minimum(coordinates[1, face_indices[2]]) - offset
+    bottom_boundary = maximum(coordinates[2, face_indices[3]]) + offset
+    top_boundary = minimum(coordinates[2, face_indices[4]]) - offset
+
+    #### Left boundary
+    for idx in face_indices[1]
+        normals[1, idx] = abs(coordinates[1, idx] - left_boundary)
+    end
+
+    #### Right boundary
+    for idx in face_indices[2]
+        normals[1, idx] = -abs(coordinates[1, idx] - right_boundary)
+    end
+
+    #### Bottomg boundary
+    for idx in face_indices[3]
+        normals[2, idx] = abs(coordinates[2, idx] - bottom_boundary)
+    end
+
+    #### Top boundary
+    for idx in face_indices[4]
+        normals[2, idx] = -abs(coordinates[2, idx] - top_boundary)
+    end
+
+    # TODO: edges
+
+    return normals
+end
+
+# 3D
+function compute_normals(boundary, fluid, face_indices)
+    (; coordinates) = boundary
+    normals = zeros(size(coordinates))
+    offset = (boundary.particle_spacing + fluid.particle_spacing) / 2
+
+    x_neg_boundary = maximum(coordinates[1, face_indices[1]]) + offset
+    x_pos_boundary = minimum(coordinates[1, face_indices[2]]) - offset
+    y_neg_boundary = maximum(coordinates[2, face_indices[3]]) + offset
+    y_pos_boundary = minimum(coordinates[2, face_indices[4]]) - offset
+    z_neg_boundary = maximum(coordinates[3, face_indices[5]]) + offset
+    z_pos_boundary = minimum(coordinates[3, face_indices[6]]) - offset
+    
+    #### +x boundary
+    for idx in face_indices[1]
+        normals[1, idx] = abs(coordinates[1, idx] - x_neg_boundary)
+    end
+
+    #### -x boundary
+    for idx in face_indices[2]
+        normals[1, idx] = -abs(coordinates[1, idx] - x_pos_boundary)
+    end
+
+    #### +y boundary
+    for idx in face_indices[3]
+        normals[2, idx] = abs(coordinates[2, idx] - y_neg_boundary)
+    end
+
+    #### -y boundary
+    for idx in face_indices[4]
+        normals[2, idx] = -abs(coordinates[2, idx] - y_pos_boundary)
+    end
+
+    #### +z boundary
+    for idx in face_indices[5]
+        normals[3, idx] = abs(coordinates[3, idx] - z_neg_boundary)
+    end
+
+    #### -z boundary
+    for idx in face_indices[6]
+        normals[3, idx] = -abs(coordinates[3, idx] - z_pos_boundary)
+    end
+
+    # TODO: edges
+
+    return normals
+end
+
+
+function plot_coords(fluid::Matrix{T}, boundary::Matrix{T}, normals=nothing) where {T}
+
+    if size(fluid)[1] == 2
+        x_f, y_f = eachrow(fluid)
+        x_b, y_b = eachrow(boundary)
+
+        plot(x_f, y_f, seriestype = :scatter, color = :red, label = "Fluid")
+        scatter!(x_b, y_b, color = :blue, label = "Boundary")
+
+        if normals !== nothing
+            u, v = eachrow(normals)
+            quiver!(x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
+        end
+
+
+    elseif size(fluid)[1] == 3
+        x_f, y_f, z_f = Tuple(eachrow(fluid))
+        x_b, y_b, z_b = eachrow(boundary)
+
+        plot(x_f, y_f, z_f, seriestype = :scatter, color = :red, label = "Fluid")
+        scatter!(x_b, y_b, z_b, color = :blue, label = "Boundary")
     end
 end
 
@@ -760,3 +871,5 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
 
     return rectangular_tank
 end
+
+
