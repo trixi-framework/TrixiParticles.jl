@@ -319,7 +319,9 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
-                                                             open_boundary_model=BoundaryModelTafuni(),
+                                                             open_boundary_model=BoundaryModelTafuni(;
+                                                                                                     mirror_method=FirstOrderMirroring(;
+                                                                                                                                       firstorder_tolerance=0.001f0)),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
                                                              reference_density_in=nothing,
@@ -340,7 +342,9 @@ end
                                                                       "pipe_flow_2d.jl"),
                                                              wcsph=true, sound_speed=20.0f0,
                                                              pressure=0.0f0,
-                                                             open_boundary_model=BoundaryModelTafuni(),
+                                                             open_boundary_model=BoundaryModelTafuni(;
+                                                                                                     mirror_method=FirstOrderMirroring(;
+                                                                                                                                       firstorder_tolerance=0.001f0)),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
                                                              reference_density_in=nothing,

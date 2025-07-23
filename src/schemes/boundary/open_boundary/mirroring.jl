@@ -10,7 +10,7 @@ to retrieve first order kernel and particle consistency.
 """
 struct FirstOrderMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
-    function FirstOrderMirroring(; firstorder_tolerance::Real=1/1000)
+    function FirstOrderMirroring(; firstorder_tolerance::Real=1e-3)
         return new{typeof(firstorder_tolerance)}(firstorder_tolerance)
     end
 end
@@ -27,7 +27,7 @@ the corrected gradient as proposed by [Negi et al. (2022)](@cite Negi2022).
 """
 struct SimpleMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
-    function SimpleMirroring(; firstorder_tolerance::Real=1/1000)
+    function SimpleMirroring(; firstorder_tolerance::Real=1e-3)
         return new{typeof(firstorder_tolerance)}(firstorder_tolerance)
     end
 end
@@ -63,7 +63,7 @@ end
 
 function BoundaryModelTafuni(;
                              mirror_method=FirstOrderMirroring(;
-                                                               firstorder_tolerance=1/1000))
+                                                               firstorder_tolerance=1e-3))
     return BoundaryModelTafuni(mirror_method)
 end
 
