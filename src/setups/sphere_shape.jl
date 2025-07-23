@@ -422,3 +422,46 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
 
     return particle_coords
 end
+
+function plot_coords(boundary::Matrix{T}, normals=nothing) where {T}
+
+    if size(boundary)[1] == 2
+        x_b, y_b = eachrow(boundary)
+
+        plot(x_b, y_b, seriestype = :scatter, color = :blue, label = "Boundary")
+
+        if normals !== nothing
+            u, v = eachrow(normals)
+            quiver!(x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
+        end
+
+
+    elseif size(boundary)[1] == 3
+        x_b, y_b, z_b = eachrow(boundary)
+
+        plot(x_b, y_b, z_b, seriestype = :scatter, color = :blue, label = "Boundary")
+    end
+end
+
+function compute_normals(coordinates::Matrix{T}, center_position::AbstractVector{T}, radius::T) where {T}
+    normals = zeros(size(coordinates))
+
+    for idx in 1:size(coordinates, 2)
+        coord = coordinates[:, idx]
+
+        # Project the point at coord on the circle
+        diff = center_position - coord
+        
+        # Check for division-by-zero
+        if iszero(norm(diff))
+            normal = zeros(T, 2)
+        else
+            proj = center_position + radius * (diff / norm(diff))
+            normal = proj - coord
+        end
+        normals[:, idx] = normal
+    end
+    
+    return normals 
+end
+
