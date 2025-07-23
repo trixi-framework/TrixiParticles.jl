@@ -1,14 +1,14 @@
-# # Preprocessing
+# # Particle Packing
 
-# In this tutorial, we will guide you through the complete pipeline of particle packing.
-# The algorithmic background is explained in [Particle Packing](@ref particle_packing).
+# In this tutorial, we will guide you through the complete particle packing pipeline.
+# The algorithmic background is explained in the documentation of [Particle Packing](@ref particle_packing).
 # Throughout this tutorial, we will refer to the initially sampled particles as the "initial configuration",
 # and the configuration after packing as the "packed configuration".
 # The particles, created by an inside–outside segmentation of the geometry,
-# are referred to as "interior particles", while the particles on the surface of the geometry
+# are referred to as "interior particles", whereas the particles on the surface of the geometry
 # are called "boundary particles".
 
-# ## Load geometry
+# ## Loading the geometry
 
 # As a first step, we will load a geometry.
 # Supported file formats are described in the documentation.
@@ -28,17 +28,19 @@ plot(geometry, showaxis=false, label=nothing, color=:black, xlims=my_xlims, ylim
 # Similarly, 3D geometries (`TrixiParticles.TriangleMesh`), are represented by triangles.
 # In this tutorial, we will stay with a 2D geometry, but the steps are identical for 3D geometries.
 
-# ## Create signed distance field
+# ## Creating a signed distance field
 
 # For the actual packing process, this geometry representation is not used directly.
 # What we need is only the distance to the surface of the geometry.
 # To obtain this, we create a signed distance field (SDF).
-# The SDF is constructed within a band around the geometry surface.
+# The SDF is constructed within a band around the geometry's surface.
 # The "thickness" of this band is controlled by `max_signed_distance`.
 # For example, a `max_signed_distance` of 0.1 means that the SDF is created
 # up to 0.1 units inside and 0.1 units outside of the geometry interface.
 # It is a good practice to choose `max_signed_distance` equal to or larger than
 # the compact support of the [smoothing kernel](@ref smoothing_kernel) that will be used in the later simulation.
+# This ensures that particles near the geometry interface have full kernel support,
+# maintaining accurate interpolation during the packing process.
 # The resolution of the SDF is defined by `particle_spacing`, which should ideally
 # be identical to the `particle_spacing` of the initial configuration.
 particle_spacing = 0.05
@@ -73,7 +75,7 @@ plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing,
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
       xlims=my_xlims, ylims=my_ylims, seriestype=:path)
 
-# ## Create initial configuration of boundary particles
+# ## Creating an initial configuration of boundary particles
 
 # To create the initial configuration of the boundary particles,
 # we use the sampled points of the SDF whose signed distance lies between 0
@@ -90,7 +92,7 @@ plot(boundary_sampled, xlims=my_xlims, ylims=my_ylims, label=nothing)
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
       xlims=my_xlims, ylims=my_ylims, seriestype=:path)
 
-# ## Create initial configuration of interior particles
+# ## Creating an initial configuration of interior particles
 
 # Next, we need to create the initial configuration of the interior particles.
 # This step is independent of the other steps in the packing pipeline.
