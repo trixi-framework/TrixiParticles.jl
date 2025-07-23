@@ -173,7 +173,7 @@ sol = solve(ode, time_integrator;
 packed_ic = InitialCondition(sol, packing_system, semi)
 
 plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
-plot!(geometry, xlims=my_xlims, ylims=my_ylims, seriestype=:path, color=:black)
+plot!(geometry, xlims=my_xlims, ylims=my_ylims, seriestype=:path, linewidth=2, color=:black)
 
 # As we can see in the plot, the particles are not constrained to the
 # geometric surface.
