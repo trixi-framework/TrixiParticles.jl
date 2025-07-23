@@ -10,7 +10,7 @@ to retrieve first order kernel and particle consistency.
 """
 struct FirstOrderMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
-    function FirstOrderMirroring(; firstorder_tolerance::Real=1 / 1000.0f0)
+    function FirstOrderMirroring(; firstorder_tolerance::Real=1/1000)
         return new{typeof(firstorder_tolerance)}(firstorder_tolerance)
     end
 end
@@ -27,7 +27,7 @@ the corrected gradient as proposed by [Negi et al. (2022)](@cite Negi2022).
 """
 struct SimpleMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
-    function SimpleMirroring(; firstorder_tolerance::Real=1 / 1000.0f0)
+    function SimpleMirroring(; firstorder_tolerance::Real=1/1000)
         return new{typeof(firstorder_tolerance)}(firstorder_tolerance)
     end
 end
@@ -63,8 +63,7 @@ end
 
 function BoundaryModelTafuni(;
                              mirror_method=FirstOrderMirroring(;
-                                                               firstorder_tolerance=1 /
-                                                                                    1000.0f0))
+                                                               firstorder_tolerance=1/1000))
     return BoundaryModelTafuni(mirror_method)
 end
 
@@ -220,8 +219,7 @@ function extrapolate_values!(system,
 
             # velocity
             if !(prescribed_velocity)
-                first_order_velocity_interpolation!(v_open_boundary, system, particle,
-                                                    L_inv,
+                first_order_velocity_interpolation!(v_open_boundary, particle, L_inv,
                                                     interpolated_velocity_correction[],
                                                     two_to_end, pos_diff, mirror_method)
 
@@ -260,7 +258,7 @@ function extrapolate_values!(system,
                 # Only the first column is used, as the subsequent entries represent gradient
                 # components that are not required for zeroth-order interpolation
                 interpolated_velocity = interpolated_velocity_correction[][:, 1]
-                zeroth_order_velocity_interpolation!(v_open_boundary, system, particle,
+                zeroth_order_velocity_interpolation!(v_open_boundary, particle,
                                                      shepard_coefficient,
                                                      interpolated_velocity)
 
@@ -348,7 +346,7 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
             end
 
             if !(prescribed_velocity)
-                zeroth_order_velocity_interpolation!(v_open_boundary, system, particle,
+                zeroth_order_velocity_interpolation!(v_open_boundary, particle,
                                                      shepard_coefficient[],
                                                      interpolated_velocity[])
 
@@ -372,7 +370,7 @@ function zeroth_order_scalar_interpolation!(values, particle, shepard_coefficien
     return values
 end
 
-function zeroth_order_velocity_interpolation!(v, system, particle, shepard_coefficient,
+function zeroth_order_velocity_interpolation!(v, particle, shepard_coefficient,
                                               extrapolated_velocity)
     velocity_interpolated = extrapolated_velocity / shepard_coefficient
 
@@ -404,7 +402,7 @@ function first_order_scalar_interpolation!(values, particle, L_inv,
     return values
 end
 
-function first_order_velocity_interpolation!(v, system, particle, L_inv,
+function first_order_velocity_interpolation!(v, particle, L_inv,
                                              interpolated_velocity_correction,
                                              two_to_end, pos_diff, ::FirstOrderMirroring)
     @inbounds for dim in eachindex(pos_diff)
@@ -417,7 +415,7 @@ function first_order_velocity_interpolation!(v, system, particle, L_inv,
     return v
 end
 
-function first_order_velocity_interpolation!(v, system, particle, L_inv,
+function first_order_velocity_interpolation!(v, particle, L_inv,
                                              interpolated_velocity_correction,
                                              two_to_end, pos_diff, ::SimpleMirroring)
     @inbounds for dim in eachindex(pos_diff)
