@@ -497,6 +497,7 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
                          reinterpret(reshape, SVector{ndims(system), eltype(u)},
                                      active_coordinates(u, system)))
 
+    # Division inside the `sum` closure to maintain GPU compatibility
     avg_velocity = sum(candidates) do particle
         return current_velocity(v, system, particle) / length(candidates)
     end

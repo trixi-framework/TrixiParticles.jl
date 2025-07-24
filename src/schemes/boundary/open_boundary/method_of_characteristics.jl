@@ -16,6 +16,8 @@ For more information about the method see [description below](@ref method_of_cha
 
   **Note:** This feature is experimental and has not been fully validated yet.
   As of now, we are not aware of any published literature supporting its use.
+  Note that even without this extrapolation feature,
+  the reference values don't need to be prescribed - they're computed from the characteristics.
 """
 struct BoundaryModelLastiwka{T}
     extrapolate_reference_values::T
@@ -238,6 +240,8 @@ end
 
 function average_velocity!(v, u, system, ::BoundaryModelLastiwka, ::BoundaryZone{InFlow},
                            semi)
+
+    # Division inside the `sum` closure to maintain GPU compatibility
     avg_velocity = sum(each_moving_particle(system)) do particle
         return current_velocity(v, system, particle) / system.buffer.active_particle_count[]
     end
