@@ -520,9 +520,10 @@ function project_velocity_on_plane_normal!(v, system, particle,
     # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
     # only this component of interpolated velocity is kept [...]"
     v_particle = current_velocity(v, system, particle)
-    v_particle_projected = dot(vel, boundary_zone.plane_normal) * boundary_zone.plane_normal
+    v_particle_projected = dot(v_particle, boundary_zone.plane_normal) *
+                           boundary_zone.plane_normal
 
-    for dim in eachindex(vel)
+    for dim in eachindex(v_particle)
         @inbounds v[dim, particle] = v_particle_projected[dim]
     end
 
