@@ -343,8 +343,7 @@ end
                                                              wcsph=true, sound_speed=20.0f0,
                                                              pressure=0.0f0,
                                                              open_boundary_model=BoundaryModelTafuni(;
-                                                                                                     mirror_method=FirstOrderMirroring(;
-                                                                                                                                       firstorder_tolerance=0.001f0)),
+                                                                                                     mirror_method=ZerothOrderMirroring()),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
                                                              reference_density_in=nothing,
