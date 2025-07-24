@@ -1,41 +1,42 @@
 """
-    FirstOrderMirroring(; firstorder_tolerance::ELTYPE=1e-3)
+    FirstOrderMirroring(; firstorder_tolerance::=1f-3)
 
-Fluid properties are interpolated onto ghost nodes using the method proposed by [Liu and Liu (2006)](@cite Liu2006),
-to retrieve first order kernel and particle consistency.
+Fluid properties are extrapolated onto ghost nodes using the method proposed by [Liu and Liu (2006)](@cite Liu2006),
+to extend the gradient into the boundary zone.
 
 # Keywords
-- `firstorder_tolerance`: If the determinant of the correction matrix is smaller than this value,
-  the method falls back to [`ZerothOrderMirroring`](@ref). Default is `1e-3`.
+- `firstorder_tolerance=1f-3`: If the determinant of the correction matrix is smaller than this value,
+                               the method falls back to [`ZerothOrderMirroring`](@ref).
 """
 struct FirstOrderMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
-    function FirstOrderMirroring(; firstorder_tolerance::Real=1e-3)
+    function FirstOrderMirroring(; firstorder_tolerance::Real=1.0f-3)
         return new{typeof(firstorder_tolerance)}(firstorder_tolerance)
     end
 end
 
 """
-    SimpleMirroring(; firstorder_tolerance::ELTYPE=1e-3))
+    SimpleMirroring(; firstorder_tolerance=1f-3))
 
 This method is similar to [`FirstOrderMirroring`](@ref), but does not use
 the corrected gradient as proposed by [Negi et al. (2022)](@cite Negi2022).
 
 # Keywords
-- `firstorder_tolerance`: If the determinant of the correction matrix is smaller than this value,
-  the method falls back to [`ZerothOrderMirroring`](@ref). Default is `1e-3`.
+- `firstorder_tolerance=1f-3`: If the determinant of the correction matrix is smaller than this value,
+                               the method falls back to [`ZerothOrderMirroring`](@ref).
 """
 struct SimpleMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
-    function SimpleMirroring(; firstorder_tolerance::Real=1e-3)
+
+    function SimpleMirroring(; firstorder_tolerance::Real=1.0f-3)
         return new{typeof(firstorder_tolerance)}(firstorder_tolerance)
     end
 end
 
 """
-    ZerothOrderMirroring
+    ZerothOrderMirroring()
 
-Fluid properties are interpolated onto ghost nodes using Shepard interpolation.
+Fluid properties are interpolated onto ghost nodes using Shepard interpolation [Shepard1968](@cite).
 The position of the ghost nodes is obtained by mirroring the boundary particles
 into the fluid along a direction that is normal to the open boundary.
 The interpolated values at the ghost nodes are then assigned to the corresponding boundary particles.
@@ -43,7 +44,7 @@ The interpolated values at the ghost nodes are then assigned to the correspondin
 struct ZerothOrderMirroring end
 
 @doc raw"""
-    BoundaryModelTafuni(; mirror_method=FirstOrderMirroring(; firstorder_tolerance=1e-3))
+    BoundaryModelTafuni(; mirror_method=FirstOrderMirroring())
 
 Boundary model for the `OpenBoundarySPHSystem`.
 This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
@@ -61,9 +62,7 @@ struct BoundaryModelTafuni{MM}
     mirror_method::MM
 end
 
-function BoundaryModelTafuni(;
-                             mirror_method=FirstOrderMirroring(;
-                                                               firstorder_tolerance=1e-3))
+function BoundaryModelTafuni(; mirror_method=FirstOrderMirroring())
     return BoundaryModelTafuni(mirror_method)
 end
 
@@ -84,7 +83,7 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
                             prescribed_density, prescribed_velocity)
     end
 
-    if !(prescribed_velocity) && boundary_zone.average_inflow_velocity
+    if !prescribed_velocity && boundary_zone.average_inflow_velocity
         # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
         # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
         # resulting in a potential numerical instability. Averaging mitigates these effects.
@@ -116,8 +115,8 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
 
             v_ref = reference_value(reference_velocity, v_particle, particle_coords, t)
 
-            @inbounds for dim in eachindex(v_ref)
-                v[dim, particle] = v_ref[dim]
+            for dim in eachindex(v_ref)
+                @inbounds v[dim, particle] = v_ref[dim]
             end
         end
     end
@@ -184,15 +183,15 @@ function extrapolate_values!(system,
 
             correction_matrix[] += L
 
-            if !(prescribed_pressure)
+            if !prescribed_pressure
                 interpolated_pressure_correction[] += pressure_b * R
             end
 
-            if !(prescribed_density)
+            if !prescribed_density
                 interpolated_density_correction[] += rho_b * R
             end
 
-            if !(prescribed_velocity)
+            if !prescribed_velocity
                 interpolated_velocity_correction[] += v_b * R'
             end
         end
@@ -204,22 +203,22 @@ function extrapolate_values!(system,
             L_inv = inv(correction_matrix[])
 
             # pressure
-            if !(prescribed_pressure)
-                first_order_scalar_interpolation!(pressure, particle, L_inv,
+            if !prescribed_pressure
+                first_order_scalar_extrapolation!(pressure, particle, L_inv,
                                                   interpolated_pressure_correction[],
                                                   two_to_end, pos_diff, mirror_method)
             end
 
             # density
-            if !(prescribed_density)
-                first_order_scalar_interpolation!(density, particle, L_inv,
+            if !prescribed_density
+                first_order_scalar_extrapolation!(density, particle, L_inv,
                                                   interpolated_density_correction[],
                                                   two_to_end, pos_diff, mirror_method)
             end
 
             # velocity
-            if !(prescribed_velocity)
-                first_order_velocity_interpolation!(v_open_boundary, particle, L_inv,
+            if !prescribed_velocity
+                first_order_velocity_extrapolation!(v_open_boundary, particle, L_inv,
                                                     interpolated_velocity_correction[],
                                                     two_to_end, pos_diff, mirror_method)
 
@@ -231,32 +230,34 @@ function extrapolate_values!(system,
                                                   boundary_zone)
             end
 
+            # No else: `correction_matrix[][1, 1] <= eps()` means no fluid neighbors
+            # and thus no reliable interpolation, so boundary values remain at their current state
         elseif correction_matrix[][1, 1] > eps()
             # Determinant is small, fallback to zero-th order mirroring
             shepard_coefficient = correction_matrix[][1, 1]
 
-            # pressure
-            if !(prescribed_pressure)
+            # Pressure
+            if !prescribed_pressure
                 # Only the first entry is used, as the subsequent entries represent gradient
-                # components that are not required for zeroth-order interpolation
+                # components that are not required for zeroth-order interpolation.
                 interpolated_pressure = first(interpolated_pressure_correction[])
-                zeroth_order_scalar_interpolation!(pressure, particle, shepard_coefficient,
+                zeroth_order_scalar_extrapolation!(pressure, particle, shepard_coefficient,
                                                    interpolated_pressure)
             end
 
-            # density
-            if !(prescribed_density)
+            # Density
+            if !prescribed_density
                 # Only the first entry is used, as the subsequent entries represent gradient
-                # components that are not required for zeroth-order interpolation
+                # components that are not required for zeroth-order interpolation.
                 interpolated_density = first(interpolated_density_correction[])
-                zeroth_order_scalar_interpolation!(density, particle, shepard_coefficient,
+                zeroth_order_scalar_extrapolation!(density, particle, shepard_coefficient,
                                                    interpolated_density)
             end
 
-            # velocity
-            if !(prescribed_velocity)
+            # Velocity
+            if !prescribed_velocity
                 # Only the first column is used, as the subsequent entries represent gradient
-                # components that are not required for zeroth-order interpolation
+                # components that are not required for zeroth-order interpolation.
                 interpolated_velocity = interpolated_velocity_correction[][:, 1]
                 zeroth_order_velocity_interpolation!(v_open_boundary, particle,
                                                      shepard_coefficient,
@@ -311,41 +312,41 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
             rho_b = current_density(v_fluid, fluid_system, neighbor)
             volume_b = m_b / rho_b
             pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
-            vel_b = current_velocity(v_fluid, fluid_system, neighbor)
+            v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
             W_ab = smoothing_kernel(fluid_system, distance, particle)
 
             shepard_coefficient[] += volume_b * W_ab
 
-            if !(prescribed_pressure)
+            if !prescribed_pressure
                 interpolated_pressure[] += pressure_b * volume_b * W_ab
             end
 
-            if !(prescribed_density)
+            if !prescribed_density
                 interpolated_density[] += rho_b * volume_b * W_ab
             end
 
-            if !(prescribed_velocity)
-                interpolated_velocity[] += vel_b * volume_b * W_ab
+            if !prescribed_velocity
+                interpolated_velocity[] += v_b * volume_b * W_ab
             end
         end
 
         if shepard_coefficient[] > eps()
             pos_diff = particle_coords - ghost_node_position
 
-            if !(prescribed_pressure)
-                zeroth_order_scalar_interpolation!(pressure, particle,
+            if !prescribed_pressure
+                zeroth_order_scalar_extrapolation!(pressure, particle,
                                                    shepard_coefficient[],
                                                    interpolated_pressure[])
             end
 
-            if !(prescribed_density)
-                zeroth_order_scalar_interpolation!(density, particle,
+            if !prescribed_density
+                zeroth_order_scalar_extrapolation!(density, particle,
                                                    shepard_coefficient[],
                                                    interpolated_density[])
             end
 
-            if !(prescribed_velocity)
+            if !prescribed_velocity
                 zeroth_order_velocity_interpolation!(v_open_boundary, particle,
                                                      shepard_coefficient[],
                                                      interpolated_velocity[])
@@ -363,7 +364,7 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
     return system
 end
 
-function zeroth_order_scalar_interpolation!(values, particle, shepard_coefficient,
+function zeroth_order_scalar_extrapolation!(values, particle, shepard_coefficient,
                                             extrapolated_value)
     values[particle] = extrapolated_value / shepard_coefficient
 
@@ -374,25 +375,25 @@ function zeroth_order_velocity_interpolation!(v, particle, shepard_coefficient,
                                               extrapolated_velocity)
     velocity_interpolated = extrapolated_velocity / shepard_coefficient
 
-    @inbounds for dim in eachindex(velocity_interpolated)
-        v[dim, particle] = velocity_interpolated[dim]
+    for dim in eachindex(velocity_interpolated)
+        @inbounds v[dim, particle] = velocity_interpolated[dim]
     end
 
     return v
 end
 
-function first_order_scalar_interpolation!(values, particle, L_inv,
+function first_order_scalar_extrapolation!(values, particle, L_inv,
                                            interpolated_values_correction,
                                            two_to_end, pos_diff, ::FirstOrderMirroring)
     f_s = L_inv * interpolated_values_correction
-    df_p = f_s[two_to_end] # f_s[2:end] as SVector
+    df_s = f_s[two_to_end] # `f_s[2:end]` as SVector
 
-    values[particle] = f_s[1] + dot(pos_diff, df_p)
+    values[particle] = f_s[1] + dot(pos_diff, df_s)
 
     return values
 end
 
-function first_order_scalar_interpolation!(values, particle, L_inv,
+function first_order_scalar_extrapolation!(values, particle, L_inv,
                                            interpolated_values_correction,
                                            two_to_end, pos_diff, ::SimpleMirroring)
     f_s = L_inv * interpolated_values_correction
@@ -402,26 +403,26 @@ function first_order_scalar_interpolation!(values, particle, L_inv,
     return values
 end
 
-function first_order_velocity_interpolation!(v, particle, L_inv,
+function first_order_velocity_extrapolation!(v, particle, L_inv,
                                              interpolated_velocity_correction,
                                              two_to_end, pos_diff, ::FirstOrderMirroring)
-    @inbounds for dim in eachindex(pos_diff)
-        f_v = L_inv * interpolated_velocity_correction[dim, :]
-        df_v = f_v[two_to_end] # f_v[2:end] as SVector
+    for dim in eachindex(pos_diff)
+        @inbounds f_v = L_inv * interpolated_velocity_correction[dim, :]
+        df_v = f_v[two_to_end] # `f_v[2:end]` as SVector
 
-        v[dim, particle] = f_v[1] + dot(pos_diff, df_v)
+        @inbounds v[dim, particle] = f_v[1] + dot(pos_diff, df_v)
     end
 
     return v
 end
 
-function first_order_velocity_interpolation!(v, particle, L_inv,
+function first_order_velocity_extrapolation!(v, particle, L_inv,
                                              interpolated_velocity_correction,
                                              two_to_end, pos_diff, ::SimpleMirroring)
-    @inbounds for dim in eachindex(pos_diff)
-        f_v = L_inv * interpolated_velocity_correction[dim, :]
+    for dim in eachindex(pos_diff)
+        @inbounds f_v = L_inv * interpolated_velocity_correction[dim, :]
 
-        v[dim, particle] = f_v[1]
+        @inbounds v[dim, particle] = f_v[1]
     end
 
     return v
@@ -502,8 +503,8 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
 
     @threaded semi for particle in each_moving_particle(system)
         # Set the velocity of the ghost node to the average velocity of the fluid domain
-        @inbounds for dim in eachindex(avg_velocity)
-            v[dim, particle] = avg_velocity[dim]
+        for dim in eachindex(avg_velocity)
+            @inbounds v[dim, particle] = avg_velocity[dim]
         end
     end
 
@@ -518,11 +519,11 @@ function project_velocity_on_plane_normal!(v, system, particle,
     # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
     # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
     # only this component of interpolated velocity is kept [...]"
-    vel = current_velocity(v, system, particle)
-    vel_ = dot(vel, boundary_zone.plane_normal) * boundary_zone.plane_normal
+    v_particle = current_velocity(v, system, particle)
+    v_particle_projected = dot(vel, boundary_zone.plane_normal) * boundary_zone.plane_normal
 
-    @inbounds for dim in eachindex(vel)
-        v[dim, particle] = vel_[dim]
+    for dim in eachindex(vel)
+        @inbounds v[dim, particle] = v_particle_projected[dim]
     end
 
     return v

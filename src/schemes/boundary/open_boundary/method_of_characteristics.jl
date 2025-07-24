@@ -19,6 +19,7 @@ For more information about the method see [description below](@ref method_of_cha
 """
 struct BoundaryModelLastiwka{T}
     extrapolate_reference_values::T
+
     function BoundaryModelLastiwka(; extrapolate_reference_values=nothing)
         return new{typeof(extrapolate_reference_values)}(extrapolate_reference_values)
     end
@@ -231,6 +232,7 @@ end
 end
 
 function average_velocity!(v, u, system, ::BoundaryModelLastiwka, boundary_zone, semi)
+    # Only apply averaging at the inflow
     return v
 end
 
@@ -242,8 +244,8 @@ function average_velocity!(v, u, system, ::BoundaryModelLastiwka, ::BoundaryZone
 
     @threaded semi for particle in each_moving_particle(system)
         # Set the velocity of the ghost node to the average velocity of the fluid domain
-        @inbounds for dim in eachindex(avg_velocity)
-            v[dim, particle] = avg_velocity[dim]
+        for dim in eachindex(avg_velocity)
+            @inbounds v[dim, particle] = avg_velocity[dim]
         end
     end
 

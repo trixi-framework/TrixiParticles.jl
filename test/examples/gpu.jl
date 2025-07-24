@@ -319,9 +319,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
-                                                             open_boundary_model=BoundaryModelTafuni(;
-                                                                                                     mirror_method=FirstOrderMirroring(;
-                                                                                                                                       firstorder_tolerance=0.001f0)),
+                                                             open_boundary_model=BoundaryModelTafuni(),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
                                                              reference_density_in=nothing,
