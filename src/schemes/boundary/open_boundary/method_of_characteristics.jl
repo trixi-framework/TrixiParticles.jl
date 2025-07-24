@@ -1,23 +1,29 @@
 @doc raw"""
-    BoundaryModelLastiwka(; extrapolate_reference_values::Bool=false)
+    BoundaryModelLastiwka(; extrapolate_reference_values=nothing)
 
 Boundary model for [`OpenBoundarySPHSystem`](@ref).
 This model uses the characteristic variables to propagate the appropriate values
-to the outlet or inlet and have been proposed by Lastiwka et al. (2009).
+to the outlet or inlet and was proposed by Lastiwka et al. (2009).
 It requires a specific flow direction to be passed to the [`BoundaryZone`](@ref).
 For more information about the method see [description below](@ref method_of_characteristics).
 
 # Keywords
-- `extrapolate_reference_values=false`: If `true`, the reference values are extrapolated
-  from the fluid domain to the boundary particles. This is useful for open boundaries where
-  the reference values are not known a priori.
+- `extrapolate_reference_values=nothing`: If one of the following mirroring methods is selected,
+  the reference values are extrapolated from the fluid domain to the boundary particles:
+    - [`ZerothOrderMirroring`](@ref)
+    - [`FirstOrderMirroring`](@ref)
+    - [`SimpleMirroring`](@ref)
+
   **Note:** This feature is experimental and has not been fully validated yet.
   As of now, we are not aware of any published literature supporting its use.
+  Note that even without this extrapolation feature,
+  the reference values don't need to be prescribed - they're computed from the characteristics.
 """
-struct BoundaryModelLastiwka
-    extrapolate_reference_values::Bool
-    function BoundaryModelLastiwka(; extrapolate_reference_values::Bool=false)
-        return new{}(extrapolate_reference_values)
+struct BoundaryModelLastiwka{T}
+    extrapolate_reference_values::T
+
+    function BoundaryModelLastiwka(; extrapolate_reference_values=nothing)
+        return new{typeof(extrapolate_reference_values)}(extrapolate_reference_values)
     end
 end
 
@@ -32,13 +38,14 @@ end
 
     sound_speed = system_sound_speed(fluid_system)
 
-    if boundary_model.extrapolate_reference_values
+    if !isnothing(boundary_model.extrapolate_reference_values)
         (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
         v_fluid = wrap_v(v_ode, fluid_system, semi)
         u_fluid = wrap_u(u_ode, fluid_system, semi)
 
         @trixi_timeit timer() "extrapolate and correct values" begin
-            extrapolate_values!(system, v, v_fluid, u, u_fluid, semi, t;
+            extrapolate_values!(system, boundary_model.extrapolate_reference_values,
+                                v, v_fluid, u, u_fluid, semi, t;
                                 prescribed_pressure, prescribed_velocity,
                                 prescribed_density)
         end
@@ -69,6 +76,13 @@ end
         for dim in 1:ndims(system)
             v[dim, particle] = v_[dim]
         end
+    end
+
+    if boundary_zone.average_inflow_velocity
+        # Even if the velocity is prescribed, this boundary model computes the velocity for each particle individually.
+        # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
+        # resulting in a potential numerical instability. Averaging mitigates these effects.
+        average_velocity!(v, u, system, boundary_model, boundary_zone, semi)
     end
 
     return system
@@ -217,4 +231,27 @@ end
     characteristics[2, particle] = zero(eltype(characteristics))
 
     return characteristics
+end
+
+function average_velocity!(v, u, system, ::BoundaryModelLastiwka, boundary_zone, semi)
+    # Only apply averaging at the inflow
+    return v
+end
+
+function average_velocity!(v, u, system, ::BoundaryModelLastiwka, ::BoundaryZone{InFlow},
+                           semi)
+
+    # Division inside the `sum` closure to maintain GPU compatibility
+    avg_velocity = sum(each_moving_particle(system)) do particle
+        return current_velocity(v, system, particle) / system.buffer.active_particle_count[]
+    end
+
+    @threaded semi for particle in each_moving_particle(system)
+        # Set the velocity of the ghost node to the average velocity of the fluid domain
+        for dim in eachindex(avg_velocity)
+            @inbounds v[dim, particle] = avg_velocity[dim]
+        end
+    end
+
+    return v
 end

@@ -27,10 +27,10 @@ Open boundary system for in- and outflow particles.
                        or a scalar for a constant density over all particles.
 
 !!! note "Note"
-    When using the [`BoundaryModelTafuni()`](@ref), the reference values (`reference_velocity`,
-    `reference_pressure`, `reference_density`) can also be set to `nothing`
-    since this model allows for either assigning physical quantities a priori or extrapolating them
-    from the fluid domaim to the buffer zones (inflow and outflow) using ghost nodes.
+    The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
+    can also be set to `nothing`.
+    In this case, they will either be extrapolated from the fluid domain ([BoundaryModelTafuni](@ref BoundaryModelTafuni))
+    or evolved using the characteristic flow variables ([BoundaryModelLastiwka](@ref BoundaryModelLastiwka)).
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in future releases.
@@ -87,9 +87,6 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                reference_pressure=nothing,
                                reference_density=nothing)
     (; initial_condition) = boundary_zone
-
-    check_reference_values!(boundary_model, reference_density, reference_pressure,
-                            reference_velocity)
 
     buffer = SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -270,6 +267,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
+    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
+
     # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
     @trixi_timeit timer() "update boundary quantities" update_boundary_quantities!(system,
@@ -278,8 +277,6 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
                                                                                    v_ode,
                                                                                    u_ode,
                                                                                    semi, t)
-
-    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
     return system
 end
@@ -350,6 +347,9 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     update_system_buffer!(system.buffer, semi)
     update_system_buffer!(fluid_system.buffer, semi)
+
+    # Since particles have been transferred, the neighborhood searches must be updated
+    update_nhs!(semi, u_ode)
 
     return system
 end
@@ -483,22 +483,6 @@ end
 # This method is used when extrapolating quantities from the domain
 # instead of using the method of characteristics
 reference_value(value::Nothing, quantity, position, t) = quantity
-
-function check_reference_values!(boundary_model, reference_density, reference_pressure,
-                                 reference_velocity)
-    return boundary_model
-end
-
-function check_reference_values!(boundary_model::BoundaryModelLastiwka,
-                                 reference_density, reference_pressure, reference_velocity)
-    boundary_model.extrapolate_reference_values && return boundary_model
-
-    if any(isnothing.([reference_density, reference_pressure, reference_velocity]))
-        throw(ArgumentError("for `BoundaryModelLastiwka` all reference values must be specified"))
-    end
-
-    return boundary_model
-end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
