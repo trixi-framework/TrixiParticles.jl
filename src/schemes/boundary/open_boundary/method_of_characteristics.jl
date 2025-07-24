@@ -30,29 +30,26 @@ end
 # Called from update callback via `update_open_boundary_eachstep!`
 @inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, boundary_zone,
-     reference_velocity, reference_pressure, reference_density) = system
-    (; flow_direction) = boundary_zone
-
-    fluid_system = corresponding_fluid_system(system, semi)
+    (; density, pressure, cache, boundary_zones, fluid_system) = system
 
     sound_speed = system_sound_speed(fluid_system)
 
     if !isnothing(boundary_model.extrapolate_reference_values)
-        (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
         v_fluid = wrap_v(v_ode, fluid_system, semi)
         u_fluid = wrap_u(u_ode, fluid_system, semi)
 
         @trixi_timeit timer() "extrapolate and correct values" begin
             extrapolate_values!(system, boundary_model.extrapolate_reference_values,
-                                v, v_fluid, u, u_fluid, semi, t;
-                                prescribed_pressure, prescribed_velocity,
-                                prescribed_density)
+                                v, v_fluid, u, u_fluid, semi)
         end
     end
 
     # Update quantities based on the characteristic variables
     @threaded semi for particle in each_moving_particle(system)
+        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        (; reference_pressure, reference_density, reference_velocity,
+         flow_direction) = boundary_zone
+
         particle_position = current_coords(u, system, particle)
 
         J1 = cache.characteristics[1, particle]
@@ -78,11 +75,13 @@ end
         end
     end
 
-    if boundary_zone.average_inflow_velocity
-        # Even if the velocity is prescribed, this boundary model computes the velocity for each particle individually.
-        # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
-        # resulting in a potential numerical instability. Averaging mitigates these effects.
-        average_velocity!(v, u, system, boundary_model, boundary_zone, semi)
+    for boundary_zone in boundary_zones
+        if boundary_zone.average_inflow_velocity
+            # Even if the velocity is prescribed, this boundary model computes the velocity for each particle individually.
+            # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
+            # resulting in a potential numerical instability. Averaging mitigates these effects.
+            average_velocity!(v, u, system, boundary_model, boundary_zone, semi)
+        end
     end
 
     return system
@@ -102,9 +101,8 @@ end
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
 function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, boundary_zone) = system
+    (; volume, cache, boundary_zones, fluid_system, density, pressure) = system
     (; characteristics, previous_characteristics) = cache
-    fluid_system = corresponding_fluid_system(system, semi)
 
     @threaded semi for particle in eachparticle(system)
         previous_characteristics[1, particle] = characteristics[1, particle]
@@ -116,13 +114,58 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     set_zero!(volume)
 
     # Evaluate the characteristic variables with the fluid system
-    evaluate_characteristics!(system, fluid_system, v, u, v_ode, u_ode, semi, t)
+    v_fluid = wrap_v(v_ode, fluid_system, semi)
+    u_fluid = wrap_u(u_ode, fluid_system, semi)
+
+    system_coords = current_coordinates(u, system)
+    fluid_coords = current_coordinates(u_fluid, fluid_system)
+    sound_speed = system_sound_speed(fluid_system)
+
+    # Loop over all fluid neighbors within the kernel cutoff
+    foreach_point_neighbor(system, fluid_system, system_coords, fluid_coords, semi;
+                           points=each_moving_particle(system)) do particle, neighbor,
+                                                                   pos_diff, distance
+        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+
+        (; reference_velocity, reference_pressure, reference_density,
+         flow_direction) = boundary_zone
+
+        neighbor_position = current_coords(u_fluid, fluid_system, neighbor)
+
+        # Determine current and prescribed quantities
+        rho_b = current_density(v_fluid, fluid_system, neighbor)
+        rho_ref = reference_value(reference_density, density[particle],
+                                  neighbor_position, t)
+
+        p_b = current_pressure(v_fluid, fluid_system, neighbor)
+        p_ref = reference_value(reference_pressure, pressure[particle],
+                                neighbor_position, t)
+
+        v_b = current_velocity(v_fluid, fluid_system, neighbor)
+        v_particle = current_velocity(v, system, particle)
+        v_neighbor_ref = reference_value(reference_velocity, v_particle,
+                                         neighbor_position, t)
+
+        # Determine characteristic variables
+        density_term = -sound_speed^2 * (rho_b - rho_ref)
+        pressure_term = p_b - p_ref
+        velocity_term = rho_b * sound_speed * (dot(v_b - v_neighbor_ref, flow_direction))
+
+        kernel_ = smoothing_kernel(fluid_system, distance, particle)
+
+        characteristics[1, particle] += (density_term + pressure_term) * kernel_
+        characteristics[2, particle] += (velocity_term + pressure_term) * kernel_
+        characteristics[3, particle] += (-velocity_term + pressure_term) * kernel_
+
+        volume[particle] += kernel_
+    end
 
     # Only some of the in-/outlet particles are in the influence of the fluid particles.
     # Thus, we compute the characteristics for the particles that are outside the influence
     # of fluid particles by using the average of the values of the previous time step.
     # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
     @threaded semi for particle in each_moving_particle(system)
+        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
 
         # Particle is outside of the influence of fluid particles
         if isapprox(volume[particle], 0)
@@ -166,57 +209,6 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function evaluate_characteristics!(system, neighbor_system::FluidSystem,
-                                   v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, boundary_zone, density, pressure,
-     reference_velocity, reference_pressure, reference_density) = system
-    (; flow_direction) = boundary_zone
-    (; characteristics) = cache
-
-    v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-
-    system_coords = current_coordinates(u, system)
-    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    sound_speed = system_sound_speed(neighbor_system)
-
-    # Loop over all fluid neighbors within the kernel cutoff
-    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
-        neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
-
-        # Determine current and prescribed quantities
-        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_ref = reference_value(reference_density, density[particle],
-                                  neighbor_position, t)
-
-        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
-        p_ref = reference_value(reference_pressure, pressure[particle],
-                                neighbor_position, t)
-
-        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        v_particle = current_velocity(v, system, particle)
-        v_neighbor_ref = reference_value(reference_velocity, v_particle,
-                                         neighbor_position, t)
-
-        # Determine characteristic variables
-        density_term = -sound_speed^2 * (rho_b - rho_ref)
-        pressure_term = p_b - p_ref
-        velocity_term = rho_b * sound_speed * (dot(v_b - v_neighbor_ref, flow_direction))
-
-        kernel_ = smoothing_kernel(neighbor_system, distance, particle)
-
-        characteristics[1, particle] += (density_term + pressure_term) * kernel_
-        characteristics[2, particle] += (velocity_term + pressure_term) * kernel_
-        characteristics[3, particle] += (-velocity_term + pressure_term) * kernel_
-
-        volume[particle] += kernel_
-    end
-
-    return system
-end
-
 @inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{OutFlow})
     # J3 is prescribed (i.e. determined from the exterior of the domain).
     # J1 and J2 is transmitted from the domain interior.
@@ -238,15 +230,17 @@ function average_velocity!(v, u, system, ::BoundaryModelLastiwka, boundary_zone,
     return v
 end
 
-function average_velocity!(v, u, system, ::BoundaryModelLastiwka, ::BoundaryZone{InFlow},
-                           semi)
+function average_velocity!(v, u, system, ::BoundaryModelLastiwka,
+                           boundary_zone::BoundaryZone{InFlow}, semi)
+    candidates = findall(x -> is_in_boundary_zone(boundary_zone, x),
+                         reinterpret(reshape, SVector{ndims(system), eltype(u)}, u))
 
     # Division inside the `sum` closure to maintain GPU compatibility
-    avg_velocity = sum(each_moving_particle(system)) do particle
+    avg_velocity = sum(candidates) do particle
         return current_velocity(v, system, particle) / system.buffer.active_particle_count[]
     end
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in candidates
         # Set the velocity of the ghost node to the average velocity of the fluid domain
         for dim in eachindex(avg_velocity)
             @inbounds v[dim, particle] = avg_velocity[dim]

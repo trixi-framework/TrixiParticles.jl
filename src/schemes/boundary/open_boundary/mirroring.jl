@@ -69,49 +69,45 @@ end
 
 function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni,
                                      v, u, v_ode, u_ode, semi, t)
-    (; reference_pressure, reference_density, reference_velocity, boundary_zone,
-     pressure, density, cache) = system
-    (; prescribed_pressure, prescribed_density, prescribed_velocity) = cache
+    (; boundary_zones, pressure, density, fluid_system) = system
 
     @trixi_timeit timer() "extrapolate and correct values" begin
-        fluid_system = corresponding_fluid_system(system, semi)
-
         v_fluid = wrap_v(v_ode, fluid_system, semi)
         u_fluid = wrap_u(u_ode, fluid_system, semi)
 
-        extrapolate_values!(system, boundary_model.mirror_method, v, v_fluid,
-                            u, u_fluid, semi, t; prescribed_pressure,
-                            prescribed_density, prescribed_velocity)
+        extrapolate_values!(system, boundary_model.mirror_method,
+                            v, v_fluid, u, u_fluid, semi)
     end
 
-    if !prescribed_velocity && boundary_zone.average_inflow_velocity
-        # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
-        # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
-        # resulting in a potential numerical instability. Averaging mitigates these effects.
-        average_velocity!(v, u, system, boundary_zone, semi)
+    for boundary_zone in boundary_zones
+        (; prescribed_velocity, average_inflow_velocity) = boundary_zone
+
+        if !prescribed_velocity && average_inflow_velocity
+            # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
+            # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
+            # resulting in a potential numerical instability. Averaging mitigates these effects.
+            average_velocity!(v, u, system, boundary_zone, semi)
+        end
     end
 
-    if prescribed_pressure
-        @threaded semi for particle in each_moving_particle(system)
-            particle_coords = current_coords(u, system, particle)
+    @threaded semi for particle in each_moving_particle(system)
+        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        (; prescribed_pressure, prescribed_density, prescribed_velocity,
+         reference_pressure, reference_density, reference_velocity) = boundary_zone
 
+        particle_coords = current_coords(u, system, particle)
+
+        if prescribed_pressure
             pressure[particle] = reference_value(reference_pressure, pressure[particle],
                                                  particle_coords, t)
         end
-    end
 
-    if prescribed_density
-        @threaded semi for particle in each_moving_particle(system)
-            particle_coords = current_coords(u, system, particle)
-
+        if prescribed_density
             density[particle] = reference_value(reference_density, density[particle],
                                                 particle_coords, t)
         end
-    end
 
-    if prescribed_velocity
-        @threaded semi for particle in each_moving_particle(system)
-            particle_coords = current_coords(u, system, particle)
+        if prescribed_velocity
             v_particle = current_velocity(v, system, particle)
 
             v_ref = reference_value(reference_velocity, v_particle, particle_coords, t)
@@ -127,12 +123,8 @@ update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = syst
 
 function extrapolate_values!(system,
                              mirror_method::Union{FirstOrderMirroring, SimpleMirroring},
-                             v_open_boundary, v_fluid, u_open_boundary, u_fluid,
-                             semi, t; prescribed_density=false,
-                             prescribed_pressure=false, prescribed_velocity=false)
-    (; pressure, density, boundary_zone) = system
-
-    fluid_system = corresponding_fluid_system(system, semi)
+                             v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi)
+    (; pressure, density, boundary_zones, fluid_system) = system
 
     # Static indices to avoid allocations
     two_to_end = SVector{ndims(system)}(2:(ndims(system) + 1))
@@ -147,6 +139,9 @@ function extrapolate_values!(system,
     # We can do this because we require the neighborhood search to support querying neighbors
     # of arbitrary positions (see `PointNeighbors.requires_update`).
     @threaded semi for particle in each_moving_particle(system)
+        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        (; prescribed_pressure, prescribed_density, prescribed_velocity) = boundary_zone
+
         particle_coords = current_coords(u_open_boundary, system, particle)
         ghost_node_position = mirror_position(particle_coords, boundary_zone)
 
@@ -278,10 +273,8 @@ function extrapolate_values!(system,
 end
 
 function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
-                             v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi, t;
-                             prescribed_density=false, prescribed_pressure=false,
-                             prescribed_velocity=false)
-    (; pressure, density, boundary_zone) = system
+                             v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi)
+    (; pressure, density, boundary_zones) = system
 
     fluid_system = corresponding_fluid_system(system, semi)
 
@@ -295,6 +288,9 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
     # We can do this because we require the neighborhood search to support querying neighbors
     # of arbitrary positions (see `PointNeighbors.requires_update`).
     @threaded semi for particle in each_moving_particle(system)
+        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        (; prescribed_pressure, prescribed_density, prescribed_velocity) = boundary_zone
+
         particle_coords = current_coords(u_open_boundary, system, particle)
         ghost_node_position = mirror_position(particle_coords, boundary_zone)
 
@@ -495,8 +491,7 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
     max_dist = initial_condition.particle_spacing * 110 / 100
 
     candidates = findall(x -> dot(x - zone_origin, -plane_normal) <= max_dist,
-                         reinterpret(reshape, SVector{ndims(system), eltype(u)},
-                                     active_coordinates(u, system)))
+                         reinterpret(reshape, SVector{ndims(system), eltype(u)}, u))
 
     # Division inside the `sum` closure to maintain GPU compatibility
     avg_velocity = sum(candidates) do particle
@@ -504,9 +499,13 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
     end
 
     @threaded semi for particle in each_moving_particle(system)
-        # Set the velocity of the ghost node to the average velocity of the fluid domain
-        for dim in eachindex(avg_velocity)
-            @inbounds v[dim, particle] = avg_velocity[dim]
+        particle_coords = current_coords(u, system, particle)
+
+        if is_in_boundary_zone(boundary_zone, particle_coords)
+            # Set the velocity of the ghost node to the average velocity of the fluid domain
+            for dim in eachindex(avg_velocity)
+                @inbounds v[dim, particle] = avg_velocity[dim]
+            end
         end
     end
 

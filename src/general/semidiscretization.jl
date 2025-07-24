@@ -927,7 +927,7 @@ end
 
 function check_configuration(system::OpenBoundarySPHSystem, systems,
                              neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
-    (; boundary_model, boundary_zone) = system
+    (; boundary_model, boundary_zones) = system
 
     # Store index of the fluid system. This is necessary for re-linking
     # in case we use Adapt.jl to create a new semidiscretization.
@@ -935,7 +935,7 @@ function check_configuration(system::OpenBoundarySPHSystem, systems,
     system.fluid_system_index[] = fluid_system_index
 
     if boundary_model isa BoundaryModelLastiwka &&
-       boundary_zone isa BoundaryZone{BidirectionalFlow}
+       any(zone -> zone isa BoundaryZone{BidirectionalFlow}, boundary_zones)
         throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
                             "Please specify inflow and outflow."))
     end
