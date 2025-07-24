@@ -261,6 +261,8 @@
     @testset verbose=true "Mirroring Methods" begin
         function mirror(pressure_function, mirror_method;
                         particle_spacing=0.05, domain_size=(2.0, 1.0))
+            # Initialize a fluid block with pressure according to `pressure_function`
+            # and a adjacent inflow and outflow open boundaries to test the pressure extrapolation.
             domain_fluid = RectangularShape(particle_spacing,
                                             round.(Int, domain_size ./ particle_spacing),
                                             (0.0, 0.0), density=1000.0,
@@ -283,8 +285,8 @@
                                                       boundary_model=BoundaryModelTafuni(),
                                                       buffer_size=0)
 
+            # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_out)
-
             TrixiParticles.initialize_neighborhood_searches!(semi)
 
             v_open_boundary = zero(outflow.initial_condition.velocity)
@@ -307,6 +309,7 @@
                                                      boundary_model=BoundaryModelTafuni(),
                                                      buffer_size=0)
 
+            # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_in)
             TrixiParticles.initialize_neighborhood_searches!(semi)
 
@@ -324,6 +327,10 @@
         end
 
         function interpolate_pressure(mirror_method, pressure_func; particle_spacing=0.05)
+            # First call the function above to initialize fluid with pressure according to the function
+            # and then extrapolate pressure to the inflow and outflow boundary systems.
+            # Then, in this function, we apply an SPH interpolation on this extrapolated pressure field
+            # to get a continuous representation of the extrapolated pressure field to validate.
             fluid_system, open_boundary_in, open_boundary_out,
             v_fluid = mirror(pressure_func, mirror_method)
 
@@ -341,7 +348,7 @@
             smoothing_length = 1.2 * particle_spacing
             smoothing_kernel = WendlandC2Kernel{2}()
 
-            # Use a fluid system to interpolate the pressure
+            # Use a temporary fluid system just to interpolate the pressure
             interpolation_system = WeaklyCompressibleSPHSystem(entire_domain,
                                                                ContinuityDensity(),
                                                                nothing, smoothing_kernel,

@@ -1,5 +1,5 @@
 """
-    FirstOrderMirroring(; firstorder_tolerance::=1f-3)
+    FirstOrderMirroring(; firstorder_tolerance=1f-3)
 
 Fluid properties are extrapolated onto ghost nodes using the method proposed by [Liu and Liu (2006)](@cite Liu2006),
 to extend the gradient into the boundary zone.
@@ -10,6 +10,7 @@ to extend the gradient into the boundary zone.
 """
 struct FirstOrderMirroring{ELTYPE}
     firstorder_tolerance::ELTYPE
+
     function FirstOrderMirroring(; firstorder_tolerance::Real=1.0f-3)
         return new{typeof(firstorder_tolerance)}(firstorder_tolerance)
     end
@@ -202,21 +203,21 @@ function extrapolate_values!(system,
         if abs(det(correction_matrix[])) >= mirror_method.firstorder_tolerance
             L_inv = inv(correction_matrix[])
 
-            # pressure
+            # Pressure
             if !prescribed_pressure
                 first_order_scalar_extrapolation!(pressure, particle, L_inv,
                                                   interpolated_pressure_correction[],
                                                   two_to_end, pos_diff, mirror_method)
             end
 
-            # density
+            # Density
             if !prescribed_density
                 first_order_scalar_extrapolation!(density, particle, L_inv,
                                                   interpolated_density_correction[],
                                                   two_to_end, pos_diff, mirror_method)
             end
 
-            # velocity
+            # Velocity
             if !prescribed_velocity
                 first_order_velocity_extrapolation!(v_open_boundary, particle, L_inv,
                                                     interpolated_velocity_correction[],
@@ -231,7 +232,7 @@ function extrapolate_values!(system,
             end
 
             # No else: `correction_matrix[][1, 1] <= eps()` means no fluid neighbors
-            # and thus no reliable interpolation, so boundary values remain at their current state
+            # and thus no reliable interpolation, so boundary values remain at their current state.
         elseif correction_matrix[][1, 1] > eps()
             # Determinant is small, fallback to zero-th order mirroring
             shepard_coefficient = correction_matrix[][1, 1]
