@@ -111,12 +111,7 @@ inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_bounda
                       reference_density=reference_density_in,
                       reference_pressure=reference_pressure_in,
                       reference_velocity=reference_velocity_in,
-                      #   average_inflow_velocity=false,
                       boundary_type=boundary_type_in)
-
-# open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
-#                                          boundary_model=open_boundary_model,
-#                                          buffer_size=n_buffer_particles)
 
 reference_velocity_out = velocity_function2d
 reference_pressure_out = pressure
