@@ -66,6 +66,7 @@
 
             semi = Semidiscretization(fluid_system, open_boundary)
             TrixiParticles.initialize_neighborhood_searches!(semi)
+            TrixiParticles.initialize!(open_boundary, semi)
 
             v_open_boundary = zero(inflow.initial_condition.velocity)
             v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
@@ -75,9 +76,7 @@
             TrixiParticles.extrapolate_values!(open_boundary, FirstOrderMirroring(),
                                                v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
-                                               domain_fluid.coordinates, semi, 0.0;
-                                               prescribed_pressure=false,
-                                               prescribed_velocity=false)
+                                               domain_fluid.coordinates, semi)
             # Checked visually in ParaView:
             # trixi2vtk(fluid_system.initial_condition, filename="fluid",
             #           v=domain_fluid.velocity, p=domain_fluid.pressure)
@@ -163,6 +162,7 @@
 
             semi = Semidiscretization(fluid_system, open_boundary)
             TrixiParticles.initialize_neighborhood_searches!(semi)
+            TrixiParticles.initialize!(open_boundary, semi)
 
             v_open_boundary = zero(inflow.initial_condition.velocity)
             v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
@@ -172,9 +172,7 @@
             TrixiParticles.extrapolate_values!(open_boundary, FirstOrderMirroring(),
                                                v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
-                                               domain_fluid.coordinates, semi, 0.0;
-                                               prescribed_pressure=false,
-                                               prescribed_velocity=false)
+                                               domain_fluid.coordinates, semi)
             # Checked visually in ParaView:
             # trixi2vtk(fluid_system.initial_condition, filename="fluid",
             #           v=domain_fluid.velocity, p=domain_fluid.pressure)
@@ -236,6 +234,7 @@
 
         semi = Semidiscretization(fluid_system, open_boundary_in)
         TrixiParticles.initialize_neighborhood_searches!(semi)
+        TrixiParticles.initialize!(open_boundary_in, semi)
 
         v_open_boundary = zero(inflow.initial_condition.velocity)
         u_open_boundary = inflow.initial_condition.coordinates
@@ -246,7 +245,7 @@
         TrixiParticles.extrapolate_values!(open_boundary_in, FirstOrderMirroring(),
                                            v_open_boundary, v_fluid,
                                            inflow.initial_condition.coordinates,
-                                           domain_fluid.coordinates, semi, 0.0)
+                                           domain_fluid.coordinates, semi)
 
         TrixiParticles.average_velocity!(v_open_boundary, u_open_boundary, open_boundary_in,
                                          inflow, semi)
@@ -288,6 +287,7 @@
             # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_out)
             TrixiParticles.initialize_neighborhood_searches!(semi)
+            TrixiParticles.initialize!(open_boundary_out, semi)
 
             v_open_boundary = zero(outflow.initial_condition.velocity)
             v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
@@ -297,8 +297,7 @@
             TrixiParticles.extrapolate_values!(open_boundary_out, mirror_method,
                                                v_open_boundary, v_fluid,
                                                outflow.initial_condition.coordinates,
-                                               domain_fluid.coordinates, semi, 0.0;
-                                               prescribed_pressure=false)
+                                               domain_fluid.coordinates, semi)
 
             plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
 
@@ -312,6 +311,7 @@
             # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_in)
             TrixiParticles.initialize_neighborhood_searches!(semi)
+            TrixiParticles.initialize!(open_boundary_in, semi)
 
             v_open_boundary = zero(inflow.initial_condition.velocity)
 
@@ -320,8 +320,7 @@
             TrixiParticles.extrapolate_values!(open_boundary_in, mirror_method,
                                                v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
-                                               domain_fluid.coordinates, semi, 0.0;
-                                               prescribed_pressure=false)
+                                               domain_fluid.coordinates, semi)
 
             return fluid_system, open_boundary_in, open_boundary_out, v_fluid
         end

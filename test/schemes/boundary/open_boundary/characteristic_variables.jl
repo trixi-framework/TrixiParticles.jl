@@ -36,10 +36,12 @@
             flow_direction = flow_directions[j]
             inflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
                                   plane_normal=flow_direction, open_boundary_layers,
-                                  boundary_type=InFlow())
+                                  boundary_type=InFlow(), reference_velocity,
+                                  reference_pressure, reference_density)
             outflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
                                    plane_normal=(-flow_direction), open_boundary_layers,
-                                   boundary_type=OutFlow())
+                                   boundary_type=OutFlow(), reference_velocity,
+                                   reference_pressure, reference_density)
 
             boundary_zones = [
                 inflow,
@@ -62,10 +64,7 @@
 
                 boundary_system = OpenBoundarySPHSystem(boundary_zone;
                                                         fluid_system, buffer_size=0,
-                                                        boundary_model=BoundaryModelLastiwka(),
-                                                        reference_velocity,
-                                                        reference_pressure,
-                                                        reference_density)
+                                                        boundary_model=BoundaryModelLastiwka())
 
                 semi = Semidiscretization(fluid_system, boundary_system)
 

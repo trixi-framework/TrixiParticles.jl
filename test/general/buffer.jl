@@ -6,14 +6,11 @@
 
     zone = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
                         open_boundary_layers=2, density=1.0, plane_normal=[1.0, 0.0],
-                        boundary_type=InFlow())
+                        reference_density=0.0, reference_pressure=0.0,
+                        reference_velocity=[0, 0], boundary_type=InFlow())
     system = OpenBoundarySPHSystem(zone; fluid_system=FluidSystemMock3(),
-                                   reference_density=0.0, reference_pressure=0.0,
-                                   reference_velocity=[0, 0],
                                    boundary_model=BoundaryModelLastiwka(), buffer_size=0)
     system_buffer = OpenBoundarySPHSystem(zone; buffer_size=5,
-                                          reference_density=0.0, reference_pressure=0.0,
-                                          reference_velocity=[0, 0],
                                           boundary_model=BoundaryModelLastiwka(),
                                           fluid_system=FluidSystemMock3())
 

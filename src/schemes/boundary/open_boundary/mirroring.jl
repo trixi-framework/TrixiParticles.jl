@@ -274,9 +274,7 @@ end
 
 function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
                              v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi)
-    (; pressure, density, boundary_zones) = system
-
-    fluid_system = corresponding_fluid_system(system, semi)
+    (; pressure, density, boundary_zones, fluid_system) = system
 
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
     nhs = get_neighborhood_search(fluid_system, fluid_system, semi)
@@ -483,6 +481,7 @@ end
 average_velocity!(v, u, system, boundary_zone, semi) = v
 
 function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, semi)
+    (; boundary_zones) = system
     (; plane_normal, zone_origin, initial_condition) = boundary_zone
 
     # We only use the extrapolated velocity in the vicinity of the transition region.
@@ -495,11 +494,14 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
 
     particles_in_zone = findall(particle -> boundary_zone ==
                                             current_boundary_zone(system, boundary_zones,
-                                                                  particle), candidates)
+                                                                  particle),
+                                each_moving_particle(system))
+
+    intersect!(candidates, particles_in_zone)
 
     # Division inside the `sum` closure to maintain GPU compatibility
-    avg_velocity = sum(particles_in_zone) do particle
-        return current_velocity(v, system, particle) / length(particles_in_zone)
+    avg_velocity = sum(candidates) do particle
+        return current_velocity(v, system, particle) / length(candidates)
     end
 
     @threaded semi for particle in particles_in_zone

@@ -138,7 +138,6 @@ function Base.show(io::IO, system::OpenBoundarySPHSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "OpenBoundarySPHSystem{", ndims(system), "}(")
-    print(io, boundary_type_name(system.boundary_zone))
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -151,6 +150,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         summary_header(io, "OpenBoundarySPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "#buffer_particles", system.buffer.buffer_size)
+        summary_line(io, "#boundary_zones", length(system.boundary_zones))
         summary_line(io, "fluid system", type2string(system.fluid_system))
         summary_line(io, "boundary model", type2string(system.boundary_model))
         summary_footer(io)
