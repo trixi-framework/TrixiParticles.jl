@@ -493,19 +493,19 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
     candidates = findall(x -> dot(x - zone_origin, -plane_normal) <= max_dist,
                          reinterpret(reshape, SVector{ndims(system), eltype(u)}, u))
 
+    particles_in_zone = findall(particle -> boundary_zone ==
+                                            current_boundary_zone(system, boundary_zones,
+                                                                  particle), candidates)
+
     # Division inside the `sum` closure to maintain GPU compatibility
-    avg_velocity = sum(candidates) do particle
-        return current_velocity(v, system, particle) / length(candidates)
+    avg_velocity = sum(particles_in_zone) do particle
+        return current_velocity(v, system, particle) / length(particles_in_zone)
     end
 
-    @threaded semi for particle in each_moving_particle(system)
-        particle_coords = current_coords(u, system, particle)
-
-        if is_in_boundary_zone(boundary_zone, particle_coords)
-            # Set the velocity of the ghost node to the average velocity of the fluid domain
-            for dim in eachindex(avg_velocity)
-                @inbounds v[dim, particle] = avg_velocity[dim]
-            end
+    @threaded semi for particle in particles_in_zone
+        # Set the velocity of the ghost node to the average velocity of the fluid domain
+        for dim in eachindex(avg_velocity)
+            @inbounds v[dim, particle] = avg_velocity[dim]
         end
     end
 
