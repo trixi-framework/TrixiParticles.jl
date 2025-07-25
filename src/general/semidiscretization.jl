@@ -966,10 +966,8 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.pressure,
                                  system.boundary_candidates,
                                  system.fluid_candidates,
-                                 system.boundary_zone,
-                                 system.reference_velocity,
-                                 system.reference_pressure,
-                                 system.reference_density,
+                                 system.boundary_zone_indices,
+                                 system.boundary_zones,
                                  system.buffer,
                                  system.update_callback_used,
                                  system.cache)
