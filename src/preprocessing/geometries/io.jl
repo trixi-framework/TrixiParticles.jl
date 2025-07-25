@@ -12,17 +12,18 @@ For comprehensive information about the supported file formats, refer to the doc
 # Keywords
 - `element_type`: Element type (default is `Float64`)
 """
-function load_geometry(filename; element_type=Float64)
+function load_geometry(filename; element_type=Float64,
+                       parallelization_backend=PolyesterBackend())
     ELTYPE = element_type
 
     file_extension = splitext(filename)[end]
 
     if file_extension == ".asc"
-        geometry = load_ascii(filename; ELTYPE, skipstart=1)
+        geometry = load_ascii(filename; ELTYPE, skipstart=1, parallelization_backend)
     elseif file_extension == ".dxf"
         geometry = load_dxf(filename; ELTYPE)
     elseif file_extension == ".stl"
-        geometry = load(FileIO.query(filename); ELTYPE)
+        geometry = load(FileIO.query(filename); ELTYPE, parallelization_backend)
     else
         throw(ArgumentError("Only `.stl`, `.asc` and `.dxf` files are supported (yet)."))
     end
@@ -30,13 +31,13 @@ function load_geometry(filename; element_type=Float64)
     return geometry
 end
 
-function load_ascii(filename; ELTYPE=Float64, skipstart=1)
+function load_ascii(filename; ELTYPE=Float64, skipstart=1, parallelization_backend=true)
 
     # Read the data from the ASCII file in as a matrix of coordinates.
     # Ignore the first `skipstart` lines of the file (e.g. headers).
     points = DelimitedFiles.readdlm(filename, ' ', ELTYPE, '\n'; skipstart)[:, 1:2]
 
-    return Polygon(copy(points'))
+    return Polygon(copy(points'); parallelization_backend)
 end
 
 function load_dxf(filename; ELTYPE=Float64)
@@ -132,14 +133,15 @@ end
 
 # FileIO.jl docs:
 # https://juliaio.github.io/FileIO.jl/stable/implementing/#All-at-once-I/O:-implementing-load-and-save
-function load(fn::FileIO.File{FileIO.format"STL_BINARY"}; element_types...)
+function load(fn::FileIO.File{FileIO.format"STL_BINARY"}; kwargs...)
     open(fn) do s
         FileIO.skipmagic(s) # skip over the magic bytes
-        load(s; element_types...)
+        load(s; kwargs...)
     end
 end
 
-function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
+function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64,
+              parallelization_backend=true)
     # Binary STL
     # https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = FileIO.stream(fs)
@@ -152,7 +154,7 @@ function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
 
     load_data!(face_vertices, vertices, normals, io)
 
-    return TriangleMesh(face_vertices, normals, vertices)
+    return TriangleMesh(face_vertices, normals, vertices; parallelization_backend)
 end
 
 function load_data!(face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},
