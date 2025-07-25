@@ -232,15 +232,19 @@ end
 
 function average_velocity!(v, u, system, ::BoundaryModelLastiwka,
                            boundary_zone::BoundaryZone{InFlow}, semi)
-    candidates = findall(x -> is_in_boundary_zone(boundary_zone, x),
-                         reinterpret(reshape, SVector{ndims(system), eltype(u)}, u))
+    (; boundary_zones) = system
+
+    particles_in_zone = findall(particle -> boundary_zone ==
+                                            current_boundary_zone(system, boundary_zones,
+                                                                  particle),
+                                each_moving_particle(system))
 
     # Division inside the `sum` closure to maintain GPU compatibility
-    avg_velocity = sum(candidates) do particle
-        return current_velocity(v, system, particle) / system.buffer.active_particle_count[]
+    avg_velocity = sum(particles_in_zone) do particle
+        return current_velocity(v, system, particle) / length(particles_in_zone)
     end
 
-    @threaded semi for particle in candidates
+    @threaded semi for particle in particles_in_zone
         # Set the velocity of the ghost node to the average velocity of the fluid domain
         for dim in eachindex(avg_velocity)
             @inbounds v[dim, particle] = avg_velocity[dim]
