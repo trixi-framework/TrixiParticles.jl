@@ -339,7 +339,7 @@
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10,
+        steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=5,
                                                           reltol=1e-3)
 
         @trixi_test_nowarn trixi_include(@__MODULE__,
@@ -354,7 +354,7 @@
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; interval=1, interval_size=10,
+        steady_state_reached = SteadyStateReachedCallback(; interval=1, interval_size=5,
                                                           reltol=1e-3)
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",

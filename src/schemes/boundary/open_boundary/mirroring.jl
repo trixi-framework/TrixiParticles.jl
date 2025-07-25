@@ -91,7 +91,7 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
     end
 
     @threaded semi for particle in each_moving_particle(system)
-        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        boundary_zone = current_boundary_zone(system, particle)
         (; prescribed_pressure, prescribed_density, prescribed_velocity,
          reference_pressure, reference_density, reference_velocity) = boundary_zone
 
@@ -139,7 +139,7 @@ function extrapolate_values!(system,
     # We can do this because we require the neighborhood search to support querying neighbors
     # of arbitrary positions (see `PointNeighbors.requires_update`).
     @threaded semi for particle in each_moving_particle(system)
-        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        boundary_zone = current_boundary_zone(system, particle)
         (; prescribed_pressure, prescribed_density, prescribed_velocity) = boundary_zone
 
         particle_coords = current_coords(u_open_boundary, system, particle)
@@ -286,7 +286,7 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
     # We can do this because we require the neighborhood search to support querying neighbors
     # of arbitrary positions (see `PointNeighbors.requires_update`).
     @threaded semi for particle in each_moving_particle(system)
-        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        boundary_zone = current_boundary_zone(system, particle)
         (; prescribed_pressure, prescribed_density, prescribed_velocity) = boundary_zone
 
         particle_coords = current_coords(u_open_boundary, system, particle)
@@ -478,11 +478,15 @@ function mirror_position(particle_coords, boundary_zone)
     return particle_coords - 2 * dist * boundary_zone.plane_normal
 end
 
-average_velocity!(v, u, system, boundary_zone, semi) = v
+# Only for inflow boundary zones
+function average_velocity!(v, u, system, boundary_zone, semi)
+    (; plane_normal, zone_origin, initial_condition, flow_direction) = boundary_zone
 
-function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, semi)
-    (; boundary_zones) = system
-    (; plane_normal, zone_origin, initial_condition) = boundary_zone
+    # Bidirectional flow
+    isnothing(flow_direction) && return v
+
+    # Outflow
+    signbit(dot(flow_direction, plane_normal)) && return v
 
     # We only use the extrapolated velocity in the vicinity of the transition region.
     # Otherwise, if the boundary zone is too large, averaging would be excessively influenced
@@ -493,8 +497,7 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
                          reinterpret(reshape, SVector{ndims(system), eltype(u)}, u))
 
     particles_in_zone = findall(particle -> boundary_zone ==
-                                            current_boundary_zone(system, boundary_zones,
-                                                                  particle),
+                                            current_boundary_zone(system, particle),
                                 each_moving_particle(system))
 
     intersect!(candidates, particles_in_zone)
@@ -514,10 +517,16 @@ function average_velocity!(v, u, system, boundary_zone::BoundaryZone{InFlow}, se
     return v
 end
 
-project_velocity_on_plane_normal!(v, system, particle, boundary_zone) = v
+# Only for inflow boundary zones
+function project_velocity_on_plane_normal!(v, system, particle, boundary_zone)
+    (; plane_normal, flow_direction) = boundary_zone
 
-function project_velocity_on_plane_normal!(v, system, particle,
-                                           boundary_zone::BoundaryZone{InFlow})
+    # Bidirectional flow
+    isnothing(flow_direction) && return v
+
+    # Outflow
+    signbit(dot(flow_direction, plane_normal)) && return v
+
     # Project `vel` on the normal direction of the boundary zone
     # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
     # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,

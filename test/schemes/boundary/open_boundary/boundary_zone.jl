@@ -7,12 +7,13 @@
                               reference_velocity=[0.0, 0.0],
                               open_boundary_layers=4, boundary_type=InFlow())
 
-        show_compact = "BoundaryZone{InFlow}() with 80 particles"
+        show_compact = "BoundaryZone() with 80 particles"
         @test repr(inflow) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ BoundaryZone{InFlow}                                                                             │
-        │ ════════════════════                                                                             │
+        │ BoundaryZone                                                                                     │
+        │ ════════════                                                                                     │
+        │ boundary type: ………………………………………… inflow                                                           │
         │ #particles: ………………………………………………… 80                                                               │
         │ prescribed velocity: ………………………… constant_vector                                                  │
         │ prescribed pressure: ………………………… constant_scalar                                                  │
@@ -29,12 +30,13 @@
                                plane_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
                                boundary_type=OutFlow())
 
-        show_compact = "BoundaryZone{OutFlow}() with 80 particles"
+        show_compact = "BoundaryZone() with 80 particles"
         @test repr(outflow) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ BoundaryZone{OutFlow}                                                                            │
-        │ ═════════════════════                                                                            │
+        │ BoundaryZone                                                                                     │
+        │ ════════════                                                                                     │
+        │ boundary type: ………………………………………… outflow                                                          │
         │ #particles: ………………………………………………… 80                                                               │
         │ prescribed velocity: ………………………… constant_vector                                                  │
         │ prescribed pressure: ………………………… constant_scalar                                                  │
@@ -130,8 +132,8 @@
 
                     zone_width = open_boundary_layers *
                                  boundary_zone.initial_condition.particle_spacing
-                    sign_ = (first(typeof(boundary_zone).parameters) ===
-                             TrixiParticles.InFlow) ? -1 : 1
+                    sign_ = (TrixiParticles.boundary_type_name(boundary_zone) == "inflow") ?
+                            -1 : 1
 
                     @test plane_points_1[i] == boundary_zone.zone_origin
                     @test plane_points_2[i] - boundary_zone.zone_origin ==
@@ -194,8 +196,8 @@
 
                     zone_width = open_boundary_layers *
                                  boundary_zone.initial_condition.particle_spacing
-                    sign_ = (first(typeof(boundary_zone).parameters) ===
-                             TrixiParticles.InFlow) ? -1 : 1
+                    sign_ = (TrixiParticles.boundary_type_name(boundary_zone) == "inflow") ?
+                            -1 : 1
 
                     @test plane_points_1[i] == boundary_zone.zone_origin
                     @test plane_points_2[i] - boundary_zone.zone_origin ==
@@ -232,7 +234,7 @@
         @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in
                                                                                         boundary_zones
 
-            perturb_ = first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow ?
+            perturb_ = TrixiParticles.boundary_type_name(boundary_zone) == "inflow" ?
                        sqrt(eps()) :
                        -sqrt(eps())
 
@@ -278,7 +280,7 @@
         @testset verbose=true "$(TrixiParticles.boundary_type_name(boundary_zone))" for boundary_zone in
                                                                                         boundary_zones
 
-            perturb_ = first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow ?
+            perturb_ = TrixiParticles.boundary_type_name(boundary_zone) == "inflow" ?
                        eps() : -eps()
             point4 = boundary_zone.spanning_set[1] + boundary_zone.zone_origin
 

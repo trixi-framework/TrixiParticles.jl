@@ -225,7 +225,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         particle_coords = current_coords(u, system, particle)
 
         # Check if boundary particle is outside the boundary zone
-        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        boundary_zone = current_boundary_zone(system, particle)
         if !is_in_boundary_zone(boundary_zone, particle_coords)
             boundary_candidates[particle] = true
         end
@@ -241,7 +241,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         particle = crossed_boundary_particles[i]
         particle_new = available_fluid_particles[i]
 
-        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        boundary_zone = current_boundary_zone(system, particle)
         convert_particle!(system, fluid_system, boundary_zone, particle, particle_new,
                           v, u, v_fluid, u_fluid)
     end
@@ -286,35 +286,9 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     return system
 end
 
-# Outflow particle is outside the boundary zone
-@inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone{OutFlow},
-                                   particle, particle_new, v, u, v_fluid, u_fluid)
-    deactivate_particle!(system, particle, u)
-
-    return system
-end
-
-# Inflow particle is outside the boundary zone
-@inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone{InFlow},
-                                   particle, particle_new, v, u, v_fluid, u_fluid)
-    (; spanning_set) = boundary_zone
-
-    # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
-
-    # Reset position of boundary particle
-    for dim in 1:ndims(system)
-        u[dim, particle] += spanning_set[1][dim]
-    end
-
-    return system
-end
-
 # Buffer particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone{BidirectionalFlow},
+                                   boundary_zone::BoundaryZone,
                                    particle, particle_new, v, u, v_fluid, u_fluid)
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 

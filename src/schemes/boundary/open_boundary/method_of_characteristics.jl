@@ -46,7 +46,7 @@ end
 
     # Update quantities based on the characteristic variables
     @threaded semi for particle in each_moving_particle(system)
-        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        boundary_zone = current_boundary_zone(system, particle)
         (; reference_pressure, reference_density, reference_velocity,
          flow_direction) = boundary_zone
 
@@ -125,7 +125,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     foreach_point_neighbor(system, fluid_system, system_coords, fluid_coords, semi;
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
-        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
+        boundary_zone = current_boundary_zone(system, particle)
 
         (; reference_velocity, reference_pressure, reference_density,
          flow_direction) = boundary_zone
@@ -165,8 +165,6 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # of fluid particles by using the average of the values of the previous time step.
     # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
     @threaded semi for particle in each_moving_particle(system)
-        boundary_zone = current_boundary_zone(system, boundary_zones, particle)
-
         # Particle is outside of the influence of fluid particles
         if isapprox(volume[particle], 0)
 
@@ -203,40 +201,36 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
             characteristics[2, particle] /= volume[particle]
             characteristics[3, particle] /= volume[particle]
         end
-        prescribe_conditions!(characteristics, particle, boundary_zone)
+
+        boundary_zone = current_boundary_zone(system, particle)
+        (; flow_direction, plane_normal) = boundary_zone
+
+        # Outflow
+        if signbit(dot(flow_direction, plane_normal))
+            # J3 is prescribed (i.e. determined from the exterior of the domain).
+            # J1 and J2 is transmitted from the domain interior.
+            characteristics[3, particle] = zero(eltype(characteristics))
+
+        else # Inflow
+            # Allow only J3 to propagate upstream to the boundary
+            characteristics[1, particle] = zero(eltype(characteristics))
+            characteristics[2, particle] = zero(eltype(characteristics))
+        end
     end
 
     return system
 end
 
-@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{OutFlow})
-    # J3 is prescribed (i.e. determined from the exterior of the domain).
-    # J1 and J2 is transmitted from the domain interior.
-    characteristics[3, particle] = zero(eltype(characteristics))
-
-    return characteristics
-end
-
-@inline function prescribe_conditions!(characteristics, particle, ::BoundaryZone{InFlow})
-    # Allow only J3 to propagate upstream to the boundary
-    characteristics[1, particle] = zero(eltype(characteristics))
-    characteristics[2, particle] = zero(eltype(characteristics))
-
-    return characteristics
-end
-
-function average_velocity!(v, u, system, ::BoundaryModelLastiwka, boundary_zone, semi)
-    # Only apply averaging at the inflow
-    return v
-end
-
+# Only apply averaging at the inflow
 function average_velocity!(v, u, system, ::BoundaryModelLastiwka,
-                           boundary_zone::BoundaryZone{InFlow}, semi)
-    (; boundary_zones) = system
+                           boundary_zone::BoundaryZone, semi)
+    (; flow_direction, plane_normal) = boundary_zone
+
+    # Outflow
+    signbit(dot(flow_direction, plane_normal)) && return v
 
     particles_in_zone = findall(particle -> boundary_zone ==
-                                            current_boundary_zone(system, boundary_zones,
-                                                                  particle),
+                                            current_boundary_zone(system, particle),
                                 each_moving_particle(system))
 
     # Division inside the `sum` closure to maintain GPU compatibility

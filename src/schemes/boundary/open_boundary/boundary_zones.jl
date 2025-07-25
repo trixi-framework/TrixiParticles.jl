@@ -90,8 +90,7 @@ bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_s
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{BT, IC, S, ZO, ZW, FD, PN, RD, RP, RV}
-    boundary_type           :: BT
+struct BoundaryZone{IC, S, ZO, ZW, FD, PN, RD, RP, RV}
     initial_condition       :: IC
     spanning_set            :: S
     zone_origin             :: ZO
@@ -187,18 +186,29 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
     prescribed_pressure = isnothing(reference_pressure) ? false : true
     prescribed_velocity = isnothing(reference_velocity) ? false : true
 
-    return BoundaryZone(boundary_type, ic, spanning_set_, zone_origin, zone_width,
+    return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, plane_normal_, average_inflow_velocity,
                         prescribed_density, prescribed_pressure, prescribed_velocity,
                         reference_density_, reference_pressure_, reference_velocity_)
 end
 
-boundary_type_name(::BoundaryZone{ZT}) where {ZT} = string(nameof(ZT))
+function boundary_type_name(boundary_zone::BoundaryZone)
+    (; flow_direction, plane_normal) = boundary_zone
+
+    # Bidirectional flow
+    isnothing(flow_direction) && return "bidirectional_flow"
+
+    # Outflow
+    signbit(dot(flow_direction, plane_normal)) && return "outflow"
+
+    # Inflow
+    return "inflow"
+end
 
 function Base.show(io::IO, boundary_zone::BoundaryZone)
     @nospecialize boundary_zone # reduce precompilation time
 
-    print(io, "BoundaryZone{", boundary_type_name(boundary_zone), "}(")
+    print(io, "BoundaryZone(")
     print(io, ") with ", nparticles(boundary_zone.initial_condition), " particles")
 end
 
@@ -208,7 +218,8 @@ function Base.show(io::IO, ::MIME"text/plain", boundary_zone::BoundaryZone)
     if get(io, :compact, false)
         show(io, boundary_zone)
     else
-        summary_header(io, "BoundaryZone{$(boundary_type_name(boundary_zone))}")
+        summary_header(io, "BoundaryZone")
+        summary_line(io, "boundary type", boundary_type_name(boundary_zone))
         summary_line(io, "#particles", nparticles(boundary_zone.initial_condition))
         summary_line(io, "prescribed velocity",
                      type2string(boundary_zone.reference_velocity))
@@ -263,7 +274,7 @@ function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
         throw(ArgumentError("`plane_normal` is not normal to the boundary plane"))
     end
 
-    if boundary_type isa InFlow
+    if boundary_type == InFlow()
         # First vector of `spanning_vectors` is normal to the boundary plane
         dot_flow = dot(normalize(spanning_set[:, 1]), flow_direction)
 
@@ -271,7 +282,7 @@ function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
         # Flip the normal vector to point in the opposite direction of `flow_direction`.
         spanning_set[:, 1] .*= -sign(dot_flow)
 
-    elseif boundary_type isa OutFlow
+    elseif boundary_type == OutFlow()
         # First vector of `spanning_vectors` is normal to the boundary plane
         dot_flow = dot(normalize(spanning_set[:, 1]), flow_direction)
 
@@ -279,7 +290,7 @@ function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
         # Flip the normal vector to point in `flow_direction`.
         spanning_set[:, 1] .*= sign(dot_flow)
 
-    elseif boundary_type isa BidirectionalFlow
+    elseif boundary_type == BidirectionalFlow()
         # Flip the normal vector to point opposite to fluid domain
         spanning_set[:, 1] .*= -sign(dot_plane_normal)
     end
@@ -374,8 +385,8 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
     return system
 end
 
-function current_boundary_zone(system, boundary_zones, particle)
-    return boundary_zones[system.boundary_zone_indices[particle]]
+function current_boundary_zone(system, particle)
+    return system.boundary_zones[system.boundary_zone_indices[particle]]
 end
 
 function remove_outside_particles(initial_condition, spanning_set, zone_origin)

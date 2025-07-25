@@ -935,9 +935,9 @@ function check_configuration(system::OpenBoundarySPHSystem, systems,
     system.fluid_system_index[] = fluid_system_index
 
     if boundary_model isa BoundaryModelLastiwka &&
-       any(zone -> zone isa BoundaryZone{BidirectionalFlow}, boundary_zones)
+       any(zone -> isnothing(zone.flow_direction), boundary_zones)
         throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
-                            "Please specify inflow and outflow."))
+                            "Please specify `InFlow()` and `OutFlow()`."))
     end
 
     if first(PointNeighbors.requires_update(neighborhood_search))
