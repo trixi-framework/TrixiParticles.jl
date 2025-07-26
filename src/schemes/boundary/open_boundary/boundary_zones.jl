@@ -136,6 +136,7 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                                       boundary_type=boundary_type)
 
     NDIMS = ndims(ic)
+    ELTYPE = eltype(ic)
     if !(reference_velocity isa Function || isnothing(reference_velocity) ||
          (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
         throw(ArgumentError("`reference_velocity` must be either a function mapping " *
@@ -148,11 +149,10 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
             if length(test_result) != NDIMS
                 throw(ArgumentError("`velocity` function must be of dimension $NDIMS"))
             end
-            velocity_ref = wrap_reference_function(reference_velocity)
-        else
-            v = isnothing(reference_velocity) ? nothing : SVector(reference_velocity...)
-            velocity_ref = wrap_reference_function(v)
         end
+        # We need this dummy for type stability reasons
+        velocity_dummy = SVector(ntuple(dim -> ELTYPE(Inf), NDIMS))
+        velocity_ref = wrap_reference_function(reference_velocity, velocity_dummy)
     end
 
     if !(reference_pressure isa Function || reference_pressure isa Real ||
@@ -167,8 +167,9 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                 throw(ArgumentError("`reference_pressure` function must be a scalar function"))
             end
         end
-
-        pressure_ref = wrap_reference_function(reference_pressure)
+        # We need this dummy for type stability reasons
+        pressure_dummy = ELTYPE(Inf)
+        pressure_ref = wrap_reference_function(reference_pressure, pressure_dummy)
     end
 
     if !(reference_density isa Function || reference_density isa Real ||
@@ -183,8 +184,9 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                 throw(ArgumentError("`reference_density` function must be a scalar function"))
             end
         end
-
-        density_ref = wrap_reference_function(reference_density)
+        # We need this dummy for type stability reasons
+        density_dummy = ELTYPE(Inf)
+        density_ref = wrap_reference_function(reference_density, density_dummy)
     end
 
     prescribed_pressure = isnothing(reference_pressure) ? false : true
@@ -397,20 +399,22 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
                             particle_spacing)
 end
 
-wrap_reference_function(::Nothing) = @inline((coords, t)->nothing)
+function wrap_reference_function(function_::Nothing, ref_dummy)
+    # Return a dummy value for type stability
+    return @inline((coords, t)->ref_dummy)
+end
 
-function wrap_reference_function(function_::Function)
+function wrap_reference_function(function_::Function, ref_dummy)
     # Already a function
     return function_
 end
 
-# Name the function so that the summary box does know which kind of function this is
-function wrap_reference_function(constant_scalar_::Number)
+function wrap_reference_function(constant_scalar_::Number, ref_dummy)
     return @inline((coords, t)->constant_scalar_)
 end
 
-function wrap_reference_function(constant_vector_::SVector{NDIMS, ELTYPE}) where {NDIMS,
-                                                                                  ELTYPE}
+function wrap_reference_function(constant_vector_::AbstractVector,
+                                 ref_dummy::SVector{NDIMS, ELTYPE}) where {NDIMS, ELTYPE}
     return @inline((coords, t)->SVector{NDIMS, ELTYPE}(constant_vector_))
 end
 
