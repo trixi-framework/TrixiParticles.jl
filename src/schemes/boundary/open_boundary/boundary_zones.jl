@@ -90,7 +90,7 @@ bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_s
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{IC, S, ZO, ZW, FD, PN, RD, RP, RV}
+struct BoundaryZone{IC, S, ZO, ZW, FD, PN, PV}
     initial_condition       :: IC
     spanning_set            :: S
     zone_origin             :: ZO
@@ -98,19 +98,15 @@ struct BoundaryZone{IC, S, ZO, ZW, FD, PN, RD, RP, RV}
     flow_direction          :: FD
     plane_normal            :: PN
     average_inflow_velocity :: Bool
-    prescribed_density      :: Bool
-    prescribed_pressure     :: Bool
-    prescribed_velocity     :: Bool
-    reference_density       :: RD
-    reference_pressure      :: RP
-    reference_velocity      :: RV
+    prescribed_density      :: PV
+    prescribed_pressure     :: PV
+    prescribed_velocity     :: PV
 end
 
 function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, average_inflow_velocity=true,
-                      boundary_type=BidirectionalFlow(), reference_velocity=nothing,
-                      reference_pressure=nothing, reference_density=nothing)
+                      boundary_type=BidirectionalFlow())
     if open_boundary_layers <= 0
         throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
     end
@@ -135,61 +131,81 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                                       particle_spacing, initial_condition,
                                       extrude_geometry, open_boundary_layers;
                                       boundary_type=boundary_type)
-    NDIMS = ndims(ic)
-    if !(reference_velocity isa Function || isnothing(reference_velocity) ||
-         (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
-        throw(ArgumentError("`reference_velocity` must be either a function mapping " *
+
+    prescribed_density = Ref(false)
+    prescribed_pressure = Ref(false)
+    prescribed_velocity = Ref(false)
+
+    return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
+                        flow_direction, plane_normal_, average_inflow_velocity,
+                        prescribed_density, prescribed_pressure, prescribed_velocity)
+end
+
+struct ReferenceValues{BZ, F1, F2, F3}
+    boundary_zone       :: BZ
+    reference_density   :: F1
+    reference_pressure  :: F2
+    reference_velocity  :: F3
+end
+
+function ReferenceValues(boundary_zone::BoundaryZone;
+                         density=nothing, pressure=nothing, velocity=nothing)
+    NDIMS = ndims(boundary_zone.initial_condition)
+    if !(velocity isa Function || isnothing(velocity) ||
+         (velocity isa Vector && length(velocity) == NDIMS))
+        throw(ArgumentError("`velocity` must be either a function mapping " *
                             "each particle's coordinates and time to its velocity, " *
                             "an array where the ``i``-th column holds the velocity of particle ``i`` " *
                             "or, for a constant fluid velocity, a vector of length $NDIMS for a $(NDIMS)D problem holding this velocity"))
     else
-        if reference_velocity isa Function
-            test_result = reference_velocity(zeros(NDIMS), 0.0)
+        if velocity isa Function
+            test_result = velocity(zeros(NDIMS), 0.0)
             if length(test_result) != NDIMS
-                throw(ArgumentError("`reference_velocity` function must be of dimension $NDIMS"))
+                throw(ArgumentError("`velocity` function must be of dimension $NDIMS"))
             end
+            velocity_ = wrap_reference_function(velocity)
+        else
+            velocity_ = wrap_reference_function(SVector(velocity...))
         end
-        reference_velocity_ = wrap_reference_function(reference_velocity, Val(NDIMS))
     end
 
-    if !(reference_pressure isa Function || reference_pressure isa Real ||
-         isnothing(reference_pressure))
-        throw(ArgumentError("`reference_pressure` must be either a function mapping " *
+    if !(pressure isa Function || pressure isa Real ||
+         isnothing(pressure))
+        throw(ArgumentError("`pressure` must be either a function mapping " *
                             "each particle's coordinates and time to its pressure, " *
                             "a vector holding the pressure of each particle, or a scalar"))
     else
-        if reference_pressure isa Function
-            test_result = reference_pressure(zeros(NDIMS), 0.0)
+        if pressure isa Function
+            test_result = pressure(zeros(NDIMS), 0.0)
             if length(test_result) != 1
-                throw(ArgumentError("`reference_pressure` function must be a scalar function"))
+                throw(ArgumentError("`pressure` function must be a scalar function"))
             end
         end
-        reference_pressure_ = wrap_reference_function(reference_pressure, Val(NDIMS))
+
+        pressure_ = wrap_reference_function(pressure)
     end
 
-    if !(reference_density isa Function || reference_density isa Real ||
-         isnothing(reference_density))
-        throw(ArgumentError("`reference_density` must be either a function mapping " *
+    if !(density isa Function || density isa Real ||
+         isnothing(density))
+        throw(ArgumentError("`density` must be either a function mapping " *
                             "each particle's coordinates and time to its density, " *
                             "a vector holding the density of each particle, or a scalar"))
     else
-        if reference_density isa Function
-            test_result = reference_density(zeros(NDIMS), 0.0)
+        if density isa Function
+            test_result = density(zeros(NDIMS), 0.0)
             if length(test_result) != 1
-                throw(ArgumentError("`reference_density` function must be a scalar function"))
+                throw(ArgumentError("`density` function must be a scalar function"))
             end
         end
-        reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
+
+        density_ = wrap_reference_function(density)
     end
 
-    prescribed_density = isnothing(reference_density) ? false : true
-    prescribed_pressure = isnothing(reference_pressure) ? false : true
-    prescribed_velocity = isnothing(reference_velocity) ? false : true
+    boundary_zone.prescribed_pressure[] = isnothing(pressure) ? false : true
+    boundary_zone.prescribed_density[] =  isnothing(density) ? false : true
+    boundary_zone.prescribed_velocity[] = isnothing(velocity) ? false : true
 
-    return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
-                        flow_direction, plane_normal_, average_inflow_velocity,
-                        prescribed_density, prescribed_pressure, prescribed_velocity,
-                        reference_density_, reference_pressure_, reference_velocity_)
+    return ReferenceValues(boundary_zone, density_, pressure_, velocity_)
 end
 
 function boundary_type_name(boundary_zone::BoundaryZone)
@@ -221,11 +237,6 @@ function Base.show(io::IO, ::MIME"text/plain", boundary_zone::BoundaryZone)
         summary_header(io, "BoundaryZone")
         summary_line(io, "boundary type", boundary_type_name(boundary_zone))
         summary_line(io, "#particles", nparticles(boundary_zone.initial_condition))
-        summary_line(io, "prescribed velocity",
-                     type2string(boundary_zone.reference_velocity))
-        summary_line(io, "prescribed pressure",
-                     type2string(boundary_zone.reference_pressure))
-        summary_line(io, "prescribed density", type2string(boundary_zone.reference_density))
         summary_line(io, "width", round(boundary_zone.zone_width, digits=3))
         summary_footer(io)
     end
@@ -374,10 +385,10 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
     @threaded semi for particle in each_moving_particle(system)
         particle_coords = current_coords(u, system, particle)
 
-        for (i, boundary_zone) in enumerate(boundary_zones)
+        for (zone_id, boundary_zone) in enumerate(boundary_zones)
             # Check if boundary particle is in the boundary zone
             if is_in_boundary_zone(boundary_zone, particle_coords)
-                system.boundary_zone_indices[particle] = i
+                system.boundary_zone_indices[particle] = zone_id
             end
         end
     end
@@ -405,28 +416,43 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
                             particle_spacing)
 end
 
-wrap_reference_function(::Nothing, ::Val) = nothing
+wrap_reference_function(::Nothing) = @inline((coords, t) -> nothing)
 
-function wrap_reference_function(function_::Function, ::Val)
+function wrap_reference_function(function_::Function)
     # Already a function
     return function_
 end
 
 # Name the function so that the summary box does know which kind of function this is
-function wrap_reference_function(constant_scalar_::Number, ::Val)
-    return constant_scalar(coords, t) = constant_scalar_
+function wrap_reference_function(constant_scalar_::Number)
+    return @inline((coords, t)->constant_scalar_)
 end
 
-# For vectors and tuples
-# Name the function so that the summary box does know which kind of function this is
-function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
-    return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
+function wrap_reference_function(constant_vector_::SVector{NDIMS, ELTYPE}) where {NDIMS,
+                                                                                  ELTYPE}
+    return @inline((coords, t)->SVector{NDIMS, ELTYPE}(constant_vector_))
 end
 
-function reference_value(value::Function, quantity, position, t)
-    return value(position, t)
+function apply_reference_pressure(system, particle, pos, t)
+    (; pressure_references) = system.cache
+
+    zone_id = system.boundary_zone_indices[particle]
+
+    return apply_ith_function(pressure_references, zone_id, pos, t)
 end
 
-# This method is used when extrapolating quantities from the domain
-# instead of using the method of characteristics
-reference_value(value::Nothing, quantity, position, t) = quantity
+function apply_reference_density(system, particle, pos, t)
+    (; density_references) = system.cache
+
+    zone_id = system.boundary_zone_indices[particle]
+
+    return apply_ith_function(density_references, zone_id, pos, t)
+end
+
+function apply_reference_velocity(system, particle, pos, t)
+    (; velocity_references) = system.cache
+
+    zone_id = system.boundary_zone_indices[particle]
+
+    return apply_ith_function(velocity_references, zone_id, pos, t)
+end

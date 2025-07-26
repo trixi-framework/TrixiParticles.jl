@@ -9,6 +9,16 @@
     foreach_noalloc(func, remaining_collection)
 end
 
+@inline function apply_ith_function(functions, index, args...)
+    if index == 1
+        # Found the function to apply, apply it and return
+        return first(functions)(args...)
+    end
+
+    # Process remaining functions
+    apply_ith_function(Base.tail(functions), index - 1, args...)
+end
+
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
 # Print informative message at startup
@@ -144,8 +154,10 @@ struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}, P} <: AbstractArra
     parallelization_backend::P
 
     function ThreadedBroadcastArray(array::AbstractArray{T, N};
-                                    parallelization_backend=default_backend(array)) where {T,
-                                                                                           N}
+                                    parallelization_backend=default_backend(array)) where {
+                                                                                           T,
+                                                                                           N
+                                                                                           }
         new{T, N, typeof(array), typeof(parallelization_backend)}(array,
                                                                   parallelization_backend)
     end
@@ -192,7 +204,7 @@ function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
     else
         # Dual-iterator implementation
         @threaded dest.parallelization_backend for (Idest, Isrc) in zip(eachindex(dest),
-                                                       eachindex(src))
+                                                                        eachindex(src))
             @inbounds dest.array[Idest] = src[Isrc]
         end
     end

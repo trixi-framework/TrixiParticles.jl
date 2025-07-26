@@ -74,10 +74,11 @@ function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                          boundary_zone, buffer, update_callback_used, cache)
 end
 
-function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
+function OpenBoundarySPHSystem(reference_values::Union{ReferenceValues, Nothing}...;
                                fluid_system::FluidSystem, buffer_size::Integer,
                                boundary_model)
-    boundary_zones = filter(boundary_zone -> !isnothing(boundary_zone), boundary_zones)
+    reference_values = filter(ref_values -> !isnothing(ref_values), reference_values)
+    boundary_zones = map(ref -> ref.boundary_zone, reference_values)
 
     initial_conditions = union((bz.initial_condition for bz in boundary_zones)...)
 
@@ -90,7 +91,7 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     density = copy(initial_conditions.density)
     volume = similar(initial_conditions.density)
 
-    cache = create_cache_open_boundary(boundary_model, initial_conditions)
+    cache = create_cache_open_boundary(boundary_model, initial_conditions, reference_values)
 
     # These will be set later
     update_callback_used = Ref(false)
@@ -118,17 +119,27 @@ function initialize!(system::OpenBoundarySPHSystem, semi)
     return system
 end
 
-create_cache_open_boundary(boundary_model, initial_condition) = (;)
-
-function create_cache_open_boundary(boundary_model::BoundaryModelLastiwka,
-                                    initial_condition)
+function create_cache_open_boundary(boundary_model, initial_condition, reference_values)
     ELTYPE = eltype(initial_condition)
 
-    characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
-    previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
+    pressure_references = map(ref -> ref.reference_pressure, reference_values)
+    density_references = map(ref -> ref.reference_density, reference_values)
+    velocity_references = map(ref -> ref.reference_velocity, reference_values)
 
-    return (; characteristics=characteristics,
-            previous_characteristics=previous_characteristics)
+    if boundary_model isa BoundaryModelLastiwka
+        characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
+        previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
+
+        return (; characteristics=characteristics,
+                previous_characteristics=previous_characteristics,
+                pressure_references=pressure_references,
+                density_references=density_references,
+                velocity_references=velocity_references)
+    else
+        return (; pressure_references=pressure_references,
+                density_references=density_references,
+                velocity_references=velocity_references)
+    end
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"

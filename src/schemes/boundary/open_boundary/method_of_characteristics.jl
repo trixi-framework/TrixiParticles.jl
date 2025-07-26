@@ -47,8 +47,7 @@ end
     # Update quantities based on the characteristic variables
     @threaded semi for particle in each_moving_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
-        (; reference_pressure, reference_density, reference_velocity,
-         flow_direction) = boundary_zone
+        (; flow_direction) = boundary_zone
 
         particle_position = current_coords(u, system, particle)
 
@@ -56,17 +55,17 @@ end
         J2 = cache.characteristics[2, particle]
         J3 = cache.characteristics[3, particle]
 
-        rho_ref = reference_value(reference_density, density[particle],
-                                  particle_position, t)
+        rho_ref = reference_value(apply_reference_density, density[particle],
+                                  system, particle, particle_position, t)
         density[particle] = rho_ref + ((-J1 + (J2 + J3) / 2) / sound_speed^2)
 
-        p_ref = reference_value(reference_pressure, pressure[particle],
-                                particle_position, t)
+        p_ref = reference_value(apply_reference_pressure, pressure[particle],
+                                system, particle, particle_position, t)
         pressure[particle] = p_ref + (J2 + J3) / 2
 
         v_current = current_velocity(v, system, particle)
-        v_ref = reference_value(reference_velocity, v_current,
-                                particle_position, t)
+        v_ref = reference_value(apply_reference_velocity, v_current,
+                                system, particle, particle_position, t)
         rho = density[particle]
         v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction
 
@@ -101,7 +100,7 @@ end
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
 function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, boundary_zones, fluid_system, density, pressure) = system
+    (; volume, cache, fluid_system, density, pressure) = system
     (; characteristics, previous_characteristics) = cache
 
     @threaded semi for particle in eachparticle(system)
@@ -126,25 +125,23 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         boundary_zone = current_boundary_zone(system, particle)
-
-        (; reference_velocity, reference_pressure, reference_density,
-         flow_direction) = boundary_zone
+        (; flow_direction) = boundary_zone
 
         neighbor_position = current_coords(u_fluid, fluid_system, neighbor)
 
         # Determine current and prescribed quantities
         rho_b = current_density(v_fluid, fluid_system, neighbor)
-        rho_ref = reference_value(reference_density, density[particle],
-                                  neighbor_position, t)
+        rho_ref = reference_value(apply_reference_density, density[particle],
+                                  system, particle, neighbor_position, t)
 
         p_b = current_pressure(v_fluid, fluid_system, neighbor)
-        p_ref = reference_value(reference_pressure, pressure[particle],
-                                neighbor_position, t)
+        p_ref = reference_value(apply_reference_pressure, pressure[particle],
+                                system, particle, neighbor_position, t)
 
         v_b = current_velocity(v_fluid, fluid_system, neighbor)
         v_particle = current_velocity(v, system, particle)
-        v_neighbor_ref = reference_value(reference_velocity, v_particle,
-                                         neighbor_position, t)
+        v_neighbor_ref = reference_value(apply_reference_velocity, v_particle,
+                                         system, particle, neighbor_position, t)
 
         # Determine characteristic variables
         density_term = -sound_speed^2 * (rho_b - rho_ref)
@@ -219,6 +216,14 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     return system
+end
+
+function reference_value(value::Function, quantity, system, particle, position, t)
+    function_value = value(system, particle, position, t)
+
+    isnothing(function_value) && return quantity
+
+    return function_value
 end
 
 # Only apply averaging at the inflow
