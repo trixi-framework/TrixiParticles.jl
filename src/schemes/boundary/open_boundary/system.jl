@@ -74,11 +74,11 @@ function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                          boundary_zone, buffer, update_callback_used, cache)
 end
 
-function OpenBoundarySPHSystem(reference_values::Union{ReferenceValues, Nothing}...;
+function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                fluid_system::FluidSystem, buffer_size::Integer,
                                boundary_model)
-    reference_values = filter(ref_values -> !isnothing(ref_values), reference_values)
-    boundary_zones = map(ref -> ref.boundary_zone, reference_values)
+    boundary_zones_ = filter(ref_values -> !isnothing(ref_values), boundary_zones)
+    reference_values_ = map(bz -> bz.reference_values, boundary_zones_)
 
     initial_conditions = union((bz.initial_condition for bz in boundary_zones)...)
 
@@ -91,7 +91,8 @@ function OpenBoundarySPHSystem(reference_values::Union{ReferenceValues, Nothing}
     density = copy(initial_conditions.density)
     volume = similar(initial_conditions.density)
 
-    cache = create_cache_open_boundary(boundary_model, initial_conditions, reference_values)
+    cache = create_cache_open_boundary(boundary_model, initial_conditions,
+                                       reference_values_)
 
     # These will be set later
     update_callback_used = Ref(false)
@@ -104,10 +105,23 @@ function OpenBoundarySPHSystem(reference_values::Union{ReferenceValues, Nothing}
 
     boundary_zone_indices = zeros(UInt8, nparticles(initial_conditions))
 
+    boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
+                                                  zone.spanning_set,
+                                                  zone.zone_origin,
+                                                  zone.zone_width,
+                                                  zone.flow_direction,
+                                                  zone.plane_normal,
+                                                  nothing,
+                                                  zone.average_inflow_velocity,
+                                                  zone.prescribed_density,
+                                                  zone.prescribed_pressure,
+                                                  zone.prescribed_velocity),
+                             boundary_zones)
+
     return OpenBoundarySPHSystem(boundary_model, initial_conditions, fluid_system,
                                  fluid_system_index, smoothing_length, mass, density,
                                  volume, pressure, boundary_candidates, fluid_candidates,
-                                 boundary_zone_indices, boundary_zones, buffer,
+                                 boundary_zone_indices, boundary_zones_new, buffer,
                                  update_callback_used, cache)
 end
 
@@ -267,8 +281,10 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         fluid_coords = current_coords(u_fluid, fluid_system, fluid_particle)
 
         # Check if fluid particle is in any boundary zone
-        if is_in_boundary_zone(boundary_zones, fluid_coords)
-            fluid_candidates[fluid_particle] = true
+        for boundary_zone in boundary_zones
+            if is_in_boundary_zone(boundary_zone, fluid_coords)
+                fluid_candidates[fluid_particle] = true
+            end
         end
     end
 
@@ -299,8 +315,8 @@ end
 
 # Buffer particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone,
-                                   particle, particle_new, v, u, v_fluid, u_fluid)
+                                   boundary_zone, particle, particle_new,
+                                   v, u, v_fluid, u_fluid)
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.

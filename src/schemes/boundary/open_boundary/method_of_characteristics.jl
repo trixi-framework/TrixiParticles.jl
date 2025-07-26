@@ -227,8 +227,7 @@ function reference_value(value::Function, quantity, system, particle, position, 
 end
 
 # Only apply averaging at the inflow
-function average_velocity!(v, u, system, ::BoundaryModelLastiwka,
-                           boundary_zone::BoundaryZone, semi)
+function average_velocity!(v, u, system, ::BoundaryModelLastiwka, boundary_zone, semi)
     (; flow_direction, plane_normal) = boundary_zone
 
     # Outflow
