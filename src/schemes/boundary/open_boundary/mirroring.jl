@@ -82,7 +82,7 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
     for boundary_zone in boundary_zones
         (; average_inflow_velocity, prescribed_velocity) = boundary_zone
 
-        if !prescribed_velocity[] && average_inflow_velocity
+        if !prescribed_velocity && average_inflow_velocity
             # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
             # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
             # resulting in a potential numerical instability. Averaging mitigates these effects.
@@ -96,17 +96,17 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
 
         particle_coords = current_coords(u, system, particle)
 
-        if prescribed_pressure[]
+        if prescribed_pressure
             pressure[particle] = apply_reference_pressure(system, particle,
                                                           particle_coords, t)
         end
 
-        if prescribed_density[]
+        if prescribed_density
             density[particle] = apply_reference_density(system, particle,
                                                         particle_coords, t)
         end
 
-        if prescribed_velocity[]
+        if prescribed_velocity
             v_ref = apply_reference_velocity(system, particle, particle_coords, t)
 
             for dim in eachindex(v_ref)
@@ -176,15 +176,15 @@ function extrapolate_values!(system,
 
             correction_matrix[] += L
 
-            if !prescribed_pressure[]
+            if !prescribed_pressure
                 interpolated_pressure_correction[] += pressure_b * R
             end
 
-            if !prescribed_density[]
+            if !prescribed_density
                 interpolated_density_correction[] += rho_b * R
             end
 
-            if !prescribed_velocity[]
+            if !prescribed_velocity
                 interpolated_velocity_correction[] += v_b * R'
             end
         end
@@ -196,21 +196,21 @@ function extrapolate_values!(system,
             L_inv = inv(correction_matrix[])
 
             # Pressure
-            if !prescribed_pressure[]
+            if !prescribed_pressure
                 first_order_scalar_extrapolation!(pressure, particle, L_inv,
                                                   interpolated_pressure_correction[],
                                                   two_to_end, pos_diff, mirror_method)
             end
 
             # Density
-            if !prescribed_density[]
+            if !prescribed_density
                 first_order_scalar_extrapolation!(density, particle, L_inv,
                                                   interpolated_density_correction[],
                                                   two_to_end, pos_diff, mirror_method)
             end
 
             # Velocity
-            if !prescribed_velocity[]
+            if !prescribed_velocity
                 first_order_velocity_extrapolation!(v_open_boundary, particle, L_inv,
                                                     interpolated_velocity_correction[],
                                                     two_to_end, pos_diff, mirror_method)
@@ -230,7 +230,7 @@ function extrapolate_values!(system,
             shepard_coefficient = correction_matrix[][1, 1]
 
             # Pressure
-            if !prescribed_pressure[]
+            if !prescribed_pressure
                 # Only the first entry is used, as the subsequent entries represent gradient
                 # components that are not required for zeroth-order interpolation.
                 interpolated_pressure = first(interpolated_pressure_correction[])
@@ -239,7 +239,7 @@ function extrapolate_values!(system,
             end
 
             # Density
-            if !prescribed_density[]
+            if !prescribed_density
                 # Only the first entry is used, as the subsequent entries represent gradient
                 # components that are not required for zeroth-order interpolation.
                 interpolated_density = first(interpolated_density_correction[])
@@ -248,7 +248,7 @@ function extrapolate_values!(system,
             end
 
             # Velocity
-            if !prescribed_velocity[]
+            if !prescribed_velocity
                 # Only the first column is used, as the subsequent entries represent gradient
                 # components that are not required for zeroth-order interpolation.
                 interpolated_velocity = interpolated_velocity_correction[][:, 1]
@@ -310,15 +310,15 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
 
             shepard_coefficient[] += volume_b * W_ab
 
-            if !prescribed_pressure[]
+            if !prescribed_pressure
                 interpolated_pressure[] += pressure_b * volume_b * W_ab
             end
 
-            if !prescribed_density[]
+            if !prescribed_density
                 interpolated_density[] += rho_b * volume_b * W_ab
             end
 
-            if !prescribed_velocity[]
+            if !prescribed_velocity
                 interpolated_velocity[] += v_b * volume_b * W_ab
             end
         end
@@ -326,19 +326,19 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
         if shepard_coefficient[] > eps()
             pos_diff = particle_coords - ghost_node_position
 
-            if !prescribed_pressure[]
+            if !prescribed_pressure
                 zeroth_order_scalar_extrapolation!(pressure, particle,
                                                    shepard_coefficient[],
                                                    interpolated_pressure[])
             end
 
-            if !prescribed_density[]
+            if !prescribed_density
                 zeroth_order_scalar_extrapolation!(density, particle,
                                                    shepard_coefficient[],
                                                    interpolated_density[])
             end
 
-            if !prescribed_velocity[]
+            if !prescribed_velocity
                 zeroth_order_velocity_interpolation!(v_open_boundary, particle,
                                                      shepard_coefficient[],
                                                      interpolated_velocity[])

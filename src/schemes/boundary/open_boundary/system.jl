@@ -77,7 +77,7 @@ end
 function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                fluid_system::FluidSystem, buffer_size::Integer,
                                boundary_model)
-    boundary_zones_ = filter(ref_values -> !isnothing(ref_values), boundary_zones)
+    boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
     reference_values_ = map(bz -> bz.reference_values, boundary_zones_)
 
     initial_conditions = union((bz.initial_condition for bz in boundary_zones)...)
