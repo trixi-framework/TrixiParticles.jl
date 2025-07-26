@@ -15,9 +15,6 @@
         │ ════════════                                                                                     │
         │ boundary type: ………………………………………… inflow                                                           │
         │ #particles: ………………………………………………… 80                                                               │
-        │ prescribed velocity: ………………………… constant_vector                                                  │
-        │ prescribed pressure: ………………………… constant_scalar                                                  │
-        │ prescribed density: …………………………… constant_scalar                                                  │
         │ width: ……………………………………………………………… 0.2                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
 
@@ -38,9 +35,6 @@
         │ ════════════                                                                                     │
         │ boundary type: ………………………………………… outflow                                                          │
         │ #particles: ………………………………………………… 80                                                               │
-        │ prescribed velocity: ………………………… constant_vector                                                  │
-        │ prescribed pressure: ………………………… constant_scalar                                                  │
-        │ prescribed density: …………………………… constant_scalar                                                  │
         │ width: ……………………………………………………………… 0.2                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
 

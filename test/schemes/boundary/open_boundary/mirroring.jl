@@ -248,7 +248,7 @@
                                            domain_fluid.coordinates, semi)
 
         TrixiParticles.average_velocity!(v_open_boundary, u_open_boundary, open_boundary_in,
-                                         inflow, semi)
+                                         first(open_boundary_in.boundary_zones), semi)
 
         # Since the velocity profile increases linearly in positive x-direction,
         # we can use the first velocity entry as a representative value.

@@ -150,7 +150,8 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
             end
             velocity_ref = wrap_reference_function(reference_velocity)
         else
-            velocity_ref = wrap_reference_function(SVector(reference_velocity...))
+            v = isnothing(reference_velocity) ? nothing : SVector(reference_velocity...)
+            velocity_ref = wrap_reference_function(v)
         end
     end
 
