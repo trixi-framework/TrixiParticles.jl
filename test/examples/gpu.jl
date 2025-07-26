@@ -340,7 +340,8 @@ end
                                                                       "pipe_flow_2d.jl"),
                                                              wcsph=true, sound_speed=20.0f0,
                                                              pressure=0.0f0,
-                                                             open_boundary_model=BoundaryModelTafuni(),
+                                                             open_boundary_model=BoundaryModelTafuni(;
+                                                                                                     mirror_method=ZerothOrderMirroring()),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
                                                              reference_density_in=nothing,
