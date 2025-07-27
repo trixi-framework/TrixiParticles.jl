@@ -152,6 +152,7 @@
                 if density_calculator isa TrixiParticles.SummationDensity
                     systems = (system_wcsph, system_edac, system_iisph)
                 else
+                    # IISPH is always using `SummationDensity``
                     systems = (system_wcsph, system_edac)
                 end
                 @testset "`$(nameof(typeof(system)))`" for system in systems
@@ -159,14 +160,14 @@
                     if density_calculator isa SummationDensity
                         # Density is stored in the cache
                         v = fluid.velocity
-                        if system isa ImplicitIncompressibleSPHSystem
-                            system.density .= fluid.density
+                        if system isa WeaklyCompressibleSPHSystem
+                            system.cache.density .= fluid.density
                         elseif system isa EntropicallyDampedSPHSystem
-                            # pressure is integrated
+                            # Pressure is integrated
                             system.cache.density .= fluid.density
                             v = vcat(fluid.velocity, fluid.pressure')
                         else
-                            system.cache.density .= fluid.density
+                            system.density .= fluid.density
                         end
                     else
                         # Density is integrated with `ContinuityDensity`

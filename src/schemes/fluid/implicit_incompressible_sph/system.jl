@@ -296,9 +296,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
 
     # Calculation the diagonal elements (a_ii-values) according to eq. 12 in Ihmsen et al. (2013)
     foreach_system(semi) do neighbor_system
-        # Get neighbor system u and v values
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        # Get coordinates
         system_coords = current_coordinates(u, system)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -311,8 +309,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
                                                                        distance
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            # Compute d_ji
-            # According to eq. 9 in Ihmsen et al. (2013).
+            # Compute d_ji according to eq. 9 in Ihmsen et al. (2013).
             # Note that we compute d_ji and not d_ij. We can use the antisymmetry
             # of the kernel gradient and just flip the sign of W_ij to obtain W_ji.
             d_ji_ = -time_step^2 * hydrodynamic_mass(system, particle) /
@@ -355,14 +352,14 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
     avg_density_error = 0.0
     l = 1
     terminate = false
+    # Convert relative error in percent to absolute error
+    eta = max_error * 0.01 * reference_density
     while (!terminate)
         @trixi_timeit timer() "pressure solver iteration" pressure_solve_iteration(system,
                                                                                    avg_density_error,
                                                                                    u, u_ode,
                                                                                    semi,
                                                                                    time_step)
-        # Convert relative error in percent to absolute error
-        eta = max_error * 0.01 * reference_density
         # Update termination condition
         terminate = (avg_density_error <= eta && l >= min_iterations) || l >= max_iterations
         l += 1
@@ -370,7 +367,6 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
 end
 
 function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, time_step)
-    # Get necessary fields
     (; reference_density, sum_d_ij_pj, sum_term, pressure, predicted_density, a_ii,
      omega) = system
 
@@ -398,9 +394,7 @@ function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, tim
     # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
     set_zero!(sum_term)
     foreach_system(semi) do neighbor_system
-        # Get neighbor system u and v values
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        # Get coordinates
         system_coords = current_coordinates(u, system)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -483,16 +477,14 @@ end
 # Calculates a summand for the calculation of the d_ii values (pressure mirroring)
 function calculate_d_ii(system, boundary_model, density_calculator::PressureMirroring, m_b,
                         rho_a, grad_kernel, time_step)
-    # We need an additional factor of 2 for pressure mirroring because, when calculating
-    # the pressure acceleration (using the symmetric formula), the boundary particles will
-    # adopt the pressure and density values of the fluid particles (i.e., p_i and ρ_i).
-    # As a result, the term
-    #     ∑ m_j (p_i/ρ_i + p_b/ρ_b) ∇W_ij
-    # becomes
+    # The linear system to solve originates from the pressure acceleration:
+    #     ∑ m_j (p_i/ρ_i + p_b/ρ_b) ∇W_ij.
+    # With pressure mirroring, this becomes
     #     ∑ m_j (p_i/ρ_i + p_i/ρ_i) ∇W_ij,
     # which simplifies to
     #     ∑ m_j (2 * p_i / ρ_i) ∇W_ij.
-    # Therefore, the pressure value p_i is effectively multiplied by a factor of 2.
+    # Therefore, the diagonal element in the system now appears with a factor 2,
+    # whereas the entry `ij` disappears from the system.
     return -time_step^2 * 2 * m_b / rho_a^2 * grad_kernel
 end
 
@@ -503,7 +495,7 @@ function calculate_d_ii(system, boundary_model, density_calculator::PressureZero
 end
 
 # Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in 'IHMSEN et al'
-function calculate_d_ij(system::Union{ImplicitIncompressibleSPHSystem, BoundarySystem},
+function calculate_d_ij(system,
                         particle_j, grad_kernel,
                         time_step)
     # (delta t)^2 * m_i / rho_i ^2 * gradW_ij
