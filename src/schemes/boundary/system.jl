@@ -290,7 +290,8 @@ end
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
 # For all other models and density calculators, it's irrelevant.
-@inline v_nvariables(system::BoundarySPHSystem) = 1
+@inline v_nvariables(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}) = 1
+@inline v_nvariables(system::BoundarySPHSystem) = 0
 @inline v_nvariables(system::BoundaryDEMSystem) = 0
 
 @inline function current_coordinates(u, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
