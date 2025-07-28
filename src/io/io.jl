@@ -211,7 +211,7 @@ end
 function add_meta_data!(meta_data, correction::AkinciFreeSurfaceCorrection)
     meta_data["correction_method"] = Dict{String, Any}()
     meta_data["correction_method"]["model"] = type2string(correction)
-    meta_data["correction_method"]["rho0"] = correction.rho
+    meta_data["correction_method"]["rho0"] = correction.rho0
 end
 
 function add_meta_data!(meta_data,
