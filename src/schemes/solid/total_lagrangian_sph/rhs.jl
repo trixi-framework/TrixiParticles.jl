@@ -38,8 +38,9 @@ end
                                      current_coords(system, neighbor)
         current_distance = norm(current_pos_diff)
 
-        dv_stress = m_b * (pk1_corrected(system, particle) / rho_a^2 +
-                           pk1_corrected(system, neighbor) / rho_b^2) * grad_kernel
+        dv_stress = m_b *
+                    (pk1_corrected(system, particle) / rho_a^2 +
+                     pk1_corrected(system, neighbor) / rho_b^2) * grad_kernel
 
         dv_penalty_force = dv_penalty_force(penalty_force, particle, neighbor,
                                             initial_pos_diff, initial_distance,
@@ -51,8 +52,9 @@ end
                                     m_a, m_b, rho_a, rho_b, grad_kernel)
 
         for i in 1:ndims(system)
-            @inbounds dv[i, particle] += dv_stress[i] + dv_penalty_force[i] +
-                                         dv_viscosity[i]
+            @inbounds dv[i,
+                         particle] += dv_stress[i] + dv_penalty_force[i] +
+                                      dv_viscosity[i]
         end
 
         # TODO continuity equation for boundary model with `ContinuityDensity`?
