@@ -343,6 +343,11 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
                            initial_coords(system, particle)
                            for particle in eachparticle(system)]
 
+    vtk["lame_lambda"] = system.lame_lambda
+    vtk["lame_mu"] = system.lame_mu
+    vtk["young_modulus"] = system.young_modulus
+    vtk["poisson_ratio"] = system.poisson_ratio
+
     sigma = cauchy_stress(system)
     vtk["sigma_11"] = sigma[1, 1, :]
     vtk["sigma_22"] = sigma[2, 2, :]
