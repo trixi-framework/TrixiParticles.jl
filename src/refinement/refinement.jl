@@ -97,8 +97,8 @@ end
     system_coords = current_coordinates(u, system)
 
     for particle in eachparticle(system)
-        dp_min, dp_max, dp_avg = min_max_avg_spacing(system, semi, u_ode, system_coords,
-                                                     particle)
+        dp_min, dp_max,
+        dp_avg = min_max_avg_spacing(system, semi, u_ode, system_coords, particle)
 
         if dp_max / dp_min < max_spacing_ratio^3
             new_spacing = min(dp_max, max_spacing_ratio * dp_min)

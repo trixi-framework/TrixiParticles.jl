@@ -21,7 +21,7 @@
             delete_candidates[i] == 0:0 && continue
 
             resize!(system.cache.delete_candidates, nparticles(system))
-            system.cache.delete_candidates.= false
+            system.cache.delete_candidates .= false
             system.cache.delete_candidates[delete_candidates[i]] .= true
         end
 
@@ -50,7 +50,6 @@
             [1.95;
              2.95]
         ]
-
 
         @testset verbose=true "`system $i" for i in eachindex(systems)
             @test nparticles(systems[i]) == resized_nparticles[i]

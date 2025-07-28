@@ -2,14 +2,6 @@
     set_particle_density!(v, system, system.density_calculator, particle, density)
 end
 
-function create_cache_resize(n_particles)
-    additional_capacity = Ref(0)
-    delete_candidates = Bool[]
-    values_conserved = Ref(false)
-
-    return (; additional_capacity, delete_candidates, values_conserved)
-end
-
 # WARNING!
 # These functions are intended to be used internally to set the density
 # of newly activated particles in a callback.
@@ -21,6 +13,14 @@ end
     v[end, particle] = density
 
     return v
+end
+
+function create_cache_resize(n_particles)
+    additional_capacity = Ref(0)
+    delete_candidates = Bool[]
+    values_conserved = Ref(false)
+
+    return (; additional_capacity, delete_candidates, values_conserved)
 end
 
 function create_cache_density(initial_condition, ::SummationDensity)
@@ -287,3 +287,10 @@ function compute_beta_correction!(system, refinement, v_ode, u_ode, semi)
 
     return system
 end
+
+function Base.resize!(system::FluidSystem, capacity_system)
+    error("`resize!`not implemented for $(typeof(system)), yet")
+end
+
+resize_density!(system, n, ::SummationDensity) = resize!(system.cache.density, n)
+resize_density!(system, n, ::ContinuityDensity) = system

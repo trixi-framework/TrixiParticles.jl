@@ -25,7 +25,8 @@ end
 @inline collect_split_candidates!(system::FluidSystem, ::Nothing, v, u) = system
 
 @inline function collect_split_candidates!(system::FluidSystem, particle_refinement, v, u)
-    (; mass_ref, max_spacing_ratio, split_candidates, refinement_pattern) = particle_refinement
+    (; mass_ref, max_spacing_ratio, split_candidates,
+     refinement_pattern) = particle_refinement
     (; n_children, center_particle) = refinement_pattern
 
     resize!(split_candidates, 0)

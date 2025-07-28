@@ -21,12 +21,12 @@ function ParticleRefinementCallback(; interval::Integer=-1, dt=0.0)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(refinement_callback, dt,
-                                initialize=initial_refinement!,
+                                initialize=(initial_refinement!),
                                 save_positions=(false, false))
     else
         # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(refinement_callback, refinement_callback,
-                                initialize=initial_refinement!,
+                                initialize=(initial_refinement!),
                                 save_positions=(false, false))
     end
 end

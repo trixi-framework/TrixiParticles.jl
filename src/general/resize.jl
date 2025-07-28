@@ -64,88 +64,6 @@ end
 
 Base.resize!(system::System, capacity_system) = system
 
-function Base.resize!(system::FluidSystem, capacity_system)
-    error("`resize!`not implemented for $(typeof(system)), yet")
-end
-
-function Base.resize!(system::WeaklyCompressibleSPHSystem, capacity_system)
-    capacity(system) == nparticles(system) && return system
-
-    if capacity(system) < nparticles(system) && !(system.cache.values_conserved[])
-        error("The required capacity is smaller than the actual size of the system. " *
-              "Call `deleteat!` before resizing the system, to specify which particles can be deleted")
-    end
-
-    (; mass, pressure, density_calculator) = system
-
-    resize!(mass, capacity_system)
-    resize!(pressure, capacity_system)
-
-    resize_density!(system, capacity_system, density_calculator)
-
-    resize_cache!(system, capacity_system)
-
-    resize_refinement!(system, system.particle_refinement)
-
-    system.cache.additional_capacity[] = 0
-    system.cache.values_conserved[] = false
-
-    return system
-end
-
-function Base.resize!(system::EntropicallyDampedSPHSystem, capacity_system)
-    capacity(system) == nparticles(system) && return system
-
-    if capacity(system) < nparticles(system) && !(system.cache.values_conserved[])
-        error("The required capacity is smaller than the actual size of the system. " *
-              "Call `deleteat!` before resizing the system, to specify which particles can be deleted")
-    end
-
-    (; mass, density_calculator) = system
-
-    resize!(mass, capacity_system)
-
-    resize_density!(system, capacity_system, density_calculator)
-
-    resize_cache!(system, capacity_system)
-
-    resize_refinement!(system, system.particle_refinement)
-
-    system.cache.additional_capacity[] = 0
-    system.cache.values_conserved[] = false
-
-    return system
-end
-
-resize_density!(system, n::Int, ::SummationDensity) = resize!(system.cache.density, n)
-resize_density!(system, n::Int, ::ContinuityDensity) = system
-
-function resize_cache!(system::WeaklyCompressibleSPHSystem, n::Int)
-    return system
-end
-
-function resize_cache!(system::EntropicallyDampedSPHSystem, n::Int)
-    resize_cache!(system, system.transport_velocity, n)
-    resize_cache!(system, system.particle_refinement, n)
-
-    return system
-end
-
-resize_cache!(system::EntropicallyDampedSPHSystem, ::Nothing, n) = system
-
-function resize_cache!(system::EntropicallyDampedSPHSystem, ::TransportVelocityAdami, n)
-    resize!(system.cache.pressure_average, n)
-    resize!(system.cache.neighbor_counter, n)
-    return system
-end
-
-function resize_cache!(system::EntropicallyDampedSPHSystem, refinement, n)
-    resize!(system.cache.smoothing_length, n)
-    resize!(system.cache.beta, n)
-
-    return system
-end
-
 function Base.deleteat!(semi::Semidiscretization, v_ode, u_ode, _v_ode, _u_ode)
     # Delete at specific indices
     foreach_system(semi) do system
@@ -177,11 +95,10 @@ function Base.deleteat!(system::FluidSystem, v, u)
             pos_keep = current_coords(u, system, dump_id)
 
             mass_keep = hydrodynamic_mass(system, dump_id)
-            density_keep = particle_density(v, system, dump_id)
-            pressure_keep = particle_pressure(v, system, dump_id)
+            density_keep = current_density(v, system, dump_id)
+            pressure_keep = current_pressure(v, system, dump_id)
 
-            # TODO
-            # system.cache.smoothing_length[particle] = smoothing_length(system, dump_id)
+            system.cache.smoothing_length[particle] = smoothing_length(system, dump_id)
 
             system.mass[particle] = mass_keep
 
