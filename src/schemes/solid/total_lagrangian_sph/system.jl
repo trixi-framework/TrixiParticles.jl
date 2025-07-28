@@ -134,6 +134,7 @@ function Base.show(io::IO, system::TotalLagrangianSPHSystem)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.boundary_model)
     print(io, ", ", system.penalty_force)
+    print(io, ", ", system.viscosity)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -163,7 +164,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "penalty force", system.penalty_force |> typeof |> nameof)
+        summary_line(io, "penalty force", system.penalty_force)
+        summary_line(io, "viscosity", system.viscosity)
         summary_footer(io)
     end
 end
