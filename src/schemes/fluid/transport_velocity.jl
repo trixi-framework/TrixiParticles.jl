@@ -111,6 +111,28 @@ end
     return volume_term * ((A_a + A_b) / 2) * grad_kernel
 end
 
+@inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
+                                     refinement, pos_diff, distance,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     m_a, m_b, particle, neighbor, grad_kernel)
+    momentum_velocity_a = current_velocity(v_particle_system, system, particle)
+    advection_velocity_a = advection_velocity(v_particle_system, system, particle)
+
+    momentum_velocity_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    advection_velocity_b = advection_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+    factor_a = beta_correction(system, particle) / rho_a
+    factor_b = beta_correction(neighbor_system, neighbor) / rho_b
+
+    A_a = factor_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
+    A_b = factor_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'
+
+    grad_kernel_a = smoothing_kernel_grad(system, pos_diff, distance, particle)
+    grad_kernel_b = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
+
+    return -m_b * (A_a * grad_kernel_a + A_b * grad_kernel_b)
+end
+
 @inline transport_velocity!(dv, system, neighbor_system, particle, neighbor, m_a, m_b,
                             grad_kernel) = dv
 

@@ -90,15 +90,12 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      viscosity=nothing, density_diffusion=nothing,
                                      pressure_acceleration=nothing,
                                      transport_velocity=nothing,
-                                     buffer_size=nothing,
+                                     buffer_size=nothing, particle_refinement=nothing,
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
-                                     particle_refinement=nothing,
                                      reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
-
-    particle_refinement = nothing # TODO
 
     initial_condition,
     density_diffusion = allocate_buffer(initial_condition,

@@ -107,7 +107,7 @@ end
         end
 
         smoothing_length[particle] = smoothing_length_factor * new_spacing
-        mass_ref[particle] = particle_density(v, system, particle) *
+        mass_ref[particle] = current_density(v, system, particle) *
                              new_spacing^(ndims(system))
     end
 

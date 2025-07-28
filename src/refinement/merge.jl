@@ -25,6 +25,8 @@ end
     resize!(delete_candidates, nparticles(system))
     delete_candidates .= false
 
+    resize_refinement!(system, particle_refinement)
+
     # Merge particles iteratively
     for _ in 1:3
         merge_particles_inner!(system, particle_refinement, semi, v, u)
@@ -40,11 +42,10 @@ function merge_particles_inner!(system, particle_refinement, semi, v, u)
     set_zero!(merge_candidates)
 
     system_coords = current_coordinates(u, system)
-    neighborhood_search = get_neighborhood_search(system, semi)
 
     # Collect merge candidates
     foreach_point_neighbor(system, system, system_coords, system_coords,
-                           neighborhood_search) do particle, neighbor, pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         particle == neighbor && return
         cache.delete_candidates[particle] && return
 

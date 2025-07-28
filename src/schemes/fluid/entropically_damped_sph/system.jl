@@ -91,8 +91,6 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
-    particle_refinement = nothing # TODO
-
     initial_condition = allocate_buffer(initial_condition, buffer)
 
     NDIMS = ndims(initial_condition)
@@ -157,7 +155,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 typeof(pressure_acceleration),
                                 typeof(transport_velocity), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_normal_method),
-                                typeof(buffer), Nothing,
+                                typeof(buffer), typeof(particle_refinement),
                                 typeof(cache)}(initial_condition, mass, density_calculator,
                                                smoothing_kernel, sound_speed, viscosity,
                                                nu_edac, acceleration_, correction,
@@ -410,6 +408,7 @@ function resize_cache!(system::EntropicallyDampedSPHSystem, n)
     # resize_corrections!(system, n)
     resize!(system.cache.smoothing_length, n)
     resize_cache!(system, system.transport_velocity, n)
+    resize!(system.cache.beta, n)
 
     return system
 end

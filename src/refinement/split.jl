@@ -69,8 +69,8 @@ end
 
         system.mass[particle] = mass_old / n_children
 
-        p_a = particle_pressure(v, system, particle)
-        rho_a = particle_density(v, system, particle)
+        p_a = current_pressure(v, system, particle)
+        rho_a = current_density(v, system, particle)
 
         smoothing_length[particle] = alpha * smoothing_length_old
 

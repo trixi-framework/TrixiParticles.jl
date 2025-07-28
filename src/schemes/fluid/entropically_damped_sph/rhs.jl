@@ -73,17 +73,18 @@ function interact!(dv, v_particle_system, u_particle_system,
         for i in 1:ndims(particle_system)
             dv[i,
                particle] += dv_pressure[i] + dv_viscosity_[i] + dv_convection[i] +
-                            dv_surface_tension[i] + dv_adhesion[i]
+                            dv_surface_tension[i] + dv_adhesion[i] +
+                            dv_velocity_correction[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
                  current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-        pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
-                            particle, neighbor, pos_diff, distance,
-                            sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b)
+        pressure_evolution!(dv, particle_system, neighbor_system,
+                            v_particle_system, v_neighbor_system, v_diff, grad_kernel,
+                            particle, neighbor, pos_diff, distance, sound_speed,
+                            m_a, m_b, p_a, p_b, rho_a, rho_b)
 
-        # Apply the transport velocity (only when using a transport velocity)
         transport_velocity!(dv, particle_system, neighbor_system, particle, neighbor,
                             m_a, m_b, grad_kernel)
 
@@ -94,10 +95,48 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-@inline function pressure_evolution!(dv, particle_system, neighbor_system, v_diff,
-                                     grad_kernel, particle, neighbor,
-                                     pos_diff, distance, sound_speed, m_a, m_b,
-                                     p_a, p_b, rho_a, rho_b)
+@inline function pressure_evolution!(dv, particle_system, neighbor_system,
+                                     v_particle_system, v_neighbor_system,
+                                     v_diff, grad_kernel, particle, neighbor,
+                                     pos_diff, distance, sound_speed,
+                                     m_a, m_b, p_a, p_b, rho_a, rho_b)
+    (; particle_refinement) = particle_system
+
+    # This is basically the continuity equation times `sound_speed^2`
+    artificial_eos = m_b * rho_a / rho_b * sound_speed^2 * dot(v_diff, grad_kernel)
+
+    beta_inv_a = beta_correction(particle_system, particle)
+    beta_inv_b = beta_correction(neighbor_system, neighbor)
+
+    dv[end,
+       particle] += beta_inv_a * artificial_eos +
+                    pressure_damping_term(particle_system, neighbor_system,
+                                          particle_refinement, particle, neighbor,
+                                          pos_diff, distance, beta_inv_a, m_a, m_b,
+                                          p_a, p_b, rho_b, rho_b, grad_kernel) +
+                    pressure_reduction(particle_system, neighbor_system,
+                                       particle_refinement,
+                                       v_particle_system, v_neighbor_system,
+                                       particle, neighbor, pos_diff, distance, m_b,
+                                       p_a, p_b, rho_a, rho_b, beta_inv_a, beta_inv_b)
+
+    return dv
+end
+@inline beta_correction(system, particle) = one(eltype(system))
+
+@inline function beta_correction(system::FluidSystem, particle)
+    beta_correction(system, system.particle_refinement, particle)
+end
+
+@inline beta_correction(particle_system, ::Nothing, particle) = one(eltype(particle_system))
+
+@inline function beta_correction(particle_system, refinement, particle)
+    return inv(particle_system.cache.beta[particle])
+end
+
+function pressure_damping_term(particle_system, neighbor_system, ::Nothing,
+                               particle, neighbor, pos_diff, distance, beta_inv_a,
+                               m_a, m_b, p_a, p_b, rho_a, rho_b, grad_kernel)
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
     volume_term = (volume_a^2 + volume_b^2) / m_a

@@ -70,7 +70,7 @@ initial_smoothing_length(system, ::Nothing) = system.cache.smoothing_length
 
 function initial_smoothing_length(system, refinement)
     # TODO
-    return system.cache.initial_smoothing_length_factor *
+    return system.cache.smoothing_length_factor *
            system.initial_condition.particle_spacing
 end
 
@@ -275,7 +275,7 @@ function compute_beta_correction!(system, refinement, v_ode, u_ode, semi)
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                neighborhood_search) do particle, neighbor,
                                                        pos_diff, distance
-            rho_a = particle_density(v, system, particle)
+            rho_a = current_density(v, system, particle)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
             W_deriv = kernel_deriv(system.smoothing_kernel, distance,
