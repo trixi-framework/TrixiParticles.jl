@@ -32,7 +32,7 @@ end
 
 @inline function update_transport_velocity!(system, v_ode, semi, ::TransportVelocityAdami)
     v = wrap_v(v_ode, system, semi)
-    @threaded system for particle in each_moving_particle(system)
+    @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             v[ndims(system) + i, particle] = v[i, particle]
         end
@@ -111,50 +111,39 @@ end
     return volume_term * ((A_a + A_b) / 2) * grad_kernel
 end
 
-@inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
-                                     refinement, pos_diff, distance,
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
-    momentum_velocity_a = current_velocity(v_particle_system, system, particle)
-    advection_velocity_a = advection_velocity(v_particle_system, system, particle)
+@inline transport_velocity!(dv, system, neighbor_system, particle, neighbor, m_a, m_b,
+                            grad_kernel) = dv
 
-    momentum_velocity_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    advection_velocity_b = advection_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-    factor_a = beta_correction(system, particle) / rho_a
-    factor_b = beta_correction(neighbor_system, neighbor) / rho_b
-
-    A_a = factor_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
-    A_b = factor_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'
-
-    grad_kernel_a = smoothing_kernel_grad(system, pos_diff, distance, particle)
-    grad_kernel_b = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
-
-    return -m_b * (A_a * grad_kernel_a + A_b * grad_kernel_b)
+@inline function transport_velocity!(dv, system::FluidSystem, neighbor_system,
+                                     particle, neighbor, m_a, m_b, grad_kernel)
+    transport_velocity!(dv, system, neighbor_system, system.transport_velocity,
+                        particle, neighbor, m_a, m_b, grad_kernel)
 end
 
-@inline transport_velocity!(dv, system, rho_a, rho_b, m_a, m_b, grad_kernel, particle) = dv
-
-@inline function transport_velocity!(dv, system::FluidSystem,
-                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
-    transport_velocity!(dv, system, system.transport_velocity, rho_a, rho_b, m_a, m_b,
-                        grad_kernel, particle)
-end
-
-@inline function transport_velocity!(dv, system, ::Nothing,
-                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
+@inline function transport_velocity!(dv, system, neighbor_system, ::Nothing,
+                                     particle, neighbor, m_a, m_b, grad_kernel)
     return dv
 end
 
-@inline function transport_velocity!(dv, system, ::TransportVelocityAdami,
-                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
+@inline function transport_velocity!(dv, system, neighbor_system, ::TransportVelocityAdami,
+                                     particle, neighbor, m_a, m_b, grad_kernel)
     (; transport_velocity) = system
     (; background_pressure) = transport_velocity
 
     NDIMS = ndims(system)
 
-    volume_a = m_a / rho_a
-    volume_b = m_b / rho_b
+    # The TVF is based on the assumption that the pressure gradient is only accurately
+    # computed when the particle distribution is isotropic.
+    # That means, the force contribution vanishes only if the particle distribution is
+    # isotropic AND the field being differentiated by the kernel gradient is spatially constant.
+    # So we must guarantee a constant field and therefore the reference density is used
+    # instead of the locally computed one.
+    # TODO:
+    # volume_a = particle_spacing(system, particle)^ndims(system)
+    # volume_b = particle_spacing(neighbor_system, neighbor)^ndims(neighbor_system)
+    volume_a = m_a / system.initial_condition.density[particle]
+    volume_b = m_b / neighbor_system.initial_condition.density[neighbor]
+
     volume_term = (volume_a^2 + volume_b^2) / m_a
 
     for dim in 1:NDIMS
@@ -186,13 +175,15 @@ function update_callback_used!(system, transport_velocity)
     system.cache.update_callback_used[] = true
 end
 
-function update_final!(system::FluidSystem, ::Nothing,
-                       v, u, v_ode, u_ode, semi, t; update_from_callback=false)
+function check_tvf_configuration(system::FluidSystem, ::Nothing,
+                                 v, u, v_ode, u_ode, semi, t; update_from_callback=false)
     return system
 end
 
-function update_final!(system::FluidSystem, ::TransportVelocityAdami,
-                       v, u, v_ode, u_ode, semi, t; update_from_callback=false)
+function check_tvf_configuration(system::FluidSystem, ::TransportVelocityAdami,
+                                 v, u, v_ode, u_ode, semi, t; update_from_callback=false)
+    # The `UpdateCallback` will set `system.cache.update_callback_used[]` to `true`
+    # in the initialization. However, other callbacks might update the system first, hence `update_from_callback`.
     if !update_from_callback && !(system.cache.update_callback_used[])
         throw(ArgumentError("`UpdateCallback` is required when using `TransportVelocityAdami`"))
     end

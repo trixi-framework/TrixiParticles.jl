@@ -1,12 +1,13 @@
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   system::ParticlePackingSystem, neighbor_system::ParticlePackingSystem)
+                   v_neighbor_system, u_neighbor_system,
+                   system::ParticlePackingSystem{<:Any, false},
+                   neighbor_system::ParticlePackingSystem, semi)
     system_coords = current_coordinates(u_particle_system, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                           neighborhood_search) do particle, neighbor, pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
@@ -31,5 +32,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         end
     end
 
+    return dv
+end
+
+# Skip for fixed systems
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   system::ParticlePackingSystem{<:Any, true}, neighbor_system, semi)
     return dv
 end

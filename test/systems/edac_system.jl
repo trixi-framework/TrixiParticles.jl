@@ -31,7 +31,7 @@
             @test system.initial_condition == initial_condition
             @test system.mass == mass
             @test system.smoothing_kernel == smoothing_kernel
-            @test TrixiParticles.maximum_smoothing_length(system) == smoothing_length
+            @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
@@ -86,7 +86,7 @@
             @test system.initial_condition == setup
             @test system.mass == setup.mass
             @test system.smoothing_kernel == smoothing_kernel
-            @test TrixiParticles.maximum_smoothing_length(system) == smoothing_length
+            @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.transport_velocity isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
@@ -128,7 +128,7 @@
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
 
-        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, Val{:smoothing_kernel}(), [0.0, 0.0], nothing, nothing) with 2 particles"
+        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, nothing, Val{:smoothing_kernel}(), [0.0, 0.0], nothing, nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -136,6 +136,7 @@
         │ ══════════════════════════════                                                                   │
         │ #particles: ………………………………………………… 2                                                                │
         │ density calculator: …………………………… SummationDensity                                                 │
+        │ correction method: ……………………………… Nothing                                                          │
         │ viscosity: …………………………………………………… Nothing                                                          │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
@@ -192,7 +193,12 @@
                    TrixiParticles.n_moving_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
+        system.cache.density .= density
+
         @test v0 == vcat(velocity, pressure')
+        @test TrixiParticles.current_velocity(v0, system) == velocity
+        @test TrixiParticles.current_density(v0, system) == system.cache.density
+        @test TrixiParticles.current_pressure(v0, system) == pressure
 
         initial_condition = InitialCondition(; coordinates, velocity, mass, density,
                                              pressure=pressure_function)

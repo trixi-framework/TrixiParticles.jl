@@ -120,7 +120,8 @@
         smoothing_length = 1.2particle_spacing
         search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
-        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
+        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
+                                                               density_calculators
             # Run three times with different seed for the random initial condition
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
@@ -166,42 +167,39 @@
                 end
 
                 # Create several neighbor systems to test fluid-neighbor interaction
-                systems, vu = second_systems(boundary, density_calculator,
-                                             state_equation,
-                                             smoothing_kernel, smoothing_length)
-
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                                  eachpoint=TrixiParticles.eachparticle(fluid_system))
+                systems,
+                vu = second_systems(boundary, density_calculator,
+                                    state_equation,
+                                    smoothing_kernel, smoothing_length)
 
                 @testset "$key" for key in keys(systems)
                     neighbor_system = systems[key]
                     v_neighbor, u_neighbor = vu[key]
 
-                    nhs2 = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                                       eachpoint=TrixiParticles.eachparticle(neighbor_system))
+                    semi = DummySemidiscretization()
 
                     # Compute interactions
                     dv = zero(v)
 
                     # Fluid-fluid interact
-                    TrixiParticles.interact!(dv, v, u, v, u, nhs,
-                                             fluid_system, fluid_system)
+                    TrixiParticles.interact!(dv, v, u, v, u,
+                                             fluid_system, fluid_system, semi)
 
                     # Fluid-neighbor interact
-                    TrixiParticles.interact!(dv, v, u, v_neighbor, u_neighbor, nhs2,
-                                             fluid_system, neighbor_system)
+                    TrixiParticles.interact!(dv, v, u, v_neighbor, u_neighbor,
+                                             fluid_system, neighbor_system, semi)
 
                     # Neighbor-fluid interact
                     dv_neighbor = zero(v_neighbor)
                     TrixiParticles.interact!(dv_neighbor, v_neighbor, u_neighbor, v, u,
-                                             nhs, neighbor_system, fluid_system)
+                                             neighbor_system, fluid_system, semi)
 
                     if neighbor_system isa WeaklyCompressibleSPHSystem
                         # If both are fluids, neighbor-neighbor interaction is necessary
                         # for energy preservation.
                         TrixiParticles.interact!(dv_neighbor, v_neighbor, u_neighbor,
                                                  v_neighbor, u_neighbor,
-                                                 nhs2, neighbor_system, neighbor_system)
+                                                 neighbor_system, neighbor_system, semi)
                     end
 
                     # Quantities needed to test energy conservation
@@ -265,8 +263,8 @@
                     function deriv_energy(dv, v, u, v_neighbor, u_neighbor,
                                           system, neighbor_system, particle)
                         m_a = TrixiParticles.hydrodynamic_mass(system, particle)
-                        p_a = TrixiParticles.particle_pressure(v, system, particle)
-                        rho_a = TrixiParticles.particle_density(v, system, particle)
+                        p_a = TrixiParticles.current_pressure(v, system, particle)
+                        rho_a = TrixiParticles.current_density(v, system, particle)
 
                         if system isa WeaklyCompressibleSPHSystem
                             dc = system.density_calculator

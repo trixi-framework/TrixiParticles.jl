@@ -1,3 +1,10 @@
+# ==========================================================================================
+# 2D Falling Spheres in Fluid (FSI) - Base Setup
+#
+# This file provides a base setup for simulating one or two elastic spheres
+# falling into a fluid in a tank.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -48,7 +55,7 @@ sphere2 = SphereShape(solid_particle_spacing, sphere2_radius, sphere2_center,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 3.0 * fluid_particle_spacing
+fluid_smoothing_length = 1.5 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -73,7 +80,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Solid
-solid_smoothing_length = 2 * sqrt(2) * solid_particle_spacing
+solid_smoothing_length = sqrt(2) * solid_particle_spacing
 solid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model

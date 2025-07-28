@@ -31,8 +31,12 @@
                 TrixiParticles.pressure_acceleration_summation_density
             ]
 
-            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
-                @testset "`$(nameof(typeof(pressure_acceleration)))`" for pressure_acceleration in pressure_accelerations
+            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
+                                                                   density_calculators
+
+                @testset "`$(nameof(typeof(pressure_acceleration)))`" for pressure_acceleration in
+                                                                          pressure_accelerations
+
                     for (m_a, m_b) in masses, (rho_a, rho_b) in densities,
                         (p_a, p_b) in pressures, grad_kernel in grad_kernels
 
@@ -68,7 +72,8 @@
                             end
 
                             # Compute accelerations a -> b and b -> a
-                            dv1 = TrixiParticles.pressure_acceleration(system, system, -1,
+                            dv1 = TrixiParticles.pressure_acceleration(system, system,
+                                                                       -1, -1,
                                                                        m_a, m_b, p_a, p_b,
                                                                        rho_a, rho_b,
                                                                        pos_diff,
@@ -76,7 +81,8 @@
                                                                        grad_kernel,
                                                                        nothing)
 
-                            dv2 = TrixiParticles.pressure_acceleration(system, system, -1,
+                            dv2 = TrixiParticles.pressure_acceleration(system, system,
+                                                                       -1, -1,
                                                                        m_b, m_a, p_b, p_a,
                                                                        rho_b, rho_a,
                                                                        -pos_diff,
@@ -111,7 +117,8 @@
         smoothing_length = 1.2particle_spacing
         search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
-        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
+        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
+                                                               density_calculators
             # Run three times with different seed for the random initial condition
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
@@ -130,7 +137,7 @@
                 # Overwrite `system.pressure` because we skip the update step
                 system_wcsph.pressure .= fluid.pressure
                 @testset "`$(nameof(typeof(system)))`" for system in (system_wcsph,
-                                                                      system_edac)
+                                                            system_edac)
                     u = fluid.coordinates
                     if density_calculator isa SummationDensity
                         # Density is stored in the cache
@@ -151,12 +158,11 @@
                         end
                     end
 
-                    nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                                      eachpoint=TrixiParticles.eachparticle(system))
+                    semi = DummySemidiscretization()
 
                     # Result
                     dv = zero(v)
-                    TrixiParticles.interact!(dv, v, u, v, u, nhs, system, system)
+                    TrixiParticles.interact!(dv, v, u, v, u, system, system, semi)
 
                     # Linear momentum conservation
                     # ∑ m_a dv_a

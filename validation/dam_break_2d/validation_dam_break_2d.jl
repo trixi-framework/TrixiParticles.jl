@@ -14,7 +14,7 @@ tspan = (0.0, 8.0 / sqrt(gravity / H))
 # Use H / 80, H / 320 for validation.
 # Note: H / 320 takes a few hours!
 particle_spacing = H / 40
-smoothing_length = 3.5 * particle_spacing
+smoothing_length = 1.75 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density = 1000.0
@@ -49,27 +49,30 @@ sensor_names = ["P1", "P2", "P3"]
 tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing -
                     0.5 * particle_spacing
 
-pressure_P1 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
-                                                      [tank_right_wall_x, P1_y_bottom],
-                                                      v, u, t, sys)
-pressure_P2 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
-                                                      [tank_right_wall_x, P2_y_bottom],
-                                                      v, u, t, sys)
-pressure_P3 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
-                                                      [tank_right_wall_x, P3_y_bottom],
-                                                      v, u, t, sys)
+pressure_P1 = (system, v_ode, u_ode, semi,
+               t) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
+                                           [tank_right_wall_x, P1_y_bottom],
+                                           v_ode, u_ode, t, system, semi)
+pressure_P2 = (system, v_ode, u_ode, semi,
+               t) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
+                                           [tank_right_wall_x, P2_y_bottom],
+                                           v_ode, u_ode, t, system, semi)
+pressure_P3 = (system, v_ode, u_ode, semi,
+               t) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
+                                           [tank_right_wall_x, P3_y_bottom],
+                                           v_ode, u_ode, t, system, semi)
 
-function max_x_coord(v, u, t, system)
-    return maximum(particle -> TrixiParticles.current_coords(u, system, particle)[1],
-                   TrixiParticles.eachparticle(system))
+function max_x_coord(system, data, t)
+    return maximum(j -> data.coordinates[1, j], axes(data.coordinates, 2))
 end
 
-function interpolated_pressure(coord_top, coord_bottom, v, u, t, system)
+function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system, semi)
     n_interpolation_points = 10
     interpolated_values = interpolate_line(coord_top, coord_bottom,
-                                           n_interpolation_points, semi, system, v, u,
+                                           n_interpolation_points, semi, system, v_ode,
+                                           u_ode,
                                            smoothing_length=2.0 *
-                                                            maximum_smoothing_length(system),
+                                                            TrixiParticles.initial_smoothing_length(system),
                                            clip_negative_pressure=true)
     return sum(map(x -> isnan(x) ? 0.0 : x, interpolated_values.pressure)) /
            n_interpolation_points
@@ -99,9 +102,12 @@ fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kerne
                                                 pressure_acceleration=nothing,
                                                 acceleration=(0.0, -gravity))
 
+# Disable loop flipping to produce consistent results over different thread numbers
+boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=false)
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
               smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
+              boundary_density_calculator=boundary_density_calculator,
               boundary_layers=4, state_equation=nothing,
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan,
@@ -138,6 +144,7 @@ postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
               smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
+              boundary_density_calculator=boundary_density_calculator,
               boundary_layers=4,
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan,

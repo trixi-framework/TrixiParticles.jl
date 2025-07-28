@@ -346,7 +346,7 @@ end
 abstract type WendlandKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 # Compact support for all Wendland kernels
-@inline compact_support(::WendlandKernel, h) = h
+@inline compact_support(::WendlandKernel, h) = 2h
 
 @doc raw"""
     WendlandC2Kernel{NDIMS}()
@@ -362,20 +362,20 @@ with
 
 ```math
 w(q) = \sigma \begin{cases}
-    (1 - q)^4 (4q + 1)    & \text{if } 0 \leq q < 1, \\
-    0                     & \text{if } q \geq 1,
+    (1 - q/2)^4 (2q + 1)  & \text{if } 0 \leq q < 2, \\
+    0                     & \text{if } q \geq 2,
 \end{cases}
 ```
 
 where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent on the dimension.
 The normalization factor `` \sigma `` is `` 40/7\pi `` in two dimensions or `` 21/2\pi `` in three dimensions.
 
-This kernel function has a compact support of `` [0, h] ``.
+This kernel function has a compact support of `` [0, 2h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, see [Dehnen (2012)](@cite Dehnen2012).
 The smoothness of these functions is also the largest disadvantage as they lose details at sharp corners.
 
-The smoothing length is typically in the range ``[2.5\delta, 4.0\delta]``,
+The smoothing length is typically in the range ``[1.2\delta, 2\delta]``,
 where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
@@ -385,10 +385,10 @@ struct WendlandC2Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC2Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q)^4 * (4q + 1)
+    result = (1 - q / 2)^4 * (2q + 1)
 
-    # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
+    # Zero out result if q >= 2
+    result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
 
     return result
 end
@@ -397,22 +397,23 @@ end
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    q1_3 = (1 - q)^3
-    q1_4 = (1 - q)^4
+    q1_3 = (1 - q / 2)^3
+    q1_4 = (1 - q / 2)^4
 
-    result = -4 * q1_3 * (4q + 1)
-    result = result + q1_4 * 4
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = -2 * q1_3 * (2q + 1)
+    result = result + q1_4 * 2
 
-    # Zero out result if q >= 1
-    result = ifelse(q < 1,
+    # Zero out result if q >= 2
+    result = ifelse(q < 2,
                     normalization_factor(kernel, h) * result * inner_deriv, zero(q))
 
     return result
 end
 
-@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2)
+@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2) / 4
 # `2 * pi` is always `Float64`. `pi * h^3 * 2` preserves the type of `h`.
-@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 2)
+@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 2) / 8
 
 @doc raw"""
     WendlandC4Kernel{NDIMS}()
@@ -428,20 +429,20 @@ with
 
 ```math
 w(q) = \sigma \begin{cases}
-    (1 - q)^6 (35q^2 / 3 + 6q + 1)   & \text{if } 0 \leq q < 1, \\
-    0                                  & \text{if } q \geq 1,
+    (1 - q/2)^6 (35q^2 / 12 + 3q + 1)   & \text{if } 0 \leq q < 2, \\
+    0                                   & \text{if } q \geq 2,
 \end{cases}
 ```
 
 where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent
 on the dimension. The normalization factor `` \sigma `` is `` 9 / \pi `` in two dimensions or `` 495 / 32\pi `` in three dimensions.
 
-This kernel function has a compact support of `` [0, h] ``.
+This kernel function has a compact support of `` [0, 2h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, see [Dehnen (2012)](@cite Dehnen2012).
-The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
+The smoothness of these functions is also the largest disadvantage as they lose details at sharp corners.
 
-The smoothing length is typically in the range ``[3.0\delta, 4.5\delta]``,
+The smoothing length is typically in the range ``[1.5\delta, 2.3\delta]``,
 where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
@@ -451,10 +452,10 @@ struct WendlandC4Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q)^6 * (35q^2 / 3 + 6q + 1)
+    result = (1 - q / 2)^6 * (35q^2 / 12 + 3q + 1)
 
-    # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
+    # Zero out result if q >= 2
+    result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
 
     return result
 end
@@ -463,20 +464,20 @@ end
     q = r / h
 
     # Use `//` to preserve the type of `q`
-    term1 = (1 - q)^6 * (6 + 70 // 3 * q)
-    term2 = 6 * (1 - q)^5 * (1 + 6q + 35 // 3 * q^2)
+    term1 = (1 - q / 2)^6 * (3 + 35 // 6 * q)
+    term2 = 3 * (1 - q / 2)^5 * (1 + 3q + 35 // 12 * q^2)
     derivative = term1 - term2
 
-    # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * derivative / h,
+    # Zero out result if q >= 2
+    result = ifelse(q < 2, normalization_factor(kernel, h) * derivative / h,
                     zero(derivative))
 
     return result
 end
 
-@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2)
+@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2) / 4
 # `32 * pi` is always `Float64`. `pi * h^2 * 32` preserves the type of `h`.
-@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 32)
+@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 32) / 8
 
 @doc raw"""
     WendlandC6Kernel{NDIMS}()
@@ -492,20 +493,20 @@ with:
 
 ```math
 w(q) = \sigma \begin{cases}
-    (1 - q)^8 (32q^3 + 25q^2 + 8q + 1)    & \text{if } 0 \leq q < 1, \\
-    0                                     & \text{if } q \geq 1,
+    (1 - q / 2)^8 (4q^3 + 25q^2 / 4 + 4q + 1)   & \text{if } 0 \leq q < 2, \\
+    0                                           & \text{if } q \geq 2,
 \end{cases}
 ```
 
 where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent
 on the dimension. The normalization factor `` \sigma `` is `` 78 / 7 \pi`` in two dimensions or `` 1365 / 64\pi`` in three dimensions.
 
-This kernel function has a compact support of `` [0, h] ``.
+This kernel function has a compact support of `` [0, 2h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, [Dehnen (2012)](@cite Dehnen2012).
-The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
+The smoothness of these functions is also the largest disadvantage as they lose details at sharp corners.
 
-The smoothing length is typically in the range ``[3.5\delta, 5.0\delta]``,
+The smoothing length is typically in the range ``[1.7\delta, 2.5\delta]``,
 where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
@@ -515,30 +516,30 @@ struct WendlandC6Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q)^8 * (32q^3 + 25q^2 + 8q + 1)
+    result = (1 - q / 2)^8 * (4q^3 + 25q^2 / 4 + 4q + 1)
 
-    # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
+    # Zero out result if q >= 2
+    result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
 
     return result
 end
 
 @fastpow @muladd @inline function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
-    term1 = -8 * (1 - q)^7 * (32q^3 + 25q^2 + 8q + 1)
-    term2 = (1 - q)^8 * (96q^2 + 50q + 8)
+    term1 = -4 * (1 - q / 2)^7 * (4q^3 + 25q^2 / 4 + 4q + 1)
+    term2 = (1 - q / 2)^8 * (12q^2 + 50q / 4 + 4)
     derivative = term1 + term2
 
-    # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * derivative / h,
+    # Zero out result if q >= 2
+    result = ifelse(q < 2, normalization_factor(kernel, h) * derivative / h,
                     zero(derivative))
 
     return result
 end
 
 # `7 * pi` is always `Float64`. `pi * h^2 * 7` preserves the type of `h`.
-@inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (pi * h^2 * 7)
-@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 64)
+@inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (pi * h^2 * 7) / 4
+@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 64) / 8
 
 @doc raw"""
     Poly6Kernel{NDIMS}()

@@ -1,5 +1,12 @@
-# In this example we try to approach the static shape of a water droplet on a horizontal plane.
-# The shape of a static droplet can be calculated from the Young-Laplace equation.
+# ==========================================================================================
+# 2D Sphere with Surface Tension Interacting with a Wall (Wetting Phenomena)
+#
+# This example simulates a 2D circular drop of fluid (sphere) under gravity,
+# influenced by surface tension, as it interacts with a solid horizontal wall.
+# The setup is designed to observe wetting phenomena (e.g., spreading or beading)
+# by adjusting surface tension and adhesion parameters.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
