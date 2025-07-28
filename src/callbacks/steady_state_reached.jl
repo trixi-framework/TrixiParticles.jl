@@ -26,7 +26,7 @@ end
 
 function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
                                     interval_size::Integer=10, abstol=1.0e-8, reltol=1.0e-6)
-    ELTYPE = eltype(dt)
+    ELTYPE = eltype(abstol)
     abstol, reltol = promote(abstol, reltol)
 
     if dt > 0 && interval > 0
