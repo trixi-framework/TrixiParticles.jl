@@ -4,6 +4,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::TotalLagrangianSPHSystem, semi;
                    integrate_tlsph=semi.integrate_tlsph[])
+    # Skip interaction if TLSPH systems are integrated separately
+    integrate_tlsph || return dv
+
     # Different solids do not interact with each other (yet)
     particle_system !== neighbor_system && return dv
 
