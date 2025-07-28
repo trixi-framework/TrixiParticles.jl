@@ -63,7 +63,7 @@ function refinement!(semi, v_ode, u_ode, v_tmp, u_tmp, t)
     # TODO
 
     # Update smoothing lengths
-    upate_smoothing_lengths!(semi, u_ode)
+    update_smoothing_lengths!(semi, u_ode)
 
     # Resize neighborhood search
     # TODO
@@ -114,24 +114,24 @@ end
     return system
 end
 
-function upate_smoothing_lengths!(semi, u_ode)
+function update_smoothing_lengths!(semi, u_ode)
     foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
-        upate_smoothing_lengths!(system, semi, u)
+        update_smoothing_lengths!(system, semi, u)
     end
 
     return semi
 end
 
-upate_smoothing_lengths!(system, semi, u) = system
+update_smoothing_lengths!(system, semi, u) = system
 
-function upate_smoothing_lengths!(system::FluidSystem, semi, u)
-    upate_smoothing_lengths!(system, system.particle_refinement, semi, u)
+function update_smoothing_lengths!(system::FluidSystem, semi, u)
+    update_smoothing_lengths!(system, system.particle_refinement, semi, u)
 end
 
-upate_smoothing_lengths!(system::FluidSystem, ::Nothing, semi, u) = system
+update_smoothing_lengths!(system::FluidSystem, ::Nothing, semi, u) = system
 
-function upate_smoothing_lengths!(system::FluidSystem, refinement, semi, u)
+function update_smoothing_lengths!(system::FluidSystem, refinement, semi, u)
     (; smoothing_length, smoothing_length_factor) = system.cache
 
     neighborhood_search = get_neighborhood_search(system, semi)
@@ -189,17 +189,4 @@ end
     dp_avg = counter_neighbors == 0 ? dp_avg : dp_avg / counter_neighbors
 
     return dp_min, dp_max, dp_avg
-end
-
-@inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
-
-@inline function particle_spacing(system::FluidSystem, particle)
-    return particle_spacing(system, system.particle_refinement, particle)
-end
-
-@inline particle_spacing(system, ::Nothing, _) = system.initial_condition.particle_spacing
-
-@inline function particle_spacing(system, refinement, particle)
-    (; smoothing_length_factor) = system.cache
-    return smoothing_length(system, particle) / smoothing_length_factor
 end

@@ -54,7 +54,7 @@ TrixiParticles.split_particles!(semi, v_ode, u_ode, copy(v_ode), copy(u_ode))
 #           label=nothing;
 #           particle_spacings=[particle_spacing / 10, particle_spacing / spacing_ratio])
 
-TrixiParticles.upate_smoothing_lengths!(semi, u_ode)
+TrixiParticles.update_smoothing_lengths!(semi, u_ode)
 trixi2vtk(TrixiParticles.wrap_u(u_ode, fluid_system, semi),
           particle_spacing=[TrixiParticles.particle_spacing(fluid_system, particle)
                             for particle in TrixiParticles.eachparticle(fluid_system)])
@@ -64,7 +64,7 @@ p5 = plot(v_ode, u_ode, semi, size=(800, 800), xlims=x_lims, ylims=y_lims,
           label=nothing;
           particle_spacings=[particle_spacing / 10, particle_spacing / spacing_ratio])
 
-TrixiParticles.upate_smoothing_lengths!(semi, u_ode)
+TrixiParticles.update_smoothing_lengths!(semi, u_ode)
 
 # smoothing_lengths_fluid = [TrixiParticles.smoothing_length(fluid_system, i)
 #                            for i in TrixiParticles.eachparticle(fluid_system)]
