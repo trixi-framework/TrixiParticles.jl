@@ -463,8 +463,8 @@ end
 
 function resize_cache!(system::WeaklyCompressibleSPHSystem, n::Int)
     # TODO
-    # resize!(system.cache.smoothing_length, n)
     # resize_corrections!(system, n)
+    resize!(system.cache.smoothing_length, n)
 
     return system
 end

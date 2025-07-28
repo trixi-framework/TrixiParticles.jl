@@ -64,7 +64,6 @@ end
 
 Base.resize!(system::System, capacity_system) = system
 
-
 function Base.deleteat!(semi::Semidiscretization, v_ode, u_ode, _v_ode, _u_ode)
     # Delete at specific indices
     foreach_system(semi) do system
@@ -99,8 +98,7 @@ function Base.deleteat!(system::FluidSystem, v, u)
             density_keep = current_density(v, system, dump_id)
             pressure_keep = current_pressure(v, system, dump_id)
 
-            # TODO
-            # system.cache.smoothing_length[particle] = smoothing_length(system, dump_id)
+            system.cache.smoothing_length[particle] = smoothing_length(system, dump_id)
 
             system.mass[particle] = mass_keep
 

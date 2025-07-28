@@ -406,7 +406,8 @@ end
 
 function resize_cache!(system::EntropicallyDampedSPHSystem, n)
     # TODO
-    # resize!(system.cache.smoothing_length, n)
+    # resize_corrections!(system, n)
+    resize!(system.cache.smoothing_length, n)
     resize_cache!(system, system.transport_velocity, n)
 
     return system
