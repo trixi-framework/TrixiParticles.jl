@@ -58,6 +58,7 @@ plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing,
      xlims=my_xlims, ylims=my_ylims, color=:coolwarm)
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
       xlims=my_xlims, ylims=my_ylims, seriestype=:path)
+plot!(right_margin=5Plots.mm) #hide
 
 # Since we will later also pack boundary particles, we need to extend the SDF to the outside.
 # For that, we set `use_for_boundary_packing=true`.
@@ -74,6 +75,7 @@ plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing,
 
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
       xlims=my_xlims, ylims=my_ylims, seriestype=:path)
+plot!(right_margin=5Plots.mm) #hide
 
 # ## Creating an initial configuration of boundary particles
 
