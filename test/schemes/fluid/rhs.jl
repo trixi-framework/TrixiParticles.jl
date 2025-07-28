@@ -51,7 +51,6 @@
 
                     for (m_a, m_b) in masses, (rho_a, rho_b) in densities,
                         (p_a, p_b) in pressures, grad_kernel in grad_kernels
-
                         @testset verbose=true "$system_name" for system_name in [
                             "WCSPH",
                             "EDAC"
