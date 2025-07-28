@@ -31,7 +31,7 @@ function load_geometry(filename; element_type=Float64,
     return geometry
 end
 
-function load_ascii(filename; ELTYPE=Float64, skipstart=1, parallelization_backend=true)
+function load_ascii(filename; ELTYPE=Float64, skipstart=1, parallelization_backend=PolyesterBackend())
 
     # Read the data from the ASCII file in as a matrix of coordinates.
     # Ignore the first `skipstart` lines of the file (e.g. headers).
@@ -40,7 +40,7 @@ function load_ascii(filename; ELTYPE=Float64, skipstart=1, parallelization_backe
     return Polygon(copy(points'); parallelization_backend)
 end
 
-function load_dxf(filename; ELTYPE=Float64, parallelization_backend=true)
+function load_dxf(filename; ELTYPE=Float64, parallelization_backend=PolyesterBackend())
     points = Tuple{ELTYPE, ELTYPE}[]
 
     load_dxf!(points, filename)
@@ -141,7 +141,7 @@ function load(fn::FileIO.File{FileIO.format"STL_BINARY"}; kwargs...)
 end
 
 function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64,
-              parallelization_backend=true)
+              parallelization_backend=PolyesterBackend())
     # Binary STL
     # https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = FileIO.stream(fs)

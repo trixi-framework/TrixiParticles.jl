@@ -57,7 +57,7 @@ function ComplexShape(geometry; particle_spacing, density,
     grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
                          grid_offset, max_nparticles)
 
-    if !(geometry.parallelization_backend isa Bool)
+    if geometry.parallelization_backend isa KernelAbstractions.Backend
         geometry_new = Adapt.adapt(geometry.parallelization_backend, geometry)
 
         point_in_geometry_algorithm_new = Adapt.adapt(geometry.parallelization_backend,
@@ -169,7 +169,7 @@ function particle_grid(geometry, particle_spacing;
     grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                     min_corner; tlsph=true)
 
-    if !(geometry.parallelization_backend isa Bool)
+    if geometry.parallelization_backend isa KernelAbstractions.Backend
         return Adapt.adapt(geometry.parallelization_backend,
                            reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
                                        grid))

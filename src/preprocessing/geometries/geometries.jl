@@ -42,7 +42,7 @@ function Base.intersect(initial_condition::InitialCondition, geometries::Geometr
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
-    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
+    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(initial_condition)},
                          initial_condition.coordinates)
 
     keep_indices = WindingNumberJacobson(geometry)(geometry, coords)

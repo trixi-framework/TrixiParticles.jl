@@ -6,11 +6,14 @@ Returns the total kinetic energy of all particles in a system.
 function kinetic_energy(system, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
 
+    velocities = reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                             current_velocity(v, system))
+    masses = view(system.mass, active_particles(system))
+
+    kinetic_energies = masses .* map(vel -> dot(vel, vel) / 2, velocities)
+
     # If `each_moving_particle` is empty (no moving particles), return zero
-    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
-        velocity = current_velocity(v, system, particle)
-        return 0.5 * system.mass[particle] * dot(velocity, velocity)
-    end
+    return sum(kinetic_energies, init=zero(eltype(system)))
 end
 
 """

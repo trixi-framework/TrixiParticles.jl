@@ -278,11 +278,12 @@ function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
     # Exclude boundary packing system
     is_boundary && return zero(eltype(system))
 
-    # If `each_moving_particle` is empty (no moving particles), return zero
-    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
-        velocity = advection_velocity(v, system, particle)
-        return initial_condition.mass[particle] * dot(velocity, velocity) / 2
-    end
+    velocities = reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                             system.advection_velocity)
+
+    kinetic_energies = initial_condition.mass .* map(vel -> dot(vel, vel) / 2, velocities)
+
+    return sum(kinetic_energies, init=zero(eltype(system)))
 end
 
 @inline source_terms(system::ParticlePackingSystem) = nothing
@@ -400,7 +401,7 @@ end
 
 # Skip for fixed systems
 @inline update_transport_velocity!(system::ParticlePackingSystem{<:Any, true}, v_ode,
-                                   semi) = system
+semi) = system
 
 # Update from `UpdateCallback` (between time steps)
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
