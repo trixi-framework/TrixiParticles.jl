@@ -37,7 +37,9 @@ end
 """
     ZerothOrderMirroring()
 
-Fluid properties are interpolated onto ghost nodes using Shepard interpolation [Shepard1968](@cite).
+Fluid properties are interpolated onto ghost nodes using Shepard interpolation.
+(See slide 6 from the 4th DualSPHysics Users Workshop:
+[Tafuni, Lisbon 2018](https://dual.sphysics.org/4thusersworkshop/data/_uploaded/PDF_Talks_4thWorkshop/Tafuni_Lisbon2018.pdf)).
 The position of the ghost nodes is obtained by mirroring the boundary particles
 into the fluid along a direction that is normal to the open boundary.
 The interpolated values at the ghost nodes are then assigned to the corresponding boundary particles.
