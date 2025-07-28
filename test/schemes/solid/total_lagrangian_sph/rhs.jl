@@ -73,6 +73,8 @@
                     return mass
                 elseif f === :penalty_force
                     return nothing
+                elseif f === :viscosity
+                    return nothing
                 elseif f === :buffer
                     return nothing
                 end
@@ -90,6 +92,9 @@
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             TrixiParticles.compact_support(::MockSystem, ::MockSystem) = 1000.0
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
+            function TrixiParticles.current_coords(system::MockSystem, particle)
+                return TrixiParticles.current_coords(initial_coordinates, system, particle)
+            end
 
             #### Verification
             backends = [

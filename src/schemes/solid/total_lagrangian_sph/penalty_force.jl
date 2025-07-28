@@ -18,7 +18,7 @@ end
                                   particle, neighbor, initial_pos_diff, initial_distance,
                                   current_pos_diff, current_distance,
                                   system, m_a, m_b, rho_a, rho_b)
-    return zeros(initial_pos_diff)
+    return zero(initial_pos_diff)
 end
 
 @inline function dv_penalty_force(penalty_force::PenaltyForceGanzenmueller,

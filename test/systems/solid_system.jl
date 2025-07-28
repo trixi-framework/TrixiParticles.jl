@@ -81,8 +81,8 @@
         │ smoothing kernel: ………………………………… Val                                                              │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
-        │ penalty force: ………………………………………… Nothing                                                          │
-        │ viscosity: …………………………………………………… Nothing                                                          │
+        │ penalty force: ………………………………………… nothing                                                          │
+        │ viscosity: …………………………………………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
 
@@ -103,8 +103,8 @@
         │ smoothing kernel: ………………………………… Val                                                              │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
-        │ penalty force: ………………………………………… Nothing                                                          │
-        │ viscosity: …………………………………………………… Nothing                                                          │
+        │ penalty force: ………………………………………… nothing                                                          │
+        │ viscosity: …………………………………………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end

@@ -42,18 +42,18 @@ end
                     (pk1_corrected(system, particle) / rho_a^2 +
                      pk1_corrected(system, neighbor) / rho_b^2) * grad_kernel
 
-        dv_penalty_force = dv_penalty_force(penalty_force, particle, neighbor,
-                                            initial_pos_diff, initial_distance,
-                                            current_pos_diff, current_distance,
-                                            system, m_a, m_b, rho_a, rho_b)
+        dv_penalty_force_ = dv_penalty_force(penalty_force, particle, neighbor,
+                                             initial_pos_diff, initial_distance,
+                                             current_pos_diff, current_distance,
+                                             system, m_a, m_b, rho_a, rho_b)
 
-        dv_viscosity = dv_viscosity(system, v_system, particle, neighbor,
-                                    current_pos_diff, current_distance,
-                                    m_a, m_b, rho_a, rho_b, grad_kernel)
+        dv_viscosity = dv_viscosity_tlsph(system, v_system, particle, neighbor,
+                                          current_pos_diff, current_distance,
+                                          m_a, m_b, rho_a, rho_b, grad_kernel)
 
         for i in 1:ndims(system)
             @inbounds dv[i,
-                         particle] += dv_stress[i] + dv_penalty_force[i] +
+                         particle] += dv_stress[i] + dv_penalty_force_[i] +
                                       dv_viscosity[i]
         end
 

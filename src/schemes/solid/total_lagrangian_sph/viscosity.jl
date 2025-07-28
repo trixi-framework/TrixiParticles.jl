@@ -1,30 +1,30 @@
 # Unpack the neighboring systems viscosity to dispatch on the viscosity type.
 # This function is only necessary to allow `nothing` as viscosity.
 # Otherwise, we could just apply the viscosity as a function directly.
-@propagate_inbounds function dv_viscosity(system::TotalLagrangianSPHSystem,
-                                          v_system, particle, neighbor,
-                                          current_pos_diff, current_distance,
-                                          m_a, m_b, rho_a, rho_b, grad_kernel)
+@propagate_inbounds function dv_viscosity_tlsph(system, v_system, particle, neighbor,
+                                                current_pos_diff, current_distance,
+                                                m_a, m_b, rho_a, rho_b, grad_kernel)
     viscosity = system.viscosity
 
-    return dv_viscosity(viscosity, system, v_system, particle, neighbor,
-                        current_pos_diff, current_distance,
-                        m_a, m_b, rho_a, rho_b, grad_kernel)
+    return dv_viscosity_tlsph(viscosity, system, v_system, particle, neighbor,
+                              current_pos_diff, current_distance,
+                              m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
-@propagate_inbounds function dv_viscosity(viscosity, system, v_system, particle, neighbor,
-                                          current_pos_diff, current_distance,
-                                          m_a, m_b, rho_a, rho_b, grad_kernel)
+@propagate_inbounds function dv_viscosity_tlsph(viscosity, system,
+                                                v_system, particle, neighbor,
+                                                current_pos_diff, current_distance,
+                                                m_a, m_b, rho_a, rho_b, grad_kernel)
     return viscosity(system, v_system, particle, neighbor,
                      current_pos_diff, current_distance,
                      m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
-@inline function dv_viscosity(viscosity::Nothing, particle_system, neighbor_system,
-                              v_particle_system, v_neighbor_system,
-                              particle, neighbor, pos_diff, distance,
-                              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
-    return zero(pos_diff)
+@inline function dv_viscosity_tlsph(viscosity::Nothing, system,
+                                    v_system, particle, neighbor,
+                                    current_pos_diff, current_distance,
+                                    m_a, m_b, rho_a, rho_b, grad_kernel)
+    return zero(current_pos_diff)
 end
 
 # Applying the viscosity according to Lin et al. (2015):
