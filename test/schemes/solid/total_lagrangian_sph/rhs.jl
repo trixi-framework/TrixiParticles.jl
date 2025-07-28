@@ -89,6 +89,9 @@
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             TrixiParticles.compact_support(::MockSystem, ::MockSystem) = 1000.0
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
+            function TrixiParticles.smoothing_length(::MockSystemType, _)
+                Val{:mock_smoothing_length}()
+            end
 
             #### Verification
             backends = [

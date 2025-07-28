@@ -15,8 +15,16 @@ end
     return v
 end
 
+function create_cache_resize(n_particles)
+    additional_capacity = Ref(0)
+    delete_candidates = Bool[]
+    values_conserved = Ref(false)
+
+    return (; additional_capacity, delete_candidates, values_conserved)
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
-    density = similar(initial_condition.density)
+    density = copy(initial_condition.density)
 
     return (; density)
 end
@@ -31,9 +39,13 @@ function create_cache_refinement(initial_condition, ::Nothing, smoothing_length)
     return (; smoothing_length, smoothing_length_factor)
 end
 
-# TODO
 function create_cache_refinement(initial_condition, refinement, smoothing_length)
-    # TODO: If refinement is not `Nothing` and `correction` is not `Nothing`, then throw an error
+    smoothng_length_factor = smoothing_length / initial_condition.particle_spacing
+
+    beta = Vector{eltype(initial_condition)}(undef, nparticles(initial_condition))
+
+    return (; smoothing_length=smoothing_length * ones(length(initial_condition.density)),
+            smoothing_length_factor=smoothng_length_factor, beta=beta)
 end
 
 @propagate_inbounds hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
@@ -46,6 +58,10 @@ function smoothing_length(system::FluidSystem, ::Nothing, particle)
     return system.cache.smoothing_length
 end
 
+function smoothing_length(system::FluidSystem, refinement, particle)
+    return system.cache.smoothing_length[particle]
+end
+
 function initial_smoothing_length(system::FluidSystem)
     return initial_smoothing_length(system, system.particle_refinement)
 end
@@ -54,7 +70,7 @@ initial_smoothing_length(system, ::Nothing) = system.cache.smoothing_length
 
 function initial_smoothing_length(system, refinement)
     # TODO
-    return system.cache.initial_smoothing_length_factor *
+    return system.cache.smoothing_length_factor *
            system.initial_condition.particle_spacing
 end
 
@@ -206,7 +222,7 @@ include("entropically_damped_sph/entropically_damped_sph.jl")
     add_velocity!(du, v, particle, system, system.transport_velocity)
 end
 
-@inline function momentum_convection(system, neighbor_system,
+@inline function momentum_convection(system, neighbor_system, pos_diff, distance,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     return zero(grad_kernel)
@@ -215,9 +231,66 @@ end
 @inline function momentum_convection(system,
                                      neighbor_system::Union{EntropicallyDampedSPHSystem,
                                                             WeaklyCompressibleSPHSystem},
+                                     pos_diff, distance,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
     momentum_convection(system, neighbor_system, system.transport_velocity,
-                        v_particle_system, v_neighbor_system, rho_a, rho_b,
-                        m_a, m_b, particle, neighbor, grad_kernel)
+                        system.particle_refinement, pos_diff, distance, v_particle_system,
+                        v_neighbor_system, rho_a, rho_b, m_a, m_b, particle, neighbor,
+                        grad_kernel)
 end
+
+function update_final!(system::FluidSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
+    # Check if `UpdateCallback` is used when simulating with TVF
+    update_final!(system, system.transport_velocity,
+                  v, u, v_ode, u_ode, semi, t; update_from_callback)
+
+    # Compute correction factor when using particle refinement
+    compute_beta_correction!(system, system.particle_refinement, v_ode, u_ode, semi)
+
+    return system
+end
+
+compute_beta_correction!(system, ::Nothing, v_ode, u_ode, semi) = system
+
+function compute_beta_correction!(system, refinement, v_ode, u_ode, semi)
+    (; beta) = system.cache
+
+    set_zero!(beta)
+
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
+
+    system_coords = current_coordinates(u, system)
+
+    foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               neighborhood_search) do particle, neighbor,
+                                                       pos_diff, distance
+            rho_a = current_density(v, system, particle)
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+            W_deriv = kernel_deriv(system.smoothing_kernel, distance,
+                                   smoothing_length(system, particle))
+
+            beta[particle] -= m_b * distance * W_deriv * (rho_a * ndims(system))
+        end
+    end
+
+    return system
+end
+
+function Base.resize!(system::FluidSystem, capacity_system)
+    error("`resize!`not implemented for $(typeof(system)), yet")
+end
+
+resize_density!(system, n, ::SummationDensity) = resize!(system.cache.density, n)
+resize_density!(system, n, ::ContinuityDensity) = system

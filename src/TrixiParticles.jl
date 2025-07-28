@@ -23,7 +23,8 @@ using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
+                 RecursiveArrayTools
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
@@ -48,6 +49,7 @@ include("general/system.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+include("refinement/refinement.jl")
 # `callbacks.jl` requires the system types to be defined
 include("callbacks/callbacks.jl")
 
@@ -58,6 +60,7 @@ include("general/gpu.jl")
 include("io/io.jl")
 include("visualization/recipes_plots.jl")
 include("preprocessing/preprocessing.jl")
+include("general/resize.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -66,7 +69,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       ParticleShiftingCallback
+       ParticleShiftingCallback, ParticleRefinementCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
@@ -81,6 +84,7 @@ export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
        BernoulliPressureExtrapolation
+export ParticleRefinement, SpatialRefinementCriterion
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export BoundaryMovement

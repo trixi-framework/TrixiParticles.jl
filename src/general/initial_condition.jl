@@ -201,7 +201,7 @@ function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
     @nospecialize ic # reduce precompilation time
 
     if get(io, :compact, false)
-        show(io, system)
+        show(io, ic)
     else
         summary_header(io, "InitialCondition{$(eltype(ic))}")
         summary_line(io, "#dimensions", "$(ndims(ic))")

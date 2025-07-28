@@ -85,12 +85,11 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                                          ndims(smoothing_kernel)),
                                      correction=nothing,
                                      source_terms=nothing, surface_tension=nothing,
+                                     particle_refinement=nothing,
                                      surface_normal_method=nothing, buffer_size=nothing,
                                      reference_particle_spacing=0.0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
-
-    particle_refinement = nothing # TODO
 
     initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -135,6 +134,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             create_cache_resize(n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
@@ -155,7 +155,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 typeof(pressure_acceleration),
                                 typeof(transport_velocity), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_normal_method),
-                                typeof(buffer), Nothing,
+                                typeof(buffer), typeof(particle_refinement),
                                 typeof(cache)}(initial_condition, mass, density_calculator,
                                                smoothing_kernel, sound_speed, viscosity,
                                                nu_edac, acceleration_, correction,
@@ -381,4 +381,43 @@ function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
         system.initial_condition.pressure[particle] = v[end, particle]
     end
+end
+
+function Base.resize!(system::EntropicallyDampedSPHSystem, capacity_system)
+    capacity(system) == nparticles(system) && return system
+
+    if capacity(system) < nparticles(system) && !(system.cache.values_conserved[])
+        error("The required capacity is smaller than the actual size of the system. " *
+              "Call `deleteat!` before resizing the system, to specify which particles can be deleted")
+    end
+
+    resize!(system.mass, capacity_system)
+
+    resize_density!(system, capacity_system, system.density_calculator)
+
+    resize_cache!(system, capacity_system)
+
+    system.cache.additional_capacity[] = 0
+    system.cache.values_conserved[] = false
+
+    return system
+end
+
+function resize_cache!(system::EntropicallyDampedSPHSystem, n)
+    # TODO
+    # resize_corrections!(system, n)
+    resize!(system.cache.smoothing_length, n)
+    resize_cache!(system, system.transport_velocity, n)
+    resize!(system.cache.beta, n)
+
+    return system
+end
+
+resize_cache!(system::EntropicallyDampedSPHSystem, ::Nothing, n) = system
+
+function resize_cache!(system::EntropicallyDampedSPHSystem, ::TransportVelocityAdami, n)
+    resize!(system.cache.pressure_average, n)
+    resize!(system.cache.neighbor_counter, n)
+
+    return system
 end
