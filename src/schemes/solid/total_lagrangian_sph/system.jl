@@ -30,6 +30,8 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
                     (see [`PenaltyForceGanzenmueller`](@ref)).
+- `viscosity`:      Artificial viscosity model to stabilize both the TLSPH and the FSI.
+                    Currently, only [`ArtificialViscosityMonaghan`](@ref) is supported.
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
@@ -55,7 +57,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, ST} <: SolidSystem{NDIMS}
+                                YM, PR, LL, LM, K, PF, V, ST} <: SolidSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -74,6 +76,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
+    viscosity           :: V
     source_terms        :: ST
     buffer              :: Nothing
 end
@@ -84,7 +87,8 @@ function TotalLagrangianSPHSystem(initial_condition,
                                   n_fixed_particles=0, boundary_model=nothing,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
-                                  penalty_force=nothing, source_terms=nothing)
+                                  penalty_force=nothing, viscosity=nothing,
+                                  source_terms=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -119,7 +123,7 @@ function TotalLagrangianSPHSystem(initial_condition,
                                     n_moving_particles, young_modulus, poisson_ratio,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
-                                    penalty_force, source_terms, nothing)
+                                    penalty_force, viscosity, source_terms, nothing)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
@@ -343,12 +347,6 @@ end
     E = (transpose(F) * F - I) / 2
 
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
-end
-
-@inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, system, m_a, m_b, rho_a, rho_b,
-                                     ::Nothing)
-    return dv
 end
 
 function write_u0!(u0, system::TotalLagrangianSPHSystem)

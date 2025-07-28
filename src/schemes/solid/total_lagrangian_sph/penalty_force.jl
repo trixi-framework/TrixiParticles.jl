@@ -14,17 +14,21 @@ struct PenaltyForceGanzenmueller{ELTYPE}
     end
 end
 
-@inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, system, m_a, m_b, rho_a, rho_b,
-                                     penalty_force::PenaltyForceGanzenmueller)
+@inline function dv_penalty_force(penalty_force::Nothing,
+                                  particle, neighbor, initial_pos_diff, initial_distance,
+                                  current_pos_diff, current_distance,
+                                  system, m_a, m_b, rho_a, rho_b)
+    return zeros(initial_pos_diff)
+end
+
+@inline function dv_penalty_force(penalty_force::PenaltyForceGanzenmueller,
+                                  particle, neighbor, initial_pos_diff, initial_distance,
+                                  current_pos_diff, current_distance,
+                                  system, m_a, m_b, rho_a, rho_b)
     (; young_modulus) = system
 
-    current_pos_diff = current_coords(system, particle) -
-                       current_coords(system, neighbor)
-    current_distance = norm(current_pos_diff)
-
-    volume_particle = m_a / rho_a
-    volume_neighbor = m_b / rho_b
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
 
     kernel_weight = smoothing_kernel(system, initial_distance, particle)
 
@@ -37,16 +41,12 @@ end
 
     E = young_modulus_per_particle(young_modulus, particle)
 
-    f = (penalty_force.alpha / 2) * volume_particle * volume_neighbor *
+    f = (penalty_force.alpha / 2) * volume_a * volume_b *
         kernel_weight / initial_distance^2 * E * delta_sum * current_pos_diff /
         current_distance
 
-    @inbounds for i in 1:ndims(system)
-        # Divide force by mass to obtain acceleration
-        dv[i, particle] += f[i] / m_a
-    end
-
-    return dv
+    # Divide force by mass to obtain acceleration
+    return f / m_a
 end
 
 function young_modulus_per_particle(young_modulus::AbstractVector, particle)
