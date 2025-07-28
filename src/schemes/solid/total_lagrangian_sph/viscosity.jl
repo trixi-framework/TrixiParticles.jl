@@ -50,7 +50,7 @@ end
     # Compute bulk modulus from Young's modulus and Poisson's ratio.
     # See the table at the end of https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
     K = system.young_modulus / (ndims(system) * (1 - 2 * system.poisson_ratio))
-    
+
     # Newton–Laplace equation
     sound_speed = sqrt(K / rho_a)
 
