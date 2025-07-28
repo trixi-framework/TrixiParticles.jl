@@ -50,7 +50,8 @@
 
             # Moving
             t = 0.6
-            system.movement(system, t)
+            # semi is only passed to `@threaded`
+            system.movement(system, t, SerialBackend())
             if NDIMS == 2
                 new_coordinates = coordinates .+ [0.5 * t, 0.3 * t^2]
                 new_velocity = [0.5, 0.6 * t] .* ones(size(new_coordinates))
@@ -67,7 +68,7 @@
 
             # Stop moving
             t = 1.0
-            system.movement(system, t)
+            system.movement(system, t, false)
 
             @test isapprox(new_coordinates, system.coordinates)
 
@@ -82,7 +83,8 @@
             system = BoundarySPHSystem(initial_condition, model, movement=bm)
 
             t = 0.1
-            system.movement(system, t)
+            # semi is only passed to `@threaded`
+            system.movement(system, t, SerialBackend())
 
             if NDIMS == 2
                 new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2]
@@ -111,7 +113,7 @@
 
         system = BoundarySPHSystem(initial_condition, model)
 
-        show_compact = "BoundarySPHSystem{2}((hydrodynamic_mass = 3,), nothing, 0.0) with 2 particles"
+        show_compact = "BoundarySPHSystem{2}((hydrodynamic_mass = 3,), nothing, 0.0, 0) with 2 particles"
         @test repr(system) == show_compact
 
         show_box = """
@@ -122,6 +124,7 @@
         │ boundary model: ……………………………………… (hydrodynamic_mass = 3,)                                         │
         │ movement function: ……………………………… nothing                                                          │
         │ adhesion coefficient: ……………………… 0.0                                                              │
+        │ color: ……………………………………………………………… 0                                                                │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end

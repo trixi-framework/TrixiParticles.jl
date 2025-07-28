@@ -1,9 +1,11 @@
+# ==========================================================================================
 # The Computer Language Benchmarks Game
 # https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 #
 # Contributed by Andrei Fomiga, Stefan Karpinski, Viral B. Shah, Jeff
 # Bezanson, and Adam Beckmeyer.
 # Based on Mark C. Lewis's Java version.
+# ==========================================================================================
 
 using Printf
 
