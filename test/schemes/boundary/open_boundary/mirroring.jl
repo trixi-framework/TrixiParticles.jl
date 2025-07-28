@@ -367,7 +367,6 @@
 
         pressure_func(pos) = cos(2pi * pos[1])
 
-
         # The pressures are interpolated to obtain a unified vector of length 50,
         # rather than handling three separate systems with numerous particles each.
         # Additionally, it facilitates plotting for test validation purposes.
