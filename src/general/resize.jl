@@ -96,8 +96,8 @@ function Base.deleteat!(system::FluidSystem, v, u)
             pos_keep = current_coords(u, system, dump_id)
 
             mass_keep = hydrodynamic_mass(system, dump_id)
-            density_keep = particle_density(v, system, dump_id)
-            pressure_keep = particle_pressure(v, system, dump_id)
+            density_keep = current_density(v, system, dump_id)
+            pressure_keep = current_pressure(v, system, dump_id)
 
             # TODO
             # system.cache.smoothing_length[particle] = smoothing_length(system, dump_id)

@@ -154,6 +154,11 @@ end
 Base.parent(A::ThreadedBroadcastArray) = A.array
 Base.pointer(A::ThreadedBroadcastArray) = pointer(parent(A))
 Base.size(A::ThreadedBroadcastArray) = size(parent(A))
+function Base.resize!(A::ThreadedBroadcastArray, n::Integer)
+    resize!(parent(A), n)
+
+    return A
+end
 Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
 
 function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
