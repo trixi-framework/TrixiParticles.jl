@@ -99,7 +99,7 @@ function velocity_function2d(pos, t)
     return SVector(prescribed_velocity, 0.0)
 end
 
-open_boundary_model = BoundaryModelLastiwka()
+open_boundary_model = BoundaryModelLastiwkaCharacteristics()
 
 reference_velocity_in = velocity_function2d
 reference_pressure_in = pressure

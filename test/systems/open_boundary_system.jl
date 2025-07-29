@@ -10,7 +10,7 @@
                               plane_normal=(1.0, 0.0), density=1.0,
                               open_boundary_layers=4, boundary_type=InFlow())
         system = OpenBoundarySPHSystem(inflow; buffer_size=0,
-                                       boundary_model=BoundaryModelLastiwka(),
+                                       boundary_model=BoundaryModelLastiwkaCharacteristics(),
                                        fluid_system=FluidSystemMock2())
 
         show_compact = "OpenBoundarySPHSystem{2}() with 80 particles"
@@ -23,7 +23,7 @@
         │ #buffer_particles: ……………………………… 0                                                                │
         │ #boundary_zones: …………………………………… 1                                                                │
         │ fluid system: …………………………………………… FluidSystemMock2                                                 │
-        │ boundary model: ……………………………………… BoundaryModelLastiwka                                            │
+        │ boundary model: ……………………………………… BoundaryModelLastiwkaCharacteristics                             │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
 
         @test repr("text/plain", system) == show_box
@@ -32,7 +32,7 @@
                                plane_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
                                boundary_type=OutFlow())
         system = OpenBoundarySPHSystem(outflow; buffer_size=0,
-                                       boundary_model=BoundaryModelTafuni(),
+                                       boundary_model=BoundaryModelTafuniMirroring(),
                                        fluid_system=FluidSystemMock2())
 
         show_compact = "OpenBoundarySPHSystem{2}() with 80 particles"
@@ -45,13 +45,13 @@
         │ #buffer_particles: ……………………………… 0                                                                │
         │ #boundary_zones: …………………………………… 1                                                                │
         │ fluid system: …………………………………………… FluidSystemMock2                                                 │
-        │ boundary model: ……………………………………… BoundaryModelTafuni                                              │
+        │ boundary model: ……………………………………… BoundaryModelTafuniMirroring                                     │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
 
         @test repr("text/plain", system) == show_box
 
         system = OpenBoundarySPHSystem(outflow, inflow; buffer_size=0,
-                                       boundary_model=BoundaryModelTafuni(),
+                                       boundary_model=BoundaryModelTafuniMirroring(),
                                        fluid_system=FluidSystemMock2())
 
         show_compact = "OpenBoundarySPHSystem{2}() with 160 particles"
@@ -64,7 +64,7 @@
         │ #buffer_particles: ……………………………… 0                                                                │
         │ #boundary_zones: …………………………………… 2                                                                │
         │ fluid system: …………………………………………… FluidSystemMock2                                                 │
-        │ boundary model: ……………………………………… BoundaryModelTafuni                                              │
+        │ boundary model: ……………………………………… BoundaryModelTafuniMirroring                                     │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
 
         @test repr("text/plain", system) == show_box

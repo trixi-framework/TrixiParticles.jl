@@ -29,8 +29,8 @@ Open boundary system for in- and outflow particles.
 !!! note "Note"
     The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
     can also be set to `nothing`.
-    In this case, they will either be extrapolated from the fluid domain ([BoundaryModelTafuni](@ref BoundaryModelTafuni))
-    or evolved using the characteristic flow variables ([BoundaryModelLastiwka](@ref BoundaryModelLastiwka)).
+    In this case, they will either be extrapolated from the fluid domain ([BoundaryModelTafuniMirroring](@ref BoundaryModelTafuniMirroring))
+    or evolved using the characteristic flow variables ([BoundaryModelLastiwkaCharacteristics](@ref BoundaryModelLastiwkaCharacteristics)).
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in future releases.
@@ -140,7 +140,7 @@ function create_cache_open_boundary(boundary_model, initial_condition, reference
     density_references = map(ref -> ref.reference_density, reference_values)
     velocity_references = map(ref -> ref.reference_velocity, reference_values)
 
-    if boundary_model isa BoundaryModelLastiwka
+    if boundary_model isa BoundaryModelLastiwkaCharacteristics
         characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
         previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
@@ -185,6 +185,8 @@ end
 @inline function Base.eltype(::OpenBoundarySPHSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
+
+@inline buffer(system::OpenBoundarySPHSystem) = system.buffer
 
 function reset_callback_flag!(system::OpenBoundarySPHSystem)
     system.update_callback_used[] = false

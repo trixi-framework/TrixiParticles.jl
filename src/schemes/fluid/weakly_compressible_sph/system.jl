@@ -245,6 +245,8 @@ end
     return ndims(system) * factor_tvf(system) + 1
 end
 
+@inline buffer(system::WeaklyCompressibleSPHSystem) = system.buffer
+
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 
 @inline function current_velocity(v, system::WeaklyCompressibleSPHSystem)

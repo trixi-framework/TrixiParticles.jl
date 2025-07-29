@@ -35,6 +35,9 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
 
     return union(initial_condition, buffer_ic)
 end
+# By default, there is no buffer.
+# Dispatch by system type to handle systems that provide a buffer.
+@inline buffer(system) = nothing
 
 @inline update_system_buffer!(buffer::Nothing, semi) = buffer
 

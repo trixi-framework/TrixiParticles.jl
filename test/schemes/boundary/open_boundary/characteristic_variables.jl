@@ -65,7 +65,7 @@
 
                 boundary_system = OpenBoundarySPHSystem(boundary_zone;
                                                         fluid_system, buffer_size=0,
-                                                        boundary_model=BoundaryModelLastiwka())
+                                                        boundary_model=BoundaryModelLastiwkaCharacteristics())
 
                 semi = Semidiscretization(fluid_system, boundary_system)
 

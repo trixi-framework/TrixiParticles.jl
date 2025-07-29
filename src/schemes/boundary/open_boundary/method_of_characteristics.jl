@@ -1,5 +1,5 @@
 @doc raw"""
-    BoundaryModelLastiwka(; extrapolate_reference_values=nothing)
+    BoundaryModelLastiwkaCharacteristics(; extrapolate_reference_values=nothing)
 
 Boundary model for [`OpenBoundarySPHSystem`](@ref).
 This model uses the characteristic variables to propagate the appropriate values
@@ -19,16 +19,17 @@ For more information about the method see [description below](@ref method_of_cha
   Note that even without this extrapolation feature,
   the reference values don't need to be prescribed - they're computed from the characteristics.
 """
-struct BoundaryModelLastiwka{T}
+struct BoundaryModelLastiwkaCharacteristics{T}
     extrapolate_reference_values::T
 
-    function BoundaryModelLastiwka(; extrapolate_reference_values=nothing)
+    function BoundaryModelLastiwkaCharacteristics(; extrapolate_reference_values=nothing)
         return new{typeof(extrapolate_reference_values)}(extrapolate_reference_values)
     end
 end
 
 # Called from update callback via `update_open_boundary_eachstep!`
-@inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
+@inline function update_boundary_quantities!(system,
+                                             boundary_model::BoundaryModelLastiwkaCharacteristics,
                                              v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, boundary_zones, fluid_system) = system
 
@@ -87,7 +88,8 @@ end
 end
 
 # Called from semidiscretization
-function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi, t)
+function update_final!(system, ::BoundaryModelLastiwkaCharacteristics, v, u, v_ode, u_ode,
+                       semi, t)
     @trixi_timeit timer() "evaluate characteristics" begin
         evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
@@ -227,7 +229,8 @@ function reference_value(value::Function, quantity, system, particle, position, 
 end
 
 # Only apply averaging at the inflow
-function average_velocity!(v, u, system, ::BoundaryModelLastiwka, boundary_zone, semi)
+function average_velocity!(v, u, system, ::BoundaryModelLastiwkaCharacteristics,
+                           boundary_zone, semi)
     (; flow_direction, plane_normal) = boundary_zone
 
     # Outflow

@@ -41,13 +41,13 @@ initialize!(system, semi) = system
 @inline eachparticle(initial_condition) = Base.OneTo(nparticles(initial_condition))
 
 # Wrapper for systems with `SystemBuffer`
-@inline each_moving_particle(system) = each_moving_particle(system, system.buffer)
+@inline each_moving_particle(system) = each_moving_particle(system, buffer(system))
 @inline each_moving_particle(system, ::Nothing) = Base.OneTo(n_moving_particles(system))
 
-@inline active_coordinates(u, system) = active_coordinates(u, system, system.buffer)
+@inline active_coordinates(u, system) = active_coordinates(u, system, buffer(system))
 @inline active_coordinates(u, system, ::Nothing) = current_coordinates(u, system)
 
-@inline active_particles(system) = active_particles(system, system.buffer)
+@inline active_particles(system) = active_particles(system, buffer(system))
 @inline active_particles(system, ::Nothing) = Base.OneTo(nparticles(system))
 
 # This should not be dispatched by system type. We always expect to get a column of `A`.

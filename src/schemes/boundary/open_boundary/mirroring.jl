@@ -47,7 +47,7 @@ The interpolated values at the ghost nodes are then assigned to the correspondin
 struct ZerothOrderMirroring end
 
 @doc raw"""
-    BoundaryModelTafuni(; mirror_method=FirstOrderMirroring())
+    BoundaryModelTafuniMirroring(; mirror_method=FirstOrderMirroring())
 
 Boundary model for the `OpenBoundarySPHSystem`.
 This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
@@ -61,15 +61,15 @@ We provide three different mirroring methods:
     - [`FirstOrderMirroring`](@ref): Uses a first order correction based on the gradient of the interpolated values .
     - [`SimpleMirroring`](@ref): Similar to the first order mirroring, but does not use the gradient of the interpolated values.
 """
-struct BoundaryModelTafuni{MM}
+struct BoundaryModelTafuniMirroring{MM}
     mirror_method::MM
 end
 
-function BoundaryModelTafuni(; mirror_method=FirstOrderMirroring())
-    return BoundaryModelTafuni(mirror_method)
+function BoundaryModelTafuniMirroring(; mirror_method=FirstOrderMirroring())
+    return BoundaryModelTafuniMirroring(mirror_method)
 end
 
-function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni,
+function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuniMirroring,
                                      v, u, v_ode, u_ode, semi, t)
     (; boundary_zones, pressure, density, fluid_system, cache) = system
 
@@ -118,7 +118,7 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
     end
 end
 
-update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = system
+update_final!(system, ::BoundaryModelTafuniMirroring, v, u, v_ode, u_ode, semi, t) = system
 
 function extrapolate_values!(system,
                              mirror_method::Union{FirstOrderMirroring, SimpleMirroring},
