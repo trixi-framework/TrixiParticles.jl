@@ -196,6 +196,19 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
     reference_values = (reference_velocity=velocity_ref, reference_pressure=pressure_ref,
                         reference_density=density_ref)
 
+    coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE}, ic.coordinates)
+
+    if prescribed_pressure
+        ic.pressure .= pressure_ref.(coordinates_svector, 0)
+    end
+    if prescribed_density
+        ic.density .= density_ref.(coordinates_svector, 0)
+        ic.mass .= ic.density * ic.particle_spacing^NDIMS
+    end
+    if prescribed_velocity
+        ic.velocity .= stack(velocity_ref.(coordinates_svector, 0))
+    end
+
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, plane_normal_, reference_values,
                         average_inflow_velocity, prescribed_density, prescribed_pressure,

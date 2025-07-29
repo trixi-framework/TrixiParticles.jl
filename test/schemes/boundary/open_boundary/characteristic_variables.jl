@@ -15,7 +15,8 @@
     # Prescribed quantities
     reference_velocity = (pos, t) -> SVector(t, 0.0)
     reference_pressure = (pos, t) -> 50_000.0 * t
-    reference_density = (pos, t) -> 1000.0 * t
+    # Add small offset to avoid "ArgumentError: density must be positive and larger than `eps()`"
+    reference_density = (pos, t) -> 1000.0 * (t + sqrt(eps()))
 
     # Plane points of open boundary
     plane_points_1 = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
