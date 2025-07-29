@@ -334,7 +334,7 @@
             v_fluid = mirror(pressure_func, mirror_method)
 
             p_fluid = [TrixiParticles.current_pressure(v_fluid, fluid_system, particle)
-                       for particle in TrixiParticles.active_particles(fluid_system)]
+                       for particle in TrixiParticles.eachparticle(fluid_system)]
 
             fluid_system.initial_condition.pressure .= p_fluid
             open_boundary_in.initial_condition.pressure .= open_boundary_in.pressure

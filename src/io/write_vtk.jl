@@ -124,12 +124,12 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_direc
         write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
 
         # Store particle index
-        vtk["index"] = active_particles(system)
+        vtk["index"] = eachparticle(system)
         vtk["time"] = t
         vtk["ndims"] = ndims(system)
 
         vtk["particle_spacing"] = [particle_spacing(system, particle)
-                                   for particle in active_particles(system)]
+                                   for particle in eachparticle(system)]
 
         if write_meta_data
             vtk["solver_version"] = git_hash
@@ -263,20 +263,20 @@ end
 function write2vtk!(vtk, v, u, t, system::DEMSystem; write_meta_data=true)
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["mass"] = [hydrodynamic_mass(system, particle)
-                   for particle in active_particles(system)]
+                   for particle in eachparticle(system)]
     vtk["radius"] = [particle_radius(system, particle)
-                     for particle in active_particles(system)]
+                     for particle in eachparticle(system)]
     return vtk
 end
 
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
-                       for particle in active_particles(system)]
+                       for particle in eachparticle(system)]
     vtk["density"] = [current_density(v, system, particle)
-                      for particle in active_particles(system)]
+                      for particle in eachparticle(system)]
     # Indexing the pressure is a workaround for slicing issue (see https://github.com/JuliaSIMD/StrideArrays.jl/issues/88)
     vtk["pressure"] = [current_pressure(v, system, particle)
-                       for particle in active_particles(system)]
+                       for particle in eachparticle(system)]
 
     if system.surface_normal_method !== nothing
         vtk["surf_normal"] = [surface_normal(system, particle)
@@ -378,7 +378,7 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
     n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
     vtk["velocity"] = [current_velocity(v, system, particle)
-                       for particle in active_particles(system)]
+                       for particle in eachparticle(system)]
     vtk["jacobian"] = [det(deformation_gradient(system, particle))
                        for particle in eachparticle(system)]
 
@@ -410,11 +410,11 @@ end
 
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
-                       for particle in active_particles(system)]
+                       for particle in eachparticle(system)]
     vtk["density"] = [current_density(v, system, particle)
-                      for particle in active_particles(system)]
+                      for particle in eachparticle(system)]
     vtk["pressure"] = [current_pressure(v, system, particle)
-                       for particle in active_particles(system)]
+                       for particle in eachparticle(system)]
 
     return vtk
 end
