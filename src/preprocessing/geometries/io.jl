@@ -31,7 +31,8 @@ function load_geometry(filename; element_type=Float64,
     return geometry
 end
 
-function load_ascii(filename; ELTYPE=Float64, skipstart=1, parallelization_backend=PolyesterBackend())
+function load_ascii(filename; ELTYPE=Float64, skipstart=1,
+                    parallelization_backend=PolyesterBackend())
 
     # Read the data from the ASCII file in as a matrix of coordinates.
     # Ignore the first `skipstart` lines of the file (e.g. headers).
