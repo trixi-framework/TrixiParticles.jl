@@ -56,6 +56,8 @@ function Base.intersect(initial_condition::InitialCondition,
     return intersect(result, Base.tail(geometries)...)
 end
 
+# This method is used in `boundary_zone.jl` and is defined here
+# to avoid circular dependencies with `TriangleMesh`
 function calculate_spanning_vectors(plane::TriangleMesh, zone_width)
     plane_normal = normalize(sum(plane.face_normals) / nfaces(plane))
 
@@ -70,4 +72,28 @@ function calculate_spanning_vectors(plane::TriangleMesh, zone_width)
     end
 
     return hcat(plane_normal * zone_width, edge1, edge2), SVector(plane_points[:, 1]...)
+end
+
+# According to:
+# https://logicatcore.github.io/scratchpad/lidar/sensor-fusion/jupyter/2021/04/20/3D-Oriented-Bounding-Box.html
+function oriented_bounding_box(point_cloud)
+    covariance_matrix = Statistics.cov(point_cloud; dims=2)
+    eigen_vectors = Statistics.eigvecs(covariance_matrix)
+    means = Statistics.mean(point_cloud, dims=2)
+
+    centered_data = point_cloud .- means
+
+    aligned_coords = eigen_vectors' * centered_data
+
+    min_corner = SVector(minimum(aligned_coords[1, :]),
+                         minimum(aligned_coords[2, :]),
+                         minimum(aligned_coords[3, :]))
+    max_corner = SVector(maximum(aligned_coords[1, :]),
+                         maximum(aligned_coords[2, :]),
+                         maximum(aligned_coords[3, :]))
+
+    plane_points = hcat(min_corner, max_corner,
+                        [min_corner[1], max_corner[2], min_corner[3]])
+
+    return eigen_vectors * plane_points .+ means
 end
