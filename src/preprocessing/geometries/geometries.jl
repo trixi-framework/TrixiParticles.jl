@@ -58,7 +58,30 @@ end
 
 # This method is used in `boundary_zone.jl` and is defined here
 # to avoid circular dependencies with `TriangleMesh`
-function calculate_spanning_vectors(plane::TriangleMesh, zone_width)
+"""
+    extract_transition_face(plane::TriangleMesh)
+
+Extract plane points and normal vector for the transition face of the [`BoundaryZone`](@ref)
+from a `TrixiParticles.TriangleMesh` returned by [`load_geometry`](@ref).
+The plane points are the corner points of an oriented bounding box of the given geometry.
+The geometry must be planar (i.e., all vertices should lie approximately in the same plane).
+
+# Arguments
+- `plane`: A planar geometry.
+
+# Returns
+- `plane_points`: Tuple of three points defining the transition plane.
+- `plane_normal`: Normalized normal vector of the plane.
+
+# Example
+```julia
+file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+plane_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
+
+plane, plane_normal = extract_transition_face(plane_geometry)
+```
+"""
+function extract_transition_face(plane::TriangleMesh)
     plane_normal = normalize(sum(plane.face_normals) / nfaces(plane))
 
     plane_points = oriented_bounding_box(stack(plane.vertices))
@@ -71,7 +94,7 @@ function calculate_spanning_vectors(plane::TriangleMesh, zone_width)
         throw(ArgumentError("`plane` might be not planar"))
     end
 
-    return hcat(plane_normal * zone_width, edge1, edge2), SVector(plane_points[:, 1]...)
+    return (plane_points[:, 1], plane_points[:, 2], plane_points[:, 3]), plane_normal
 end
 
 # According to:
@@ -85,12 +108,8 @@ function oriented_bounding_box(point_cloud)
 
     aligned_coords = eigen_vectors' * centered_data
 
-    min_corner = SVector(minimum(aligned_coords[1, :]),
-                         minimum(aligned_coords[2, :]),
-                         minimum(aligned_coords[3, :]))
-    max_corner = SVector(maximum(aligned_coords[1, :]),
-                         maximum(aligned_coords[2, :]),
-                         maximum(aligned_coords[3, :]))
+    min_corner = minimum(aligned_coords, dims=2)
+    max_corner = maximum(aligned_coords, dims=2)
 
     plane_points = hcat(min_corner, max_corner,
                         [min_corner[1], max_corner[2], min_corner[3]])

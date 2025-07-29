@@ -129,6 +129,21 @@
         end
     end
 
+    @testset verbose=true "Transition Plane" begin
+        file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+        plane_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
+
+        plane, plane_normal = extract_transition_face(plane_geometry)
+
+        expected_plane = ([-0.10239515072676975, 0.2644994251485518, -0.36036119092034713],
+                          [0.3064669575380171, 0.2392044626289733, -0.10866880239395837],
+                          [-0.02275190052262935, 0.299506937268509, -0.034649329562556])
+        ecpected_normal = [0.14372397390844055, 0.979596249614303, -0.14047991694743392]
+
+        @test any(isapprox.(plane, expected_plane))
+        @test isapprox(plane_normal, ecpected_normal)
+    end
+
     @testset verbose=true "Show" begin
         data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
         geometry = load_geometry(joinpath(data_dir, "circle.asc"))

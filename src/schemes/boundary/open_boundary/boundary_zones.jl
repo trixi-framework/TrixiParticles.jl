@@ -14,6 +14,9 @@ Boundary zone for [`OpenBoundarySPHSystem`](@ref).
 
 The specified plane (line in 2D or rectangle in 3D) will be extruded in the direction
 opposite to `plane_normal` to create a box for the boundary zone.
+To specify the plane, pass the required plane points as described below.
+For complex 3D simulations, these points can also be extracted from an STL file
+(see [`extract_transition_face`](@ref) and example below).
 There are three ways to specify the actual shape of the boundary zone:
 1. Don't pass `initial_condition` or `extrude_geometry`. The boundary zone box will then
    be filled with boundary particles (default).
@@ -85,6 +88,16 @@ circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
 
 bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1,
                                   density=1.0, extrude_geometry=circle, open_boundary_layers=4)
+
+# 3D boundary zone from an input transition plane
+file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+plane_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
+geometry = load_geometry(joinpath(file, "inflow.stl"))
+
+initial_condition = ComplexShape(geometry; particle_spacing=0.01, density=1.0)
+plane, plane_normal = extract_transition_face(plane_geometry)
+boundary_zone = BoundaryZone(; plane, plane_normal, initial_condition,
+                             particle_spacing=0.01, density=1.0, open_boundary_layers=4)
 ```
 
 !!! warning "Experimental Implementation"
@@ -174,7 +187,7 @@ function set_up_boundary_zone(plane, plane_normal, flow_direction, density,
     # First vector of `spanning_vectors` is normal to the boundary plane.
     dot_plane_normal = dot(normalize(spanning_set[:, 1]), plane_normal)
 
-    if !isapprox(abs(dot_plane_normal), 1.0, atol=1e-7)
+    if !isapprox(abs(dot_plane_normal), 1, rtol=1e-5)
         throw(ArgumentError("`plane_normal` is not normal to the boundary plane"))
     end
 
