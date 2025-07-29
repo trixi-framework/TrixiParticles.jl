@@ -36,7 +36,7 @@ fluid_smoothing_length = 1.0 * fluid_particle_spacing
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl"),
               fluid_particle_spacing=fluid_particle_spacing, tspan=(0.0, 0.1),
-              initial_fluid_size=(0.0, 0.0, 0.0),
+              initial_fluid_size=(0.0, 0.0, 0.0), interval=100,
               tank_size=(2.0, 1.0, 0.1), sound_speed=sound_speed,
               faces=(true, true, true, true, true, false),
               acceleration=(0.0, 0.0, -gravity), sphere1=sphere1, sphere2=sphere2,
