@@ -250,6 +250,9 @@
         TrixiParticles.average_velocity!(v_open_boundary, u_open_boundary, open_boundary_in,
                                          first(open_boundary_in.boundary_zones), semi)
 
+        TrixiParticles.average_velocity!(v_open_boundary, u_open_boundary, open_boundary_in,
+                                         inflow, semi)
+
         # Since the velocity profile increases linearly in positive x-direction,
         # we can use the first velocity entry as a representative value.
         v_x_fluid_first = v_fluid[1, 1]

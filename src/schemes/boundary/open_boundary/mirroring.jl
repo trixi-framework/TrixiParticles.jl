@@ -123,7 +123,7 @@ update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = syst
 function extrapolate_values!(system,
                              mirror_method::Union{FirstOrderMirroring, SimpleMirroring},
                              v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi)
-    (; pressure, density, boundary_zones, fluid_system, cache) = system
+    (; pressure, density, fluid_system) = system
 
     # Static indices to avoid allocations
     two_to_end = SVector{ndims(system)}(2:(ndims(system) + 1))
@@ -273,7 +273,7 @@ end
 
 function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
                              v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi)
-    (; pressure, density, boundary_zones, fluid_system) = system
+    (; pressure, density, fluid_system) = system
 
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
     nhs = get_neighborhood_search(fluid_system, fluid_system, semi)
