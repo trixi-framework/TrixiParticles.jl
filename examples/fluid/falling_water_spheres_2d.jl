@@ -92,8 +92,9 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
 semi = Semidiscretization(sphere_surface_tension, sphere, boundary_system)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix="")
+info_callback = InfoCallback(interval=1000)
+saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out",
+                                         prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
