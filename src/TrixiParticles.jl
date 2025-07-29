@@ -81,6 +81,7 @@ export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
        BernoulliPressureExtrapolation
+export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export BoundaryMovement
 export examples_dir, validation_dir
