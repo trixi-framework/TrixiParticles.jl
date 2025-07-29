@@ -34,11 +34,12 @@ function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
     end
 
     if dt > 0
-        interval = ELTYPE(dt)
+        interval = convert(ELTYPE, dt)
     end
 
     steady_state_callback = SteadyStateReachedCallback(interval, abstol, reltol,
-                                                       [ELTYPE(Inf)], interval_size)
+                                                       [convert(ELTYPE, Inf)],
+                                                       interval_size)
 
     if dt > 0
         return PeriodicCallback(steady_state_callback, dt, save_positions=(false, false),
