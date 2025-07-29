@@ -66,6 +66,11 @@ from a `TrixiParticles.TriangleMesh` returned by [`load_geometry`](@ref).
 The plane points are the corner points of an oriented bounding box of the given geometry.
 The geometry must be planar (i.e., all vertices should lie approximately in the same plane).
 
+!!! note "Face Normal Orientation"
+    Ensure that all face normals of the geometry point inside the fluid domain.
+    The computed plane normal is derived from averaging all face normals,
+    so consistent orientation is required.
+
 # Arguments
 - `plane`: A planar geometry.
 
