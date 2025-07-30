@@ -251,6 +251,10 @@ end
 end
 
 @inline function current_pressure(v, system::OpenBoundarySPHSystem)
+    return current_pressure(v, system.boundary_model, system)
+end
+
+@inline function current_pressure(v, boundary_model, system::OpenBoundarySPHSystem)
     return system.pressure
 end
 
@@ -381,8 +385,11 @@ end
         u[dim, particle] += boundary_zone.spanning_set[1][dim]
     end
 
-    # This is only applied for `BoundaryModelZhangDynamicalPressure``
+    # This is only applied for `BoundaryModelZhangDynamicalPressure` and a WCSPH fluid system
     impose_new_density!(v, u, system, particle, system.boundary_model, t)
+
+    # This is only applied for `BoundaryModelZhangDynamicalPressure` and a EDAC fluid system
+    impose_new_pressure!(v, u, system, particle, system.boundary_model, t)
 
     return system
 end
@@ -499,6 +506,8 @@ function prescribe_reference_values!(v, u, system, semi, t)
 
         particle_coords = current_coords(u, system, particle)
 
+        # TODO: Pressure is not prescribed here for `BoundaryModelZhangDynamicalPressure`.
+        # Instead it is prescribed in `update_final!`.
         if prescribed_pressure
             pressure[particle] = apply_reference_pressure(system, particle,
                                                           particle_coords, t)

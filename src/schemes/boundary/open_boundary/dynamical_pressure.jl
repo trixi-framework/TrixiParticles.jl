@@ -2,8 +2,25 @@ struct BoundaryModelZhangDynamicalPressure end
 
 @inline function v_nvariables(system::OpenBoundarySPHSystem,
                               boundary_model::BoundaryModelZhangDynamicalPressure)
+    v_nvariables(boundary_model, system, system.fluid_system)
+end
+
+@inline function v_nvariables(::BoundaryModelZhangDynamicalPressure,
+                              system::OpenBoundarySPHSystem, ::WeaklyCompressibleSPHSystem)
     return ndims(system) * factor_tvf(system.fluid_system) + 1
 end
+
+@inline function v_nvariables(::BoundaryModelZhangDynamicalPressure,
+                              system::OpenBoundarySPHSystem, ::EntropicallyDampedSPHSystem)
+    return ndims(system) * factor_tvf(system.fluid_system) + 2
+end
+
+@inline function density_index(system)
+    density_index(system, system.fluid_system)
+end
+
+@inline density_index(system, fluid_system) = v_nvariables(system)
+@inline density_index(system, ::EntropicallyDampedSPHSystem) = (v_nvariables(system) - 1)
 
 @inline function add_velocity!(du, v, particle,
                                system::OpenBoundarySPHSystem{<:BoundaryModelZhangDynamicalPressure})
@@ -12,12 +29,42 @@ end
 
 @inline function current_density(v, ::BoundaryModelZhangDynamicalPressure,
                                  system::OpenBoundarySPHSystem)
-    # When using `ContinuityDensity`, the density is stored in the last row of `v`
+    return view(v, density_index(system), :)
+end
+
+@inline function current_pressure(v, boundary_model::BoundaryModelZhangDynamicalPressure,
+                                  system::OpenBoundarySPHSystem)
+    current_pressure(v, boundary_model, system, system.fluid_system)
+end
+
+@inline function current_pressure(v, ::BoundaryModelZhangDynamicalPressure,
+                                  system::OpenBoundarySPHSystem,
+                                  ::WeaklyCompressibleSPHSystem)
+    return system.pressure
+end
+
+@inline function current_pressure(v, ::BoundaryModelZhangDynamicalPressure,
+                                  system::OpenBoundarySPHSystem,
+                                  ::EntropicallyDampedSPHSystem)
+    # When using `EntropicallyDampedSPHSystem`, the pressure is stored in the last row of `v`
     return view(v, size(v, 1), :)
 end
 
 function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelZhangDynamicalPressure)
-    v0[end, :] = system.initial_condition.density
+    write_v0!(v0, system, system.boundary_model, system.fluid_system)
+end
+
+function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelZhangDynamicalPressure,
+                   ::EntropicallyDampedSPHSystem)
+    v0[density_index(system), :] = system.initial_condition.density
+    v0[end, :] = system.initial_condition.pressure
+
+    return v0
+end
+
+function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelZhangDynamicalPressure,
+                   ::WeaklyCompressibleSPHSystem)
+    v0[density_index(system), :] = system.initial_condition.density
 
     return v0
 end
@@ -44,11 +91,18 @@ end
 
 function impose_new_density!(v, u, system, particle,
                              boundary_model::BoundaryModelZhangDynamicalPressure, t)
+    impose_new_density!(v, u, system, particle, system.fluid_system, boundary_model, t)
+end
+
+impose_new_density!(v, u, system, particle, fluid_system, boundary_model, t) = v
+
+function impose_new_density!(v, u, system, particle, ::WeaklyCompressibleSPHSystem,
+                             boundary_model::BoundaryModelZhangDynamicalPressure, t)
     boundary_zone = current_boundary_zone(system, particle)
     (; prescribed_density, prescribed_pressure) = boundary_zone
     (; eos_reference_density, state_equation) = system.cache
 
-    density = current_density(v, boundary_model, system)
+    density = current_density(v, system)
 
     if prescribed_pressure
         particle_coords = current_coords(u, system, particle)
@@ -62,10 +116,31 @@ function impose_new_density!(v, u, system, particle,
 
         @inbounds density[particle] = inverse_state_equation(state_equation, p_boundary,
                                                              rho_0)
-
     else
         @inbounds density[particle] = eos_reference_density
     end
+
+    return v
+end
+
+@inline impose_new_pressure!(v, u, system, particle, boundary_model, t) = v
+
+function impose_new_pressure!(v, u, system, particle,
+                              boundary_model::BoundaryModelZhangDynamicalPressure, t)
+    impose_new_pressure!(v, u, system, particle, system.fluid_system, boundary_model, t)
+end
+
+impose_new_pressure!(v, u, system, particle, fluid_system, boundary_model, t) = v
+
+function impose_new_pressure!(v, u, system, particle, ::EntropicallyDampedSPHSystem,
+                              boundary_model::BoundaryModelZhangDynamicalPressure, t)
+    (; eos_reference_density, state_equation) = system.cache
+
+    pressure = current_pressure(v, system)
+
+    density = current_density(v, system, particle)
+    @inbounds pressure[particle] = state_equation(density, eos_reference_density)
+
     return v
 end
 
@@ -83,6 +158,8 @@ function update_final!(system, boundary_model::BoundaryModelZhangDynamicalPressu
             rho = current_density(v, system, particle)
             rho_0 = prescribed_density ? apply_reference_density(system, particle, pos, t) :
                     eos_reference_density
+
+            # TODO: Pressure is not updated here for `EntropicallyDampedSPHSystem`
             system.pressure[particle] = state_equation(rho, rho_0)
         end
     end
@@ -155,7 +232,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # This vanishes for particles with full kernel support
         p_boundary = cache.boundary_pressure[particle]
-        dv_pressure_missing = 2 * p_boundary * (m_b / (rho_a * rho_b)) * grad_kernel
+        dv_pressure_prescribed = 2 * p_boundary * (m_b / (rho_a * rho_b)) * grad_kernel
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
         dv_viscosity_ = @inbounds dv_viscosity(viscosity_model(fluid_system,
@@ -169,7 +246,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         for i in 1:ndims(particle_system)
             @inbounds dv[i,
                          particle] += dv_pressure[i] + dv_viscosity_[i] +
-                                      dv_pressure_missing[i]
+                                      dv_pressure_prescribed[i]
         end
 
         # TODO
@@ -193,11 +270,32 @@ function interact!(dv, v_particle_system, u_particle_system,
         # end
 
         # Continuity equation
-        vdiff = current_velocity(v_particle_system, particle_system, particle) -
-                current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_diff = current_velocity(v_particle_system, particle_system, particle) -
+                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-        @inbounds dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+        pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
+                            particle, neighbor, pos_diff, distance,
+                            sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system)
+
+        @inbounds dv[density_index(particle_system),
+                     particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
     end
 
     return dv
+end
+
+function pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
+                             particle, neighbor, pos_diff, distance,
+                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                             fluid_system::WeaklyCompressibleSPHSystem)
+    return dv
+end
+
+function pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
+                             particle, neighbor, pos_diff, distance,
+                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                             fluid_system::EntropicallyDampedSPHSystem)
+    pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
+                        particle, neighbor, pos_diff, distance,
+                        sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system.nu_edac)
 end
