@@ -36,16 +36,16 @@ for method in ["edac", "wcsph"]
     pp = PostprocessCallback(; dt=0.0025, filename=pp_filename, y_deflection,
                              kinetic_energy)
 
-   trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fsi", "hydrostatic_water_column_2d.jl"),
-              use_edac=(method == "edac" ? true : false),
-              n_particles_plate_y=n_particles_plate_y,
-              update_strategy=SerialUpdate(),
-              dt=0.5,
-              tspan=tspan,
-              prefix=pp_filename,
-              extra_callback=pp,
-              sol=nothing)
+    trixi_include(@__MODULE__,
+                  joinpath(examples_dir(), "fsi", "hydrostatic_water_column_2d.jl"),
+                  use_edac=(method == "edac" ? true : false),
+                  n_particles_plate_y=n_particles_plate_y,
+                  update_strategy=SerialUpdate(),
+                  dt=0.5,
+                  tspan=tspan,
+                  prefix=pp_filename,
+                  extra_callback=pp,
+                  sol=nothing)
 
     sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, abstol=1e-7, maxiters=1e6,
                 save_everystep=false, callback=callbacks)
