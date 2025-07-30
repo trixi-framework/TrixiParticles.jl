@@ -42,8 +42,34 @@ function (state_equation::StateEquationCole)(density)
     return pressure
 end
 
+# For a variable reference denstiy
+function (state_equation::StateEquationCole)(density, reference_density)
+    (; sound_speed, exponent, background_pressure) = state_equation
+
+    B = reference_density * sound_speed^2 / exponent
+    pressure = B * ((density / reference_density)^exponent - 1) + background_pressure
+
+    # This is determined statically and has therefore no overhead
+    if clip_negative_pressure(state_equation)
+        return max(0, pressure)
+    end
+
+    return pressure
+end
+
 function inverse_state_equation(state_equation::StateEquationCole, pressure)
     (; sound_speed, exponent, reference_density, background_pressure) = state_equation
+
+    B = reference_density * sound_speed^2 / exponent
+    tmp = (pressure - background_pressure) / B + 1
+
+    return reference_density * tmp^(1 / exponent)
+end
+
+# For a variable reference denstiy
+function inverse_state_equation(state_equation::StateEquationCole, pressure,
+                                reference_density)
+    (; sound_speed, exponent, background_pressure) = state_equation
 
     B = reference_density * sound_speed^2 / exponent
     tmp = (pressure - background_pressure) / B + 1

@@ -69,9 +69,10 @@ function BoundaryModelTafuniMirroring(; mirror_method=FirstOrderMirroring())
     return BoundaryModelTafuniMirroring(mirror_method)
 end
 
+# Called from update callback via `update_open_boundary_eachstep!`
 function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuniMirroring,
                                      v, u, v_ode, u_ode, semi, t)
-    (; boundary_zones, pressure, density, fluid_system, cache) = system
+    (; fluid_system) = system
 
     @trixi_timeit timer() "extrapolate and correct values" begin
         v_fluid = wrap_v(v_ode, fluid_system, semi)
@@ -81,41 +82,7 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
                             v, v_fluid, u, u_fluid, semi)
     end
 
-    for boundary_zone in boundary_zones
-        (; average_inflow_velocity, prescribed_velocity) = boundary_zone
-
-        if !prescribed_velocity && average_inflow_velocity
-            # When no velocity is prescribed at the inflow, the velocity is extrapolated from the fluid domain.
-            # Thus, turbulent flows near the inflow can lead to a non-uniform buffer particle distribution,
-            # resulting in a potential numerical instability. Averaging mitigates these effects.
-            average_velocity!(v, u, system, boundary_zone, semi)
-        end
-    end
-
-    @threaded semi for particle in each_moving_particle(system)
-        boundary_zone = current_boundary_zone(system, particle)
-        (; prescribed_density, prescribed_pressure, prescribed_velocity) = boundary_zone
-
-        particle_coords = current_coords(u, system, particle)
-
-        if prescribed_pressure
-            pressure[particle] = apply_reference_pressure(system, particle,
-                                                          particle_coords, t)
-        end
-
-        if prescribed_density
-            density[particle] = apply_reference_density(system, particle,
-                                                        particle_coords, t)
-        end
-
-        if prescribed_velocity
-            v_ref = apply_reference_velocity(system, particle, particle_coords, t)
-
-            for dim in eachindex(v_ref)
-                @inbounds v[dim, particle] = v_ref[dim]
-            end
-        end
-    end
+    prescribe_reference_values!(v, u, system, semi, t)
 end
 
 update_final!(system, ::BoundaryModelTafuniMirroring, v, u, v_ode, u_ode, semi, t) = system
@@ -123,7 +90,7 @@ update_final!(system, ::BoundaryModelTafuniMirroring, v, u, v_ode, u_ode, semi, 
 function extrapolate_values!(system,
                              mirror_method::Union{FirstOrderMirroring, SimpleMirroring},
                              v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi)
-    (; pressure, density, fluid_system) = system
+    (; pressure, density, fluid_system, boundary_model) = system
 
     # Static indices to avoid allocations
     two_to_end = SVector{ndims(system)}(2:(ndims(system) + 1))
@@ -222,7 +189,7 @@ function extrapolate_values!(system,
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
                 project_velocity_on_plane_normal!(v_open_boundary, system, particle,
-                                                  boundary_zone)
+                                                  boundary_zone, boundary_model)
             end
 
             # No else: `correction_matrix[][1, 1] <= eps()` means no fluid neighbors
@@ -263,7 +230,7 @@ function extrapolate_values!(system,
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
                 project_velocity_on_plane_normal!(v_open_boundary, system, particle,
-                                                  boundary_zone)
+                                                  boundary_zone, boundary_model)
             end
         end
     end
@@ -273,7 +240,7 @@ end
 
 function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
                              v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi)
-    (; pressure, density, fluid_system) = system
+    (; pressure, density, fluid_system, boundary_model) = system
 
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
     nhs = get_neighborhood_search(fluid_system, fluid_system, semi)
@@ -350,7 +317,7 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
                 project_velocity_on_plane_normal!(v_open_boundary, system, particle,
-                                                  boundary_zone)
+                                                  boundary_zone, boundary_model)
             end
         end
     end
@@ -517,7 +484,8 @@ function average_velocity!(v, u, system, boundary_zone, semi)
 end
 
 # Only for inflow boundary zones
-function project_velocity_on_plane_normal!(v, system, particle, boundary_zone)
+function project_velocity_on_plane_normal!(v, system, particle, boundary_zone,
+                                           boundary_model::BoundaryModelTafuniMirroring)
     (; plane_normal, flow_direction) = boundary_zone
 
     # Bidirectional flow
