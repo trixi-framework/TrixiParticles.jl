@@ -177,10 +177,10 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # dist_to_transition = dot(particle_coords - boundary_zone.zone_origin,
         #                          -boundary_zone.plane_normal)
-        # max_dist_to_transiton = boundary_zone.zone_width -
+        # max_dist_to_transition = boundary_zone.zone_width -
         #                         compact_support(fluid_system, fluid_system)
 
-        # if dist_to_transition < max_dist_to_transiton
+        # if dist_to_transition < max_dist_to_transition
 
         #     # Apply transport velocity if enabled.
         #     # According to Zhang et al. (2017), explicit momentum convection (see `momentum_convection`) is not strictly required:

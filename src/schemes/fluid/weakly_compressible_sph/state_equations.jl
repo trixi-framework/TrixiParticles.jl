@@ -42,7 +42,7 @@ function (state_equation::StateEquationCole)(density)
     return pressure
 end
 
-# For a variable reference denstiy
+# For a variable reference density
 function (state_equation::StateEquationCole)(density, reference_density)
     (; sound_speed, exponent, background_pressure) = state_equation
 
@@ -66,7 +66,7 @@ function inverse_state_equation(state_equation::StateEquationCole, pressure)
     return reference_density * tmp^(1 / exponent)
 end
 
-# For a variable reference denstiy
+# For a variable reference density
 function inverse_state_equation(state_equation::StateEquationCole, pressure,
                                 reference_density)
     (; sound_speed, exponent, background_pressure) = state_equation
