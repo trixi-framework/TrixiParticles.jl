@@ -52,6 +52,7 @@ struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZ
     boundary_zone_indices :: BZI     # Array{UInt8, 1}: [particle]
     boundary_zones        :: BZ
     buffer                :: B
+    acceleration          :: SVector{NDIMS, ELTYPE}
     update_callback_used  :: UCU
     cache                 :: C
 end
@@ -60,7 +61,7 @@ function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                fluid_system_index, smoothing_length, mass, density, volume,
                                pressure, boundary_candidates, fluid_candidates,
                                boundary_zone_indices, boundary_zone, buffer,
-                               update_callback_used, cache)
+                               acceleration, update_callback_used, cache)
     OpenBoundarySPHSystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                           typeof(initial_condition), typeof(fluid_system),
                           typeof(fluid_system_index), typeof(mass),
@@ -71,7 +72,8 @@ function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                          fluid_system_index, smoothing_length, mass,
                                          density, volume, pressure, boundary_candidates,
                                          fluid_candidates, boundary_zone_indices,
-                                         boundary_zone, buffer, update_callback_used, cache)
+                                         boundary_zone, buffer, acceleration,
+                                         update_callback_used, cache)
 end
 
 function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
@@ -129,7 +131,7 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                  fluid_system_index, smoothing_length, mass, density,
                                  volume, pressure, boundary_candidates, fluid_candidates,
                                  boundary_zone_indices, boundary_zones_new, buffer,
-                                 update_callback_used, cache)
+                                 fluid_system.acceleration, update_callback_used, cache)
 end
 
 function initialize!(system::OpenBoundarySPHSystem, semi)
@@ -250,10 +252,6 @@ end
 
 @inline function current_pressure(v, system::OpenBoundarySPHSystem)
     return system.pressure
-end
-
-@inline function current_acceleration(system::OpenBoundarySPHSystem, particle)
-    return system.fluid_system.acceleration
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
@@ -460,7 +458,7 @@ end
 
 # When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
 @inline viscosity_model(system,
-neighbor_system::OpenBoundarySPHSystem) = neighbor_system.fluid_system.viscosity
+                        neighbor_system::OpenBoundarySPHSystem) = neighbor_system.fluid_system.viscosity
 
 function system_data(system::OpenBoundarySPHSystem, v_ode, u_ode, semi)
     v = wrap_v(v_ode, system, semi)

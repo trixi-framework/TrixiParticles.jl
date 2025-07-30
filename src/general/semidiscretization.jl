@@ -1010,6 +1010,7 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.boundary_zone_indices,
                                  system.boundary_zones,
                                  system.buffer,
+                                 system.acceleration,
                                  system.update_callback_used,
                                  system.cache)
 end
