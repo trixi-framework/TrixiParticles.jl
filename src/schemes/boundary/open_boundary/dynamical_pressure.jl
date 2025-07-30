@@ -40,7 +40,7 @@ end
     update_transport_velocity!(system, v_ode, semi, system.fluid_system.transport_velocity)
 end
 
-@inline impose_new_density!(v, u, system, particle, boundary_model) = v
+@inline impose_new_density!(v, u, system, particle, boundary_model, t) = v
 
 function impose_new_density!(v, u, system, particle,
                              boundary_model::BoundaryModelZhangDynamicalPressure, t)

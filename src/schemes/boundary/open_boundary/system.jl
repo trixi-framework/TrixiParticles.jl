@@ -36,7 +36,7 @@ Open boundary system for in- and outflow particles.
     This is an experimental feature and may change in future releases.
     It is GPU-compatible (e.g., with CUDA.jl and AMDGPU.jl), but currently **not** supported with Metal.jl.
 """
-struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, D, BC, FC, BZI, BZ,
+struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZI, BZ,
                              B, UCU, C} <: System{NDIMS}
     boundary_model        :: BM
     initial_condition     :: IC
@@ -44,7 +44,7 @@ struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, D, BC, FC,
     fluid_system_index    :: FSI
     smoothing_length      :: ELTYPE
     mass                  :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    density               :: D
+    density               :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     volume                :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     pressure              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     boundary_candidates   :: BC      # Array{Bool, 1}: [particle]
@@ -63,7 +63,7 @@ function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                update_callback_used, cache)
     OpenBoundarySPHSystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                           typeof(initial_condition), typeof(fluid_system),
-                          typeof(fluid_system_index), typeof(mass), typeof(density),
+                          typeof(fluid_system_index), typeof(mass),
                           typeof(boundary_candidates), typeof(fluid_candidates),
                           typeof(boundary_zone_indices), typeof(boundary_zone),
                           typeof(buffer), typeof(update_callback_used),
@@ -88,8 +88,14 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
 
     pressure = copy(initial_conditions.pressure)
     mass = copy(initial_conditions.mass)
-    density = boundary_model isa BoundaryModelZhangDynamicalPressure ? nothing :
-              copy(initial_conditions.density)
+
+    if boundary_model isa BoundaryModelZhangDynamicalPressure
+        # Density is stored in `v`
+        density = similar(initial_conditions.density, 0)
+    else
+        density = copy(initial_conditions.density)
+    end
+
     volume = similar(initial_conditions.density)
 
     cache = create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
@@ -454,7 +460,7 @@ end
 
 # When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
 @inline viscosity_model(system,
-                        neighbor_system::OpenBoundarySPHSystem) = neighbor_system.fluid_system.viscosity
+neighbor_system::OpenBoundarySPHSystem) = neighbor_system.fluid_system.viscosity
 
 function system_data(system::OpenBoundarySPHSystem, v_ode, u_ode, semi)
     v = wrap_v(v_ode, system, semi)
@@ -474,6 +480,9 @@ end
 
 function prescribe_reference_values!(v, u, system, semi, t)
     (; boundary_zones, boundary_model) = system
+
+    density = current_density(v, system)
+    pressure = current_pressure(v, system)
 
     for boundary_zone in boundary_zones
         (; average_inflow_velocity, prescribed_velocity) = boundary_zone
