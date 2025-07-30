@@ -40,7 +40,6 @@ for method in ["edac", "wcsph"]
               joinpath(examples_dir(), "fsi", "hydrostatic_water_column_2d.jl"),
               use_edac=(method == "edac" ? true : false),
               n_particles_plate_y=n_particles_plate_y,
-              tspan=(0.0, 0.3),
               update_strategy=SerialUpdate(),
               dt=0.5,
               tspan=tspan,
