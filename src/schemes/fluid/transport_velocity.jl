@@ -36,21 +36,6 @@ end
     return zero(grad_kernel)
 end
 
-# @inline function dv_transport_velocity(::TransportVelocityAdami, system, neighbor_system,
-#                                        v_particle_system, v_neighbor_system, rho_a, rho_b,
-#                                        m_a, m_b, particle, neighbor, grad_kernel)
-#     v_a = current_velocity(v_particle_system, system, particle)
-#     delta_v_a = delta_v(system, particle)
-
-#     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-#     delta_v_b = delta_v(neighbor_system, neighbor)
-
-#     A_a = rho_a * v_a * delta_v_a'
-#     A_b = rho_b * v_b * delta_v_b'
-
-#     return m_b * ((A_a / rho_a^2 + A_b / rho_b^2) / 2) * grad_kernel
-# end
-
 @inline function dv_transport_velocity(::TransportVelocityAdami, system, neighbor_system,
                                        v_particle_system, v_neighbor_system, rho_a, rho_b,
                                        m_a, m_b, particle, neighbor, grad_kernel)
