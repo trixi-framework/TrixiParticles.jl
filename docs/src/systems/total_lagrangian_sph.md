@@ -113,7 +113,7 @@ due to artificial viscosity is computed as if both particles were fluid particle
 Then, according to [Lin et al. (2015)](@cite Lin2015), this force can be applied to TLSPH
 with the following conversion:
 ```math
-f_{ab}^{\text{AV}} = \det{F_a} F_a^{-1} f_{ab}^{\text{fluid}},
+f_{ab}^{\text{AV}} = \det(F_a) F_a^{-1} f_{ab}^{\text{fluid}},
 ```
 where ``F_a`` is the deformation gradient at particle ``a``.
 
