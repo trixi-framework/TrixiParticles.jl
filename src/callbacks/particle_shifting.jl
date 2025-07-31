@@ -76,7 +76,8 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
 
     # TODO this needs to be adapted to multi-resolution.
     # Section 3.2 explains what else needs to be changed.
-    Wdx = smoothing_kernel(system, particle_spacing(system, 1), 1)
+    dx = particle_spacing(system, 1)
+    Wdx = smoothing_kernel(system, dx, 1)
     h = smoothing_length(system, 1)
 
     foreach_system(semi) do neighbor_system
@@ -102,8 +103,16 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
             n = 4
 
             # Eq. 7 in Sun et al. (2017).
-            # CFL * Ma can be rewritten as Δt * v_max / h (see p. 29, right above Eq. 9).
-            delta_r_ = -dt * v_max * 4 * h * (1 + R * (kernel / Wdx)^n) *
+            # According to the paper, CFL * Ma can be rewritten as Δt * v_max / h
+            # (see p. 29, right above Eq. 9), but this does not work when scaling h.
+            # When setting CFL * Ma = Δt * v_max / (2 * Δx), PST works as expected
+            # for both small and large smoothing length factors.
+            # We need to scale
+            # - quadratically with the smoothing length,
+            # - linearly with the particle spacing,
+            # - linearly with the time step.
+            # See https://github.com/trixi-framework/TrixiParticles.jl/pull/834.
+            delta_r_ = -dt * v_max * (2 * h)^2 / (2 * dx) * (1 + R * (kernel / Wdx)^n) *
                        m_b / (rho_a + rho_b) * grad_kernel
 
             # Write into the buffer
