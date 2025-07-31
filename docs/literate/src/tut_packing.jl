@@ -1,7 +1,7 @@
-# # Particle Packing
+# # Particle Packing Turorial
 
 # In this tutorial, we will guide you through the complete particle packing pipeline.
-# The algorithmic background is explained in the documentation of [Particle Packing](@ref particle_packing).
+# The algorithmic background is explained in [Particle Packing](@ref particle_packing).
 # Throughout this tutorial, we will refer to the initially sampled particles as the "initial configuration",
 # and the configuration after packing as the "packed configuration".
 # The particles, created by an inside–outside segmentation of the geometry,
@@ -11,7 +11,7 @@
 # ## Loading the geometry
 
 # As a first step, we will load a geometry.
-# Supported file formats are described in the documentation.
+# Supported file formats are described [in the documentation](@ref read_geometries_from_file).
 using TrixiParticles
 using Plots
 
@@ -19,10 +19,7 @@ file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", "potato.asc")
 geometry = load_geometry(file)
 
 # To get an overview, we can visualize this geometry.
-my_xlims = (-0.3, 2.3)
-my_ylims = (-1.3, 0.3)
-
-plot(geometry, showaxis=false, label=nothing, color=:black, xlims=my_xlims, ylims=my_ylims)
+plot(geometry, showaxis=false, label=nothing, color=:black)
 
 # As shown in the plot, the 2D geometry (`TrixiParticles.Polygon`) is represented by its edges.
 # Similarly, 3D geometries (`TrixiParticles.TriangleMesh`), are represented by triangles.
@@ -54,10 +51,9 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
 sdf_ic = InitialCondition(; coordinates=stack(signed_distance_field.positions),
                           density=1.0, particle_spacing=particle_spacing)
 
-plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing,
-     xlims=my_xlims, ylims=my_ylims, color=:coolwarm)
+plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing, color=:coolwarm)
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
-      xlims=my_xlims, ylims=my_ylims, seriestype=:path)
+      seriestype=:path)
 plot!(right_margin=5Plots.mm) #hide
 
 # Since we will later also pack boundary particles, we need to extend the SDF to the outside.
@@ -70,11 +66,10 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
 sdf_ic = InitialCondition(; coordinates=stack(signed_distance_field.positions),
                           density=1.0, particle_spacing=particle_spacing)
 
-plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing,
-     xlims=my_xlims, ylims=my_ylims, color=:coolwarm)
+plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing, color=:coolwarm)
 
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
-      xlims=my_xlims, ylims=my_ylims, seriestype=:path)
+      seriestype=:path)
 plot!(right_margin=5Plots.mm) #hide
 
 # ## Creating an initial configuration of boundary particles
@@ -90,9 +85,9 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=densi
                                    boundary_thickness)
 
 ## Plotting the initial configuration of the boundary particles
-plot(boundary_sampled, xlims=my_xlims, ylims=my_ylims, label=nothing)
+plot(boundary_sampled, label=nothing)
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
-      xlims=my_xlims, ylims=my_ylims, seriestype=:path)
+      seriestype=:path)
 
 # ## Creating an initial configuration of interior particles
 
@@ -102,6 +97,7 @@ plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
 # Later more on this.
 # Different inside–outside segmentation algorithms can be applied here.
 # In this tutorial, we will use a winding number approach.
+# See also [Sampling of Geometries](@ref sampling_of_geometries) for details.
 # We initialize the winding number algorithm with the geometry.
 point_in_geometry_algorithm = WindingNumberJacobson(; geometry)
 
@@ -118,9 +114,9 @@ shape_sampled.mass .= density * TrixiParticles.volume(geometry) / nparticles(sha
 
 # Now we can plot the initial configuration of the interior particles
 # together with the boundary particles.
-plot(shape_sampled, boundary_sampled, xlims=my_xlims, ylims=my_ylims, label=nothing)
+plot(shape_sampled, boundary_sampled, label=nothing)
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
-      xlims=my_xlims, ylims=my_ylims, seriestype=:path)
+      seriestype=:path)
 
 # As shown in the plot, the interface of the geometry surface is not well resolved yet.
 # In other words, there is no body-fitted configuration.
@@ -174,8 +170,8 @@ sol = solve(ode, time_integrator;
 
 packed_ic = InitialCondition(sol, packing_system, semi)
 
-plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
-plot!(geometry, xlims=my_xlims, ylims=my_ylims, seriestype=:path, linewidth=2, color=:black)
+plot(packed_ic)
+plot!(geometry, seriestype=:path, linewidth=2, color=:black, label=nothing)
 
 # As we can see in the plot, the particles are not constrained to the
 # geometric surface.
@@ -204,8 +200,8 @@ sol = solve(ode, time_integrator;
 packed_ic = InitialCondition(sol, packing_system, semi)
 
 ## Plotting the final configuration
-plot(packed_ic, xlims=my_xlims, ylims=my_ylims)
-plot!(geometry, xlims=my_xlims, ylims=my_ylims, seriestype=:path, color=:black)
+plot(packed_ic)
+plot!(geometry, seriestype=:path, color=:black, label=nothing)
 
 # We can see that the particles now stay inside the geometry,
 # but their distribution near the surface can still be improved by adding boundary particles [neher2025robustefficientpreprocessingtechniques](@cite).
@@ -244,9 +240,8 @@ packed_ic = InitialCondition(sol, packing_system, semi)
 packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 
 ## Plotting the final configuration
-plot(packed_ic, packed_boundary_ic, xlims=my_xlims, ylims=my_ylims)
-plot!(geometry, xlims=my_xlims, ylims=my_ylims, seriestype=:path, color=:black,
-      linestyle=:dash)
+plot(packed_ic, packed_boundary_ic)
+plot!(geometry, seriestype=:path, color=:black, linestyle=:dash, label=nothing)
 
 # ## Multi-body packing
 

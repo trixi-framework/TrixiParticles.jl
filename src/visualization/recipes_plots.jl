@@ -154,7 +154,6 @@ RecipesBase.@recipe function f(geometry::Polygon)
 
     aspect_ratio --> :equal
     grid --> false
-    label --> "geometry"
 
     # First plot the vertices as a scatter plot
     @series begin
