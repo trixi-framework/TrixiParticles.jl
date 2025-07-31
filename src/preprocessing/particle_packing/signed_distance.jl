@@ -59,7 +59,7 @@ function SignedDistanceField(geometry, particle_spacing;
                                                 particle_spacing))
 
         grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                        min_corner; tlsph=true)
+                                        min_corner; place_on_shell=true)
 
         points = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
     end
