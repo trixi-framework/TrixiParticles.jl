@@ -3,7 +3,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system, semi)
-    (; sound_speed, density_calculator, correction) = particle_system
+    (; sound_speed, density_calculator, correction, nu_edac) = particle_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -74,7 +74,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                             particle, neighbor, pos_diff, distance,
-                            sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b)
+                            sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, nu_edac)
 
         # Apply the transport velocity (only when using a transport velocity)
         transport_velocity!(dv, particle_system, neighbor_system, particle, neighbor,
@@ -90,7 +90,7 @@ end
 @inline function pressure_evolution!(dv, particle_system, neighbor_system, v_diff,
                                      grad_kernel, particle, neighbor,
                                      pos_diff, distance, sound_speed, m_a, m_b,
-                                     p_a, p_b, rho_a, rho_b)
+                                     p_a, p_b, rho_a, rho_b, nu_edac)
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
     volume_term = (volume_a^2 + volume_b^2) / m_a
@@ -101,8 +101,8 @@ end
     # This is basically the continuity equation times `sound_speed^2`
     artificial_eos = m_b * rho_a / rho_b * sound_speed^2 * dot(v_diff, grad_kernel)
 
-    eta_a = rho_a * particle_system.nu_edac
-    eta_b = rho_b * particle_system.nu_edac
+    eta_a = rho_a * nu_edac
+    eta_b = rho_b * nu_edac
     eta_tilde = 2 * eta_a * eta_b / (eta_a + eta_b)
 
     smoothing_length_average = (smoothing_length(particle_system, particle) +

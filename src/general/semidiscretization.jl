@@ -154,6 +154,12 @@ end
     return 0.0
 end
 
+@inline function compact_support(system::OpenBoundarySPHSystem{<:BoundaryModelZhangDynamicalPressure},
+                                 neighbor::OpenBoundarySPHSystem{<:BoundaryModelZhangDynamicalPressure})
+    # Use the compact support of the fluid
+    return compact_support(system.fluid_system, neighbor.fluid_system)
+end
+
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
     # This NHS is never used
     return 0.0
@@ -683,7 +689,9 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::FluidSystem, neighbor::BoundarySPHSystem,
+                     system::Union{FluidSystem,
+                                   OpenBoundarySPHSystem{<:BoundaryModelZhangDynamicalPressure}},
+                     neighbor::BoundarySPHSystem,
                      u_system, u_neighbor, semi)
     # Boundary coordinates only change over time when `neighbor.ismoving[]`
     update!(neighborhood_search,
@@ -707,6 +715,20 @@ end
 
 function update_nhs!(neighborhood_search,
                      system::OpenBoundarySPHSystem, neighbor::FluidSystem,
+                     u_system, u_neighbor, semi)
+    # The current coordinates of both open boundaries and fluids change over time.
+
+    # TODO: Update only `active_coordinates` of open boundaries.
+    # Problem: Removing inactive particles from neighboring lists is necessary.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySPHSystem{<:BoundaryModelZhangDynamicalPressure},
+                     neighbor::OpenBoundarySPHSystem{<:BoundaryModelZhangDynamicalPressure},
                      u_system, u_neighbor, semi)
     # The current coordinates of both open boundaries and fluids change over time.
 
@@ -793,6 +815,25 @@ function update_nhs!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
             semi, points_moving=(system.ismoving[], true))
+end
+
+# This function is the same as the one below to avoid ambiguous dispatch when using `Union`
+function update_nhs!(neighborhood_search,
+                     system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
+                     neighbor::OpenBoundarySPHSystem{<:BoundaryModelZhangDynamicalPressure},
+                     u_system, u_neighbor, semi)
+    # Depending on the density calculator of the boundary model, this NHS is used for
+    # - kernel summation (`SummationDensity`)
+    # - continuity equation (`ContinuityDensity`)
+    # - pressure extrapolation (`AdamiPressureExtrapolation`)
+    #
+    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
+    # The current coordinates of fluids and solids change over time.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(system.ismoving[], true),
+            eachindex_y=active_particles(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -927,17 +968,17 @@ end
 
 function check_configuration(system::OpenBoundarySPHSystem, systems,
                              neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
-    (; boundary_model, boundary_zone) = system
+    (; boundary_model, boundary_zones) = system
 
     # Store index of the fluid system. This is necessary for re-linking
     # in case we use Adapt.jl to create a new semidiscretization.
     fluid_system_index = findfirst(==(system.fluid_system), systems)
     system.fluid_system_index[] = fluid_system_index
 
-    if boundary_model isa BoundaryModelLastiwka &&
-       boundary_zone isa BoundaryZone{BidirectionalFlow}
-        throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
-                            "Please specify inflow and outflow."))
+    if boundary_model isa BoundaryModelLastiwkaCharacteristics &&
+       any(zone -> isnothing(zone.flow_direction), boundary_zones)
+        throw(ArgumentError("`BoundaryModelLastiwkaCharacteristics` needs a specific flow direction. " *
+                            "Please specify `InFlow()` and `OutFlow()`."))
     end
 
     if first(PointNeighbors.requires_update(neighborhood_search))
@@ -966,11 +1007,10 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.pressure,
                                  system.boundary_candidates,
                                  system.fluid_candidates,
-                                 system.boundary_zone,
-                                 system.reference_velocity,
-                                 system.reference_pressure,
-                                 system.reference_density,
+                                 system.boundary_zone_indices,
+                                 system.boundary_zones,
                                  system.buffer,
+                                 system.acceleration,
                                  system.update_callback_used,
                                  system.cache)
 end
