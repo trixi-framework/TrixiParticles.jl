@@ -324,15 +324,7 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-end
-
-function update_final2!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
-                        update_from_callback=false)
-    if !update_from_callback
-        update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
-    end
-
-    return system
+    update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,

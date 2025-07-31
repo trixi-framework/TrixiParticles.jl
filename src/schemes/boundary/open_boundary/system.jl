@@ -255,13 +255,13 @@ end
     return system.pressure
 end
 
-function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+function update_boundary_interpolation!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode,
+                                        semi, t; update_from_callback=false)
     if !update_from_callback && !(system.update_callback_used[])
         throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
     end
 
-    update_final!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
+    update_boundary_model!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
 end
 
 # This function is called by the `UpdateCallback`, as the integrator array might be modified

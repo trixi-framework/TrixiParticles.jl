@@ -312,6 +312,7 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
+    update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
 end
 
 function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
@@ -353,15 +354,6 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
     # We do not need to check for zero division here, as `neighbor_counter = 1`
     # for zero neighbors. That is, the `particle` itself is also taken into account.
     pressure_average ./= neighbor_counter
-
-    return system
-end
-
-function update_final2!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
-                        update_from_callback=false)
-    if !update_from_callback
-        update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
-    end
 
     return system
 end

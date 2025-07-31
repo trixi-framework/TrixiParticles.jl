@@ -24,7 +24,7 @@ function update_boundary_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode,
     end
 end
 
-update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = system
+update_boundary_model!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = system
 
 function extrapolate_values!(system, v_open_boundary, v_fluid, u_open_boundary, u_fluid,
                              semi, t; prescribed_density=false,
