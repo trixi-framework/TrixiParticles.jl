@@ -77,6 +77,7 @@ function update_tvf!(system, transport_velocity::TransportVelocityAdami, v, u, v
     set_zero!(delta_v)
 
     foreach_system(semi) do neighbor_system
+        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)
@@ -89,8 +90,8 @@ function update_tvf!(system, transport_velocity::TransportVelocityAdami, v, u, v
             m_a = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
-            rho_a = @inbounds current_density(system, particle)
-            rho_b = @inbounds current_density(neighbor_system, neighbor)
+            rho_a = @inbounds current_density(v, system, particle)
+            rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
 
             h = smoothing_length(system, particle)
 
