@@ -6,7 +6,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
     (; density_calculator, state_equation, correction) = particle_system
-    (; sound_speed) = state_equation
+
+    sound_speed = system_sound_speed(particle_system)
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
@@ -72,9 +73,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Add convection term (only when using `TransportVelocityAdami`)
         dv_convection = dv_transport_velocity(transport_velocity(particle_system),
                                               particle_system, neighbor_system,
+                                              particle, neighbor,
                                               v_particle_system, v_neighbor_system,
-                                              rho_a, rho_b, m_a, m_b,
-                                              particle, neighbor, grad_kernel)
+                                              m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                                              grad_kernel, correction)
 
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,
