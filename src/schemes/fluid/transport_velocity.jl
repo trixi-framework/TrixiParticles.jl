@@ -44,11 +44,9 @@ end
 function write_v0!(v0, system::FluidSystem, ::TransportVelocityAdami)
     (; initial_condition) = system
 
-    for particle in eachparticle(system)
-        # Write particle velocities
-        for dim in 1:ndims(system)
-            v0[ndims(system) + dim, particle] = initial_condition.velocity[dim, particle]
-        end
+    # Write particle velocities
+    for dim in 1:ndims(system)
+        v0[ndims(system) + dim, :] = initial_condition.velocity[dim, :]
     end
 
     return v0
