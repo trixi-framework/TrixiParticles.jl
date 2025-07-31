@@ -211,6 +211,7 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
                                         modulus, poisson_ratio;
                                         n_fixed_particles, movement=boundary_movement,
                                         boundary_model=boundary_model_solid,
+                                        viscosity=ArtificialViscosityMonaghan(alpha=0.01),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
@@ -257,9 +258,9 @@ saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
 split_dt = 2e-5
 split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false, dt=split_dt,
                                              maxiters=10^8)
-stepsize_callback = StepsizeCallback(cfl=0.5)
+stepsize_callback = StepsizeCallback(cfl=1.0)
 shifting_callback = ParticleShiftingCallback()
-callbacks = CallbackSet(info_callback, saving_callback, shifting_callback,
+callbacks = CallbackSet(info_callback, saving_callback, #shifting_callback,
                         split_integration, stepsize_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
