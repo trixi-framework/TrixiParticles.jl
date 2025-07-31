@@ -32,11 +32,11 @@ end
 
     kernel_weight = smoothing_kernel(system, initial_distance, particle)
 
-    J_a = deformation_gradient(system, particle)
-    J_b = deformation_gradient(system, neighbor)
+    F_a = deformation_gradient(system, particle)
+    F_b = deformation_gradient(system, neighbor)
 
     # Use the symmetry of epsilon to simplify computations
-    eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff
+    eps_sum = (F_a + F_b) * initial_pos_diff - 2 * current_pos_diff
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
     E = young_modulus_per_particle(young_modulus, particle)
