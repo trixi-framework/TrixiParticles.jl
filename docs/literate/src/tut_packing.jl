@@ -1,4 +1,4 @@
-# # Particle Packing Turorial
+# # Particle Packing Tutorial
 
 # In this tutorial, we will guide you through the complete particle packing pipeline.
 # The algorithmic background is explained in [Particle Packing](@ref particle_packing).
