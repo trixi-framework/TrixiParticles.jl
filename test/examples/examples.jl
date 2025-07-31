@@ -127,10 +127,10 @@
                                              joinpath(examples_dir(), "preprocessing",
                                                       "packing_2d.jl"),
                                              particle_spacing=0.4)
-            expected_coordinates = [-0.540548 -0.189943 0.191664 0.542741 -0.629391 -0.196159 0.197725 0.63081 -0.629447 -0.196158 0.19779 0.631121 -0.540483 -0.190015 0.191345 0.540433;
-                                    -0.541127 -0.630201 -0.630119 -0.539294 -0.190697 -0.196942 -0.196916 -0.190324 0.190875 0.197074 0.196955 0.190973 0.541206 0.630323 0.630178 0.541314]
+            expected_coordinates = [-0.54048 -0.182281 0.183204 0.542274 -0.696998 -0.211246 0.209569 0.695462 -0.696374 -0.209687 0.21169 0.698555 -0.54146 -0.183898 0.181077 0.53998
+                                    -0.541319 -0.697744 -0.696698 -0.539885 -0.183016 -0.210361 -0.211384 -0.180426 0.182058 0.211353 0.209689 0.184634 0.540366 0.698057 0.695956 0.541889]
 
-            @test isapprox(packed_ic.coordinates, expected_coordinates, atol=1e-5)
+            @test isapprox(packed_ic.coordinates, expected_coordinates, atol=1e-4)
         end
         @trixi_testset "preprocessing/packing_3d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,

@@ -17,6 +17,12 @@ Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar
 Adapt.@adapt_structure BoundaryMovement
 Adapt.@adapt_structure TotalLagrangianSPHSystem
+Adapt.@adapt_structure Polygon
+Adapt.@adapt_structure TriangleMesh
+Adapt.@adapt_structure WindingNumberJacobson
+Adapt.@adapt_structure HierarchicalWinding
+Adapt.@adapt_structure SignedDistanceField
+Adapt.@adapt_structure ParticlePackingSystem
 Adapt.@adapt_structure BoundaryZone
 Adapt.@adapt_structure SystemBuffer
 Adapt.@adapt_structure OpenBoundarySPHSystem
@@ -31,6 +37,11 @@ end
 # This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
+end
+
+# This makes `@threaded geometry for ...` use `geometry.parallelization_backend` for parallelization
+@inline function PointNeighbors.parallel_foreach(f, iterator, geometry::Geometry)
+    PointNeighbors.parallel_foreach(f, iterator, geometry.parallelization_backend)
 end
 
 function allocate(backend::KernelAbstractions.Backend, ELTYPE, size)
