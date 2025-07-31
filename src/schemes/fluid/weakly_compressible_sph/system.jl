@@ -145,6 +145,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
+             create_cache_resize(n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
              create_cache_tvf(Val(:wcsph), initial_condition, transport_velocity)...,
@@ -435,6 +436,37 @@ end
 
 @inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
     extract_smatrix(system.cache.correction_matrix, system, particle)
+end
+
+function Base.resize!(system::WeaklyCompressibleSPHSystem, capacity_system)
+    capacity(system) == nparticles(system) && return system
+
+    if capacity(system) < nparticles(system) && !(system.cache.values_conserved[])
+        error("The required capacity is smaller than the actual size of the system. " *
+              "Call `deleteat!` before resizing the system, to specify which particles can be deleted")
+    end
+
+    (; mass, pressure, density_calculator) = system
+
+    resize!(mass, capacity_system)
+    resize!(pressure, capacity_system)
+
+    resize_density!(system, capacity_system, density_calculator)
+
+    resize_cache!(system, capacity_system)
+
+    system.cache.additional_capacity[] = 0
+    system.cache.values_conserved[] = false
+
+    return system
+end
+
+function resize_cache!(system::WeaklyCompressibleSPHSystem, n::Int)
+    # TODO
+    # resize_corrections!(system, n)
+    resize!(system.cache.smoothing_length, n)
+
+    return system
 end
 
 @inline function curvature(particle_system::FluidSystem, particle)

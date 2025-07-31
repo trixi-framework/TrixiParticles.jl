@@ -15,6 +15,14 @@ end
     return v
 end
 
+function create_cache_resize(n_particles)
+    additional_capacity = Ref(0)
+    delete_candidates = Bool[]
+    values_conserved = Ref(false)
+
+    return (; additional_capacity, delete_candidates, values_conserved)
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
     density = similar(initial_condition.density)
 
@@ -221,3 +229,10 @@ end
                         v_particle_system, v_neighbor_system, rho_a, rho_b,
                         m_a, m_b, particle, neighbor, grad_kernel)
 end
+
+function Base.resize!(system::FluidSystem, capacity_system)
+    error("`resize!`not implemented for $(typeof(system)), yet")
+end
+
+resize_density!(system, n, ::SummationDensity) = resize!(system.cache.density, n)
+resize_density!(system, n, ::ContinuityDensity) = system
