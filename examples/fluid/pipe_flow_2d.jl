@@ -56,7 +56,7 @@ pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
 NDIMS = ndims(pipe.fluid)
 
-n_buffer_particles = 8 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
+n_buffer_particles = 5 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
 
 # ==========================================================================================
 # ==== Fluid
@@ -130,7 +130,7 @@ open_boundary = OpenBoundarySPHSystem(inflow, outflow; fluid_system,
                                       buffer_size=n_buffer_particles)
 # ==========================================================================================
 # ==== Boundary
-viscosity_boundary = ViscosityAdami(nu=1e-4)
+viscosity_boundary = nothing
 boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundary.mass,
                                              AdamiPressureExtrapolation(),
                                              state_equation=state_equation,
