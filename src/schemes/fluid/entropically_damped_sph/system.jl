@@ -211,7 +211,8 @@ end
 create_cache_tvf_edac(initial_condition, ::Nothing) = (;)
 
 function create_cache_tvf_edac(initial_condition, ::TransportVelocityAdami)
-    delta_v = zeros(eltype(initial_condition), ndims(initial_condition), nparticles(initial_condition))
+    delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
+                    nparticles(initial_condition))
     pressure_average = copy(initial_condition.pressure)
     neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
     update_callback_used = Ref(false)

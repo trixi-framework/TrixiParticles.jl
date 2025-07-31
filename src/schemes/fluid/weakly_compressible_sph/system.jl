@@ -224,7 +224,8 @@ end
 create_cache_tvf_wcsph(initial_condition, ::Nothing) = (;)
 
 function create_cache_tvf_wcsph(initial_condition, ::TransportVelocityAdami)
-    delta_v = zeros(eltype(initial_condition), ndims(initial_condition), nparticles(initial_condition))
+    delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
+                    nparticles(initial_condition))
     update_callback_used = Ref(false)
 
     return (; delta_v, update_callback_used)
