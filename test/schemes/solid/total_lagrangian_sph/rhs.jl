@@ -40,6 +40,7 @@
             initial_coordinates[:, particle[i]] = initial_coordinates_particle[i]
             initial_coordinates[:, neighbor[i]] = initial_coordinates_neighbor[i]
             current_coordinates = zeros(2, 10)
+            v_system = zeros(2, 10)
             pk1_corrected = 2000 * ones(2, 2, 10) # Just something that's not zero to catch errors
             pk1_corrected[:, :, particle[i]] = pk1_particle_corrected[i]
             pk1_corrected[:, :, neighbor[i]] = pk1_neighbor_corrected[i]
@@ -72,6 +73,8 @@
                     return mass
                 elseif f === :penalty_force
                     return nothing
+                elseif f === :viscosity
+                    return nothing
                 elseif f === :buffer
                     return nothing
                 end
@@ -89,6 +92,9 @@
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             TrixiParticles.compact_support(::MockSystem, ::MockSystem) = 1000.0
             Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
+            function TrixiParticles.current_coords(system::MockSystem, particle)
+                return TrixiParticles.current_coords(initial_coordinates, system, particle)
+            end
 
             #### Verification
             backends = [
@@ -102,7 +108,7 @@
                 dv_expected[:, particle[i]] = dv_particle_expected[i]
 
                 semi = DummySemidiscretization(parallelization_backend=backends[j])
-                TrixiParticles.interact_solid_solid!(dv, system, system, semi)
+                TrixiParticles.interact_solid_solid!(dv, v_system, system, semi)
 
                 @test dv ≈ dv_expected
             end

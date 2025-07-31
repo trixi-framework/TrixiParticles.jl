@@ -53,7 +53,6 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
         movement.moving_particles .= collect(1:nparticles(initial_condition))
     end
 
-    # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
                              ismoving, adhesion_coefficient, cache, nothing)
 end
@@ -171,11 +170,6 @@ end
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
-    if !(movement_function(0.0) isa SVector)
-        @warn "Return value of `movement_function` is not of type `SVector`. " *
-              "Returning regular `Vector`s causes allocations and significant performance overhead."
-    end
-
     # Default value is an empty vector, which will be resized in the `BoundarySPHSystem`
     # constructor to move all particles.
     moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
@@ -186,6 +180,13 @@ end
 create_cache_boundary(::Nothing, initial_condition) = (;)
 
 function create_cache_boundary(::BoundaryMovement, initial_condition)
+    # pos = extract_svector(initial_condition.coordinates,
+    #                       Val(size(initial_condition.coordinates, 1)), 1)
+    # if !(movement_function(pos, 0.0) isa SVector)
+    #     @warn "Return value of `movement_function` is not of type `SVector`. " *
+    #           "Returning regular `Vector`s causes allocations and significant performance overhead."
+    # end
+
     initial_coordinates = copy(initial_condition.coordinates)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)
@@ -221,9 +222,12 @@ function (movement::BoundaryMovement)(system, t, semi)
     is_moving(t) || return system
 
     @threaded semi for particle in moving_particles
-        pos_new = initial_coords(system, particle) + movement_function(t)
-        vel = ForwardDiff.derivative(movement_function, t)
-        acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
+        pos_original = initial_coords(system, particle)
+        pos_new = movement_function(pos_original, t)
+        pos_deriv(t_) = ForwardDiff.derivative(t__ -> movement_function(pos_original, t__),
+                                               t_)
+        vel = pos_deriv(t)
+        acc = ForwardDiff.derivative(pos_deriv, t)
 
         @inbounds for i in 1:ndims(system)
             coordinates[i, particle] = pos_new[i]
@@ -239,6 +243,33 @@ function (movement::Nothing)(system::System, t, semi)
     system.ismoving[] = false
 
     return system
+end
+
+function oscillating_movement(frequency, translation_vector,
+                              rotation_angle, rotation_center;
+                              rotation_phase_offset=0,
+                              tspan=(-Inf, Inf), ramp_up=0)
+    @inline function movement_function(x, t)
+        sin_scaled = sin(frequency * 2pi * t)
+        translation = sin_scaled * translation_vector
+        x_centered = x .- rotation_center
+        sin_scaled_offset = sin(2pi * (frequency * t - rotation_phase_offset))
+        angle = rotation_angle * sin_scaled_offset
+        rotated = SVector(x_centered[1] * cos(angle) - x_centered[2] * sin(angle),
+                          x_centered[1] * sin(angle) + x_centered[2] * cos(angle))
+
+        result = rotated .+ rotation_center .+ translation
+        if ramp_up > 0 && t < ramp_up
+            # Apply a smoothstep ramp-up for the first `ramp_up` seconds
+            ramp_factor = 3 * (t / ramp_up)^2 - 2 * (t / ramp_up)^3
+            return result * ramp_factor + (1 - ramp_factor) * x
+        end
+        return result
+    end
+
+    is_moving(t) = tspan[1] <= t <= tspan[2]
+
+    return BoundaryMovement(movement_function, is_moving)
 end
 
 @inline function nparticles(system::Union{BoundaryDEMSystem, BoundarySPHSystem})
@@ -259,7 +290,8 @@ end
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
 # For all other models and density calculators, it's irrelevant.
-@inline v_nvariables(system::BoundarySPHSystem) = 1
+@inline v_nvariables(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}) = 1
+@inline v_nvariables(system::BoundarySPHSystem) = 0
 @inline v_nvariables(system::BoundaryDEMSystem) = 0
 
 @inline function current_coordinates(u, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
@@ -296,7 +328,7 @@ end
     return current_acceleration(system, system.movement, particle)
 end
 
-@inline function current_acceleration(system, movement, particle)
+@inline function current_acceleration(system::BoundarySPHSystem, movement, particle)
     (; cache, ismoving) = system
 
     if ismoving[]
@@ -306,7 +338,8 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_acceleration(system, movement::Nothing, particle)
+@inline function current_acceleration(system::BoundarySPHSystem, movement::Nothing,
+                                      particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
@@ -384,10 +417,11 @@ function write_v0!(v0,
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
-    for particle in eachparticle(system)
-        # Set particle densities
-        v0[1, particle] = initial_density[particle]
-    end
+    # for particle in eachparticle(system)
+    #     # Set particle densities
+    #     v0[1, particle] = initial_density[particle]
+    # end
+    copyto!(view(v0, 1, each_moving_particle(system)), initial_density)
 
     return v0
 end
