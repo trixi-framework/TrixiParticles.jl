@@ -1,7 +1,8 @@
 """
     TransportVelocityAdami(background_pressure::Real)
 
-Transport Velocity Formulation (TVF) to suppress pairing and tensile instability.
+Transport Velocity Formulation (TVF) by [Adami et al. (2013)](@cite Adami2013)
+to suppress pairing and tensile instability.
 See [TVF](@ref transport_velocity_formulation) for more details of the method.
 
 # Arguments
