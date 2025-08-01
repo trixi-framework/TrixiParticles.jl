@@ -384,10 +384,7 @@ function write_v0!(v0,
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
-    for particle in eachparticle(system)
-        # Set particle densities
-        v0[1, particle] = initial_density[particle]
-    end
+    v0[1, :] = initial_density
 
     return v0
 end
