@@ -128,7 +128,7 @@ function update_tvf!(system, transport_velocity::TransportVelocityAdami, v, u, v
             #   Δt <= 0.25 * h / c,
             # where h is the smoothing length and c is the sound speed.
             # Applying this equation as equality yields the shifting velocity
-            #   δv = -p_0 / 4 * h / c * m_b * (1 + 1) / (ρ_a * ρ_b^2) * ∇W_ab.
+            #   δv = -p_0 / 4 * h / c * m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab.
             # The last part is achieved by passing `p_a = 1` and `p_b = 1` to the
             # `pressure_acceleration` function.
             delta_v_ = background_pressure / 4 * h / sound_speed *

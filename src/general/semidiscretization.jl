@@ -526,6 +526,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
+    # This update depends on the computed quantities of the fluid system and therefore
+    # needs to be after `update_quantities!`.
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)

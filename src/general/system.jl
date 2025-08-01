@@ -126,7 +126,7 @@ end
                                  system_correction(system), system, particle)
 end
 
-# System update orders. This can be dispatched if needed.
+# System updates do nothing by default, but can be dispatched if needed
 function update_positions!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end

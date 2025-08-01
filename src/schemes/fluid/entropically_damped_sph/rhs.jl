@@ -50,12 +50,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
         # Add convection term (only when using `TransportVelocityAdami`)
-        dv_convection = dv_transport_velocity(transport_velocity(particle_system),
-                                              particle_system, neighbor_system,
-                                              particle, neighbor,
-                                              v_particle_system, v_neighbor_system,
-                                              m_a, m_b, rho_a, rho_b, pos_diff, distance,
-                                              grad_kernel, correction)
+        dv_tvf = dv_transport_velocity(transport_velocity(particle_system),
+                                       particle_system, neighbor_system,
+                                       particle, neighbor,
+                                       v_particle_system, v_neighbor_system,
+                                       m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                                       grad_kernel, correction)
 
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
@@ -66,9 +66,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
-            dv[i,
-               particle] += dv_pressure[i] + dv_viscosity_[i] + dv_convection[i] +
-                            dv_surface_tension[i] + dv_adhesion[i]
+            @inbounds dv[i,
+                         particle] += dv_pressure[i] + dv_viscosity_[i] + dv_tvf[i] +
+                                      dv_surface_tension[i] + dv_adhesion[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
