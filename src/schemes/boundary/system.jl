@@ -359,7 +359,8 @@ end
 
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_boundary_interpolation!` after `update_quantities!`.
-function update_boundary_interpolation!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi)
+function update_boundary_interpolation!(system::BoundarySPHSystem, v, u, v_ode, u_ode,
+                                        semi, t)
     (; boundary_model) = system
 
     # Note that `update_pressure!(::BoundarySPHSystem, ...)` is empty,
