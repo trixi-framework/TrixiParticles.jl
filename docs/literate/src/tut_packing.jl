@@ -53,7 +53,7 @@ sdf_ic = InitialCondition(; coordinates=stack(signed_distance_field.positions),
 
 plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing, color=:coolwarm)
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
-      seriestype=:path)
+      seriestype=:path, linewidth=2)
 plot!(right_margin=5Plots.mm) #hide
 
 # Since we will later also pack boundary particles, we need to extend the SDF to the outside.
@@ -69,7 +69,7 @@ sdf_ic = InitialCondition(; coordinates=stack(signed_distance_field.positions),
 plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing, color=:coolwarm)
 
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
-      seriestype=:path)
+      seriestype=:path, linewidth=2)
 plot!(right_margin=5Plots.mm) #hide
 
 # ## Creating an initial configuration of boundary particles
@@ -87,7 +87,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=densi
 ## Plotting the initial configuration of the boundary particles
 plot(boundary_sampled, label=nothing)
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
-      seriestype=:path)
+      seriestype=:path, linewidth=2)
 
 # ## Creating an initial configuration of interior particles
 
@@ -116,7 +116,7 @@ shape_sampled.mass .= density * TrixiParticles.volume(geometry) / nparticles(sha
 # together with the boundary particles.
 plot(shape_sampled, boundary_sampled, label=nothing)
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
-      seriestype=:path)
+      seriestype=:path, linewidth=2)
 
 # As shown in the plot, the interface of the geometry surface is not well resolved yet.
 # In other words, there is no body-fitted configuration.
@@ -124,8 +124,7 @@ plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
 
 # ## Particle packing
 
-# In the following, we will essentially follow the same steps described in
-# "Setting up your simulation from scratch" (TODO: ref).
+# In the following, we will essentially follow the same steps described in the fluid tutorials.
 # That means we will generate systems that are then passed to the [`Semidiscretization`](@ref Semidiscretization).
 # The difference from a typical physical simulation is that we use [`ParticlePackingSystem`](@ref ParticlePackingSystem),
 # which does not represent any physical law. Instead, we only use the simulation framework to time-integrate
@@ -153,7 +152,7 @@ packing_system = ParticlePackingSystem(shape_sampled;
                                        signed_distance_field=nothing, background_pressure)
 
 # We now proceed with the familiar steps
-# "Semidiscretization" and "Time integration" from the tutorial (TODO: ref)
+# "Semidiscretization" and "Time integration" from the fluid tutorials.
 semi = Semidiscretization(packing_system)
 
 ## Use a high `tspan` to guarantee that the simulation runs for at least `maxiters`
@@ -201,7 +200,7 @@ packed_ic = InitialCondition(sol, packing_system, semi)
 
 ## Plotting the final configuration
 plot(packed_ic)
-plot!(geometry, seriestype=:path, color=:black, label=nothing)
+plot!(geometry, seriestype=:path, color=:black, label=nothing, linewidth=2)
 
 # We can see that the particles now stay inside the geometry,
 # but their distribution near the surface can still be improved by adding boundary particles [neher2025robustefficientpreprocessingtechniques](@cite).
@@ -241,7 +240,7 @@ packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 
 ## Plotting the final configuration
 plot(packed_ic, packed_boundary_ic)
-plot!(geometry, seriestype=:path, color=:black, linestyle=:dash, label=nothing)
+plot!(geometry, seriestype=:path, color=:black, linestyle=:dash, linewidth=2, label=nothing)
 
 # ## Multi-body packing
 
