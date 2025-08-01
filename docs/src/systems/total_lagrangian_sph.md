@@ -102,3 +102,30 @@ where the error vector is defined as
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "penalty_force.jl")]
 ```
+
+## Viscosity
+
+Another technique that is used to correct the hourglass instability is artificial viscosity.
+Hereby, a viscosity term designed for fluids (see [Viscosity](@ref viscosity_sph)) is applied.
+First, the force ``f_{ab}^{\text{fluid}}`` exerted by particle ``b`` on particle ``a``
+due to artificial viscosity is computed as if both particles were fluid particles
+(see [Viscosity](@ref viscosity_sph) for the relevant equations).
+Then, according to [Lin et al. (2015)](@cite Lin2015), this force can be applied to TLSPH
+with the following conversion:
+```math
+f_{ab}^{\text{AV}} = \det{F_a} F_a^{-1} f_{ab}^{\text{fluid}},
+```
+where ``F_a`` is the deformation gradient at particle ``a``.
+
+We found that artificial viscosity is not effective at correcting the incorrect
+particle positions due to hourglass modes.
+It does however prevent particles from oscillating between different incorrect positions,
+which develops into an instability if uncorrected.
+We still recommend penalty force over artificial viscosity to correct hourglass modes
+as penalty force is specifically designed to correct the incorrect particle positions.
+
+In some FSI simulations, notably when very thin structures or structures with low material
+density are present, instabilities in the fluid can be induced by the structure.
+In these cases, artificial viscosity is effective at stabilizing the fluid close to the
+structure, and we recommend using it in combination with penalty force to both
+prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
