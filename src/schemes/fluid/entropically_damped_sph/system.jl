@@ -250,6 +250,8 @@ end
 
 @inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed
 
+@inline transport_velocity(system::EntropicallyDampedSPHSystem) = system.transport_velocity
+
 @inline average_pressure(system, particle) = zero(eltype(system))
 
 @inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
@@ -299,7 +301,7 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
+    update_average_pressure!(system, transport_velocity(system), v_ode, u_ode, semi)
     update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
 end
 
@@ -333,8 +335,7 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             pressure_average[particle] += current_pressure(v_neighbor_system,
-                                                           neighbor_system,
-                                                           neighbor)
+                                                           neighbor_system, neighbor)
             neighbor_counter[particle] += 1
         end
     end

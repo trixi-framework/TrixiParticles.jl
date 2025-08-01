@@ -339,7 +339,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
         initialize!(system, semi_new)
 
         # Only for systems requiring the use of the `UpdateCallback`
-        reset_callback_flag!(system)
+        set_callback_flag!(system, false)
     end
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
@@ -374,7 +374,7 @@ function restart_with!(semi, sol; reset_threads=true)
         restart_with!(system, v, u)
 
         # Only for systems requiring the use of the `UpdateCallback`
-        reset_callback_flag!(system)
+        set_callback_flag!(system, false)
     end
 
     return semi
