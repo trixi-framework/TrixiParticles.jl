@@ -22,7 +22,7 @@ open_boundary_layers = 6
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 2.0)
+tspan = (0.0, 0.5)
 
 domain_size = (1.0, 0.4, 0.4)
 const prescribed_velocity = (1.0, 0.0, 0.0)

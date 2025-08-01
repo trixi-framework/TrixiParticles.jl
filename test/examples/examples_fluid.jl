@@ -359,7 +359,7 @@
     end
 
     @trixi_testset "fluid/pipe_flow_3d.jl" begin
-        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+        @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_3d.jl"))
         @test sol.retcode == ReturnCode.Success
