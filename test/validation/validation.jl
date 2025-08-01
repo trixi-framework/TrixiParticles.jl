@@ -84,6 +84,19 @@
         @test length(axs_edac[1].scene.plots) >= 2
     end
 
+    @trixi_testset "hydrostatic_water_column_2d" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "hydrostatic_water_column_2d",
+                                                  "validation.jl")) [
+            r"┌ Info: The desired tank length in y-direction.*\n",
+            r"└ New tank length in y-direction is set to.*\n"
+        ]
+
+        # we compare the relative error of the analytical_solution
+        @test isapprox(errors["edac"][2], 0, atol=0.032)
+        @test isapprox(errors["wcsph"][2], 0, atol=0.044)
+    end
     @trixi_testset "TGV_2D" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(),

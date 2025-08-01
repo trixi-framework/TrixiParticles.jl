@@ -433,7 +433,7 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     return system
 end
 
-@inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
+@inline function correction_matrix(system::FluidSystem, particle)
     extract_smatrix(system.cache.correction_matrix, system, particle)
 end
 
