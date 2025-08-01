@@ -122,20 +122,22 @@ function update_tvf!(system, transport_velocity::TransportVelocityAdami, v, u, v
             # as follows:
             #   v_{1/2} = v_0 + Δt/2 * a,
             # where a is the regular SPH acceleration term (pressure, viscosity, etc.).
-            #   r_1 = r_0 + Δt * (v_{1/2} + δv_{1/2}),
-            # where v_{1/2} + δv_{1/2} is the transport velocity.
+            #   r_1 = r_0 + Δt * (v_{1/2},
+            # where ̃v_{1/2} = v_{1/2} + Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ]
+            # is the transport velocity.
+            # We call δv_{1/2} = ̃v_{1/2} - v_{1/2} the shifting velocity.
             # We will call δv_{1/2} the shifting velocity, which is given by
-            #   δv = -Δt * p_0 / m_a * \sum_b (V_a^2 + V_b^2) * ∇W_ab,
+            #   δv = -Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ],
             # where p_0 is the background pressure, V_a = m_a / ρ_a, V_b = m_b / ρ_b.
             # This term depends on the pressure acceleration formulation.
             # In Zhang et al. (2017), the pressure acceleration term
             #   m_b * (p_a / ρ_a^2 + p_b / ρ_b^2) * ∇W_ab
             # is used. They consequently changed the shifting velocity to
-            #   δv = -Δt * p_0 * m_b * (1 / ρ_a^2 + 1 / ρ_b^2) * ∇W_ab.
+            #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 / ρ_a^2 + 1 / ρ_b^2) * ∇W_ab ].
             # We therefore use the function `pressure_acceleration` to compute the
             # shifting velocity according to the used pressure acceleration formulation.
             # In most cases, this will be
-            #   δv = -Δt * p_0 * m_b * (1 + 1) / (ρ_a * ρ_b^2) * ∇W_ab.
+            #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
             #
             # In these papers, the shifting velocity is scaled by the time step Δt.
             # We generally want the spatial discretization to be independent of the time step.
@@ -148,10 +150,10 @@ function update_tvf!(system, transport_velocity::TransportVelocityAdami, v, u, v
             #   Δt <= 0.25 * h / c,
             # where h is the smoothing length and c is the sound speed.
             # Applying this equation as equality yields the shifting velocity
-            #   δv = -p_0 / 4 * h / c * m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab.
+            #   δv = -p_0 / 8 * h / c * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
             # The last part is achieved by passing `p_a = 1` and `p_b = 1` to the
             # `pressure_acceleration` function.
-            delta_v_ = background_pressure / 4 * h / sound_speed *
+            delta_v_ = background_pressure / 8 * h / sound_speed *
                        pressure_acceleration(system, neighbor_system, particle, neighbor,
                                              m_a, m_b, 1, 1, rho_a, rho_b, pos_diff,
                                              distance, grad_kernel, correction)
