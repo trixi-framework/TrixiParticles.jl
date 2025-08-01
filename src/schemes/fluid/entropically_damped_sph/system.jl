@@ -208,17 +208,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
     end
 end
 
-create_cache_tvf_edac(initial_condition, ::Nothing) = (;)
-
-function create_cache_tvf_edac(initial_condition, ::TransportVelocityAdami)
-    delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
-                    nparticles(initial_condition))
-    pressure_average = copy(initial_condition.pressure)
-    neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
-
-    return (; delta_v, pressure_average, neighbor_counter)
-end
-
 @inline function Base.eltype(::EntropicallyDampedSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
@@ -264,7 +253,7 @@ end
 @inline average_pressure(system, particle) = zero(eltype(system))
 
 @inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
-    average_pressure(system, system.transport_velocity, particle)
+    average_pressure(system, transport_velocity(system), particle)
 end
 
 @inline function average_pressure(system, ::TransportVelocityAdami, particle)

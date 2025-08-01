@@ -221,15 +221,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
     end
 end
 
-create_cache_tvf_wcsph(initial_condition, ::Nothing) = (;)
-
-function create_cache_tvf_wcsph(initial_condition, ::TransportVelocityAdami)
-    delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
-                    nparticles(initial_condition))
-
-    return (; delta_v)
-end
-
 @inline function Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
