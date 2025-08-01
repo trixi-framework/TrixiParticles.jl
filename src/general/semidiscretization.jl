@@ -338,7 +338,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
         # Initialize this system
         initialize!(system, semi_new)
 
-        # Only for systems requiring a mandatory callback
+        # Only for systems requiring the use of the `UpdateCallback`
         reset_callback_flag!(system)
     end
 
@@ -373,7 +373,7 @@ function restart_with!(semi, sol; reset_threads=true)
 
         restart_with!(system, v, u)
 
-        # Only for systems requiring a mandatory callback
+        # Only for systems requiring the use of the `UpdateCallback`
         reset_callback_flag!(system)
     end
 
@@ -478,6 +478,9 @@ end
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "kick!" begin
+        # Check that the `UpdateCallback` is used if required
+        check_update_callback(semi)
+
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
         @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
@@ -493,8 +496,9 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
-# Update the systems and neighborhood searches (NHS) for a simulation before calling `interact!` to compute forces
-function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=false)
+# Update the systems and neighborhood searches (NHS) for a simulation
+# before calling `interact!` to compute forces.
+function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
     foreach_system(semi) do system
@@ -532,8 +536,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t;
-                                       update_from_callback)
+        update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
@@ -541,7 +544,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback)
+        update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
@@ -869,6 +872,16 @@ function update!(neighborhood_search, x, y, semi; points_moving=(true, false),
                  eachindex_y=axes(y, 2))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving, eachindex_y,
                            parallelization_backend=semi.parallelization_backend)
+end
+
+function check_update_callback(semi)
+    foreach_system(semi) do system
+        # This check will be optimized away if the system does not require the callback
+        if requires_update_callback(system) && !update_callback_used(system)
+            system_name = system |> typeof |> nameof
+            throw(ArgumentError("`UpdateCallback` is required for `$system_name`"))
+        end
+    end
 end
 
 function check_configuration(systems,

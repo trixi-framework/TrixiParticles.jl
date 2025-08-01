@@ -57,7 +57,7 @@ function initial_update!(cb::UpdateCallback, u, t, integrator)
 
     # Tell systems that `UpdateCallback` is used
     foreach_system(semi) do system
-        update_callback_used!(system)
+        set_callback_flag!(system, true)
     end
 
     return cb(integrator)
@@ -78,7 +78,7 @@ function (update_callback!::UpdateCallback)(integrator)
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
-    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
+    update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     # Update open boundaries first, since particles might be activated or deactivated
     @trixi_timeit timer() "update open boundary" foreach_system(semi) do system
@@ -137,5 +137,3 @@ function Base.show(io::IO, ::MIME"text/plain",
         summary_box(io, "UpdateCallback", setup)
     end
 end
-
-update_callback_used!(system) = system

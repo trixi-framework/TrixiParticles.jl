@@ -262,7 +262,7 @@ function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode
 end
 
 function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
-                                        v_ode, u_ode, semi, t; update_from_callback=false)
+                                        v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
     # Only update boundary model

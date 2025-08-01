@@ -226,9 +226,8 @@ create_cache_tvf_wcsph(initial_condition, ::Nothing) = (;)
 function create_cache_tvf_wcsph(initial_condition, ::TransportVelocityAdami)
     delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
                     nparticles(initial_condition))
-    update_callback_used = Ref(false)
 
-    return (; delta_v, update_callback_used)
+    return (; delta_v)
 end
 
 @inline function Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
@@ -318,8 +317,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     return system
 end
 
-function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already

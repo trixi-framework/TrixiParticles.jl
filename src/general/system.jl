@@ -139,26 +139,27 @@ function update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t;
-                                        update_from_callback=false)
+function update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback=false)
+function update_final!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-# Only for systems requiring a mandatory callback
-reset_callback_flag!(system) = system
+# Only for systems requiring the use of the `UpdateCallback`
+@inline requires_update_callback(system) = false
+@inline update_callback_used(system) = false
+@inline set_callback_flag!(system, value) = system
 
-initial_smoothing_length(system) = smoothing_length(system, nothing)
+@inline initial_smoothing_length(system) = smoothing_length(system, nothing)
 
-function smoothing_length(system, particle)
+@inline function smoothing_length(system, particle)
     return system.smoothing_length
 end
 
-system_smoothing_kernel(system) = system.smoothing_kernel
-system_correction(system) = nothing
+@inline system_smoothing_kernel(system) = system.smoothing_kernel
+@inline system_correction(system) = nothing
 
 @inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
 

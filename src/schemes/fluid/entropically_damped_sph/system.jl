@@ -215,9 +215,8 @@ function create_cache_tvf_edac(initial_condition, ::TransportVelocityAdami)
                     nparticles(initial_condition))
     pressure_average = copy(initial_condition.pressure)
     neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
-    update_callback_used = Ref(false)
 
-    return (; delta_v, pressure_average, neighbor_counter, update_callback_used)
+    return (; delta_v, pressure_average, neighbor_counter)
 end
 
 @inline function Base.eltype(::EntropicallyDampedSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
@@ -305,8 +304,7 @@ function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_od
     compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 
-function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already
