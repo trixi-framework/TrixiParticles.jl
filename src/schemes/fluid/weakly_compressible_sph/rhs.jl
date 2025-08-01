@@ -5,7 +5,7 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
-    (; density_calculator, state_equation, correction) = particle_system
+    (; density_calculator, correction) = particle_system
 
     sound_speed = system_sound_speed(particle_system)
 

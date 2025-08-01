@@ -362,7 +362,8 @@ end
 function update_boundary_interpolation!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi)
     (; boundary_model) = system
 
-    # Note that `update_pressure!(::BoundarySPHSystem, ...)` is empty
+    # Note that `update_pressure!(::BoundarySPHSystem, ...)` is empty,
+    # so no pressure is updated in the previous update steps.
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system

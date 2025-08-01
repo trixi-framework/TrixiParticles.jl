@@ -468,7 +468,7 @@ end
     delta_v_ = delta_v(system, particle)
 
     for i in 1:ndims(system)
-        du[i, particle] = v[i, particle] + delta_v_[i]
+        @inbounds du[i, particle] = v[i, particle] + delta_v_[i]
     end
 
     return du

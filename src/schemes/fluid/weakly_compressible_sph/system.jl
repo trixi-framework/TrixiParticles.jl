@@ -295,14 +295,16 @@ end
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction, surface_normal_method, surface_tension) = system
 
+    compute_pressure!(system, v, semi)
+
+    # These are only computed when using corrections
     compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
-
     compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
-
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
-    compute_pressure!(system, v, semi)
+
+    # These are only computed when using surface tension
     compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
     compute_surface_delta_function!(system, surface_tension, semi)
     return system
