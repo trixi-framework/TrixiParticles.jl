@@ -139,8 +139,8 @@ end
     # which is updated separately.
     @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
-            du_system[i,
-                      particle] = duprev_system[i, particle] + dt * kdu_system[i, particle]
+            du_system[i, particle] = duprev_system[i, particle] +
+                                     dt * kdu_system[i, particle]
         end
     end
 end
