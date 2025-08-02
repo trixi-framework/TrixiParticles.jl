@@ -1,8 +1,8 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
-    initial_condition :: InitialCondition{ELTYPE}
+struct NBodySystem{NDIMS, ELTYPE <: Real, IC} <: TrixiParticles.System{NDIMS}
+    initial_condition :: IC
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE
     buffer            :: Nothing
@@ -11,13 +11,13 @@ struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
         mass = copy(initial_condition.mass)
 
         new{size(initial_condition.coordinates, 1),
-            eltype(mass)}(initial_condition, mass, G, nothing)
+            eltype(mass), typeof(initial_condition)}(initial_condition, mass, G, nothing)
     end
 end
 
 TrixiParticles.timer_name(::NBodySystem) = "nbody"
 
-@inline Base.eltype(system::NBodySystem) = eltype(system.initial_condition.coordinates)
+@inline Base.eltype(system::NBodySystem{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
 function TrixiParticles.write_u0!(u0, system::NBodySystem)
     u0 .= system.initial_condition.coordinates

@@ -228,7 +228,7 @@
         TrixiParticles.initialize_neighborhood_searches!(semi)
 
         u_ode = vec(fluid.coordinates)
-        v_ode = vec(vcat(fluid.velocity, fluid.velocity, fluid.pressure'))
+        v_ode = vec(vcat(fluid.velocity, fluid.pressure'))
 
         TrixiParticles.update_average_pressure!(system, system.transport_velocity, v_ode,
                                                 u_ode, semi)

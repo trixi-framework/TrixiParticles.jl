@@ -311,16 +311,15 @@ end
                                   system, v, u, v_ode, u_ode, semi)
     (; correction, density_calculator) = boundary_model
 
-    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
+    compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 
+    # These are only computed when using corrections
+    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
     compute_gradient_correction_matrix!(correction, boundary_model, system, u, v_ode, u_ode,
                                         semi)
-
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
-
-    compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 
     return boundary_model
 end

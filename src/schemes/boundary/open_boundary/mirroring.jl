@@ -125,7 +125,7 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
     end
 end
 
-update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = system
+update_boundary_model!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = system
 
 function extrapolate_values!(system,
                              mirror_method::Union{FirstOrderMirroring, SimpleMirroring},

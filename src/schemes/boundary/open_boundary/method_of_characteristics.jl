@@ -89,7 +89,8 @@ end
 end
 
 # Called from semidiscretization
-function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi, t)
+function update_boundary_model!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode,
+                                semi, t)
     @trixi_timeit timer() "evaluate characteristics" begin
         evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
