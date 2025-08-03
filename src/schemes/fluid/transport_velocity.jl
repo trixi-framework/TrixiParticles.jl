@@ -108,7 +108,7 @@ function update_tvf!(system, transport_velocity::TransportVelocityAdami, v, u, v
                                semi;
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
-            m_a = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+            m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
             rho_a = @inbounds current_density(v, system, particle)
