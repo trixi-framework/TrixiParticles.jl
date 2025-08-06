@@ -336,7 +336,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Initialize all particle systems
     foreach_system(semi_new) do system
         # Initialize this system
-        initialize!(system, semi_new)
+        initialize!(system, semi_new, v0_ode)
 
         # Only for systems requiring a mandatory callback
         reset_callback_flag!(system)

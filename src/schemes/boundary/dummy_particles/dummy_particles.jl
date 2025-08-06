@@ -50,20 +50,20 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+function BoundaryModelDummyParticles(hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
                                      correction=nothing,
                                      reference_particle_spacing=0.0)
     NDIMS = ndims(smoothing_kernel)
     ELTYPE = eltype(smoothing_length)
-    n_particles = length(initial_density)
+    n_particles = length(hydrodynamic_mass)
 
-    pressure = zero(initial_density)
+    pressure = zero(hydrodynamic_mass)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
-             create_cache_model(initial_density, density_calculator)...,
-             create_cache_model(correction, initial_density, NDIMS, n_particles)...)
+             create_cache_model(hydrodynamic_mass, density_calculator)...,
+             create_cache_model(correction, hydrodynamic_mass, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -81,8 +81,9 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        smoothing_length, viscosity, correction, cache)
 end
 
-function initialize_boundary!(system::BoundarySystem, boundary_model::BoundaryModelDummyParticles, semi)
-    initial_boundary_pressure!(system, boundary_model, boundary_model.density_calculator, semi)
+function initialize_boundary!(boundary_system::BoundarySystem, boundary_model::BoundaryModelDummyParticles, semi, v0_ode)
+    initial_density!(boundary_system, boundary_model, boundary_model.density_calculator, semi, v0_ode)
+    initial_boundary_pressure!(boundary_system, boundary_model, boundary_model.density_calculator, semi)
 
     return boundary_model
 end
@@ -211,12 +212,12 @@ end
 
 function create_cache_model(initial_density,
                             ::Union{SummationDensity, PressureMirroring, PressureZeroing})
-    density = copy(initial_density)
+    density = zeros(initial_density)
 
     return (; density)
 end
 
-@inline create_cache_model(initial_density, ::ContinuityDensity) = (; initial_density)
+# @inline create_cache_model(initial_density, ::ContinuityDensity) = (; initial_density)
 
 function create_cache_model(initial_density,
                             ::Union{AdamiPressureExtrapolation,
@@ -257,6 +258,27 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, model.viscosity |> typeof |> nameof)
     print(io, ")")
 end
+
+initial_density!(system, boundary_model, density_calculator, semi, v0_ode) = system
+
+function initial_density!(system, bm::BoundaryModelDummyParticles, density_calculator::ContinuityDensity, semi, v0_ode)
+    v0_system = wrap_v(v0_ode, system, semi)
+
+    # Find state equation
+    state_equation = nothing
+    foreach_system(semi) do neighbor_system
+        if neighbor_system isa WeaklyCompressibleSPHSystem
+            state_equation = neighbor_system.state_equation
+        end
+    end
+
+    for particle in eachparticle(system)
+        v0_system[1, particle] = state_equation.reference_density
+    end
+
+    return system
+end
+
 
 # For most density calculators, the pressure is updated in every step
 initial_boundary_pressure!(system, boundary_model, density_calculator, semi) = system
@@ -422,6 +444,8 @@ function compute_pressure!(boundary_model,
 
         if neighbor_system isa WeaklyCompressibleSPHSystem
             state_equation = neighbor_system.state_equation
+        else
+            return
         end
 
         # This is an optimization for simulations with large and complex boundaries.

@@ -379,33 +379,20 @@ function write_v0!(v0,
     return v0
 end
 
-function write_v0!(v0,
-                   system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
-    (; cache) = system.boundary_model
-    (; initial_density) = cache
-
-    for particle in eachparticle(system)
-        # Set particle densities
-        v0[1, particle] = initial_density[particle]
-    end
-
-    return v0
-end
-
 function restart_with!(system::BoundarySPHSystem, v, u)
     return system
 end
 
-function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                       v, u)
-    (; initial_density) = model.cache
+# function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+#                        v, u)
+#     (; initial_density) = model.cache
 
-    for particle in eachparticle(system)
-        initial_density[particle] = v[1, particle]
-    end
+#     for particle in eachparticle(system)
+#         initial_density[particle] = v[1, particle]
+#     end
 
-    return system
-end
+#     return system
+# end
 
 # To incorporate the effect at boundaries in the viscosity term of the RHS the neighbor
 # viscosity model has to be used.
@@ -418,10 +405,10 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf
 end
 
- initialize!(system::BoundarySPHSystem, boundary_model, semi) = boundary_model
+ initialize_boundary!(system::BoundarySystem, boundary_model, semi, v0_ode) = system
 
-function initialize!(system::BoundarySPHSystem, semi)
-    initialize_boundary!(system, system.boundary_model, semi)
+function initialize!(system::BoundarySPHSystem, semi, v0_ode)
+    initialize_boundary!(system, system.boundary_model, semi, v0_ode)
     initialize_colorfield!(system, system.boundary_model, semi)
 
     return system

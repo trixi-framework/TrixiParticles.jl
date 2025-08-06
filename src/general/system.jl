@@ -19,7 +19,7 @@ vtkname(system::BoundarySystem) = "boundary"
     return du
 end
 
-initialize!(system, semi) = system
+initialize!(system, semi, v0_ode) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
 @inline Base.eltype(system::System) = error("eltype not implemented for system $system")
