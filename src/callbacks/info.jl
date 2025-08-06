@@ -135,7 +135,9 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
     println()
 
     # Technical details
-    setup = Pair{String, Any}["#threads" => Threads.nthreads()]
+    setup = Pair{String, Any}["Julia version" => VERSION,
+                              "parallelization backend" => semi.parallelization_backend |> typeof |> nameof,
+                              "#threads" => Threads.nthreads()]
     summary_box(io, "Environment information", setup)
     println()
     println()

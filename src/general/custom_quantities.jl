@@ -6,12 +6,18 @@ Returns the total kinetic energy of all particles in a system.
 function kinetic_energy(system, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
 
-    # If `each_moving_particle` is empty (no moving particles), return zero
-    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
-        velocity = current_velocity(v, system, particle)
-        return 0.5 * system.mass[particle] * dot(velocity, velocity)
+    # TODO: `current_velocity` should only contain active particles
+    # (see https://github.com/trixi-framework/TrixiParticles.jl/issues/850)
+    velocity = reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                           view(current_velocity(v, system), :, active_particles(system)))
+    mass = view(system.mass, active_particles(system))
+
+    return mapreduce(+, velocity, mass) do v_i, m_i
+        return m_i * dot(v_i, v_i) / 2
     end
 end
+
+kinetic_energy(system::BoundarySystem, v_ode, u_ode, semi, t) = zero(eltype(system))
 
 """
     total_mass
@@ -19,9 +25,7 @@ end
 Returns the total mass of all particles in a system.
 """
 function total_mass(system, v_ode, u_ode, semi, t)
-    return sum(eachparticle(system)) do particle
-        return system.mass[particle]
-    end
+    return sum(system.mass)
 end
 
 function total_mass(system::BoundarySystem, v_ode, u_ode, semi, t)
