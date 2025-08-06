@@ -106,14 +106,14 @@
             SphereShape(1.0, 1.1, (0.2, -1.0, 0.3), 1000.0, sphere_type=RoundSphere()),
             SphereShape(1.0, 1.2, (-0.3, 0.1, 0.8), 1000.0, sphere_type=RoundSphere()),
             SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, cutout_min=(0.18, 0.4, 0.5),
-                        cutout_max=(0.42, 10.0, 1.0), tlsph=true),
-            SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2, tlsph=true),
+                        cutout_max=(0.42, 10.0, 1.0), place_on_shell=true),
+            SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2, place_on_shell=true),
             SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2,
-                        layer_outwards=true, tlsph=true),
+                        layer_outwards=true, place_on_shell=true),
             SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2,
                         sphere_type=RoundSphere()),
             SphereShape(0.1, 0.55, (0.3, 0.4, 0.5), 1000.0, n_layers=2, layer_outwards=true,
-                        sphere_type=RoundSphere(), tlsph=true)
+                        sphere_type=RoundSphere(), place_on_shell=true)
         ]
 
         expected_coords = [
