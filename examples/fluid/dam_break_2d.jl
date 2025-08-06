@@ -90,7 +90,6 @@ viscosity_wall = nothing
 # viscosity_wall = ViscosityAdami(nu=nu)
 # viscosity_wall = ViscosityMorris(nu=nu)
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing,

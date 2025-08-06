@@ -2,7 +2,7 @@
     BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
-                                state_equation=nothing, correction=nothing,
+                                correction=nothing,
                                 reference_particle_spacing=0.0)
 
 Boundary model for `BoundarySPHSystem`.
@@ -17,8 +17,6 @@ Boundary model for `BoundarySPHSystem`.
 - `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
 
 # Keywords
-- `state_equation`:             This should be the same as for the adjacent fluid system
-                                (see e.g. [`StateEquationCole`](@ref)).
 - `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
@@ -39,10 +37,9 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
+struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, K, V, COR, C}
     pressure           :: VECTOR # Vector{ELTYPE}
     hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
-    state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
@@ -56,13 +53,13 @@ end
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
-                                     state_equation=nothing, correction=nothing,
+                                     correction=nothing,
                                      reference_particle_spacing=0.0)
-    pressure = initial_boundary_pressure(initial_density, density_calculator,
-                                         state_equation)
     NDIMS = ndims(smoothing_kernel)
     ELTYPE = eltype(smoothing_length)
     n_particles = length(initial_density)
+
+    pressure = zero(initial_density)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator)...,
@@ -79,9 +76,15 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                  neighbor_count=zeros(ELTYPE, n_particles))
     end
 
-    return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
+    return BoundaryModelDummyParticles(pressure, hydrodynamic_mass,
                                        density_calculator, smoothing_kernel,
                                        smoothing_length, viscosity, correction, cache)
+end
+
+function initialize_boundary!(system::BoundarySystem, boundary_model::BoundaryModelDummyParticles, semi)
+    initial_boundary_pressure!(system, boundary_model, boundary_model.density_calculator, semi)
+
+    return boundary_model
 end
 
 @doc raw"""
@@ -168,7 +171,7 @@ end
 struct PressureMirroring end
 
 @doc raw"""
-    PressureZeroing()
+    PressureZeroing(state_equation=nothing)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
@@ -176,7 +179,12 @@ struct PressureMirroring end
     This boundary model produces significantly worse results than all other models and
     is only included for research purposes.
 """
-struct PressureZeroing end
+struct PressureZeroing{SE}
+    state_equation::SE
+    function PressureZeroing(state_equation=nothing)
+        return new{typeof(state_equation)}(state_equation)
+    end
+end
 
 @inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
@@ -251,18 +259,17 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
 end
 
 # For most density calculators, the pressure is updated in every step
-initial_boundary_pressure(initial_density, density_calculator, _) = similar(initial_density)
-# Pressure mirroring does not use the pressure, so we set it to zero for the visualization
-initial_boundary_pressure(initial_density, ::PressureMirroring, _) = zero(initial_density)
+initial_boundary_pressure!(system, boundary_model, density_calculator, semi) = system
 
 # For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
-function initial_boundary_pressure(initial_density, ::PressureZeroing, state_equation)
-    return state_equation.(initial_density)
+function initial_boundary_pressure!(system, bm, density_calculator::PressureZeroing, semi)
+    initial_boundary_pressure!(bm, density_calculator.state_equation)
 end
 
-# With EDAC, just use zero pressure
-function initial_boundary_pressure(initial_density, ::PressureZeroing, ::Nothing)
-    return zero(initial_density)
+initial_boundary_pressure!(bm, ::Nothing) = bm
+
+function initial_boundary_pressure!(bm, state_equation)
+    bm.pressure = bm.state_equation.(bm.cache.initial_density)
 end
 
 @inline function current_density(v, model::BoundaryModelDummyParticles, system)
@@ -308,19 +315,19 @@ function compute_density!(boundary_model,
 end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
-                                  system, v, u, v_ode, u_ode, semi)
+                                  boundary_system, v, u, v_ode, u_ode, semi)
     (; correction, density_calculator) = boundary_model
 
-    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
+    compute_correction_values!(boundary_system, correction, u, v_ode, u_ode, semi)
 
-    compute_gradient_correction_matrix!(correction, boundary_model, system, u, v_ode, u_ode,
+    compute_gradient_correction_matrix!(correction, boundary_model, boundary_system, u, v_ode, u_ode,
                                         semi)
 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
 
-    compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
+    compute_pressure!(boundary_model, density_calculator, boundary_system, v, u, v_ode, u_ode, semi)
 
     return boundary_model
 end
@@ -363,13 +370,21 @@ function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_od
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
-                           system, v, u, v_ode, u_ode, semi)
+                           boundary_system, v, u, v_ode, u_ode, semi)
+
+    # Find state equation
+    state_equation = nothing
+    foreach_system(semi) do neighbor_system
+        if neighbor_system isa WeaklyCompressibleSPHSystem
+            state_equation = neighbor_system.state_equation
+        end
+    end
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
-    @threaded semi for particle in eachparticle(system)
-        apply_state_equation!(boundary_model, current_density(v, system, particle),
-                              particle)
+    @threaded semi for particle in eachparticle(boundary_system)
+        apply_state_equation!(boundary_model, current_density(v, boundary_system, particle),
+                              particle, state_equation)
     end
 
     return boundary_model
@@ -378,14 +393,14 @@ end
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function apply_state_equation!(boundary_model, density, particle)
-    boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0)
+@inline function apply_state_equation!(boundary_model, density, particle, state_equation)
+    boundary_model.pressure[particle] = max(state_equation(density), 0)
 end
 
 function compute_pressure!(boundary_model,
                            ::Union{AdamiPressureExtrapolation,
                                    BernoulliPressureExtrapolation},
-                           system, v, u, v_ode, u_ode, semi)
+                           boundary_system, v, u, v_ode, u_ode, semi)
     (; pressure, cache, viscosity) = boundary_model
     (; allow_loop_flipping) = boundary_model.density_calculator
 
@@ -394,7 +409,9 @@ function compute_pressure!(boundary_model,
     # Set `volume` to zero. For `ViscosityAdami` the `wall_velocity` is also set to zero.
     reset_cache!(cache, viscosity)
 
-    system_coords = current_coordinates(u, system)
+    system_coords = current_coordinates(u, boundary_system)
+
+    state_equation = nothing
 
     # Use all other systems for the pressure extrapolation
     @trixi_timeit timer() "compute boundary pressure" foreach_system(semi) do neighbor_system
@@ -402,6 +419,10 @@ function compute_pressure!(boundary_model,
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+        if neighbor_system isa WeaklyCompressibleSPHSystem
+            state_equation = neighbor_system.state_equation
+        end
 
         # This is an optimization for simulations with large and complex boundaries.
         # Especially in 3D simulations with large and/or complex structures outside
@@ -411,7 +432,7 @@ function compute_pressure!(boundary_model,
         # The factor is based on the achievable speed-up of the thread parallelizable version.
         # Use the parallel version if the number of boundary particles is not much larger
         # than the number of fluid particles.
-        n_boundary_particles = nparticles(system)
+        n_boundary_particles = nparticles(boundary_system)
         n_fluid_particles = nparticles(neighbor_system)
         speedup = ceil(Int, Threads.nthreads() / 2)
         is_gpu = system_coords isa AbstractGPUArray
@@ -420,22 +441,22 @@ function compute_pressure!(boundary_model,
 
         # Loop over boundary particles and then the neighboring fluid particles
         # to extrapolate fluid pressure to the boundaries.
-        boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
+        boundary_pressure_extrapolation!(Val(parallelize), boundary_model, boundary_system,
                                          neighbor_system, system_coords, neighbor_coords, v,
                                          v_neighbor_system, semi)
     end
 
     @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
-                                                                      eachparticle(system)
-        compute_adami_density!(boundary_model, system, v, particle)
+                                                                      eachparticle(boundary_system)
+        compute_adami_density!(boundary_model, boundary_system, v, particle, state_equation)
     end
 end
 
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-function compute_adami_density!(boundary_model, system, v, particle)
-    (; pressure, state_equation, cache, viscosity) = boundary_model
+function compute_adami_density!(boundary_model, boundary_system, v, particle, state_equation)
+    (; pressure, cache, viscosity) = boundary_model
     (; volume, density) = cache
 
     # The summation is only over fluid particles, thus the volume stays zero when a boundary
@@ -445,7 +466,7 @@ function compute_adami_density!(boundary_model, system, v, particle)
         @inbounds pressure[particle] /= volume[particle]
 
         # To impose no-slip condition
-        compute_wall_velocity!(viscosity, system, v, particle)
+        compute_wall_velocity!(viscosity, boundary_system, v, particle)
     end
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and

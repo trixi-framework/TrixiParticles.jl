@@ -418,8 +418,12 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf
 end
 
+ initialize!(system::BoundarySPHSystem, boundary_model, semi) = boundary_model
+
 function initialize!(system::BoundarySPHSystem, semi)
+    initialize_boundary!(system, system.boundary_model, semi)
     initialize_colorfield!(system, system.boundary_model, semi)
+
     return system
 end
 

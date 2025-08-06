@@ -897,14 +897,9 @@ end
 
 function check_configuration(system::BoundarySPHSystem, systems, nhs)
     (; boundary_model) = system
-
-    foreach_system(systems) do neighbor
-        if neighbor isa WeaklyCompressibleSPHSystem &&
-           boundary_model isa BoundaryModelDummyParticles &&
-           isnothing(boundary_model.state_equation)
-            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
-                                "setting a `state_equation` for all boundary models"))
-        end
+    no_of_fluid_systems = count(system -> system isa FluidSystem, systems)
+    if no_of_fluid_systems > 1 && boundary_model isa BoundaryModelDummyParticles
+            throw(ArgumentError("The normal 'BoundaryModelDummyParticles' cannot be used with multiple fluid systems."))
     end
 end
 
