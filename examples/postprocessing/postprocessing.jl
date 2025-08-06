@@ -1,3 +1,12 @@
+# ==========================================================================================
+# Postprocessing Callback Example
+#
+# This example demonstrates how to use the `PostprocessCallback` in TrixiParticles.jl
+# to compute and save custom quantities during a simulation, or to execute
+# arbitrary user-defined functions at specified intervals.
+# A hydrostatic water column simulation is used as the base.
+# ==========================================================================================
+
 using TrixiParticles
 using Plots
 using CSV
@@ -6,7 +15,7 @@ using JSON
 
 # Any custom function with the arguments `v, u, t, system` can be passed to the callback
 # to be called every 10th timestep. See example below:
-function hello(v, u, t, system)
+function hello(system, v_ode, u_ode, semi, t)
     # Will write "hello" and the current simulation time
     println("hello at ", t)
 

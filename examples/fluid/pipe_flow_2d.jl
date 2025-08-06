@@ -1,4 +1,11 @@
-# 2D channel flow simulation with open boundaries.
+# ==========================================================================================
+# 2D Pipe Flow Simulation with Open Boundaries (Inflow/Outflow)
+#
+# This example simulates fluid flow through a 2D pipe (channel) with an inflow
+# boundary condition on one end and an outflow boundary condition on the other.
+# Solid walls form the top and bottom of the pipe.
+# The simulation demonstrates the use of open boundary conditions in TrixiParticles.jl.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -47,14 +54,16 @@ pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_densi
 # Shift pipe walls in negative x-direction for the inflow
 pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
-n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
+NDIMS = ndims(pipe.fluid)
+
+n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]^(NDIMS - 1)
 
 # ==========================================================================================
 # ==== Fluid
 wcsph = false
 
-smoothing_length = 3.0 * particle_spacing
-smoothing_kernel = WendlandC2Kernel{2}()
+smoothing_length = 1.5 * particle_spacing
+smoothing_kernel = WendlandC2Kernel{NDIMS}()
 
 fluid_density_calculator = ContinuityDensity()
 
@@ -110,7 +119,7 @@ open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
 
 boundary_type_out = OutFlow()
 plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
-outflow = BoundaryZone(; plane=plane_out, plane_normal=-flow_direction,
+outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        boundary_type=boundary_type_out)
 
@@ -136,17 +145,26 @@ boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
+min_corner = minimum(pipe.boundary.coordinates .- particle_spacing, dims=2)
+max_corner = maximum(pipe.boundary.coordinates .+ particle_spacing, dims=2)
+
+nhs = GridNeighborhoodSearch{NDIMS}(; cell_list=FullGridCellList(; min_corner, max_corner),
+                                    update_strategy=ParallelUpdate())
+
 semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
-                          boundary_system, parallelization_backend=true)
+                          boundary_system, neighborhood_search=nhs,
+                          parallelization_backend=PolyesterBackend())
 
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+particle_shifting = ParticleShiftingCallback()
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
+                        particle_shifting, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)

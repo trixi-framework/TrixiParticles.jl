@@ -47,18 +47,17 @@
                                         pressure=pressure_function,
                                         velocity=velocity_function)
 
-        smoothing_length = 3.0 * particle_spacing
+        smoothing_length = 1.5 * particle_spacing
         smoothing_kernel = WendlandC2Kernel{ndims(domain_fluid)}()
-        fluid_system = WeaklyCompressibleSPHSystem(domain_fluid, SummationDensity(),
-                                                   nothing, smoothing_kernel,
-                                                   smoothing_length)
+        fluid_system = EntropicallyDampedSPHSystem(domain_fluid, smoothing_kernel,
+                                                   smoothing_length, 1.0)
 
         fluid_system.cache.density .= domain_fluid.density
-        fluid_system.pressure .= domain_fluid.pressure
 
         @testset verbose=true "plane normal $i" for i in eachindex(files)
-            inflow = BoundaryZone(; plane=plane_boundary[i],
+            inflow = BoundaryZone(; plane=plane_boundary[i], boundary_type=InFlow(),
                                   plane_normal=plane_boundary_normal[i],
+                                  average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
             open_boundary = OpenBoundarySPHSystem(inflow; fluid_system,
@@ -69,11 +68,11 @@
             TrixiParticles.initialize_neighborhood_searches!(semi)
 
             v_open_boundary = zero(inflow.initial_condition.velocity)
+            v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
             TrixiParticles.set_zero!(open_boundary.pressure)
 
-            TrixiParticles.extrapolate_values!(open_boundary, v_open_boundary,
-                                               domain_fluid.velocity,
+            TrixiParticles.extrapolate_values!(open_boundary, v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
                                                domain_fluid.coordinates, semi, 0.0;
                                                prescribed_pressure=false,
@@ -144,18 +143,17 @@
                                         density=1000.0, pressure=pressure_function,
                                         velocity=velocity_function)
 
-        smoothing_length = 3.0 * particle_spacing
+        smoothing_length = 1.5 * particle_spacing
         smoothing_kernel = WendlandC2Kernel{ndims(domain_fluid)}()
-        fluid_system = WeaklyCompressibleSPHSystem(domain_fluid, SummationDensity(),
-                                                   nothing, smoothing_kernel,
-                                                   smoothing_length)
+        fluid_system = EntropicallyDampedSPHSystem(domain_fluid, smoothing_kernel,
+                                                   smoothing_length, 1.0)
 
         fluid_system.cache.density .= domain_fluid.density
-        fluid_system.pressure .= domain_fluid.pressure
 
         @testset verbose=true "plane normal $i" for i in eachindex(files)
-            inflow = BoundaryZone(; plane=plane_boundary[i],
+            inflow = BoundaryZone(; plane=plane_boundary[i], boundary_type=InFlow(),
                                   plane_normal=plane_boundary_normal[i],
+                                  average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
             open_boundary = OpenBoundarySPHSystem(inflow; fluid_system,
@@ -166,11 +164,11 @@
             TrixiParticles.initialize_neighborhood_searches!(semi)
 
             v_open_boundary = zero(inflow.initial_condition.velocity)
+            v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
             TrixiParticles.set_zero!(open_boundary.pressure)
 
-            TrixiParticles.extrapolate_values!(open_boundary, v_open_boundary,
-                                               domain_fluid.velocity,
+            TrixiParticles.extrapolate_values!(open_boundary, v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
                                                domain_fluid.coordinates, semi, 0.0;
                                                prescribed_pressure=false,
@@ -193,5 +191,63 @@
             @test isapprox(v_open_boundary, expected_velocity, atol=1e-2)
             @test isapprox(open_boundary.pressure, expected_pressure, atol=1e-2)
         end
+    end
+
+    @testset verbose=true "Average Inflow Velocity $i-D" for i in (2, 3)
+        particle_spacing = 0.05
+        domain_length = 1.0
+        open_boundary_layers = 40
+
+        n_particles_xy = round(Int, domain_length / particle_spacing)
+
+        if i == 2
+            domain_fluid = RectangularShape(particle_spacing, (2, 1) .* n_particles_xy,
+                                            (0.0, 0.0), density=1000.0,
+                                            velocity=x -> SVector{2}(x[1], 0.0))
+
+        else
+            domain_fluid = RectangularShape(particle_spacing, (2, 1, 1) .* n_particles_xy,
+                                            (0.0, 0.0, 0.0), density=1000.0,
+                                            velocity=x -> SVector{3}(x[1], 0.0, 0.0))
+        end
+
+        smoothing_length = 1.5 * particle_spacing
+        smoothing_kernel = WendlandC2Kernel{ndims(domain_fluid)}()
+        fluid_system = EntropicallyDampedSPHSystem(domain_fluid, smoothing_kernel,
+                                                   smoothing_length, 1.0)
+        fluid_system.cache.density .= 1000.0
+
+        if i == 2
+            plane_in = ([0.0, 0.0], [0.0, domain_length])
+        else
+            plane_in = ([0.0, 0.0, 0.0], [0.0, domain_length, 0.0],
+                        [0.0, 0.0, domain_length])
+        end
+
+        inflow = BoundaryZone(; plane=plane_in, boundary_type=InFlow(),
+                              plane_normal=(i == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]),
+                              open_boundary_layers=open_boundary_layers, density=1000.0,
+                              particle_spacing, average_inflow_velocity=true)
+        open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
+                                                 boundary_model=BoundaryModelTafuni(),
+                                                 buffer_size=0)
+
+        semi = Semidiscretization(fluid_system, open_boundary_in)
+        TrixiParticles.initialize_neighborhood_searches!(semi)
+
+        v_open_boundary = zero(inflow.initial_condition.velocity)
+        v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
+
+        TrixiParticles.set_zero!(open_boundary_in.pressure)
+
+        TrixiParticles.extrapolate_values!(open_boundary_in, v_open_boundary, v_fluid,
+                                           inflow.initial_condition.coordinates,
+                                           domain_fluid.coordinates, semi, 0.0)
+
+        # Since the velocity profile increases linearly in positive x-direction,
+        # we can use the first velocity entry as a representative value.
+        v_x_fluid_first = v_fluid[1, 1]
+
+        @test all(isapprox(-v_x_fluid_first), v_open_boundary[1, :])
     end
 end

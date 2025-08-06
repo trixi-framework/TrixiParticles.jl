@@ -1,3 +1,10 @@
+# ==========================================================================================
+# 3D Dam Break Simulation
+#
+# This example sets up a 3D dam break simulation using a weakly compressible SPH scheme.
+# It is analogous to the 2D dam break (`dam_break_2d.jl`) but extended to three dimensions.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -31,7 +38,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 3.0 * fluid_particle_spacing
+smoothing_length = 1.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{3}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -57,7 +64,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system,
-                          parallelization_backend=true)
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=10)

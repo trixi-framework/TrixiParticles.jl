@@ -1,4 +1,9 @@
-# 3D channel flow simulation with open boundaries.
+# ==========================================================================================
+# 3D Pipe Flow Simulation with Open Boundaries (Inflow/Outflow)
+#
+# This example extends the 2D pipe flow simulation (`pipe_flow_2d.jl`) to three
+# dimensions.
+# ==========================================================================================
 
 using TrixiParticles
 
@@ -37,8 +42,8 @@ flow_direction = [1.0, 0.0, 0.0]
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"),
               domain_size=domain_size, boundary_size=boundary_size,
               flow_direction=flow_direction, faces=(false, false, true, true, true, true),
-              tspan=tspan, smoothing_kernel=WendlandC2Kernel{3}(),
-              reference_velocity=velocity_function3d,
+              tspan=tspan, reference_velocity=velocity_function3d,
+              open_boundary_layers=open_boundary_layers,
               plane_in=([0.0, 0.0, 0.0], [0.0, domain_size[2], 0.0],
                         [0.0, 0.0, domain_size[3]]),
               plane_out=([domain_size[1], 0.0, 0.0], [domain_size[1], domain_size[2], 0.0],

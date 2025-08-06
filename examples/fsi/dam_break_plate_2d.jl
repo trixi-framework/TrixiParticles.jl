@@ -1,9 +1,15 @@
-# 2D dam break flow against an elastic plate based on Section 6.5 of
+# ==========================================================================================
+# 2D Dam Break Flow Against an Elastic Plate
 #
-# L. Zhan, C. Peng, B. Zhang, W. Wu.
-# "A stabilized TL–WC SPH approach with GPU acceleration for three-dimensional fluid–structure interaction".
-# In: Journal of Fluids and Structures 86 (2019), pages 329-353.
-# https://doi.org/10.1016/j.jfluidstructs.2019.02.002
+# Based on Section 6.5 of:
+#   L. Zhan, C. Peng, B. Zhang, W. Wu.
+#   "A stabilized TL–WC SPH approach with GPU acceleration for three-dimensional fluid–structure interaction".
+#   Journal of Fluids and Structures, 86 (2019), pp. 329-353.
+#   https://doi.org/10.1016/j.jfluidstructs.2019.02.002
+#
+# This example simulates a 2D dam break where the collapsing water column impacts
+# a flexible elastic plate fixed at its base.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -65,7 +71,7 @@ solid = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_length = 1.75 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -88,7 +94,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Solid
-solid_smoothing_length = 2 * sqrt(2) * solid_particle_spacing
+solid_smoothing_length = sqrt(2) * solid_particle_spacing
 solid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model

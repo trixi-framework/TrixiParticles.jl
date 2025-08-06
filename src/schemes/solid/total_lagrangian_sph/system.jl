@@ -205,14 +205,14 @@ end
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
-@inline function particle_density(v, system::TotalLagrangianSPHSystem, particle)
-    return particle_density(v, system.boundary_model, system, particle)
+@inline function current_density(v, system::TotalLagrangianSPHSystem)
+    return current_density(v, system.boundary_model, system)
 end
 
 # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
 # corresponding to the chosen boundary model.
-@inline function particle_pressure(v, system::TotalLagrangianSPHSystem, particle)
-    return particle_pressure(v, system.boundary_model, system, particle)
+@inline function current_pressure(v, system::TotalLagrangianSPHSystem)
+    return current_pressure(v, system.boundary_model, system)
 end
 
 @inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
@@ -245,6 +245,8 @@ end
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates) = system
 
+    # `current_coordinates` stores the coordinates of both integrated and fixed particles.
+    # Copy the coordinates of the integrated particles from `u`.
     @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             current_coordinates[i, particle] = u[i, particle]
@@ -406,7 +408,8 @@ end
 function von_mises_stress(system)
     von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
 
-    @threaded von_mises_stress_vector for particle in each_moving_particle(system)
+    @threaded default_backend(von_mises_stress_vector) for particle in
+                                                           each_moving_particle(system)
         von_mises_stress_vector[particle] = von_mises_stress(system, particle)
     end
 
@@ -439,7 +442,8 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
     cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
                                   nparticles(system))
 
-    @threaded cauchy_stress_tensors for particle in each_moving_particle(system)
+    @threaded default_backend(cauchy_stress_tensors) for particle in
+                                                         each_moving_particle(system)
         F = deformation_gradient(system, particle)
         J = det(F)
         P = pk1_corrected(system, particle)
@@ -452,5 +456,33 @@ end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
-@inline viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system) = neighbor_system.viscosity
-@inline viscosity_model(system::FluidSystem, neighbor_system::TotalLagrangianSPHSystem) = neighbor_system.boundary_model.viscosity
+@inline function viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system)
+    return neighbor_system.viscosity
+end
+
+@inline function viscosity_model(system::FluidSystem,
+                                 neighbor_system::TotalLagrangianSPHSystem)
+    return neighbor_system.boundary_model.viscosity
+end
+
+function system_data(system::TotalLagrangianSPHSystem, v_ode, u_ode, semi)
+    (; mass, material_density, deformation_grad, pk1_corrected, young_modulus,
+     poisson_ratio, lame_lambda, lame_mu) = system
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    coordinates = current_coordinates(u, system)
+    initial_coordinates_ = initial_coordinates(system)
+    velocity = current_velocity(v, system)
+
+    return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
+            material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
+            lame_lambda, lame_mu)
+end
+
+function available_data(::TotalLagrangianSPHSystem)
+    return (:coordinates, :initial_coordinates, :velocity, :mass, :material_density,
+            :deformation_grad, :pk1_corrected, :young_modulus, :poisson_ratio,
+            :lame_lambda, :lame_mu)
+end

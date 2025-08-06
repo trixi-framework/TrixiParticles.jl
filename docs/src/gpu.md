@@ -13,13 +13,14 @@ Unlike the default cell list, which assumes an unbounded domain,
 this cell list requires a bounding box for the domain.
 For simulations that are bounded by a closed tank, we can simply use the boundary
 of the tank to obtain the bounding box as follows.
-```jldoctest gpu; output=false, setup=:(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing))
+```jldoctest gpu; output=false, filter = r"FullGridCellList{PointNeighbors.DynamicVectorOfVectors{.*", setup=:(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing))
 min_corner = minimum(tank.boundary.coordinates, dims=2)
 max_corner = maximum(tank.boundary.coordinates, dims=2)
 cell_list = FullGridCellList(; min_corner, max_corner)
 
 # output
-FullGridCellList{PointNeighbors.DynamicVectorOfVectors{Int32, Matrix{Int32}, Vector{Int32}, Base.RefValue{Int32}}, Nothing, SVector{2, Float64}, SVector{2, Float64}}(Vector{Int32}[], nothing, [-0.12500000000000003, -0.12500000000000003], [1.125, 1.125])
+FullGridCellList{PointNeighbors.DynamicVectorOfVectors{...}(...)
+
 ```
 
 We then need to pass this cell list to the neighborhood search and the neighborhood search
@@ -77,12 +78,11 @@ is included with the new neighborhood search.
 This requires the assignments `neighborhood_search = ...` and `parallelization_backend = ...`
 to be present in the original example file.
 Note that in `examples/fluid/dam_break_2d.jl`, we explicitly set
-`parallelization_backend=true`, even though this is the default value,
+`parallelization_backend=PolyesterBackend()`, even though this is the default value,
 so that we can use `trixi_include` to replace this value.
 
-To run this simulation on a GPU, simply update `parallelization_backend` to match the
-array type of the installed GPU.
-We can run this simulation on an Nvidia GPU as follows.
+To run this simulation on a GPU, simply update `parallelization_backend` to the backend
+of the installed GPU. We can run this simulation on an Nvidia GPU as follows.
 ```julia
 using CUDA
 trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"), parallelization_backend=CUDABackend())

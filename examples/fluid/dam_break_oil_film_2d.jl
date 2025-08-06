@@ -1,4 +1,10 @@
-# 2D dam break simulation with an oil film on top
+# ==========================================================================================
+# 2D Dam Break Simulation with an Oil Film
+#
+# This example simulates a 2D dam break where a layer of oil sits on top of the water.
+# It demonstrates a multi-fluid simulation with two immiscible fluids.
+# The base water setup is loaded from the `dam_break_2d.jl` example.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -29,8 +35,9 @@ oil_viscosity = ViscosityMorris(nu=nu_sim_oil)
 
 # TODO: broken if both systems use surface tension
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
-              viscosity=ViscosityMorris(nu=nu_sim_water), smoothing_length=smoothing_length,
+              sol=nothing, fluid_particle_spacing=fluid_particle_spacing, tspan=tspan,
+              viscosity_fluid=ViscosityMorris(nu=nu_sim_water),
+              smoothing_length=smoothing_length,
               gravity=gravity, density_diffusion=nothing, sound_speed=sound_speed,
               prefix="", reference_particle_spacing=fluid_particle_spacing)
 
@@ -72,7 +79,7 @@ oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
 # ==== Simulation
 semi = Semidiscretization(fluid_system, oil_system, boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
-                          parallelization_backend=true)
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),

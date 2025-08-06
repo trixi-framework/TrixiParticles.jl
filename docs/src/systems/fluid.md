@@ -1,11 +1,10 @@
-
 # [Fluid Models](@id fluid_models)
 
 Currently available fluid methods are the [weakly compressible SPH method](@ref wcsph) and the
-[entropically damped artificial compressibility for SPH](@ref edac).  
-This page lists models and techniques that apply to both of these methods.  
+[entropically damped artificial compressibility for SPH](@ref edac).
+This page lists models and techniques that apply to both of these methods.
 
-## [Viscosity](@id viscosity_wcsph)
+## [Viscosity](@id viscosity_sph)
 
 Viscosity is a critical physical property governing momentum diffusion within a fluid.
 In the context of SPH, viscosity determines how rapidly velocity gradients are smoothed out,
@@ -16,7 +15,146 @@ under a given set of conditions.
 Implementing viscosity correctly in SPH is essential for producing physically accurate results,
 and different methods exist to capture both numerical stabilization and true viscous effects.
 
-### API
+### Artificial (numerical) viscosity
+
+Artificial (numerical) viscosity is a technique used to stabilize simulations of inviscid flows,
+which would otherwise show unphysical particle movement due to numerical instability.
+To achieve this, a dissipative term is added to the momentum equations in a way that it
+does not significantly alter the physical behavior of the flow.
+This approach is especially useful in simulations such as high-speed flows with strong shocks or astrophysical scenarios,
+where other approaches are insufficient to stabilize the simulation.
+
+### Physical (real) viscosity
+
+Physical viscosity is essential for accurately modeling the true viscous stresses within a fluid.
+It ensures that simulations align with a target Reynolds number or adhere to experimentally measured fluid properties.
+This is achieved by incorporating forces that replicate the viscous stress term found in the Navier–Stokes equations.
+As a result, the method is particularly effective for simulating low-speed, incompressible, or weakly compressible flows,
+where it is crucial to capture the actual behavior of the fluid.
+
+### Model comparison
+
+#### ArtificialViscosityMonaghan
+
+`ArtificialViscosityMonaghan` by Monaghan ([Monaghan1992](@cite), [Monaghan1989](@cite))
+should be mainly used for inviscid flows (Euler), artificial stabilization
+or shock-capturing, for which Monaghan [Monaghan1989](@cite) originally designed
+this term to provide smoothing across shocks, intentionally overestimating the physical viscosity.
+The implementation includes a dissipation term that becomes more significant
+as particles approach one another. This helps suppress tensile instabilities,
+which can lead to particle clumping and effectively smooths out high-frequency pressure fluctuations.
+This increase in dissipation is triggered by the relative motion between particles:
+as particles come closer and compress the local flow,
+the artificial viscosity term becomes stronger to damp out rapid changes
+and prevent unphysical clustering.
+This ensures that while the simulation remains stable in challenging
+flow regimes with large density or pressure variations,
+the physical behavior is not overly altered.
+Several extensions have been proposed to limit the dissipation effect for example
+by Balsara ([Balsara1995](@cite)) or Morris ([Morris1997](@cite)).
+
+##### Mathematical Formulation
+
+The force exerted by particle `b` on particle `a` due to artificial viscosity is given by:
+
+```math
+F_{ab}^{\text{AV}} = - m_a m_b \Pi_{ab} \nabla W_{ab}
+```
+
+where:
+
+- ``\Pi_{ab}`` is the artificial viscosity term defined as:
+  ```math
+  \Pi_{ab} =
+  \begin{cases}
+      -\frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{if } \mathbf{v}_{ab} \cdot \mathbf{r}_{ab} < 0, \\
+      0 & \text{otherwise}
+  \end{cases}
+  ```
+- ``\alpha`` and ``\beta`` are viscosity parameters,
+- ``c`` is the local speed of sound,
+- ``\bar{\rho}_{ab}`` is the arithmetic mean of the densities of particles ``a`` and ``b``.
+
+The term ``\mu_{ab}`` is defined as:
+
+```math
+\mu_{ab} = \frac{h \, v_{ab} \cdot r_{ab}}{\Vert r_{ab} \Vert^2 + \epsilon h^2},
+```
+
+with:
+
+- ``h`` being the smoothing length,
+- ``\epsilon`` a small parameter to prevent singularities,
+- ``r_{ab} = r_a - r_b`` representing the difference of the coordinate vectors,
+- ``v_{ab} = v_a - v_b`` representing the relative velocity between particles.
+
+##### Resolution Dependency and Effective Viscosity
+
+To ensure that the simulation maintains a consistent Reynolds number when the resolution changes, the parameter ``\alpha`` must be adjusted accordingly.
+Monaghan (2005) introduced an effective physical kinematic viscosity ``\nu`` defined as:
+
+```math
+\nu = \frac{\alpha h c}{2d + 4},
+```
+
+where **``d``** is the number of spatial dimensions. This relation allows the calibration of ``\alpha`` to achieve the desired viscous behavior as the resolution or simulation conditions vary.
+
+#### ViscosityMorris
+
+`ViscosityMorris` is ideal for moderate to low Mach number flows where accurately modeling physical viscous behavior is essential.
+Developed by [Morris (1997)](@cite Morris1997) and later applied by [Fourtakas (2019)](@cite Fourtakas2019),
+this method directly simulates the viscous stresses found in fluids rather than relying on artificial viscosity.
+By approximating momentum diffusion based on local fluid properties, the method captures the actual viscous forces without excessive damping.
+This results in a more realistic representation of flow dynamics in weakly compressible scenarios.
+
+##### Mathematical Formulation
+
+An additional force term ``\tilde{f}_{ab}`` is introduced to the pressure gradient force ``f_{ab}`` between particles ``a`` and ``b``:
+
+```math
+\tilde{f}_{ab} = m_a m_b \frac{(\mu_a + \mu_b)\, r_{ab} \cdot \nabla W_{ab}}{\rho_a \rho_b (\Vert r_{ab} \Vert^2 + \epsilon h^2)}\, v_{ab},
+```
+
+where:
+
+- ``\mu_a = \rho_a \nu`` and ``\mu_b = \rho_b \nu`` represent the dynamic viscosities of particles ``a``and ``b`` (with ``\nu`` being the kinematic viscosity),
+- ``r_{ab} = r_a - r_b`` represents the difference of the coordinate vectors,
+- ``v_{ab} = v_a - v_b`` represents the relative velocity between particles.
+- `` h `` is the smoothing length,
+- `` \nabla W_{ab} `` is the gradient of the smoothing kernel,
+- `` \epsilon `` is a small parameter to prevent singularities.
+
+#### ViscosityAdami
+
+`ViscosityAdami`, introduced by [Adami (2012)](@cite Adami2012), is optimized for incompressible or weakly compressible flows where precise modeling of shear stress is critical.
+It enhances boundary layer representation by better resolving shear gradients, increasing dissipation in regions with steep velocity differences (e.g., near solid boundaries)
+while minimizing compressibility effects. This results in accurate laminar flow simulations and accurate physical shear stresses.
+
+##### Mathematical Formulation
+
+The viscous interaction is modeled through a shear force for incompressible flows:
+
+```math
+f_{ab} = \sum_w \bar{\eta}_{ab} \left( V_a^2 + V_b^2 \right) \frac{v_{ab}}{||r_{ab}||^2 + \epsilon h_{ab}^2} \, (\nabla W_{ab} \cdot r_{ab}),
+```
+
+where:
+
+- `` r_{ab} = r_a - r_b `` is the difference of the coordinate vectors,
+- `` v_{ab} = v_a - v_b `` is their relative velocity,
+- `` V_a = m_a / \rho_a`` and `` V_b = m_b / \rho_b`` are the particle volumes,
+- `` h_{ab} `` is the smoothing length,
+- `` \nabla W_{ab} `` is the gradient of the smoothing kernel,
+- `` \epsilon `` is a small parameter that prevents singularities (see [Ramachandran (2019)](@cite Ramachandran2019)).
+
+The inter-particle-averaged shear stress is defined as:
+
+```math
+\bar{\eta}_{ab} = \frac{2 \eta_a \eta_b}{\eta_a + \eta_b},
+```
+
+with the dynamic viscosity of each particle given by `` \eta_a = \rho_a \nu_a ``, where `` \nu_a `` is the kinematic viscosity.
+
 
 ```@autodocs
 Modules = [TrixiParticles]
@@ -221,7 +359,7 @@ with:
 This divergence can be computed numerically in the SPH framework as
 
 ```math
-\sum_b \frac{m_b}{\rho_a \rho_b} (S_a + S_b) \nabla W_{ab} 
+\sum_b \frac{m_b}{\rho_a \rho_b} (S_a + S_b) \nabla W_{ab}
 ```
 
 #### Advantages and limitations

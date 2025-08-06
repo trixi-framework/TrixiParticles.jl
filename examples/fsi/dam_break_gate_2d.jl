@@ -1,12 +1,20 @@
-# 2D dam break flow against an elastic plate based on
+# ==========================================================================================
+# 2D Dam Break Flow Against an Elastic Gate with Opening Motion
 #
-# P.N. Sun, D. Le Touzé, A.-M. Zhang.
-# "Study of a complex fluid-structure dam-breaking benchmark problem using a multi-phase SPH method with APR".
-# In: Engineering Analysis with Boundary Elements 104 (2019), pages 240-258.
-# https://doi.org/10.1016/j.enganabound.2019.03.033
+# Based on:
+#   P.N. Sun, D. Le Touzé, A.-M. Zhang.
+#   "Study of a complex fluid-structure dam-breaking benchmark problem using a multi-phase SPH method with APR".
+#   Engineering Analysis with Boundary Elements, 104 (2019), pp. 240-258.
+#   https://doi.org/10.1016/j.enganabound.2019.03.033
 #
-# Use a higher resolution and see the comments below regarding plate thickness
-# to reproduce the results from the paper.
+# This example simulates a 2D dam break where the water column collapses and flows
+# through a vertically moving gate towards a flexible elastic plate (beam) positioned
+# behind the gate.
+#
+# Note: To accurately reproduce results from the reference paper, a significantly
+# higher fluid resolution and a plate thickness closer to the paper's value (0.004m)
+# are required. This example uses a coarser resolution and thicker plate for tractability.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -92,7 +100,7 @@ solid = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_length = 1.75 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -121,7 +129,7 @@ boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate, movement=gat
 
 # ==========================================================================================
 # ==== Solid
-solid_smoothing_length = 2 * sqrt(2) * solid_particle_spacing
+solid_smoothing_length = sqrt(2) * solid_particle_spacing
 solid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
@@ -144,7 +152,7 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system_tank,
                           boundary_system_gate, solid_system,
-                          parallelization_backend=true)
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
