@@ -454,10 +454,13 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
         vtk["viscosity_model"] = type2string(model.viscosity)
     end
 
-    vtk["mass"] = model.hydrodynamic_mass
     vtk["volume"] = model.volume
-    vtk["hydrodynamic_density"] = current_density(v, system)
-    vtk["pressure"] = model.pressure
+
+    for id in model.no_of_fluid_systems
+        vtk["hydrodynamic_mass_$id"] = model.hydrodynamic_mass[id, :]
+        vtk["hydrodynamic_density_$id"] = current_density(v, system, id)
+        vtk["pressure_$id"] = model.pressure[id, :]
+    end
 
     if haskey(model.cache, :initial_colorfield)
         vtk["initial_colorfield"] = model.cache.initial_colorfield

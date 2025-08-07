@@ -78,6 +78,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, 
     buffer                            :: B
     particle_refinement               :: PR # TODO
     cache                             :: C
+    id                                :: Int
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -93,7 +94,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      buffer_size=nothing,
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
-                                     reference_particle_spacing=0, color_value=1)
+                                     reference_particle_spacing=0, color_value=1, id=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -164,7 +165,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        density_diffusion, correction, pressure_acceleration,
                                        transport_velocity, source_terms, surface_tension,
                                        surface_normal_method, buffer, particle_refinement,
-                                       cache)
+                                       cache, id)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -233,15 +234,15 @@ end
     return ELTYPE
 end
 
-@inline function v_nvariables(system::WeaklyCompressibleSPHSystem)
-    return v_nvariables(system, system.density_calculator)
+@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, no_of_fluid_systems)
+    return v_nvariables(system, system.density_calculator, no_of_fluid_systems)
 end
 
-@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, density_calculator)
+@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, density_calculator, no_of_fluid_systems)
     return ndims(system) * factor_tvf(system)
 end
 
-@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
+@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity, no_of_fluid_systems)
     return ndims(system) * factor_tvf(system) + 1
 end
 

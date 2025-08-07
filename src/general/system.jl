@@ -29,7 +29,7 @@ initialize!(system, semi, v0_ode) = system
 
 # Number of integrated variables in the second component
 # of the ODE system (velocity and sometimes density)
-@inline v_nvariables(system) = ndims(system)
+@inline v_nvariables(system, no_of_fluid_systems) = ndims(system)
 
 # Number of particles in the system
 @inline nparticles(system) = length(system.mass)
@@ -103,8 +103,16 @@ end
     return current_density(v, system)[particle]
 end
 
+@inline function current_density(v, system::System, particle, fluid_system_id)
+    return current_density(v, system, fluid_system_id)[particle]
+end
+
 @propagate_inbounds function current_pressure(v, system::System, particle)
     return current_pressure(v, system)[particle]
+end
+
+@propagate_inbounds function current_pressure(v, system::System, particle, fluid_system_id)
+    return current_pressure(v, system, fluid_system_id)[particle]
 end
 
 @inline function current_acceleration(system, particle)

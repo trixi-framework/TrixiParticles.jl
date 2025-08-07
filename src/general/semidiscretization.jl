@@ -53,17 +53,20 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS}
     ranges_v                :: RV
     neighborhood_searches   :: NS
     parallelization_backend :: BACKEND
+    no_of_fluid_systems     :: Int
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
     # This is an internal constructor only used in `test/count_allocations.jl`
     # and by Adapt.jl.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
-                                parallelization_backend::PointNeighbors.ParallelizationBackend)
+                                parallelization_backend::PointNeighbors.ParallelizationBackend, no_of_fluid_systems)
+
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches)}(systems, ranges_u, ranges_v,
                                                              neighborhood_searches,
-                                                             parallelization_backend)
+                                                             parallelization_backend,
+                                                             no_of_fluid_systems)
     end
 end
 
@@ -76,11 +79,13 @@ function Semidiscretization(systems::Union{System, Nothing}...;
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
 
+    no_of_fluid_systems = count(system -> system isa FluidSystem, systems)
+
     sizes_u = [u_nvariables(system) * n_moving_particles(system)
                for system in systems]
     ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
                      for i in eachindex(sizes_u))
-    sizes_v = [v_nvariables(system) * n_moving_particles(system)
+    sizes_v = [v_nvariables(system, no_of_fluid_systems) * n_moving_particles(system)
                for system in systems]
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
@@ -93,7 +98,7 @@ function Semidiscretization(systems::Union{System, Nothing}...;
                      for system in systems)
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
-                              parallelization_backend)
+                              parallelization_backend, no_of_fluid_systems)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -278,7 +283,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
-    sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
+    sizes_v = (v_nvariables(system, semi.no_of_fluid_systems) * n_moving_particles(system) for system in systems)
 
     # Use either the specified backend, e.g., `CUDABackend` or `MetalBackend` or
     # use CPU vectors for all CPU backends.
@@ -398,10 +403,10 @@ end
 
     range = ranges_v[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
+    @boundscheck @assert length(range) == v_nvariables(system, semi.no_of_fluid_systems) * n_moving_particles(system)
 
     return wrap_array(v_ode, range,
-                      (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+                      (StaticInt(v_nvariables(system, semi.no_of_fluid_systems)), n_moving_particles(system)))
 end
 
 @inline function wrap_u(u_ode, system, semi)
@@ -896,8 +901,10 @@ end
 function check_configuration(system::BoundarySPHSystem, systems, nhs)
     (; boundary_model) = system
     no_of_fluid_systems = count(system -> system isa FluidSystem, systems)
-    if no_of_fluid_systems > 1 && boundary_model isa BoundaryModelDummyParticles
-            throw(ArgumentError("The normal 'BoundaryModelDummyParticles' cannot be used with multiple fluid systems."))
+    if no_of_fluid_systems > 1 && boundary_model isa BoundaryModelDummyParticles && boundary_model.no_of_fluid_systems != no_of_fluid_systems
+            throw(ArgumentError("The no of fluid systems provided to the `BoundaryModelDummyParticles` " *
+                                "must match the number of fluid systems in the semidiscretization. " *
+                                "Currently, there are $no_of_fluid_systems fluid systems in the semidiscretization."))
     end
 end
 

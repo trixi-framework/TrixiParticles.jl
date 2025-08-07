@@ -204,7 +204,7 @@ timer_name(::ParticlePackingSystem) = "packing"
     return ELTYPE
 end
 
-@inline function v_nvariables(system::ParticlePackingSystem)
+@inline function v_nvariables(system::ParticlePackingSystem, no_of_fluid_systems)
     # Don't integrate fixed systems
     fixed_packing_system(system) && return 0
 

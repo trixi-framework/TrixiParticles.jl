@@ -259,8 +259,8 @@ end
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
 # For all other models and density calculators, it's irrelevant.
-@inline v_nvariables(system::BoundarySPHSystem) = 1
-@inline v_nvariables(system::BoundaryDEMSystem) = 0
+@inline v_nvariables(system::BoundarySPHSystem, no_of_fluid_systems) = max(1, no_of_fluid_systems)
+@inline v_nvariables(system::BoundaryDEMSystem, no_of_fluid_systems) = 0
 
 @inline function current_coordinates(u, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
     return system.coordinates
@@ -322,12 +322,12 @@ end
     return current_velocity(v, system, particle)
 end
 
-@inline function current_density(v, system::BoundarySPHSystem)
-    return current_density(v, system.boundary_model, system)
+@inline function current_density(v, system::BoundarySPHSystem, fluid_system_id)
+    return current_density(v, system.boundary_model, system, fluid_system_id)
 end
 
-@inline function current_pressure(v, system::BoundarySPHSystem)
-    return current_pressure(v, system.boundary_model, system)
+@inline function current_pressure(v, system::BoundarySPHSystem, fluid_system_id)
+    return current_pressure(v, system.boundary_model, system, fluid_system_id)
 end
 
 @inline function hydrodynamic_mass(system::BoundarySPHSystem, particle)
