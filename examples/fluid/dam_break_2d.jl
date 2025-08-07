@@ -89,12 +89,15 @@ viscosity_wall = nothing
 # For a no-slip condition the corresponding wall viscosity without SGS can be set
 # viscosity_wall = ViscosityAdami(nu=nu)
 # viscosity_wall = ViscosityMorris(nu=nu)
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
+boundary_model = BoundaryModelDummyParticles(;
+                                             volume=tank.boundary.mass./tank.boundary.density,
+                                             density_calculator = boundary_density_calculator,
+                                             smoothing_kernel,
+                                             smoothing_length,
                                              correction=nothing,
                                              reference_particle_spacing=0,
-                                             viscosity=viscosity_wall)
+                                             viscosity=viscosity_wall
+                                             )
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 
@@ -110,7 +113,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 
 solution_prefix = ""
-saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
+saving_callback = SolutionSavingCallback(dt=0.01, prefix=solution_prefix)
 
 # Save at certain timepoints which allows comparison to the results of Marrone et al.,
 # i.e. (1.5, 2.36, 3.0, 5.7, 6.45).

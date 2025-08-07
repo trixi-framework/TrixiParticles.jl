@@ -39,6 +39,7 @@ BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 """
 struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, K, V, COR, C}
     pressure           :: VECTOR # Vector{ELTYPE}
+    volume             :: VECTOR # Vector{ELTYPE}
     hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
     density_calculator :: DC
     smoothing_kernel   :: K
@@ -50,20 +51,21 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryModelDummyParticles(hydrodynamic_mass,
+function BoundaryModelDummyParticles(; volume,
                                      density_calculator, smoothing_kernel,
-                                     smoothing_length; viscosity=nothing,
+                                     smoothing_length, viscosity=nothing,
                                      correction=nothing,
                                      reference_particle_spacing=0.0)
     NDIMS = ndims(smoothing_kernel)
-    ELTYPE = eltype(smoothing_length)
-    n_particles = length(hydrodynamic_mass)
+    ELTYPE = eltype(volume)
+    n_particles = length(volume)
 
-    pressure = zero(hydrodynamic_mass)
+    pressure = zero(volume)
+    hydrodynamic_mass = zero(volume)
 
-    cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
-             create_cache_model(hydrodynamic_mass, density_calculator)...,
-             create_cache_model(correction, hydrodynamic_mass, NDIMS, n_particles)...)
+    cache = (;create_cache_model(viscosity, n_particles, NDIMS)...,
+             create_cache_model(volume, density_calculator)...,
+             create_cache_model(correction, volume, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -76,7 +78,7 @@ function BoundaryModelDummyParticles(hydrodynamic_mass,
                  neighbor_count=zeros(ELTYPE, n_particles))
     end
 
-    return BoundaryModelDummyParticles(pressure, hydrodynamic_mass,
+    return BoundaryModelDummyParticles(pressure, volume, hydrodynamic_mass,
                                        density_calculator, smoothing_kernel,
                                        smoothing_length, viscosity, correction, cache)
 end
@@ -259,7 +261,19 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-initial_density!(system, boundary_model, density_calculator, semi, v0_ode) = system
+function initial_density!(system, bm::BoundaryModelDummyParticles, density_calculator, semi, v0_ode)
+    # Find state equation
+    state_equation = nothing
+    foreach_system(semi) do neighbor_system
+        if neighbor_system isa WeaklyCompressibleSPHSystem
+            state_equation = neighbor_system.state_equation
+        end
+    end
+
+    bm.hydrodynamic_mass .= state_equation.reference_density * bm.volume
+
+    return system
+end
 
 function initial_density!(system, bm::BoundaryModelDummyParticles, density_calculator::ContinuityDensity, semi, v0_ode)
     v0_system = wrap_v(v0_ode, system, semi)
@@ -275,6 +289,7 @@ function initial_density!(system, bm::BoundaryModelDummyParticles, density_calcu
     for particle in eachparticle(system)
         v0_system[1, particle] = state_equation.reference_density
     end
+    bm.hydrodynamic_mass = state_equation.reference_density * bm.volume
 
     return system
 end
@@ -583,6 +598,8 @@ end
                     hydrostatic_pressure
 
     kernel_weight = smoothing_kernel(boundary_model, distance, particle)
+    # TODO: testing
+    # kernel_weight = smoothing_kernel(neighbor_system, distance, particle)
 
     @inbounds pressure[particle] += sum_pressures * kernel_weight
     @inbounds cache.volume[particle] += kernel_weight

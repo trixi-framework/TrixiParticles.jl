@@ -454,6 +454,8 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
         vtk["viscosity_model"] = type2string(model.viscosity)
     end
 
+    vtk["mass"] = model.hydrodynamic_mass
+    vtk["volume"] = model.volume
     vtk["hydrodynamic_density"] = current_density(v, system)
     vtk["pressure"] = model.pressure
 

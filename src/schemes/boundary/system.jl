@@ -331,7 +331,7 @@ end
 end
 
 @inline function hydrodynamic_mass(system::BoundarySPHSystem, particle)
-    return system.boundary_model.hydrodynamic_mass[particle]
+        return system.boundary_model.hydrodynamic_mass[particle]
 end
 
 @inline function smoothing_kernel(system::BoundarySPHSystem, distance, particle)
