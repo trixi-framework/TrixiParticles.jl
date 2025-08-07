@@ -499,7 +499,7 @@ end
 # When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
 
-function system_data(system::OpenBoundarySPHSystem, v_ode, u_ode, semi)
+function system_data(system::OpenBoundarySPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 

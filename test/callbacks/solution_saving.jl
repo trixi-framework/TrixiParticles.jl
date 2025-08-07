@@ -73,7 +73,8 @@
         quantity3() = 3
 
         system = Val(:mock_system)
-        TrixiParticles.system_data(::Val{:mock_system}, v_ode, u_ode, semi) = 1
+        TrixiParticles.system_data(::Val{:mock_system}, dv_ode, du_ode, v_ode, u_ode,
+                                   semi) = 1
 
         data = v_ode = u_ode = semi = t = nothing
 

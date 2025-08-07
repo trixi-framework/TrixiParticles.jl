@@ -455,12 +455,12 @@ function system_correction(system::BoundarySPHSystem{<:BoundaryModelDummyParticl
     return system.boundary_model.correction
 end
 
-function system_data(system::BoundarySPHSystem, v_ode, u_ode, semi)
+function system_data(system::BoundarySPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
     coordinates = current_coordinates(u, system)
-    velocity = current_velocity(v, system)
+    velocity = 0 # TODO this is broken
     density = current_density(v, system)
     pressure = current_pressure(v, system)
 
@@ -471,7 +471,7 @@ function available_data(::BoundarySPHSystem)
     return (:coordinates, :velocity, :density, :pressure)
 end
 
-function system_data(system::BoundaryDEMSystem, v_ode, u_ode, semi)
+function system_data(system::BoundaryDEMSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     (; coordinates, radius, normal_stiffness) = system
 
     return (; coordinates, radius, normal_stiffness)

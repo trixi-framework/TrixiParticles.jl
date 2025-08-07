@@ -3,7 +3,7 @@
 
 Returns the total kinetic energy of all particles in a system.
 """
-function kinetic_energy(system, v_ode, u_ode, semi, t)
+function kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
 
     # If `each_moving_particle` is empty (no moving particles), return zero
@@ -18,7 +18,7 @@ end
 
 Returns the total mass of all particles in a system.
 """
-function total_mass(system, v_ode, u_ode, semi, t)
+function total_mass(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return sum(eachparticle(system)) do particle
         return system.mass[particle]
     end
@@ -43,7 +43,7 @@ end
 
 Returns the maximum pressure over all particles in a system.
 """
-function max_pressure(system::FluidSystem, v_ode, u_ode, semi, t)
+function max_pressure(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
     return maximum(current_pressure(v, system))
 end
@@ -57,7 +57,7 @@ end
 
 Returns the minimum pressure over all particles in a system.
 """
-function min_pressure(system::FluidSystem, v_ode, u_ode, semi, t)
+function min_pressure(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
     return minimum(current_pressure(v, system))
 end
@@ -71,13 +71,13 @@ end
 
 Returns the average pressure over all particles in a system.
 """
-function avg_pressure(system::FluidSystem, v_ode, u_ode, semi, t)
+function avg_pressure(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
     sum_ = sum(current_pressure(v, system))
     return sum_ / nparticles(system)
 end
 
-function avg_pressure(system, v_ode, u_ode, semi, t)
+function avg_pressure(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return NaN
 end
 
@@ -86,12 +86,12 @@ end
 
 Returns the maximum density over all particles in a system.
 """
-function max_density(system::FluidSystem, v_ode, u_ode, semi, t)
+function max_density(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
     return maximum(current_density(v, system))
 end
 
-function max_density(system, v_ode, u_ode, semi, t)
+function max_density(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return NaN
 end
 
@@ -100,12 +100,12 @@ end
 
 Returns the minimum density over all particles in a system.
 """
-function min_density(system::FluidSystem, v_ode, u_ode, semi, t)
+function min_density(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
     return minimum(current_density(v, system))
 end
 
-function min_density(system, v_ode, u_ode, semi, t)
+function min_density(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return NaN
 end
 
@@ -114,7 +114,7 @@ end
 
 Returns the average_density over all particles in a system.
 """
-function avg_density(system::FluidSystem, v_ode, u_ode, semi, t)
+function avg_density(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
     sum_ = sum(current_density(v, system))
     return sum_ / nparticles(system)
@@ -122,4 +122,8 @@ end
 
 function avg_density(system, v_ode, u_ode, semi, t)
     return NaN
+end
+
+function acceleration(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return wrap_v(dv_ode, system, semi)
 end

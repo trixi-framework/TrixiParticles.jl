@@ -174,7 +174,7 @@ end
     return nothing
 end
 
-function system_data(system::FluidSystem, v_ode, u_ode, semi)
+function system_data(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     (; mass) = system
 
     v = wrap_v(v_ode, system, semi)
