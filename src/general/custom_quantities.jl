@@ -6,11 +6,19 @@ Returns the total kinetic energy of all particles in a system.
 function kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
 
-    # If `each_moving_particle` is empty (no moving particles), return zero
-    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
-        velocity = current_velocity(v, system, particle)
-        return 0.5 * system.mass[particle] * dot(velocity, velocity)
+    # TODO: `current_velocity` should only contain active particles
+    # (see https://github.com/trixi-framework/TrixiParticles.jl/issues/850)
+    velocity = reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                           view(current_velocity(v, system), :, active_particles(system)))
+    mass = view(system.mass, active_particles(system))
+
+    return mapreduce(+, velocity, mass) do v_i, m_i
+        return m_i * dot(v_i, v_i) / 2
     end
+end
+
+function kinetic_energy(system::BoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return zero(eltype(system))
 end
 
 """
@@ -19,12 +27,10 @@ end
 Returns the total mass of all particles in a system.
 """
 function total_mass(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
-    return sum(eachparticle(system)) do particle
-        return system.mass[particle]
-    end
+    return sum(system.mass)
 end
 
-function total_mass(system::BoundarySystem, v_ode, u_ode, semi, t)
+function total_mass(system::BoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     # It does not make sense to return a mass for boundary systems.
     # The material density and therefore the physical mass of the boundary is not relevant
     # when simulating a solid, stationary wall. The boundary always behaves as if it had
@@ -120,6 +126,6 @@ function avg_density(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return sum_ / nparticles(system)
 end
 
-function avg_density(system, v_ode, u_ode, semi, t)
+function avg_density(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return NaN
 end

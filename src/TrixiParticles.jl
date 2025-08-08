@@ -57,8 +57,8 @@ include("callbacks/callbacks.jl")
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("io/io.jl")
-include("visualization/recipes_plots.jl")
 include("preprocessing/preprocessing.jl")
+include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
