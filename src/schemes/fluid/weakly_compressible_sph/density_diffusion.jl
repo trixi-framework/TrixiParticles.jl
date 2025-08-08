@@ -186,7 +186,7 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         # Only consider particles with a distance > 0
-        distance < sqrt(eps(typeof(distance))) && return
+        distance < sqrt_eps(typeof(distance)) && return
 
         rho_a = current_density(v, system, particle)
         rho_b = current_density(v, system, neighbor)
@@ -212,7 +212,7 @@ end
                                                 pos_diff, distance, m_b, rho_a, rho_b,
                                                 particle_system::FluidSystem, grad_kernel)
     # Density diffusion terms are all zero for distance zero
-    distance < sqrt(eps(typeof(distance))) && return
+    distance < sqrt_eps(typeof(distance)) && return
 
     (; delta) = density_diffusion
     (; state_equation) = particle_system
