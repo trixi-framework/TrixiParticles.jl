@@ -5,7 +5,7 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
-    (; density_calculator, state_equation, correction) = particle_system
+    (; density_calculator, state_equation, correction, particle_shifting) = particle_system
     (; sound_speed) = state_equation
 
     surface_tension_a = surface_tension_model(particle_system)
@@ -84,11 +84,16 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)
 
+        dv_shifting = dv_particle_shifting(particle_shifting,
+                                           particle_system, neighbor_system,
+                                           v_particle_system, v_neighbor_system, particle,
+                                           neighbor, m_b, rho_b, grad_kernel)
+
         for i in 1:ndims(particle_system)
             @inbounds dv[i,
                          particle] += dv_pressure[i] + dv_viscosity_[i] +
                                       dv_convection[i] + dv_surface_tension[i] +
-                                      dv_adhesion[i]
+                                      dv_adhesion[i] + dv_shifting[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
@@ -130,12 +135,17 @@ end
                                                   m_b, rho_a, rho_b,
                                                   particle_system::WeaklyCompressibleSPHSystem,
                                                   neighbor_system, grad_kernel)
-    (; density_diffusion) = particle_system
+    (; density_diffusion, particle_shifting) = particle_system
 
-    vdiff = current_velocity(v_particle_system, particle_system, particle) -
-            current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_a = current_velocity(v_particle_system, particle_system, particle)
+    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    vdiff = v_a - v_b
 
     dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+
+    shifting_continuity_equation!(dv, particle_shifting, v_a, v_b, m_b, rho_a, rho_b,
+                                  particle_system, neighbor_system, particle, neighbor,
+                                  grad_kernel)
 
     # Artificial density diffusion should only be applied to system(s) representing a fluid
     # with the same physical properties i.e. density and viscosity.
@@ -145,6 +155,25 @@ end
                            pos_diff, distance, m_b, rho_a, rho_b, particle_system,
                            grad_kernel)
     end
+end
+
+@propagate_inbounds function continuity_equation!(dv, density_calculator::ContinuityDensity,
+                                                  v_particle_system, v_neighbor_system,
+                                                  particle, neighbor, pos_diff, distance,
+                                                  m_b, rho_a, rho_b,
+                                                  particle_system::WeaklyCompressibleSPHSystem,
+                                                  neighbor_system::BoundarySystem, grad_kernel)
+    (; density_diffusion, particle_shifting) = particle_system
+
+    v_a = current_velocity(v_particle_system, particle_system, particle)
+    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    vdiff = v_a - v_b
+
+    dv[end, particle] += m_b * dot(vdiff, grad_kernel)
+
+    shifting_continuity_equation!(dv, particle_shifting, v_a, v_b, m_b, rho_a, rho_b,
+                                  particle_system, neighbor_system, particle, neighbor,
+                                  grad_kernel)
 end
 
 @propagate_inbounds function particle_neighbor_pressure(v_particle_system,
