@@ -1,7 +1,7 @@
 @testset verbose=true "`vtk2trixi`" begin
     mktempdir() do tmp_dir
-        coordinates=fill(1.0, 2, 12)
-        velocity=fill(2.0, 2, 12)
+        coordinates = fill(1.0, 2, 12)
+        velocity = fill(2.0, 2, 12)
 
         expected_ic = InitialCondition(; coordinates=coordinates, velocity=velocity,
                                        density=1000.0, pressure=900.0, mass=50.0)
@@ -29,15 +29,17 @@
             semi = Semidiscretization(fluid_system)
 
             # Create random ODE solutions
+            dvdu_ode = nothing
             v = fill(2.0, ndims(fluid_system), nparticles(fluid_system))
             pressure = fill(3.0, nparticles(fluid_system))
             v_ode = vec([v; pressure'])
-
             u = fill(1.0, ndims(fluid_system), nparticles(fluid_system))
             u_ode = vec(u)
+            x = (; v_ode, u_ode)
+            vu_ode = (; x)
 
             # Write out `FluidSystem` Simulation-File
-            trixi2vtk(fluid_system, v_ode, u_ode, semi, 0.0,
+            trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.0,
                       nothing; system_name="tmp_file_fluid", output_directory=tmp_dir,
                       iter=1)
 
@@ -65,11 +67,14 @@
             semi = Semidiscretization(boundary_system)
 
             # Create dummy ODE solutions
+            dvdu_ode = nothing
             v_ode = zeros(ndims(boundary_system) * nparticles(boundary_system))
             u_ode = zeros(ndims(boundary_system) * nparticles(boundary_system))
+            x = (; v_ode, u_ode)
+            vu_ode = (; x)
 
             # Write out `BoundarySystem` Simulation-File
-            trixi2vtk(boundary_system, v_ode, u_ode, semi, 0.0,
+            trixi2vtk(boundary_system, dvdu_ode, vu_ode, semi, 0.0,
                       nothing; system_name="tmp_file_boundary", output_directory=tmp_dir,
                       iter=1)
 

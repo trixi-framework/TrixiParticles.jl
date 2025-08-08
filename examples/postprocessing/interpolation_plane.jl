@@ -107,7 +107,7 @@ combined_plot = Plots.plot(plot1, plot2, plot3, plot_3d, layout=(2, 2),
 # Note that the arguments `system, v_ode, u_ode, semi, t` are more powerful than the
 # documented arguments `system, data, t`, allowing us to use interpolation (which requires
 # a semidiscretization).
-function save_interpolated_plane(system, v_ode, u_ode, semi, t)
+function save_interpolated_plane(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     # Size of the patch to be interpolated
     interpolation_start = [0.0, 0.0]
     interpolation_end = [tank_size[1], tank_size[2]]
