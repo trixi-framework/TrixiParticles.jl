@@ -195,6 +195,7 @@ end
 include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("transport_velocity.jl")
+include("particle_shifting.jl")
 include("surface_tension.jl")
 include("surface_normal_sph.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
