@@ -73,7 +73,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="", dv=TrixiParticles.acceleration)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 # This is to easily add a new callback with `trixi_include`
 extra_callback = nothing

@@ -123,7 +123,3 @@ end
 function avg_density(system, v_ode, u_ode, semi, t)
     return NaN
 end
-
-function acceleration(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
-    return wrap_v(dv_ode, system, semi)
-end

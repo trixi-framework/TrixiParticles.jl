@@ -456,19 +456,20 @@ function system_correction(system::BoundarySPHSystem{<:BoundaryModelDummyParticl
 end
 
 function system_data(system::BoundarySPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
+    dv = [current_acceleration(system, particle) for particle in eachparticle(system)]
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
     coordinates = current_coordinates(u, system)
-    velocity = 0 # TODO this is broken
+    velocity = [current_velocity(v, system, particle) for particle in eachparticle(system)]
     density = current_density(v, system)
     pressure = current_pressure(v, system)
 
-    return (; coordinates, velocity, density, pressure)
+    return (; coordinates, velocity, density, pressure, acceleration=dv)
 end
 
 function available_data(::BoundarySPHSystem)
-    return (:coordinates, :velocity, :density, :pressure)
+    return (:coordinates, :velocity, :density, :pressure, :acceleration)
 end
 
 function system_data(system::BoundaryDEMSystem, dv_ode, du_ode, v_ode, u_ode, semi)
