@@ -29,7 +29,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
-        rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+        if neighbor_system isa BoundarySPHSystem{<:BoundaryModelDummyParticles}
+            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor, particle_system.id)
+        else
+            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+        end
         rho_mean = (rho_a + rho_b) / 2
 
         # Determine correction factors.
@@ -152,7 +156,12 @@ end
                                                         particle_system, neighbor_system,
                                                         particle, neighbor)
     p_a = current_pressure(v_particle_system, particle_system, particle)
-    p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+    if neighbor_system isa BoundarySPHSystem{<:BoundaryModelDummyParticles}
+        fluid_system_id = particle_system.id
+        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor, fluid_system_id)
+    else
+        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+    end
 
     return p_a, p_b
 end
