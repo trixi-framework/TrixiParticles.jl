@@ -139,12 +139,16 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
         end
 
         # Extract custom quantities for this system
-        # TODO: Check if any custom quantities and then adapt from gpu
-        dv_ode, du_ode = dvdu_ode_.x
-        for (key, quantity) in custom_quantities
-            value = custom_quantity(quantity, system, dv_ode, du_ode, v_ode, u_ode, semi, t)
-            if value !== nothing
-                vtk[string(key)] = value
+        if !isempty(custom_quantities)
+            dv_ode, du_ode = dvdu_ode_.x
+            dv_ode, du_ode = transfer2cpu(dv_ode, du_ode)
+
+            for (key, quantity) in custom_quantities
+                value = custom_quantity(quantity, system, dv_ode, du_ode, v_ode, u_ode,
+                                        semi, t)
+                if value !== nothing
+                    vtk[string(key)] = value
+                end
             end
         end
 
@@ -155,17 +159,28 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
 end
 
 function transfer2cpu(v_::AbstractGPUArray, u_, system_, semi_)
-    v = Adapt.adapt(Array, v_)
-    u = Adapt.adapt(Array, u_)
     semi = Adapt.adapt(Array, semi_)
     system_index = system_indices(system_, semi_)
     system = semi.systems[system_index]
+
+    v, u = transfer2cpu(v_, u_)
 
     return v, u, system, semi
 end
 
 function transfer2cpu(v_, u_, system_, semi_)
     return v_, u_, system_, semi_
+end
+
+function transfer2cpu(v_::AbstractGPUArray, u_)
+    v = Adapt.adapt(Array, v_)
+    u = Adapt.adapt(Array, u_)
+
+    return v, u
+end
+
+function transfer2cpu(v_, u_)
+    return v_, u_
 end
 
 function custom_quantity(quantity::AbstractArray, system, dv_ode, du_ode, v_ode, u_ode,
