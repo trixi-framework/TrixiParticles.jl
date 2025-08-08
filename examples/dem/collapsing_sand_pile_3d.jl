@@ -55,7 +55,8 @@ min_coords_floor = (min_boundary[1] - boundary_thickness,
 floor_particles = RectangularShape(particle_spacing,
                                    (n_particles_floor_x, n_particles_floor_y,
                                     n_particles_floor_z),
-                                   min_coords_floor; density=boundary_density, tlsph=true)
+                                   min_coords_floor; density=boundary_density,
+                                   place_on_shell=true)
 boundary_particles = floor_particles
 
 # ==========================================================================================
