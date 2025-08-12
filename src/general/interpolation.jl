@@ -51,35 +51,43 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 (computed_density = ...)
 ```
 """
-function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
-                              sol::ODESolution;
-                              smoothing_length=initial_smoothing_length(ref_system),
-                              cut_off_bnd=true, clip_negative_pressure=false)
+function interpolate_plane_2d(
+        min_corner, max_corner, resolution, semi, ref_system,
+        sol::ODESolution;
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false
+    )
     # Filter out particles without neighbors
     filter_no_neighbors = true
     v_ode, u_ode = sol.u[end].x
 
     results, _,
-    _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                             semi, ref_system, v_ode, u_ode,
-                             filter_no_neighbors, smoothing_length, cut_off_bnd,
-                             clip_negative_pressure)
+        _ = interpolate_plane_2d(
+        min_corner, max_corner, resolution,
+        semi, ref_system, v_ode, u_ode,
+        filter_no_neighbors, smoothing_length, cut_off_bnd,
+        clip_negative_pressure
+    )
 
     return results
 end
 
-function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
-                              v_ode, u_ode;
-                              smoothing_length=initial_smoothing_length(ref_system),
-                              cut_off_bnd=true, clip_negative_pressure=false)
+function interpolate_plane_2d(
+        min_corner, max_corner, resolution, semi, ref_system,
+        v_ode, u_ode;
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false
+    )
     # Filter out particles without neighbors
     filter_no_neighbors = true
 
     results, _,
-    _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                             semi, ref_system, v_ode, u_ode,
-                             filter_no_neighbors, smoothing_length, cut_off_bnd,
-                             clip_negative_pressure)
+        _ = interpolate_plane_2d(
+        min_corner, max_corner, resolution,
+        semi, ref_system, v_ode, u_ode,
+        filter_no_neighbors, smoothing_length, cut_off_bnd,
+        clip_negative_pressure
+    )
 
     return results
 end
@@ -132,50 +140,64 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
 results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
 ```
 """
-function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
-                                  sol::ODESolution; clip_negative_pressure=false,
-                                  smoothing_length=initial_smoothing_length(ref_system),
-                                  cut_off_bnd=true,
-                                  output_directory="out", filename="plane")
+function interpolate_plane_2d_vtk(
+        min_corner, max_corner, resolution, semi, ref_system,
+        sol::ODESolution; clip_negative_pressure = false,
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true,
+        output_directory = "out", filename = "plane"
+    )
     v_ode, u_ode = sol.u[end].x
 
-    interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
-                             v_ode, u_ode; clip_negative_pressure,
-                             smoothing_length, cut_off_bnd, output_directory, filename)
+    return interpolate_plane_2d_vtk(
+        min_corner, max_corner, resolution, semi, ref_system,
+        v_ode, u_ode; clip_negative_pressure,
+        smoothing_length, cut_off_bnd, output_directory, filename
+    )
 end
 
-function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
-                                  v_ode, u_ode;
-                                  smoothing_length=initial_smoothing_length(ref_system),
-                                  cut_off_bnd=true, clip_negative_pressure=false,
-                                  output_directory="out", filename="plane")
+function interpolate_plane_2d_vtk(
+        min_corner, max_corner, resolution, semi, ref_system,
+        v_ode, u_ode;
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false,
+        output_directory = "out", filename = "plane"
+    )
     # Don't filter out particles without neighbors to keep 2D grid structure
     filter_no_neighbors = false
     @trixi_timeit timer() "interpolate plane" begin
         results, x_range,
-        y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                       semi, ref_system, v_ode, u_ode,
-                                       filter_no_neighbors,
-                                       smoothing_length, cut_off_bnd,
-                                       clip_negative_pressure)
+            y_range = interpolate_plane_2d(
+            min_corner, max_corner, resolution,
+            semi, ref_system, v_ode, u_ode,
+            filter_no_neighbors,
+            smoothing_length, cut_off_bnd,
+            clip_negative_pressure
+        )
     end
 
     density = reshape(results.density, length(x_range), length(y_range))
-    velocity = reshape(results.velocity, ndims(ref_system), length(x_range),
-                       length(y_range))
+    velocity = reshape(
+        results.velocity, ndims(ref_system), length(x_range),
+        length(y_range)
+    )
     pressure = reshape(results.pressure, length(x_range), length(y_range))
 
-    @trixi_timeit timer() "write to vtk" vtk_grid(joinpath(output_directory, filename),
-                                                  x_range, y_range) do vtk
+    return @trixi_timeit timer() "write to vtk" vtk_grid(
+        joinpath(output_directory, filename),
+        x_range, y_range
+    ) do vtk
         vtk["density"] = density
         vtk["velocity"] = velocity
         vtk["pressure"] = pressure
     end
 end
 
-function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
-                              v_ode, u_ode, filter_no_neighbors, smoothing_length,
-                              cut_off_bnd, clip_negative_pressure)
+function interpolate_plane_2d(
+        min_corner, max_corner, resolution, semi, ref_system,
+        v_ode, u_ode, filter_no_neighbors, smoothing_length,
+        cut_off_bnd, clip_negative_pressure
+    )
     dims = length(min_corner)
     if dims != 2 || length(max_corner) != 2
         throw(ArgumentError("function is intended for 2D coordinates only"))
@@ -186,19 +208,27 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     end
 
     # Calculate the number of points in each dimension based on the resolution
-    n_points_per_dimension = Tuple(ceil.(Int,
-                                         (max_corner .- min_corner) ./ resolution) .+ 1)
-    x_range = range(min_corner[1], max_corner[1], length=n_points_per_dimension[1])
-    y_range = range(min_corner[2], max_corner[2], length=n_points_per_dimension[2])
+    n_points_per_dimension = Tuple(
+        ceil.(
+            Int,
+            (max_corner .- min_corner) ./ resolution
+        ) .+ 1
+    )
+    x_range = range(min_corner[1], max_corner[1], length = n_points_per_dimension[1])
+    y_range = range(min_corner[2], max_corner[2], length = n_points_per_dimension[2])
 
     # Generate points within the plane. Use `tlsph=true` to generate points on the boundary
-    point_coords = rectangular_shape_coords(resolution, n_points_per_dimension, min_corner,
-                                            tlsph=true)
+    point_coords = rectangular_shape_coords(
+        resolution, n_points_per_dimension, min_corner,
+        tlsph = true
+    )
 
-    results = interpolate_points(point_coords, semi, ref_system, v_ode, u_ode,
-                                 smoothing_length=smoothing_length,
-                                 cut_off_bnd=cut_off_bnd,
-                                 clip_negative_pressure=clip_negative_pressure)
+    results = interpolate_points(
+        point_coords, semi, ref_system, v_ode, u_ode,
+        smoothing_length = smoothing_length,
+        cut_off_bnd = cut_off_bnd,
+        clip_negative_pressure = clip_negative_pressure
+    )
 
     if filter_no_neighbors
         # Find indices where neighbor_count > 0
@@ -270,37 +300,45 @@ results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]
 (computed_density = ...)
 ```
 """
-function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
-                              sol::ODESolution;
-                              smoothing_length=initial_smoothing_length(ref_system),
-                              cut_off_bnd=true, clip_negative_pressure=false)
+function interpolate_plane_3d(
+        point1, point2, point3, resolution, semi, ref_system,
+        sol::ODESolution;
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false
+    )
     v_ode, u_ode = sol.u[end].x
 
-    interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
-                         v_ode, u_ode; smoothing_length, cut_off_bnd,
-                         clip_negative_pressure)
+    return interpolate_plane_3d(
+        point1, point2, point3, resolution, semi, ref_system,
+        v_ode, u_ode; smoothing_length, cut_off_bnd,
+        clip_negative_pressure
+    )
 end
 
-function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
-                              v_ode, u_ode;
-                              smoothing_length=initial_smoothing_length(ref_system),
-                              cut_off_bnd=true, clip_negative_pressure=false)
+function interpolate_plane_3d(
+        point1, point2, point3, resolution, semi, ref_system,
+        v_ode, u_ode;
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false
+    )
     if ndims(ref_system) != 3
         throw(ArgumentError("`interpolate_plane_3d` requires a 3D simulation"))
     end
 
     points_coords, resolution_ = sample_plane((point1, point2, point3), resolution)
 
-    if !isapprox(resolution, resolution_, rtol=5e-2)
+    if !isapprox(resolution, resolution_, rtol = 5.0e-2)
         @info "The desired plane size is not a multiple of the resolution $resolution." *
-              "\nNew resolution is set to $resolution_."
+            "\nNew resolution is set to $resolution_."
     end
 
     # Interpolate using the generated points
-    results = interpolate_points(points_coords, semi, ref_system, v_ode, u_ode,
-                                 smoothing_length=smoothing_length,
-                                 cut_off_bnd=cut_off_bnd,
-                                 clip_negative_pressure=clip_negative_pressure)
+    results = interpolate_points(
+        points_coords, semi, ref_system, v_ode, u_ode,
+        smoothing_length = smoothing_length,
+        cut_off_bnd = cut_off_bnd,
+        clip_negative_pressure = clip_negative_pressure
+    )
 
     # Filter results
     indices = findall(x -> x > 0, results.neighbor_count)
@@ -368,23 +406,29 @@ results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 (computed_density = ...)
 ```
 """
-function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolution;
-                          endpoint=true,
-                          smoothing_length=initial_smoothing_length(ref_system),
-                          cut_off_bnd=true, clip_negative_pressure=false)
+function interpolate_line(
+        start, end_, n_points, semi, ref_system, sol::ODESolution;
+        endpoint = true,
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false
+    )
     v_ode, u_ode = sol.u[end].x
 
-    interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
-                     endpoint, smoothing_length, cut_off_bnd, clip_negative_pressure)
+    return interpolate_line(
+        start, end_, n_points, semi, ref_system, v_ode, u_ode;
+        endpoint, smoothing_length, cut_off_bnd, clip_negative_pressure
+    )
 end
 
-function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
-                          endpoint=true,
-                          smoothing_length=initial_smoothing_length(ref_system),
-                          cut_off_bnd=true, clip_negative_pressure=false)
+function interpolate_line(
+        start, end_, n_points, semi, ref_system, v_ode, u_ode;
+        endpoint = true,
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false
+    )
     start_svector = SVector{ndims(ref_system)}(start)
     end_svector = SVector{ndims(ref_system)}(end_)
-    points_coords = range(start_svector, end_svector, length=n_points)
+    points_coords = range(start_svector, end_svector, length = n_points)
 
     if !endpoint
         points_coords = points_coords[2:(end - 1)]
@@ -393,9 +437,11 @@ function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
     # Convert to coordinate matrix
     points_coords_ = collect(reinterpret(reshape, eltype(start_svector), points_coords))
 
-    return interpolate_points(points_coords_, semi, ref_system, v_ode, u_ode;
-                              smoothing_length=smoothing_length,
-                              cut_off_bnd=cut_off_bnd, clip_negative_pressure)
+    return interpolate_points(
+        points_coords_, semi, ref_system, v_ode, u_ode;
+        smoothing_length = smoothing_length,
+        cut_off_bnd = cut_off_bnd, clip_negative_pressure
+    )
 end
 
 @doc raw"""
@@ -450,34 +496,50 @@ results = interpolate_points(points, semi, ref_system, sol)
     - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
     accurate as a real surface reconstruction.
 """
-@inline function interpolate_points(point_coords, semi, ref_system, sol::ODESolution;
-                                    smoothing_length=initial_smoothing_length(ref_system),
-                                    cut_off_bnd=true, clip_negative_pressure=false)
+@inline function interpolate_points(
+        point_coords, semi, ref_system, sol::ODESolution;
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false
+    )
     v_ode, u_ode = sol.u[end].x
 
-    interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
-                       smoothing_length, cut_off_bnd, clip_negative_pressure)
+    return interpolate_points(
+        point_coords, semi, ref_system, v_ode, u_ode;
+        smoothing_length, cut_off_bnd, clip_negative_pressure
+    )
 end
 
 # Create neighborhood searches and then interpolate points
-function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
-                            smoothing_length=initial_smoothing_length(ref_system),
-                            cut_off_bnd=true, clip_negative_pressure=false)
-    neighborhood_searches = process_neighborhood_searches(semi, u_ode, ref_system,
-                                                          smoothing_length, point_coords)
+function interpolate_points(
+        point_coords, semi, ref_system, v_ode, u_ode;
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false
+    )
+    neighborhood_searches = process_neighborhood_searches(
+        semi, u_ode, ref_system,
+        smoothing_length, point_coords
+    )
 
-    return interpolate_points(point_coords, semi, ref_system,
-                              v_ode, u_ode, neighborhood_searches;
-                              smoothing_length, cut_off_bnd, clip_negative_pressure)
+    return interpolate_points(
+        point_coords, semi, ref_system,
+        v_ode, u_ode, neighborhood_searches;
+        smoothing_length, cut_off_bnd, clip_negative_pressure
+    )
 end
 
-function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length,
-                                       point_coords)
+function process_neighborhood_searches(
+        semi, u_ode, ref_system, smoothing_length,
+        point_coords
+    )
     if isapprox(smoothing_length, initial_smoothing_length(ref_system))
         # Check if the neighborhood searches can be used with different points
         # than it was initialized with.
-        f(system) = PointNeighbors.requires_update(get_neighborhood_search(ref_system,
-                                                                           system, semi))[1]
+        f(system) = PointNeighbors.requires_update(
+            get_neighborhood_search(
+                ref_system,
+                system, semi
+            )
+        )[1]
         if !any(f, semi.systems)
             # We can use the existing neighborhood searches.
             # Update existing NHS with the current coordinates.
@@ -493,8 +555,10 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
         u = wrap_u(u_ode, system, semi)
         system_coords = current_coordinates(u, system)
         old_nhs = get_neighborhood_search(ref_system, system, semi)
-        nhs = PointNeighbors.copy_neighborhood_search(old_nhs, search_radius,
-                                                      nparticles(system))
+        nhs = PointNeighbors.copy_neighborhood_search(
+            old_nhs, search_radius,
+            nparticles(system)
+        )
         PointNeighbors.initialize!(nhs, point_coords, system_coords)
 
         return nhs
@@ -504,10 +568,12 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
 end
 
 # Interpolate points with given neighborhood searches
-@inline function interpolate_points(point_coords_, semi, ref_system, v_ode, u_ode,
-                                    neighborhood_searches;
-                                    smoothing_length=initial_smoothing_length(ref_system),
-                                    cut_off_bnd=true, clip_negative_pressure=false)
+@inline function interpolate_points(
+        point_coords_, semi, ref_system, v_ode, u_ode,
+        neighborhood_searches;
+        smoothing_length = initial_smoothing_length(ref_system),
+        cut_off_bnd = true, clip_negative_pressure = false
+    )
     (; parallelization_backend) = semi
 
     if semi.parallelization_backend isa KernelAbstractions.Backend
@@ -545,9 +611,11 @@ end
 
         neighbor_coords = current_coordinates(u, neighbor_system)
 
-        foreach_point_neighbor(point_coords, neighbor_coords, nhs;
-                               parallelization_backend) do point, neighbor, pos_diff,
-                                                           distance
+        foreach_point_neighbor(
+            point_coords, neighbor_coords, nhs;
+            parallelization_backend
+        ) do point, neighbor, pos_diff,
+                distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume_b = m_b / current_density(v, neighbor_system, neighbor)
             W_ab = kernel(ref_smoothing_kernel, distance, smoothing_length)
@@ -559,8 +627,10 @@ end
                 # According to:
                 # u(r_a) = (∑_b u(r_b) ⋅ V_b ⋅ W(r_a-r_b)) / (∑_b V_b ⋅ W(r_a-r_b)),
                 # where V_b = m_b / ρ_b.
-                interpolate_system!(cache, v, neighbor_system,
-                                    point, neighbor, volume_b, W_ab, clip_negative_pressure)
+                interpolate_system!(
+                    cache, v, neighbor_system,
+                    point, neighbor, volume_b, W_ab, clip_negative_pressure
+                )
             else
                 other_density[point] += m_b * W_ab
             end
@@ -571,7 +641,7 @@ end
 
     @threaded parallelization_backend for point in axes(point_coords, 2)
         if other_density[point] > computed_density[point] ||
-           computed_density[point] < eps()
+                computed_density[point] < eps()
             # Return NaN values that can be filtered out in ParaView
             computed_density[point] = NaN
             neighbor_count[point] = 0
@@ -589,15 +659,19 @@ end
         end
     end
 
-    return (; computed_density=computed_density, point_coords=point_coords,
-            neighbor_count=neighbor_count, cache...)
+    return (;
+        computed_density = computed_density, point_coords = point_coords,
+        neighbor_count = neighbor_count, cache...,
+    )
 end
 
 @inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)
     (; parallelization_backend) = semi
 
-    velocity = allocate(parallelization_backend, eltype(ref_system),
-                        (ndims(ref_system), n_points))
+    velocity = allocate(
+        parallelization_backend, eltype(ref_system),
+        (ndims(ref_system), n_points)
+    )
     pressure = allocate(parallelization_backend, eltype(ref_system), n_points)
     density = allocate(parallelization_backend, eltype(ref_system), n_points)
 
@@ -611,12 +685,16 @@ end
 @inline function create_cache_interpolation(ref_system::SolidSystem, n_points, semi)
     (; parallelization_backend) = semi
 
-    velocity = allocate(parallelization_backend, eltype(ref_system),
-                        (ndims(ref_system), n_points))
+    velocity = allocate(
+        parallelization_backend, eltype(ref_system),
+        (ndims(ref_system), n_points)
+    )
     jacobian = allocate(parallelization_backend, eltype(ref_system), n_points)
     von_mises_stress = allocate(parallelization_backend, eltype(ref_system), n_points)
-    cauchy_stress = allocate(parallelization_backend, eltype(ref_system),
-                             (ndims(ref_system), ndims(ref_system), n_points))
+    cauchy_stress = allocate(
+        parallelization_backend, eltype(ref_system),
+        (ndims(ref_system), ndims(ref_system), n_points)
+    )
 
     set_zero!(velocity)
     set_zero!(jacobian)
@@ -626,9 +704,11 @@ end
     return (; velocity, jacobian, von_mises_stress, cauchy_stress)
 end
 
-@inline function interpolate_system!(cache, v, system::FluidSystem,
-                                     point, neighbor, volume_b, W_ab,
-                                     clip_negative_pressure)
+@inline function interpolate_system!(
+        cache, v, system::FluidSystem,
+        point, neighbor, volume_b, W_ab,
+        clip_negative_pressure
+    )
     velocity = current_velocity(v, system, neighbor)
     for i in axes(cache.velocity, 1)
         cache.velocity[i, point] += velocity[i] * volume_b * W_ab
@@ -646,9 +726,11 @@ end
     return cache
 end
 
-@inline function interpolate_system!(cache, v, system::SolidSystem,
-                                     point, neighbor, volume_b, W_ab,
-                                     clip_negative_pressure)
+@inline function interpolate_system!(
+        cache, v, system::SolidSystem,
+        point, neighbor, volume_b, W_ab,
+        clip_negative_pressure
+    )
     velocity = current_velocity(v, system, neighbor)
     for i in axes(cache.velocity, 1)
         cache.velocity[i, point] += velocity[i] * volume_b * W_ab
@@ -701,8 +783,10 @@ function divide_by_shepard_coefficient!(field::AbstractMatrix, shepard_coefficie
     return field
 end
 
-function divide_by_shepard_coefficient!(field::AbstractArray{T, 3}, shepard_coefficient,
-                                        point) where {T}
+function divide_by_shepard_coefficient!(
+        field::AbstractArray{T, 3}, shepard_coefficient,
+        point
+    ) where {T}
     for j in axes(field, 2), i in axes(field, 1)
         field[i, j, point] /= shepard_coefficient[point]
     end

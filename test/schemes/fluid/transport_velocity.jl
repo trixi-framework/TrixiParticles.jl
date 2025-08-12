@@ -7,9 +7,11 @@
 
     v0_tvf = zeros(5, nparticles(fluid))
 
-    system_tvf = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                             transport_velocity=TransportVelocityAdami(0.0),
-                                             smoothing_length, 0.0)
+    system_tvf = EntropicallyDampedSPHSystem(
+        fluid, smoothing_kernel,
+        transport_velocity = TransportVelocityAdami(0.0),
+        smoothing_length, 0.0
+    )
     system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length, 0.0)
 
     @testset "Number of Variables" begin

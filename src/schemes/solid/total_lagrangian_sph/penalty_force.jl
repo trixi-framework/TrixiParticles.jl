@@ -9,18 +9,20 @@ Penalty force to ensure regular particle positions under large deformations.
 """
 struct PenaltyForceGanzenmueller{ELTYPE}
     alpha::ELTYPE
-    function PenaltyForceGanzenmueller(; alpha=0.1)
-        new{typeof(alpha)}(alpha)
+    function PenaltyForceGanzenmueller(; alpha = 0.1)
+        return new{typeof(alpha)}(alpha)
     end
 end
 
-@inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, system, m_a, m_b, rho_a, rho_b,
-                                     penalty_force::PenaltyForceGanzenmueller)
+@inline function calc_penalty_force!(
+        dv, particle, neighbor, initial_pos_diff,
+        initial_distance, system, m_a, m_b, rho_a, rho_b,
+        penalty_force::PenaltyForceGanzenmueller
+    )
     (; young_modulus) = system
 
     current_pos_diff = current_coords(system, particle) -
-                       current_coords(system, neighbor)
+        current_coords(system, neighbor)
     current_distance = norm(current_pos_diff)
 
     volume_particle = m_a / rho_a

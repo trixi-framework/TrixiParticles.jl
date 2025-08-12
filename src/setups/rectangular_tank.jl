@@ -82,25 +82,27 @@ RectangularTank{3, 6, Float64}(...) *the rest of this line is ignored by filter*
 See also: [`reset_wall!`](@ref).
 """
 struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
-    fluid                     :: InitialCondition{ELTYPE}
-    boundary                  :: InitialCondition{ELTYPE}
-    fluid_size                :: NTuple{NDIMS, ELTYPE}
-    tank_size                 :: NTuple{NDIMS, ELTYPE}
-    faces_                    :: NTuple{NDIMSt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
-    face_indices              :: NTuple{NDIMSt2, Array{Int, 2}} # see `reset_wall!`
-    particle_spacing          :: ELTYPE
-    spacing_ratio             :: ELTYPE
-    n_layers                  :: Int
-    n_particles_per_dimension :: NTuple{NDIMS, Int}
+    fluid::InitialCondition{ELTYPE}
+    boundary::InitialCondition{ELTYPE}
+    fluid_size::NTuple{NDIMS, ELTYPE}
+    tank_size::NTuple{NDIMS, ELTYPE}
+    faces_::NTuple{NDIMSt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
+    face_indices::NTuple{NDIMSt2, Array{Int, 2}} # see `reset_wall!`
+    particle_spacing::ELTYPE
+    spacing_ratio::ELTYPE
+    n_layers::Int
+    n_particles_per_dimension::NTuple{NDIMS, Int}
 
-    function RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
-                             velocity=zeros(length(fluid_size)), fluid_mass=nothing,
-                             pressure=0,
-                             acceleration=nothing, state_equation=nothing,
-                             boundary_density=fluid_density,
-                             n_layers=1, spacing_ratio=1,
-                             min_coordinates=zeros(length(fluid_size)),
-                             faces=Tuple(trues(2 * length(fluid_size))))
+    function RectangularTank(
+            particle_spacing, fluid_size, tank_size, fluid_density;
+            velocity = zeros(length(fluid_size)), fluid_mass = nothing,
+            pressure = 0,
+            acceleration = nothing, state_equation = nothing,
+            boundary_density = fluid_density,
+            n_layers = 1, spacing_ratio = 1,
+            min_coordinates = zeros(length(fluid_size)),
+            faces = Tuple(trues(2 * length(fluid_size)))
+        )
         NDIMS = length(fluid_size)
         ELTYPE = eltype(particle_spacing)
         fluid_size_ = Tuple(ELTYPE.(fluid_size))
@@ -120,7 +122,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         # Fluid particle data
         n_particles_per_dim,
-        fluid_size_ = fluid_particles_per_dimension(fluid_size_, particle_spacing)
+            fluid_size_ = fluid_particles_per_dimension(fluid_size_, particle_spacing)
 
         # If sizes were equal before rounding, make sure they're equal after rounding as well
         for dim in 1:NDIMS
@@ -131,30 +133,38 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         # Boundary particle data
         n_boundaries_per_dim,
-        tank_size_ = boundary_particles_per_dimension(tank_size_, particle_spacing,
-                                                      spacing_ratio)
+            tank_size_ = boundary_particles_per_dimension(
+            tank_size_, particle_spacing,
+            spacing_ratio
+        )
 
         boundary_spacing = particle_spacing / spacing_ratio
         boundary_coordinates,
-        face_indices = initialize_boundaries(boundary_spacing,
-                                             tank_size_,
-                                             n_boundaries_per_dim,
-                                             n_layers, faces)
+            face_indices = initialize_boundaries(
+            boundary_spacing,
+            tank_size_,
+            n_boundaries_per_dim,
+            n_layers, faces
+        )
 
         boundary_masses = boundary_density * boundary_spacing^NDIMS *
-                          ones(ELTYPE, size(boundary_coordinates, 2))
+            ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_velocities = zeros(ELTYPE, size(boundary_coordinates))
 
         n_particles_per_dim,
-        fluid_size_ = check_tank_overlap(fluid_size_, tank_size_,
-                                         particle_spacing,
-                                         n_particles_per_dim)
+            fluid_size_ = check_tank_overlap(
+            fluid_size_, tank_size_,
+            particle_spacing,
+            n_particles_per_dim
+        )
 
-        boundary = InitialCondition(coordinates=boundary_coordinates,
-                                    velocity=boundary_velocities,
-                                    mass=boundary_masses, density=boundary_densities,
-                                    particle_spacing=boundary_spacing)
+        boundary = InitialCondition(
+            coordinates = boundary_coordinates,
+            velocity = boundary_velocities,
+            mass = boundary_masses, density = boundary_densities,
+            particle_spacing = boundary_spacing
+        )
 
         # Move the tank corner in the negative coordinate directions to the desired position
         boundary.coordinates .+= min_coordinates
@@ -163,27 +173,33 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
             if state_equation !== nothing
                 # Use hydrostatic pressure gradient and calculate density from inverse state
                 # equation, so don't pass fluid density.
-                fluid = RectangularShape(particle_spacing, n_particles_per_dim,
-                                         zeros(NDIMS);
-                                         velocity, pressure, acceleration, state_equation,
-                                         mass=fluid_mass)
+                fluid = RectangularShape(
+                    particle_spacing, n_particles_per_dim,
+                    zeros(NDIMS);
+                    velocity, pressure, acceleration, state_equation,
+                    mass = fluid_mass
+                )
             else
-                fluid = RectangularShape(particle_spacing, n_particles_per_dim,
-                                         zeros(NDIMS);
-                                         density=fluid_density, velocity, pressure,
-                                         acceleration, state_equation, mass=fluid_mass)
+                fluid = RectangularShape(
+                    particle_spacing, n_particles_per_dim,
+                    zeros(NDIMS);
+                    density = fluid_density, velocity, pressure,
+                    acceleration, state_equation, mass = fluid_mass
+                )
             end
             # Move the tank corner in the negative coordinate directions to the desired position
             fluid.coordinates .+= min_coordinates
         else
             # Fluid is empty
-            fluid = InitialCondition(coordinates=zeros(ELTYPE, NDIMS, 0), density=1.0)
+            fluid = InitialCondition(coordinates = zeros(ELTYPE, NDIMS, 0), density = 1.0)
         end
 
-        return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
-                                             faces, face_indices,
-                                             particle_spacing, spacing_ratio, n_layers,
-                                             n_particles_per_dim)
+        return new{NDIMS, 2 * NDIMS, ELTYPE}(
+            fluid, boundary, fluid_size_, tank_size_,
+            faces, face_indices,
+            particle_spacing, spacing_ratio, n_layers,
+            n_particles_per_dim
+        )
     end
 end
 
@@ -191,9 +207,9 @@ function round_n_particles(size, spacing, type)
     n_particles = round(Int, size / spacing)
 
     new_size = n_particles * spacing
-    if round(new_size, digits=4) != round(size, digits=4)
+    if round(new_size, digits = 4) != round(size, digits = 4)
         @info "The desired $type $size is not a multiple of the particle spacing " *
-              "$spacing.\nNew $type is set to $new_size."
+            "$spacing.\nNew $type is set to $new_size."
     end
 
     return n_particles, new_size
@@ -201,76 +217,102 @@ end
 
 function fluid_particles_per_dimension(size::NTuple{2}, particle_spacing)
     n_particles_x,
-    new_width = round_n_particles(size[1], particle_spacing,
-                                  "fluid length in x-direction")
+        new_width = round_n_particles(
+        size[1], particle_spacing,
+        "fluid length in x-direction"
+    )
     n_particles_y,
-    new_height = round_n_particles(size[2], particle_spacing,
-                                   "fluid length in y-direction")
+        new_height = round_n_particles(
+        size[2], particle_spacing,
+        "fluid length in y-direction"
+    )
 
     return (n_particles_x, n_particles_y), (new_width, new_height)
 end
 
 function fluid_particles_per_dimension(size::NTuple{3}, particle_spacing)
     n_particles_x,
-    new_x_size = round_n_particles(size[1], particle_spacing,
-                                   "fluid length in x-direction")
+        new_x_size = round_n_particles(
+        size[1], particle_spacing,
+        "fluid length in x-direction"
+    )
     n_particles_y,
-    new_y_size = round_n_particles(size[2], particle_spacing,
-                                   "fluid length in y-direction")
+        new_y_size = round_n_particles(
+        size[2], particle_spacing,
+        "fluid length in y-direction"
+    )
     n_particles_z,
-    new_z_size = round_n_particles(size[3], particle_spacing,
-                                   "fluid length in z-direction")
+        new_z_size = round_n_particles(
+        size[3], particle_spacing,
+        "fluid length in z-direction"
+    )
 
     return (n_particles_x, n_particles_y, n_particles_z),
-           (new_x_size, new_y_size, new_z_size)
+        (new_x_size, new_y_size, new_z_size)
 end
 
-function boundary_particles_per_dimension(tank_size::NTuple{2}, particle_spacing,
-                                          spacing_ratio)
+function boundary_particles_per_dimension(
+        tank_size::NTuple{2}, particle_spacing,
+        spacing_ratio
+    )
     n_particles_x,
-    new_width = round_n_particles(tank_size[1],
-                                  particle_spacing / spacing_ratio,
-                                  "tank length in x-direction")
+        new_width = round_n_particles(
+        tank_size[1],
+        particle_spacing / spacing_ratio,
+        "tank length in x-direction"
+    )
     n_particles_y,
-    new_height = round_n_particles(tank_size[2],
-                                   particle_spacing / spacing_ratio,
-                                   "tank length in y-direction")
+        new_height = round_n_particles(
+        tank_size[2],
+        particle_spacing / spacing_ratio,
+        "tank length in y-direction"
+    )
 
     return (n_particles_x, n_particles_y), (new_width, new_height)
 end
 
-function boundary_particles_per_dimension(tank_size::NTuple{3}, particle_spacing,
-                                          spacing_ratio)
+function boundary_particles_per_dimension(
+        tank_size::NTuple{3}, particle_spacing,
+        spacing_ratio
+    )
     n_particles_x,
-    new_x_size = round_n_particles(tank_size[1],
-                                   particle_spacing / spacing_ratio,
-                                   "tank length in x-direction")
+        new_x_size = round_n_particles(
+        tank_size[1],
+        particle_spacing / spacing_ratio,
+        "tank length in x-direction"
+    )
     n_particles_y,
-    new_y_size = round_n_particles(tank_size[2],
-                                   particle_spacing / spacing_ratio,
-                                   "tank length in y-direction")
+        new_y_size = round_n_particles(
+        tank_size[2],
+        particle_spacing / spacing_ratio,
+        "tank length in y-direction"
+    )
     n_particles_z,
-    new_z_size = round_n_particles(tank_size[3],
-                                   particle_spacing / spacing_ratio,
-                                   "tank length in z-direction")
+        new_z_size = round_n_particles(
+        tank_size[3],
+        particle_spacing / spacing_ratio,
+        "tank length in z-direction"
+    )
 
     return (n_particles_x, n_particles_y, n_particles_z),
-           (new_x_size, new_y_size, new_z_size)
+        (new_x_size, new_y_size, new_z_size)
 end
 
-function check_tank_overlap(fluid_size::NTuple{2}, tank_size, particle_spacing,
-                            n_particles_per_dim)
+function check_tank_overlap(
+        fluid_size::NTuple{2}, tank_size, particle_spacing,
+        n_particles_per_dim
+    )
     n_particles_x, n_particles_y = n_particles_per_dim
     fluid_size_x, fluid_size_y = fluid_size
 
-    if tank_size[1] < fluid_size[1] - 1e-5 * particle_spacing
+    if tank_size[1] < fluid_size[1] - 1.0e-5 * particle_spacing
         n_particles_x -= 1
         fluid_size_x = n_particles_x * particle_spacing
 
         @info "The fluid was overlapping.\n New fluid length in x-direction is set to $fluid_size_x."
     end
 
-    if tank_size[2] < fluid_size[2] - 1e-5 * particle_spacing
+    if tank_size[2] < fluid_size[2] - 1.0e-5 * particle_spacing
         n_particles_y -= 1
         fluid_size_y = n_particles_y * particle_spacing
 
@@ -280,26 +322,28 @@ function check_tank_overlap(fluid_size::NTuple{2}, tank_size, particle_spacing,
     return (n_particles_x, n_particles_y), (fluid_size_x, fluid_size_y)
 end
 
-function check_tank_overlap(fluid_size::NTuple{3}, tank_size, particle_spacing,
-                            n_particles_per_dim)
+function check_tank_overlap(
+        fluid_size::NTuple{3}, tank_size, particle_spacing,
+        n_particles_per_dim
+    )
     n_particles_x, n_particles_y, n_particles_z = n_particles_per_dim
     fluid_size_x, fluid_size_y, fluid_size_z = fluid_size
 
-    if tank_size[1] < fluid_size[1] - 1e-5 * particle_spacing
+    if tank_size[1] < fluid_size[1] - 1.0e-5 * particle_spacing
         n_particles_x -= 1
         fluid_size_x = n_particles_x * particle_spacing
 
         @info "The fluid was overlapping.\n New fluid length in x-direction is set to $fluid_size_x."
     end
 
-    if tank_size[2] < fluid_size[2] - 1e-5 * particle_spacing
+    if tank_size[2] < fluid_size[2] - 1.0e-5 * particle_spacing
         n_particles_y -= 1
         fluid_size_y = n_particles_y * particle_spacing
 
         @info "The fluid was overlapping.\n New fluid length in y-direction is set to $fluid_size_y."
     end
 
-    if tank_size[3] < fluid_size[3] - 1e-5 * particle_spacing
+    if tank_size[3] < fluid_size[3] - 1.0e-5 * particle_spacing
         n_particles_z -= 1
         fluid_size_z = n_particles_z * particle_spacing
 
@@ -307,12 +351,14 @@ function check_tank_overlap(fluid_size::NTuple{3}, tank_size, particle_spacing,
     end
 
     return (n_particles_x, n_particles_y, n_particles_z),
-           (fluid_size_x, fluid_size_y, fluid_size_z)
+        (fluid_size_x, fluid_size_y, fluid_size_z)
 end
 
 # 2D
-function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
-                               n_boundaries_per_dim, n_layers, faces)
+function initialize_boundaries(
+        particle_spacing, tank_size::NTuple{2},
+        n_boundaries_per_dim, n_layers, faces
+    )
     n_particles_x, n_particles_y = n_boundaries_per_dim
 
     # Store each particle index
@@ -332,10 +378,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
 
     #### Left boundary
     if faces[1]
-        left_boundary = rectangular_shape_coords(particle_spacing,
-                                                 (n_layers, n_particles_y),
-                                                 (layer_offset, 0.0),
-                                                 loop_order=:x_first)
+        left_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_particles_y),
+            (layer_offset, 0.0),
+            loop_order = :x_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, left_boundary)
@@ -350,10 +398,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
 
     #### Right boundary
     if faces[2]
-        right_boundary = rectangular_shape_coords(particle_spacing,
-                                                  (n_layers, n_particles_y),
-                                                  (tank_size[1], 0.0),
-                                                  loop_order=:x_first)
+        right_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_particles_y),
+            (tank_size[1], 0.0),
+            loop_order = :x_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, right_boundary)
@@ -368,10 +418,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
 
     #### Bottom boundary
     if faces[3]
-        bottom_boundary = rectangular_shape_coords(particle_spacing,
-                                                   (n_particles_x, n_layers),
-                                                   (0.0, layer_offset),
-                                                   loop_order=:y_first)
+        bottom_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_layers),
+            (0.0, layer_offset),
+            loop_order = :y_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, bottom_boundary)
@@ -386,10 +438,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
 
     #### Top boundary
     if faces[4]
-        top_boundary = rectangular_shape_coords(particle_spacing,
-                                                (n_particles_x, n_layers),
-                                                (0.0, tank_size[2]),
-                                                loop_order=:y_first)
+        top_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_layers),
+            (0.0, tank_size[2]),
+            loop_order = :y_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, top_boundary)
@@ -405,43 +459,53 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     #### Add corners
     # Bottom left
     if faces[1] && faces[3]
-        bottom_left_corner = rectangular_shape_coords(particle_spacing,
-                                                      (n_layers, n_layers),
-                                                      (layer_offset, layer_offset))
+        bottom_left_corner = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers),
+            (layer_offset, layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, bottom_left_corner)
     end
 
     # Top left
     if faces[1] && faces[4]
-        top_left_corner = rectangular_shape_coords(particle_spacing,
-                                                   (n_layers, n_layers),
-                                                   (layer_offset, tank_size[2]))
+        top_left_corner = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers),
+            (layer_offset, tank_size[2])
+        )
         boundary_coordinates = hcat(boundary_coordinates, top_left_corner)
     end
 
     # Bottom right
     if faces[2] && faces[3]
-        bottom_right_corner = rectangular_shape_coords(particle_spacing,
-                                                       (n_layers, n_layers),
-                                                       (tank_size[1], layer_offset))
+        bottom_right_corner = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers),
+            (tank_size[1], layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, bottom_right_corner)
     end
 
     # Top right
     if faces[2] && faces[4]
-        top_right_corner = rectangular_shape_coords(particle_spacing,
-                                                    (n_layers, n_layers),
-                                                    (tank_size[1], tank_size[2]))
+        top_right_corner = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers),
+            (tank_size[1], tank_size[2])
+        )
         boundary_coordinates = hcat(boundary_coordinates, top_right_corner)
     end
 
     return boundary_coordinates,
-           (face_indices_1, face_indices_2, face_indices_3, face_indices_4)
+        (face_indices_1, face_indices_2, face_indices_3, face_indices_4)
 end
 
 # 3D
-function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
-                               n_boundaries_per_dim, n_layers, faces)
+function initialize_boundaries(
+        particle_spacing, tank_size::NTuple{3},
+        n_boundaries_per_dim, n_layers, faces
+    )
     n_particles_x, n_particles_y, n_particles_z = n_boundaries_per_dim
 
     # Store each particle index
@@ -463,10 +527,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
 
     #### -x boundary (y-z-plane)
     if faces[1]
-        x_neg_boundary = rectangular_shape_coords(particle_spacing,
-                                                  (n_layers, n_particles_y, n_particles_z),
-                                                  (layer_offset, 0.0, 0.0),
-                                                  loop_order=:x_first)
+        x_neg_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_particles_y, n_particles_z),
+            (layer_offset, 0.0, 0.0),
+            loop_order = :x_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, x_neg_boundary)
@@ -481,10 +547,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
 
     #### +x boundary (y-z-plane)
     if faces[2]
-        x_pos_boundary = rectangular_shape_coords(particle_spacing,
-                                                  (n_layers, n_particles_y, n_particles_z),
-                                                  (tank_size[1], 0.0, 0.0),
-                                                  loop_order=:x_first)
+        x_pos_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_particles_y, n_particles_z),
+            (tank_size[1], 0.0, 0.0),
+            loop_order = :x_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, x_pos_boundary)
@@ -499,10 +567,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
 
     #### -y boundary (x-z-plane)
     if faces[3]
-        y_neg_boundary = rectangular_shape_coords(particle_spacing,
-                                                  (n_particles_x, n_layers, n_particles_z),
-                                                  (0.0, layer_offset, 0.0),
-                                                  loop_order=:y_first)
+        y_neg_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_layers, n_particles_z),
+            (0.0, layer_offset, 0.0),
+            loop_order = :y_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, y_neg_boundary)
@@ -517,10 +587,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
 
     #### +y boundary (x-z-plane)
     if faces[4]
-        y_pos_boundary = rectangular_shape_coords(particle_spacing,
-                                                  (n_particles_x, n_layers, n_particles_z),
-                                                  (0.0, tank_size[2], 0.0),
-                                                  loop_order=:y_first)
+        y_pos_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_layers, n_particles_z),
+            (0.0, tank_size[2], 0.0),
+            loop_order = :y_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, y_pos_boundary)
@@ -535,10 +607,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
 
     #### -z boundary (x-y-plane).
     if faces[5]
-        z_neg_boundary = rectangular_shape_coords(particle_spacing,
-                                                  (n_particles_x, n_particles_y, n_layers),
-                                                  (0.0, 0.0, layer_offset),
-                                                  loop_order=:z_first)
+        z_neg_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_particles_y, n_layers),
+            (0.0, 0.0, layer_offset),
+            loop_order = :z_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, z_neg_boundary)
@@ -553,10 +627,12 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
 
     #### +z boundary (x-y-plane)
     if faces[6]
-        z_pos_boundary = rectangular_shape_coords(particle_spacing,
-                                                  (n_particles_x, n_particles_y, n_layers),
-                                                  (0.0, 0.0, tank_size[3]),
-                                                  loop_order=:z_first)
+        z_pos_boundary = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_particles_y, n_layers),
+            (0.0, 0.0, tank_size[3]),
+            loop_order = :z_first
+        )
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, z_pos_boundary)
@@ -571,150 +647,194 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
 
     #### Add edges
     if faces[1] && faces[3]
-        edge_1_3 = rectangular_shape_coords(particle_spacing,
-                                            (n_layers, n_layers, n_particles_z),
-                                            (layer_offset, layer_offset, 0.0))
+        edge_1_3 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_particles_z),
+            (layer_offset, layer_offset, 0.0)
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_1_3)
     end
 
     if faces[1] && faces[4]
-        edge_1_4 = rectangular_shape_coords(particle_spacing,
-                                            (n_layers, n_layers, n_particles_z),
-                                            (layer_offset, tank_size[2], 0.0))
+        edge_1_4 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_particles_z),
+            (layer_offset, tank_size[2], 0.0)
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_1_4)
     end
 
     if faces[2] && faces[3]
-        edge_2_3 = rectangular_shape_coords(particle_spacing,
-                                            (n_layers, n_layers, n_particles_z),
-                                            (tank_size[1], layer_offset, 0.0))
+        edge_2_3 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_particles_z),
+            (tank_size[1], layer_offset, 0.0)
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_2_3)
     end
 
     if faces[2] && faces[4]
-        edge_2_4 = rectangular_shape_coords(particle_spacing,
-                                            (n_layers, n_layers, n_particles_z),
-                                            (tank_size[1], tank_size[2], 0.0))
+        edge_2_4 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_particles_z),
+            (tank_size[1], tank_size[2], 0.0)
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_2_4)
     end
 
     if faces[5] && faces[3]
-        edge_5_3 = rectangular_shape_coords(particle_spacing,
-                                            (n_particles_x, n_layers, n_layers),
-                                            (0.0, layer_offset, layer_offset))
+        edge_5_3 = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_layers, n_layers),
+            (0.0, layer_offset, layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_5_3)
     end
 
     if faces[5] && faces[4]
-        edge_5_4 = rectangular_shape_coords(particle_spacing,
-                                            (n_particles_x, n_layers, n_layers),
-                                            (0.0, tank_size[2], layer_offset))
+        edge_5_4 = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_layers, n_layers),
+            (0.0, tank_size[2], layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_5_4)
     end
 
     if faces[6] && faces[3]
-        edge_6_3 = rectangular_shape_coords(particle_spacing,
-                                            (n_particles_x, n_layers, n_layers),
-                                            (0.0, layer_offset, tank_size[3]))
+        edge_6_3 = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_layers, n_layers),
+            (0.0, layer_offset, tank_size[3])
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_6_3)
     end
 
     if faces[6] && faces[4]
-        edge_6_4 = rectangular_shape_coords(particle_spacing,
-                                            (n_particles_x, n_layers, n_layers),
-                                            (0.0, tank_size[2], tank_size[3]))
+        edge_6_4 = rectangular_shape_coords(
+            particle_spacing,
+            (n_particles_x, n_layers, n_layers),
+            (0.0, tank_size[2], tank_size[3])
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_6_4)
     end
 
     if faces[1] && faces[5]
-        edge_1_5 = rectangular_shape_coords(particle_spacing,
-                                            (n_layers, n_particles_y, n_layers),
-                                            (layer_offset, 0.0, layer_offset))
+        edge_1_5 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_particles_y, n_layers),
+            (layer_offset, 0.0, layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_1_5)
     end
 
     if faces[1] && faces[6]
-        edge_1_6 = rectangular_shape_coords(particle_spacing,
-                                            (n_layers, n_particles_y, n_layers),
-                                            (layer_offset, 0.0, tank_size[3]))
+        edge_1_6 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_particles_y, n_layers),
+            (layer_offset, 0.0, tank_size[3])
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_1_6)
     end
 
     if faces[5] && faces[2]
-        edge_5_2 = rectangular_shape_coords(particle_spacing,
-                                            (n_layers, n_particles_y, n_layers),
-                                            (tank_size[1], 0.0, layer_offset))
+        edge_5_2 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_particles_y, n_layers),
+            (tank_size[1], 0.0, layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_5_2)
     end
 
     if faces[6] && faces[2]
-        edge_6_2 = rectangular_shape_coords(particle_spacing,
-                                            (n_layers, n_particles_y, n_layers),
-                                            (tank_size[1], 0.0, tank_size[3]))
+        edge_6_2 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_particles_y, n_layers),
+            (tank_size[1], 0.0, tank_size[3])
+        )
         boundary_coordinates = hcat(boundary_coordinates, edge_6_2)
     end
 
     #### Add corners
     if faces[1] && faces[3] && faces[5]
-        corner_1_3_5 = rectangular_shape_coords(particle_spacing,
-                                                (n_layers, n_layers, n_layers),
-                                                (layer_offset, layer_offset, layer_offset))
+        corner_1_3_5 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_layers),
+            (layer_offset, layer_offset, layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, corner_1_3_5)
     end
 
     if faces[1] && faces[4] && faces[5]
-        corner_1_4_5 = rectangular_shape_coords(particle_spacing,
-                                                (n_layers, n_layers, n_layers),
-                                                (layer_offset, tank_size[2], layer_offset))
+        corner_1_4_5 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_layers),
+            (layer_offset, tank_size[2], layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, corner_1_4_5)
     end
 
     if faces[1] && faces[3] && faces[6]
-        corner_1_3_6 = rectangular_shape_coords(particle_spacing,
-                                                (n_layers, n_layers, n_layers),
-                                                (layer_offset, layer_offset, tank_size[3]))
+        corner_1_3_6 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_layers),
+            (layer_offset, layer_offset, tank_size[3])
+        )
         boundary_coordinates = hcat(boundary_coordinates, corner_1_3_6)
     end
 
     if faces[1] && faces[4] && faces[6]
-        corner_1_4_6 = rectangular_shape_coords(particle_spacing,
-                                                (n_layers, n_layers, n_layers),
-                                                (layer_offset, tank_size[2], tank_size[3]))
+        corner_1_4_6 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_layers),
+            (layer_offset, tank_size[2], tank_size[3])
+        )
         boundary_coordinates = hcat(boundary_coordinates, corner_1_4_6)
     end
 
     if faces[2] && faces[3] && faces[5]
-        corner_2_3_5 = rectangular_shape_coords(particle_spacing,
-                                                (n_layers, n_layers, n_layers),
-                                                (tank_size[1], layer_offset, layer_offset))
+        corner_2_3_5 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_layers),
+            (tank_size[1], layer_offset, layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, corner_2_3_5)
     end
 
     if faces[2] && faces[4] && faces[5]
-        corner_2_4_5 = rectangular_shape_coords(particle_spacing,
-                                                (n_layers, n_layers, n_layers),
-                                                (tank_size[1], tank_size[2], layer_offset))
+        corner_2_4_5 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_layers),
+            (tank_size[1], tank_size[2], layer_offset)
+        )
         boundary_coordinates = hcat(boundary_coordinates, corner_2_4_5)
     end
 
     if faces[2] && faces[3] && faces[6]
-        corner_2_3_6 = rectangular_shape_coords(particle_spacing,
-                                                (n_layers, n_layers, n_layers),
-                                                (tank_size[1], layer_offset, tank_size[3]))
+        corner_2_3_6 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_layers),
+            (tank_size[1], layer_offset, tank_size[3])
+        )
         boundary_coordinates = hcat(boundary_coordinates, corner_2_3_6)
     end
 
     if faces[2] && faces[4] && faces[6]
-        corner_2_4_6 = rectangular_shape_coords(particle_spacing,
-                                                (n_layers, n_layers, n_layers),
-                                                (tank_size[1], tank_size[2],
-                                                 tank_size[3]))
+        corner_2_4_6 = rectangular_shape_coords(
+            particle_spacing,
+            (n_layers, n_layers, n_layers),
+            (
+                tank_size[1], tank_size[2],
+                tank_size[3],
+            )
+        )
         boundary_coordinates = hcat(boundary_coordinates, corner_2_4_6)
     end
 
     return boundary_coordinates,
-           (face_indices_1, face_indices_2, face_indices_3, face_indices_4, face_indices_5,
-            face_indices_6)
+        (
+            face_indices_1, face_indices_2, face_indices_3, face_indices_4, face_indices_5,
+            face_indices_6,
+        )
 end
 
 @doc raw"""
@@ -751,9 +871,11 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
                 end
 
                 # Set position
-                boundary.coordinates[dim,
-                                     particle] = positions[face] + layer_shift +
-                                                 0.5particle_spacing
+                boundary.coordinates[
+                    dim,
+                    particle,
+                ] = positions[face] + layer_shift +
+                    0.5particle_spacing
             end
         end
     end

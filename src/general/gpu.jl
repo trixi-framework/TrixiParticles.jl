@@ -25,12 +25,12 @@ KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
 
 function KernelAbstractions.get_backend(system::BoundarySPHSystem)
-    KernelAbstractions.get_backend(system.coordinates)
+    return KernelAbstractions.get_backend(system.coordinates)
 end
 
 # This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
-    PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
+    return PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
 end
 
 function allocate(backend::KernelAbstractions.Backend, ELTYPE, size)

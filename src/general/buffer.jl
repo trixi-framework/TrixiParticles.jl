@@ -1,8 +1,8 @@
 struct SystemBuffer{AP, APC, EP}
-    active_particle       :: AP # Vector{Bool}
-    active_particle_count :: APC
-    eachparticle          :: EP # Vector{Int}
-    buffer_size           :: Int
+    active_particle::AP # Vector{Bool}
+    active_particle_count::APC
+    eachparticle::EP # Vector{Int}
+    buffer_size::Int
 end
 
 function SystemBuffer(active_size, buffer_size::Integer)
@@ -19,11 +19,15 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     (; buffer_size) = buffer
 
     # Initialize particles far away from simulation domain
-    coordinates = fill(eltype(initial_condition)(1e16), ndims(initial_condition),
-                       buffer_size)
+    coordinates = fill(
+        eltype(initial_condition)(1.0e16), ndims(initial_condition),
+        buffer_size
+    )
 
-    if all(rho -> isapprox(rho, first(initial_condition.density), atol=eps(), rtol=eps()),
-           initial_condition.density)
+    if all(
+            rho -> isapprox(rho, first(initial_condition.density), atol = eps(), rtol = eps()),
+            initial_condition.density
+        )
         density = first(initial_condition.density)
     else
         throw(ArgumentError("`initial_condition.density` needs to be constant when using `SystemBuffer`"))
@@ -64,7 +68,7 @@ end
     # Set particle far away from simulation domain
     for dim in 1:ndims(system)
         # Inf or NaN causes instability outcome.
-        u[dim, particle] = eltype(system)(1e16)
+        u[dim, particle] = eltype(system)(1.0e16)
     end
 
     # `deactivate_particle!` and `active_particle[particle] = true`

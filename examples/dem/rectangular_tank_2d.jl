@@ -22,9 +22,11 @@ tank_height = 4.0
 
 # Create a rectangular tank. The tank has a "fluid" region for the rock particles
 # and a "boundary" region for the container walls.
-tank = RectangularTank(particle_spacing, (rock_width, rock_height),
-                       (tank_width, tank_height), rock_density,
-                       n_layers=2)
+tank = RectangularTank(
+    particle_spacing, (rock_width, rock_height),
+    (tank_width, tank_height), rock_density,
+    n_layers = 2
+)
 
 # ==========================================================================================
 # ==== Systems
@@ -40,16 +42,18 @@ tank.fluid.coordinates .+= 0.01 .* (2 .* rand(size(tank.fluid.coordinates)) .- 1
 
 # Create a contact model.
 # Option 1: Hertzian contact model (uses elastic modulus and Poisson's ratio)
-contact_model = HertzContactModel(10e9, 0.3)
+contact_model = HertzContactModel(10.0e9, 0.3)
 # Option 2 (alternative): Linear contact model (constant normal stiffness)
 # contact_model = LinearContactModel(2 * 10e5)
 
 # Construct the rock system using the new DEMSystem signature.
-rock_system = DEMSystem(tank.fluid, contact_model; damping_coefficient=0.0001,
-                        acceleration=(0.0, gravity), radius=0.4 * particle_spacing)
+rock_system = DEMSystem(
+    tank.fluid, contact_model; damping_coefficient = 0.0001,
+    acceleration = (0.0, gravity), radius = 0.4 * particle_spacing
+)
 
 # Construct the boundary system for the tank walls.
-boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)
+boundary_system = BoundaryDEMSystem(tank.boundary, 10.0e7)
 
 # ==========================================================================================
 # ==== Simulation
@@ -60,14 +64,16 @@ semi = Semidiscretization(rock_system, boundary_system)
 tspan = (0.0, 4.0)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=5000)
-saving_callback = SolutionSavingCallback(dt=0.02)
+info_callback = InfoCallback(interval = 5000)
+saving_callback = SolutionSavingCallback(dt = 0.02)
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-3, # Limit stepsize to prevent crashing
-            dt=1e-7,  # Initial step size
-            save_everystep=false, callback=callbacks);
+sol = solve(
+    ode, RDPK3SpFSAL49(),
+    abstol = 1.0e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+    reltol = 1.0e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+    dtmax = 1.0e-3, # Limit stepsize to prevent crashing
+    dt = 1.0e-7,  # Initial step size
+    save_everystep = false, callback = callbacks
+);

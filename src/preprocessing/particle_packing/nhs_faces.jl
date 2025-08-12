@@ -1,21 +1,25 @@
 struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
-       PointNeighbors.AbstractNeighborhoodSearch
-    cell_list     :: CL
-    neighbors     :: CL
-    search_radius :: ELTYPE
-    periodic_box  :: Nothing # Required by internals of PointNeighbors.jl
-    n_cells       :: NTuple{NDIMS, Int}
-    cell_size     :: NTuple{NDIMS, ELTYPE} # Required to calculate cell index
+    PointNeighbors.AbstractNeighborhoodSearch
+    cell_list::CL
+    neighbors::CL
+    search_radius::ELTYPE
+    periodic_box::Nothing # Required by internals of PointNeighbors.jl
+    n_cells::NTuple{NDIMS, Int}
+    cell_size::NTuple{NDIMS, ELTYPE} # Required to calculate cell index
 end
 
-function FaceNeighborhoodSearch{NDIMS}(; search_radius,
-                                       cell_list=PointNeighbors.DictionaryCellList{NDIMS}()) where {NDIMS}
+function FaceNeighborhoodSearch{NDIMS}(;
+        search_radius,
+        cell_list = PointNeighbors.DictionaryCellList{NDIMS}()
+    ) where {NDIMS}
     cell_size = ntuple(_ -> search_radius, Val(NDIMS))
     n_cells = ntuple(_ -> -1, Val(NDIMS))
     neighbors = PointNeighbors.copy_cell_list(cell_list, search_radius, nothing)
 
-    return FaceNeighborhoodSearch(cell_list, neighbors, search_radius, nothing, n_cells,
-                                  cell_size)
+    return FaceNeighborhoodSearch(
+        cell_list, neighbors, search_radius, nothing, n_cells,
+        cell_size
+    )
 end
 
 @inline Base.ndims(::FaceNeighborhoodSearch{NDIMS}) where {NDIMS} = NDIMS
@@ -33,8 +37,10 @@ end
     return neighborhood_search.neighbors[cell]
 end
 
-function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
-                     pad=ntuple(_ -> 1, ndims(geometry)))
+function initialize!(
+        neighborhood_search::FaceNeighborhoodSearch, geometry;
+        pad = ntuple(_ -> 1, ndims(geometry))
+    )
     (; cell_list, neighbors) = neighborhood_search
 
     empty!(cell_list)
@@ -76,8 +82,10 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
     return neighborhood_search
 end
 
-@inline function bounding_box(face, geometry,
-                              neighborhood_search::FaceNeighborhoodSearch{NDIMS}) where {NDIMS}
+@inline function bounding_box(
+        face, geometry,
+        neighborhood_search::FaceNeighborhoodSearch{NDIMS}
+    ) where {NDIMS}
     vertices = face_vertices(face, geometry)
 
     # Compute the cell coordinates for each vertex

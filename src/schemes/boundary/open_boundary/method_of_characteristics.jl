@@ -22,16 +22,20 @@ For more information about the method see [description below](@ref method_of_cha
 struct BoundaryModelLastiwka{T}
     extrapolate_reference_values::T
 
-    function BoundaryModelLastiwka(; extrapolate_reference_values=nothing)
+    function BoundaryModelLastiwka(; extrapolate_reference_values = nothing)
         return new{typeof(extrapolate_reference_values)}(extrapolate_reference_values)
     end
 end
 
 # Called from update callback via `update_open_boundary_eachstep!`
-@inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
-                                             v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, boundary_zone,
-     reference_velocity, reference_pressure, reference_density) = system
+@inline function update_boundary_quantities!(
+        system, boundary_model::BoundaryModelLastiwka,
+        v, u, v_ode, u_ode, semi, t
+    )
+    (;
+        density, pressure, cache, boundary_zone,
+        reference_velocity, reference_pressure, reference_density,
+    ) = system
     (; flow_direction) = boundary_zone
 
     fluid_system = corresponding_fluid_system(system, semi)
@@ -44,10 +48,12 @@ end
         u_fluid = wrap_u(u_ode, fluid_system, semi)
 
         @trixi_timeit timer() "extrapolate and correct values" begin
-            extrapolate_values!(system, boundary_model.extrapolate_reference_values,
-                                v, v_fluid, u, u_fluid, semi, t;
-                                prescribed_pressure, prescribed_velocity,
-                                prescribed_density)
+            extrapolate_values!(
+                system, boundary_model.extrapolate_reference_values,
+                v, v_fluid, u, u_fluid, semi, t;
+                prescribed_pressure, prescribed_velocity,
+                prescribed_density
+            )
         end
     end
 
@@ -59,17 +65,23 @@ end
         J2 = cache.characteristics[2, particle]
         J3 = cache.characteristics[3, particle]
 
-        rho_ref = reference_value(reference_density, density[particle],
-                                  particle_position, t)
+        rho_ref = reference_value(
+            reference_density, density[particle],
+            particle_position, t
+        )
         density[particle] = rho_ref + ((-J1 + (J2 + J3) / 2) / sound_speed^2)
 
-        p_ref = reference_value(reference_pressure, pressure[particle],
-                                particle_position, t)
+        p_ref = reference_value(
+            reference_pressure, pressure[particle],
+            particle_position, t
+        )
         pressure[particle] = p_ref + (J2 + J3) / 2
 
         v_current = current_velocity(v, system, particle)
-        v_ref = reference_value(reference_velocity, v_current,
-                                particle_position, t)
+        v_ref = reference_value(
+            reference_velocity, v_current,
+            particle_position, t
+        )
         rho = density[particle]
         v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction
 
@@ -166,10 +178,14 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function evaluate_characteristics!(system, neighbor_system::FluidSystem,
-                                   v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, boundary_zone, density, pressure,
-     reference_velocity, reference_pressure, reference_density) = system
+function evaluate_characteristics!(
+        system, neighbor_system::FluidSystem,
+        v, u, v_ode, u_ode, semi, t
+    )
+    (;
+        volume, cache, boundary_zone, density, pressure,
+        reference_velocity, reference_pressure, reference_density,
+    ) = system
     (; flow_direction) = boundary_zone
     (; characteristics) = cache
 
@@ -181,24 +197,32 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     sound_speed = system_sound_speed(neighbor_system)
 
     # Loop over all fluid neighbors within the kernel cutoff
-    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+    foreach_point_neighbor(
+        system, neighbor_system, system_coords, neighbor_coords, semi;
+        points = each_moving_particle(system)
+    ) do particle, neighbor,
+            pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_ref = reference_value(reference_density, density[particle],
-                                  neighbor_position, t)
+        rho_ref = reference_value(
+            reference_density, density[particle],
+            neighbor_position, t
+        )
 
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
-        p_ref = reference_value(reference_pressure, pressure[particle],
-                                neighbor_position, t)
+        p_ref = reference_value(
+            reference_pressure, pressure[particle],
+            neighbor_position, t
+        )
 
         v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
         v_particle = current_velocity(v, system, particle)
-        v_neighbor_ref = reference_value(reference_velocity, v_particle,
-                                         neighbor_position, t)
+        v_neighbor_ref = reference_value(
+            reference_velocity, v_particle,
+            neighbor_position, t
+        )
 
         # Determine characteristic variables
         density_term = -sound_speed^2 * (rho_b - rho_ref)
@@ -238,8 +262,10 @@ function average_velocity!(v, u, system, ::BoundaryModelLastiwka, boundary_zone,
     return v
 end
 
-function average_velocity!(v, u, system, ::BoundaryModelLastiwka, ::BoundaryZone{InFlow},
-                           semi)
+function average_velocity!(
+        v, u, system, ::BoundaryModelLastiwka, ::BoundaryZone{InFlow},
+        semi
+    )
 
     # Division inside the `sum` closure to maintain GPU compatibility
     avg_velocity = sum(each_moving_particle(system)) do particle

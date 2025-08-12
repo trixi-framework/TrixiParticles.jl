@@ -16,8 +16,10 @@ See [Particle Shifting Technique](@ref shifting) for more information on the met
 """
 function ParticleShiftingCallback()
     # The first one is the `condition`, the second the `affect!`
-    return DiscreteCallback((particle_shifting_condition), particle_shifting!,
-                            save_positions=(false, false))
+    return DiscreteCallback(
+        (particle_shifting_condition), particle_shifting!,
+        save_positions = (false, false)
+    )
 end
 
 # `condition`
@@ -39,8 +41,10 @@ function particle_shifting!(integrator)
         # still have the values from the last stage of the previous step if not updated here.
         @trixi_timeit timer() "update systems and nhs" begin
             # Don't create sub-timers here to avoid cluttering the timer output
-            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                     update_from_callback=true)
+            @notimeit timer() update_systems_and_nhs(
+                v_ode, u_ode, semi, t;
+                update_from_callback = true
+            )
         end
 
         @trixi_timeit timer() "particle shifting" foreach_system(semi) do system
@@ -60,8 +64,10 @@ function particle_shifting!(u, v, system, v_ode, u_ode, semi, u_cache, dt)
     return u
 end
 
-function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
-                            vu_cache, dt)
+function particle_shifting!(
+        u, v, system::FluidSystem, v_ode, u_ode, semi,
+        vu_cache, dt
+    )
     # Wrap the cache vector to an NDIMS x NPARTICLES matrix.
     # We need this buffer because we cannot safely update `u` while iterating over it.
     _, u_cache = vu_cache.x
@@ -70,9 +76,13 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
 
     # This has similar performance to `maximum(..., eachparticle(system))`,
     # but is GPU-compatible.
-    v_max = maximum(x -> sqrt(dot(x, x)),
-                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
-                                current_velocity(v, system)))
+    v_max = maximum(
+        x -> sqrt(dot(x, x)),
+        reinterpret(
+            reshape, SVector{ndims(system), eltype(v)},
+            current_velocity(v, system)
+        )
+    )
 
     # TODO this needs to be adapted to multi-resolution.
     # Section 3.2 explains what else needs to be changed.
@@ -87,10 +97,12 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
-        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               semi;
-                               points=each_moving_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+        foreach_point_neighbor(
+            system, neighbor_system, system_coords, neighbor_coords,
+            semi;
+            points = each_moving_particle(system)
+        ) do particle, neighbor,
+                pos_diff, distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             rho_a = current_density(v, system, particle)
             rho_b = current_density(v_neighbor, neighbor_system, neighbor)
@@ -113,7 +125,7 @@ function particle_shifting!(u, v, system::FluidSystem, v_ode, u_ode, semi,
             # - linearly with the time step.
             # See https://github.com/trixi-framework/TrixiParticles.jl/pull/834.
             delta_r_ = -dt * v_max * (2 * h)^2 / (2 * dx) * (1 + R * (kernel / Wdx)^n) *
-                       m_b / (rho_a + rho_b) * grad_kernel
+                m_b / (rho_a + rho_b) * grad_kernel
 
             # Write into the buffer
             for i in eachindex(delta_r_)
@@ -134,14 +146,16 @@ end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, typeof(particle_shifting!)})
     @nospecialize cb # reduce precompilation time
-    print(io, "ParticleShiftingCallback()")
+    return print(io, "ParticleShiftingCallback()")
 end
 
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, typeof(particle_shifting!)})
+function Base.show(
+        io::IO, ::MIME"text/plain",
+        cb::DiscreteCallback{<:Any, typeof(particle_shifting!)}
+    )
     @nospecialize cb # reduce precompilation time
 
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, cb)
     else
         summary_box(io, "ParticleShiftingCallback")

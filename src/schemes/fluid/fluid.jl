@@ -1,5 +1,5 @@
 @inline function set_particle_density!(v, system::FluidSystem, particle, density)
-    set_particle_density!(v, system, system.density_calculator, particle, density)
+    return set_particle_density!(v, system, system.density_calculator, particle, density)
 end
 
 # WARNING!
@@ -55,7 +55,7 @@ initial_smoothing_length(system, ::Nothing) = system.cache.smoothing_length
 function initial_smoothing_length(system, refinement)
     # TODO
     return system.cache.initial_smoothing_length_factor *
-           system.initial_condition.particle_spacing
+        system.initial_condition.particle_spacing
 end
 
 @inline function particle_spacing(system::FluidSystem, particle)
@@ -114,7 +114,7 @@ function compute_density!(system, u, u_ode, semi, ::SummationDensity)
     (; cache) = system
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, semi, u, u_ode, density)
+    return summation_density!(system, semi, u, u_ode, density)
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
@@ -126,8 +126,10 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     dt_viscosity = 0.125 * smoothing_length_^2
     if !isnothing(system.viscosity)
         dt_viscosity = dt_viscosity /
-                       kinematic_viscosity(system, viscosity, smoothing_length_,
-                                           system_sound_speed(system))
+            kinematic_viscosity(
+            system, viscosity, smoothing_length_,
+            system_sound_speed(system)
+        )
     end
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)
@@ -148,10 +150,12 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     # Eq. 28 in Morris (2000)
     dt = min(dt_viscosity, dt_acceleration, dt_sound_speed)
     if surface_tension isa SurfaceTensionMorris ||
-       surface_tension isa SurfaceTensionMomentumMorris
+            surface_tension isa SurfaceTensionMomentumMorris
         v = wrap_v(v_ode, system, semi)
-        dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
-                                  (2 * pi * surface_tension.surface_tension_coefficient))
+        dt_surface_tension = sqrt(
+            current_density(v, system, 1) * smoothing_length_^3 /
+                (2 * pi * surface_tension.surface_tension_coefficient)
+        )
         dt = min(dt, dt_surface_tension)
     end
 
@@ -200,24 +204,36 @@ include("surface_normal_sph.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
 
-@inline function add_velocity!(du, v, particle,
-                               system::Union{EntropicallyDampedSPHSystem,
-                                             WeaklyCompressibleSPHSystem})
-    add_velocity!(du, v, particle, system, system.transport_velocity)
+@inline function add_velocity!(
+        du, v, particle,
+        system::Union{
+            EntropicallyDampedSPHSystem,
+            WeaklyCompressibleSPHSystem,
+        }
+    )
+    return add_velocity!(du, v, particle, system, system.transport_velocity)
 end
 
-@inline function momentum_convection(system, neighbor_system,
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
+@inline function momentum_convection(
+        system, neighbor_system,
+        v_particle_system, v_neighbor_system, rho_a, rho_b,
+        m_a, m_b, particle, neighbor, grad_kernel
+    )
     return zero(grad_kernel)
 end
 
-@inline function momentum_convection(system,
-                                     neighbor_system::Union{EntropicallyDampedSPHSystem,
-                                                            WeaklyCompressibleSPHSystem},
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
-    momentum_convection(system, neighbor_system, system.transport_velocity,
-                        v_particle_system, v_neighbor_system, rho_a, rho_b,
-                        m_a, m_b, particle, neighbor, grad_kernel)
+@inline function momentum_convection(
+        system,
+        neighbor_system::Union{
+            EntropicallyDampedSPHSystem,
+            WeaklyCompressibleSPHSystem,
+        },
+        v_particle_system, v_neighbor_system, rho_a, rho_b,
+        m_a, m_b, particle, neighbor, grad_kernel
+    )
+    return momentum_convection(
+        system, neighbor_system, system.transport_velocity,
+        v_particle_system, v_neighbor_system, rho_a, rho_b,
+        m_a, m_b, particle, neighbor, grad_kernel
+    )
 end

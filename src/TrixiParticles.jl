@@ -23,23 +23,23 @@ using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
+    get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
-                 disable_debug_timings, enable_debug_timings, TrixiBase
+    disable_debug_timings, enable_debug_timings, TrixiBase
 @reexport using TrixiBase: trixi_include, trixi_include_changeprecision
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
-                                PrecomputedNeighborhoodSearch, PeriodicBox,
-                                ParallelUpdate, SemiParallelUpdate, SerialUpdate,
-                                SerialIncrementalUpdate,
-                                FullGridCellList, DictionaryCellList,
-                                SerialBackend, PolyesterBackend, ThreadsStaticBackend,
-                                ThreadsDynamicBackend, default_backend
+    PrecomputedNeighborhoodSearch, PeriodicBox,
+    ParallelUpdate, SemiParallelUpdate, SerialUpdate,
+    SerialIncrementalUpdate,
+    FullGridCellList, DictionaryCellList,
+    SerialBackend, PolyesterBackend, ThreadsStaticBackend,
+    ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
-                      @threaded
+    @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
@@ -62,25 +62,25 @@ include("visualization/recipes_plots.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem
+    BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       ParticleShiftingCallback
+    PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
+    ParticleShiftingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
-       SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
-       WendlandC6Kernel, SpikyKernel, Poly6Kernel
+    SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
+    WendlandC6Kernel, SpikyKernel, Poly6Kernel
 export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
-       ViscosityMorrisSGS
+    ViscosityMorrisSGS
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
-       DensityDiffusionAntuono
+    DensityDiffusionAntuono
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
-       BernoulliPressureExtrapolation
+    PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
+    BernoulliPressureExtrapolation
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export BoundaryMovement
@@ -90,17 +90,17 @@ export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
-       sample_boundary
+    sample_boundary
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
-       GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
+    GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
 export available_data, kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
-       max_density, min_density, avg_density
+    max_density, min_density, avg_density
 export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_plane_2d,
-       interpolate_plane_2d_vtk
+    interpolate_plane_2d_vtk
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
-       SurfaceTensionMomentumMorris
+    SurfaceTensionMomentumMorris
 export ColorfieldSurfaceNormal
 export SymplecticPositionVerlet
 

@@ -54,11 +54,13 @@ struct HertzContactModel{ELTYPE <: Real} <: ContactModel
     poissons_ratio::ELTYPE   # Material Poisson's ratio
 end
 
-@inline function collision_force_normal(model::HertzContactModel,
-                                        particle_system, neighbor_system,
-                                        overlap, normal, v_particle_system,
-                                        v_neighbor_system,
-                                        particle, neighbor, damping_coefficient)
+@inline function collision_force_normal(
+        model::HertzContactModel,
+        particle_system, neighbor_system,
+        overlap, normal, v_particle_system,
+        v_neighbor_system,
+        particle, neighbor, damping_coefficient
+    )
     # Use material properties from the Hertz contact model.
     E_a = model.elastic_modulus
     nu_a = model.poissons_ratio
@@ -104,7 +106,7 @@ end
 
     # Total normal force: elastic + damping term
     force_magnitude = elastic_force_per_overlap * overlap +
-                      damping_coefficient * gamma_c * v_diff_norm
+        damping_coefficient * gamma_c * v_diff_norm
 
     return force_magnitude * normal
 end
@@ -145,11 +147,13 @@ struct LinearContactModel{ELTYPE <: Real} <: ContactModel
     normal_stiffness::ELTYPE
 end
 
-@inline function collision_force_normal(model::LinearContactModel,
-                                        particle_system, neighbor_system,
-                                        overlap, normal, v_particle_system,
-                                        v_neighbor_system,
-                                        particle, neighbor, damping_coefficient)
+@inline function collision_force_normal(
+        model::LinearContactModel,
+        particle_system, neighbor_system,
+        overlap, normal, v_particle_system,
+        v_neighbor_system,
+        particle, neighbor, damping_coefficient
+    )
     normal_stiffness = model.normal_stiffness
 
     v_a = current_velocity(v_particle_system, particle_system, particle)
@@ -162,7 +166,7 @@ end
 
     gamma_c = 2 * sqrt(m_star * normal_stiffness)
     force_magnitude = normal_stiffness * overlap +
-                      damping_coefficient * gamma_c * v_diff_norm
+        damping_coefficient * gamma_c * v_diff_norm
 
     return force_magnitude * normal
 end
@@ -172,8 +176,10 @@ function compute_effective_mass(particle_system, particle, neighbor_system, neig
     return particle_system.mass[particle]
 end
 
-function compute_effective_mass(particle_system, particle, neighbor_system::DEMSystem,
-                                neighbor)
+function compute_effective_mass(
+        particle_system, particle, neighbor_system::DEMSystem,
+        neighbor
+    )
     m_a = particle_system.mass[particle]
     m_b = neighbor_system.mass[neighbor]
     return (m_a * m_b) / (m_a + m_b)

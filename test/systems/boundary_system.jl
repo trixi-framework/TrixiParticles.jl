@@ -1,16 +1,20 @@
-@testset verbose=true "BoundarySystem" begin
+@testset verbose = true "BoundarySystem" begin
     coordinates_ = [
-        [1.0 2.0
-         1.0 2.0],
-        [1.0 2.0
-         1.0 2.0
-         1.0 2.0]
+        [
+            1.0 2.0
+            1.0 2.0
+        ],
+        [
+            1.0 2.0
+            1.0 2.0
+            1.0 2.0
+        ],
     ]
     mass = [1.0, 1.0]
     density = [1000.0, 1000.0]
 
-    @testset verbose=true "Constructor" begin
-        @testset "$(i+1)D" for i in 1:2
+    @testset verbose = true "Constructor" begin
+        @testset "$(i + 1)D" for i in 1:2
             NDIMS = i + 1
             coordinates = coordinates_[i]
             initial_condition = InitialCondition(; coordinates, mass, density)
@@ -28,13 +32,13 @@
         end
     end
 
-    @testset verbose=true "Moving Boundaries" begin
-        @testset "$(i+1)D" for i in 1:2
+    @testset verbose = true "Moving Boundaries" begin
+        @testset "$(i + 1)D" for i in 1:2
             NDIMS = i + 1
             coordinates = coordinates_[i]
 
             initial_condition = InitialCondition(; coordinates, mass, density)
-            model = (; hydrodynamic_mass=3)
+            model = (; hydrodynamic_mass = 3)
 
             function movement_function(t)
                 if NDIMS == 2
@@ -46,7 +50,7 @@
 
             is_moving(t) = t < 1.0
             bm = BoundaryMovement(movement_function, is_moving)
-            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+            system = BoundarySPHSystem(initial_condition, model, movement = bm)
 
             # Moving
             t = 0.6
@@ -79,8 +83,8 @@
 
             initial_condition = InitialCondition(; coordinates, mass, density)
 
-            bm = BoundaryMovement(movement_function, is_moving, moving_particles=[2])
-            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+            bm = BoundaryMovement(movement_function, is_moving, moving_particles = [2])
+            system = BoundarySPHSystem(initial_condition, model, movement = bm)
 
             t = 0.1
             # semi is only passed to `@threaded`
@@ -104,12 +108,14 @@
 
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "show" begin
-        coordinates = [1.0 2.0
-                       1.0 2.0]
+        coordinates = [
+            1.0 2.0
+            1.0 2.0
+        ]
         mass = [1.0, 1.0]
         density = [1000.0, 1000.0]
         initial_condition = InitialCondition(; coordinates, mass, density)
-        model = (; hydrodynamic_mass=3)
+        model = (; hydrodynamic_mass = 3)
 
         system = BoundarySPHSystem(initial_condition, model)
 

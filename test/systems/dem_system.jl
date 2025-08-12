@@ -1,8 +1,10 @@
-@testset verbose=true "DEMSystem (HertzContactModel)" begin
+@testset verbose = true "DEMSystem (HertzContactModel)" begin
     @trixi_testset "show" begin
         # Define a simple 2D initial condition.
-        coordinates = [1.0 2.0;
-                       1.0 2.0]
+        coordinates = [
+            1.0 2.0;
+            1.0 2.0
+        ]
         mass = [1.25, 1.5]
         density = [990.0, 1000.0]
         initial_condition = InitialCondition(; coordinates, mass, density)
@@ -11,7 +13,7 @@
         contact_model = HertzContactModel(1.0e10, 0.3)
 
         # Construct the DEM system.
-        system = DEMSystem(initial_condition, contact_model, acceleration=(0.0, 10.0))
+        system = DEMSystem(initial_condition, contact_model, acceleration = (0.0, 10.0))
 
         # Expected compact representation.
         show_compact = "DEMSystem{2}(InitialCondition{Float64}(), HertzContactModel: elastic_modulus = 1.0e10, poissons_ratio = 0.3, damping_coefficient = 0.0001) with 2 particles"
@@ -31,11 +33,13 @@
     end
 end
 
-@testset verbose=true "DEMSystem (LinearContactModel)" begin
+@testset verbose = true "DEMSystem (LinearContactModel)" begin
     @trixi_testset "show" begin
         # Define the same 2D initial condition.
-        coordinates = [1.0 2.0;
-                       1.0 2.0]
+        coordinates = [
+            1.0 2.0;
+            1.0 2.0
+        ]
         mass = [1.25, 1.5]
         density = [990.0, 1000.0]
         initial_condition = InitialCondition(; coordinates, mass, density)
@@ -44,7 +48,7 @@ end
         contact_model = LinearContactModel(200000.0)
 
         # Construct the DEM system.
-        system = DEMSystem(initial_condition, contact_model, acceleration=(0.0, 10.0))
+        system = DEMSystem(initial_condition, contact_model, acceleration = (0.0, 10.0))
 
         # Expected compact representation.
         show_compact = "DEMSystem{2}(InitialCondition{Float64}(), LinearContactModel: normal_stiffness = 200000.0, damping_coefficient = 0.0001) with 2 particles"
@@ -77,7 +81,7 @@ Base.ndims(::DummySystem) = 2
     # === HertzContactModel Tests ===
     @testset "HertzContactModel" begin
         # Material and contact parameters
-        E = 1e10         # Elastic modulus
+        E = 1.0e10         # Elastic modulus
         nu = 0.3          # Poisson's ratio
         model = HertzContactModel(E, nu)
 
@@ -105,10 +109,12 @@ Base.ndims(::DummySystem) = 2
         elastic_force = normal_stiffness * overlap
         expected_force = elastic_force * normal
 
-        computed_force = TrixiParticles.collision_force_normal(model, sysA, sysB, overlap,
-                                                               normal, vA, vB, 1, 1,
-                                                               damping_coeff)
-        @test isapprox(computed_force, expected_force; rtol=1e-6)
+        computed_force = TrixiParticles.collision_force_normal(
+            model, sysA, sysB, overlap,
+            normal, vA, vB, 1, 1,
+            damping_coeff
+        )
+        @test isapprox(computed_force, expected_force; rtol = 1.0e-6)
 
         # -- Test 2: Nonzero relative velocity (elastic + damping contributions) --
         vA = reshape([1.0, 0.0], (2, 1))  # Particle A moving along x (nonzero velocity)
@@ -121,10 +127,12 @@ Base.ndims(::DummySystem) = 2
         damping_term = damping_coeff * gamma_c * rel_vel_norm
 
         expected_force = (elastic_force + damping_term) * normal
-        computed_force = TrixiParticles.collision_force_normal(model, sysA, sysB, overlap,
-                                                               normal, vA, vB, 1, 1,
-                                                               damping_coeff)
-        @test isapprox(computed_force, expected_force; rtol=1e-6)
+        computed_force = TrixiParticles.collision_force_normal(
+            model, sysA, sysB, overlap,
+            normal, vA, vB, 1, 1,
+            damping_coeff
+        )
+        @test isapprox(computed_force, expected_force; rtol = 1.0e-6)
     end
 
     # === LinearContactModel Tests ===
@@ -148,10 +156,12 @@ Base.ndims(::DummySystem) = 2
         vB = reshape([0.0, 0.0], (2, 1))
         elastic_force = stiffness * overlap
         expected_force = elastic_force * normal
-        computed_force = TrixiParticles.collision_force_normal(model, sysA, sysB, overlap,
-                                                               normal, vA, vB, 1, 1,
-                                                               damping_coeff)
-        @test isapprox(computed_force, expected_force; rtol=1e-6)
+        computed_force = TrixiParticles.collision_force_normal(
+            model, sysA, sysB, overlap,
+            normal, vA, vB, 1, 1,
+            damping_coeff
+        )
+        @test isapprox(computed_force, expected_force; rtol = 1.0e-6)
 
         # -- Test 2: Nonzero relative velocity --
         vA = reshape([1.0, 0.0], (2, 1))
@@ -160,9 +170,11 @@ Base.ndims(::DummySystem) = 2
         gamma_c = 2 * sqrt(m_star * stiffness)
         damping_term = damping_coeff * gamma_c * 1.0
         expected_force = (stiffness * overlap + damping_term) * normal
-        computed_force = TrixiParticles.collision_force_normal(model, sysA, sysB, overlap,
-                                                               normal, vA, vB, 1, 1,
-                                                               damping_coeff)
-        @test isapprox(computed_force, expected_force; rtol=1e-6)
+        computed_force = TrixiParticles.collision_force_normal(
+            model, sysA, sysB, overlap,
+            normal, vA, vB, 1, 1,
+            damping_coeff
+        )
+        @test isapprox(computed_force, expected_force; rtol = 1.0e-6)
     end
 end

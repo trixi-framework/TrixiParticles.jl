@@ -70,12 +70,14 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), den
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-function RectangularShape(particle_spacing, n_particles_per_dimension, min_coordinates;
-                          velocity=zeros(length(n_particles_per_dimension)),
-                          coordinates_perturbation=nothing,
-                          mass=nothing, density=nothing, pressure=0.0,
-                          acceleration=nothing, state_equation=nothing,
-                          tlsph=false, loop_order=nothing)
+function RectangularShape(
+        particle_spacing, n_particles_per_dimension, min_coordinates;
+        velocity = zeros(length(n_particles_per_dimension)),
+        coordinates_perturbation = nothing,
+        mass = nothing, density = nothing, pressure = 0.0,
+        acceleration = nothing, state_equation = nothing,
+        tlsph = false, loop_order = nothing
+    )
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -94,39 +96,53 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
 
     n_particles = prod(n_particles_per_dimension)
 
-    coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                           min_coordinates, tlsph=tlsph,
-                                           loop_order=loop_order)
+    coordinates = rectangular_shape_coords(
+        particle_spacing, n_particles_per_dimension,
+        min_coordinates, tlsph = tlsph,
+        loop_order = loop_order
+    )
 
     if !isnothing(coordinates_perturbation)
         seed!(1)
         amplitude = coordinates_perturbation * particle_spacing
-        coordinates .+= rand((-amplitude):(particle_spacing * 1e-3):(amplitude),
-                             NDIMS, n_particles)
+        coordinates .+= rand(
+            (-amplitude):(particle_spacing * 1.0e-3):(amplitude),
+            NDIMS, n_particles
+        )
     end
 
     # Allow zero acceleration with state equation, but interpret `nothing` acceleration
     # with state equation as a likely mistake.
     if acceleration isa AbstractVector || acceleration isa Tuple
         if pressure != 0.0
-            throw(ArgumentError("`pressure` cannot be used together with `acceleration` " *
-                                "and `state_equation` (hydrostatic pressure gradient)"))
+            throw(
+                ArgumentError(
+                    "`pressure` cannot be used together with `acceleration` " *
+                        "and `state_equation` (hydrostatic pressure gradient)"
+                )
+            )
         end
 
         if state_equation === nothing
             density_fun = pressure -> density
         else
             if density !== nothing
-                throw(ArgumentError("`density` cannot be used together with `acceleration` " *
-                                    "and `state_equation` (hydrostatic pressure gradient)"))
+                throw(
+                    ArgumentError(
+                        "`density` cannot be used together with `acceleration` " *
+                            "and `state_equation` (hydrostatic pressure gradient)"
+                    )
+                )
             end
             density_fun = pressure -> inverse_state_equation(state_equation, pressure)
         end
 
         # Initialize hydrostatic pressure
         pressure = Vector{ELTYPE}(undef, n_particles)
-        initialize_pressure!(pressure, particle_spacing, acceleration,
-                             density_fun, n_particles_per_dimension, loop_order)
+        initialize_pressure!(
+            pressure, particle_spacing, acceleration,
+            density_fun, n_particles_per_dimension, loop_order
+        )
 
         if state_equation !== nothing
             # Weakly compressible case: get density from inverse state equation
@@ -139,12 +155,18 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
     end
 
     if density === nothing
-        throw(ArgumentError("`density` must be specified when not using `acceleration` " *
-                            "and `state_equation` (hydrostatic pressure gradient)"))
+        throw(
+            ArgumentError(
+                "`density` must be specified when not using `acceleration` " *
+                    "and `state_equation` (hydrostatic pressure gradient)"
+            )
+        )
     end
 
-    return InitialCondition(; coordinates, velocity, density, mass, pressure,
-                            particle_spacing)
+    return InitialCondition(;
+        coordinates, velocity, density, mass, pressure,
+        particle_spacing
+    )
 end
 
 # 1D
@@ -152,8 +174,12 @@ function loop_permutation(loop_order, NDIMS::Val{1})
     if loop_order === :x_first || loop_order === nothing
         permutation = (1,)
     else
-        throw(ArgumentError("$loop_order is not a valid loop order. " *
-                            "Possible values are :x_first."))
+        throw(
+            ArgumentError(
+                "$loop_order is not a valid loop order. " *
+                    "Possible values are :x_first."
+            )
+        )
     end
 
     return permutation
@@ -166,8 +192,12 @@ function loop_permutation(loop_order, NDIMS::Val{2})
     elseif loop_order === :x_first
         permutation = (2, 1)
     else
-        throw(ArgumentError("$loop_order is not a valid loop order. " *
-                            "Possible values are :x_first and :y_first."))
+        throw(
+            ArgumentError(
+                "$loop_order is not a valid loop order. " *
+                    "Possible values are :x_first and :y_first."
+            )
+        )
     end
 
     return permutation
@@ -182,15 +212,21 @@ function loop_permutation(loop_order, NDIMS::Val{3})
     elseif loop_order === :x_first
         permutation = (3, 2, 1)
     else
-        throw(ArgumentError("$loop_order is not a valid loop order. " *
-                            "Possible values are :x_first, :y_first and :z_first"))
+        throw(
+            ArgumentError(
+                "$loop_order is not a valid loop order. " *
+                    "Possible values are :x_first, :y_first and :z_first"
+            )
+        )
     end
 
     return permutation
 end
 
-function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                  min_coordinates; tlsph=false, loop_order=nothing)
+function rectangular_shape_coords(
+        particle_spacing, n_particles_per_dimension,
+        min_coordinates; tlsph = false, loop_order = nothing
+    )
     ELTYPE = eltype(particle_spacing)
     NDIMS = length(n_particles_per_dimension)
 
@@ -217,11 +253,17 @@ function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
     return coordinates
 end
 
-function initialize_pressure!(pressure, particle_spacing, acceleration, density_fun,
-                              n_particles_per_dimension, loop_order)
+function initialize_pressure!(
+        pressure, particle_spacing, acceleration, density_fun,
+        n_particles_per_dimension, loop_order
+    )
     if count(a -> abs(a) > eps(), acceleration) > 1
-        throw(ArgumentError("hydrostatic pressure calculation is not supported with " *
-                            "diagonal acceleration"))
+        throw(
+            ArgumentError(
+                "hydrostatic pressure calculation is not supported with " *
+                    "diagonal acceleration"
+            )
+        )
     end
 
     # Dimension in which the acceleration is acting
@@ -258,4 +300,5 @@ function initialize_pressure!(pressure, particle_spacing, acceleration, density_
         index_in_accel_dim = permuted_indices[particle][accel_dim]
         pressure[particle] = pressure_1d[index_in_accel_dim]
     end
+    return
 end

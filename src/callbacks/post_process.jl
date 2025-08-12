@@ -62,24 +62,26 @@ postprocess_callback = PostprocessCallback(dt=0.1, example_quantity=kinetic_ener
 ```
 """
 struct PostprocessCallback{I, F}
-    interval            :: I
-    write_file_interval :: Int
-    data                :: Dict{String, Vector{Any}}
-    times               :: Array{Float64, 1}
-    exclude_boundary    :: Bool
-    func                :: F
-    filename            :: String
-    output_directory    :: String
-    append_timestamp    :: Bool
-    write_csv           :: Bool
-    write_json          :: Bool
-    git_hash            :: Ref{String}
+    interval::I
+    write_file_interval::Int
+    data::Dict{String, Vector{Any}}
+    times::Array{Float64, 1}
+    exclude_boundary::Bool
+    func::F
+    filename::String
+    output_directory::String
+    append_timestamp::Bool
+    write_csv::Bool
+    write_json::Bool
+    git_hash::Ref{String}
 end
 
-function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
-                             output_directory="out", filename="values",
-                             append_timestamp=false, write_csv=true, write_json=true,
-                             write_file_interval::Integer=1, funcs...)
+function PostprocessCallback(;
+        interval::Integer = 0, dt = 0.0, exclude_boundary = true,
+        output_directory = "out", filename = "values",
+        append_timestamp = false, write_csv = true, write_json = true,
+        write_file_interval::Integer = 1, funcs...
+    )
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
     end
@@ -92,21 +94,27 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
         interval = Float64(dt)
     end
 
-    post_callback = PostprocessCallback(interval, write_file_interval,
-                                        Dict{String, Vector{Any}}(), Float64[],
-                                        exclude_boundary, funcs, filename, output_directory,
-                                        append_timestamp, write_csv, write_json,
-                                        Ref("UnknownVersion"))
+    post_callback = PostprocessCallback(
+        interval, write_file_interval,
+        Dict{String, Vector{Any}}(), Float64[],
+        exclude_boundary, funcs, filename, output_directory,
+        append_timestamp, write_csv, write_json,
+        Ref("UnknownVersion")
+    )
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution
-        return PeriodicCallback(post_callback, dt,
-                                initialize=(initialize_postprocess_callback!),
-                                save_positions=(false, false), final_affect=true)
+        return PeriodicCallback(
+            post_callback, dt,
+            initialize = (initialize_postprocess_callback!),
+            save_positions = (false, false), final_affect = true
+        )
     else
         # The first one is the `condition`, the second the `affect!`
-        return DiscreteCallback(post_callback, post_callback,
-                                save_positions=(false, false),
-                                initialize=(initialize_postprocess_callback!))
+        return DiscreteCallback(
+            post_callback, post_callback,
+            save_positions = (false, false),
+            initialize = (initialize_postprocess_callback!)
+        )
     end
 end
 
@@ -116,24 +124,30 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:PostprocessCallback})
     print(io, "PostprocessCallback(interval=", callback.interval)
     print(io, ", functions=[")
     print(io, join(keys(callback.func), ", "))
-    print(io, "])")
+    return print(io, "])")
 end
 
-function Base.show(io::IO,
-                   cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:PostprocessCallback}})
+function Base.show(
+        io::IO,
+        cb::DiscreteCallback{
+            <:Any,
+            <:PeriodicCallbackAffect{<:PostprocessCallback},
+        }
+    )
     @nospecialize cb # reduce precompilation time
     callback = cb.affect!.affect!
     print(io, "PostprocessCallback(dt=", callback.interval)
     print(io, ", functions=[")
     print(io, join(keys(callback.func), ", "))
-    print(io, "])")
+    return print(io, "])")
 end
 
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:PostprocessCallback})
+function Base.show(
+        io::IO, ::MIME"text/plain",
+        cb::DiscreteCallback{<:Any, <:PostprocessCallback}
+    )
     @nospecialize cb # reduce precompilation time
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, cb)
     else
         callback = cb.affect!
@@ -156,7 +170,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "output directory" => callback.output_directory,
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
             "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no"
+            "write csv file" => callback.write_json ? "yes" : "no",
         ]
 
         for (i, key) in enumerate(keys(callback.func))
@@ -166,11 +180,15 @@ function Base.show(io::IO, ::MIME"text/plain",
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:PostprocessCallback}})
+function Base.show(
+        io::IO, ::MIME"text/plain",
+        cb::DiscreteCallback{
+            <:Any,
+            <:PeriodicCallbackAffect{<:PostprocessCallback},
+        }
+    )
     @nospecialize cb # reduce precompilation time
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, cb)
     else
         callback = cb.affect!.affect!
@@ -193,7 +211,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "output directory" => callback.output_directory,
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
             "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no"
+            "write csv file" => callback.write_json ? "yes" : "no",
         ]
 
         for (i, key) in enumerate(keys(callback.func))
@@ -207,7 +225,7 @@ function initialize_postprocess_callback!(cb, u, t, integrator)
     # The `PostprocessCallback` is either `cb.affect!` (with `DiscreteCallback`)
     # or `cb.affect!.affect!` (with `PeriodicCallback`).
     # Let recursive dispatch handle this.
-    initialize_postprocess_callback!(cb.affect!, u, t, integrator)
+    return initialize_postprocess_callback!(cb.affect!, u, t, integrator)
 end
 
 function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integrator)
@@ -228,7 +246,7 @@ end
 
 # `affect!`
 function (pp::PostprocessCallback)(integrator)
-    @trixi_timeit timer() "apply postprocess cb" begin
+    return @trixi_timeit timer() "apply postprocess cb" begin
         vu_ode = integrator.u
         v_ode, u_ode = vu_ode.x
         semi = integrator.p
@@ -240,8 +258,10 @@ function (pp::PostprocessCallback)(integrator)
         # still have the values from the last stage of the previous step if not updated here.
         @trixi_timeit timer() "update systems and nhs" begin
             # Don't create sub-timers here to avoid cluttering the timer output
-            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                     update_from_callback=true)
+            @notimeit timer() update_systems_and_nhs(
+                v_ode, u_ode, semi, t;
+                update_from_callback = true
+            )
         end
 
         foreach_system(semi) do system
@@ -265,7 +285,7 @@ function (pp::PostprocessCallback)(integrator)
         end
 
         if isfinished(integrator) ||
-           (pp.write_file_interval > 0 && backup_condition(pp, integrator))
+                (pp.write_file_interval > 0 && backup_condition(pp, integrator))
             write_postprocess_callback(pp)
         end
 
@@ -276,12 +296,12 @@ end
 
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
     return integrator.stats.naccept > 0 &&
-           round(integrator.stats.naccept / cb.interval) % cb.write_file_interval == 0
+        round(integrator.stats.naccept / cb.interval) % cb.write_file_interval == 0
 end
 
 @inline function backup_condition(cb::PostprocessCallback, integrator)
     return integrator.stats.naccept > 0 &&
-           round(Int, integrator.t / cb.interval) % cb.write_file_interval == 0
+        round(Int, integrator.t / cb.interval) % cb.write_file_interval == 0
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
@@ -310,7 +330,7 @@ function write_postprocess_callback(pp::PostprocessCallback)
             JSON.print(file, data, 4)
         end
     end
-    if pp.write_csv
+    return if pp.write_csv
         abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
 
         write_csv(abs_file_path, data)
@@ -332,19 +352,23 @@ function prepare_series_data!(data, post_callback)
     return data
 end
 
-function create_series_dict(values, times, system_name="")
-    return Dict("type" => "series",
-                "datatype" => eltype(values),
-                "n_values" => length(values),
-                "system_name" => system_name,
-                "values" => values,
-                "time" => times)
+function create_series_dict(values, times, system_name = "")
+    return Dict(
+        "type" => "series",
+        "datatype" => eltype(values),
+        "n_values" => length(values),
+        "system_name" => system_name,
+        "values" => values,
+        "time" => times
+    )
 end
 
 function write_meta_data!(data, git_hash)
-    meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => git_hash,
-                     "julia_version" => string(VERSION))
+    meta_data = Dict(
+        "solver_name" => "TrixiParticles.jl",
+        "solver_version" => git_hash,
+        "julia_version" => string(VERSION)
+    )
 
     data["meta"] = meta_data
     return data
@@ -361,7 +385,7 @@ function write_csv(abs_file_path, data)
     end
 
     # Initialize DataFrame with time column
-    df = DataFrame(time=times)
+    df = DataFrame(time = times)
 
     for (key, series) in data
         # Ensure we only process data entries, excluding any meta data or non-data entries.
@@ -374,7 +398,7 @@ function write_csv(abs_file_path, data)
     end
 
     # Write the DataFrame to a CSV file
-    CSV.write(abs_file_path, df)
+    return CSV.write(abs_file_path, df)
 end
 
 function add_entry!(pp, entry_key, t, value, system_name)
@@ -382,5 +406,5 @@ function add_entry!(pp, entry_key, t, value, system_name)
     entries = get!(pp.data, entry_key * "_" * system_name, Any[])
 
     # Add the new entry to the list
-    push!(entries, value)
+    return push!(entries, value)
 end

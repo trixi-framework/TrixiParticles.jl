@@ -1,6 +1,6 @@
-@testset verbose=true "StepsizeCallback" begin
-    @testset verbose=true "show" begin
-        callback = StepsizeCallback(cfl=1.2)
+@testset verbose = true "StepsizeCallback" begin
+    @testset verbose = true "show" begin
+        callback = StepsizeCallback(cfl = 1.2)
 
         show_compact = "StepsizeCallback(is_constant=true, cfl_number=1.2)"
         @test repr(callback) == show_compact

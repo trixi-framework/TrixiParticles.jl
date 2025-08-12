@@ -23,18 +23,20 @@ to this surface.
                               Use the default of `false` when packing without a boundary.
 """
 struct SignedDistanceField{ELTYPE, P, D}
-    positions           :: P
-    normals             :: P
-    distances           :: D
-    max_signed_distance :: ELTYPE
-    boundary_packing    :: Bool
-    particle_spacing    :: ELTYPE
+    positions::P
+    normals::P
+    distances::D
+    max_signed_distance::ELTYPE
+    boundary_packing::Bool
+    particle_spacing::ELTYPE
 end
 
-function SignedDistanceField(geometry, particle_spacing;
-                             points=nothing, neighborhood_search=true,
-                             max_signed_distance=4 * particle_spacing,
-                             use_for_boundary_packing=false)
+function SignedDistanceField(
+        geometry, particle_spacing;
+        points = nothing, neighborhood_search = true,
+        max_signed_distance = 4 * particle_spacing,
+        use_for_boundary_packing = false
+    )
     NDIMS = ndims(geometry)
     ELTYPE = eltype(max_signed_distance)
 
@@ -45,7 +47,7 @@ function SignedDistanceField(geometry, particle_spacing;
     if neighborhood_search
         nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
     else
-        nhs = TrivialNeighborhoodSearch{NDIMS}(eachpoint=eachface(geometry))
+        nhs = TrivialNeighborhoodSearch{NDIMS}(eachpoint = eachface(geometry))
     end
 
     initialize!(nhs, geometry)
@@ -54,12 +56,18 @@ function SignedDistanceField(geometry, particle_spacing;
         min_corner = geometry.min_corner .- search_radius
         max_corner = geometry.max_corner .+ search_radius
 
-        n_particles_per_dimension = Tuple(ceil.(Int,
-                                                (max_corner .- min_corner) ./
-                                                particle_spacing))
+        n_particles_per_dimension = Tuple(
+            ceil.(
+                Int,
+                (max_corner .- min_corner) ./
+                    particle_spacing
+            )
+        )
 
-        grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                        min_corner; tlsph=true)
+        grid = rectangular_shape_coords(
+            particle_spacing, n_particles_per_dimension,
+            min_corner; tlsph = true
+        )
 
         points = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
     end
@@ -72,23 +80,27 @@ function SignedDistanceField(geometry, particle_spacing;
     normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(positions))
     distances = fill(Inf, length(positions))
 
-    calculate_signed_distances!(positions, distances, normals,
-                                geometry, sdf_factor, max_signed_distance, nhs)
+    calculate_signed_distances!(
+        positions, distances, normals,
+        geometry, sdf_factor, max_signed_distance, nhs
+    )
 
-    return SignedDistanceField(positions, normals, distances, max_signed_distance,
-                               use_for_boundary_packing, particle_spacing)
+    return SignedDistanceField(
+        positions, normals, distances, max_signed_distance,
+        use_for_boundary_packing, particle_spacing
+    )
 end
 
 function Base.show(io::IO, system::SignedDistanceField)
     @nospecialize system # reduce precompilation time
 
-    print(io, "SignedDistanceField()")
+    return print(io, "SignedDistanceField()")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", system::SignedDistanceField)
     @nospecialize system # reduce precompilation time
 
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, system)
     else
         summary_header(io, "SignedDistanceField")
@@ -98,13 +110,17 @@ function Base.show(io::IO, ::MIME"text/plain", system::SignedDistanceField)
     end
 end
 
-function trixi2vtk(signed_distance_field::SignedDistanceField;
-                   filename="signed_distance_field", output_directory="out")
+function trixi2vtk(
+        signed_distance_field::SignedDistanceField;
+        filename = "signed_distance_field", output_directory = "out"
+    )
     (; positions, distances, normals) = signed_distance_field
     positions = stack(signed_distance_field.positions)
 
-    trixi2vtk(positions, signed_distances=distances, normals=normals,
-              filename=filename, output_directory=output_directory)
+    return trixi2vtk(
+        positions, signed_distances = distances, normals = normals,
+        filename = filename, output_directory = output_directory
+    )
 end
 
 delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch) = positions
@@ -123,15 +139,19 @@ function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch
     return positions
 end
 
-function calculate_signed_distances!(positions, distances, normals,
-                                     boundary, sdf_factor, max_signed_distance, nhs)
+function calculate_signed_distances!(
+        positions, distances, normals,
+        boundary, sdf_factor, max_signed_distance, nhs
+    )
     @threaded default_backend(positions) for point in eachindex(positions)
         point_coords = positions[point]
 
         for face in eachneighbor(point_coords, nhs)
             sign_bit, distance,
-            normal = signed_point_face_distance(point_coords, boundary,
-                                                face)
+                normal = signed_point_face_distance(
+                point_coords, boundary,
+                face
+            )
 
             if distance < distances[point]^2
                 # Found a face closer than the previous closest face
@@ -199,8 +219,10 @@ end
 #
 # Inspired by https://github.com/embree/embree/blob/master/tutorials/common/math/closest_point.h
 function signed_point_face_distance(p::SVector{3}, boundary, face_index)
-    (; face_vertices, face_vertices_ids, edge_normals,
-     face_edges_ids, face_normals, vertex_normals) = boundary
+    (;
+        face_vertices, face_vertices_ids, edge_normals,
+        face_edges_ids, face_normals, vertex_normals,
+    ) = boundary
 
     a = face_vertices[face_index][1]
     b = face_vertices[face_index][2]
