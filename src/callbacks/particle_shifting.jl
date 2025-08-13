@@ -39,8 +39,7 @@ function particle_shifting!(integrator)
         # still have the values from the last stage of the previous step if not updated here.
         @trixi_timeit timer() "update systems and nhs" begin
             # Don't create sub-timers here to avoid cluttering the timer output
-            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                     update_from_callback=true)
+            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
         end
 
         @trixi_timeit timer() "particle shifting" foreach_system(semi) do system

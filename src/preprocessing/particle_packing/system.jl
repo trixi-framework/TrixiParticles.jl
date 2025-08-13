@@ -215,13 +215,14 @@ end
     return ndims(system)
 end
 
-function reset_callback_flag!(system::ParticlePackingSystem)
-    system.update_callback_used[] = false
+@inline requires_update_callback(system::ParticlePackingSystem) = true
+@inline update_callback_used(system::ParticlePackingSystem) = system.update_callback_used[]
+
+function set_callback_flag!(system::ParticlePackingSystem, value)
+    system.update_callback_used[] = value
 
     return system
 end
-
-update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     vtk["velocity"] = [advection_velocity(v, system, particle)
@@ -287,15 +288,6 @@ function update_position!(u, system::ParticlePackingSystem, semi)
     @trixi_timeit timer() func_name constrain_particles_onto_surface!(u, system, semi)
 
     return u
-end
-
-function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
-    if !update_from_callback && !(system.update_callback_used[])
-        throw(ArgumentError("`UpdateCallback` is required when using `ParticlePackingSystem`"))
-    end
-
-    return system
 end
 
 # Skip for systems without `SignedDistanceField`
@@ -395,6 +387,10 @@ end
         end
     end
 
+    return system
+end
+
+@inline function update_transport_velocity!(system, v_ode, semi)
     return system
 end
 
