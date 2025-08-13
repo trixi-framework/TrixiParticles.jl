@@ -89,6 +89,7 @@ of the geometry.
 
 # Keywords
 - `boundary_thickness`: Thickness of the boundary
+- `place_on_shell`:     When `place_on_shell=true`, boundary particles will be placed
 - `boundary_density`: Density of each boundary particle.
 - `place_on_shell`:     When `place_on_shell=true`, boundary particles will be placed
                         one particle spacing from the surface of the geometry.

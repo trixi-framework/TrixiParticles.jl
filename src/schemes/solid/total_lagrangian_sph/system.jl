@@ -168,11 +168,11 @@ end
     return ELTYPE
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem)
+@inline function v_nvariables(system::TotalLagrangianSPHSystem, no_of_fluid_systems)
     return ndims(system)
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}, no_of_fluid_systems)
     return ndims(system) + 1
 end
 
@@ -230,7 +230,7 @@ end
     extract_smatrix(system.pk1_corrected, system, particle)
 end
 
-function initialize!(system::TotalLagrangianSPHSystem, semi)
+function initialize!(system::TotalLagrangianSPHSystem, semi, v0_ode)
     (; correction_matrix) = system
 
     initial_coords = initial_coordinates(system)
