@@ -15,20 +15,24 @@ Boundary model for `BoundarySPHSystem`.
                 information.
 """
 struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, VECTOR, V}
-    K                         :: ELTYPE
-    beta                      :: ELTYPE
-    boundary_particle_spacing :: ELTYPE
-    hydrodynamic_mass         :: VECTOR # Vector{ELTYPE}
-    viscosity                 :: V
+    K::ELTYPE
+    beta::ELTYPE
+    boundary_particle_spacing::ELTYPE
+    hydrodynamic_mass::VECTOR # Vector{ELTYPE}
+    viscosity::V
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
-                                     viscosity=nothing)
-    return BoundaryModelMonaghanKajtar(K, convert(typeof(K), beta),
-                                       boundary_particle_spacing,
-                                       mass, viscosity)
+function BoundaryModelMonaghanKajtar(
+        K, beta, boundary_particle_spacing, mass;
+        viscosity = nothing
+    )
+    return BoundaryModelMonaghanKajtar(
+        K, convert(typeof(K), beta),
+        boundary_particle_spacing,
+        mass, viscosity
+    )
 end
 
 function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
@@ -40,14 +44,18 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, model.beta)
     print(io, ", ")
     print(io, model.viscosity |> typeof |> nameof)
-    print(io, ")")
+    return print(io, ")")
 end
 
-@inline function pressure_acceleration(particle_system,
-                                       neighbor_system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
-                                                              TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
-                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                       pos_diff, distance, grad_kernel, correction)
+@inline function pressure_acceleration(
+        particle_system,
+        neighbor_system::Union{
+            BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+            TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar},
+        },
+        particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+        pos_diff, distance, grad_kernel, correction
+    )
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
     # This is `distance - boundary_particle_spacing` in the paper. This factor makes
@@ -59,12 +67,14 @@ end
     # In order to avoid this, we clip the force at a "large" value, large enough to prevent
     # penetration when a reasonable `K` is used, but small enough to not cause instabilites
     # or super small time steps.
-    distance_from_singularity = max(boundary_particle_spacing / 100,
-                                    distance - boundary_particle_spacing)
+    distance_from_singularity = max(
+        boundary_particle_spacing / 100,
+        distance - boundary_particle_spacing
+    )
 
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
-           (distance * distance_from_singularity) *
-           boundary_kernel(distance, smoothing_length(particle_system, particle))
+        (distance * distance_from_singularity) *
+        boundary_kernel(distance, smoothing_length(particle_system, particle))
 end
 
 @fastpow @inline function boundary_kernel(r, h)
@@ -79,10 +89,14 @@ end
     return (177 // 100) // 32 * (1 + 5 // 2 * q + 2 * q^2) * (2 - q)^5
 end
 
-@inline function current_density(v,
-                                 system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
-                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
-                                 particle)
+@inline function current_density(
+        v,
+        system::Union{
+            BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+            TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar},
+        },
+        particle
+    )
     (; hydrodynamic_mass, boundary_particle_spacing) = system.boundary_model
 
     # This model does not use any particle density. However, a mean density is used for
@@ -96,10 +110,14 @@ end
 end
 
 # This model does not not use any particle pressure
-@inline function current_pressure(v,
-                                  system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
-                                                TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
-                                  particle)
+@inline function current_pressure(
+        v,
+        system::Union{
+            BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+            TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar},
+        },
+        particle
+    )
     return zero(eltype(v))
 end
 
@@ -108,14 +126,18 @@ end
     error("`current_pressure` not implemented for `BoundaryModelMonaghanKajtar`")
 end
 
-@inline function update_pressure!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                                  v, u, v_ode, u_ode, semi)
+@inline function update_pressure!(
+        boundary_model::BoundaryModelMonaghanKajtar, system,
+        v, u, v_ode, u_ode, semi
+    )
     # Nothing to do in the update step
     return boundary_model
 end
 
-@inline function update_density!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                                 v, u, v_ode, u_ode, semi)
+@inline function update_density!(
+        boundary_model::BoundaryModelMonaghanKajtar, system,
+        v, u, v_ode, u_ode, semi
+    )
     # Nothing to do in the update step
     return boundary_model
 end

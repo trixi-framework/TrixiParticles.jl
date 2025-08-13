@@ -52,43 +52,49 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `color_value`:                The value used to initialize the color of particles in the system.
 
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
-                                   ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
-    initial_condition                 :: IC
-    mass                              :: M # Vector{ELTYPE}: [particle]
-    density_calculator                :: DC
-    smoothing_kernel                  :: K
-    sound_speed                       :: ELTYPE
-    viscosity                         :: V
-    nu_edac                           :: ELTYPE
-    acceleration                      :: SVector{NDIMS, ELTYPE}
-    correction                        :: COR
-    pressure_acceleration_formulation :: PF
-    transport_velocity                :: TV
-    source_terms                      :: ST
-    surface_tension                   :: SRFT
-    surface_normal_method             :: SRFN
-    buffer                            :: B
-    particle_refinement               :: PR
-    cache                             :: C
+struct EntropicallyDampedSPHSystem{
+        NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
+        ST, SRFT, SRFN, B, PR, C,
+    } <: FluidSystem{NDIMS}
+    initial_condition::IC
+    mass::M # Vector{ELTYPE}: [particle]
+    density_calculator::DC
+    smoothing_kernel::K
+    sound_speed::ELTYPE
+    viscosity::V
+    nu_edac::ELTYPE
+    acceleration::SVector{NDIMS, ELTYPE}
+    correction::COR
+    pressure_acceleration_formulation::PF
+    transport_velocity::TV
+    source_terms::ST
+    surface_tension::SRFT
+    surface_normal_method::SRFN
+    buffer::B
+    particle_refinement::PR
+    cache::C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                     smoothing_length, sound_speed;
-                                     pressure_acceleration=inter_particle_averaged_pressure,
-                                     density_calculator=SummationDensity(),
-                                     transport_velocity=nothing,
-                                     alpha=0.5, viscosity=nothing,
-                                     acceleration=ntuple(_ -> 0.0,
-                                                         ndims(smoothing_kernel)),
-                                     correction=nothing,
-                                     source_terms=nothing, surface_tension=nothing,
-                                     surface_normal_method=nothing, buffer_size=nothing,
-                                     reference_particle_spacing=0.0, color_value=1)
+function EntropicallyDampedSPHSystem(
+        initial_condition, smoothing_kernel,
+        smoothing_length, sound_speed;
+        pressure_acceleration = inter_particle_averaged_pressure,
+        density_calculator = SummationDensity(),
+        transport_velocity = nothing,
+        alpha = 0.5, viscosity = nothing,
+        acceleration = ntuple(
+            _ -> 0.0,
+            ndims(smoothing_kernel)
+        ),
+        correction = nothing,
+        source_terms = nothing, surface_tension = nothing,
+        surface_normal_method = nothing, buffer_size = nothing,
+        reference_particle_spacing = 0.0, color_value = 1
+    )
     buffer = isnothing(buffer_size) ? nothing :
-             SystemBuffer(nparticles(initial_condition), buffer_size)
+        SystemBuffer(nparticles(initial_condition), buffer_size)
 
     particle_refinement = nothing # TODO
 
@@ -118,51 +124,68 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     end
 
     if correction isa ShepardKernelCorrection &&
-       density_calculator isa ContinuityDensity
+            density_calculator isa ContinuityDensity
         throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
     end
 
-    pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
-                                                                     density_calculator,
-                                                                     NDIMS, ELTYPE,
-                                                                     correction)
+    pressure_acceleration = choose_pressure_acceleration_formulation(
+        pressure_acceleration,
+        density_calculator,
+        NDIMS, ELTYPE,
+        correction
+    )
 
     nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
-    cache = (; create_cache_density(initial_condition, density_calculator)...,
-             create_cache_tvf(Val(:edac), initial_condition, transport_velocity)...,
-             create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
-                                         n_particles)...,
-             create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
-                                          n_particles)...,
-             create_cache_refinement(initial_condition, particle_refinement,
-                                     smoothing_length)...,
-             create_cache_correction(correction, initial_condition.density, NDIMS,
-                                     n_particles)...,
-             color=Int(color_value))
+    cache = (;
+        create_cache_density(initial_condition, density_calculator)...,
+        create_cache_tvf(Val(:edac), initial_condition, transport_velocity)...,
+        create_cache_surface_normal(
+            surface_normal_method, ELTYPE, NDIMS,
+            n_particles
+        )...,
+        create_cache_surface_tension(
+            surface_tension, ELTYPE, NDIMS,
+            n_particles
+        )...,
+        create_cache_refinement(
+            initial_condition, particle_refinement,
+            smoothing_length
+        )...,
+        create_cache_correction(
+            correction, initial_condition.density, NDIMS,
+            n_particles
+        )...,
+        color = Int(color_value),
+    )
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
-                 cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+            cache...,  # Existing cache fields
+            reference_particle_spacing = reference_particle_spacing,
+        )
     end
 
-    EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
-                                typeof(density_calculator), typeof(smoothing_kernel),
-                                typeof(viscosity), typeof(correction),
-                                typeof(pressure_acceleration),
-                                typeof(transport_velocity), typeof(source_terms),
-                                typeof(surface_tension), typeof(surface_normal_method),
-                                typeof(buffer), Nothing,
-                                typeof(cache)}(initial_condition, mass, density_calculator,
-                                               smoothing_kernel, sound_speed, viscosity,
-                                               nu_edac, acceleration_, correction,
-                                               pressure_acceleration, transport_velocity,
-                                               source_terms, surface_tension,
-                                               surface_normal_method, buffer,
-                                               particle_refinement, cache)
+    return EntropicallyDampedSPHSystem{
+        NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
+        typeof(density_calculator), typeof(smoothing_kernel),
+        typeof(viscosity), typeof(correction),
+        typeof(pressure_acceleration),
+        typeof(transport_velocity), typeof(source_terms),
+        typeof(surface_tension), typeof(surface_normal_method),
+        typeof(buffer), Nothing,
+        typeof(cache),
+    }(
+        initial_condition, mass, density_calculator,
+        smoothing_kernel, sound_speed, viscosity,
+        nu_edac, acceleration_, correction,
+        pressure_acceleration, transport_velocity,
+        source_terms, surface_tension,
+        surface_normal_method, buffer,
+        particle_refinement, cache
+    )
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
@@ -176,13 +199,13 @@ function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.surface_tension)
     print(io, ", ", system.surface_normal_method)
-    print(io, ") with ", nparticles(system), " particles")
+    return print(io, ") with ", nparticles(system), " particles")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSystem)
     @nospecialize system # reduce precompilation time
 
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, system)
     else
         summary_header(io, "EntropicallyDampedSPHSystem{$(ndims(system))}")
@@ -192,15 +215,21 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         else
             summary_line(io, "#particles", nparticles(system))
         end
-        summary_line(io, "density calculator",
-                     system.density_calculator |> typeof |> nameof)
-        summary_line(io, "correction method",
-                     system.correction |> typeof |> nameof)
+        summary_line(
+            io, "density calculator",
+            system.density_calculator |> typeof |> nameof
+        )
+        summary_line(
+            io, "correction method",
+            system.correction |> typeof |> nameof
+        )
         summary_line(io, "viscosity", system.viscosity |> typeof |> nameof)
-        summary_line(io, "ν₍EDAC₎", "≈ $(round(system.nu_edac; digits=3))")
+        summary_line(io, "ν₍EDAC₎", "≈ $(round(system.nu_edac; digits = 3))")
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "tansport velocity formulation",
-                     system.transport_velocity |> typeof |> nameof)
+        summary_line(
+            io, "tansport velocity formulation",
+            system.transport_velocity |> typeof |> nameof
+        )
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
@@ -251,8 +280,10 @@ end
 # of newly activated particles in a callback.
 # DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
 # outside of callbacks.
-@inline function set_particle_pressure!(v, system::EntropicallyDampedSPHSystem, particle,
-                                        pressure)
+@inline function set_particle_pressure!(
+        v, system::EntropicallyDampedSPHSystem, particle,
+        pressure
+    )
     v[end, particle] = pressure
 
     return v
@@ -263,7 +294,7 @@ end
 @inline average_pressure(system, particle) = zero(eltype(system))
 
 @inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
-    average_pressure(system, system.transport_velocity, particle)
+    return average_pressure(system, system.transport_velocity, particle)
 end
 
 @inline function average_pressure(system, ::TransportVelocityAdami, particle)
@@ -276,14 +307,18 @@ end
     return current_density(v, system.density_calculator, system)
 end
 
-@inline function current_density(v, ::SummationDensity,
-                                 system::EntropicallyDampedSPHSystem)
+@inline function current_density(
+        v, ::SummationDensity,
+        system::EntropicallyDampedSPHSystem
+    )
     # When using `SummationDensity`, the density is stored in the cache
     return system.cache.density
 end
 
-@inline function current_density(v, ::ContinuityDensity,
-                                 system::EntropicallyDampedSPHSystem)
+@inline function current_density(
+        v, ::ContinuityDensity,
+        system::EntropicallyDampedSPHSystem
+    )
     # When using `ContinuityDensity`, the density is stored in the second to last row of `v`
     return view(v, size(v, 1) - 1, :)
 end
@@ -292,19 +327,25 @@ end
     return view(v, size(v, 1), :)
 end
 
-function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
-                            v_ode, u_ode, semi, t)
-    compute_density!(system, u, u_ode, semi, system.density_calculator)
+function update_quantities!(
+        system::EntropicallyDampedSPHSystem, v, u,
+        v_ode, u_ode, semi, t
+    )
+    return compute_density!(system, u, u_ode, semi, system.density_calculator)
 end
 
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
-    compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
-                            t)
-    compute_surface_delta_function!(system, system.surface_tension, semi)
+    compute_surface_normal!(
+        system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
+        t
+    )
+    return compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 
-function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+function update_final!(
+        system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
+        update_from_callback = false
+    )
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already
@@ -313,8 +354,10 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
     update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
 
     # Check that TVF is only used together with `UpdateCallback`
-    check_tvf_configuration(system, system.transport_velocity, v, u, v_ode, u_ode, semi, t;
-                            update_from_callback)
+    return check_tvf_configuration(
+        system, system.transport_velocity, v, u, v_ode, u_ode, semi, t;
+        update_from_callback
+    )
 end
 
 function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
@@ -342,13 +385,17 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               semi;
-                               points=each_moving_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
-            pressure_average[particle] += current_pressure(v_neighbor_system,
-                                                           neighbor_system,
-                                                           neighbor)
+        foreach_point_neighbor(
+            system, neighbor_system, system_coords, neighbor_coords,
+            semi;
+            points = each_moving_particle(system)
+        ) do particle, neighbor,
+                pos_diff, distance
+            pressure_average[particle] += current_pressure(
+                v_neighbor_system,
+                neighbor_system,
+                neighbor
+            )
             neighbor_counter[particle] += 1
         end
     end
@@ -381,4 +428,5 @@ function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
         system.initial_condition.pressure[particle] = v[end, particle]
     end
+    return
 end

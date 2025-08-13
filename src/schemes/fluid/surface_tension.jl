@@ -15,8 +15,8 @@ See [`surface_tension`](@ref) for more details.
 struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
 
-    function CohesionForceAkinci(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    function CohesionForceAkinci(; surface_tension_coefficient = 1.0)
+        return new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
 
@@ -38,8 +38,8 @@ See [`surface_tension`](@ref) for more details.
 struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
 
-    function SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    function SurfaceTensionAkinci(; surface_tension_coefficient = 1.0)
+        return new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
 
@@ -61,8 +61,8 @@ See [`surface_tension`](@ref) for more details.
 struct SurfaceTensionMorris{ELTYPE} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
 
-    function SurfaceTensionMorris(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    function SurfaceTensionMorris(; surface_tension_coefficient = 1.0)
+        return new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
 
@@ -93,13 +93,15 @@ See [`surface_tension`](@ref) for more details.
 struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTension
     surface_tension_coefficient::ELTYPE
 
-    function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    function SurfaceTensionMomentumMorris(; surface_tension_coefficient = 1.0)
+        return new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
 
-function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
-                                      nparticles)
+function create_cache_surface_tension(
+        ::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
+        nparticles
+    )
     delta_s = Array{ELTYPE, 1}(undef, nparticles)
     # Allocate stress tensor for each particle: NDIMS x NDIMS x nparticles
     stress_tensor = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
@@ -117,8 +119,10 @@ end
 # By using the `@fastpow` macro, we are consciously trading off some precision in the result
 # for enhanced computational speed. This is especially useful in scenarios where performance
 # is a higher priority than exact precision.
-@fastpow @inline function cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                pos_diff, distance)
+@fastpow @inline function cohesion_force_akinci(
+        surface_tension, support_radius, m_b,
+        pos_diff, distance
+    )
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
@@ -139,8 +143,10 @@ end
     return cohesion_force
 end
 
-@inline function adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                       distance, adhesion_coefficient)
+@inline function adhesion_force_akinci(
+        surface_tension, support_radius, m_b, pos_diff,
+        distance, adhesion_coefficient
+    )
 
     # The neighborhood search has an `<=` check, but for `distance == support_radius`
     # the term inside the parentheses might be very slightly negative, causing an error with `^0.25`.
@@ -162,32 +168,40 @@ end
 end
 
 # Skip
-@inline function surface_tension_force(surface_tension_a, surface_tension_b,
-                                       particle_system, neighbor_system, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+@inline function surface_tension_force(
+        surface_tension_a, surface_tension_b,
+        particle_system, neighbor_system, particle, neighbor,
+        pos_diff, distance, rho_a, rho_b, grad_kernel
+    )
     return zero(pos_diff)
 end
 
-@inline function surface_tension_force(surface_tension_a::CohesionForceAkinci,
-                                       surface_tension_b::CohesionForceAkinci,
-                                       particle_system::FluidSystem,
-                                       neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+@inline function surface_tension_force(
+        surface_tension_a::CohesionForceAkinci,
+        surface_tension_b::CohesionForceAkinci,
+        particle_system::FluidSystem,
+        neighbor_system::FluidSystem, particle, neighbor,
+        pos_diff, distance, rho_a, rho_b, grad_kernel
+    )
     # No cohesion with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
-    support_radius = compact_support(smoothing_kernel,
-                                     smoothing_length(particle_system, particle))
+    support_radius = compact_support(
+        smoothing_kernel,
+        smoothing_length(particle_system, particle)
+    )
 
     return cohesion_force_akinci(surface_tension_a, support_radius, m_b, pos_diff, distance)
 end
 
-@inline function surface_tension_force(surface_tension_a::SurfaceTensionAkinci,
-                                       surface_tension_b::SurfaceTensionAkinci,
-                                       particle_system::FluidSystem,
-                                       neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+@inline function surface_tension_force(
+        surface_tension_a::SurfaceTensionAkinci,
+        surface_tension_b::SurfaceTensionAkinci,
+        particle_system::FluidSystem,
+        neighbor_system::FluidSystem, particle, neighbor,
+        pos_diff, distance, rho_a, rho_b, grad_kernel
+    )
     (; smoothing_kernel) = particle_system
     (; surface_tension_coefficient) = surface_tension_a
 
@@ -200,16 +214,20 @@ end
     n_b = surface_normal(neighbor_system, neighbor)
     support_radius = compact_support(smoothing_kernel, smoothing_length_)
 
-    return cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                 pos_diff, distance) .-
-           (surface_tension_coefficient * (n_a - n_b) * smoothing_length_)
+    return cohesion_force_akinci(
+        surface_tension_a, support_radius, m_b,
+        pos_diff, distance
+    ) .-
+        (surface_tension_coefficient * (n_a - n_b) * smoothing_length_)
 end
 
-@inline function surface_tension_force(surface_tension_a::SurfaceTensionMorris,
-                                       surface_tension_b::SurfaceTensionMorris,
-                                       particle_system::FluidSystem,
-                                       neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+@inline function surface_tension_force(
+        surface_tension_a::SurfaceTensionMorris,
+        surface_tension_b::SurfaceTensionMorris,
+        particle_system::FluidSystem,
+        neighbor_system::FluidSystem, particle, neighbor,
+        pos_diff, distance, rho_a, rho_b, grad_kernel
+    )
     (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself
@@ -226,8 +244,10 @@ function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, se
 end
 
 # Section 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMorris,
-                                 v, u, v_ode, u_ode, semi, t)
+function compute_stress_tensors!(
+        system::FluidSystem, ::SurfaceTensionMomentumMorris,
+        v, u, v_ode, u_ode, semi, t
+    )
     (; cache) = system
     (; delta_s, stress_tensor) = cache
 
@@ -244,10 +264,12 @@ function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMo
             if delta_s_particle > eps()
                 for i in 1:NDIMS, j in 1:NDIMS
                     delta_ij = (i == j) ? 1 : 0
-                    stress_tensor[i, j,
-                                  particle] = delta_s_particle *
-                                              (delta_ij - normal[i] * normal[j]) -
-                                              delta_ij * max_delta_s
+                    stress_tensor[
+                        i, j,
+                        particle,
+                    ] = delta_s_particle *
+                        (delta_ij - normal[i] * normal[j]) -
+                        delta_ij * max_delta_s
                 end
             end
         end
@@ -273,11 +295,13 @@ function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris,
     return system
 end
 
-@inline function surface_tension_force(surface_tension_a::SurfaceTensionMomentumMorris,
-                                       surface_tension_b::SurfaceTensionMomentumMorris,
-                                       particle_system::FluidSystem,
-                                       neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+@inline function surface_tension_force(
+        surface_tension_a::SurfaceTensionMomentumMorris,
+        surface_tension_b::SurfaceTensionMomentumMorris,
+        particle_system::FluidSystem,
+        neighbor_system::FluidSystem, particle, neighbor,
+        pos_diff, distance, rho_a, rho_b, grad_kernel
+    )
     (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself
@@ -291,10 +315,12 @@ end
     return surface_tension_coefficient * m_b * (S_a + S_b) / (rho_a * rho_b) * grad_kernel
 end
 
-@inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,
-                                particle_system::FluidSystem,
-                                neighbor_system::BoundarySystem, particle, neighbor,
-                                pos_diff, distance)
+@inline function adhesion_force(
+        surface_tension::AkinciTypeSurfaceTension,
+        particle_system::FluidSystem,
+        neighbor_system::BoundarySystem, particle, neighbor,
+        pos_diff, distance
+    )
     (; adhesion_coefficient) = neighbor_system
 
     # No adhesion with oneself
@@ -305,13 +331,19 @@ end
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-    support_radius = compact_support(particle_system.smoothing_kernel,
-                                     smoothing_length(particle_system, particle))
-    return adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff, distance,
-                                 adhesion_coefficient)
+    support_radius = compact_support(
+        particle_system.smoothing_kernel,
+        smoothing_length(particle_system, particle)
+    )
+    return adhesion_force_akinci(
+        surface_tension, support_radius, m_b, pos_diff, distance,
+        adhesion_coefficient
+    )
 end
 
-@inline function adhesion_force(surface_tension, particle_system, neighbor_system, particle,
-                                neighbor, pos_diff, distance)
+@inline function adhesion_force(
+        surface_tension, particle_system, neighbor_system, particle,
+        neighbor, pos_diff, distance
+    )
     return zero(pos_diff)
 end

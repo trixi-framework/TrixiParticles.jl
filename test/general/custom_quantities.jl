@@ -1,25 +1,31 @@
-@testset verbose=true "Custom Quantities" begin
+@testset verbose = true "Custom Quantities" begin
     particle_spacing = 0.1
     coordinates = [0.0 0.1 0.2; 0.0 0.0 0.1]
     velocities = [1.0 2.0 0.5; 0.5 1.0 1.5]
     densities = [1000.0, 1000.0, 1000.0]
     pressures = [101325.0, 101330.0, 101320.0]
 
-    initial_condition = InitialCondition(; coordinates, velocity=velocities,
-                                         density=densities,
-                                         pressure=pressures, particle_spacing)
+    initial_condition = InitialCondition(;
+        coordinates, velocity = velocities,
+        density = densities,
+        pressure = pressures, particle_spacing
+    )
 
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     smoothing_length = 1.2 * particle_spacing
 
-    fluid_system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                               smoothing_length, 1.0)
+    fluid_system = EntropicallyDampedSPHSystem(
+        initial_condition, smoothing_kernel,
+        smoothing_length, 1.0
+    )
     fluid_system.cache.density .= initial_condition.density
 
-    boundary_model = BoundaryModelDummyParticles(initial_condition.density,
-                                                 initial_condition.mass,
-                                                 AdamiPressureExtrapolation(),
-                                                 smoothing_kernel, smoothing_length)
+    boundary_model = BoundaryModelDummyParticles(
+        initial_condition.density,
+        initial_condition.mass,
+        AdamiPressureExtrapolation(),
+        smoothing_kernel, smoothing_length
+    )
 
     boundary_system = BoundarySPHSystem(initial_condition, boundary_model)
 

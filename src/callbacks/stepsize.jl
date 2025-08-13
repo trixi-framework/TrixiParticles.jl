@@ -38,15 +38,17 @@ function StepsizeCallback(; cfl::Real)
     stepsize_callback = StepsizeCallback{is_constant, typeof(cfl)}(cfl)
 
     # The first one is the `condition`, the second the `affect!`
-    return DiscreteCallback(stepsize_callback, stepsize_callback,
-                            save_positions=(false, false),
-                            initialize=initialize_stepsize_callback)
+    return DiscreteCallback(
+        stepsize_callback, stepsize_callback,
+        save_positions = (false, false),
+        initialize = initialize_stepsize_callback
+    )
 end
 
 function initialize_stepsize_callback(discrete_callback, u, t, integrator)
     stepsize_callback = discrete_callback.affect!
 
-    stepsize_callback(integrator)
+    return stepsize_callback(integrator)
 end
 
 # `condition`
@@ -79,22 +81,26 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:StepsizeCallback})
     @nospecialize cb # reduce precompilation time
 
     stepsize_callback = cb.affect!
-    print(io, "StepsizeCallback(is_constant=", is_constant(stepsize_callback),
-          ", cfl_number=", stepsize_callback.cfl_number, ")")
+    return print(
+        io, "StepsizeCallback(is_constant=", is_constant(stepsize_callback),
+        ", cfl_number=", stepsize_callback.cfl_number, ")"
+    )
 end
 
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:StepsizeCallback})
+function Base.show(
+        io::IO, ::MIME"text/plain",
+        cb::DiscreteCallback{<:Any, <:StepsizeCallback}
+    )
     @nospecialize cb # reduce precompilation time
 
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, cb)
     else
         stepsize_callback = cb.affect!
 
         setup = [
             "is constant" => string(is_constant(stepsize_callback)),
-            "CFL number" => stepsize_callback.cfl_number
+            "CFL number" => stepsize_callback.cfl_number,
         ]
         summary_box(io, "StepsizeCallback", setup)
     end

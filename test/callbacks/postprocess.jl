@@ -1,29 +1,39 @@
-@testset verbose=true "PostprocessCallback" begin
-    @testset verbose=true "errors" begin
+@testset verbose = true "PostprocessCallback" begin
+    @testset verbose = true "errors" begin
         error_str1 = "`funcs` cannot be empty"
-        @test_throws ArgumentError(error_str1) PostprocessCallback(interval=10,
-                                                                   write_file_interval=0)
+        @test_throws ArgumentError(error_str1) PostprocessCallback(
+            interval = 10,
+            write_file_interval = 0
+        )
 
         error_str2 = "setting both `interval` and `dt` is not supported"
-        @test_throws ArgumentError(error_str2) PostprocessCallback(interval=10,
-                                                                   write_file_interval=0,
-                                                                   dt=0.1,
-                                                                   another_function=(system,
-                                                                                     v_ode,
-                                                                                     u_ode,
-                                                                                     semi,
-                                                                                     t) -> 1)
+        @test_throws ArgumentError(error_str2) PostprocessCallback(
+            interval = 10,
+            write_file_interval = 0,
+            dt = 0.1,
+            another_function = (
+                system,
+                v_ode,
+                u_ode,
+                semi,
+                t,
+            ) -> 1
+        )
     end
 
-    @testset verbose=true "show" begin
+    @testset verbose = true "show" begin
         function example_function(system, v_ode, u_ode, semi, t)
             return 0
         end
 
-        callback = PostprocessCallback(another_function=(system, v_ode, u_ode, semi,
-                                                         t) -> 1;
-                                       interval=10,
-                                       example_function, write_file_interval=0)
+        callback = PostprocessCallback(
+            another_function = (
+                system, v_ode, u_ode, semi,
+                t,
+            ) -> 1;
+            interval = 10,
+            example_function, write_file_interval = 0
+        )
 
         show_compact = "PostprocessCallback(interval=10, functions=[another_function, example_function])"
         @test repr(callback) == show_compact
@@ -45,7 +55,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(; dt=0.1, example_function, write_file_interval=0)
+        callback = PostprocessCallback(; dt = 0.1, example_function, write_file_interval = 0)
 
         show_compact = "PostprocessCallback(dt=0.1, functions=[example_function])"
         @test repr(callback) == show_compact
@@ -66,7 +76,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(; dt=0.1, example_function, write_file_interval=3)
+        callback = PostprocessCallback(; dt = 0.1, example_function, write_file_interval = 3)
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ PostprocessCallback                                                                              │
@@ -83,8 +93,10 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(; interval=23, example_function,
-                                       write_file_interval=4)
+        callback = PostprocessCallback(;
+            interval = 23, example_function,
+            write_file_interval = 4
+        )
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -102,7 +114,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(; interval=23, example_function)
+        callback = PostprocessCallback(; interval = 23, example_function)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -120,7 +132,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(; dt=0.2, example_function)
+        callback = PostprocessCallback(; dt = 0.2, example_function)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐

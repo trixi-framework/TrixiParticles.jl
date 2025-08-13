@@ -4,16 +4,20 @@ include("io.jl")
 
 @inline eachface(mesh) = Base.OneTo(nfaces(mesh))
 
-function Base.setdiff(initial_condition::InitialCondition,
-                      geometries::Union{Polygon, TriangleMesh}...)
+function Base.setdiff(
+        initial_condition::InitialCondition,
+        geometries::Union{Polygon, TriangleMesh}...
+    )
     geometry = first(geometries)
 
     if ndims(geometry) != ndims(initial_condition)
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
-    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
-                         initial_condition.coordinates)
+    coords = reinterpret(
+        reshape, SVector{ndims(geometry), eltype(geometry)},
+        initial_condition.coordinates
+    )
 
     delete_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)
 
@@ -23,23 +27,29 @@ function Base.setdiff(initial_condition::InitialCondition,
     density = initial_condition.density[.!delete_indices]
     pressure = initial_condition.pressure[.!delete_indices]
 
-    result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
-                                                        density, pressure,
-                                                        initial_condition.particle_spacing)
+    result = InitialCondition{ndims(initial_condition)}(
+        coordinates, velocity, mass,
+        density, pressure,
+        initial_condition.particle_spacing
+    )
 
     return setdiff(result, Base.tail(geometries)...)
 end
 
-function Base.intersect(initial_condition::InitialCondition,
-                        geometries::Union{Polygon, TriangleMesh}...)
+function Base.intersect(
+        initial_condition::InitialCondition,
+        geometries::Union{Polygon, TriangleMesh}...
+    )
     geometry = first(geometries)
 
     if ndims(geometry) != ndims(initial_condition)
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
-    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
-                         initial_condition.coordinates)
+    coords = reinterpret(
+        reshape, SVector{ndims(geometry), eltype(geometry)},
+        initial_condition.coordinates
+    )
 
     keep_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)
 
@@ -49,9 +59,11 @@ function Base.intersect(initial_condition::InitialCondition,
     density = initial_condition.density[keep_indices]
     pressure = initial_condition.pressure[keep_indices]
 
-    result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
-                                                        density, pressure,
-                                                        initial_condition.particle_spacing)
+    result = InitialCondition{ndims(initial_condition)}(
+        coordinates, velocity, mass,
+        density, pressure,
+        initial_condition.particle_spacing
+    )
 
     return intersect(result, Base.tail(geometries)...)
 end

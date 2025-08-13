@@ -13,16 +13,22 @@ of water up to high pressures.
 - `clip_negative_pressure=false`: Negative pressure values are clipped to 0, which prevents spurious surface tension with `SummationDensity` but allows unphysical rarefaction of the fluid.
 """
 struct StateEquationCole{ELTYPE, CLIP} # Boolean to clip negative pressure
-    sound_speed         :: ELTYPE
-    exponent            :: ELTYPE
-    reference_density   :: ELTYPE
-    background_pressure :: ELTYPE
+    sound_speed::ELTYPE
+    exponent::ELTYPE
+    reference_density::ELTYPE
+    background_pressure::ELTYPE
 
-    function StateEquationCole(; sound_speed, reference_density, exponent,
-                               background_pressure=0.0, clip_negative_pressure=false)
-        new{typeof(sound_speed),
-            clip_negative_pressure}(sound_speed, exponent, reference_density,
-                                    background_pressure)
+    function StateEquationCole(;
+            sound_speed, reference_density, exponent,
+            background_pressure = 0.0, clip_negative_pressure = false
+        )
+        return new{
+            typeof(sound_speed),
+            clip_negative_pressure,
+        }(
+            sound_speed, exponent, reference_density,
+            background_pressure
+        )
     end
 end
 
@@ -66,15 +72,19 @@ of a gas using the Ideal Gas Law.
 - `clip_negative_pressure=false`: Negative pressure values are clipped to 0, which prevents spurious surface tension with `SummationDensity` but allows unphysical rarefaction of the fluid.
 """
 struct StateEquationIdealGas{ELTYPE, CLIP}
-    sound_speed         :: ELTYPE
-    reference_density   :: ELTYPE
-    gamma               :: ELTYPE
-    background_pressure :: ELTYPE
+    sound_speed::ELTYPE
+    reference_density::ELTYPE
+    gamma::ELTYPE
+    background_pressure::ELTYPE
 
-    function StateEquationIdealGas(; sound_speed, reference_density, gamma,
-                                   background_pressure=0.0, clip_negative_pressure=false)
-        new{typeof(sound_speed), clip_negative_pressure}(sound_speed, reference_density,
-                                                         gamma, background_pressure)
+    function StateEquationIdealGas(;
+            sound_speed, reference_density, gamma,
+            background_pressure = 0.0, clip_negative_pressure = false
+        )
+        return new{typeof(sound_speed), clip_negative_pressure}(
+            sound_speed, reference_density,
+            gamma, background_pressure
+        )
     end
 end
 

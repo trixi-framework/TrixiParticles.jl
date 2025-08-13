@@ -1,4 +1,4 @@
-@testset verbose=true "Characteristic Variables" begin
+@testset verbose = true "Characteristic Variables" begin
     particle_spacing = 0.1
 
     # Number of boundary particles in the influence of fluid particles
@@ -29,43 +29,53 @@
         plane_size = plane_points[2] - plane_points[1]
         flow_directions = [
             normalize([-plane_size[2], plane_size[1]]),
-            -normalize([-plane_size[2], plane_size[1]])
+            -normalize([-plane_size[2], plane_size[1]]),
         ]
 
         @testset "Flow Direction $j" for j in eachindex(flow_directions)
             flow_direction = flow_directions[j]
-            inflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
-                                  plane_normal=flow_direction, open_boundary_layers,
-                                  boundary_type=InFlow())
-            outflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
-                                   plane_normal=(-flow_direction), open_boundary_layers,
-                                   boundary_type=OutFlow())
+            inflow = BoundaryZone(;
+                plane = plane_points, particle_spacing, density,
+                plane_normal = flow_direction, open_boundary_layers,
+                boundary_type = InFlow()
+            )
+            outflow = BoundaryZone(;
+                plane = plane_points, particle_spacing, density,
+                plane_normal = (-flow_direction), open_boundary_layers,
+                boundary_type = OutFlow()
+            )
 
             boundary_zones = [
                 inflow,
-                outflow
+                outflow,
             ]
 
             @testset "`$(TrixiParticles.boundary_type_name(boundary_zone))`" for boundary_zone in
-                                                                                 boundary_zones
+                boundary_zones
 
                 sign_ = (first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow) ?
-                        1 : -1
-                fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,
-                                         density, pressure,
-                                         direction=(sign_ * flow_direction))
+                    1 : -1
+                fluid = extrude_geometry(
+                    plane_points; particle_spacing, n_extrude = 4,
+                    density, pressure,
+                    direction = (sign_ * flow_direction)
+                )
 
-                fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                                           buffer_size=0,
-                                                           density_calculator=ContinuityDensity(),
-                                                           smoothing_length, sound_speed)
+                fluid_system = EntropicallyDampedSPHSystem(
+                    fluid, smoothing_kernel,
+                    buffer_size = 0,
+                    density_calculator = ContinuityDensity(),
+                    smoothing_length, sound_speed
+                )
 
-                boundary_system = OpenBoundarySPHSystem(boundary_zone;
-                                                        fluid_system, buffer_size=0,
-                                                        boundary_model=BoundaryModelLastiwka(),
-                                                        reference_velocity,
-                                                        reference_pressure,
-                                                        reference_density)
+                boundary_system = OpenBoundarySPHSystem(
+                    boundary_zone;
+                    fluid_system, buffer_size = 0,
+                    boundary_model = BoundaryModelLastiwka(),
+                    reference_velocity,
+                    reference_pressure,
+                    reference_density
+                )
 
                 semi = Semidiscretization(fluid_system, boundary_system)
 
@@ -81,24 +91,26 @@
                 # `J3 = - rho * sound_speed * (v - v_ref) + (p - p_ref)`
                 function J1(t)
                     return -sound_speed^2 * (density - reference_density(0, t)) +
-                           (pressure - reference_pressure(0, t))
+                        (pressure - reference_pressure(0, t))
                 end
                 function J2(t)
                     return density * sound_speed *
-                           dot(-reference_velocity(0, t), flow_direction) +
-                           (pressure - reference_pressure(0, t))
+                        dot(-reference_velocity(0, t), flow_direction) +
+                        (pressure - reference_pressure(0, t))
                 end
                 function J3(t)
                     return -density * sound_speed *
-                           dot(-reference_velocity(0, t), flow_direction) +
-                           (pressure - reference_pressure(0, t))
+                        dot(-reference_velocity(0, t), flow_direction) +
+                        (pressure - reference_pressure(0, t))
                 end
 
                 # First evaluation.
                 # Particles not influenced by the fluid have zero values.
                 t1 = 2.0
-                TrixiParticles.evaluate_characteristics!(boundary_system,
-                                                         v, u, v0_ode, u0_ode, semi, t1)
+                TrixiParticles.evaluate_characteristics!(
+                    boundary_system,
+                    v, u, v0_ode, u0_ode, semi, t1
+                )
                 evaluated_vars1 = boundary_system.cache.characteristics
 
                 if first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow
@@ -117,8 +129,10 @@
                 # Second evaluation.
                 # Particles not influenced by the fluid have previous values.
                 t2 = 3.0
-                TrixiParticles.evaluate_characteristics!(boundary_system,
-                                                         v, u, v0_ode, u0_ode, semi, t2)
+                TrixiParticles.evaluate_characteristics!(
+                    boundary_system,
+                    v, u, v0_ode, u0_ode, semi, t2
+                )
                 evaluated_vars2 = boundary_system.cache.characteristics
 
                 if first(typeof(boundary_zone).parameters) === TrixiParticles.InFlow

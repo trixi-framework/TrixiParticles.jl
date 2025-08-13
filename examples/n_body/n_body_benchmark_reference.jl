@@ -32,7 +32,7 @@ function init_sun(bodies)
         py -= b.vy * b.m
         pz -= b.vz * b.m
     end
-    Body2(0.0, 0.0, 0.0, px / SOLAR_MASS, py / SOLAR_MASS, pz / SOLAR_MASS, SOLAR_MASS)
+    return Body2(0.0, 0.0, 0.0, px / SOLAR_MASS, py / SOLAR_MASS, pz / SOLAR_MASS, SOLAR_MASS)
 end
 
 function advance!(bodies, dt)
@@ -60,23 +60,29 @@ function advance!(bodies, dt)
             ivy -= dy * bj.m * mag
             ivz -= dz * bj.m * mag
 
-            bodies[j] = Body2(bj.x, bj.y, bj.z,
-                              bj.vx + dx * bi.m * mag,
-                              bj.vy + dy * bi.m * mag,
-                              bj.vz + dz * bi.m * mag,
-                              bj.m)
+            bodies[j] = Body2(
+                bj.x, bj.y, bj.z,
+                bj.vx + dx * bi.m * mag,
+                bj.vy + dy * bi.m * mag,
+                bj.vz + dz * bi.m * mag,
+                bj.m
+            )
         end
 
-        bodies[i] = Body2(bi.x, bi.y, bi.z,
-                          ivx, ivy, ivz,
-                          bi.m)
+        bodies[i] = Body2(
+            bi.x, bi.y, bi.z,
+            ivx, ivy, ivz,
+            bi.m
+        )
     end
 
-    @inbounds for i in 1:n
+    return @inbounds for i in 1:n
         bi = bodies[i]
-        bodies[i] = Body2(bi.x + dt * bi.vx, bi.y + dt * bi.vy, bi.z + dt * bi.vz,
-                          bi.vx, bi.vy, bi.vz,
-                          bi.m)
+        bodies[i] = Body2(
+            bi.x + dt * bi.vx, bi.y + dt * bi.vy, bi.z + dt * bi.vz,
+            bi.vx, bi.vy, bi.vz,
+            bi.m
+        )
     end
 end
 
@@ -94,41 +100,49 @@ function energy(bodies)
             e -= bi.m * bodies[j].m / d
         end
     end
-    e
+    return e
 end
 
 function nbody(n)
-    jupiter = Body2(4.84143144246472090e+0,                 # x
-                    -1.16032004402742839e+0,                # y
-                    -1.03622044471123109e-1,                # z
-                    1.66007664274403694e-3 * DAYS_PER_YEAR, # vx
-                    7.69901118419740425e-3 * DAYS_PER_YEAR, # vy
-                    -6.90460016972063023e-5 * DAYS_PER_YEAR,# vz
-                    9.54791938424326609e-4 * SOLAR_MASS)    # mass
+    jupiter = Body2(
+        4.8414314424647209e+0,                 # x
+        -1.16032004402742839e+0,                # y
+        -1.03622044471123109e-1,                # z
+        1.66007664274403694e-3 * DAYS_PER_YEAR, # vx
+        7.69901118419740425e-3 * DAYS_PER_YEAR, # vy
+        -6.90460016972063023e-5 * DAYS_PER_YEAR, # vz
+        9.54791938424326609e-4 * SOLAR_MASS
+    )    # mass
 
-    saturn = Body2(8.34336671824457987e+0,
-                   4.12479856412430479e+0,
-                   -4.03523417114321381e-1,
-                   -2.76742510726862411e-3 * DAYS_PER_YEAR,
-                   4.99852801234917238e-3 * DAYS_PER_YEAR,
-                   2.30417297573763929e-5 * DAYS_PER_YEAR,
-                   2.85885980666130812e-4 * SOLAR_MASS)
+    saturn = Body2(
+        8.34336671824457987e+0,
+        4.12479856412430479e+0,
+        -4.03523417114321381e-1,
+        -2.76742510726862411e-3 * DAYS_PER_YEAR,
+        4.99852801234917238e-3 * DAYS_PER_YEAR,
+        2.30417297573763929e-5 * DAYS_PER_YEAR,
+        2.85885980666130812e-4 * SOLAR_MASS
+    )
 
-    uranus = Body2(1.28943695621391310e+1,
-                   -1.51111514016986312e+1,
-                   -2.23307578892655734e-1,
-                   2.96460137564761618e-3 * DAYS_PER_YEAR,
-                   2.37847173959480950e-3 * DAYS_PER_YEAR,
-                   -2.96589568540237556e-5 * DAYS_PER_YEAR,
-                   4.36624404335156298e-5 * SOLAR_MASS)
+    uranus = Body2(
+        1.2894369562139131e+1,
+        -1.51111514016986312e+1,
+        -2.23307578892655734e-1,
+        2.96460137564761618e-3 * DAYS_PER_YEAR,
+        2.3784717395948095e-3 * DAYS_PER_YEAR,
+        -2.96589568540237556e-5 * DAYS_PER_YEAR,
+        4.36624404335156298e-5 * SOLAR_MASS
+    )
 
-    neptune = Body2(1.53796971148509165e+1,
-                    -2.59193146099879641e+1,
-                    1.79258772950371181e-1,
-                    2.68067772490389322e-3 * DAYS_PER_YEAR,
-                    1.62824170038242295e-3 * DAYS_PER_YEAR,
-                    -9.51592254519715870e-5 * DAYS_PER_YEAR,
-                    5.15138902046611451e-5 * SOLAR_MASS)
+    neptune = Body2(
+        1.53796971148509165e+1,
+        -2.59193146099879641e+1,
+        1.79258772950371181e-1,
+        2.68067772490389322e-3 * DAYS_PER_YEAR,
+        1.62824170038242295e-3 * DAYS_PER_YEAR,
+        -9.5159225451971587e-5 * DAYS_PER_YEAR,
+        5.15138902046611451e-5 * SOLAR_MASS
+    )
 
     bodies = [jupiter, saturn, uranus, neptune]
     pushfirst!(bodies, init_sun(bodies))
@@ -137,7 +151,7 @@ function nbody(n)
     @time for i in 1:n
         advance!(bodies, 0.01)
     end
-    @printf("%.9f\n", energy(bodies))
+    return @printf("%.9f\n", energy(bodies))
 end
 
 nbody(50_000_000)

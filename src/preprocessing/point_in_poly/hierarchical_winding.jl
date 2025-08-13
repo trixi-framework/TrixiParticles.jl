@@ -2,31 +2,41 @@
 # It is implementing a binary tree and thus stores the left and right child and also the
 # faces and closing faces which are inside the bounding box.
 struct BoundingBoxTree{MC, NDIMS}
-    faces         :: Vector{NTuple{NDIMS, Int}}
-    closing_faces :: Vector{NTuple{NDIMS, Int}}
-    min_corner    :: MC
-    max_corner    :: MC
-    is_leaf       :: Bool
-    child_left    :: BoundingBoxTree
-    child_right   :: BoundingBoxTree
+    faces::Vector{NTuple{NDIMS, Int}}
+    closing_faces::Vector{NTuple{NDIMS, Int}}
+    min_corner::MC
+    max_corner::MC
+    is_leaf::Bool
+    child_left::BoundingBoxTree
+    child_right::BoundingBoxTree
 
     function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_corner)
         closing_faces = Vector{NTuple{ndims(geometry), Int}}()
 
         max_faces_in_box = ndims(geometry) == 3 ? 100 : 20
         if length(face_ids) < max_faces_in_box
-            return new{typeof(min_corner),
-                       ndims(geometry)}(faces(face_ids, geometry), closing_faces,
-                                        min_corner, max_corner, true)
+            return new{
+                typeof(min_corner),
+                ndims(geometry),
+            }(
+                faces(face_ids, geometry), closing_faces,
+                min_corner, max_corner, true
+            )
         end
 
-        determine_closure!(closing_faces, min_corner, max_corner, geometry, face_ids,
-                           directed_edges)
+        determine_closure!(
+            closing_faces, min_corner, max_corner, geometry, face_ids,
+            directed_edges
+        )
 
         if length(closing_faces) >= length(face_ids)
-            return new{typeof(min_corner),
-                       ndims(geometry)}(faces(face_ids, geometry), closing_faces,
-                                        min_corner, max_corner, true)
+            return new{
+                typeof(min_corner),
+                ndims(geometry),
+            }(
+                faces(face_ids, geometry), closing_faces,
+                min_corner, max_corner, true
+            )
         end
 
         # Bisect the box splitting its longest side
@@ -42,14 +52,22 @@ struct BoundingBoxTree{MC, NDIMS}
         faces_left = is_in_box(geometry, face_ids, min_corner, max_corner_left)
         faces_right = is_in_box(geometry, face_ids, min_corner_right, max_corner)
 
-        child_left = BoundingBoxTree(geometry, faces_left, directed_edges,
-                                     min_corner, max_corner_left)
-        child_right = BoundingBoxTree(geometry, faces_right, directed_edges,
-                                      min_corner_right, max_corner)
+        child_left = BoundingBoxTree(
+            geometry, faces_left, directed_edges,
+            min_corner, max_corner_left
+        )
+        child_right = BoundingBoxTree(
+            geometry, faces_right, directed_edges,
+            min_corner_right, max_corner
+        )
 
-        return new{typeof(min_corner),
-                   ndims(geometry)}(faces(face_ids, geometry), closing_faces,
-                                    min_corner, max_corner, false, child_left, child_right)
+        return new{
+            typeof(min_corner),
+            ndims(geometry),
+        }(
+            faces(face_ids, geometry), closing_faces,
+            min_corner, max_corner, false, child_left, child_right
+        )
     end
 end
 
@@ -79,8 +97,10 @@ struct HierarchicalWinding{BB}
             directed_edges = zeros(Int, length(geometry.vertices))
         end
 
-        bounding_box = BoundingBoxTree(geometry, eachface(geometry), directed_edges,
-                                       min_corner, max_corner)
+        bounding_box = BoundingBoxTree(
+            geometry, eachface(geometry), directed_edges,
+            min_corner, max_corner
+        )
 
         return new{typeof(bounding_box)}(bounding_box)
     end
@@ -110,8 +130,10 @@ function hierarchical_winding(bounding_box, mesh, query_point)
 end
 
 # This only works when all `vertices` are unique
-function determine_closure!(closing_faces, min_corner, max_corner, mesh::TriangleMesh{3},
-                            faces, directed_edges)
+function determine_closure!(
+        closing_faces, min_corner, max_corner, mesh::TriangleMesh{3},
+        faces, directed_edges
+    )
     (; edge_vertices_ids, face_vertices_ids, face_edges_ids, vertices) = mesh
 
     directed_edges .= 0
@@ -124,8 +146,8 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
         v3 = face_vertices_ids[face][3]
 
         if is_in_box(vertices[v1], min_corner, max_corner) &&
-           is_in_box(vertices[v2], min_corner, max_corner) &&
-           is_in_box(vertices[v3], min_corner, max_corner)
+                is_in_box(vertices[v2], min_corner, max_corner) &&
+                is_in_box(vertices[v3], min_corner, max_corner)
             # Face is completely inside the bounding box
 
             edge1 = face_edges_ids[face][1]
@@ -198,8 +220,10 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
 end
 
 # This only works when all `vertices` are unique
-function determine_closure!(closing_edges, min_corner, max_corner, polygon::Polygon{2},
-                            edges, vertex_count)
+function determine_closure!(
+        closing_edges, min_corner, max_corner, polygon::Polygon{2},
+        edges, vertex_count
+    )
     (; edge_vertices_ids, edge_vertices) = polygon
 
     vertex_count .= 0
@@ -209,7 +233,7 @@ function determine_closure!(closing_edges, min_corner, max_corner, polygon::Poly
     # Find all exterior vertices
     for edge in edges
         if is_in_box(edge_vertices[edge][1], min_corner, max_corner) &&
-           is_in_box(edge_vertices[edge][2], min_corner, max_corner)
+                is_in_box(edge_vertices[edge][2], min_corner, max_corner)
             # Edge is completely inside the bounding box
 
             v1 = edge_vertices_ids[edge][1]

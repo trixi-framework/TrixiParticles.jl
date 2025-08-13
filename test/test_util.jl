@@ -23,7 +23,7 @@ macro trixi_testset(name, expr)
     mod = gensym()
 
     # TODO: `@eval` is evil
-    quote
+    return quote
         println("═"^100)
         println($name)
 
@@ -37,7 +37,7 @@ macro trixi_testset(name, expr)
         # there.
         include(@__FILE__)
 
-        @testset verbose=true $name $expr
+        @testset verbose = true $name $expr
         end
 
         nothing
@@ -47,25 +47,31 @@ end
 struct DummySemidiscretization
     parallelization_backend::Any
 
-    function DummySemidiscretization(; parallelization_backend=SerialBackend())
-        new(parallelization_backend)
+    function DummySemidiscretization(; parallelization_backend = SerialBackend())
+        return new(parallelization_backend)
     end
 end
 
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::DummySemidiscretization)
-    PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
+    return PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
 end
 
-@inline function TrixiParticles.get_neighborhood_search(system, neighbor_system,
-                                                        ::DummySemidiscretization)
+@inline function TrixiParticles.get_neighborhood_search(
+        system, neighbor_system,
+        ::DummySemidiscretization
+    )
     search_radius = TrixiParticles.compact_support(system, neighbor_system)
     eachpoint = TrixiParticles.eachparticle(neighbor_system)
-    return TrixiParticles.TrivialNeighborhoodSearch{ndims(system)}(; search_radius,
-                                                                   eachpoint)
+    return TrixiParticles.TrivialNeighborhoodSearch{ndims(system)}(;
+        search_radius,
+        eachpoint
+    )
 end
 
-@inline function TrixiParticles.get_neighborhood_search(system,
-                                                        semi::DummySemidiscretization)
+@inline function TrixiParticles.get_neighborhood_search(
+        system,
+        semi::DummySemidiscretization
+    )
     return get_neighborhood_search(system, system, semi)
 end
 

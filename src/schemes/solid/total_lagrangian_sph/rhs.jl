@@ -1,9 +1,11 @@
 # Solid-solid interaction
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::TotalLagrangianSPHSystem, semi)
-    interact_solid_solid!(dv, particle_system, neighbor_system, semi)
+function interact!(
+        dv, v_particle_system, u_particle_system,
+        v_neighbor_system, u_neighbor_system,
+        particle_system::TotalLagrangianSPHSystem,
+        neighbor_system::TotalLagrangianSPHSystem, semi
+    )
+    return interact_solid_solid!(dv, particle_system, neighbor_system, semi)
 end
 
 # Function barrier without dispatch for unit testing
@@ -21,36 +23,44 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     # For solid-solid interaction, this has to happen in the initial coordinates.
-    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           semi;
-                           points=each_moving_particle(particle_system)) do particle,
-                                                                            neighbor,
-                                                                            initial_pos_diff,
-                                                                            initial_distance
+    foreach_point_neighbor(
+        particle_system, neighbor_system, system_coords, neighbor_coords,
+        semi;
+        points = each_moving_particle(particle_system)
+    ) do particle,
+            neighbor,
+            initial_pos_diff,
+            initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
         rho_a = particle_system.material_density[particle]
         rho_b = neighbor_system.material_density[neighbor]
 
-        grad_kernel = smoothing_kernel_grad(particle_system, initial_pos_diff,
-                                            initial_distance, particle)
+        grad_kernel = smoothing_kernel_grad(
+            particle_system, initial_pos_diff,
+            initial_distance, particle
+        )
 
         m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
         dv_particle = m_b *
-                      (pk1_corrected(particle_system, particle) / rho_a^2 +
-                       pk1_corrected(neighbor_system, neighbor) / rho_b^2) *
-                      grad_kernel
+            (
+            pk1_corrected(particle_system, particle) / rho_a^2 +
+                pk1_corrected(neighbor_system, neighbor) / rho_b^2
+        ) *
+            grad_kernel
 
         @inbounds for i in 1:ndims(particle_system)
             dv[i, particle] += dv_particle[i]
         end
 
-        calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                            initial_distance, particle_system, m_a, m_b, rho_a, rho_b,
-                            penalty_force)
+        calc_penalty_force!(
+            dv, particle, neighbor, initial_pos_diff,
+            initial_distance, particle_system, m_a, m_b, rho_a, rho_b,
+            penalty_force
+        )
 
         # TODO continuity equation?
     end
@@ -59,22 +69,26 @@ end
 end
 
 # Solid-fluid interaction
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::FluidSystem, semi)
+function interact!(
+        dv, v_particle_system, u_particle_system,
+        v_neighbor_system, u_neighbor_system,
+        particle_system::TotalLagrangianSPHSystem,
+        neighbor_system::FluidSystem, semi
+    )
     sound_speed = system_sound_speed(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           semi;
-                           points=each_moving_particle(particle_system)) do particle,
-                                                                            neighbor,
-                                                                            pos_diff,
-                                                                            distance
+    foreach_point_neighbor(
+        particle_system, neighbor_system, system_coords, neighbor_coords,
+        semi;
+        points = each_moving_particle(particle_system)
+    ) do particle,
+            neighbor,
+            pos_diff,
+            distance
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
@@ -105,16 +119,20 @@ function interact!(dv, v_particle_system, u_particle_system,
         # are switched in the following two calls.
         # This way, we obtain the exact same force as for the fluid-solid interaction,
         # but with a flipped sign (because `pos_diff` is flipped compared to fluid-solid).
-        dv_boundary = pressure_acceleration(neighbor_system, particle_system,
-                                            neighbor, particle,
-                                            m_b, m_a, p_b, p_a, rho_b, rho_a, pos_diff,
-                                            distance, grad_kernel,
-                                            neighbor_system.correction)
+        dv_boundary = pressure_acceleration(
+            neighbor_system, particle_system,
+            neighbor, particle,
+            m_b, m_a, p_b, p_a, rho_b, rho_a, pos_diff,
+            distance, grad_kernel,
+            neighbor_system.correction
+        )
 
-        dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
-                                     v_neighbor_system, v_particle_system,
-                                     neighbor, particle, pos_diff, distance,
-                                     sound_speed, m_b, m_a, rho_a, rho_b, grad_kernel)
+        dv_viscosity_ = dv_viscosity(
+            neighbor_system, particle_system,
+            v_neighbor_system, v_particle_system,
+            neighbor, particle, pos_diff, distance,
+            sound_speed, m_b, m_a, rho_a, rho_b, grad_kernel
+        )
 
         dv_particle = dv_boundary + dv_viscosity_
 
@@ -126,45 +144,55 @@ function interact!(dv, v_particle_system, u_particle_system,
             dv[i, particle] += dv_particle[i] * m_b / particle_system.mass[particle]
         end
 
-        continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                             particle, neighbor, pos_diff, distance,
-                             m_b, rho_a, rho_b,
-                             particle_system, neighbor_system, grad_kernel)
+        continuity_equation!(
+            dv, v_particle_system, v_neighbor_system,
+            particle, neighbor, pos_diff, distance,
+            m_b, rho_a, rho_b,
+            particle_system, neighbor_system, grad_kernel
+        )
     end
 
     return dv
 end
 
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system::TotalLagrangianSPHSystem,
-                                      neighbor_system::FluidSystem,
-                                      grad_kernel)
+@inline function continuity_equation!(
+        dv, v_particle_system, v_neighbor_system,
+        particle, neighbor, pos_diff, distance,
+        m_b, rho_a, rho_b,
+        particle_system::TotalLagrangianSPHSystem,
+        neighbor_system::FluidSystem,
+        grad_kernel
+    )
     return dv
 end
 
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                      neighbor_system::FluidSystem,
-                                      grad_kernel)
+@inline function continuity_equation!(
+        dv, v_particle_system, v_neighbor_system,
+        particle, neighbor, pos_diff, distance,
+        m_b, rho_a, rho_b,
+        particle_system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+        neighbor_system::FluidSystem,
+        grad_kernel
+    )
     fluid_density_calculator = neighbor_system.density_calculator
 
     v_diff = current_velocity(v_particle_system, particle_system, particle) -
-             current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
     # Call the dummy BC version of the continuity equation
-    continuity_equation!(dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
-                         grad_kernel, particle)
+    return continuity_equation!(
+        dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
+        grad_kernel, particle
+    )
 end
 
 # Solid-boundary interaction
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::Union{BoundarySPHSystem, OpenBoundarySPHSystem}, semi)
+function interact!(
+        dv, v_particle_system, u_particle_system,
+        v_neighbor_system, u_neighbor_system,
+        particle_system::TotalLagrangianSPHSystem,
+        neighbor_system::Union{BoundarySPHSystem, OpenBoundarySPHSystem}, semi
+    )
     # TODO continuity equation?
     return dv
 end

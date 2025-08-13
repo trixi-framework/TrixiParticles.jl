@@ -13,38 +13,48 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
-                         CA} <: BoundarySystem{NDIMS}
-    initial_condition    :: IC
-    coordinates          :: CO # Array{ELTYPE, 2}
-    boundary_model       :: BM
-    movement             :: M
-    ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
-    adhesion_coefficient :: ELTYPE
-    cache                :: CA
-    buffer               :: Nothing
+struct BoundarySPHSystem{
+        BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
+        CA,
+    } <: BoundarySystem{NDIMS}
+    initial_condition::IC
+    coordinates::CO # Array{ELTYPE, 2}
+    boundary_model::BM
+    movement::M
+    ismoving::IM # Ref{Bool} (to make a mutable field compatible with GPUs)
+    adhesion_coefficient::ELTYPE
+    cache::CA
+    buffer::Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
-    function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, cache, buffer)
+    function BoundarySPHSystem(
+            initial_condition, coordinates, boundary_model, movement,
+            ismoving, adhesion_coefficient, cache, buffer
+        )
         ELTYPE = eltype(coordinates)
 
-        new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
+        return new{
+            typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
             typeof(coordinates), typeof(movement), typeof(ismoving),
-            typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
-                           ismoving, adhesion_coefficient, cache, buffer)
+            typeof(cache),
+        }(
+            initial_condition, coordinates, boundary_model, movement,
+            ismoving, adhesion_coefficient, cache, buffer
+        )
     end
 end
 
-function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                           adhesion_coefficient=0.0, color_value=0)
+function BoundarySPHSystem(
+        initial_condition, model; movement = nothing,
+        adhesion_coefficient = 0.0, color_value = 0
+    )
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(movement))
 
     cache = create_cache_boundary(movement, initial_condition)
-    cache = (cache..., color=Int(color_value))
+    cache = (cache..., color = Int(color_value))
 
     if movement !== nothing && isempty(movement.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
@@ -54,8 +64,10 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
     end
 
     # Because of dispatches boundary model needs to be first!
-    return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, cache, nothing)
+    return BoundarySPHSystem(
+        initial_condition, coordinates, model, movement,
+        ismoving, adhesion_coefficient, cache, nothing
+    )
 end
 
 function Base.show(io::IO, system::BoundarySPHSystem)
@@ -66,21 +78,23 @@ function Base.show(io::IO, system::BoundarySPHSystem)
     print(io, ", ", system.movement)
     print(io, ", ", system.adhesion_coefficient)
     print(io, ", ", system.cache.color)
-    print(io, ") with ", nparticles(system), " particles")
+    return print(io, ") with ", nparticles(system), " particles")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
     @nospecialize system # reduce precompilation time
 
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, system)
     else
         summary_header(io, "BoundarySPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "movement function",
-                     isnothing(system.movement) ? "nothing" :
-                     string(system.movement.movement_function))
+        summary_line(
+            io, "movement function",
+            isnothing(system.movement) ? "nothing" :
+                string(system.movement.movement_function)
+        )
         summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
         summary_line(io, "color", system.cache.color)
         summary_footer(io)
@@ -97,23 +111,29 @@ The interaction between fluid and boundary particles is specified by the boundar
     This is an experimental feature and may change in a future releases.
 
 """
-struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
-                         ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS}
-    initial_condition :: IC
-    coordinates       :: ARRAY2D # [dimension, particle]
-    radius            :: ARRAY1D # [particle]
-    normal_stiffness  :: ELTYPE
-    buffer            :: Nothing
+struct BoundaryDEMSystem{
+        NDIMS, ELTYPE <: Real, IC,
+        ARRAY1D, ARRAY2D,
+    } <: BoundarySystem{NDIMS}
+    initial_condition::IC
+    coordinates::ARRAY2D # [dimension, particle]
+    radius::ARRAY1D # [particle]
+    normal_stiffness::ELTYPE
+    buffer::Nothing
 
     function BoundaryDEMSystem(initial_condition, normal_stiffness)
         coordinates = initial_condition.coordinates
         radius = 0.5 * initial_condition.particle_spacing *
-                 ones(length(initial_condition.mass))
+            ones(length(initial_condition.mass))
         NDIMS = size(coordinates, 1)
 
-        return new{NDIMS, eltype(coordinates), typeof(initial_condition), typeof(radius),
-                   typeof(coordinates)}(initial_condition, coordinates, radius,
-                                        normal_stiffness, nothing)
+        return new{
+            NDIMS, eltype(coordinates), typeof(initial_condition), typeof(radius),
+            typeof(coordinates),
+        }(
+            initial_condition, coordinates, radius,
+            normal_stiffness, nothing
+        )
     end
 end
 
@@ -121,13 +141,13 @@ function Base.show(io::IO, system::BoundaryDEMSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "BoundaryDEMSystem{", ndims(system), "}(")
-    print(io, ") with ", nparticles(system), " particles")
+    return print(io, ") with ", nparticles(system), " particles")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", system::BoundaryDEMSystem)
     @nospecialize system # reduce precompilation time
 
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, system)
     else
         summary_header(io, "BoundaryDEMSystem{$(ndims(system))}")
@@ -163,17 +183,17 @@ BoundaryMovement{typeof(movement_function), typeof(is_moving), Vector{Int64}}(mo
 ```
 """
 struct BoundaryMovement{MF, IM, MP}
-    movement_function :: MF
-    is_moving         :: IM
-    moving_particles  :: MP # Vector{Int}
+    movement_function::MF
+    is_moving::IM
+    moving_particles::MP # Vector{Int}
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
+function BoundaryMovement(movement_function, is_moving; moving_particles = nothing)
     if !(movement_function(0.0) isa SVector)
         @warn "Return value of `movement_function` is not of type `SVector`. " *
-              "Returning regular `Vector`s causes allocations and significant performance overhead."
+            "Returning regular `Vector`s causes allocations and significant performance overhead."
     end
 
     # Default value is an empty vector, which will be resized in the `BoundarySPHSystem`
@@ -195,11 +215,11 @@ end
 timer_name(::Union{BoundarySPHSystem, BoundaryDEMSystem}) = "boundary"
 
 @inline function Base.eltype(system::Union{BoundarySPHSystem, BoundaryDEMSystem})
-    eltype(system.coordinates)
+    return eltype(system.coordinates)
 end
 
 @inline function initial_coordinates(system::BoundarySPHSystem)
-    initial_coordinates(system::BoundarySPHSystem, system.movement)
+    return initial_coordinates(system::BoundarySPHSystem, system.movement)
 end
 
 @inline initial_coordinates(system::BoundaryDEMSystem) = system.coordinates
@@ -242,7 +262,7 @@ function (movement::Nothing)(system::System, t, semi)
 end
 
 @inline function nparticles(system::Union{BoundaryDEMSystem, BoundarySPHSystem})
-    size(system.coordinates, 2)
+    return size(system.coordinates, 2)
 end
 
 # No particle positions are advanced for boundary systems,
@@ -346,7 +366,7 @@ end
 function update_positions!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; movement) = system
 
-    movement(system, t, semi)
+    return movement(system, t, semi)
 end
 
 function update_quantities!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
@@ -359,8 +379,10 @@ end
 
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
-function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+function update_final!(
+        system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
+        update_from_callback = false
+    )
     (; boundary_model) = system
 
     # Note that `update_pressure!(::BoundarySPHSystem, ...)` is empty
@@ -373,14 +395,20 @@ function write_u0!(u0, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
     return u0
 end
 
-function write_v0!(v0,
-                   system::Union{BoundarySPHSystem,
-                                 BoundaryDEMSystem})
+function write_v0!(
+        v0,
+        system::Union{
+            BoundarySPHSystem,
+            BoundaryDEMSystem,
+        }
+    )
     return v0
 end
 
-function write_v0!(v0,
-                   system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+function write_v0!(
+        v0,
+        system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}
+    )
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
@@ -396,8 +424,10 @@ function restart_with!(system::BoundarySPHSystem, v, u)
     return system
 end
 
-function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                       v, u)
+function restart_with!(
+        system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+        v, u
+    )
     (; initial_density) = model.cache
 
     for particle in eachparticle(system)
@@ -409,8 +439,10 @@ end
 
 # To incorporate the effect at boundaries in the viscosity term of the RHS the neighbor
 # viscosity model has to be used.
-@inline function viscosity_model(system::BoundarySPHSystem,
-                                 neighbor_system::FluidSystem)
+@inline function viscosity_model(
+        system::BoundarySPHSystem,
+        neighbor_system::FluidSystem
+    )
     return neighbor_system.viscosity
 end
 
@@ -432,15 +464,19 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
     (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
 
     if haskey(cache, :initial_colorfield)
-        foreach_point_neighbor(system, system, system_coords, system_coords, semi,
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
+        foreach_point_neighbor(
+            system, system, system_coords, system_coords, semi,
+            points = eachparticle(system)
+        ) do particle, neighbor,
+                pos_diff, distance
             cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
-                                                  system.initial_condition.density[particle] *
-                                                  system.cache.color *
-                                                  kernel(smoothing_kernel,
-                                                         distance,
-                                                         smoothing_length)
+                system.initial_condition.density[particle] *
+                system.cache.color *
+                kernel(
+                smoothing_kernel,
+                distance,
+                smoothing_length
+            )
             cache.neighbor_count[particle] += 1
         end
     end

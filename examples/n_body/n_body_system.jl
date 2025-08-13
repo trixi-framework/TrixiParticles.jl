@@ -2,16 +2,18 @@ using TrixiParticles
 using LinearAlgebra
 
 struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
-    initial_condition :: InitialCondition{ELTYPE}
-    mass              :: Array{ELTYPE, 1} # [particle]
-    G                 :: ELTYPE
-    buffer            :: Nothing
+    initial_condition::InitialCondition{ELTYPE}
+    mass::Array{ELTYPE, 1} # [particle]
+    G::ELTYPE
+    buffer::Nothing
 
     function NBodySystem(initial_condition, G)
         mass = copy(initial_condition.mass)
 
-        new{size(initial_condition.coordinates, 1),
-            eltype(mass)}(initial_condition, mass, G, nothing)
+        return new{
+            size(initial_condition.coordinates, 1),
+            eltype(mass),
+        }(initial_condition, mass, G, nothing)
     end
 end
 
@@ -32,33 +34,43 @@ function TrixiParticles.write_v0!(v0, system::NBodySystem)
 end
 
 # NHS update
-function TrixiParticles.update_nhs!(neighborhood_search,
-                                    system::NBodySystem, neighbor::NBodySystem,
-                                    u_system, u_neighbor, semi)
-    TrixiParticles.PointNeighbors.update!(neighborhood_search,
-                                          u_system, u_neighbor,
-                                          points_moving=(true, true))
+function TrixiParticles.update_nhs!(
+        neighborhood_search,
+        system::NBodySystem, neighbor::NBodySystem,
+        u_system, u_neighbor, semi
+    )
+    return TrixiParticles.PointNeighbors.update!(
+        neighborhood_search,
+        u_system, u_neighbor,
+        points_moving = (true, true)
+    )
 end
 
-function TrixiParticles.compact_support(system::NBodySystem,
-                                        neighbor::NBodySystem)
+function TrixiParticles.compact_support(
+        system::NBodySystem,
+        neighbor::NBodySystem
+    )
     # There is no cutoff. All particles interact with each other.
     return Inf
 end
 
-function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
-                                  v_neighbor_system, u_neighbor_system,
-                                  particle_system::NBodySystem,
-                                  neighbor_system::NBodySystem, semi)
+function TrixiParticles.interact!(
+        dv, v_particle_system, u_particle_system,
+        v_neighbor_system, u_neighbor_system,
+        particle_system::NBodySystem,
+        neighbor_system::NBodySystem, semi
+    )
     (; mass, G) = neighbor_system
 
     system_coords = TrixiParticles.current_coordinates(u_particle_system, particle_system)
     neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    TrixiParticles.foreach_point_neighbor(particle_system, neighbor_system,
-                                          system_coords, neighbor_coords,
-                                          semi) do particle, neighbor, pos_diff, distance
+    TrixiParticles.foreach_point_neighbor(
+        particle_system, neighbor_system,
+        system_coords, neighbor_coords,
+        semi
+    ) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
@@ -87,7 +99,7 @@ function energy(v_ode, u_ode, system, semi)
 
     for particle in TrixiParticles.eachparticle(system)
         e += 0.5 * mass[particle] *
-             sum(TrixiParticles.current_velocity(v, system, particle) .^ 2)
+            sum(TrixiParticles.current_velocity(v, system, particle) .^ 2)
 
         particle_coords = TrixiParticles.current_coords(u, system, particle)
         for neighbor in (particle + 1):TrixiParticles.nparticles(system)
@@ -105,7 +117,7 @@ end
 
 TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem; write_meta_data=true)
+function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem; write_meta_data = true)
     (; mass) = system
 
     vtk["velocity"] = v
@@ -116,11 +128,11 @@ end
 
 function Base.show(io::IO, system::NBodySystem)
     print(io, "NBodySystem{", ndims(system), "}() with ")
-    print(io, TrixiParticles.nparticles(system), " particles")
+    return print(io, TrixiParticles.nparticles(system), " particles")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", system::NBodySystem)
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, system)
     else
         TrixiParticles.summary_header(io, "NBodySystem{$(ndims(system))}")

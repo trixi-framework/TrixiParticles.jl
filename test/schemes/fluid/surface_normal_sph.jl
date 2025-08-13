@@ -1,6 +1,8 @@
 # Create a platform below the fluid (at a distance `walldistance`)
-function create_boundary_system(coordinates, particle_spacing, state_equation, kernel,
-                                smoothing_length, NDIMS, walldistance)
+function create_boundary_system(
+        coordinates, particle_spacing, state_equation, kernel,
+        smoothing_length, NDIMS, walldistance
+    )
     # Compute bounding box of fluid particles
     xmin = minimum(coordinates[1, :])
     xmax = maximum(coordinates[1, :])
@@ -22,52 +24,66 @@ function create_boundary_system(coordinates, particle_spacing, state_equation, k
     end
 
     # Create the wall shape
-    wall = RectangularShape(particle_spacing,
-                            round.(Int, wall_size ./ particle_spacing),
-                            wall_coord,
-                            density=1000.0)
+    wall = RectangularShape(
+        particle_spacing,
+        round.(Int, wall_size ./ particle_spacing),
+        wall_coord,
+        density = 1000.0
+    )
 
-    boundary_model = BoundaryModelDummyParticles(wall.density,
-                                                 wall.mass,
-                                                 state_equation=state_equation,
-                                                 AdamiPressureExtrapolation(),
-                                                 kernel,
-                                                 smoothing_length,
-                                                 correction=nothing,
-                                                 reference_particle_spacing=particle_spacing)
+    boundary_model = BoundaryModelDummyParticles(
+        wall.density,
+        wall.mass,
+        state_equation = state_equation,
+        AdamiPressureExtrapolation(),
+        kernel,
+        smoothing_length,
+        correction = nothing,
+        reference_particle_spacing = particle_spacing
+    )
 
-    boundary_system = BoundarySPHSystem(wall, boundary_model, adhesion_coefficient=0.0)
+    boundary_system = BoundarySPHSystem(wall, boundary_model, adhesion_coefficient = 0.0)
     return boundary_system
 end
 
-function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
-                             surface_tension;
-                             surface_normal_method=ColorfieldSurfaceNormal(),
-                             NDIMS=2, smoothing_length=1.0, wall=false, walldistance=0.0,
-                             smoothing_kernel=SchoenbergCubicSplineKernel{NDIMS}())
+function create_fluid_system(
+        coordinates, velocity, mass, density, particle_spacing,
+        surface_tension;
+        surface_normal_method = ColorfieldSurfaceNormal(),
+        NDIMS = 2, smoothing_length = 1.0, wall = false, walldistance = 0.0,
+        smoothing_kernel = SchoenbergCubicSplineKernel{NDIMS}()
+    )
     tspan = (0.0, 0.01)
 
-    fluid = InitialCondition(coordinates=coordinates,
-                             velocity=velocity,
-                             mass=mass,
-                             density=density,
-                             particle_spacing=particle_spacing)
+    fluid = InitialCondition(
+        coordinates = coordinates,
+        velocity = velocity,
+        mass = mass,
+        density = density,
+        particle_spacing = particle_spacing
+    )
 
-    state_equation = StateEquationCole(sound_speed=10.0,
-                                       reference_density=1000.0,
-                                       exponent=1)
+    state_equation = StateEquationCole(
+        sound_speed = 10.0,
+        reference_density = 1000.0,
+        exponent = 1
+    )
 
-    system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(), state_equation,
-                                         smoothing_kernel, smoothing_length;
-                                         surface_normal_method=surface_normal_method,
-                                         reference_particle_spacing=particle_spacing,
-                                         surface_tension=surface_tension)
+    system = WeaklyCompressibleSPHSystem(
+        fluid, SummationDensity(), state_equation,
+        smoothing_kernel, smoothing_length;
+        surface_normal_method = surface_normal_method,
+        reference_particle_spacing = particle_spacing,
+        surface_tension = surface_tension
+    )
 
     if wall
-        boundary_system = create_boundary_system(coordinates, particle_spacing,
-                                                 state_equation, smoothing_kernel,
-                                                 smoothing_length,
-                                                 NDIMS, walldistance)
+        boundary_system = create_boundary_system(
+            coordinates, particle_spacing,
+            state_equation, smoothing_kernel,
+            smoothing_length,
+            NDIMS, walldistance
+        )
         semi = Semidiscretization(system, boundary_system)
     else
         semi = Semidiscretization(system)
@@ -80,17 +96,21 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     return system, boundary_system, semi, ode
 end
 
-function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
+function compute_and_test_surface_values(system, semi, ode; NDIMS = 2)
     v0_ode, u0_ode = ode.u0.x
     v = TrixiParticles.wrap_v(v0_ode, system, semi)
     u = TrixiParticles.wrap_u(u0_ode, system, semi)
 
     # Compute the surface normals
-    TrixiParticles.compute_surface_normal!(system, system.surface_normal_method, v, u,
-                                           v0_ode, u0_ode, semi, 0.0)
+    TrixiParticles.compute_surface_normal!(
+        system, system.surface_normal_method, v, u,
+        v0_ode, u0_ode, semi, 0.0
+    )
 
-    TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
-                                           system.surface_normal_method)
+    TrixiParticles.remove_invalid_normals!(
+        system, system.surface_tension,
+        system.surface_normal_method
+    )
 
     # After computation, check that surface normals have been computed and are not NaN or Inf
     @test all(isfinite, system.cache.surface_normal)
@@ -106,8 +126,10 @@ function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     # Test that surface normals are zero when there are not enough neighbors.
     # For the linear arrangement, surface normals may still be zero
     # when we have more neighbors than the threshold.
-    @test all(i -> system.cache.neighbor_count[i] >= threshold ||
-                   iszero(system.cache.surface_normal[:, i]), 1:nparticles)
+    return @test all(
+        i -> system.cache.neighbor_count[i] >= threshold ||
+            iszero(system.cache.surface_normal[:, i]), 1:nparticles
+    )
 end
 
 function compute_curvature!(system, semi, ode)
@@ -115,11 +137,13 @@ function compute_curvature!(system, semi, ode)
     v = TrixiParticles.wrap_v(v0_ode, system, semi)
     u = TrixiParticles.wrap_u(u0_ode, system, semi)
 
-    TrixiParticles.compute_curvature!(system, system.surface_tension,
-                                      v, u, v0_ode, u0_ode, semi, 0.0)
+    return TrixiParticles.compute_curvature!(
+        system, system.surface_tension,
+        v, u, v0_ode, u0_ode, semi, 0.0
+    )
 end
 
-@testset verbose=true "CSS/CSF: Sphere Surface Normals" begin
+@testset verbose = true "CSS/CSF: Sphere Surface Normals" begin
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
@@ -127,11 +151,13 @@ end
         (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
         (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
         (2, WendlandC2Kernel{2}(), 0.3, 1.0, 1.0, (0.0, 0.0), 1.4),
-        (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
+        (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6),
     ]
 
-    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
-         relative_curvature_error) in variations
+    for (
+            NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
+            relative_curvature_error,
+        ) in variations
 
         @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
             smoothing_length = smoothing_length_mult * particle_spacing
@@ -146,18 +172,22 @@ end
 
             # wall is placed 2.0 away so that it doesn't have much influence on the result
             system, bnd_system, semi,
-            ode = create_fluid_system(coordinates, velocity, mass,
-                                      density,
-                                      particle_spacing,
-                                      SurfaceTensionMorris(surface_tension_coefficient=0.072);
-                                      NDIMS=NDIMS,
-                                      smoothing_length=smoothing_length,
-                                      smoothing_kernel=smoothing_kernel,
-                                      surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                    ideal_density_threshold=0.9),
-                                      wall=true, walldistance=2.0)
+                ode = create_fluid_system(
+                coordinates, velocity, mass,
+                density,
+                particle_spacing,
+                SurfaceTensionMorris(surface_tension_coefficient = 0.072);
+                NDIMS = NDIMS,
+                smoothing_length = smoothing_length,
+                smoothing_kernel = smoothing_kernel,
+                surface_normal_method = ColorfieldSurfaceNormal(
+                    interface_threshold = 0.1,
+                    ideal_density_threshold = 0.9
+                ),
+                wall = true, walldistance = 2.0
+            )
 
-            compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
+            compute_and_test_surface_values(system, semi, ode; NDIMS = NDIMS)
 
             nparticles = size(coordinates, 2)
             expected_normals = zeros(NDIMS, nparticles)
@@ -193,9 +223,11 @@ end
             @test all(bnd_color .>= 0.0)
 
             # Test that computed normals match expected normals
-            @test isapprox(computed_normals[:, surface_particles],
-                           expected_normals[:, surface_particles], norm=x -> norm(x, Inf),
-                           atol=0.04)
+            @test isapprox(
+                computed_normals[:, surface_particles],
+                expected_normals[:, surface_particles], norm = x -> norm(x, Inf),
+                atol = 0.04
+            )
 
             compute_curvature!(system, semi, ode)
 
@@ -210,9 +242,11 @@ end
 
             # Compare absolute value of computed curvature vs. expected
             for i in surface_particles
-                @test isapprox(abs(curvature[i]),
-                               expected_curv;
-                               atol=relative_curvature_error * expected_curv)
+                @test isapprox(
+                    abs(curvature[i]),
+                    expected_curv;
+                    atol = relative_curvature_error * expected_curv
+                )
             end
 
             # Optionally, test that interior particles have near-zero normals
@@ -223,7 +257,7 @@ end
     end
 end
 
-@testset verbose=true "Akinci Sphere Surface Normals" begin
+@testset verbose = true "Akinci Sphere Surface Normals" begin
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
     variations = [
@@ -231,11 +265,13 @@ end
         (2, SchoenbergCubicSplineKernel{2}(), 0.1, 3.5, 1.0, (0.0, 0.0), 1.7),
         (3, SchoenbergCubicSplineKernel{3}(), 0.25, 3.0, 1.0, (0.0, 0.0, 0.0), 0.5),
         (2, WendlandC2Kernel{2}(), 0.3, 1.0, 1.0, (0.0, 0.0), 1.4),
-        (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6)
+        (3, WendlandC2Kernel{3}(), 0.3, 1.5, 1.0, (0.0, 0.0, 0.0), 0.6),
     ]
 
-    for (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
-         relative_curvature_error) in variations
+    for (
+            NDIMS, smoothing_kernel, particle_spacing, smoothing_length_mult, radius, center,
+            relative_curvature_error,
+        ) in variations
 
         @testset "NDIMS: $(NDIMS), Kernel: $(typeof(smoothing_kernel)), spacing: $(particle_spacing)" begin
             smoothing_length = smoothing_length_mult * particle_spacing
@@ -249,18 +285,22 @@ end
             density = sphere_ic.density
 
             system, bnd_system, semi,
-            ode = create_fluid_system(coordinates, velocity, mass,
-                                      density,
-                                      particle_spacing,
-                                      SurfaceTensionAkinci(surface_tension_coefficient=0.072);
-                                      NDIMS=NDIMS,
-                                      smoothing_length=smoothing_length,
-                                      smoothing_kernel=smoothing_kernel,
-                                      surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                    ideal_density_threshold=0.9),
-                                      wall=true, walldistance=2.0)
+                ode = create_fluid_system(
+                coordinates, velocity, mass,
+                density,
+                particle_spacing,
+                SurfaceTensionAkinci(surface_tension_coefficient = 0.072);
+                NDIMS = NDIMS,
+                smoothing_length = smoothing_length,
+                smoothing_kernel = smoothing_kernel,
+                surface_normal_method = ColorfieldSurfaceNormal(
+                    interface_threshold = 0.1,
+                    ideal_density_threshold = 0.9
+                ),
+                wall = true, walldistance = 2.0
+            )
 
-            compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
+            compute_and_test_surface_values(system, semi, ode; NDIMS = NDIMS)
 
             nparticles = size(coordinates, 2)
             expected_normals = zeros(NDIMS, nparticles)
@@ -296,9 +336,11 @@ end
             @test all(bnd_color .>= 0.0)
 
             # Test that computed normals match expected normals
-            @test isapprox(computed_normals[:, surface_particles],
-                           expected_normals[:, surface_particles], norm=x -> norm(x, Inf),
-                           atol=0.04)
+            @test isapprox(
+                computed_normals[:, surface_particles],
+                expected_normals[:, surface_particles], norm = x -> norm(x, Inf),
+                atol = 0.04
+            )
 
             # Optionally, test that interior particles have near-zero normals
             # for i in setdiff(1:nparticles, surface_particles)
@@ -336,16 +378,18 @@ end
 
     # Create fluid system (no wall)
     system, bnd_system, semi,
-    ode = create_fluid_system(coordinates, velocity, mass,
-                              density, particle_spacing,
-                              SurfaceTensionMorris(surface_tension_coefficient=0.072);
-                              NDIMS=NDIMS,
-                              smoothing_length=1.5 *
-                                               particle_spacing,
-                              wall=false, walldistance=0.0)
+        ode = create_fluid_system(
+        coordinates, velocity, mass,
+        density, particle_spacing,
+        SurfaceTensionMorris(surface_tension_coefficient = 0.072);
+        NDIMS = NDIMS,
+        smoothing_length = 1.5 *
+            particle_spacing,
+        wall = false, walldistance = 0.0
+    )
 
     # Compute surface normals
-    compute_and_test_surface_values(system, semi, ode; NDIMS=NDIMS)
+    compute_and_test_surface_values(system, semi, ode; NDIMS = NDIMS)
 
     # Threshold to decide if a particle is "on" a boundary
     # (half the spacing is typical, adjust as needed)
@@ -410,11 +454,11 @@ end
             # Expected = nonzero => direction check
             dot_val = dot(exp_normal, -computed_normals[:, i])
             # They should be close to parallel and same direction => dot ~ 1.0
-            @test isapprox(dot_val, 1.0; atol=0.1)
+            @test isapprox(dot_val, 1.0; atol = 0.1)
         end
     end
 
-    function is_corner(x, y; tol=0.5 * particle_spacing)
+    function is_corner(x, y; tol = 0.5 * particle_spacing)
         isleft = (x <= tol)
         isright = (x >= width - tol)
         isbottom = (y <= tol)
@@ -434,7 +478,7 @@ end
 
         # Just test the interior for now since the normal values are unreliable
         if norm(computed_normals[:, i]) < 0.5
-            @test isapprox(curvature[i], 0.0; atol=1e-2)
+            @test isapprox(curvature[i], 0.0; atol = 1.0e-2)
         end
     end
 end

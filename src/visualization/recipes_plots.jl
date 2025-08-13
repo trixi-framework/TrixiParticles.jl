@@ -1,8 +1,12 @@
 # Solution type when running a simulation with TrixiParticles.jl and OrdinaryDiffEq.jl
-const TrixiParticlesODESolution = ODESolution{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any,
-                                              <:Any, <:Any,
-                                              <:ODEProblem{<:Any, <:Any, <:Any,
-                                                           <:Semidiscretization}}
+const TrixiParticlesODESolution = ODESolution{
+    <:Any, <:Any, <:Any, <:Any, <:Any, <:Any,
+    <:Any, <:Any,
+    <:ODEProblem{
+        <:Any, <:Any, <:Any,
+        <:Semidiscretization,
+    },
+}
 
 # This is the main recipe
 RecipesBase.@recipe function f(sol::TrixiParticlesODESolution)
@@ -21,10 +25,12 @@ RecipesBase.@recipe function f(v_ode::AbstractGPUArray, u_ode, semi::Semidiscret
     return v_ode_, u_ode_, semi_
 end
 
-RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
-                               particle_spacings=TrixiParticles.particle_spacings(semi),
-                               size=(600, 400), # Default size
-                               xlims=(-Inf, Inf), ylims=(-Inf, Inf))
+RecipesBase.@recipe function f(
+        v_ode, u_ode, semi::Semidiscretization;
+        particle_spacings = TrixiParticles.particle_spacings(semi),
+        size = (600, 400), # Default size
+        xlims = (-Inf, Inf), ylims = (-Inf, Inf)
+    )
     # We need to split this in two recipes in order to find the minimum and maximum
     # coordinates across all systems.
     # In this first recipe, we collect the data for each system,
@@ -32,8 +38,10 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
     systems_data = map(enumerate(semi.systems)) do (i, system)
         u = wrap_u(u_ode, system, semi)
         periodic_box = get_neighborhood_search(system, semi).periodic_box
-        coordinates = PointNeighbors.periodic_coords(active_coordinates(u, system),
-                                                     periodic_box)
+        coordinates = PointNeighbors.periodic_coords(
+            active_coordinates(u, system),
+            periodic_box
+        )
 
         x = collect(coordinates[1, :])
         y = collect(coordinates[2, :])
@@ -43,11 +51,13 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
             particle_spacing = 0.0
         end
 
-        x_min, y_min = minimum(coordinates, dims=2) .- 0.5particle_spacing
-        x_max, y_max = maximum(coordinates, dims=2) .+ 0.5particle_spacing
+        x_min, y_min = minimum(coordinates, dims = 2) .- 0.5particle_spacing
+        x_max, y_max = maximum(coordinates, dims = 2) .+ 0.5particle_spacing
 
-        return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
-                label=timer_name(system))
+        return (;
+            x, y, x_min, x_max, y_min, y_max, particle_spacing,
+            label = timer_name(system),
+        )
     end
 
     # Pass the semidiscretization and the collected data to the next recipe
@@ -70,21 +80,25 @@ RecipesBase.@recipe function f(initial_conditions::InitialCondition...)
             particle_spacing = 0.0
         end
 
-        x_min, y_min = minimum(ic.coordinates, dims=2) .- 0.5particle_spacing
-        x_max, y_max = maximum(ic.coordinates, dims=2) .+ 0.5particle_spacing
+        x_min, y_min = minimum(ic.coordinates, dims = 2) .- 0.5particle_spacing
+        x_max, y_max = maximum(ic.coordinates, dims = 2) .+ 0.5particle_spacing
 
         idx += 1
 
-        return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
-                label="initial condition " * "$idx")
+        return (;
+            x, y, x_min, x_max, y_min, y_max, particle_spacing,
+            label = "initial condition " * "$idx",
+        )
     end
 
     # Pass the first initial condition and the collected data to the next recipe
     return (first(initial_conditions), ics...)
 end
 
-RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
-                               data...; size=(600, 400), xlims=(Inf, Inf), ylims=(Inf, Inf))
+RecipesBase.@recipe function f(
+        ::Union{InitialCondition, Semidiscretization},
+        data...; size = (600, 400), xlims = (Inf, Inf), ylims = (Inf, Inf)
+    )
     # `data` is a tuple of named tuples, passed from the recipe above.
     # Each named tuple contains coordinates and metadata for a system or initial condition.
     #

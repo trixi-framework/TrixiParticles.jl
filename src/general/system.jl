@@ -51,7 +51,7 @@ initialize!(system, semi) = system
 
 # This should not be dispatched by system type. We always expect to get a column of `A`.
 @propagate_inbounds function extract_svector(A, system, i)
-    extract_svector(A, Val(ndims(system)), i)
+    return extract_svector(A, Val(ndims(system)), i)
 end
 
 # Return the `i`-th column of the array `A` as an `SVector`.
@@ -60,17 +60,27 @@ end
     @boundscheck checkbounds(A, NDIMS, i)
 
     # Assume inbounds access now
-    return SVector(ntuple(@inline(dim->@inbounds A[dim, i]), NDIMS))
+    return SVector(ntuple(@inline(dim -> @inbounds A[dim, i]), NDIMS))
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
 @inline function extract_smatrix(A, system, particle)
     # Extract the matrix elements for this particle as a tuple to pass to SMatrix
-    return SMatrix{ndims(system),
-                   ndims(system)}(ntuple(@inline(i->A[mod(i - 1, ndims(system)) + 1,
-                                                      div(i - 1, ndims(system)) + 1,
-                                                      particle]),
-                                         Val(ndims(system)^2)))
+    return SMatrix{
+        ndims(system),
+        ndims(system),
+    }(
+        ntuple(
+            @inline(
+                i -> A[
+                    mod(i - 1, ndims(system)) + 1,
+                    div(i - 1, ndims(system)) + 1,
+                    particle,
+                ]
+            ),
+            Val(ndims(system)^2)
+        )
+    )
 end
 
 # Specifically get the current coordinates of a particle for all system types.
@@ -121,9 +131,11 @@ end
 end
 
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff,
-                                 distance, smoothing_length(system, particle),
-                                 system_correction(system), system, particle)
+    return corrected_kernel_grad(
+        system_smoothing_kernel(system), pos_diff,
+        distance, smoothing_length(system, particle),
+        system_correction(system), system, particle
+    )
 end
 
 # System update orders. This can be dispatched if needed.
@@ -139,7 +151,7 @@ function update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback=false)
+function update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback = false)
     return system
 end
 

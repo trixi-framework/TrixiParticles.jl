@@ -1,4 +1,4 @@
-@testset verbose=true "ThreadedBroadcastArray" begin
+@testset verbose = true "ThreadedBroadcastArray" begin
     A = TrixiParticles.ThreadedBroadcastArray(ones(3, 3))
     B = ones(3, 3)
 
@@ -27,8 +27,10 @@
         error("test1")
     end
 
-    A2 = TrixiParticles.ThreadedBroadcastArray(ones(3, 3),
-                                               parallelization_backend=FailingBackend())
+    A2 = TrixiParticles.ThreadedBroadcastArray(
+        ones(3, 3),
+        parallelization_backend = FailingBackend()
+    )
 
     # Test that all of these operations fail (which means they are using `@threaded`)
     @test_throws "test1" A2 .* 2

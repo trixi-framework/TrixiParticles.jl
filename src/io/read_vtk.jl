@@ -53,13 +53,15 @@ function vtk2trixi(file)
         else
             # Use zeros as default values when a field is missing
             results[field] = field in ["mass"] ?
-                             zeros(size(coordinates, 2)) : zero(coordinates)
+                zeros(size(coordinates, 2)) : zero(coordinates)
             @info "No '$field' field found in VTK file. Will be set to zero."
         end
     end
-    return InitialCondition(; coordinates, particle_spacing=results["particle_spacing"],
-                            velocity=results["velocity"],
-                            mass=results["mass"],
-                            density=results["density"],
-                            pressure=results["pressure"])
+    return InitialCondition(;
+        coordinates, particle_spacing = results["particle_spacing"],
+        velocity = results["velocity"],
+        mass = results["mass"],
+        density = results["density"],
+        pressure = results["pressure"]
+    )
 end

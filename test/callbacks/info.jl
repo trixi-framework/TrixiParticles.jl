@@ -1,6 +1,6 @@
-@testset verbose=true "InfoCallback" begin
-    @testset verbose=true "show" begin
-        callback = InfoCallback(interval=10)
+@testset verbose = true "InfoCallback" begin
+    @testset verbose = true "show" begin
+        callback = InfoCallback(interval = 10)
 
         show_compact = "InfoCallback(interval=10)"
         @test repr(callback) == show_compact
@@ -14,23 +14,26 @@
         @test repr("text/plain", callback) == show_box
     end
 
-    @testset verbose=true "initialize" begin
+    @testset verbose = true "initialize" begin
         callback = InfoCallback()
 
         # Build a mock `integrator`, which is a `NamedTuple` holding the fields that are
         # accessed in `initialize_info_callback`.
         continuous_callbacks = (:cb1, :cb2)
-        discrete_callbacks = (callback, (; (affect!)=:cb3))
+        discrete_callbacks = (callback, (; (affect!) = :cb3))
 
-        semi = (; systems=(:system1, :system2), parallelization_backend=PolyesterBackend())
+        semi = (; systems = (:system1, :system2), parallelization_backend = PolyesterBackend())
 
-        integrator = (; p=semi,
-                      opts=(;
-                            callback=(; continuous_callbacks, discrete_callbacks),
-                            adaptive=true, abstol=1e-2, reltol=1e-1,
-                            controller=:controller),
-                      alg=Val(:alg),
-                      sol=(; prob=(; tspan=(0.1, 0.5))))
+        integrator = (;
+            p = semi,
+            opts = (;
+                callback = (; continuous_callbacks, discrete_callbacks),
+                adaptive = true, abstol = 1.0e-2, reltol = 1.0e-1,
+                controller = :controller,
+            ),
+            alg = Val(:alg),
+            sol = (; prob = (; tspan = (0.1, 0.5))),
+        )
 
         expected = """
 
@@ -86,19 +89,21 @@
         @test output == expected
     end
 
-    @testset verbose=true "affect! not finished" begin
+    @testset verbose = true "affect! not finished" begin
         callback = InfoCallback()
 
         # Set `start_time` to -1e109 to make the output independent of the current time
-        callback.affect!.start_time = -1e109
+        callback.affect!.start_time = -1.0e109
 
         # Build a mock `integrator`, which is a `NamedTuple` holding the fields that are
         # accessed in `initialize_info_callback`.
-        integrator = (; t=23.42,
-                      stats=(; naccept=453),
-                      iter=472,
-                      dt=1.4548e-3,
-                      sol=(; prob=(; tspan=(0.0, 30.0))))
+        integrator = (;
+            t = 23.42,
+            stats = (; naccept = 453),
+            iter = 472,
+            dt = 1.4548e-3,
+            sol = (; prob = (; tspan = (0.0, 30.0))),
+        )
 
         TrixiParticles.isfinished(::NamedTuple) = false
         TrixiParticles.u_modified!(::NamedTuple, _) = nothing
@@ -116,18 +121,20 @@
         @test output == expected
     end
 
-    @testset verbose=true "affect! finished" begin
+    @testset verbose = true "affect! finished" begin
         callback = InfoCallback()
 
         # Set `start_time` to -1e109 to make the output independent of the current time
-        callback.affect!.start_time = -1e109
+        callback.affect!.start_time = -1.0e109
 
         # Build a mock `integrator`, which is a `NamedTuple` holding the fields that are
         # accessed in `initialize_info_callback`.
-        integrator = (; t=23.0,
-                      stats=(; naccept=453),
-                      iter=472,
-                      dt=1e-3)
+        integrator = (;
+            t = 23.0,
+            stats = (; naccept = 453),
+            iter = 472,
+            dt = 1.0e-3,
+        )
 
         TrixiParticles.isfinished(::NamedTuple) = true
         TrixiParticles.u_modified!(::NamedTuple, _) = nothing
@@ -152,7 +159,7 @@
     end
 
     # TODO add unit tests for all summary box functions
-    @testset verbose=true "Summary Box Squeeze" begin
+    @testset verbose = true "Summary Box Squeeze" begin
         io = IOBuffer()
         TrixiParticles.summary_box(io, "Test", ["test" => "x"^100])
         output = String(take!(io))

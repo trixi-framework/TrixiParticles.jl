@@ -6,7 +6,7 @@
     func(element)
 
     # Process remaining collection
-    foreach_noalloc(func, remaining_collection)
+    return foreach_noalloc(func, remaining_collection)
 end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
@@ -15,15 +15,15 @@ end
 function print_startup_message()
     s = """
 
-        ████████╗██████╗ ██╗██╗  ██╗██╗██████╗  █████╗ ██████╗ ████████╗██╗ ██████╗██╗     ███████╗███████╗
-        ╚══██╔══╝██╔══██╗██║╚██╗██╔╝██║██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██║██╔════╝██║     ██╔════╝██╔════╝
-           ██║   ██████╔╝██║ ╚███╔╝ ██║██████╔╝███████║██████╔╝   ██║   ██║██║     ██║     █████╗  ███████╗
-           ██║   ██╔══██╗██║ ██╔██╗ ██║██╔═══╝ ██╔══██║██╔══██╗   ██║   ██║██║     ██║     ██╔══╝  ╚════██║
-           ██║   ██║  ██║██║██╔╝ ██╗██║██║     ██║  ██║██║  ██║   ██║   ██║╚██████╗███████╗███████╗███████║
-           ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝╚══════╝╚══════╝╚══════╝
+    ████████╗██████╗ ██╗██╗  ██╗██╗██████╗  █████╗ ██████╗ ████████╗██╗ ██████╗██╗     ███████╗███████╗
+    ╚══██╔══╝██╔══██╗██║╚██╗██╔╝██║██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██║██╔════╝██║     ██╔════╝██╔════╝
+       ██║   ██████╔╝██║ ╚███╔╝ ██║██████╔╝███████║██████╔╝   ██║   ██║██║     ██║     █████╗  ███████╗
+       ██║   ██╔══██╗██║ ██╔██╗ ██║██╔═══╝ ██╔══██║██╔══██╗   ██║   ██║██║     ██║     ██╔══╝  ╚════██║
+       ██║   ██║  ██║██║██╔╝ ██╗██║██║     ██║  ██║██║  ██║   ██║   ██║╚██████╗███████╗███████╗███████║
+       ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝╚══════╝╚══════╝╚══════╝
 
-        """
-    println(s)
+    """
+    return println(s)
 end
 
 @doc raw"""
@@ -84,7 +84,7 @@ See also: [Infiltrator.jl](https://github.com/JuliaDebug/Infiltrator.jl)
     API of TrixiParticles.jl, and it thus can altered (or be removed) at any time without it being
     considered a breaking change.
 """
-macro autoinfiltrate(condition=true)
+macro autoinfiltrate(condition = true)
     pkgid = Base.PkgId(Base.UUID("5903a43b-9cc3-4c30-8d17-598619ec4e9b"), "Infiltrator")
     if !haskey(Base.loaded_modules, pkgid)
         try
@@ -97,16 +97,20 @@ macro autoinfiltrate(condition=true)
     lnn = LineNumberNode(__source__.line, __source__.file)
 
     if i === nothing
-        return Expr(:macrocall,
-                    Symbol("@warn"),
-                    lnn,
-                    "Could not load Infiltrator.")
+        return Expr(
+            :macrocall,
+            Symbol("@warn"),
+            lnn,
+            "Could not load Infiltrator."
+        )
     end
 
-    return Expr(:macrocall,
-                Expr(:., i, QuoteNode(Symbol("@infiltrate"))),
-                lnn,
-                esc(condition))
+    return Expr(
+        :macrocall,
+        Expr(:., i, QuoteNode(Symbol("@infiltrate"))),
+        lnn,
+        esc(condition)
+    )
 end
 
 function type2string(type)
@@ -127,8 +131,10 @@ function compute_git_hash()
     end
 
     try
-        git_cmd = Cmd(`git describe --tags --always --first-parent --dirty`,
-                      dir=pkg_directory)
+        git_cmd = Cmd(
+            `git describe --tags --always --first-parent --dirty`,
+            dir = pkg_directory
+        )
         return string(readchomp(git_cmd))
     catch e
         return "UnknownVersion"
@@ -143,11 +149,17 @@ struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}, P} <: AbstractArra
     array::A
     parallelization_backend::P
 
-    function ThreadedBroadcastArray(array::AbstractArray{T, N};
-                                    parallelization_backend=default_backend(array)) where {T,
-                                                                                           N}
-        new{T, N, typeof(array), typeof(parallelization_backend)}(array,
-                                                                  parallelization_backend)
+    function ThreadedBroadcastArray(
+            array::AbstractArray{T, N};
+            parallelization_backend = default_backend(array)
+        ) where {
+            T,
+            N,
+        }
+        return new{T, N, typeof(array), typeof(parallelization_backend)}(
+            array,
+            parallelization_backend
+        )
     end
 end
 
@@ -157,8 +169,10 @@ Base.size(A::ThreadedBroadcastArray) = size(parent(A))
 Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
 
 function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
-    return ThreadedBroadcastArray(similar(A.array, T);
-                                  parallelization_backend=A.parallelization_backend)
+    return ThreadedBroadcastArray(
+        similar(A.array, T);
+        parallelization_backend = A.parallelization_backend
+    )
 end
 
 Base.@propagate_inbounds function Base.getindex(A::ThreadedBroadcastArray, i...)
@@ -191,8 +205,10 @@ function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
         end
     else
         # Dual-iterator implementation
-        @threaded dest.parallelization_backend for (Idest, Isrc) in zip(eachindex(dest),
-                                                       eachindex(src))
+        @threaded dest.parallelization_backend for (Idest, Isrc) in zip(
+                eachindex(dest),
+                eachindex(src)
+            )
             @inbounds dest.array[Idest] = src[Isrc]
         end
     end
@@ -203,8 +219,10 @@ end
 # Broadcasting style for `ThreadedBroadcastArray`.
 struct ThreadedBroadcastStyle{P} <: Broadcast.AbstractArrayStyle{1} end
 
-function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A, P}}) where {T, N,
-                                                                                     A, P}
+function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A, P}}) where {
+        T, N,
+        A, P,
+    }
     return ThreadedBroadcastStyle{P}()
 end
 
@@ -216,22 +234,28 @@ end
 # "It is worth noting that you do not need to (and should not) define both argument orders
 # of this call;
 # defining one is sufficient no matter what order the user supplies the arguments in."
-function Broadcast.BroadcastStyle(s1::ThreadedBroadcastStyle,
-                                  ::Broadcast.AbstractArrayStyle)
+function Broadcast.BroadcastStyle(
+        s1::ThreadedBroadcastStyle,
+        ::Broadcast.AbstractArrayStyle
+    )
     return s1
 end
 
 # To avoid ambiguity with the function above
-function Broadcast.BroadcastStyle(s1::ThreadedBroadcastStyle,
-                                  ::Broadcast.DefaultArrayStyle)
+function Broadcast.BroadcastStyle(
+        s1::ThreadedBroadcastStyle,
+        ::Broadcast.DefaultArrayStyle
+    )
     return s1
 end
 
 # Based on copyto!(dest::AbstractArray, bc::Broadcasted{Nothing})
 # defined in base/broadcast.jl.
 # For things like `A .= B .+ C` where `A` is a `ThreadedBroadcastArray`.
-function Broadcast.copyto!(dest::ThreadedBroadcastArray,
-                           bc::Broadcast.Broadcasted{Nothing})
+function Broadcast.copyto!(
+        dest::ThreadedBroadcastArray,
+        bc::Broadcast.Broadcasted{Nothing}
+    )
     # Check bounds
     axes(dest.array) == axes(bc) || Broadcast.throwdm(axes(dest.array), axes(bc))
 
@@ -245,8 +269,10 @@ end
 
 # For things like `C = A .+ B` where `A` or `B` is a `ThreadedBroadcastArray`.
 # `C` will be allocated with this function.
-function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{P}},
-                      ::Type{T}, dims) where {T, P}
+function Base.similar(
+        ::Broadcast.Broadcasted{ThreadedBroadcastStyle{P}},
+        ::Type{T}, dims
+    ) where {T, P}
     # TODO we only have the type `P` here and just assume that we can do `P()`
-    return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
+    return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend = P())
 end

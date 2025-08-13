@@ -1,5 +1,5 @@
-@testset verbose=true "SteadyStateReachedCallback" begin
-    @testset verbose=true "show" begin
+@testset verbose = true "SteadyStateReachedCallback" begin
+    @testset verbose = true "show" begin
         # Default
         callback0 = SteadyStateReachedCallback()
 
@@ -17,7 +17,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback0) == show_box
 
-        callback1 = SteadyStateReachedCallback(interval=11)
+        callback1 = SteadyStateReachedCallback(interval = 11)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -30,7 +30,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback1) == show_box
 
-        callback2 = SteadyStateReachedCallback(dt=1.2)
+        callback2 = SteadyStateReachedCallback(dt = 1.2)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -46,6 +46,6 @@
 
     @testset "Illegal Input" begin
         error_str = "setting both `interval` and `dt` is not supported"
-        @test_throws ArgumentError(error_str) SteadyStateReachedCallback(dt=0.1, interval=1)
+        @test_throws ArgumentError(error_str) SteadyStateReachedCallback(dt = 0.1, interval = 1)
     end
 end

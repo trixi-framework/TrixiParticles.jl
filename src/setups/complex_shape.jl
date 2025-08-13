@@ -41,13 +41,17 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-function ComplexShape(geometry; particle_spacing, density,
-                      pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
-                      point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
-                                                                        hierarchical_winding=true,
-                                                                        winding_number_factor=sqrt(eps())),
-                      store_winding_number=false, grid_offset::Real=0.0,
-                      max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
+function ComplexShape(
+        geometry; particle_spacing, density,
+        pressure = 0.0, mass = nothing, velocity = zeros(ndims(geometry)),
+        point_in_geometry_algorithm = WindingNumberJacobson(;
+            geometry,
+            hierarchical_winding = true,
+            winding_number_factor = sqrt(eps())
+        ),
+        store_winding_number = false, grid_offset::Real = 0.0,
+        max_nparticles = 10^7, pad_initial_particle_grid = 2particle_spacing
+    )
     if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHormann
         throw(ArgumentError("`WindingNumberHormann` only supports 2D geometries"))
     end
@@ -56,22 +60,30 @@ function ComplexShape(geometry; particle_spacing, density,
         throw(ArgumentError("only a positive `grid_offset` is supported"))
     end
 
-    grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
-                         grid_offset, max_nparticles)
+    grid = particle_grid(
+        geometry, particle_spacing; padding = pad_initial_particle_grid,
+        grid_offset, max_nparticles
+    )
 
     inpoly,
-    winding_numbers = point_in_geometry_algorithm(geometry, grid;
-                                                  store_winding_number)
+        winding_numbers = point_in_geometry_algorithm(
+        geometry, grid;
+        store_winding_number
+    )
 
     coordinates = stack(grid[inpoly])
 
-    initial_condition = InitialCondition(; coordinates, density, mass, velocity, pressure,
-                                         particle_spacing)
+    initial_condition = InitialCondition(;
+        coordinates, density, mass, velocity, pressure,
+        particle_spacing
+    )
 
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
-        return (; initial_condition=initial_condition, winding_numbers=winding_numbers,
-                grid=grid)
+        return (;
+            initial_condition = initial_condition, winding_numbers = winding_numbers,
+            grid = grid,
+        )
     end
 
     return initial_condition
@@ -117,18 +129,26 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-function sample_boundary(signed_distance_field;
-                         boundary_density, boundary_thickness, tlsph=true)
-    (; max_signed_distance, boundary_packing,
-     positions, distances, particle_spacing) = signed_distance_field
+function sample_boundary(
+        signed_distance_field;
+        boundary_density, boundary_thickness, tlsph = true
+    )
+    (;
+        max_signed_distance, boundary_packing,
+        positions, distances, particle_spacing,
+    ) = signed_distance_field
 
     if !(boundary_packing)
         throw(ArgumentError("`SignedDistanceField` was not generated with `use_for_boundary_packing`"))
     end
 
     if boundary_thickness > max_signed_distance
-        throw(ArgumentError("`boundary_thickness` is greater than `max_signed_distance` of `SignedDistanceField`. " *
-                            "Please generate a `SignedDistanceField` with higher `max_signed_distance`."))
+        throw(
+            ArgumentError(
+                "`boundary_thickness` is greater than `max_signed_distance` of `SignedDistanceField`. " *
+                    "Please generate a `SignedDistanceField` with higher `max_signed_distance`."
+            )
+        )
     end
 
     # Only keep the required part of the signed distance field
@@ -136,28 +156,42 @@ function sample_boundary(signed_distance_field;
     keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
 
     boundary_coordinates = stack(positions[keep_indices])
-    return InitialCondition(; coordinates=boundary_coordinates, density=boundary_density,
-                            particle_spacing)
+    return InitialCondition(;
+        coordinates = boundary_coordinates, density = boundary_density,
+        particle_spacing
+    )
 end
 
-function particle_grid(geometry, particle_spacing;
-                       padding=2particle_spacing, grid_offset=0.0, max_nparticles=10^7)
+function particle_grid(
+        geometry, particle_spacing;
+        padding = 2particle_spacing, grid_offset = 0.0, max_nparticles = 10^7
+    )
     (; max_corner) = geometry
 
     min_corner = geometry.min_corner .- grid_offset .- padding
 
-    n_particles_per_dimension = Tuple(ceil.(Int,
-                                            (max_corner .- min_corner .+ 2padding) ./
-                                            particle_spacing))
+    n_particles_per_dimension = Tuple(
+        ceil.(
+            Int,
+            (max_corner .- min_corner .+ 2padding) ./
+                particle_spacing
+        )
+    )
 
     n_particles = prod(n_particles_per_dimension)
 
     if n_particles > max_nparticles
-        throw(ArgumentError("Number of particles of the initial grid ($n_particles) exceeds " *
-                            "`max_nparticles` = $max_nparticles"))
+        throw(
+            ArgumentError(
+                "Number of particles of the initial grid ($n_particles) exceeds " *
+                    "`max_nparticles` = $max_nparticles"
+            )
+        )
     end
 
-    grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                    min_corner; tlsph=true)
+    grid = rectangular_shape_coords(
+        particle_spacing, n_particles_per_dimension,
+        min_corner; tlsph = true
+    )
     return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
 end

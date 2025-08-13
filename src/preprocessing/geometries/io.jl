@@ -12,13 +12,13 @@ For comprehensive information about the supported file formats, refer to the doc
 # Keywords
 - `element_type`: Element type (default is `Float64`)
 """
-function load_geometry(filename; element_type=Float64)
+function load_geometry(filename; element_type = Float64)
     ELTYPE = element_type
 
     file_extension = splitext(filename)[end]
 
     if file_extension == ".asc"
-        geometry = load_ascii(filename; ELTYPE, skipstart=1)
+        geometry = load_ascii(filename; ELTYPE, skipstart = 1)
     elseif file_extension == ".dxf"
         geometry = load_dxf(filename; ELTYPE)
     elseif file_extension == ".stl"
@@ -30,7 +30,7 @@ function load_geometry(filename; element_type=Float64)
     return geometry
 end
 
-function load_ascii(filename; ELTYPE=Float64, skipstart=1)
+function load_ascii(filename; ELTYPE = Float64, skipstart = 1)
 
     # Read the data from the ASCII file in as a matrix of coordinates.
     # Ignore the first `skipstart` lines of the file (e.g. headers).
@@ -39,7 +39,7 @@ function load_ascii(filename; ELTYPE=Float64, skipstart=1)
     return Polygon(copy(points'))
 end
 
-function load_dxf(filename; ELTYPE=Float64)
+function load_dxf(filename; ELTYPE = Float64)
     points = Tuple{ELTYPE, ELTYPE}[]
 
     load_dxf!(points, filename)
@@ -133,13 +133,13 @@ end
 # FileIO.jl docs:
 # https://juliaio.github.io/FileIO.jl/stable/implementing/#All-at-once-I/O:-implementing-load-and-save
 function load(fn::FileIO.File{FileIO.format"STL_BINARY"}; element_types...)
-    open(fn) do s
+    return open(fn) do s
         FileIO.skipmagic(s) # skip over the magic bytes
         load(s; element_types...)
     end
 end
 
-function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
+function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE = Float64)
     # Binary STL
     # https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = FileIO.stream(fs)
@@ -155,13 +155,21 @@ function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
     return TriangleMesh(face_vertices, normals, vertices)
 end
 
-function load_data!(face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},
-                                                SVector{3, T}}},
-                    vertices, normals, io) where {T}
+function load_data!(
+        face_vertices::Vector{
+            Tuple{
+                SVector{3, T}, SVector{3, T},
+                SVector{3, T},
+            },
+        },
+        vertices, normals, io
+    ) where {T}
     i = 0
     while !eof(io)
-        normals[i + 1] = SVector{3, T}(read(io, Float32), read(io, Float32),
-                                       read(io, Float32))
+        normals[i + 1] = SVector{3, T}(
+            read(io, Float32), read(io, Float32),
+            read(io, Float32)
+        )
 
         v1 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
         v2 = SVector{3, T}(read(io, Float32), read(io, Float32), read(io, Float32))
@@ -179,10 +187,13 @@ function load_data!(face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},
         skip(io, 2) # Skip attribute byte count
         i += 1
     end
+    return
 end
 
-function trixi2vtk(geometry::Polygon; output_directory="out", prefix="",
-                   filename="points", custom_quantities...)
+function trixi2vtk(
+        geometry::Polygon; output_directory = "out", prefix = "",
+        filename = "points", custom_quantities...
+    )
     vertex_normals = Vector{SVector{2, eltype(geometry)}}()
     vertices = Vector{SVector{2, eltype(geometry)}}()
 
@@ -195,15 +206,25 @@ function trixi2vtk(geometry::Polygon; output_directory="out", prefix="",
         push!(vertices, geometry.vertices[geometry.edge_vertices_ids[edge][2]])
     end
 
-    return trixi2vtk(stack(vertices); output_directory, filename, prefix,
-                     vertex_normals=vertex_normals, custom_quantities...)
+    return trixi2vtk(
+        stack(vertices); output_directory, filename, prefix,
+        vertex_normals = vertex_normals, custom_quantities...
+    )
 end
 
-function trixi2vtk(geometry::TriangleMesh; output_directory="out", prefix="",
-                   filename="points", custom_quantities...)
-    vertex_normals = stack([geometry.vertex_normals[face]
-                            for face in eachindex(geometry.vertices)])
+function trixi2vtk(
+        geometry::TriangleMesh; output_directory = "out", prefix = "",
+        filename = "points", custom_quantities...
+    )
+    vertex_normals = stack(
+        [
+            geometry.vertex_normals[face]
+                for face in eachindex(geometry.vertices)
+        ]
+    )
 
-    return trixi2vtk(stack(geometry.vertices); output_directory, filename, prefix,
-                     vertex_normals=vertex_normals, custom_quantities...)
+    return trixi2vtk(
+        stack(geometry.vertices); output_directory, filename, prefix,
+        vertex_normals = vertex_normals, custom_quantities...
+    )
 end

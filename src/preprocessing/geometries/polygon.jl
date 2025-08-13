@@ -1,12 +1,12 @@
 # This is the data format returned by `load(file)` when used with `.asc` files
 struct Polygon{NDIMS, ELTYPE}
-    vertices          :: Vector{SVector{NDIMS, ELTYPE}}
-    edge_vertices     :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
-    vertex_normals    :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
-    edge_normals      :: Vector{SVector{NDIMS, ELTYPE}}
-    edge_vertices_ids :: Vector{NTuple{2, Int}}
-    min_corner        :: SVector{NDIMS, ELTYPE}
-    max_corner        :: SVector{NDIMS, ELTYPE}
+    vertices::Vector{SVector{NDIMS, ELTYPE}}
+    edge_vertices::Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
+    vertex_normals::Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
+    edge_normals::Vector{SVector{NDIMS, ELTYPE}}
+    edge_vertices_ids::Vector{NTuple{2, Int}}
+    min_corner::SVector{NDIMS, ELTYPE}
+    max_corner::SVector{NDIMS, ELTYPE}
 
     function Polygon(vertices)
         NDIMS = size(vertices, 1)
@@ -19,8 +19,8 @@ struct Polygon{NDIMS, ELTYPE}
         n_vertices = size(vertices_, 2)
         ELTYPE = eltype(vertices_)
 
-        min_corner = SVector{NDIMS}(minimum(vertices_, dims=2))
-        max_corner = SVector{NDIMS}(maximum(vertices_, dims=2))
+        min_corner = SVector{NDIMS}(minimum(vertices_, dims = 2))
+        max_corner = SVector{NDIMS}(maximum(vertices_, dims = 2))
 
         vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_)
 
@@ -92,21 +92,23 @@ struct Polygon{NDIMS, ELTYPE}
             push!(vertex_normals, (vortex_normal_1, vortex_normal_2))
         end
 
-        return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
-                                  edge_vertices_ids, min_corner, max_corner)
+        return new{NDIMS, ELTYPE}(
+            vertices, edge_vertices, vertex_normals, edge_normals,
+            edge_vertices_ids, min_corner, max_corner
+        )
     end
 end
 
 function Base.show(io::IO, geometry::Polygon)
     @nospecialize geometry # reduce precompilation time
 
-    print(io, "Polygon{$(ndims(geometry)), $(eltype(geometry))}()")
+    return print(io, "Polygon{$(ndims(geometry)), $(eltype(geometry))}()")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", geometry::Polygon)
     @nospecialize geometry # reduce precompilation time
 
-    if get(io, :compact, false)
+    return if get(io, :compact, false)
         show(io, system)
     else
         summary_header(io, "Polygon{$(ndims(geometry)), $(eltype(geometry))}")
@@ -149,7 +151,7 @@ function volume(polygon::Polygon)
 
     # Compute the area of the polygon by the shoelace formula.
     # https://en.wikipedia.org/wiki/Polygon
-    volume = sum(polygon.edge_vertices_ids, init=zero(eltype(polygon))) do edge
+    volume = sum(polygon.edge_vertices_ids, init = zero(eltype(polygon))) do edge
         v1 = polygon.vertices[edge[1]]
         v2 = polygon.vertices[edge[2]]
 
