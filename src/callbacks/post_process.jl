@@ -216,8 +216,6 @@ function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integra
     # Apply the callback
     cb(integrator)
 
-    write_meta_data(cb, integrator)
-
     return cb
 end
 
@@ -268,7 +266,7 @@ function (pp::PostprocessCallback)(integrator)
 
         if isfinished(integrator) ||
            (pp.write_file_interval > 0 && backup_condition(pp, integrator))
-            write_postprocess_callback(pp)
+            write_postprocess_callback(pp, integrator)
         end
 
         # Tell OrdinaryDiffEq that `u` has not been modified
@@ -287,14 +285,18 @@ end
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
-function write_postprocess_callback(pp::PostprocessCallback)
+function write_postprocess_callback(pp::PostprocessCallback, integrator)
     isempty(pp.data) && return
 
     mkpath(pp.output_directory)
 
     data = Dict{String, Any}()
-    write_meta_data!(data, pp.git_hash[])
-    prepare_series_data!(data, pp)
+
+    data["simulation_info"] = Dict{String, Any}()
+    add_simulation_info!(data["simulation_info"], pp.git_hash, integrator)
+
+    data["system_data"] = Dict{String, Any}()
+    prepare_series_data!(data["system_data"], pp)
 
     time_stamp = ""
     if pp.append_timestamp
@@ -315,7 +317,7 @@ function write_postprocess_callback(pp::PostprocessCallback)
     if pp.write_csv
         abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
 
-        write_csv(abs_file_path, data)
+        write_csv(abs_file_path, data["system_data"])
     end
 end
 
@@ -341,15 +343,6 @@ function create_series_dict(values, times, system_name="")
                 "system_name" => system_name,
                 "values" => values,
                 "time" => times)
-end
-
-function write_meta_data!(data, git_hash)
-    meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => git_hash,
-                     "julia_version" => string(VERSION))
-
-    data["meta"] = meta_data
-    return data
 end
 
 function write_csv(abs_file_path, data)
