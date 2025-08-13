@@ -191,12 +191,13 @@ end
 function compute_correction_values!(system,
                                     ::Union{KernelCorrection,
                                             MixedKernelGradientCorrection}, system_coords,
-                                    v_ode,
-                                    u_ode, semi, kernel_correction_coefficient, dw_gamma)
+                                    v_ode, u_ode, semi, kernel_correction_coefficient,
+                                    dw_gamma)
     set_zero!(kernel_correction_coefficient)
     set_zero!(dw_gamma)
 
     # Use all other systems for the density summation
+    # TODO just use the fluid system kernel here
     @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
@@ -330,6 +331,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
+    # TODO just use the fluid system kernel here
     @trixi_timeit timer() "compute correction matrix" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
