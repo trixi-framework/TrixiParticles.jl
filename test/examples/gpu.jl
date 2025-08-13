@@ -87,22 +87,21 @@ end
             end
         end
 
-
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float32 with ContinuityDensity boundary density" begin
-                @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
-                                                                    joinpath(examples_dir(),
-                                                                            "fluid",
-                                                                            "dam_break_2d_gpu.jl");
-                                                                    tspan=(0.0f0, 0.1f0),
-                                                                    parallelization_backend=Main.parallelization_backend,
-                                                                    boundary_density_calculator=ContinuityDensity()) [
-                    r"┌ Info: The desired tank length in y-direction .*\n",
-                    r"└ New tank length in y-direction.*\n"
-                ]
-                @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
-                @test sol.retcode == ReturnCode.Success
-                backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
-                @test backend == Main.parallelization_backend
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "dam_break_2d_gpu.jl");
+                                                             tspan=(0.0f0, 0.1f0),
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             boundary_density_calculator=ContinuityDensity()) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n"
+            ]
+            @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
         end
 
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float32 BoundaryModelMonaghanKajtar" begin
