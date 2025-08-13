@@ -26,6 +26,7 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
+using Statistics: Statistics
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
@@ -90,7 +91,7 @@ export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
-       sample_boundary
+       sample_boundary, extract_transition_face
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
