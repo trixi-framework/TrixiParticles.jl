@@ -175,23 +175,15 @@ end
     return compact_support(system, system.boundary_model, neighbor)
 end
 
-@inline function compact_support(system, model::BoundaryModelMonaghanKajtar, neighbor)
+@inline function compact_support(system, model::Union{BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles}, neighbor)
     # Use the compact support of the fluid for solid-fluid interaction
     return compact_support(neighbor, system)
 end
 
-@inline function compact_support(system, model::BoundaryModelMonaghanKajtar,
+@inline function compact_support(system, model::Union{BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles},
                                  neighbor::BoundarySPHSystem)
     # This NHS is never used
     return 0.0
-end
-
-@inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
-    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for solid-fluid
-    # interaction. Dummy particle BC use the model's compact support, which is also used
-    # for density summations.
-    (; smoothing_kernel, smoothing_length) = model
-    return compact_support(smoothing_kernel, smoothing_length)
 end
 
 @inline function get_neighborhood_search(system, semi)
