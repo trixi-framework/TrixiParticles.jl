@@ -16,5 +16,4 @@ trixi_include(@__MODULE__,
               solid_smoothing_kernel=WendlandC2Kernel{3}(),
               sphere_type=RoundSphere(),
               output_directory="out", prefix="",
-              write_meta_data=false, # Files with meta data can't be read by meshio
               tspan=(0.0, 1.0), abstol=1e-6, reltol=1e-3)
