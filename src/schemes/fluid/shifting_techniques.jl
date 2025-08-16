@@ -3,6 +3,12 @@ abstract type AbstractShiftingTechnique end
 # No shifting for a system by default
 @inline shifting_technique(system) = nothing
 
+# WARNING: Be careful if defining this function for a specific system type.
+# The version for a specific system type will override this generic version.
+requires_update_callback(system) = requires_update_callback(shifting_technique(system))
+requires_update_callback(::Nothing) = false
+requires_update_callback(::AbstractShiftingTechnique) = true
+
 create_cache_shifting(initial_condition, ::Nothing) = (;)
 
 function create_cache_shifting(initial_condition, ::AbstractShiftingTechnique)
