@@ -55,10 +55,8 @@ end
 function initial_update!(cb::UpdateCallback, u, t, integrator)
     semi = integrator.p
 
-    # Tell systems that `UpdateCallback` is used
-    foreach_system(semi) do system
-        set_callback_flag!(system, true)
-    end
+    # Tell the semidiscretization that the `UpdateCallback` is used
+    semi.update_callback_used[] = true
 
     return cb(integrator)
 end

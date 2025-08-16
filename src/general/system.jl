@@ -149,8 +149,6 @@ end
 
 # Only for systems requiring the use of the `UpdateCallback`
 @inline requires_update_callback(system) = false
-@inline update_callback_used(system) = false
-@inline set_callback_flag!(system, value) = system
 
 @inline initial_smoothing_length(system) = smoothing_length(system, nothing)
 
