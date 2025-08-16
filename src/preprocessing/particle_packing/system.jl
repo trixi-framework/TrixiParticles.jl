@@ -55,7 +55,7 @@ For more information on the methods, see [particle packing](@ref particle_packin
                               Recommended values are `0.8` or `0.9`.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
-                             IC, M, D, K, N, SD, UCU} <: FluidSystem{NDIMS}
+                             IC, M, D, K, N, SD} <: FluidSystem{NDIMS}
     initial_condition              :: IC
     advection_velocity             :: AV
     mass                           :: M
@@ -72,7 +72,6 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     signed_distances               :: SD # Only for visualization
     particle_refinement            :: PR
     buffer                         :: Nothing
-    update_callback_used           :: UCU
     cache                          :: C
 
     # This constructor is necessary for Adapt.jl to work with this struct.
@@ -82,22 +81,20 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                                    background_pressure, tlsph, signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
                                    signed_distances, particle_refinement, buffer,
-                                   update_callback_used, fixed_system, cache,
-                                   advection_velocity)
+                                   fixed_system, cache, advection_velocity)
         return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
                    eltype(density), typeof(particle_refinement), typeof(cache),
                    typeof(advection_velocity), typeof(initial_condition), typeof(mass),
                    typeof(density), typeof(smoothing_kernel), typeof(neighborhood_search),
-                   typeof(signed_distances),
-                   typeof(update_callback_used)}(initial_condition, advection_velocity,
-                                                 mass, density, particle_spacing,
-                                                 smoothing_kernel,
-                                                 smoothing_length_interpolation,
-                                                 background_pressure, tlsph,
-                                                 signed_distance_field, is_boundary,
-                                                 shift_length, neighborhood_search,
-                                                 signed_distances, particle_refinement,
-                                                 buffer, update_callback_used, cache)
+                   typeof(signed_distances)}(initial_condition, advection_velocity,
+                                             mass, density, particle_spacing,
+                                             smoothing_kernel,
+                                             smoothing_length_interpolation,
+                                             background_pressure, tlsph,
+                                             signed_distance_field, is_boundary,
+                                             shift_length, neighborhood_search,
+                                             signed_distances, particle_refinement,
+                                             buffer, cache)
     end
 end
 
@@ -216,13 +213,6 @@ end
 end
 
 @inline requires_update_callback(system::ParticlePackingSystem) = true
-@inline update_callback_used(system::ParticlePackingSystem) = system.update_callback_used[]
-
-function set_callback_flag!(system::ParticlePackingSystem, value)
-    system.update_callback_used[] = value
-
-    return system
-end
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     vtk["velocity"] = [advection_velocity(v, system, particle)
