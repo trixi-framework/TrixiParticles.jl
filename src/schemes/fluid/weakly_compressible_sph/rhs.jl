@@ -5,8 +5,9 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
-    (; density_calculator, state_equation, correction) = particle_system
-    (; sound_speed) = state_equation
+    (; density_calculator, correction) = particle_system
+
+    sound_speed = system_sound_speed(particle_system)
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
@@ -70,10 +71,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                grad_kernel)
 
         # Add convection term (only when using `TransportVelocityAdami`)
-        dv_convection = momentum_convection(particle_system, neighbor_system,
-                                            v_particle_system, v_neighbor_system,
-                                            rho_a, rho_b, m_a, m_b,
-                                            particle, neighbor, grad_kernel)
+        dv_tvf = dv_transport_velocity(transport_velocity(particle_system),
+                                       particle_system, neighbor_system,
+                                       particle, neighbor,
+                                       v_particle_system, v_neighbor_system,
+                                       m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                                       grad_kernel, correction)
 
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,
@@ -86,16 +89,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i,
-                         particle] += dv_pressure[i] + dv_viscosity_[i] +
-                                      dv_convection[i] + dv_surface_tension[i] +
-                                      dv_adhesion[i]
+                         particle] += dv_pressure[i] + dv_viscosity_[i] + dv_tvf[i] +
+                                      dv_surface_tension[i] + dv_adhesion[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
-
-        # Apply the transport velocity (only when using a transport velocity)
-        transport_velocity!(dv, particle_system, neighbor_system, particle, neighbor,
-                            m_a, m_b, grad_kernel)
 
         # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
