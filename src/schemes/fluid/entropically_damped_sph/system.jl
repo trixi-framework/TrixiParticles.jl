@@ -130,7 +130,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
     cache = (; create_cache_density(initial_condition, density_calculator)...,
-             create_cache_tvf(Val(:edac), initial_condition, transport_velocity)...,
+             create_cache_tvf_edac(initial_condition, transport_velocity)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
@@ -208,16 +208,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
     end
 end
 
-create_cache_tvf(::Val{:edac}, initial_condition, ::Nothing) = (;)
-
-function create_cache_tvf(::Val{:edac}, initial_condition, ::TransportVelocityAdami)
-    pressure_average = copy(initial_condition.pressure)
-    neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
-    update_callback_used = Ref(false)
-
-    return (; pressure_average, neighbor_counter, update_callback_used)
-end
-
 @inline function Base.eltype(::EntropicallyDampedSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
@@ -226,12 +216,12 @@ end
     return v_nvariables(system, system.density_calculator)
 end
 
-@inline function v_nvariables(system::EntropicallyDampedSPHSystem, density_calculator)
-    return ndims(system) * factor_tvf(system) + 1
+@inline function v_nvariables(system::EntropicallyDampedSPHSystem, ::SummationDensity)
+    return ndims(system) + 1
 end
 
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
-    return ndims(system) * factor_tvf(system) + 2
+    return ndims(system) + 2
 end
 
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
@@ -260,10 +250,12 @@ end
 
 @inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed
 
+@inline transport_velocity(system::EntropicallyDampedSPHSystem) = system.transport_velocity
+
 @inline average_pressure(system, particle) = zero(eltype(system))
 
 @inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
-    average_pressure(system, system.transport_velocity, particle)
+    average_pressure(system, transport_velocity(system), particle)
 end
 
 @inline function average_pressure(system, ::TransportVelocityAdami, particle)
@@ -303,18 +295,14 @@ function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_od
     compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 
-function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
-
-    # Check that TVF is only used together with `UpdateCallback`
-    check_tvf_configuration(system, system.transport_velocity, v, u, v_ode, u_ode, semi, t;
-                            update_from_callback)
+    update_average_pressure!(system, transport_velocity(system), v_ode, u_ode, semi)
+    update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
 end
 
 function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
@@ -347,8 +335,7 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
                                points=each_moving_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             pressure_average[particle] += current_pressure(v_neighbor_system,
-                                                           neighbor_system,
-                                                           neighbor)
+                                                           neighbor_system, neighbor)
             neighbor_counter[particle] += 1
         end
     end

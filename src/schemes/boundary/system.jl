@@ -358,12 +358,13 @@ function update_quantities!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi,
 end
 
 # This update depends on the computed quantities of the fluid system and therefore
-# has to be in `update_final!` after `update_quantities!`.
-function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
+# has to be in `update_boundary_interpolation!` after `update_quantities!`.
+function update_boundary_interpolation!(system::BoundarySPHSystem, v, u, v_ode, u_ode,
+                                        semi, t)
     (; boundary_model) = system
 
-    # Note that `update_pressure!(::BoundarySPHSystem, ...)` is empty
+    # Note that `update_pressure!(::BoundarySPHSystem, ...)` is empty,
+    # so no pressure is updated in the previous update steps.
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
