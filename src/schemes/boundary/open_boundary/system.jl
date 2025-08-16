@@ -37,7 +37,7 @@ Open boundary system for in- and outflow particles.
     It is GPU-compatible (e.g., with CUDA.jl and AMDGPU.jl), but currently **not** supported with Metal.jl.
 """
 struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZ, RV,
-                             RP, RD, B, UCU, C} <: System{NDIMS}
+                             RP, RD, B, C} <: System{NDIMS}
     boundary_model      :: BM
     initial_condition   :: IC
     fluid_system        :: FS
