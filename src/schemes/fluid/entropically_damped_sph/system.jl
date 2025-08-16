@@ -30,7 +30,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 When set to `nothing`, the pressure acceleration formulation for the
                                 corresponding [density calculator](@ref density_calculator) is chosen.
 - `density_calculator`:         [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
-- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
+- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation).
+                                Default is no TVF.
+- `average_pressure_reduction`: Whether to subtract the average pressure of neighboring particles
+                                from the local pressure (default: `true` when using TVF, `false` otherwise).
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
@@ -53,7 +56,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
-                                   ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
+                                   AVGP, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
@@ -65,6 +68,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, 
     correction                        :: COR
     pressure_acceleration_formulation :: PF
     transport_velocity                :: TV
+    average_pressure_reduction        :: AVGP
     source_terms                      :: ST
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
@@ -80,6 +84,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      pressure_acceleration=inter_particle_averaged_pressure,
                                      density_calculator=SummationDensity(),
                                      transport_velocity=nothing,
+                                     average_pressure_reduction=!isnothing(transport_velocity),
                                      alpha=0.5, viscosity=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
@@ -127,10 +132,14 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                                                      NDIMS, ELTYPE,
                                                                      correction)
 
+    avg_pressure_reduction = Val(average_pressure_reduction)
+
     nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
     cache = (; create_cache_density(initial_condition, density_calculator)...,
-             create_cache_tvf_edac(initial_condition, transport_velocity)...,
+             create_cache_tvf(initial_condition, transport_velocity)...,
+             create_cache_avg_pressure_reduction(initial_condition,
+                                                 avg_pressure_reduction)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
@@ -152,17 +161,27 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                                 typeof(density_calculator), typeof(smoothing_kernel),
                                 typeof(viscosity), typeof(correction),
-                                typeof(pressure_acceleration),
-                                typeof(transport_velocity), typeof(source_terms),
+                                typeof(pressure_acceleration), typeof(transport_velocity),
+                                typeof(avg_pressure_reduction), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_normal_method),
                                 typeof(buffer), Nothing,
                                 typeof(cache)}(initial_condition, mass, density_calculator,
                                                smoothing_kernel, sound_speed, viscosity,
                                                nu_edac, acceleration_, correction,
                                                pressure_acceleration, transport_velocity,
+                                               avg_pressure_reduction,
                                                source_terms, surface_tension,
                                                surface_normal_method, buffer,
                                                particle_refinement, cache)
+end
+
+create_cache_avg_pressure_reduction(initial_condition, ::Val{false}) = (;)
+
+function create_cache_avg_pressure_reduction(initial_condition, ::Val{true})
+    pressure_average = copy(initial_condition.pressure)
+    neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
+
+    return (; pressure_average, neighbor_counter)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
@@ -201,6 +220,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "tansport velocity formulation",
                      system.transport_velocity |> typeof |> nameof)
+        summary_line(io, "average pressure reduction",
+                     typeof(system.average_pressure_reduction).parameters[1] ? "yes" : "no")
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
@@ -252,17 +273,15 @@ end
 
 @inline transport_velocity(system::EntropicallyDampedSPHSystem) = system.transport_velocity
 
-@inline average_pressure(system, particle) = zero(eltype(system))
-
 @inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
-    average_pressure(system, transport_velocity(system), particle)
+    average_pressure(system, system.average_pressure_reduction, particle)
 end
 
-@inline function average_pressure(system, ::TransportVelocityAdami, particle)
+@inline function average_pressure(system, ::Val{true}, particle)
     return system.cache.pressure_average[particle]
 end
 
-@inline average_pressure(system, ::Nothing, particle) = zero(eltype(system))
+@inline average_pressure(system, ::Val{false}, particle) = zero(eltype(system))
 
 @inline function current_density(v, system::EntropicallyDampedSPHSystem)
     return current_density(v, system.density_calculator, system)
@@ -301,18 +320,21 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    update_average_pressure!(system, transport_velocity(system), v_ode, u_ode, semi)
+    update_average_pressure!(system, system.average_pressure_reduction, v_ode, u_ode, semi)
     update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
 end
 
-function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
+# No average pressure reduction is used
+function update_average_pressure!(system, ::Val{false}, v_ode, u_ode, semi)
     return system
 end
 
-# This technique is for a more robust `pressure_acceleration` but only with TVF.
-# It results only in significant improvement for EDAC and not for WCSPH.
-# See Ramachandran (2019) p. 582.
-function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode, semi)
+# This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical errors
+# due to large pressures by subtracting the average pressure of neighboring particles.
+# It results in significant improvement for EDAC, especially with TVF,
+# but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
+# See eq. 16 and 17 in Ramachandran & Puri (2019) for an explanation of the technique.
+function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
     (; cache) = system
     (; pressure_average, neighbor_counter) = cache
 
