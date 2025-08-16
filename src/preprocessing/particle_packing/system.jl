@@ -390,6 +390,10 @@ end
     return system
 end
 
+@inline function update_transport_velocity!(system, v_ode, semi)
+    return system
+end
+
 # Skip for fixed systems
 @inline add_velocity!(du, v, particle, system::ParticlePackingSystem{<:Any, true}) = du
 

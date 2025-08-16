@@ -464,17 +464,27 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
 end
 
 @inline function add_velocity!(du, v, particle, system)
-    # This is zero unless a transport velocity is used
-    delta_v_ = delta_v(system, particle)
-
+    # Generic fallback for all systems that don't define this function
     for i in 1:ndims(system)
-        du[i, particle] = v[i, particle] + delta_v_[i]
+        @inbounds du[i, particle] = v[i, particle]
     end
 
     return du
 end
 
-@inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
+# Boundary systems don't integrate the particle positions
+@inline add_velocity!(du, v, particle, system::BoundarySystem) = du
+
+@inline function add_velocity!(du, v, particle, system::FluidSystem)
+    # This is zero unless a transport velocity is used
+    delta_v_ = delta_v(system, particle)
+
+    for i in 1:ndims(system)
+        @inbounds du[i, particle] = v[i, particle] + delta_v_[i]
+    end
+
+    return du
+end
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "kick!" begin
