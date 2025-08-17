@@ -140,7 +140,7 @@
         │ viscosity: …………………………………………………… Nothing                                                          │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
-        │ tansport velocity formulation:  Nothing                                                          │
+        │ shifting technique: …………………………… nothing                                                          │
         │ average pressure reduction: ……… no                                                               │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ surface tension: …………………………………… nothing                                                          │
