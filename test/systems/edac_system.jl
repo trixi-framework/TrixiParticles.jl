@@ -225,7 +225,7 @@
         names = ["No TVF", "TransportVelocityAdami"]
         @testset "$(names[i])" for i in eachindex(transport_velocity)
             system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                                 transport_velocity=transport_velocity[i],
+                                                 shifting_technique=transport_velocity[i],
                                                  average_pressure_reduction=true,
                                                  smoothing_length, 0.0)
             semi = Semidiscretization(system)
