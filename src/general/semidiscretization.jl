@@ -472,8 +472,8 @@ end
     return du
 end
 
-# Boundary systems don't integrate the particle positions
-@inline add_velocity!(du, v, particle, system::BoundarySystem) = du
+# Solid wall boundary system doesn't integrate the particle positions
+@inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 @inline function add_velocity!(du, v, particle, system::FluidSystem)
     # This is zero unless a transport velocity is used
