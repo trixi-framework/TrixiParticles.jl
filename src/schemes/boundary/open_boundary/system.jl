@@ -254,7 +254,7 @@ end
 end
 
 function update_boundary_interpolation!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode,
-                                        semi)
+                                        semi, t)
     update_boundary_model!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
 end
 
