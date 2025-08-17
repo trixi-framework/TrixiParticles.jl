@@ -60,7 +60,7 @@ See [Particle Shifting Technique](@ref shifting) for more information on the met
     and therefore requires a free surface detection method. This is not yet implemented.
     **This technique cannot be used in a free surface simulation.**
 """
-struct ParticleShiftingTechnique end
+struct ParticleShiftingTechnique <: AbstractShiftingTechnique end
 
 # Zero because PST is applied in a callback
 @inline function delta_v(system, ::ParticleShiftingTechnique, particle)
@@ -161,7 +161,7 @@ See [TVF](@ref transport_velocity_formulation) for more details of the method.
 - `background_pressure`: Background pressure. Suggested is a background pressure which is
                          on the order of the reference pressure.
 """
-struct TransportVelocityAdami{T <: Real}
+struct TransportVelocityAdami{T <: Real} <: AbstractShiftingTechnique
     background_pressure::T
 end
 
