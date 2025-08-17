@@ -97,8 +97,8 @@ function (update_callback!::UpdateCallback)(integrator)
         end
 
         @trixi_timeit timer() "particle shifting" foreach_system(semi) do system
-            particle_shifting!(u_ode, shifting_technique(system), system, semi,
-                               integrator.dt)
+            particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
+                                             v_ode, semi, integrator.dt)
         end
     end
 

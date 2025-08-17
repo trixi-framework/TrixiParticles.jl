@@ -71,7 +71,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, 
     density_diffusion                 :: DD
     correction                        :: COR
     pressure_acceleration_formulation :: PF
-    shifting_technique               :: SC
+    shifting_technique                :: SC
     source_terms                      :: ST
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
@@ -316,7 +316,7 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi, t)
+    update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,

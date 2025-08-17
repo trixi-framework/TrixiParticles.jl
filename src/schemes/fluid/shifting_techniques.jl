@@ -9,6 +9,9 @@ requires_update_callback(system) = requires_update_callback(shifting_technique(s
 requires_update_callback(::Nothing) = false
 requires_update_callback(::AbstractShiftingTechnique) = true
 
+# This is called from the `UpdateCallback`
+particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, dt) = u_ode
+
 create_cache_shifting(initial_condition, ::Nothing) = (;)
 
 function create_cache_shifting(initial_condition, ::AbstractShiftingTechnique)
@@ -33,7 +36,7 @@ end
     return extract_svector(system.cache.delta_v, system, particle)
 end
 
-function update_shifting!(system, shifting, v, u, v_ode, u_ode, semi, t)
+function update_shifting!(system, shifting, v, u, v_ode, u_ode, semi)
     return system
 end
 
@@ -67,27 +70,22 @@ struct ParticleShiftingTechnique <: AbstractShiftingTechnique end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-# This is called from the update callback
-particle_shifting!(u_ode, shifting, system, semi, dt) = u_ode
+function particle_shifting_from_callback!(u_ode, shifting::ParticleShiftingTechnique,
+                                          system, v_ode, semi, dt)
+    @trixi_timeit timer() "particle shifting" begin
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
-function particle_shifting!(u_ode, ::ParticleShiftingTechnique, system, semi, dt)
-    (; cache) = system
-    (; delta_v) = cache
+        # Update the shifting velocity
+        update_shifting_from_callback!(system, shifting, v, u, v_ode, u_ode, semi)
 
-    u = wrap_u(u_ode, system, semi)
-
-    # Add δr from the cache to the current coordinates
-    @threaded semi for particle in eachparticle(system)
-        for i in axes(delta_v, 1)
-            @inbounds u[i, particle] += dt * delta_v[i, particle]
-        end
+        # Update the particle positions with the shifting velocity
+        particle_shifting!(u_ode, shifting, system, semi, dt)
     end
-
-    return u
 end
 
-function update_shifting!(system, ::ParticleShiftingTechnique,
-                          v, u, v_ode, u_ode, semi, t)
+function update_shifting_from_callback!(system, ::ParticleShiftingTechnique,
+                                        v, u, v_ode, u_ode, semi)
     (; cache) = system
     (; delta_v) = cache
 
@@ -150,6 +148,22 @@ function update_shifting!(system, ::ParticleShiftingTechnique,
     return system
 end
 
+function particle_shifting!(u_ode, ::ParticleShiftingTechnique, system, semi, dt)
+    (; cache) = system
+    (; delta_v) = cache
+
+    u = wrap_u(u_ode, system, semi)
+
+    # Add δr from the cache to the current coordinates
+    @threaded semi for particle in eachparticle(system)
+        for i in axes(delta_v, 1)
+            @inbounds u[i, particle] += dt * delta_v[i, particle]
+        end
+    end
+
+    return u
+end
+
 """
     TransportVelocityAdami(background_pressure::Real)
 
@@ -191,7 +205,7 @@ end
 end
 
 function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
-                          u_ode, semi, t)
+                          u_ode, semi)
     (; cache, correction) = system
     (; delta_v) = cache
     (; background_pressure) = shifting
