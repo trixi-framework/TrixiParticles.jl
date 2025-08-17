@@ -161,8 +161,7 @@ function ParticlePackingSystem(shape::InitialCondition;
                                  background_pressure, tlsph, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
-                                 nothing, Ref(false), fixed_system, cache,
-                                 advection_velocity)
+                                 nothing, fixed_system, cache, advection_velocity)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
