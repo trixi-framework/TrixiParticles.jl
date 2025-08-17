@@ -240,9 +240,9 @@
                                                     v_ode, u_ode, semi)
 
             @test all(i -> system.cache.neighbor_counter[i] == nparticles(system),
-                        nparticles(system))
+                      nparticles(system))
             @test all(i -> isapprox(system.cache.pressure_average[i], -50.968532955185964),
-                        nparticles(system))
+                      nparticles(system))
         end
     end
 end
