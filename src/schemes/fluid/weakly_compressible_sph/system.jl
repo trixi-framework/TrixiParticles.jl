@@ -36,8 +36,9 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 density calculator and the correction method.
                                 To use [Tensile Instability Control](@ref tic), pass
                                 [`tensile_instability_control`](@ref) here.
-- `shifting_technique`:        [Shifting Correction](@ref shifting_technique).
-                                Default is no shifting.
+- `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
+                                formulation](@ref transport_velocity_formulation) to use
+                                with this system. Default is no shifting.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
@@ -209,7 +210,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "density diffusion", system.density_diffusion)
-        summary_line(io, "shifting correction", system.shifting_technique)
+        summary_line(io, "shifting technique", system.shifting_technique)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
         if system.surface_normal_method isa ColorfieldSurfaceNormal

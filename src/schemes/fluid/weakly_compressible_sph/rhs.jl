@@ -70,7 +70,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                sound_speed, m_a, m_b, rho_a, rho_b,
                                                grad_kernel)
 
-        # Add convection term (only when using `TransportVelocityAdami`)
+        # Extra terms in the momentum equation when using a shifting technique
         dv_tvf = dv_shifting(shifting_technique(particle_system),
                              particle_system, neighbor_system, particle, neighbor,
                              v_particle_system, v_neighbor_system,
