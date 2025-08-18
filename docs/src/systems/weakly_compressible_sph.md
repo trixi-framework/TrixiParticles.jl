@@ -217,7 +217,7 @@ of a system that supports it.
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "fluid", "shifting_technique.jl")]
+Pages = [joinpath("schemes", "fluid", "shifting_techniques.jl")]
 ```
 
 
