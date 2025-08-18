@@ -238,11 +238,13 @@ end
     return v_nvariables(system, system.density_calculator, no_of_fluid_systems)
 end
 
-@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, density_calculator, no_of_fluid_systems)
+@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, density_calculator,
+                              no_of_fluid_systems)
     return ndims(system) * factor_tvf(system)
 end
 
-@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity, no_of_fluid_systems)
+@inline function v_nvariables(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity,
+                              no_of_fluid_systems)
     return ndims(system) * factor_tvf(system) + 1
 end
 

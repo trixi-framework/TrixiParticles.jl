@@ -40,7 +40,8 @@ function summation_density!(system, semi, u, u_ode, density;
                                points=particles) do particle, neighbor, pos_diff, distance
             mass = hydrodynamic_mass(neighbor_system, neighbor)
             if sytem isa BoundarySystem && neighbor_system isa FluidSystem
-                density[particle] += mass * smoothing_kernel(neighbor_system, distance, particle)
+                density[particle] += mass *
+                                     smoothing_kernel(neighbor_system, distance, particle)
             else
                 density[particle] += mass * smoothing_kernel(system, distance, particle)
             end

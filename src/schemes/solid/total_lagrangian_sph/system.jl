@@ -172,7 +172,8 @@ end
     return ndims(system)
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}, no_of_fluid_systems)
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                              no_of_fluid_systems)
     return ndims(system) + 1
 end
 

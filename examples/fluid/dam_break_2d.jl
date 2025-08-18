@@ -90,15 +90,15 @@ viscosity_wall = nothing
 # viscosity_wall = ViscosityAdami(nu=nu)
 # viscosity_wall = ViscosityMorris(nu=nu)
 boundary_model = BoundaryModelDummyParticles(;
-                                             volume=tank.boundary.mass./tank.boundary.density,
-                                             density_calculator = boundary_density_calculator,
+                                             volume=(tank.boundary.mass ./
+                                                     tank.boundary.density),
+                                             density_calculator=boundary_density_calculator,
                                              smoothing_kernel,
                                              smoothing_length,
                                              correction=nothing,
                                              reference_particle_spacing=0,
                                              viscosity=viscosity_wall,
-                                             no_of_fluid_systems=1
-                                             )
+                                             no_of_fluid_systems=1)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 

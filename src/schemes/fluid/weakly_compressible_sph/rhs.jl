@@ -30,7 +30,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # in this hot loop to avoid bounds checking when extracting particle quantities.
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         if neighbor_system isa BoundarySPHSystem{<:BoundaryModelDummyParticles}
-            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor, particle_system.id)
+            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor,
+                                              particle_system.id)
         else
             rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
         end
@@ -90,9 +91,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i,
-                         particle] += dv_pressure[i] + dv_viscosity_[i] +
-                                      dv_convection[i] + dv_surface_tension[i] +
-                                      dv_adhesion[i]
+            particle] += dv_pressure[i] + dv_viscosity_[i] +
+                                         dv_convection[i] + dv_surface_tension[i] +
+                                         dv_adhesion[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
@@ -158,7 +159,8 @@ end
     p_a = current_pressure(v_particle_system, particle_system, particle)
     if neighbor_system isa BoundarySPHSystem{<:BoundaryModelDummyParticles}
         fluid_system_id = particle_system.id
-        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor, fluid_system_id)
+        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor,
+                               fluid_system_id)
     else
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
     end

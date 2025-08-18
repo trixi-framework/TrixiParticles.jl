@@ -259,7 +259,8 @@ end
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
 # For all other models and density calculators, it's irrelevant.
-@inline v_nvariables(system::BoundarySPHSystem, no_of_fluid_systems) = max(1, no_of_fluid_systems)
+@inline v_nvariables(system::BoundarySPHSystem,
+                     no_of_fluid_systems) = max(1, no_of_fluid_systems)
 @inline v_nvariables(system::BoundaryDEMSystem, no_of_fluid_systems) = 0
 
 @inline function current_coordinates(u, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
@@ -331,7 +332,7 @@ end
 end
 
 @inline function hydrodynamic_mass(system::BoundarySPHSystem, particle)
-        return system.boundary_model.hydrodynamic_mass[particle]
+    return system.boundary_model.hydrodynamic_mass[particle]
 end
 
 @inline function smoothing_kernel(system::BoundarySPHSystem, distance, particle)
@@ -405,7 +406,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf
 end
 
- initialize_boundary!(system::BoundarySystem, boundary_model, semi, v0_ode) = system
+initialize_boundary!(system::BoundarySystem, boundary_model, semi, v0_ode) = system
 
 function initialize!(system::BoundarySPHSystem, semi, v0_ode)
     initialize_boundary!(system, system.boundary_model, semi, v0_ode)

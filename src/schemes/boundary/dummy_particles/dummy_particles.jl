@@ -38,16 +38,16 @@ BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
 struct BoundaryModelDummyParticles{P, VECTOR, HM, DC, K, ELTYPE <: Real, V, COR, C}
-    pressure           :: P
-    volume             :: VECTOR # Vector{ELTYPE}
-    hydrodynamic_mass  :: HM # Vector{ELTYPE}
-    no_of_fluid_systems:: Int
-    density_calculator :: DC
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
-    viscosity          :: V
-    correction         :: COR
-    cache              :: C
+    pressure            :: P
+    volume              :: VECTOR # Vector{ELTYPE}
+    hydrodynamic_mass   :: HM # Vector{ELTYPE}
+    no_of_fluid_systems :: Int
+    density_calculator  :: DC
+    smoothing_kernel    :: K
+    smoothing_length    :: ELTYPE
+    viscosity           :: V
+    correction          :: COR
+    cache               :: C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -62,11 +62,12 @@ function BoundaryModelDummyParticles(; volume,
     ELTYPE = eltype(volume)
     n_particles = length(volume)
 
-    pressure           = zeros(ELTYPE, no_of_fluid_systems, n_particles)
-    hydrodynamic_mass  = zeros(ELTYPE, no_of_fluid_systems, n_particles)
+    pressure = zeros(ELTYPE, no_of_fluid_systems, n_particles)
+    hydrodynamic_mass = zeros(ELTYPE, no_of_fluid_systems, n_particles)
 
-    cache = (;create_cache_model(viscosity, no_of_fluid_systems, n_particles, NDIMS)...,
-             create_cache_model(ELTYPE, no_of_fluid_systems, n_particles, density_calculator)...,
+    cache = (; create_cache_model(viscosity, no_of_fluid_systems, n_particles, NDIMS)...,
+             create_cache_model(ELTYPE, no_of_fluid_systems, n_particles,
+                                density_calculator)...,
              create_cache_model(correction, volume, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -86,9 +87,12 @@ function BoundaryModelDummyParticles(; volume,
                                        viscosity, correction, cache)
 end
 
-function initialize_boundary!(boundary_system::BoundarySystem, boundary_model::BoundaryModelDummyParticles, semi, v0_ode)
-    initial_density!(boundary_system, boundary_model, boundary_model.density_calculator, semi, v0_ode)
-    initial_boundary_pressure!(boundary_system, boundary_model, boundary_model.density_calculator, semi)
+function initialize_boundary!(boundary_system::BoundarySystem,
+                              boundary_model::BoundaryModelDummyParticles, semi, v0_ode)
+    initial_density!(boundary_system, boundary_model, boundary_model.density_calculator,
+                     semi, v0_ode)
+    initial_boundary_pressure!(boundary_system, boundary_model,
+                               boundary_model.density_calculator, semi)
 
     return boundary_model
 end
@@ -215,7 +219,8 @@ function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_p
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
-@inline create_cache_model(ELTYPE, no_of_fluid_systems, n_particles, density_calculator::ContinuityDensity) = (;)
+@inline create_cache_model(ELTYPE, no_of_fluid_systems, n_particles,
+                           density_calculator::ContinuityDensity) = (;)
 
 function create_cache_model(ELTYPE, no_of_fluid_systems, n_particles,
                             ::Union{SummationDensity, PressureMirroring, PressureZeroing})
@@ -235,9 +240,12 @@ function create_cache_model(ELTYPE, no_of_fluid_systems, n_particles,
     return (; density, shepard_sum)
 end
 
-@inline create_cache_model(viscosity::Nothing, no_of_fluid_systems, n_particles, n_dims) = (;)
+@inline create_cache_model(viscosity::Nothing, no_of_fluid_systems, n_particles,
+                           n_dims) = (;)
 
-function create_cache_model(viscosity::Union{ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS, ViscosityMorrisSGS}, no_of_fluid_systems, n_particles, n_dims)
+function create_cache_model(viscosity::Union{ViscosityAdami, ViscosityMorris,
+                                             ViscosityAdamiSGS, ViscosityMorrisSGS},
+                            no_of_fluid_systems, n_particles, n_dims)
     ELTYPE = eltype(viscosity.epsilon)
 
     wall_velocity = zeros(ELTYPE, no_of_fluid_systems, n_dims, n_particles)
@@ -266,20 +274,23 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-function initial_density!(system, bm::BoundaryModelDummyParticles, density_calculator, semi, v0_ode)
+function initial_density!(system, bm::BoundaryModelDummyParticles, density_calculator, semi,
+                          v0_ode)
     # Find state equation
     state_equation = nothing
     foreach_system(semi) do neighbor_system
         if neighbor_system isa WeaklyCompressibleSPHSystem
             state_equation = neighbor_system.state_equation
-            bm.hydrodynamic_mass[neighbor_system.id, :] .= state_equation.reference_density * bm.volume
+            bm.hydrodynamic_mass[neighbor_system.id, :] .= state_equation.reference_density *
+                                                           bm.volume
         end
     end
 
     return system
 end
 
-function initial_density!(system, bm::BoundaryModelDummyParticles, density_calculator::ContinuityDensity, semi, v0_ode)
+function initial_density!(system, bm::BoundaryModelDummyParticles,
+                          density_calculator::ContinuityDensity, semi, v0_ode)
     v0_system = wrap_v(v0_ode, system, semi)
 
     # Find state equation
@@ -298,7 +309,6 @@ function initial_density!(system, bm::BoundaryModelDummyParticles, density_calcu
     return system
 end
 
-
 # For most density calculators, the pressure is updated in every step
 initial_boundary_pressure!(system, boundary_model, density_calculator, semi) = system
 
@@ -313,7 +323,8 @@ function initial_boundary_pressure!(bm, state_equation)
     bm.pressure = bm.state_equation.(bm.cache.initial_density)
 end
 
-@inline function current_density(v, model::BoundaryModelDummyParticles, system, fluid_system_id)
+@inline function current_density(v, model::BoundaryModelDummyParticles, system,
+                                 fluid_system_id)
     return current_density(v, model.density_calculator, model, fluid_system_id)
 end
 
@@ -329,11 +340,12 @@ end
 @inline function current_density(v, ::ContinuityDensity,
                                  model::BoundaryModelDummyParticles, fluid_system_id)
     # When using `ContinuityDensity`, the density is stored in the last rows of `v`
-     return view(v, fluid_system_id, :)
+    return view(v, fluid_system_id, :)
 end
 
-@inline function current_pressure(v, model::BoundaryModelDummyParticles, system, fluid_system_id)
-    return model.pressure[ fluid_system_id, : ]
+@inline function current_pressure(v, model::BoundaryModelDummyParticles, system,
+                                  fluid_system_id)
+    return model.pressure[fluid_system_id, :]
 end
 
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
@@ -361,14 +373,16 @@ end
 
     compute_correction_values!(boundary_system, correction, u, v_ode, u_ode, semi)
 
-    compute_gradient_correction_matrix!(correction, boundary_model, boundary_system, u, v_ode, u_ode,
+    compute_gradient_correction_matrix!(correction, boundary_model, boundary_system, u,
+                                        v_ode, u_ode,
                                         semi)
 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
 
-    compute_pressure!(boundary_model, density_calculator, boundary_system, v, u, v_ode, u_ode, semi)
+    compute_pressure!(boundary_model, density_calculator, boundary_system, v, u, v_ode,
+                      u_ode, semi)
 
     return boundary_model
 end
@@ -464,7 +478,6 @@ function compute_pressure!(boundary_model,
         end
         state_equation = neighbor_system.state_equation
 
-
         # This is an optimization for simulations with large and complex boundaries.
         # Especially in 3D simulations with large and/or complex structures outside
         # of areas with permanent flow.
@@ -494,8 +507,9 @@ function compute_pressure!(boundary_model,
         fluid_system_id = neighbor_system.id
         state_equation = neighbor_system.state_equation
         @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
-                                                                        eachparticle(boundary_system)
-            compute_adami_density!(boundary_model, boundary_system, v, particle, state_equation, fluid_system_id)
+                                                                          eachparticle(boundary_system)
+            compute_adami_density!(boundary_model, boundary_system, v, particle,
+                                   state_equation, fluid_system_id)
         end
     end
 end
@@ -503,7 +517,8 @@ end
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-function compute_adami_density!(boundary_model, boundary_system, v, particle, state_equation, fluid_system_id)
+function compute_adami_density!(boundary_model, boundary_system, v, particle,
+                                state_equation, fluid_system_id)
     (; pressure, cache, viscosity) = boundary_model
     (; shepard_sum, density) = cache
 
@@ -519,7 +534,8 @@ function compute_adami_density!(boundary_model, boundary_system, v, particle, st
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
-    @inbounds pressure[fluid_system_id, particle] = max(pressure[fluid_system_id,particle], 0)
+    @inbounds pressure[fluid_system_id, particle] = max(pressure[fluid_system_id, particle],
+                                                        0)
 
     # Apply inverse state equation to compute density (not used with EDAC)
     inverse_state_equation!(density, state_equation, pressure, particle)
@@ -664,7 +680,8 @@ function compute_smoothed_velocity!(cache, viscosity::ViscosityAdami, neighbor_s
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
     for dim in eachindex(v_b)
-        @inbounds cache.wall_velocity[fluid_system_id, dim, particle] += kernel_weight * v_b[dim]
+        @inbounds cache.wall_velocity[fluid_system_id, dim, particle] += kernel_weight *
+                                                                         v_b[dim]
     end
 
     return cache
