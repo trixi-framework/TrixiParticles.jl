@@ -174,6 +174,11 @@ See [TVF](@ref transport_velocity_formulation) for more details of the method.
 # Arguments
 - `background_pressure`: Background pressure. Suggested is a background pressure which is
                          on the order of the reference pressure.
+
+!!! warning
+    The Transport Velocity Formulation needs to be disabled close to the free surface
+    and therefore requires a free surface detection method. This is not yet implemented.
+    **This technique cannot be used in a free surface simulation.**
 """
 struct TransportVelocityAdami{T <: Real} <: AbstractShiftingTechnique
     background_pressure::T
