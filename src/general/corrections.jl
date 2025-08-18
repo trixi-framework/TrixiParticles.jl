@@ -197,42 +197,51 @@ function compute_correction_values!(system,
     set_zero!(dw_gamma)
 
     # Use all other systems for the density summation
-    # TODO just use the fluid system kernel here
     @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        # Loop over all pairs of particles and neighbors within the kernel cutoff
-        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               semi) do particle, neighbor, pos_diff, distance
-            rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            volume = m_b / rho_b
-
-            _system_smoothing_kernel = system_smoothing_kernel(system)
-            _system_smoothing_length = smoothing_length(system, particle)
-
-            # Use uncorrected kernel to compute correction coefficients
-            W = kernel(_system_smoothing_kernel, distance, _system_smoothing_length)
-
-            kernel_correction_coefficient[particle] += volume * W
-            if distance > sqrt(eps())
-                grad_W = kernel_grad(_system_smoothing_kernel, pos_diff, distance,
-                                     _system_smoothing_length)
-                tmp = volume * grad_W
-                for i in axes(dw_gamma, 1)
-                    dw_gamma[i, particle] += tmp[i]
-                end
-            end
-        end
+        inner_compute_correction_values!(system, neighbor_system, semi, u_ode, v_ode)
     end
 
     for particle in eachparticle(system), i in axes(dw_gamma, 1)
         dw_gamma[i, particle] /= kernel_correction_coefficient[particle]
     end
 end
+
+function inner_compute_correction_values!(system, neighbor_system, semi, u_ode, v_ode)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                            semi) do particle, neighbor, pos_diff, distance
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+        volume = m_b / rho_b
+
+        _system_smoothing_kernel = system_smoothing_kernel(system, neighbor_system)
+        _system_smoothing_length = smoothing_length(system, neighbor_system, particle)
+
+        # Use uncorrected kernel to compute correction coefficients
+        W = kernel(_system_smoothing_kernel, distance, _system_smoothing_length)
+
+        kernel_correction_coefficient[particle] += volume * W
+        if distance > sqrt(eps())
+            grad_W = kernel_grad(_system_smoothing_kernel, pos_diff, distance,
+                                    _system_smoothing_length)
+            tmp = volume * grad_W
+            for i in axes(dw_gamma, 1)
+                dw_gamma[i, particle] += tmp[i]
+            end
+        end
+    end
+end
+
+function inner_compute_correction_values!(system::BoundarySPHSystem, neighbor_system::BoundarySPHSystem, semi, u_ode, v_ode)
+    # This is not needed
+    return system
+end
+
 
 @doc raw"""
     GradientCorrection()
