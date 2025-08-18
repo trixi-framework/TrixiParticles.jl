@@ -752,8 +752,8 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
 
                 # Set position
                 boundary.coordinates[dim,
-                                     particle] = positions[face] + layer_shift +
-                                                 0.5particle_spacing
+                particle] = positions[face] + layer_shift +
+                                                      0.5particle_spacing
             end
         end
     end

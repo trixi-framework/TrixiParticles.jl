@@ -301,12 +301,17 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             surface_tension[1:ndims(system),
-                            particle] .+= surface_tension_force(surface_tension_a,
-                                                                surface_tension_b,
-                                                                system, system, particle,
-                                                                neighbor, pos_diff,
-                                                                distance, rho_a, rho_b,
-                                                                grad_kernel)
+            particle] .+= surface_tension_force(surface_tension_a,
+                                                                                 surface_tension_b,
+                                                                                 system,
+                                                                                 system,
+                                                                                 particle,
+                                                                                 neighbor,
+                                                                                 pos_diff,
+                                                                                 distance,
+                                                                                 rho_a,
+                                                                                 rho_b,
+                                                                                 grad_kernel)
         end
         vtk["surface_tension"] = surface_tension
 
@@ -451,12 +456,16 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
         vtk["smoothing_kernel"] = type2string(model.smoothing_kernel)
         vtk["smoothing_length"] = model.smoothing_length
         vtk["density_calculator"] = type2string(model.density_calculator)
-        vtk["state_equation"] = type2string(model.state_equation)
         vtk["viscosity_model"] = type2string(model.viscosity)
     end
 
-    vtk["hydrodynamic_density"] = current_density(v, system)
-    vtk["pressure"] = model.pressure
+    vtk["volume"] = model.volume
+
+    for id in model.no_of_fluid_systems
+        vtk["hydrodynamic_mass_$id"] = model.hydrodynamic_mass[id, :]
+        vtk["hydrodynamic_density_$id"] = current_density(v, system, id)
+        vtk["pressure_$id"] = model.pressure[id, :]
+    end
 
     if haskey(model.cache, :initial_colorfield)
         vtk["initial_colorfield"] = model.cache.initial_colorfield

@@ -46,7 +46,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               gravity=gravity, tspan=tspan, density_diffusion=nothing,
               sound_speed=sound_speed, exponent=7,
               tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing,
-                         2.6 * H))
+                         2.6 * H), no_of_fluid_systems=2)
 
 # ==========================================================================================
 # ==== Setup air_system layer
@@ -79,7 +79,7 @@ air_eos = StateEquationCole(; sound_speed, reference_density=air_density, expone
 air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calculator,
                                                 air_eos, smoothing_kernel, smoothing_length,
                                                 viscosity=air_viscosity,
-                                                acceleration=(0.0, -gravity))
+                                                acceleration=(0.0, -gravity), id=2)
 
 # ==========================================================================================
 # ==== Simulation

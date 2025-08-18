@@ -259,8 +259,9 @@ end
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
 # For all other models and density calculators, it's irrelevant.
-@inline v_nvariables(system::BoundarySPHSystem) = 1
-@inline v_nvariables(system::BoundaryDEMSystem) = 0
+@inline v_nvariables(system::BoundarySPHSystem,
+                     no_of_fluid_systems) = max(1, no_of_fluid_systems)
+@inline v_nvariables(system::BoundaryDEMSystem, no_of_fluid_systems) = 0
 
 @inline function current_coordinates(u, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
     return system.coordinates
@@ -322,12 +323,12 @@ end
     return current_velocity(v, system, particle)
 end
 
-@inline function current_density(v, system::BoundarySPHSystem)
-    return current_density(v, system.boundary_model, system)
+@inline function current_density(v, system::BoundarySPHSystem, fluid_system_id)
+    return current_density(v, system.boundary_model, system, fluid_system_id)
 end
 
-@inline function current_pressure(v, system::BoundarySPHSystem)
-    return current_pressure(v, system.boundary_model, system)
+@inline function current_pressure(v, system::BoundarySPHSystem, fluid_system_id)
+    return current_pressure(v, system.boundary_model, system, fluid_system_id)
 end
 
 @inline function hydrodynamic_mass(system::BoundarySPHSystem, particle)
@@ -379,33 +380,20 @@ function write_v0!(v0,
     return v0
 end
 
-function write_v0!(v0,
-                   system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
-    (; cache) = system.boundary_model
-    (; initial_density) = cache
-
-    for particle in eachparticle(system)
-        # Set particle densities
-        v0[1, particle] = initial_density[particle]
-    end
-
-    return v0
-end
-
 function restart_with!(system::BoundarySPHSystem, v, u)
     return system
 end
 
-function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                       v, u)
-    (; initial_density) = model.cache
+# function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+#                        v, u)
+#     (; initial_density) = model.cache
 
-    for particle in eachparticle(system)
-        initial_density[particle] = v[1, particle]
-    end
+#     for particle in eachparticle(system)
+#         initial_density[particle] = v[1, particle]
+#     end
 
-    return system
-end
+#     return system
+# end
 
 # To incorporate the effect at boundaries in the viscosity term of the RHS the neighbor
 # viscosity model has to be used.
@@ -418,8 +406,12 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
     return Inf
 end
 
-function initialize!(system::BoundarySPHSystem, semi)
+initialize_boundary!(system::BoundarySystem, boundary_model, semi, v0_ode) = system
+
+function initialize!(system::BoundarySPHSystem, semi, v0_ode)
+    initialize_boundary!(system, system.boundary_model, semi, v0_ode)
     initialize_colorfield!(system, system.boundary_model, semi)
+
     return system
 end
 

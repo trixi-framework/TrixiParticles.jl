@@ -222,15 +222,15 @@ end
     return ELTYPE
 end
 
-@inline function v_nvariables(system::EntropicallyDampedSPHSystem)
-    return v_nvariables(system, system.density_calculator)
+@inline function v_nvariables(system::EntropicallyDampedSPHSystem, no_of_fluid_systems)
+    return v_nvariables_edac(system, system.density_calculator)
 end
 
-@inline function v_nvariables(system::EntropicallyDampedSPHSystem, density_calculator)
+@inline function v_nvariables_edac(system, density_calculator)
     return ndims(system) * factor_tvf(system) + 1
 end
 
-@inline function v_nvariables(system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
+@inline function v_nvariables_edac(system, ::ContinuityDensity)
     return ndims(system) * factor_tvf(system) + 2
 end
 
