@@ -211,14 +211,16 @@ function compute_correction_values!(system,
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
 
+            _system_smoothing_kernel = system_smoothing_kernel(system)
+            _system_smoothing_length = smoothing_length(system, particle)
+
             # Use uncorrected kernel to compute correction coefficients
-            W = kernel(system_smoothing_kernel(system), distance,
-                       smoothing_length(system, particle))
+            W = kernel(_system_smoothing_kernel, distance, _system_smoothing_length)
 
             kernel_correction_coefficient[particle] += volume * W
             if distance > sqrt(eps())
-                grad_W = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
-                                     smoothing_length(system, particle))
+                grad_W = kernel_grad(_system_smoothing_kernel, pos_diff, distance,
+                                     _system_smoothing_length)
                 tmp = volume * grad_W
                 for i in axes(dw_gamma, 1)
                     dw_gamma[i, particle] += tmp[i]
@@ -344,22 +346,23 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                      current_density(v_neighbor_system, neighbor_system, neighbor)
             smoothing_length_ = smoothing_length(system, particle)
 
-            function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance,
-                                         smoothing_length_, system, particle)
-                return smoothing_kernel_grad(system, pos_diff, distance, particle)
-            end
+            # function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance,
+            #                              smoothing_length_, system, particle)
+            #     return smoothing_kernel_grad(system, pos_diff, distance, particle)
+            # end
 
-            # Compute gradient of corrected kernel
-            function compute_grad_kernel(correction::MixedKernelGradientCorrection,
-                                         smoothing_kernel, pos_diff, distance,
-                                         smoothing_length_, system, particle)
-                return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                             smoothing_length_, KernelCorrection(), system,
-                                             particle)
-            end
+            # # Compute gradient of corrected kernel
+            # function compute_grad_kernel(correction::MixedKernelGradientCorrection,
+            #                              smoothing_kernel, pos_diff, distance,
+            #                              smoothing_length_, system, particle)
+            #     return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
+            #                                  smoothing_length_, KernelCorrection(), system,
+            #                                  particle)
+            # end
 
-            grad_kernel = compute_grad_kernel(correction, smoothing_kernel, pos_diff,
-                                              distance, smoothing_length_, system, particle)
+            grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
+                                                smoothing_length_, correction, system,
+                                                particle)
 
             iszero(grad_kernel) && return
 
