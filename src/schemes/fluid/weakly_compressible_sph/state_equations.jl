@@ -24,11 +24,14 @@ struct StateEquationAdaptiveCole{ELTYPE, CLIP} # Boolean to clip negative pressu
     reference_density   :: ELTYPE
     background_pressure :: ELTYPE
 
-    function StateEquationAdaptiveCole(; machnumber=0.1, average_velocity=1, reference_density, max_sound_speed=100, exponent,
-                               background_pressure=0.0, clip_negative_pressure=false)
+    function StateEquationAdaptiveCole(; machnumber=0.1, average_velocity=1,
+                                       reference_density, max_sound_speed=100, exponent,
+                                       background_pressure=0.0,
+                                       clip_negative_pressure=false)
         sound_speed = average_velocity / machnumber
         new{typeof(machnumber),
-            clip_negative_pressure}(Ref(sound_speed), machnumber, average_velocity, max_sound_speed, exponent, reference_density,
+            clip_negative_pressure}(Ref(sound_speed), machnumber, average_velocity,
+                                    max_sound_speed, exponent, reference_density,
                                     background_pressure)
     end
 end
@@ -97,7 +100,8 @@ function (state_equation::Union{StateEquationCole, StateEquationAdaptiveCole})(d
     return pressure
 end
 
-function inverse_state_equation(state_equation::Union{StateEquationCole, StateEquationAdaptiveCole}, pressure)
+function inverse_state_equation(state_equation::Union{StateEquationCole,
+                                                      StateEquationAdaptiveCole}, pressure)
     (; sound_speed, exponent, reference_density, background_pressure) = state_equation
 
     B = reference_density * sound_speed^2 / exponent

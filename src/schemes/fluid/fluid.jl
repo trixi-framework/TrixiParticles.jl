@@ -224,16 +224,20 @@ end
 
 @inline function update_speed_of_sound!(system, v, state_equation) end
 
-@inline function update_speed_of_sound!(system::WeaklyCompressibleSPHSystem, v, state_equation::StateEquationAdaptiveCole)
+@inline function update_speed_of_sound!(system::WeaklyCompressibleSPHSystem, v,
+                                        state_equation::StateEquationAdaptiveCole)
     max_velocity = 0
 
     for particle in each_moving_particle(system)
-        tmp = dot(current_velocity(v, system, particle), current_velocity(v, system, particle))
+        tmp = dot(current_velocity(v, system, particle),
+                  current_velocity(v, system, particle))
         if max_velocity < tmp
             max_velocity = tmp
         end
     end
 
-    state_equation.sound_speed = min(state_equation.max_sound_speed, max(state_equation.average_velocity, sqrt(max_velocity))/ state_equation.machnumber)
+    state_equation.sound_speed = min(state_equation.max_sound_speed,
+                                     max(state_equation.average_velocity,
+                                         sqrt(max_velocity)) / state_equation.machnumber)
     return state_equation.sound_speed
 end
