@@ -214,7 +214,7 @@ function inner_compute_correction_values!(system, neighbor_system, semi, u_ode, 
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                            semi) do particle, neighbor, pos_diff, distance
+                           semi) do particle, neighbor, pos_diff, distance
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         volume = m_b / rho_b
@@ -228,7 +228,7 @@ function inner_compute_correction_values!(system, neighbor_system, semi, u_ode, 
         kernel_correction_coefficient[particle] += volume * W
         if distance > sqrt(eps())
             grad_W = kernel_grad(_system_smoothing_kernel, pos_diff, distance,
-                                    _system_smoothing_length)
+                                 _system_smoothing_length)
             tmp = volume * grad_W
             for i in axes(dw_gamma, 1)
                 dw_gamma[i, particle] += tmp[i]
@@ -237,11 +237,12 @@ function inner_compute_correction_values!(system, neighbor_system, semi, u_ode, 
     end
 end
 
-function inner_compute_correction_values!(system::BoundarySPHSystem, neighbor_system::BoundarySPHSystem, semi, u_ode, v_ode)
+function inner_compute_correction_values!(system::BoundarySPHSystem,
+                                          neighbor_system::BoundarySPHSystem, semi, u_ode,
+                                          v_ode)
     # This is not needed
     return system
 end
-
 
 @doc raw"""
     GradientCorrection()
