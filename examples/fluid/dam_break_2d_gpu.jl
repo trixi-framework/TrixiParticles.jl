@@ -30,7 +30,6 @@ min_corner = minimum(tank.boundary.coordinates, dims=2)
 max_corner = maximum(tank.boundary.coordinates, dims=2)
 cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
-boundary_density_calculator = AdamiPressureExtrapolation()
 
 # Run the dam break simulation with this neighborhood search
 trixi_include(@__MODULE__,
