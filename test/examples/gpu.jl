@@ -354,6 +354,44 @@ end
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
+
+        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
+            steady_state_reached = SteadyStateReachedCallback(; dt=0.002f0,
+                                                              interval_size=10,
+                                                              reltol=1.0f-3)
+
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "pipe_flow_2d.jl"),
+                                                             extra_callback=steady_state_reached,
+                                                             tspan=(0.0f0, 1.5f0),
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             viscosity_boundary=nothing)
+
+            # Make sure that the simulation is terminated after a reasonable amount of time
+            @test 0.1 < sol.t[end] < 1.0
+            @test sol.retcode == ReturnCode.Terminated
+        end
+
+        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
+            steady_state_reached = SteadyStateReachedCallback(; interval=1,
+                                                              interval_size=10,
+                                                              reltol=1.0f-3)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "pipe_flow_2d.jl"),
+                                                             extra_callback=steady_state_reached,
+                                                             dtmax=2.0f-3,
+                                                             tspan=(0.0f0, 1.5f0),
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             viscosity_boundary=nothing)
+
+            # Make sure that the simulation is terminated after a reasonable amount of time
+            @test 0.1 < sol.t[end] < 1.0
+            @test sol.retcode == ReturnCode.Terminated
+        end
     end
 
     @testset verbose=true "Solid" begin
