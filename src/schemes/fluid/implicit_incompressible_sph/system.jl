@@ -345,7 +345,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
-# Calculate pressure values with iterative pressure solver (relaxed jacobi scheme)
+# Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
 function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
     (; reference_density, max_error, min_iterations, max_iterations, time_step) = system
 
@@ -494,11 +494,10 @@ function calculate_d_ii(system, boundary_model, density_calculator::PressureZero
     return -time_step^2 * m_b / rho_a^2 * grad_kernel
 end
 
-# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in 'IHMSEN et al'
-function calculate_d_ij(system,
-                        particle_j, grad_kernel,
-                        time_step)
-    # (delta t)^2 * m_i / rho_i ^2 * gradW_ij
+# Calculates the d_ij value for a particle `i` and its neighbor `j` from eq. 9 in Ihmsen et al. (2013).
+# Note that `i` is only implicitly included in the kernel gradient.
+function calculate_d_ij(system, particle_j, grad_kernel, time_step)
+    # (Δt)^2 * m_j / ρ_j ^2 * ∇W_ij
     return -time_step^2 * hydrodynamic_mass(system, particle_j) /
            system.density[particle_j]^2 * grad_kernel
 end
@@ -515,7 +514,7 @@ function calculate_sum_term(system, neighbor_system::ImplicitIncompressibleSPHSy
     d_ji = calculate_d_ij(system, particle, -grad_kernel, time_step)
 
     # Equation 13 of Ihmsen et al. (2013):
-    # m_j * (\sum_k d_ik * p_k - d_jj * p_j - \sum_{k != i} d_jk * p_k) * grad_W_ij
+    # m_j * (\sum_k d_ik * p_k - d_jj * p_j - \sum_{k != i} d_jk * p_k) * ∇W_ij
     return m_j * dot(sum_dik_pk - d_jj * p_j - (sum_djk_pk - d_ji * p_i), grad_kernel)
 end
 
@@ -525,6 +524,6 @@ function calculate_sum_term(system, neighbor_system::BoundarySystem, particle, n
     m_j = hydrodynamic_mass(neighbor_system, neighbor)
 
     # Equation 16 of Ihmsen et al. (2013):
-    # m_j * sum_k d_ik * p_k * grad_W_ij
+    # m_j * sum_k d_ik * p_k * ∇W_ij
     return m_j * dot(sum_dik_pk, grad_kernel)
 end

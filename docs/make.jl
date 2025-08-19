@@ -140,13 +140,15 @@ makedocs(sitename="TrixiParticles.jl",
                      "Util" => joinpath("general", "util.md")
                  ],
                  "Systems" => [
-                     "Fluid Models" => [
-                         "Overview" => joinpath("systems", "fluid.md"),
-                         "Weakly Compressible SPH (Fluid)" => joinpath("systems",
-                                                                       "weakly_compressible_sph.md"),
-                         "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
-                                                                                                      "entropically_damped_sph.md")
-                     ],
+                    "Fluid Models" => [
+                        "Overview" => joinpath("systems", "fluid.md"),
+                        "Weakly Compressible SPH (Fluid)" => joinpath("systems",
+                                                                      "weakly_compressible_sph.md"),
+                        "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
+                                                                                                     "entropically_damped_sph.md"),
+                        "Implicit Incompressible SPH (Fluid)" => joinpath("systems",
+                                                                          "implicit_incompressible_sph.md"),
+                    ],
                      "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
                                                                             "total_lagrangian_sph.md"),

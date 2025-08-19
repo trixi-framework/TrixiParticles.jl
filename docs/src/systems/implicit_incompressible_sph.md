@@ -1,27 +1,25 @@
 # [Implicit Incompressible SPH](@id iisph)
 
-Implicit Incompressible SPH as introduced by [M. Ihmsen](@cite ihmsen2013) is a scheme that computes pressure values, by iteratively solving a linear system using a relaxed jacobi system, to resolve the particles density deviation from the reference density. This method solves a linear system $Ax=b$ where the pressure values that are used for the pressure acceleration are the unknown variable $x$.
-It does not use a state equation to generate pressure values like the [weakly compressible SPH scheme](weakly_compressible_sph.md).
+Implicit Incompressible SPH (IISPH) as introduced by [Ihmsen et al. (2013)](@cite ihmsen2013) is a method that achieves incompressibility by solving the pressure Poisson equation.
+The resulting linear system is iteratively solved with the relaxed Jacobi method.
+IISPH does not use a state equation to compute pressure values like the [weakly compressible SPH method](@ref wcsph).
 
-
-To derive the formulation for the linear system we start by discretizing the Continuity equation
-
+To derive the linear system of the pressure Poisson equation, we start by discretizing the continuity equation
 ```math
-\frac{D\rho}{Dt} = - \rho \nabla \cdot v
+\frac{D\rho}{Dt} = - \rho \nabla \cdot \bm{v}.
 ```
 
-For a particle $i$ a forward difference method is used to discretizie the left hand side of the equation to get
+For a particle ``i``, discretizing the left-hand side of the equation with a forward difference yields
 
 ```math
 \frac{\rho_i(t+ \Delta t - \rho_i(t))}{\Delta t}.
 ```
 
-The right-hand side is discretized by the difference formulation of the divergence of the velocity field.
-
+The divergence in the right-hand side is discretized with the SPH discretization for particle ``i`` as
 ```math
-\nabla \cdot \textbf{v}_i = \frac{1}{\rho_i} \sum_j m_j \textbf{v}_{ij} \nabla W_{ij},
+-\frac{1}{\rho_i} \sum_j m_j \textbf{v}_{ij} \nabla W_{ij},
 ```
-where $\textbf{v}_{ij}$ is equal to $\textbf{v}_i - \textbf{v}_j$.
+where ``\bm{v}_{ij} = \bm{v}_i - \bm{v}_j``.
 
 So all in all the following discretized version of the continuity equation for a particle $i$ is achieved:
 
