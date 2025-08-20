@@ -29,17 +29,31 @@ function summation_density!(system, semi, u, u_ode, density;
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute density" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-
-        system_coords = current_coordinates(u, system)
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               semi,
-                               points=particles) do particle, neighbor, pos_diff, distance
-            mass = hydrodynamic_mass(neighbor_system, neighbor)
-            density[particle] += mass * smoothing_kernel(system, distance, particle)
-        end
+        inner_summation_density!(system, neighbor_system, u, u_ode, density, semi;
+                                 particles=particles)
     end
+end
+
+function inner_summation_density!(system, neighbor_system, u, u_ode, density, semi;
+                                  particles=each_moving_particle(system))
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+
+    system_coords = current_coordinates(u, system)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                           semi,
+                           points=particles) do particle, neighbor, pos_diff, distance
+        mass = hydrodynamic_mass(neighbor_system, neighbor)
+        density[particle] += mass *
+                             smoothing_kernel(system, neighbor_system, distance, particle)
+    end
+end
+
+function inner_summation_density!(system::BoundarySystem, neighbor_system::BoundarySystem,
+                                  u, u_ode, density;
+                                  particles=each_moving_particle(system))
+    # nothing to do here since boundary-boundary density is not needed
+    return system
 end

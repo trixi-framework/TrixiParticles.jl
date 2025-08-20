@@ -154,3 +154,18 @@ end
     # asymmetric version of the pressure acceleration formulation.
     return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b)
 end
+
+@inline function pressure_acceleration(particle_system, neighbor_system::BoundarySystem,
+                                       particle, neighbor,
+                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, W_a,
+                                       correction::Union{KernelCorrection,
+                                                         GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection})
+    (; pressure_acceleration_formulation) = particle_system
+
+    # With correction, the kernel gradient is not necessarily symmetric, so call the
+    # asymmetric version of the pressure acceleration formulation.
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_a)
+end
