@@ -237,8 +237,8 @@ function inner_compute_correction_values!(system, neighbor_system, semi, u_ode, 
     end
 end
 
-function inner_compute_correction_values!(system::BoundarySPHSystem,
-                                          neighbor_system::BoundarySPHSystem, semi, u_ode,
+function inner_compute_correction_values!(system::BoundarySystem,
+                                          neighbor_system::BoundarySystem, semi, u_ode,
                                           v_ode)
     # This is not needed
     return system
