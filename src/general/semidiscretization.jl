@@ -149,7 +149,7 @@ end
 end
 
 @inline function compact_support(system::OpenBoundarySPHSystem,
-                                 neighbor::OpenBoundarySPHSystem)
+                                 neighbor::Union{OpenBoundarySPHSystem, BoundarySPHSystem})
     # This NHS is never used
     return 0.0
 end
