@@ -438,6 +438,10 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
     return system
 end
 
+function system_smoothing_kernel(system, neighbor_system)
+    return system_smoothing_kernel(system)
+end
+
 function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
                                  neighbor_system::FluidSystem)
     return system_smoothing_kernel(neighbor_system)
@@ -448,9 +452,13 @@ function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyP
     return system.boundary_model.smoothing_kernel
 end
 
+function smoothing_length(system, neighbor_system, particle)
+    return smoothing_length(system, system.particle_refinement, particle)
+end
+
 function smoothing_length(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
                           neighbor_system::FluidSystem, particle)
-    return smoothing_length(neighbor_system, system.particle_refinement, particle)
+    return smoothing_length(neighbor_system, neighbor_system.particle_refinement, particle)
 end
 
 function system_correction(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})

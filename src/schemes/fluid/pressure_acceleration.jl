@@ -165,7 +165,9 @@ end
                                                          MixedKernelGradientCorrection})
     (; pressure_acceleration_formulation) = particle_system
 
+    W_b = smoothing_kernel_grad(particle_system, -pos_diff, distance, particle)
+
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_a)
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b)
 end
