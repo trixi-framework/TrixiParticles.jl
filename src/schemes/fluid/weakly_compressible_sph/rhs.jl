@@ -41,7 +41,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
-        m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+        m_b = @inbounds neighbor_mass(particle_system, particle, neighbor_system, neighbor)
 
         # The following call is equivalent to
         #     `p_a = current_pressure(v_particle_system, particle_system, particle)`

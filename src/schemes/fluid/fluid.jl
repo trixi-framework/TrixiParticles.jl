@@ -192,6 +192,15 @@ function available_data(::FluidSystem)
     return (:coordinates, :velocity, :mass, :density, :pressure)
 end
 
+@inline function neighbor_mass(system, particle, neighbor_system, neighbor)
+    return hydrodynamic_mass(neighbor_system, neighbor)
+end
+
+# @inline function neighbor_mass(system, particle, neighbor_system::BoundarySystem, neighbor)
+#     return hydrodynamic_mass(system, particle)
+# end
+
+
 include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("transport_velocity.jl")

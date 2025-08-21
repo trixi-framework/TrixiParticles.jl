@@ -33,8 +33,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Note that the return value is zero when not using EDAC with TVF.
         p_avg = average_pressure(particle_system, particle)
 
-        m_a = hydrodynamic_mass(particle_system, particle)
-        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+        m_a = @inbounds hydrodynamic_mass(particle_system, particle)
+        m_b = @inbounds neighbor_mass(particle_system, particle, neighbor_system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
