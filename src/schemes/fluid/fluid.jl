@@ -200,7 +200,6 @@ end
     return hydrodynamic_mass(system, particle)
 end
 
-
 include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("transport_velocity.jl")
