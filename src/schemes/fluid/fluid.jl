@@ -196,9 +196,9 @@ end
     return hydrodynamic_mass(neighbor_system, neighbor)
 end
 
-# @inline function neighbor_mass(system, particle, neighbor_system::BoundarySystem, neighbor)
-#     return hydrodynamic_mass(system, particle)
-# end
+@inline function neighbor_mass(system, particle, neighbor_system::BoundarySystem, neighbor)
+    return hydrodynamic_mass(system, particle)
+end
 
 
 include("pressure_acceleration.jl")
