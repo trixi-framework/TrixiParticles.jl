@@ -1,5 +1,3 @@
-include("../test_util.jl")
-
 @trixi_testset "dam_break_2d.jl with corrections" begin
     fluid_density = 1000.0
     particle_spacing = 0.05

@@ -447,11 +447,6 @@ function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyP
     return system_smoothing_kernel(neighbor_system)
 end
 
-# TODO: remove
-function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.smoothing_kernel
-end
-
 function smoothing_length(system, neighbor_system, particle)
     return smoothing_length(system, system.particle_refinement, particle)
 end
