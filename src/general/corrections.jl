@@ -349,7 +349,6 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
-    # TODO just use the fluid system kernel here
     @trixi_timeit timer() "compute correction matrix" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
@@ -361,20 +360,6 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      current_density(v_neighbor_system, neighbor_system, neighbor)
             smoothing_length_ = smoothing_length(system, neighbor_system, particle)
-
-            # function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance,
-            #                              smoothing_length_, system, particle)
-            #     return smoothing_kernel_grad(system, pos_diff, distance, particle)
-            # end
-
-            # # Compute gradient of corrected kernel
-            # function compute_grad_kernel(correction::MixedKernelGradientCorrection,
-            #                              smoothing_kernel, pos_diff, distance,
-            #                              smoothing_length_, system, particle)
-            #     return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-            #                                  smoothing_length_, KernelCorrection(), system,
-            #                                  particle)
-            # end
 
             grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
                                                 smoothing_length_, correction, system,
