@@ -152,7 +152,9 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
             volume = m_b / rho_b
 
             kernel_correction_coefficient[particle] += volume *
-                                                       smoothing_kernel(system, distance,
+                                                       smoothing_kernel(system,
+                                                                        neighbor_system,
+                                                                        distance,
                                                                         particle)
         end
     end
@@ -358,7 +360,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                semi) do particle, neighbor, pos_diff, distance
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      current_density(v_neighbor_system, neighbor_system, neighbor)
-            smoothing_length_ = smoothing_length(system, particle)
+            smoothing_length_ = smoothing_length(system, neighbor_system, particle)
 
             # function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance,
             #                              smoothing_length_, system, particle)
