@@ -14,7 +14,9 @@ function write_meta_data(callback::SolutionSavingCallback, integrator)
     # write JSON-file
     output_directory = callback.output_directory
     mkpath(output_directory)
-    json_file = joinpath(output_directory,"meta_data" * add_opt_str_post(prefix) * add_opt_str_post(filename) * ".json")
+    json_file = joinpath(output_directory,
+                         "meta_data" * add_opt_str_post(prefix) *
+                         add_opt_str_post(filename) * ".json")
 
     open(json_file, "w") do file
         JSON.print(file, meta_data, 2)
