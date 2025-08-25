@@ -1,7 +1,7 @@
 @doc raw"""
     SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Array{Float64, 1}([]),
                            save_initial_solution=true, save_final_solution=true,
-                           output_directory="out", append_timestamp=false, prefix="", filename="meta_data",
+                           output_directory="out", append_timestamp=false, prefix="", filename="",
                            verbose=false, max_coordinates=2^15, custom_quantities...)
 
 
@@ -26,7 +26,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `prefix=""`:                  Prefix added to the filename.
-- `filename="meta_data"`:       The filename of the Metadata file to be saved.
+- `filename=""`:                The filename of the Metadata file to be saved.
 - `custom_quantities...`:       Additional user-defined quantities.
 - `verbose=false`:              Print to standard IO when a file is written.
 - `max_coordinates=2^15`:       The coordinates of particles will be clipped if their
@@ -61,7 +61,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 │ save final solution: ………………………… yes                                                              │
 │ output directory: ………………………………… *path ignored with filter regex above*                           │
 │ prefix: ……………………………………………………………                                                                  │
-│ filename: ……………………………………………………… meta_data                                                        │
+│ filename: ………………………………………………………                                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
@@ -84,7 +84,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_times=Float64[],
                                 save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
-                                prefix="", filename="meta_data", verbose=false,
+                                prefix="", filename="", verbose=false,
                                 max_coordinates=Float64(2^15),
                                 custom_quantities...)
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))

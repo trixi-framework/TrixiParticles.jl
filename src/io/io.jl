@@ -1,18 +1,37 @@
 include("write_vtk.jl")
 include("read_vtk.jl")
 
-function write_meta_data(callback::SolutionSavingCallback, integrator)
-    # handle "_" on optional prefix strings
-    add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
+# handle "_" on optional prefix/filename strings
+add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
+add_opt_str_post(str) = (str === "" ? "" : "_$(str)")
 
-    git_hash = callback.git_hash
+function write_meta_data(callback::SolutionSavingCallback, integrator)
     prefix = callback.prefix
     filename = callback.filename
+
+    meta_data = create_meta_data_dict(callback, integrator)
+
+    # write JSON-file
+    output_directory = callback.output_directory
+    mkpath(output_directory)
+    json_file = joinpath(output_directory,"meta_data" * add_opt_str_post(prefix) * add_opt_str_post(filename) * ".json")
+
+    open(json_file, "w") do file
+        JSON.print(file, meta_data, 2)
+    end
+end
+
+function create_meta_data_dict(callback, integrator)
+    git_hash = callback.git_hash
+    prefix = hasproperty(callback, :prefix) ? callback.prefix : ""
     semi = integrator.p
     names = system_names(semi.systems)
 
+    meta_data = Dict{String, Any}()
+
     info = Dict{String, Any}()
     add_simulation_info!(info, git_hash, integrator)
+    meta_data["simulation_info"] = info
 
     systems = Dict{String, Any}()
     foreach_system(semi) do system
@@ -24,19 +43,9 @@ function write_meta_data(callback::SolutionSavingCallback, integrator)
 
         systems[name] = system_data
     end
-
-    meta_data = Dict{String, Any}()
-    meta_data["simulation_info"] = info
     meta_data["system_data"] = systems
 
-    # write JSON-file
-    output_directory = callback.output_directory
-    mkpath(output_directory)
-    json_file = joinpath(output_directory, add_opt_str_pre(prefix) * filename * ".json")
-
-    open(json_file, "w") do file
-        JSON.print(file, meta_data, 2)
-    end
+    return meta_data
 end
 
 function add_simulation_info!(info, git_hash, integrator)

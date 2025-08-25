@@ -291,12 +291,9 @@ function write_postprocess_callback(pp::PostprocessCallback, integrator)
     mkpath(pp.output_directory)
 
     data = Dict{String, Any}()
+    data["meta"] = create_meta_data_dict(pp, integrator)
 
-    data["simulation_info"] = Dict{String, Any}()
-    add_simulation_info!(data["simulation_info"], pp.git_hash, integrator)
-
-    data["system_data"] = Dict{String, Any}()
-    prepare_series_data!(data["system_data"], pp)
+    prepare_series_data!(data, pp)
 
     time_stamp = ""
     if pp.append_timestamp
@@ -317,7 +314,7 @@ function write_postprocess_callback(pp::PostprocessCallback, integrator)
     if pp.write_csv
         abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
 
-        write_csv(abs_file_path, data["system_data"])
+        write_csv(abs_file_path, data)
     end
 end
 
