@@ -133,6 +133,16 @@ function add_system_data!(system_data, system::OpenBoundarySPHSystem)
     add_system_data!(system_data, system.boundary_zone)
 end
 
+function add_system_data!(system_data, system::ParticlePackingSystem)
+    system_data["system_type"] = type2string(system)
+    system_data["particle_spacing"] = system.particle_spacing
+    system_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
+    system_data["smoothing_length_interpolation"] = system.smoothing_length_interpolation
+    system_data["background_pressure"] = system.background_pressure
+    system_data["place_on_shell"] = system.place_on_shell
+    system_data["shift_length"] = system.shift_length
+end
+
 function add_system_data!(system_data, boundary_model::BoundaryModelDummyParticles)
     system_data["boundary_model"] = Dict{String, Any}()
     system_data["boundary_model"]["model"] = type2string(boundary_model)
