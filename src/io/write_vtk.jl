@@ -56,8 +56,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     # still have the values from the last stage of the previous step if not updated here.
     @trixi_timeit timer() "update systems" begin
         # Don't create sub-timers here to avoid cluttering the timer output
-        @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                 update_from_callback=true)
+        @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
 
     filenames = system_names(systems)
