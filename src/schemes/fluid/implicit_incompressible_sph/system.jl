@@ -227,7 +227,7 @@ end
 function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     (; density, predicted_density, a_ii, advection_velocity, pressure,
      time_step) = system
-     d_ii_array = system.d_ii
+    d_ii_array = system.d_ii
     sound_speed = system_sound_speed(system) # TODO
 
     # Compute density by kernel summation
@@ -282,9 +282,9 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
             # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
             for i in 1:ndims(system)
                 d_ii_array[i,
-                     particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
-                                                 grad_kernel[i],
-                                                 time_step)
+                           particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
+                                                       grad_kernel[i],
+                                                       time_step)
             end
         end
     end
@@ -355,14 +355,14 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
     # Convert relative error in percent to absolute error
     eta = max_error * 0.01 * reference_density
     while (!terminate)
-        @trixi_timeit timer() "pressure solver iteration" pressure_solve_iteration(system,
-                                                                                   avg_density_error,
-                                                                                   u, u_ode,
-                                                                                   semi,
-                                                                                   time_step)
-        # Update termination condition
-        terminate = (avg_density_error <= eta && l >= min_iterations) || l >= max_iterations
-        l += 1
+        @trixi_timeit timer() "pressure solver iteration" begin
+            avg_density_error = pressure_solve_iteration(system, avg_density_error, u,
+                                                         u_ode, semi, time_step)
+            # Update termination condition
+            terminate = (avg_density_error <= eta && l >= min_iterations) ||
+                        l >= max_iterations
+            l += 1
+        end
     end
 end
 
@@ -412,6 +412,7 @@ function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, tim
     end
 
     # Update the pressure values
+    avg_density_error = 0.0
     @threaded semi for particle in eachparticle(system)
         # Removing instabilities by avoiding to divide by very low values of `a_ii`.
         # This is not mentioned in the paper but done in SPlisHSPlasH as well.
@@ -432,6 +433,7 @@ function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, tim
         end
     end
     avg_density_error /= nparticles(system)
+    return avg_density_error
 end
 
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
