@@ -19,7 +19,7 @@
             │ save final solution: ………………………… yes                                                              │
             │ output directory: ………………………………… $(output_directory_padded)│
             │ prefix: …………………………………………………………… test                                                             │
-            │ filename: ……………………………………………………… meta_data                                                        │
+            │ filename: ………………………………………………………                                                                  │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
             @test repr("text/plain", callback) == show_box
         end
@@ -41,7 +41,7 @@
             │ save final solution: ………………………… yes                                                              │
             │ output directory: ………………………………… $(output_directory_padded)│
             │ prefix: …………………………………………………………… test                                                             │
-            │ filename: ……………………………………………………… meta_data                                                        │
+            │ filename: ………………………………………………………                                                                  │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
             @test repr("text/plain", callback) == show_box
         end
@@ -63,7 +63,7 @@
             │ save final solution: ………………………… yes                                                              │
             │ output directory: ………………………………… $(output_directory_padded)│
             │ prefix: …………………………………………………………… test                                                             │
-            │ filename: ……………………………………………………… meta_data                                                        │
+            │ filename: ………………………………………………………                                                                  │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
             @test repr("text/plain", callback) == show_box
         end
