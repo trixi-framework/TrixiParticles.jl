@@ -114,7 +114,7 @@ function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing
                                                   NDIMS, ELTYPE,
                                                   correction)
 
-    # Choose the pressure acceleration formulation corresponding to the density calculator.
+    # Choose the pressure acceleration formulation corresponding to the density calculator
     return pressure_acceleration_summation_density
 end
 
@@ -123,11 +123,11 @@ function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing
                                                   NDIMS, ELTYPE,
                                                   correction)
 
-    # Choose the pressure acceleration formulation corresponding to the density calculator.
+    # Choose the pressure acceleration formulation corresponding to the density calculator
     return pressure_acceleration_continuity_density
 end
 
-# Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
+# Formulation using symmetric gradient formulation for corrections not depending on local neighborhood
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction)
@@ -138,7 +138,7 @@ end
     return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
 end
 
-# Formulation using asymmetric gradient formulation for corrections depending on local neighborhood.
+# Formulation using asymmetric gradient formulation for corrections depending on local neighborhood
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a,

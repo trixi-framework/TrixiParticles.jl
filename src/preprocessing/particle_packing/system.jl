@@ -57,7 +57,7 @@ For more information on the methods, see [particle packing](@ref particle_packin
                               Recommended values are `0.8` or `0.9`.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, IC, ARRAY1D, K, TV,
-                             N, SD, PR, C} <: FluidSystem{NDIMS}
+                             N, SD, PR, PF, C} <: FluidSystem{NDIMS}
     initial_condition              :: IC
     mass                           :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     density                        :: ARRAY1D # Array{ELTYPE, 1}: [particle]
@@ -72,7 +72,9 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, IC, ARRAY1D, K, TV,
     neighborhood_search            :: N
     signed_distances               :: SD # Only for visualization
     particle_refinement            :: PR
+    pressure_acceleration_formulation :: PF
     buffer                         :: Nothing
+    correction                     :: Nothing
     fixed_system                   :: Bool # Just to make the constructor work with Adapt.jl
     cache                          :: C
 
@@ -82,18 +84,22 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, IC, ARRAY1D, K, TV,
                                    smoothing_kernel, smoothing_length_interpolation,
                                    transport_velocity, tlsph, signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
-                                   signed_distances, particle_refinement, buffer,
-                                   fixed_system, cache)
+                                   signed_distances, particle_refinement,
+                                   pressure_acceleration_formulation, buffer,
+                                   correction, fixed_system, cache)
         return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
-                   typeof(initial_condition), eltype(mass), typeof(smoothing_kernel),
+                   eltype(initial_condition), typeof(initial_condition),
+                   typeof(mass), typeof(smoothing_kernel),
                    typeof(transport_velocity), typeof(neighborhood_search),
                    typeof(signed_distances), typeof(particle_refinement),
+                   typeof(pressure_acceleration_formulation),
                    typeof(cache)}(initial_condition, mass, density, particle_spacing,
                                   smoothing_kernel, smoothing_length_interpolation,
                                   transport_velocity, tlsph, signed_distance_field,
                                   is_boundary, shift_length, neighborhood_search,
-                                  signed_distances, particle_refinement, buffer,
-                                  fixed_system, cache)
+                                  signed_distances, particle_refinement,
+                                  pressure_acceleration_formulation, buffer,
+                                  correction, fixed_system, cache)
     end
 end
 
@@ -112,6 +118,10 @@ function ParticlePackingSystem(shape::InitialCondition;
 
     particle_refinement = nothing
     transport_velocity = TransportVelocityAdami(background_pressure)
+    pressure_acceleration = choose_pressure_acceleration_formulation(nothing,
+                                                                     ContinuityDensity(),
+                                                                     NDIMS, ELTYPE,
+                                                                     nothing)
 
     if ndims(smoothing_kernel) != NDIMS
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -161,7 +171,8 @@ function ParticlePackingSystem(shape::InitialCondition;
                                  transport_velocity, tlsph, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
-                                 nothing, fixed_system, cache)
+                                 pressure_acceleration, nothing, nothing, fixed_system,
+                                 cache)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
