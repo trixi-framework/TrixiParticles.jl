@@ -56,7 +56,7 @@ For more information on the methods, see [particle packing](@ref particle_packin
                               Recommended values are `0.8` or `0.9`.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
-                             IC, M, D, K, N, SD, UCU} <: FluidSystem{NDIMS}
+                             IC, M, D, K, N, SD} <: FluidSystem{NDIMS}
     initial_condition              :: IC
     advection_velocity             :: AV
     mass                           :: M
@@ -73,7 +73,6 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     signed_distances               :: SD # Only for visualization
     particle_refinement            :: PR
     buffer                         :: Nothing
-    update_callback_used           :: UCU
     fixed_system                   :: Bool
     cache                          :: C
 end
@@ -86,7 +85,7 @@ function ParticlePackingSystem(initial_condition, advection_velocity,
                                background_pressure, place_on_shell, signed_distance_field,
                                is_boundary, shift_length, neighborhood_search,
                                signed_distances, particle_refinement, buffer,
-                               update_callback_used, fixed_system, cache)
+                               fixed_system, cache)
     S = typeof(signed_distance_field)
     F = fixed_system
     NDIMS = ndims(smoothing_kernel)
@@ -100,16 +99,15 @@ function ParticlePackingSystem(initial_condition, advection_velocity,
     K = typeof(smoothing_kernel)
     N = typeof(neighborhood_search)
     SD = typeof(signed_distances)
-    UCU = typeof(update_callback_used)
 
-    return ParticlePackingSystem{S, F, NDIMS, ELTYPE, PR, C, AV, IC, M, D, K, N, SD,
-                                 UCU}(initial_condition, advection_velocity, mass, density,
-                                      particle_spacing, smoothing_kernel,
-                                      smoothing_length_interpolation, background_pressure,
-                                      place_on_shell, signed_distance_field, is_boundary,
-                                      shift_length, neighborhood_search, signed_distances,
-                                      particle_refinement, buffer, update_callback_used,
-                                      fixed_system, cache)
+    return ParticlePackingSystem{S, F, NDIMS, ELTYPE, PR, C, AV, IC, M, D, K, N,
+                                 SD}(initial_condition, advection_velocity, mass, density,
+                                     particle_spacing, smoothing_kernel,
+                                     smoothing_length_interpolation, background_pressure,
+                                     place_on_shell, signed_distance_field, is_boundary,
+                                     shift_length, neighborhood_search, signed_distances,
+                                     particle_refinement, buffer, update_callback_used,
+                                     fixed_system, cache)
 end
 
 function ParticlePackingSystem(shape::InitialCondition;
@@ -184,7 +182,7 @@ function ParticlePackingSystem(shape::InitialCondition;
                                  place_on_shell, signed_distance_field, is_boundary,
                                  shift_length, nhs, fill(zero(ELTYPE), nparticles(shape)),
                                  particle_refinement,
-                                 nothing, Ref(false), fixed_system, cache)
+                                 nothing, fixed_system, cache)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
@@ -234,13 +232,7 @@ end
     return ndims(system)
 end
 
-function reset_callback_flag!(system::ParticlePackingSystem)
-    system.update_callback_used[] = false
-
-    return system
-end
-
-update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
+@inline requires_update_callback(system::ParticlePackingSystem) = true
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     vtk["velocity"] = [advection_velocity(v, system, particle)
@@ -307,15 +299,6 @@ function update_position!(u, system::ParticlePackingSystem, semi)
     @trixi_timeit timer() func_name constrain_particles_onto_surface!(u, system, semi)
 
     return u
-end
-
-function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
-    if !update_from_callback && !(system.update_callback_used[])
-        throw(ArgumentError("`UpdateCallback` is required when using `ParticlePackingSystem`"))
-    end
-
-    return system
 end
 
 # Skip for systems without `SignedDistanceField`

@@ -58,8 +58,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     # still have the values from the last stage of the previous step if not updated here.
     @trixi_timeit timer() "update systems" begin
         # Don't create sub-timers here to avoid cluttering the timer output
-        @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                 update_from_callback=true)
+        @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
 
     filenames = system_names(systems)
@@ -350,9 +349,6 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         else
             vtk["solver"] = "EDAC"
             vtk["sound_speed"] = system.sound_speed
-            vtk["background_pressure_TVF"] = system.transport_velocity isa Nothing ?
-                                             "-" :
-                                             system.transport_velocity.background_pressure
         end
     end
 

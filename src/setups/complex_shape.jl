@@ -88,8 +88,8 @@ function ComplexShape(geometry; particle_spacing, density,
 end
 
 """
-    sample_boundary(signed_distance_field::SignedDistanceField;
-                    boundary_thickness::Real, place_on_shell=true)
+    sample_boundary(signed_distance_field;
+                    boundary_density, boundary_thickness, place_on_shell=true)
 
 Sample boundary particles of a complex geometry by using the [`SignedDistanceField`](@ref)
 of the geometry.
@@ -99,6 +99,7 @@ of the geometry.
 
 # Keywords
 - `boundary_thickness`: Thickness of the boundary
+- `boundary_density`: Density of each boundary particle.
 - `place_on_shell`:     When `place_on_shell=true`, boundary particles will be placed
                         one particle spacing from the surface of the geometry.
                         Otherwise when `place_on_shell=true` (simulating fluid particles),

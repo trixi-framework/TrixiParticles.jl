@@ -12,6 +12,17 @@
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
+
+        @trixi_testset "solid/oscillating_beam_2d.jl with penalty force and viscosity" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "solid",
+                                                      "oscillating_beam_2d.jl"),
+                                             tspan=(0.0, 0.1),
+                                             penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
+                                             viscosity=ArtificialViscosityMonaghan(alpha=0.01))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
     end
 
     @testset verbose=true "FSI" begin

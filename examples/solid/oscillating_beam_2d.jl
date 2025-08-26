@@ -63,7 +63,7 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
                                         material.E, material.nu,
                                         n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity),
-                                        penalty_force=nothing)
+                                        penalty_force=nothing, viscosity=nothing)
 
 # ==========================================================================================
 # ==== Simulation
