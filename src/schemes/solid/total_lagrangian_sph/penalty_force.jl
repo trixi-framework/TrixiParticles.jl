@@ -25,8 +25,6 @@ end
                                   particle, neighbor, initial_pos_diff, initial_distance,
                                   current_pos_diff, current_distance,
                                   system, m_a, m_b, rho_a, rho_b)
-    (; young_modulus) = system
-
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
 
@@ -39,7 +37,7 @@ end
     eps_sum = (F_a + F_b) * initial_pos_diff - 2 * current_pos_diff
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
-    E = young_modulus_per_particle(young_modulus, particle)
+    E = young_modulus(system, particle)
 
     f = (penalty_force.alpha / 2) * volume_a * volume_b *
         kernel_weight / initial_distance^2 * E * delta_sum * current_pos_diff /
@@ -47,12 +45,4 @@ end
 
     # Divide force by mass to obtain acceleration
     return f / m_a
-end
-
-function young_modulus_per_particle(young_modulus::AbstractVector, particle)
-    return young_modulus[particle]
-end
-
-function young_modulus_per_particle(young_modulus, particle)
-    return young_modulus
 end

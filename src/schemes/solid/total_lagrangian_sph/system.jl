@@ -236,6 +236,32 @@ end
     extract_smatrix(system.pk1_corrected, system, particle)
 end
 
+function young_modulus(system::TotalLagrangianSPHSystem, particle)
+    return young_modulus(system, system.young_modulus, particle)
+end
+
+function young_modulus(::TotalLagrangianSPHSystem, young_modulus, particle)
+    return young_modulus
+end
+
+function young_modulus(::TotalLagrangianSPHSystem,
+                       young_modulus::AbstractVector, particle)
+    return young_modulus[particle]
+end
+
+function poisson_ratio(system::TotalLagrangianSPHSystem, particle)
+    return poisson_ratio(system, system.poisson_ratio, particle)
+end
+
+function poisson_ratio(::TotalLagrangianSPHSystem, poisson_ratio, particle)
+    return poisson_ratio
+end
+
+function poisson_ratio(::TotalLagrangianSPHSystem,
+                       poisson_ratio::AbstractVector, particle)
+    return poisson_ratio[particle]
+end
+
 function initialize!(system::TotalLagrangianSPHSystem, semi)
     (; correction_matrix) = system
 
