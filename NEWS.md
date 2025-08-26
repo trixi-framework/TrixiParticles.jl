@@ -4,14 +4,27 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.4
+
+### API Changes
+
+- Combined transport velocity formulation (TVF) and particle shifting technique (PST) into
+  one unified framework.
+  The keyword argument `transport_velocity` now changed to `shifting_technique`.
+  The `ParticleShiftingCallback` has been removed. To use PST, use the `UpdateCallback`
+  instead, and pass `shifting_technique=ParticleShiftingTechnique()` to the system.
+
+- Renamed the keyword argument `tlsph` to `place_on_shell` for `ParticlePackingSystem`,
+  `sample_boundary`, `extrude_geometry`, `RectangularShape`, and `SphereShape`.
+
 ## Version 0.3.1
 
 ### Features
 
-- **Simplified SGS Viscosity Models**: Added ViscosityMorrisSGS and ViscosityAdamiSGS, 
+- **Simplified SGS Viscosity Models**: Added ViscosityMorrisSGS and ViscosityAdamiSGS,
   which implement a simplified Smagorinsky-type sub-grid-scale viscosity. (#753)
 
-- **Multithreaded Integration Array**: Introduced a new array type for CPU backends 
+- **Multithreaded Integration Array**: Introduced a new array type for CPU backends
   that enables multithreaded broadcasting, delivering speed-ups of up to 5× on systems
   with many threads when combined with thread pinning. (#722)
 
@@ -21,17 +34,17 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - **DXF file format support**: Import complex geometries using the DXF file format. (#821)
 
 - **Improved Plane interpolation**: Massively improved interpolation performance for planes (#763).
-  
+
 ### GPU
 
  - Make PST GPU-compatible (#813).
-   
+
  - Make open boundaries GPU-compatible (#773).
-  
+
  - Make interpolation GPU-compatible (#812).
 
 ### Important Bugfixes
- 
+
  - Fix validation setups (#801).
 
  - Calculate interpolated density instead of computed density when using interpolation (#808).
