@@ -22,13 +22,25 @@ to this surface.
                               a boundary [`ParticlePackingSystem`](@ref).
                               Use the default of `false` when packing without a boundary.
 """
-struct SignedDistanceField{ELTYPE, P, D}
+struct SignedDistanceField{ELTYPE, P, N, D}
     positions           :: P
-    normals             :: P
+    normals             :: N
     distances           :: D
     max_signed_distance :: ELTYPE
     boundary_packing    :: Bool
     particle_spacing    :: ELTYPE
+end
+
+function SignedDistanceField(positions, normals, distances, max_signed_distance,
+                             use_for_boundary_packing, particle_spacing)
+    ELTYPE = eltype(particle_spacing)
+    P = typeof(positions_)
+    N = typeof(normals)
+    D = typeof(distances)
+
+    return SignedDistanceField{ELTYPE,
+                               P, N, D}(positions, normals, distances, max_signed_distance,
+                                        use_for_boundary_packing, particle_spacing)
 end
 
 function SignedDistanceField(geometry, particle_spacing;
@@ -36,14 +48,21 @@ function SignedDistanceField(geometry, particle_spacing;
                              max_signed_distance=4 * particle_spacing,
                              use_for_boundary_packing=false)
     NDIMS = ndims(geometry)
-    ELTYPE = eltype(max_signed_distance)
+    ELTYPE = eltype(geometry)
 
     sdf_factor = use_for_boundary_packing ? 2 : 1
 
     search_radius = sdf_factor * max_signed_distance
 
+    min_corner = geometry.min_corner .- search_radius
+    max_corner = geometry.max_corner .+ search_radius
+
     if neighborhood_search
-        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius)
+        # TODO: For GPU acceleration, a `FullGridNeighborhoodSearch` must be used.
+        # However, the parameter `max_points_per_cell` must be tuned according to the input geometry,
+        # as its optimal value can vary significantly depending on the geometric complexity.
+        cell_list = PointNeighbors.DictionaryCellList{NDIMS}()
+        nhs = FaceNeighborhoodSearch{NDIMS}(; search_radius, cell_list)
     else
         nhs = TrivialNeighborhoodSearch{NDIMS}(eachpoint=eachface(geometry))
     end
@@ -51,9 +70,6 @@ function SignedDistanceField(geometry, particle_spacing;
     initialize!(nhs, geometry)
 
     if isnothing(points)
-        min_corner = geometry.min_corner .- search_radius
-        max_corner = geometry.max_corner .+ search_radius
-
         n_particles_per_dimension = Tuple(ceil.(Int,
                                                 (max_corner .- min_corner) ./
                                                 particle_spacing))
@@ -67,15 +83,16 @@ function SignedDistanceField(geometry, particle_spacing;
     positions = copy(points)
 
     # This gives a performance boost for large geometries
-    delete_positions_in_empty_cells!(positions, nhs)
+    delete_positions_in_empty_cells!(positions, nhs, geometry)
 
-    normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(positions))
-    distances = fill(Inf, length(positions))
+    normals = fill(SVector(ntuple(dim -> ELTYPE(Inf), NDIMS)), length(positions))
+    distances = fill(ELTYPE(Inf), length(positions))
 
     calculate_signed_distances!(positions, distances, normals,
                                 geometry, sdf_factor, max_signed_distance, nhs)
 
-    return SignedDistanceField(positions, normals, distances, max_signed_distance,
+    positions_ = stack(positions)
+    return SignedDistanceField(positions_, normals, distances, max_signed_distance,
                                use_for_boundary_packing, particle_spacing)
 end
 
@@ -100,18 +117,22 @@ end
 
 function trixi2vtk(signed_distance_field::SignedDistanceField;
                    filename="signed_distance_field", output_directory="out")
-    (; positions, distances, normals) = signed_distance_field
-    positions = stack(signed_distance_field.positions)
+    (; positions, distances, normals, particle_spacing) = signed_distance_field
 
     trixi2vtk(positions, signed_distances=distances, normals=normals,
+              particle_spacing=particle_spacing * ones(length(normals)),
               filename=filename, output_directory=output_directory)
 end
 
-delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch) = positions
+function delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch,
+                                          geometry)
+    return positions
+end
 
-function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch)
+function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch, geometry)
     delete_positions = fill(false, length(positions))
 
+    # TODO
     @threaded default_backend(positions) for point in eachindex(positions)
         if isempty(eachneighbor(positions[point], nhs))
             delete_positions[point] = true
@@ -124,14 +145,14 @@ function delete_positions_in_empty_cells!(positions, nhs::FaceNeighborhoodSearch
 end
 
 function calculate_signed_distances!(positions, distances, normals,
-                                     boundary, sdf_factor, max_signed_distance, nhs)
+                                     geometry, sdf_factor, max_signed_distance, nhs)
+    # TODO
     @threaded default_backend(positions) for point in eachindex(positions)
         point_coords = positions[point]
 
         for face in eachneighbor(point_coords, nhs)
             sign_bit, distance,
-            normal = signed_point_face_distance(point_coords, boundary,
-                                                face)
+            normal = signed_point_face_distance(point_coords, geometry, face)
 
             if distance < distances[point]^2
                 # Found a face closer than the previous closest face
@@ -141,7 +162,7 @@ function calculate_signed_distances!(positions, distances, normals,
         end
     end
 
-    # Keep "larger" signed distance field outside `boundary` to guarantee
+    # Keep "larger" signed distance field outside `geometry` to guarantee
     # compact support for boundary particles.
     keep = -max_signed_distance .< distances .< sdf_factor * max_signed_distance
     delete_indices = .!keep
