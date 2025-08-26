@@ -58,25 +58,25 @@ For more information on the methods, see [particle packing](@ref particle_packin
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, IC, ARRAY1D, K, TV,
                              N, SD, PR, PF, C} <: FluidSystem{NDIMS}
-    initial_condition              :: IC
-    mass                           :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    density                        :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    particle_spacing               :: ELTYPE
-    smoothing_kernel               :: K
-    smoothing_length_interpolation :: ELTYPE
-    transport_velocity             :: TV
-    tlsph                          :: Bool
-    signed_distance_field          :: S
-    is_boundary                    :: Bool
-    shift_length                   :: ELTYPE
-    neighborhood_search            :: N
-    signed_distances               :: SD # Only for visualization
-    particle_refinement            :: PR
+    initial_condition                 :: IC
+    mass                              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    density                           :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    particle_spacing                  :: ELTYPE
+    smoothing_kernel                  :: K
+    smoothing_length_interpolation    :: ELTYPE
+    transport_velocity                :: TV
+    tlsph                             :: Bool
+    signed_distance_field             :: S
+    is_boundary                       :: Bool
+    shift_length                      :: ELTYPE
+    neighborhood_search               :: N
+    signed_distances                  :: SD # Only for visualization
+    particle_refinement               :: PR
     pressure_acceleration_formulation :: PF
-    buffer                         :: Nothing
-    correction                     :: Nothing
-    fixed_system                   :: Bool # Just to make the constructor work with Adapt.jl
-    cache                          :: C
+    buffer                            :: Nothing
+    correction                        :: Nothing
+    fixed_system                      :: Bool # Just to make the constructor work with Adapt.jl
+    cache                             :: C
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
