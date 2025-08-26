@@ -17,6 +17,12 @@ reynolds_number = 100.0
 density_calculators = [ContinuityDensity(), SummationDensity()]
 perturb_coordinates = [false, true]
 
+# Define `average_pressure` for WCSPH, so that we can use the same code below for WCSPH
+@inline function TrixiParticles.average_pressure(system::WeaklyCompressibleSPHSystem,
+                                                 particle)
+    return zero(eltype(system))
+end
+
 function compute_l1v_error(system, v_ode, u_ode, semi, t)
     v_analytical_avg = 0.0
     v_avg = 0.0

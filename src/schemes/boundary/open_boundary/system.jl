@@ -37,47 +37,44 @@ Open boundary system for in- and outflow particles.
     It is GPU-compatible (e.g., with CUDA.jl and AMDGPU.jl), but currently **not** supported with Metal.jl.
 """
 struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZ, RV,
-                             RP, RD, B, UCU, C} <: System{NDIMS}
-    boundary_model       :: BM
-    initial_condition    :: IC
-    fluid_system         :: FS
-    fluid_system_index   :: FSI
-    smoothing_length     :: ELTYPE
-    mass                 :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    density              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    volume               :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    pressure             :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    boundary_candidates  :: BC      # Array{UInt32, 1}: [particle]
-    fluid_candidates     :: FC      # Array{UInt32, 1}: [particle]
-    boundary_zone        :: BZ
-    reference_velocity   :: RV
-    reference_pressure   :: RP
-    reference_density    :: RD
-    buffer               :: B
-    update_callback_used :: UCU
-    cache                :: C
+                             RP, RD, B, C} <: System{NDIMS}
+    boundary_model      :: BM
+    initial_condition   :: IC
+    fluid_system        :: FS
+    fluid_system_index  :: FSI
+    smoothing_length    :: ELTYPE
+    mass                :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    density             :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    volume              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    pressure            :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    boundary_candidates :: BC      # Array{UInt32, 1}: [particle]
+    fluid_candidates    :: FC      # Array{UInt32, 1}: [particle]
+    boundary_zone       :: BZ
+    reference_velocity  :: RV
+    reference_pressure  :: RP
+    reference_density   :: RD
+    buffer              :: B
+    cache               :: C
 end
 
 function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                fluid_system_index, smoothing_length, mass, density, volume,
                                pressure, boundary_candidates, fluid_candidates,
                                boundary_zone, reference_velocity,
-                               reference_pressure, reference_density, buffer,
-                               update_callback_used, cache)
+                               reference_pressure, reference_density, buffer, cache)
     OpenBoundarySPHSystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                           typeof(initial_condition), typeof(fluid_system),
                           typeof(fluid_system_index), typeof(mass),
                           typeof(boundary_candidates), typeof(fluid_candidates),
                           typeof(boundary_zone), typeof(reference_velocity),
                           typeof(reference_pressure), typeof(reference_density),
-                          typeof(buffer), typeof(update_callback_used),
+                          typeof(buffer),
                           typeof(cache)}(boundary_model, initial_condition, fluid_system,
                                          fluid_system_index, smoothing_length, mass,
                                          density, volume, pressure, boundary_candidates,
                                          fluid_candidates, boundary_zone,
                                          reference_velocity, reference_pressure,
-                                         reference_density, buffer, update_callback_used,
-                                         cache)
+                                         reference_density, buffer, cache)
 end
 
 function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
@@ -149,8 +146,6 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                        reference_density, reference_velocity,
                                        reference_pressure)
 
-    # These will be set later
-    update_callback_used = Ref(false)
     fluid_system_index = Ref(0)
 
     smoothing_length = initial_smoothing_length(fluid_system)
@@ -162,8 +157,7 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                  fluid_system_index, smoothing_length, mass, density,
                                  volume, pressure, boundary_candidates, fluid_candidates,
                                  boundary_zone, reference_velocity_,
-                                 reference_pressure_, reference_density_, buffer,
-                                 update_callback_used, cache)
+                                 reference_pressure_, reference_density_, buffer, cache)
 end
 
 function create_cache_open_boundary(boundary_model, initial_condition,
@@ -226,13 +220,8 @@ end
     return ELTYPE
 end
 
-function reset_callback_flag!(system::OpenBoundarySPHSystem)
-    system.update_callback_used[] = false
-
-    return system
-end
-
-update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
+# The `UpdateCallback` is required to update particle positions between time steps
+@inline requires_update_callback(system::OpenBoundarySPHSystem) = true
 
 function corresponding_fluid_system(system::OpenBoundarySPHSystem, semi)
     return system.fluid_system
@@ -252,13 +241,9 @@ end
     return system.pressure
 end
 
-function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
-    if !update_from_callback && !(system.update_callback_used[])
-        throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
-    end
-
-    update_final!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
+function update_boundary_interpolation!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode,
+                                        semi, t)
+    update_boundary_model!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
 end
 
 # This function is called by the `UpdateCallback`, as the integrator array might be modified
