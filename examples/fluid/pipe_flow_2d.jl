@@ -74,6 +74,7 @@ viscosity = ViscosityAdami(nu=kinematic_viscosity)
 fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothing_length,
                                            sound_speed, viscosity=viscosity,
                                            density_calculator=fluid_density_calculator,
+                                           shifting_technique=ParticleShiftingTechnique(),
                                            buffer_size=n_buffer_particles)
 
 # Alternatively the WCSPH scheme can be used
@@ -86,6 +87,7 @@ if wcsph
     fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
                                                state_equation, smoothing_kernel,
                                                smoothing_length, viscosity=viscosity,
+                                               shifting_technique=ParticleShiftingTechnique(),
                                                buffer_size=n_buffer_particles)
 end
 
@@ -159,12 +161,10 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
-particle_shifting = ParticleShiftingCallback()
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
-                        particle_shifting, extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
