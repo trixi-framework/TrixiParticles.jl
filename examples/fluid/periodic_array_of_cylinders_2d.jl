@@ -60,7 +60,7 @@ smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergQuarticSplineKernel{2}()
 fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
                                            sound_speed, viscosity=ViscosityAdami(; nu),
-                                           transport_velocity=TransportVelocityAdami(pressure),
+                                           shifting_technique=TransportVelocityAdami(pressure),
                                            acceleration=(acceleration_x, 0.0))
 
 # ==========================================================================================

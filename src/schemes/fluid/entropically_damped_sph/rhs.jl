@@ -27,10 +27,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_a = current_pressure(v_particle_system, particle_system, particle)
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
-        # This technique is for a more robust `pressure_acceleration` but only with TVF.
-        # It results only in significant improvement for EDAC and not for WCSPH.
-        # See Ramachandran (2019) p. 582
-        # Note that the return value is zero when not using EDAC with TVF.
+        # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
+        # errors due to large pressures by subtracting the average pressure of neighboring
+        # particles.
+        # It results in significant improvement for EDAC, especially with TVF,
+        # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
+        # Note that the return value is zero when not using average pressure reduction.
         p_avg = average_pressure(particle_system, particle)
 
         m_a = hydrodynamic_mass(particle_system, particle)
@@ -49,13 +51,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle, neighbor, pos_diff, distance,
                                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
-        # Add convection term (only when using `TransportVelocityAdami`)
-        dv_tvf = dv_transport_velocity(transport_velocity(particle_system),
-                                       particle_system, neighbor_system,
-                                       particle, neighbor,
-                                       v_particle_system, v_neighbor_system,
-                                       m_a, m_b, rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, correction)
+        # Extra terms in the momentum equation when using a shifting technique
+        dv_tvf = dv_shifting(shifting_technique(particle_system),
+                             particle_system, neighbor_system, particle, neighbor,
+                             v_particle_system, v_neighbor_system,
+                             m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                             grad_kernel, correction)
 
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,

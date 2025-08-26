@@ -73,6 +73,13 @@ kinematic_viscosity = maximum(prescribed_velocity) * domain_size[2] / reynolds_n
 
 viscosity = ViscosityAdami(nu=kinematic_viscosity)
 
+fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothing_length,
+                                           sound_speed, viscosity=viscosity,
+                                           density_calculator=fluid_density_calculator,
+                                           shifting_technique=ParticleShiftingTechnique(),
+                                           buffer_size=n_buffer_particles)
+
+# Alternatively the WCSPH scheme can be used
 if wcsph
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                        exponent=1)
@@ -82,6 +89,7 @@ if wcsph
                                                state_equation, smoothing_kernel,
                                                density_diffusion=density_diffusion,
                                                smoothing_length, viscosity=viscosity,
+                                               shifting_technique=ParticleShiftingTechnique(),
                                                buffer_size=n_buffer_particles)
 else
     # Alternatively the EDAC scheme can be used
@@ -91,6 +99,7 @@ else
                                                smoothing_length, sound_speed,
                                                viscosity=viscosity,
                                                density_calculator=fluid_density_calculator,
+                                               shifting_technique=ParticleShiftingTechnique(),
                                                buffer_size=n_buffer_particles)
 end
 
@@ -162,12 +171,10 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
-particle_shifting = ParticleShiftingCallback()
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
-                        particle_shifting, extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)

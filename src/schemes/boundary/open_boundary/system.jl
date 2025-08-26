@@ -37,7 +37,7 @@ Open boundary system for in- and outflow particles.
     It is GPU-compatible (e.g., with CUDA.jl and AMDGPU.jl), but currently **not** supported with Metal.jl.
 """
 struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZI, BZ,
-                             B, UCU, C} <: System{NDIMS}
+                             B, C} <: System{NDIMS}
     boundary_model        :: BM
     initial_condition     :: IC
     fluid_system          :: FS
@@ -52,26 +52,24 @@ struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZ
     boundary_zone_indices :: BZI     # Array{UInt8, 1}: [particle]
     boundary_zones        :: BZ
     buffer                :: B
-    update_callback_used  :: UCU
     cache                 :: C
 end
 
 function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                fluid_system_index, smoothing_length, mass, density, volume,
                                pressure, boundary_candidates, fluid_candidates,
-                               boundary_zone_indices, boundary_zone, buffer,
-                               update_callback_used, cache)
+                               boundary_zone_indices, boundary_zone, buffer, cache)
     OpenBoundarySPHSystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                           typeof(initial_condition), typeof(fluid_system),
                           typeof(fluid_system_index), typeof(mass),
                           typeof(boundary_candidates), typeof(fluid_candidates),
                           typeof(boundary_zone_indices), typeof(boundary_zone),
-                          typeof(buffer), typeof(update_callback_used),
+                          typeof(buffer),
                           typeof(cache)}(boundary_model, initial_condition, fluid_system,
                                          fluid_system_index, smoothing_length, mass,
                                          density, volume, pressure, boundary_candidates,
                                          fluid_candidates, boundary_zone_indices,
-                                         boundary_zone, buffer, update_callback_used, cache)
+                                         boundary_zone, buffer, cache)
 end
 
 function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
@@ -94,8 +92,6 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     cache = create_cache_open_boundary(boundary_model, initial_conditions,
                                        reference_values_)
 
-    # These will be set later
-    update_callback_used = Ref(false)
     fluid_system_index = Ref(0)
 
     smoothing_length = initial_smoothing_length(fluid_system)
@@ -121,8 +117,7 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     return OpenBoundarySPHSystem(boundary_model, initial_conditions, fluid_system,
                                  fluid_system_index, smoothing_length, mass, density,
                                  volume, pressure, boundary_candidates, fluid_candidates,
-                                 boundary_zone_indices, boundary_zones_new, buffer,
-                                 update_callback_used, cache)
+                                 boundary_zone_indices, boundary_zones_new, buffer, cache)
 end
 
 function initialize!(system::OpenBoundarySPHSystem, semi)
@@ -188,14 +183,8 @@ end
 
 @inline buffer(system::OpenBoundarySPHSystem) = system.buffer
 
+# The `UpdateCallback` is required to update particle positions between time steps
 @inline requires_update_callback(system::OpenBoundarySPHSystem) = true
-@inline update_callback_used(system::OpenBoundarySPHSystem) = system.update_callback_used[]
-
-function set_callback_flag!(system::OpenBoundarySPHSystem, value)
-    system.update_callback_used[] = value
-
-    return system
-end
 
 function smoothing_length(system::OpenBoundarySPHSystem, particle)
     return system.smoothing_length

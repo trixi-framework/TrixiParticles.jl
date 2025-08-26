@@ -273,7 +273,19 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "periodic_channel_2d.jl"),
                                          tspan=(0.0, 0.2),
-                                         extra_callback=ParticleShiftingCallback())
+                                         shifting_technique=ParticleShiftingTechnique(),
+                                         extra_callback=UpdateCallback())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/periodic_channel_2d.jl with TVF" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "periodic_channel_2d.jl"),
+                                         tspan=(0.0, 0.2),
+                                         shifting_technique=TransportVelocityAdami(50_000.0),
+                                         extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
@@ -283,8 +295,9 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "periodic_channel_2d.jl"),
                                          tspan=(0.0, 0.2),
-                                         extra_callback=ParticleShiftingCallback(),
-                                         pressure_acceleration=tensile_instability_control)
+                                         shifting_technique=ParticleShiftingTechnique(),
+                                         pressure_acceleration=tensile_instability_control,
+                                         extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
