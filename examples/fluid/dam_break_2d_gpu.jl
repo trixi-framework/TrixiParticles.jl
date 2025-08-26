@@ -40,4 +40,5 @@ trixi_include(@__MODULE__,
               density_diffusion=density_diffusion,
               boundary_layers=boundary_layers, spacing_ratio=spacing_ratio,
               boundary_model=boundary_model,
-              parallelization_backend=PolyesterBackend())
+              parallelization_backend=PolyesterBackend(),
+              boundary_density_calculator=boundary_density_calculator)
