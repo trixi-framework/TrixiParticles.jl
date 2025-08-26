@@ -147,7 +147,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                           n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
-             create_cache_tvf_wcsph(initial_condition, transport_velocity)...,
+             create_cache_tvf(initial_condition, transport_velocity)...,
              color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`

@@ -16,24 +16,13 @@ end
 # No TVF for a system by default
 @inline transport_velocity(system) = nothing
 
-create_cache_tvf_wcsph(initial_condition, ::Nothing) = (;)
+create_cache_tvf(initial_condition, ::Nothing) = (;)
 
-function create_cache_tvf_wcsph(initial_condition, ::TransportVelocityAdami)
+function create_cache_tvf(initial_condition, ::TransportVelocityAdami)
     delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
                     nparticles(initial_condition))
 
     return (; delta_v)
-end
-
-create_cache_tvf_edac(initial_condition, ::Nothing) = (;)
-
-function create_cache_tvf_edac(initial_condition, ::TransportVelocityAdami)
-    delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
-                    nparticles(initial_condition))
-    pressure_average = copy(initial_condition.pressure)
-    neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
-
-    return (; delta_v, pressure_average, neighbor_counter)
 end
 
 # `δv` is the correction to the particle velocity due to the TVF.
