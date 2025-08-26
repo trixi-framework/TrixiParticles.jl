@@ -69,7 +69,7 @@ function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integr
         # Update systems to compute quantities like density and pressure.
         semi = integrator.p
         v_ode, u_ode = u.x
-        update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
+        update_systems_and_nhs(v_ode, u_ode, semi, t)
 
         # Apply the callback.
         cb(integrator)
