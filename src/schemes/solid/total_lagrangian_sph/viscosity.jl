@@ -64,5 +64,10 @@ end
 
     # See eq. 26 of Lin et al. (2015)
     F = deformation_gradient(system, particle)
+
+    if abs(det(F)) < 1.0f-9
+        return zero(grad_kernel)
+    end
+
     return m_b * det(F) * inv(F)' * pi_ab
 end
