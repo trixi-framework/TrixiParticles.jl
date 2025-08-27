@@ -218,4 +218,3 @@ include("entropically_damped_sph/entropically_damped_sph.jl")
                                          sqrt(max_velocity)) / state_equation.machnumber)
     return state_equation.sound_speed
 end
-
