@@ -28,9 +28,6 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `max_iterations`:             Maximal number of iterations in the relaxed jacobi scheme, independent from the termination condition. (default: 20)
 - `time_step`:                  Time step size used for the simulation (default: 0.001)
 """
-
-# The default constructor needs to be accessible for Adapt.jl to work with this struct.
-# See the comments in general/gpu.jl for more details.
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
                                        IC, K, V, PF, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
@@ -225,7 +222,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 end
 
 function predict_advection(system, v, u, v_ode, u_ode, semi, t)
-    (; density, predicted_density, a_ii, advection_velocity, pressure,
+    (; density, predicted_density, advection_velocity, pressure,
      time_step) = system
     d_ii_array = system.d_ii
     sound_speed = system_sound_speed(system) # TODO
@@ -237,7 +234,6 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     v_particle_system = wrap_v(v_ode, system, semi)
     predicted_density .= density
     set_zero!(d_ii_array)
-    set_zero!(a_ii)
     @threaded semi for particle in each_moving_particle(system)
         # Initialize the advection velocity with the current velocity plus the system acceleration
         v_particle = current_velocity(v_particle_system, system, particle)
@@ -294,34 +290,8 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
         pressure[particle] = 0.5 * pressure[particle]
     end
 
-    # Calculation the diagonal elements (a_ii-values) according to eq. 12 in Ihmsen et al. (2013)
-    foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        system_coords = current_coordinates(u, system)
-        neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        foreach_point_neighbor(system, neighbor_system,
-                               system_coords, neighbor_system_coords,
-                               semi;
-                               points=each_moving_particle(system)) do particle,
-                                                                       neighbor,
-                                                                       pos_diff,
-                                                                       distance
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-
-            # Compute d_ji according to eq. 9 in Ihmsen et al. (2013).
-            # Note that we compute d_ji and not d_ij. We can use the antisymmetry
-            # of the kernel gradient and just flip the sign of W_ij to obtain W_ji.
-            d_ji_ = -time_step^2 * hydrodynamic_mass(system, particle) /
-                    system.density[particle]^2 * (-grad_kernel)
-
-            d_ii_ = d_ii(system, particle)
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-
-            # According to eq. 12 in Ihmsen et al. (2013)
-            a_ii[particle] += m_b * dot((d_ii_ - d_ji_), grad_kernel)
-        end
-    end
+    # Calculation the diagonal elements (a_ii-values)
+    calculate_diagonal_elements(system, u, semi)
 
     # Calculate the predicted density (with the continuity equation and predicted velocities)
     foreach_system(semi) do neighbor_system
@@ -342,6 +312,66 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
             predicted_density[particle] += time_step * m_b *
                                            dot(advection_velocity_diff, grad_kernel)
         end
+    end
+end
+
+function calculate_diagonal_elements(system, u, semi)
+    (; a_ii) = system
+    set_zero!(a_ii)
+    foreach_system(semi) do neighbor_system
+        calculate_diagonal_elements(system, neighbor_system, u, semi, a_ii)
+    end
+end
+
+# Calculation the contribution of the fluid particles to the diagonal elements (a_ii-values)
+# according to eq. 12 in Ihmsen et al. (2013)
+function calculate_diagonal_elements(system, neighbor_system, u, semi, a_ii)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    system_coords = current_coordinates(u, system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    foreach_point_neighbor(system, neighbor_system,
+                           system_coords, neighbor_system_coords,
+                           semi;
+                           points=each_moving_particle(system)) do particle,
+                                                                   neighbor,
+                                                                   pos_diff,
+                                                                   distance
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+        # Compute d_ji according to eq. 9 in Ihmsen et al. (2013).
+        # Note that we compute d_ji and not d_ij. We can use the antisymmetry
+        # of the kernel gradient and just flip the sign of W_ij to obtain W_ji.
+        d_ji_ = -time_step^2 * hydrodynamic_mass(system, particle) /
+                system.density[particle]^2 * (-grad_kernel)
+
+        d_ii_ = d_ii(system, particle)
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+        # According to eq. 12 in Ihmsen et al. (2013)
+        a_ii[particle] += m_b * dot((d_ii_ - d_ji_), grad_kernel)
+    end
+end
+
+# Calculation the contribution of the boundary particles the diagonal elements (a_ii-values)
+# according to Ihmsen et al. (2013)
+function calculate_diagonal_elements(system, neighbor_system::boundary_system, u, semi, a_ii)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    system_coords = current_coordinates(u, system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    foreach_point_neighbor(system, neighbor_system,
+                           system_coords, neighbor_system_coords,
+                           semi;
+                           points=each_moving_particle(system)) do particle,
+                                                                   neighbor,
+                                                                   pos_diff,
+                                                                   distance
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+        d_ii_ = d_ii(system, particle)
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+        # Contribution to the diagonal elements wtihtout d_ji value (see eq. 16 in Ihmsen et al. (2013))
+        a_ii[particle] += m_b * dot(d_ii_, grad_kernel)
     end
 end
 
