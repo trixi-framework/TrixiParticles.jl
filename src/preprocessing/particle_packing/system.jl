@@ -216,12 +216,10 @@ end
 
 @inline requires_update_callback(system::ParticlePackingSystem) = true
 
-function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem)
     vtk["velocity"] = [advection_velocity(v, system, particle)
                        for particle in active_particles(system)]
-    if write_meta_data
-        vtk["signed_distances"] = system.signed_distances
-    end
+    vtk["signed_distances"] = system.signed_distances
 end
 
 # Skip for fixed systems
