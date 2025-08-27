@@ -229,8 +229,7 @@ end
 # `affect!`
 function (pp::PostprocessCallback)(integrator)
     @trixi_timeit timer() "apply postprocess cb" begin
-        dvdu_ode = get_du(integrator)
-        dv_ode, du_ode = dvdu_ode.x
+        dv_ode, du_ode = get_du(integrator).x
         vu_ode = integrator.u
         v_ode, u_ode = vu_ode.x
         semi = integrator.p

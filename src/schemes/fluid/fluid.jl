@@ -182,10 +182,11 @@ function system_data(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
 
     coordinates = current_coordinates(u, system)
     velocity = current_velocity(v, system)
+    acceleration = current_velocity(dv, system)
     density = current_density(v, system)
     pressure = current_pressure(v, system)
 
-    return (; coordinates, velocity, mass, density, pressure, acceleration=dv)
+    return (; coordinates, velocity, mass, density, pressure, acceleration)
 end
 
 function available_data(::FluidSystem)

@@ -505,7 +505,7 @@ function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_
 
     return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
             material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
-            lame_lambda, lame_mu, acceleration=dv)
+            lame_lambda, lame_mu, acceleration=current_velocity(dv, system))
 end
 
 function available_data(::TotalLagrangianSPHSystem)

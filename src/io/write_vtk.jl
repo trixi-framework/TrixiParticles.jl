@@ -15,8 +15,6 @@ end
 Convert Trixi simulation data to VTK format.
 
 # Arguments
-- `dvdu_ode`: Derivative of the TrixiParticles ODE system at one time step.
-              (Not public API: This expects an `ArrayPartition` as returned by `get_du(i::DEIntegrator)`.)
 - `vu_ode`: Solution of the TrixiParticles ODE system at one time step.
             This expects an `ArrayPartition` as returned in the examples as `sol.u[end]`.
 - `semi`:   Semidiscretization of the TrixiParticles simulation.
@@ -50,6 +48,16 @@ trixi2vtk(similar(sol.u[end]), sol.u[end], semi, 0.0, iter=1, my_custom_quantity
 
 ```
 """
+function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
+                   prefix="", write_meta_data=true, git_hash=compute_git_hash(),
+                   max_coordinates=Inf, custom_quantities...)
+
+    # The first argument is not necessary; this is only a wrapper for the public API.
+    return trixi2vtk(similar(vu_ode), vu_ode, semi, t; iter, output_directory,
+                     prefix, write_meta_data, git_hash, max_coordinates,
+                     custom_quantities...)
+end
+
 function trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, output_directory="out",
                    prefix="", write_meta_data=true, git_hash=compute_git_hash(),
                    max_coordinates=Inf, custom_quantities...)
