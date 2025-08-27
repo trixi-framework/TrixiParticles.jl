@@ -27,10 +27,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_a = current_pressure(v_particle_system, particle_system, particle)
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
-        # This technique is for a more robust `pressure_acceleration` but only with TVF.
-        # It results only in significant improvement for EDAC and not for WCSPH.
-        # See Ramachandran (2019) p. 582
-        # Note that the return value is zero when not using EDAC with TVF.
+        # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
+        # errors due to large pressures by subtracting the average pressure of neighboring
+        # particles.
+        # It results in significant improvement for EDAC, especially with TVF,
+        # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
+        # Note that the return value is zero when not using average pressure reduction.
         p_avg = average_pressure(particle_system, particle)
 
         m_a = hydrodynamic_mass(particle_system, particle)
@@ -50,10 +52,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
         # Add convection term (only when using `TransportVelocityAdami`)
-        dv_convection = momentum_convection(particle_system, neighbor_system,
-                                            v_particle_system, v_neighbor_system,
-                                            rho_a, rho_b, m_a, m_b,
-                                            particle, neighbor, grad_kernel)
+        dv_tvf = dv_transport_velocity(transport_velocity(particle_system),
+                                       particle_system, neighbor_system,
+                                       particle, neighbor,
+                                       v_particle_system, v_neighbor_system,
+                                       m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                                       grad_kernel, correction)
 
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
@@ -64,9 +68,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
-            dv[i,
-               particle] += dv_pressure[i] + dv_viscosity_[i] + dv_convection[i] +
-                            dv_surface_tension[i] + dv_adhesion[i]
+            @inbounds dv[i,
+                         particle] += dv_pressure[i] + dv_viscosity_[i] + dv_tvf[i] +
+                                      dv_surface_tension[i] + dv_adhesion[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
@@ -75,10 +79,6 @@ function interact!(dv, v_particle_system, u_particle_system,
         pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                             particle, neighbor, pos_diff, distance,
                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b)
-
-        # Apply the transport velocity (only when using a transport velocity)
-        transport_velocity!(dv, particle_system, neighbor_system, particle, neighbor,
-                            m_a, m_b, grad_kernel)
 
         continuity_equation!(dv, density_calculator, v_diff, particle, m_b, rho_a, rho_b,
                              particle_system, grad_kernel)
