@@ -147,9 +147,6 @@ function update_final!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-# Only for systems requiring the use of the `UpdateCallback`
-@inline requires_update_callback(system) = false
-
 @inline initial_smoothing_length(system) = smoothing_length(system, nothing)
 
 @inline function smoothing_length(system, particle)
