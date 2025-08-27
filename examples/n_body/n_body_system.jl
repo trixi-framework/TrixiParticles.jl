@@ -114,6 +114,10 @@ function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
     return vtk
 end
 
+function TrixiParticles.add_system_data!(system_data, system::NBodySystem)
+    return system_data
+end
+
 function Base.show(io::IO, system::NBodySystem)
     print(io, "NBodySystem{", ndims(system), "}() with ")
     print(io, TrixiParticles.nparticles(system), " particles")

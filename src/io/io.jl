@@ -2,7 +2,6 @@ include("write_vtk.jl")
 include("read_vtk.jl")
 
 # handle "_" on optional prefix/filename strings
-add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
 add_opt_str_post(str) = (str === "" ? "" : "_$(str)")
 
 function write_meta_data(callback::SolutionSavingCallback, integrator)
@@ -38,7 +37,7 @@ function create_meta_data_dict(callback, integrator)
     systems = Dict{String, Any}()
     foreach_system(semi) do system
         idx = system_indices(system, semi)
-        name = add_opt_str_pre(prefix) * "$(names[idx])"
+        name = prefix * add_opt_str_post("$(names[idx])")
 
         system_data = Dict{String, Any}()
         add_system_data!(system_data, system)
@@ -88,7 +87,7 @@ function add_system_data!(system_data, system::FluidSystem)
     system_data["acceleration"] = system.acceleration
     system_data["sound_speed"] = system_sound_speed(system)
     system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
-    add_system_data!(system_data, system.transport_velocity)
+    add_system_data!(system_data, system.shifting_technique)
     add_system_data!(system_data, system.surface_tension)
     add_system_data!(system_data, system.surface_normal_method)
     add_system_data!(system_data, system.viscosity)
@@ -300,8 +299,8 @@ function add_system_data!(system_data, penalty_force::PenaltyForceGanzenmueller)
     system_data["penalty_force"]["alpha"] = penalty_force.alpha
 end
 
-function add_system_data!(system_data, transport_velocity::TransportVelocityAdami)
-    system_data["transport_velocity"] = Dict{String, Any}()
-    system_data["transport_velocity"]["model"] = type2string(transport_velocity)
-    system_data["transport_velocity"]["background_pressure"] = transport_velocity.background_pressure
+function add_system_data!(system_data, shifting_technique::AbstractShiftingTechnique)
+    system_data["shifting_technique"] = Dict{String, Any}()
+    system_data["shifting_technique"]["model"] = type2string(shifting_technique)
+    system_data["shifting_technique"]["background_pressure"] = shifting_technique.background_pressure
 end
