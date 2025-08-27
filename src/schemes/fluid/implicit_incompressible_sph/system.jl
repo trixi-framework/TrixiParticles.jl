@@ -291,7 +291,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Calculation the diagonal elements (a_ii-values)
-    calculate_diagonal_elements(system, u, semi)
+    calculate_diagonal_elements(system, v, u, v_ode, u_ode, semi)
 
     # Calculate the predicted density (with the continuity equation and predicted velocities)
     foreach_system(semi) do neighbor_system
@@ -315,17 +315,17 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
-function calculate_diagonal_elements(system, u, semi)
-    (; a_ii) = system
+function calculate_diagonal_elements(system, v, u, v_ode, u_ode, semi)
+    (; a_ii, time_step) = system
     set_zero!(a_ii)
     foreach_system(semi) do neighbor_system
-        calculate_diagonal_elements(system, neighbor_system, u, semi, a_ii)
+        calculate_diagonal_elements(system, neighbor_system, v, u, v_ode, u_ode, semi, a_ii, time_step)
     end
 end
 
-# Calculation the contribution of the fluid particles to the diagonal elements (a_ii-values)
+# Calculation of the contribution of the fluid particles to the diagonal elements (a_ii-values)
 # according to eq. 12 in Ihmsen et al. (2013)
-function calculate_diagonal_elements(system, neighbor_system, u, semi, a_ii)
+function calculate_diagonal_elements(system, neighbor_system, v, u, v_ode, u_ode, semi, a_ii, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -352,9 +352,9 @@ function calculate_diagonal_elements(system, neighbor_system, u, semi, a_ii)
     end
 end
 
-# Calculation the contribution of the boundary particles the diagonal elements (a_ii-values)
+# Calculation of the contribution of the boundary particles the diagonal elements (a_ii-values)
 # according to Ihmsen et al. (2013)
-function calculate_diagonal_elements(system, neighbor_system::boundary_system, u, semi, a_ii)
+function calculate_diagonal_elements(system, neighbor_system::BoundarySystem, v, u, v_ode, u_ode, semi, a_ii, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
