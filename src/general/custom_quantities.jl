@@ -54,7 +54,7 @@ function max_pressure(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t
     return maximum(current_pressure(v, system))
 end
 
-function max_pressure(system, v_ode, u_ode, semi, t)
+function max_pressure(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return NaN
 end
 
@@ -68,7 +68,7 @@ function min_pressure(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t
     return minimum(current_pressure(v, system))
 end
 
-function min_pressure(system, v_ode, u_ode, semi, t)
+function min_pressure(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return NaN
 end
 
