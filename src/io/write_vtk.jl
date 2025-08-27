@@ -41,10 +41,10 @@ Convert Trixi simulation data to VTK format.
 
 # Example
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01), callbacks=nothing))
-trixi2vtk(nothing, sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
+trixi2vtk(similar(sol.u[end]), sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
 
 # Additionally store the kinetic energy of each system as "my_custom_quantity"
-trixi2vtk(nothing, sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
+trixi2vtk(similar(sol.u[end]), sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
 
 # output
 
