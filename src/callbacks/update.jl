@@ -83,10 +83,6 @@ function (update_callback!::UpdateCallback)(integrator)
         update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
     end
 
-    @trixi_timeit timer() "update particle packing" foreach_system(semi) do system
-        update_particle_packing(system, v_ode, u_ode, semi, integrator)
-    end
-
     # Tell OrdinaryDiffEq that `u` has been modified
     u_modified!(integrator, true)
 

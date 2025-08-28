@@ -221,8 +221,6 @@ end
     return ndims(system)
 end
 
-@inline requires_update_callback(system::ParticlePackingSystem) = true
-
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     vtk["velocity"] = [delta_v(system, particle)
                        for particle in active_particles(system)]
@@ -269,27 +267,15 @@ end
 @inline source_terms(system::ParticlePackingSystem) = nothing
 @inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
 
-# Update from `UpdateCallback` (between time steps)
-update_particle_packing(system, v_ode, u_ode, semi, integrator) = system
-
-# Update from `UpdateCallback` (between time steps)
-function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
-                                 semi, integrator)
-    u = wrap_u(u_ode, system, semi)
-
-    @trixi_timeit timer() "constrain particles onto surface" begin
-        constrain_particles_onto_surface!(u, system, semi)
-    end
-end
-
 function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, t)
     update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
+    constrain_particles_onto_surface!(system, v, u, semi)
 end
 
 # Skip for systems without `SignedDistanceField`
-constrain_particles_onto_surface!(u, system::ParticlePackingSystem{Nothing}, semi) = u
+constrain_particles_onto_surface!(system::ParticlePackingSystem{Nothing}, v, u, semi) = system
 
-function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, semi)
+function constrain_particles_onto_surface!(system::ParticlePackingSystem, v, u, semi)
     (; neighborhood_search, signed_distance_field, smoothing_length_interpolation) = system
     (; distances, normals) = signed_distance_field
 
@@ -316,9 +302,7 @@ function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, sem
                                    smoothing_length_interpolation)
 
             distance_signed += distances[neighbor] * kernel_weight
-
             normal_vector += normals[neighbor] * kernel_weight
-
             volume += kernel_weight
         end
 
@@ -329,15 +313,19 @@ function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, sem
             # Store signed distance for visualization
             system.signed_distances[particle] = distance_signed
 
-            constrain_particle!(u, system, particle, distance_signed, normal_vector)
+            constrain_particle!(system, particle, distance_signed, normal_vector)
         end
     end
 
-    return u
+    return system
 end
 
-function constrain_particle!(u, system, particle, distance_signed, normal_vector)
-    (; shift_length) = system
+function constrain_particle!(system, particle, distance_signed, normal_vector)
+    (; shift_length, cache) = system
+    (; delta_v) = cache
+
+    h = smoothing_length(system, particle)
+    sound_speed = system_sound_speed(system)
 
     # For fluid particles:
     # - `tlsph = true`: `shift_length = 0`
@@ -349,11 +337,11 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
         shift = (distance_signed + shift_length) * normal_vector
 
         for dim in 1:ndims(system)
-            u[dim, particle] -= shift[dim]
+            delta_v[dim, particle] -= sound_speed / h * shift[dim]
         end
     end
 
-    system.is_boundary || return u
+    system.is_boundary || return system
 
     particle_spacing = system.particle_spacing
     shift_length_inner = system.tlsph ? particle_spacing : particle_spacing / 2
@@ -362,11 +350,11 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
         shift = (distance_signed - shift_length_inner) * normal_vector
 
         for dim in 1:ndims(system)
-            u[dim, particle] -= shift[dim]
+            delta_v[dim, particle] -= sound_speed / h * shift[dim]
         end
     end
 
-    return u
+    return system
 end
 
 @inline function add_velocity!(du, v, particle, system::ParticlePackingSystem)
