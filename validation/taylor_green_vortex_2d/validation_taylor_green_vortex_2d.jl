@@ -74,8 +74,8 @@ end
 
 # The pressure plotted in the paper is the difference of the local pressure minus
 # the average of the pressure of all particles.
-function diff_p_loc_p_avg(system, v, u, semi, t)
-    p_avg_tot = avg_pressure(system, v, u, semi, t)
+function diff_p_loc_p_avg(system, dv_ode, du_ode, v, u, semi, t)
+    p_avg_tot = avg_pressure(system, dv_ode, du_ode, v, u, semi, t)
 
     return v[end, :] .- p_avg_tot
 end
