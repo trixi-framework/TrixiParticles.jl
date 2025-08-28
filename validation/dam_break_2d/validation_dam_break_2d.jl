@@ -49,15 +49,15 @@ sensor_names = ["P1", "P2", "P3"]
 tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing -
                     0.5 * particle_spacing
 
-pressure_P1 = (system, v_ode, u_ode, semi,
+pressure_P1 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
                t) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
                                            [tank_right_wall_x, P1_y_bottom],
                                            v_ode, u_ode, t, system, semi)
-pressure_P2 = (system, v_ode, u_ode, semi,
+pressure_P2 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
                t) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
                                            [tank_right_wall_x, P2_y_bottom],
                                            v_ode, u_ode, t, system, semi)
-pressure_P3 = (system, v_ode, u_ode, semi,
+pressure_P3 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
                t) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
                                            [tank_right_wall_x, P3_y_bottom],
                                            v_ode, u_ode, t, system, semi)
