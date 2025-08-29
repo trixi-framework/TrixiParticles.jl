@@ -23,7 +23,7 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `omega`:                      Relaxiaion parameter for the relaxed jacobi scheme(default: 0.5)
-- `max_error`:                  Maximal error for the termination condition in the relaxed jacobi scheme (default: 0.1)
+- `max_error (in %)`:           Maximal error (in %) for the termination condition in the relaxed jacobi scheme  (default: 0.1)
 - `min_iterations`:             Minimal number of iterations in the relaxed jacobi scheme, independent from the termination condition. (default: 2)
 - `max_iterations`:             Maximal number of iterations in the relaxed jacobi scheme, independent from the termination condition. (default: 20)
 - `time_step`:                  Time step size used for the simulation (default: 0.001)
@@ -51,9 +51,9 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     sum_d_ij_pj                       :: ARRAY2D # \sum_j d_{ij} p_j (Eq. 10)
     sum_term                          :: ARRAY1D # Sum term of Eq. 13
     omega                             :: ELTYPE  # Relaxed Jacobi parameter
-    max_error                         :: ELTYPE
-    min_iterations                    :: Int
-    max_iterations                    :: Int
+    max_error                         :: ELTYPE  # maximal error of the average density deviation (in %)
+    min_iterations                    :: Int     # minimum number of iterations in the pressure solver
+    max_iterations                    :: Int     # maximum number of iterations in the pressure solver
     time_step                         :: ELTYPE
     cache                             :: C
 end
