@@ -268,8 +268,12 @@ end
 @inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
 
 function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, t)
-    update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
-    constrain_particles_onto_surface!(system, v, u, semi)
+    @trixi_timeit timer() "update packing velocity" begin
+        update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
+    end
+    @trixi_timeit timer() "constrain particles onto surface" begin
+        constrain_particles_onto_surface!(system, v, u, semi)
+    end
 end
 
 # Skip for systems without `SignedDistanceField`
@@ -289,9 +293,11 @@ function constrain_particles_onto_surface!(system::ParticlePackingSystem, v, u, 
                            points_moving=(true, false))
 
     @threaded semi for particle in eachparticle(system)
-        volume = zero(eltype(system))
-        distance_signed = zero(eltype(system))
-        normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
+        # Use `Ref` to ensure the variables are accessible and mutable within the closure below
+        # (see https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured).
+        volume = Ref(zero(eltype(system)))
+        distance_signed = Ref(zero(eltype(system)))
+        normal_vector = Ref(fill(volume[], SVector{ndims(system), eltype(system)}))
 
         # Interpolate signed distances and normals.
         # TODO: Use public API of PointNeighbors.jl
@@ -301,19 +307,19 @@ function constrain_particles_onto_surface!(system::ParticlePackingSystem, v, u, 
             kernel_weight = kernel(system.smoothing_kernel, distance,
                                    smoothing_length_interpolation)
 
-            distance_signed += distances[neighbor] * kernel_weight
-            normal_vector += normals[neighbor] * kernel_weight
-            volume += kernel_weight
+            distance_signed[] += distances[neighbor] * kernel_weight
+            normal_vector[] += normals[neighbor] * kernel_weight
+            volume[] += kernel_weight
         end
 
-        if volume > eps()
-            distance_signed /= volume
-            normal_vector /= volume
+        if volume[] > eps()
+            distance_signed[] /= volume[]
+            normal_vector[] /= volume[]
 
             # Store signed distance for visualization
-            system.signed_distances[particle] = distance_signed
+            system.signed_distances[particle] = distance_signed[]
 
-            constrain_particle!(system, particle, distance_signed, normal_vector)
+            constrain_particle!(system, particle, distance_signed[], normal_vector[])
         end
     end
 
