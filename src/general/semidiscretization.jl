@@ -599,6 +599,7 @@ end
 
 @inline source_terms(system) = nothing
 @inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
+@inline source_terms(system::ImplicitIncompressibleSPHSystem) = nothing
 
 @inline add_acceleration!(dv, particle, system) = dv
 
@@ -967,6 +968,15 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+end
+
+function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
+    foreach_system(systems) do neighbor
+        if neighbor isa WeaklyCompressibleSPHSystem
+            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
+            `WeaklyCompressibleSPHSystem`"))
+        end
     end
 end
 
