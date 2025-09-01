@@ -68,14 +68,14 @@ There are three ways to specify the actual shape of the boundary zone:
 ```jldoctest; output=false
 # 2D
 plane_points = ([0.0, 0.0], [0.0, 1.0])
-plane_normal=[1.0, 0.0]
+plane_normal = [1.0, 0.0]
 
 inflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
                       open_boundary_layers=4, boundary_type=InFlow())
 
 # 3D
 plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
-plane_normal=[0.0, 0.0, 1.0]
+plane_normal = [0.0, 0.0, 1.0]
 
 outflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
                        open_boundary_layers=4, boundary_type=OutFlow())
