@@ -54,7 +54,9 @@ function initialize_split_integration!(cb, u, t, integrator)
     # We need the timer here to keep the output clean because this will call `kick!` once.
     @trixi_timeit timer() "split integration" begin
         @trixi_timeit timer() "init" begin
-            TimerOutputs.@notimeit timer() split_integrator = SciMLBase.init(ode_split, alg; save_everystep=false, kwargs...)
+            TimerOutputs.@notimeit timer() split_integrator = SciMLBase.init(ode_split, alg;
+                                                                             save_everystep=false,
+                                                                             kwargs...)
         end
     end
 
@@ -104,7 +106,8 @@ function affect_inner!(integrator, split_integrator)
         v_ode_split, u_ode_split = split_integrator.u.x
 
         # Copy the solutions back to the original integrator
-        @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode, v_ode_split, u_ode_split, semi, semi_split)
+        @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode, v_ode_split,
+                                                           u_ode_split, semi, semi_split)
     end
 
     # Tell OrdinaryDiffEq that `u` has been modified
