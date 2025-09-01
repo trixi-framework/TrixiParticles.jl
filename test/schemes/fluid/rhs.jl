@@ -32,6 +32,18 @@
                 TrixiParticles.pressure_acceleration_summation_density
             ]
 
+            # Partly copied from constructor test, just to create a WCSPH system
+            coordinates = zeros(2, 3)
+            velocity = zeros(2, 3)
+            mass = zeros(3)
+            density = ones(3)
+            state_equation = Val(:state_equation)
+            smoothing_kernel = Val(:smoothing_kernel)
+            TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
+            smoothing_length = -1.0
+
+            fluid = InitialCondition(; coordinates, velocity, mass, density)
+
             @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
                                                                    density_calculators
 
@@ -40,18 +52,6 @@
 
                     for (m_a, m_b) in masses, (rho_a, rho_b) in densities,
                         (p_a, p_b) in pressures, grad_kernel in grad_kernels
-
-                        # Partly copied from constructor test, just to create a WCSPH system
-                        coordinates = zeros(2, 3)
-                        velocity = zeros(2, 3)
-                        mass = zeros(3)
-                        density = ones(3)
-                        state_equation = Val(:state_equation)
-                        smoothing_kernel = Val(:smoothing_kernel)
-                        smoothing_length = -1.0
-
-                        fluid = InitialCondition(; coordinates, velocity, mass, density)
-
                         @testset verbose=true "$system_name" for system_name in [
                             "WCSPH",
                             "EDAC"

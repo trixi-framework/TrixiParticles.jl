@@ -57,8 +57,8 @@ include("callbacks/callbacks.jl")
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("io/io.jl")
-include("visualization/recipes_plots.jl")
 include("preprocessing/preprocessing.jl")
+include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -82,6 +82,7 @@ export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
        BernoulliPressureExtrapolation
+export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export BoundaryMovement
 export examples_dir, validation_dir
