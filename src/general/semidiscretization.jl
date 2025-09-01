@@ -62,7 +62,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
     # and by Adapt.jl.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
-                                update_callback_used)
+                                update_callback_used, integrate_tlsph)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
             typeof(update_callback_used),
