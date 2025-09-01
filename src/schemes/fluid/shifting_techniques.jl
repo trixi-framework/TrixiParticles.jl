@@ -42,7 +42,7 @@ end
 
 # Additional term in the momentum equation due to the shifting technique
 @inline function dv_shifting(shifting, system, neighbor_system,
-                             particle, neighbor, v_system, v_neighbor_system,
+                             v_system, v_neighbor_system, particle, neighbor,
                              m_a, m_b, rho_a, rho_b, pos_diff, distance,
                              grad_kernel, correction)
     return zero(grad_kernel)
@@ -321,12 +321,12 @@ end
 
 # `ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, true}` means
 # `modify_momentum_equation=true`.
-@propagate_inbounds function dv_particle_shifting(::ParticleShiftingTechnique{<:Any, <:Any,
-                                                                              <:Any, <:Any,
-                                                                              true},
-                                                  system, neighbor_system,
-                                                  v_system, v_neighbor_system, particle,
-                                                  neighbor, m_b, rho_b, grad_kernel)
+@propagate_inbounds function dv_shifting(::ParticleShiftingTechnique{<:Any, <:Any,
+                                                                     <:Any, <:Any, true},
+                                         system, neighbor_system,
+                                         v_system, v_neighbor_system,
+                                         particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                         pos_diff, distance, grad_kernel, correction)
     delta_v_a = delta_v(system, particle)
     delta_v_b = delta_v(neighbor_system, neighbor)
 
@@ -550,7 +550,7 @@ struct TransportVelocityAdami{modify_continuity_equation, T <: Real} <:
 end
 
 @propagate_inbounds function dv_shifting(::TransportVelocityAdami, system, neighbor_system,
-                                         particle, neighbor, v_system, v_neighbor_system,
+                                         v_system, v_neighbor_system, particle, neighbor,
                                          m_a, m_b, rho_a, rho_b, pos_diff, distance,
                                          grad_kernel, correction)
     v_a = current_velocity(v_system, system, particle)
