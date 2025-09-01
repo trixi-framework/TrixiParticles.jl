@@ -273,7 +273,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "periodic_channel_2d.jl"),
                                          tspan=(0.0, 0.2),
-                                         shifting_technique=ParticleShiftingTechnique(),
+                                         shifting_technique=ParticleShiftingTechniqueSun2017(),
                                          extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
@@ -295,7 +295,19 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "periodic_channel_2d.jl"),
                                          tspan=(0.0, 0.2),
-                                         shifting_technique=ParticleShiftingTechnique(),
+                                         shifting_technique=ParticleShiftingTechniqueSun2017(),
+                                         pressure_acceleration=tensile_instability_control,
+                                         extra_callback=UpdateCallback())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/periodic_channel_2d.jl with consistent PST and TIC" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "periodic_channel_2d.jl"),
+                                         tspan=(0.0, 0.2),
+                                         shifting_technique=ConsistentShiftingSun2019(),
                                          pressure_acceleration=tensile_instability_control,
                                          extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success

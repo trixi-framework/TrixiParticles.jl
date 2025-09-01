@@ -67,7 +67,8 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback
 export ContinuityDensity, SummationDensity
-export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique
+export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
+       ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
