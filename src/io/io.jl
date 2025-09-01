@@ -299,8 +299,13 @@ function add_system_data!(system_data, penalty_force::PenaltyForceGanzenmueller)
     system_data["penalty_force"]["alpha"] = penalty_force.alpha
 end
 
-function add_system_data!(system_data, shifting_technique::AbstractShiftingTechnique)
+function add_system_data!(system_data, shifting_technique::TransportVelocityAdami)
     system_data["shifting_technique"] = Dict{String, Any}()
     system_data["shifting_technique"]["model"] = type2string(shifting_technique)
     system_data["shifting_technique"]["background_pressure"] = shifting_technique.background_pressure
+end
+
+function add_system_data!(system_data, shifting_technique::ParticleShiftingTechnique)
+    system_data["shifting_technique"] = Dict{String, Any}()
+    system_data["shifting_technique"]["model"] = type2string(shifting_technique)
 end
