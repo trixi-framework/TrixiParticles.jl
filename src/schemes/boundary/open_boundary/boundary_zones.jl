@@ -65,7 +65,7 @@ There are three ways to specify the actual shape of the boundary zone:
                                   Averaging mitigates these effects.
 
 # Examples
-```jldoctest
+```jldoctest; output=false
 # 2D
 plane_points = ([0.0, 0.0], [0.0, 1.0])
 plane_normal=[1.0, 0.0]
