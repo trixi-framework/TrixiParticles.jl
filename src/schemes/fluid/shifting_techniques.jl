@@ -127,13 +127,18 @@ We provide the following convenience constructors for common variants of the met
                                 Only one of `v_max_factor` and `sound_speed_factor`
                                 can be non-zero.
 
-The current default is
+The current default is:
+```jldoctest; output = false
     ParticleShiftingTechnique(integrate_shifting_velocity=true,
                               update_everystage=false,
                               modify_continuity_equation=true,
                               second_continuity_equation_term=true,
                               modify_momentum_equation=true,
                               v_max_factor=1)
+
+# output
+ParticleShiftingTechnique{true, false, true, true, true, true, Int64}(1)
+```
 
 This is subject to change in future releases.
 
@@ -206,13 +211,18 @@ Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017).
 Following the original paper, the callback is applied in every time step and not
 in every stage of a multi-stage time integration method to reduce the computational cost.
 
-This is a convenience constructor for
-    ParticleShiftingTechnique(integrate_shifting_velocity=false,
-                              update_everystage=false,
-                              modify_continuity_equation=false,
-                              second_continuity_equation_term=false,
-                              modify_momentum_equation=false,
-                              v_max_factor=1, sound_speed_factor=0)
+This is a convenience constructor for:
+```jldoctest; output = false
+ParticleShiftingTechnique(integrate_shifting_velocity=false,
+                          update_everystage=false,
+                          modify_continuity_equation=false,
+                          second_continuity_equation_term=false,
+                          modify_momentum_equation=false,
+                          v_max_factor=1, sound_speed_factor=0)
+
+# output
+ParticleShiftingTechnique{false, false, false, false, false, true, Int64}(1)
+```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
 
@@ -247,13 +257,18 @@ end
 
 Consistent Particle Shifting Technique by [Sun et al. (2019)](@cite Sun2019).
 
-This is a convenience constructor for
-    ParticleShiftingTechnique(integrate_shifting_velocity=true,
-                              update_everystage=true,
-                              modify_continuity_equation=true,
-                              second_continuity_equation_term=true,
-                              modify_momentum_equation=true,
-                              v_max_factor=0, sound_speed_factor=0.1)
+This is a convenience constructor for:
+```jldoctest; output = false
+ParticleShiftingTechnique(integrate_shifting_velocity=true,
+                          update_everystage=true,
+                          modify_continuity_equation=true,
+                          second_continuity_equation_term=true,
+                          modify_momentum_equation=true,
+                          v_max_factor=0, sound_speed_factor=0.1)
+
+# output
+ParticleShiftingTechnique{true, true, true, true, true, false, Float64}(0.1)
+```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
 
