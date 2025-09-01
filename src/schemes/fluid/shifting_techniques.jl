@@ -60,7 +60,8 @@ end
                               update_everystage=false,
                               modify_continuity_equation=true,
                               second_continuity_equation_term=true,
-                              modify_momentum_equation=true)
+                              modify_momentum_equation=true,
+                              v_max_factor=1, sound_speed_factor=0)
 
 Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017).
 Following the original paper, the callback is applied in every time step and not
@@ -111,13 +112,28 @@ We provide the following convenience constructors for common variants of the met
                                 by [Sun et al. (2019)](@cite Sun2019) is added
                                 to the momentum equation.
                                 This requires `integrate_shifting_velocity=true`.
+- `v_max_factor`:               Factor to scale the expected maximum velocity used in the
+                                shifting velocity. The maximum expected velocity is computed as
+                                `v_max_factor * max(|v|)`, where `v` is the physical velocity.
+                                As opposed to `sound_speed_factor`, the computed expected
+                                maximum velocity depends on the current flow field
+                                and can change over time.
+                                Only one of `v_max_factor` and `sound_speed_factor`
+                                can be non-zero.
+- `sound_speed_factor`:         Factor to compute the maximum expected velocity used in the
+                                shifting velocity from the speed of sound.
+                                The maximum expected velocity is computed as
+                                `sound_speed_factor * c`, where `c` is the speed of sound.
+                                Only one of `v_max_factor` and `sound_speed_factor`
+                                can be non-zero.
 
 The current default is
     ParticleShiftingTechnique(integrate_shifting_velocity=true,
                               update_everystage=false,
                               modify_continuity_equation=true,
                               second_continuity_equation_term=true,
-                              modify_momentum_equation=true)
+                              modify_momentum_equation=true,
+                              v_max_factor=1)
 
 This is subject to change in future releases.
 
@@ -130,13 +146,17 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                  update_everystage,
                                  modify_continuity_equation,
                                  second_continuity_equation_term,
-                                 modify_momentum_equation} <:
-       AbstractShiftingTechnique
+                                 modify_momentum_equation,
+                                 compute_v_max,
+                                 ELTYPE} <: AbstractShiftingTechnique
+    v_factor::ELTYPE
+
     function ParticleShiftingTechnique(; integrate_shifting_velocity=true,
                                        update_everystage=false,
                                        modify_continuity_equation=true,
                                        second_continuity_equation_term=true,
-                                       modify_momentum_equation=true)
+                                       modify_momentum_equation=true,
+                                       v_max_factor=1, sound_speed_factor=0)
         if !integrate_shifting_velocity && update_everystage
             throw(ArgumentError("ParticleShiftingTechnique: " *
                                 "integrate_shifting_velocity=false requires " *
@@ -161,16 +181,26 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                 "integrate_shifting_velocity=true"))
         end
 
+        if v_max_factor > 0 && sound_speed_factor > 0
+            throw(ArgumentError("ParticleShiftingTechnique: " *
+                                "Only one of v_max_factor and sound_speed_factor " *
+                                "can be non-zero"))
+        end
+
+        v_factor = max(v_max_factor, sound_speed_factor)
+        compute_v_max = v_max_factor > 0
+
         new{integrate_shifting_velocity,
             update_everystage,
             modify_continuity_equation,
             second_continuity_equation_term,
-            modify_momentum_equation}()
+            modify_momentum_equation,
+            compute_v_max, typeof(v_factor)}(v_factor)
     end
 end
 
 """
-    ParticleShiftingTechniqueSun2017(kwargs...)
+    ParticleShiftingTechniqueSun2017(; kwargs...)
 
 Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017).
 Following the original paper, the callback is applied in every time step and not
@@ -181,7 +211,8 @@ This is a convenience constructor for
                               update_everystage=false,
                               modify_continuity_equation=false,
                               second_continuity_equation_term=false,
-                              modify_momentum_equation=false)
+                              modify_momentum_equation=false,
+                              v_max_factor=1, sound_speed_factor=0)
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
 
@@ -189,11 +220,11 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 - `kwargs...`: All keywords are passed to the main constructor.
 
 # Examples
-```jldoctest
-pst = ParticleShiftingTechniqueSun2017()
-fluid_system = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, shifting_technique=pst)
+```jldoctest; output = false
+shifting_technique = ParticleShiftingTechniqueSun2017()
+
+# output
+ParticleShiftingTechnique{false, false, false, false, false, true, Int64}(1)
 ```
 
 !!! warning
@@ -201,16 +232,18 @@ fluid_system = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(
     and therefore requires a free surface detection method. This is not yet implemented.
     **This technique cannot be used in a free surface simulation.**
 """
-function ParticleShiftingTechniqueSun2017()
-    return ParticleShiftingTechnique(integrate_shifting_velocity=false,
+function ParticleShiftingTechniqueSun2017(; kwargs...)
+    return ParticleShiftingTechnique(; integrate_shifting_velocity=false,
                                      update_everystage=false,
                                      modify_continuity_equation=false,
                                      second_continuity_equation_term=false,
-                                     modify_momentum_equation=false)
+                                     modify_momentum_equation=false,
+                                     v_max_factor=1, sound_speed_factor=0,
+                                     kwargs...)
 end
 
 """
-    ConsistentShiftingSun2019(kwargs...)
+    ConsistentShiftingSun2019(; sound_speed_factor=0.1, kwargs...)
 
 Consistent Particle Shifting Technique by [Sun et al. (2019)](@cite Sun2019).
 
@@ -219,19 +252,27 @@ This is a convenience constructor for
                               update_everystage=true,
                               modify_continuity_equation=true,
                               second_continuity_equation_term=true,
-                              modify_momentum_equation=true)
+                              modify_momentum_equation=true,
+                              v_max_factor=0, sound_speed_factor=0.1)
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
 
 # Keywords
+- `sound_speed_factor`: Factor to compute the maximum expected velocity used in the
+                        shifting velocity from the speed of sound.
+                        The maximum expected velocity is computed as
+                        `sound_speed_factor * c`, where `c` is the speed of sound.
+                        Since the speed of sound is usually chosen as 10 times the maximum
+                        expected velocity in weakly compressible SPH, a value of 0.1
+                        corresponds to the maximum expected velocity.
 - `kwargs...`: All keywords are passed to the main constructor.
 
 # Examples
-```jldoctest
-pst = ConsistentShiftingSun2019()
-fluid_system = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, shifting_technique=pst)
+```jldoctest; output = false
+shifting_technique = ConsistentShiftingSun2019()
+
+# output
+ParticleShiftingTechnique{true, true, true, true, true, false, Float64}(0.1)
 ```
 
 !!! warning
@@ -239,12 +280,14 @@ fluid_system = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(
     and therefore requires a free surface detection method. This is not yet implemented.
     **This technique cannot be used in a free surface simulation.**
 """
-function ConsistentShiftingSun2019()
-    return ParticleShiftingTechnique(integrate_shifting_velocity=true,
+function ConsistentShiftingSun2019(; kwargs...)
+    return ParticleShiftingTechnique(; integrate_shifting_velocity=true,
                                      update_everystage=true,
                                      modify_continuity_equation=true,
                                      second_continuity_equation_term=true,
-                                     modify_momentum_equation=true)
+                                     modify_momentum_equation=true,
+                                     v_max_factor=0, sound_speed_factor=0.1,
+                                     kwargs...)
 end
 
 # `ParticleShiftingTechnique{false}` means `integrate_shifting_velocity=false`.
@@ -330,18 +373,36 @@ function update_shifting_from_callback!(system,
     update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
 end
 
-function update_shifting_inner!(system, ::ParticleShiftingTechnique,
+# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, <:Any, true}`
+# means `compute_v_max=true`
+function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, <:Any, true},
+               v, system)
+    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # but is GPU-compatible.
+    v_max = maximum(x -> sqrt(dot(x, x)),
+                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                                current_velocity(v, system)))
+    return shifting.v_factor * v_max
+end
+
+# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, <:Any, false}`
+# means `compute_v_max=false`
+function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, <:Any,
+                                                   false},
+               v, system)
+    sound_speed = system_sound_speed(system)
+
+    return shifting.v_factor * sound_speed
+end
+
+function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
                                 v, u, v_ode, u_ode, semi)
     (; cache) = system
     (; delta_v) = cache
 
     set_zero!(delta_v)
 
-    # This has similar performance to `maximum(..., eachparticle(system))`,
-    # but is GPU-compatible.
-    v_max = maximum(x -> sqrt(dot(x, x)),
-                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
-                                current_velocity(v, system)))
+    v_max_ = v_max(shifting, v, system)
 
     # TODO this needs to be adapted to multi-resolution.
     # Section 3.2 explains what else needs to be changed.
@@ -382,7 +443,7 @@ function update_shifting_inner!(system, ::ParticleShiftingTechnique,
             # - linearly with the particle spacing,
             # - linearly with the time step.
             # See https://github.com/trixi-framework/TrixiParticles.jl/pull/834.
-            delta_v_ = -v_max * (2 * h)^2 / (2 * dx) * (1 + R * (kernel / Wdx)^n) *
+            delta_v_ = -v_max_ * (2 * h)^2 / (2 * dx) * (1 + R * (kernel / Wdx)^n) *
                        m_b / (rho_a + rho_b) * grad_kernel
 
             # Write into the buffer
