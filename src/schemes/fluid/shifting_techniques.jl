@@ -192,6 +192,12 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                 "can be non-zero"))
         end
 
+        if v_max_factor <= 0 && sound_speed_factor <= 0
+            throw(ArgumentError("ParticleShiftingTechnique: " *
+                                "One of v_max_factor and sound_speed_factor " *
+                                "must be positive"))
+        end
+
         v_factor = max(v_max_factor, sound_speed_factor)
         compute_v_max = v_max_factor > 0
 
