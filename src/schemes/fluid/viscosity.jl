@@ -1,5 +1,6 @@
-
-# Unpack the neighboring systems viscosity to dispatch on the viscosity type
+# Unpack the neighboring systems viscosity to dispatch on the viscosity type.
+# This function is only necessary to allow `nothing` as viscosity.
+# Otherwise, we could just apply the viscosity as a function directly.
 @propagate_inbounds function dv_viscosity(particle_system, neighbor_system,
                                           v_particle_system, v_neighbor_system,
                                           particle, neighbor, pos_diff, distance,
@@ -98,6 +99,7 @@ end
 
     smoothing_length_particle = smoothing_length(particle_system, particle)
     smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
+    smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
     nu_a = kinematic_viscosity(particle_system,
                                viscosity_model(neighbor_system, particle_system),
@@ -106,7 +108,6 @@ end
                                viscosity_model(particle_system, neighbor_system),
                                smoothing_length_neighbor, sound_speed)
 
-    smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
     pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, rho_a, rho_b,
                       smoothing_length_average, grad_kernel, nu_a, nu_b)
 
