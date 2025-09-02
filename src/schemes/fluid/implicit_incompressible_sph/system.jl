@@ -1,13 +1,16 @@
 """
-ImplicitIncompressibleSPHSystem(initial_condition,
-                                smoothing_kernel, smoothing_length;
-                                viscosity=nothing,
-                                acceleration=ntuple(_ -> 0.0,ndims(smoothing_kernel)))
+    ImplicitIncompressibleSPHSystem(initial_condition,
+                                    smoothing_kernel, smoothing_length,
+                                    reference_density;
+                                    viscosity=nothing,
+                                    acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
+                                    omega=0.5, max_error=0.1, min_iterations=2,
+                                    max_iterations=20, time_step)
 
 System for particles of a fluid.
-The implicit incompressible SPH (IISPH) scheme is used, wherein a linear systems gets solved
+The implicit incompressible SPH (IISPH) scheme is used, wherein a linear system is solved
 iteratively in order to compute the correct pressure values such that the density deviation
-from the rest density is (almost) zero.
+from the rest density is below a certain threshold.
 See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 
 # Arguments
@@ -19,14 +22,14 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `reference_density`:  Reference density used for the fluid particles
 
 # Keyword Arguments
-- `viscosity`:                  Viscosity model for this system (default: no viscosity).
-                                See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
+- `viscosity`:                  Currently, only [`ArtificialViscosityMorris`](@ref)
+                                and [`ViscosityAdami`](@ref) are supported.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
-- `omega`:                      Relaxiaion parameter for the relaxed jacobi scheme(default: 0.5)
-- `max_error (in %)`:           Maximal error (in %) for the termination condition in the relaxed jacobi scheme  (default: 0.1)
-- `min_iterations`:             Minimal number of iterations in the relaxed jacobi scheme, independent from the termination condition. (default: 2)
-- `max_iterations`:             Maximal number of iterations in the relaxed jacobi scheme, independent from the termination condition. (default: 20)
-- `time_step`:                  Time step size used for the simulation (default: 0.001)
+- `omega = 0.5`:                Relaxiaion parameter for the relaxed jacobi scheme
+- `max_error = 0.1`:            Maximal error (in %) for the termination condition in the relaxed jacobi scheme
+- `min_iterations = 2`:         Minimal number of iterations in the relaxed jacobi scheme, independent from the termination condition
+- `max_iterations = 20`:        Maximal number of iterations in the relaxed jacobi scheme, independent from the termination condition
+- `time_step`:                  Time step size used for the simulation
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
                                        IC, K, V, PF, C} <: FluidSystem{NDIMS}
@@ -291,7 +294,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Calculation the diagonal elements (a_ii-values)
-    calculate_diagonal_elements(system, v, u, v_ode, u_ode, semi)
+    calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
 
     # Calculate the predicted density (with the continuity equation and predicted velocities)
     foreach_system(semi) do neighbor_system
@@ -315,23 +318,23 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
-function calculate_diagonal_elements(system, v, u, v_ode, u_ode, semi)
+function calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
     (; a_ii, time_step) = system
     set_zero!(a_ii)
     foreach_system(semi) do neighbor_system
-        calculate_diagonal_elements(system, neighbor_system, v, u, v_ode, u_ode, semi, a_ii, time_step)
+        calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode, u_ode, semi, time_step)
     end
 end
 
 # Calculation of the contribution of the fluid particles to the diagonal elements (a_ii-values)
-# according to eq. 12 in Ihmsen et al. (2013)
-function calculate_diagonal_elements(system, neighbor_system, v, u, v_ode, u_ode, semi, a_ii, time_step)
+# according to eq. 12 in Ihmsen et al. (2013).
+function calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode, u_ode, semi, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
     foreach_point_neighbor(system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           semi;
+                           system_coords, neighbor_system_coords, semi;
                            points=each_moving_particle(system)) do particle,
                                                                    neighbor,
                                                                    pos_diff,
@@ -354,13 +357,13 @@ end
 
 # Calculation of the contribution of the boundary particles the diagonal elements (a_ii-values)
 # according to Ihmsen et al. (2013)
-function calculate_diagonal_elements(system, neighbor_system::BoundarySystem, v, u, v_ode, u_ode, semi, a_ii, time_step)
+function calculate_diagonal_elements!(a_ii, system, neighbor_system::BoundarySystem, v, u, v_ode, u_ode, semi, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
     foreach_point_neighbor(system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           semi;
+                           system_coords, neighbor_system_coords, semi;
                            points=each_moving_particle(system)) do particle,
                                                                    neighbor,
                                                                    pos_diff,
@@ -370,7 +373,7 @@ function calculate_diagonal_elements(system, neighbor_system::BoundarySystem, v,
         d_ii_ = d_ii(system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        # Contribution to the diagonal elements wtihtout d_ji value (see eq. 16 in Ihmsen et al. (2013))
+        # Contribution to the diagonal elements without d_ji value (see eq. 16 in Ihmsen et al. (2013))
         a_ii[particle] += m_b * dot(d_ii_, grad_kernel)
     end
 end
@@ -379,7 +382,6 @@ end
 function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
     (; reference_density, max_error, min_iterations, max_iterations, time_step) = system
 
-    avg_density_error = 0.0
     l = 1
     terminate = false
     # Convert relative error in percent to absolute error
