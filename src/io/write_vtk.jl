@@ -9,7 +9,7 @@ function system_names(systems)
 end
 
 """
-    trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
+    trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
               write_meta_data=true, max_coordinates=Inf, custom_quantities...)
 
 Convert Trixi simulation data to VTK format.
@@ -39,10 +39,10 @@ Convert Trixi simulation data to VTK format.
 
 # Example
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01), callbacks=nothing))
-trixi2vtk(similar(sol.u[end]), sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
+trixi2vtk(sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
 
 # Additionally store the kinetic energy of each system as "my_custom_quantity"
-trixi2vtk(similar(sol.u[end]), sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
+trixi2vtk(sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
 
 # output
 
@@ -52,8 +52,10 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
                    prefix="", write_meta_data=true, git_hash=compute_git_hash(),
                    max_coordinates=Inf, custom_quantities...)
 
-    # The first argument is not necessary; this is only a wrapper for the public API.
-    return trixi2vtk(similar(vu_ode), vu_ode, semi, t; iter, output_directory,
+    # The first argument is not necessary in most cases. Since it is usually not available to the user,
+    # this API wrapper makes it optional.
+    # Note that custom quantities using the fluid acceleration will not work and return NaN acceleration.
+    return trixi2vtk(fill(NaN, size(vu_ode)), vu_ode, semi, t; iter, output_directory,
                      prefix, write_meta_data, git_hash, max_coordinates,
                      custom_quantities...)
 end
