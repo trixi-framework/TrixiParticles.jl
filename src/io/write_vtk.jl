@@ -55,7 +55,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
     # The first argument is not necessary in most cases. Since it is usually not available to the user,
     # this API wrapper makes it optional.
     # Note that custom quantities using the fluid acceleration will not work and return NaN acceleration.
-    return trixi2vtk(fill(NaN, size(vu_ode)), vu_ode, semi, t; iter, output_directory,
+    return trixi2vtk(NaN .* similar(vu_ode), vu_ode, semi, t; iter, output_directory,
                      prefix, write_meta_data, git_hash, max_coordinates,
                      custom_quantities...)
 end
