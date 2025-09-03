@@ -180,7 +180,7 @@ boundary_movement = TrixiParticles.oscillating_movement(frequency,
                                                         rotation_angle, center;
                                                         rotation_phase_offset, ramp_up=0.5)
 
-sound_speed = 20.0
+sound_speed = 40.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1, background_pressure=0.0)
 
@@ -255,12 +255,11 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
 
-split_dt = 2e-5
+split_dt = 1e-5
 split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false, dt=split_dt,
                                              maxiters=10^8)
 stepsize_callback = StepsizeCallback(cfl=1.0)
-shifting_callback = ParticleShiftingCallback()
-callbacks = CallbackSet(info_callback, saving_callback, #shifting_callback,
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
                         split_integration, stepsize_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
