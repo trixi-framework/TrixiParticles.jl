@@ -27,7 +27,7 @@ function create_cache_density(ic, ::ContinuityDensity)
 end
 
 function create_cache_refinement(initial_condition, ::Nothing, smoothing_length)
-    smoothing_length_factor = initial_condition.particle_spacing / smoothing_length
+    smoothing_length_factor = smoothing_length / initial_condition.particle_spacing
     return (; smoothing_length, smoothing_length_factor)
 end
 
@@ -85,7 +85,6 @@ function write_v0!(v0, system::FluidSystem)
     copyto!(v0, indices, system.initial_condition.velocity, indices)
 
     write_v0!(v0, system, system.density_calculator)
-    write_v0!(v0, system, system.transport_velocity)
 
     return v0
 end
@@ -199,25 +198,3 @@ include("surface_tension.jl")
 include("surface_normal_sph.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
-
-@inline function add_velocity!(du, v, particle,
-                               system::Union{EntropicallyDampedSPHSystem,
-                                             WeaklyCompressibleSPHSystem})
-    add_velocity!(du, v, particle, system, system.transport_velocity)
-end
-
-@inline function momentum_convection(system, neighbor_system,
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
-    return zero(grad_kernel)
-end
-
-@inline function momentum_convection(system,
-                                     neighbor_system::Union{EntropicallyDampedSPHSystem,
-                                                            WeaklyCompressibleSPHSystem},
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
-    momentum_convection(system, neighbor_system, system.transport_velocity,
-                        v_particle_system, v_neighbor_system, rho_a, rho_b,
-                        m_a, m_b, particle, neighbor, grad_kernel)
-end

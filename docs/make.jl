@@ -3,6 +3,7 @@ using TrixiParticles
 using TrixiParticles.TrixiBase
 using TrixiParticles.PointNeighbors
 using Asciicast: Asciicast
+using Literate: Literate
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
@@ -82,6 +83,9 @@ replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_setup.md"))
 replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_dam_break.md"))
 replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_beam.md"))
 replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_falling.md"))
+
+Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
+                  joinpath("docs", "src", "tutorials"))
 
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")

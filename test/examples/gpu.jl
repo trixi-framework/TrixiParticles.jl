@@ -87,6 +87,23 @@ end
             end
         end
 
+        @trixi_testset "fluid/dam_break_2d_gpu.jl Float32 with ContinuityDensity boundary density" begin
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "dam_break_2d_gpu.jl");
+                                                             tspan=(0.0f0, 0.1f0),
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             boundary_density_calculator=ContinuityDensity()) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n"
+            ]
+            @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
+
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float32 BoundaryModelMonaghanKajtar" begin
             # Import variables into scope
             trixi_include_changeprecision(Float32, @__MODULE__,
@@ -178,13 +195,13 @@ end
                                                   clip_negative_pressure=true),
                 "WCSPH with ViscosityAdami" => (
                                                 # from 0.02*10.0*1.2*0.05/8
-                                                viscosity=ViscosityAdami(nu=0.0015f0),),
+                                                viscosity_fluid=ViscosityAdami(nu=0.0015f0),),
                 "WCSPH with ViscosityMorris" => (
                                                  # from 0.02*10.0*1.2*0.05/8
-                                                 viscosity=ViscosityMorris(nu=0.0015f0),),
+                                                 viscosity_fluid=ViscosityMorris(nu=0.0015f0),),
                 "WCSPH with ViscosityAdami and SummationDensity" => (
                                                                      # from 0.02*10.0*1.2*0.05/8
-                                                                     viscosity=ViscosityAdami(nu=0.0015f0),
+                                                                     viscosity_fluid=ViscosityAdami(nu=0.0015f0),
                                                                      fluid_density_calculator=SummationDensity(),
                                                                      maxiters=38, # 38 time steps on CPU
                                                                      clip_negative_pressure=true),
@@ -205,7 +222,7 @@ end
                                                                                              smoothing_kernel,
                                                                                              smoothing_length,
                                                                                              sound_speed,
-                                                                                             viscosity=viscosity,
+                                                                                             viscosity=viscosity_fluid,
                                                                                              density_calculator=ContinuityDensity(),
                                                                                              acceleration=(0.0,
                                                                                                            -gravity))),
@@ -213,7 +230,7 @@ end
                                                                                           smoothing_kernel,
                                                                                           smoothing_length,
                                                                                           sound_speed,
-                                                                                          viscosity=viscosity,
+                                                                                          viscosity=viscosity_fluid,
                                                                                           density_calculator=SummationDensity(),
                                                                                           acceleration=(0.0,
                                                                                                         -gravity)),)
@@ -288,42 +305,109 @@ end
         end
 
         # Test open boundaries and steady-state callback
-        @testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
-            # TODO This currently doesn't work on GPUs due to
-            # https://github.com/trixi-framework/PointNeighbors.jl/issues/20.
+        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (WCSPH)" begin
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             tspan=(0.0f0, 0.5f0),
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "pipe_flow_2d.jl"),
+                                                             wcsph=true,
+                                                             parallelization_backend=Main.parallelization_backend)
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
 
-            # # Import variables into scope
-            # trixi_include_changeprecision(Float32, @__MODULE__,
-            #                               joinpath(examples_dir(), "fluid",
-            #                                        "pipe_flow_2d.jl"),
-            #                               sol=nothing, ode=nothing)
+        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (EDAC)" begin
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             tspan=(0.0f0, 0.5f0),
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "pipe_flow_2d.jl"),
+                                                             parallelization_backend=Main.parallelization_backend)
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
 
-            # # Neighborhood search with `FullGridCellList` for GPU compatibility
-            # min_corner = minimum(pipe.boundary.coordinates, dims=2) .- 8 * particle_spacing
-            # max_corner = maximum(pipe.boundary.coordinates, dims=2) .+ 8 * particle_spacing
-            # cell_list = FullGridCellList(; min_corner, max_corner)
-            # semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
-            #                                    neighborhood_search=GridNeighborhoodSearch{2}(;
-            #                                                                                  cell_list),
-            #                                    parallelization_backend=Main.parallelization_backend)
+        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (EDAC)" begin
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             tspan=(0.0f0, 0.5f0),
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "pipe_flow_2d.jl"),
+                                                             open_boundary_model=BoundaryModelTafuni(),
+                                                             boundary_type_in=BidirectionalFlow(),
+                                                             boundary_type_out=BidirectionalFlow(),
+                                                             reference_density_in=nothing,
+                                                             reference_pressure_in=nothing,
+                                                             reference_density_out=nothing,
+                                                             reference_velocity_out=nothing,
+                                                             parallelization_backend=Main.parallelization_backend)
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
 
-            # steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
+        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (WCSPH)" begin
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             tspan=(0.0f0, 0.5f0),
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "pipe_flow_2d.jl"),
+                                                             wcsph=true, sound_speed=20.0f0,
+                                                             pressure=0.0f0,
+                                                             open_boundary_model=BoundaryModelTafuni(;
+                                                                                                     mirror_method=ZerothOrderMirroring()),
+                                                             boundary_type_in=BidirectionalFlow(),
+                                                             boundary_type_out=BidirectionalFlow(),
+                                                             reference_density_in=nothing,
+                                                             reference_pressure_in=nothing,
+                                                             reference_density_out=nothing,
+                                                             reference_pressure_out=nothing,
+                                                             reference_velocity_out=nothing,
+                                                             parallelization_backend=Main.parallelization_backend)
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
 
-            # @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
-            #                                                joinpath(examples_dir(), "fluid",
-            #                                                         "pipe_flow_2d.jl"),
-            #                                                extra_callback=steady_state_reached,
-            #                                                tspan=(0.0f0, 1.5f0),
-            #                                                semi=semi_fullgrid)
+        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
+            steady_state_reached = SteadyStateReachedCallback(; dt=0.002f0,
+                                                              interval_size=10,
+                                                              reltol=1.0f-3)
 
-            # TODO This currently doesn't work on GPUs due to
-            # https://github.com/trixi-framework/PointNeighbors.jl/issues/20.
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "pipe_flow_2d.jl"),
+                                                             extra_callback=steady_state_reached,
+                                                             tspan=(0.0f0, 1.5f0),
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             viscosity_boundary=nothing)
 
             # Make sure that the simulation is terminated after a reasonable amount of time
-            @test_skip 0.1 < sol.t[end] < 1.0
-            @test_skip sol.retcode == ReturnCode.Terminated
-            # backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
-            # @test_skip backend == Main.parallelization_backend
+            @test 0.1 < sol.t[end] < 1.0
+            @test sol.retcode == ReturnCode.Terminated
+        end
+
+        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
+            steady_state_reached = SteadyStateReachedCallback(; interval=1,
+                                                              interval_size=10,
+                                                              reltol=1.0f-3)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "pipe_flow_2d.jl"),
+                                                             extra_callback=steady_state_reached,
+                                                             dtmax=2.0f-3,
+                                                             tspan=(0.0f0, 1.5f0),
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             viscosity_boundary=nothing)
+
+            # Make sure that the simulation is terminated after a reasonable amount of time
+            @test 0.1 < sol.t[end] < 1.0
+            @test sol.retcode == ReturnCode.Terminated
         end
     end
 

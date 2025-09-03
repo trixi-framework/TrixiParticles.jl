@@ -2,6 +2,10 @@ using TrixiParticles
 
 # ==========================================================================================
 # ==== Resolution
+# P. Ramachandran, K. Puri
+# "Entropically damped artiﬁcial compressibility for SPH".
+# In: Computers and Fluids, Volume 179 (2019), pages 579-594.
+# https://doi.org/10.1016/j.compfluid.2018.11.023
 # The paper provides reference data for particle spacings particle_spacings = [0.02, 0.01, 0.005]
 particle_spacing = 0.02
 
@@ -12,6 +16,12 @@ reynolds_number = 100.0
 
 density_calculators = [ContinuityDensity(), SummationDensity()]
 perturb_coordinates = [false, true]
+
+# Define `average_pressure` for WCSPH, so that we can use the same code below for WCSPH
+@inline function TrixiParticles.average_pressure(system::WeaklyCompressibleSPHSystem,
+                                                 particle)
+    return zero(eltype(system))
+end
 
 function compute_l1v_error(system, v_ode, u_ode, semi, t)
     v_analytical_avg = 0.0

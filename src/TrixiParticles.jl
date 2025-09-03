@@ -27,7 +27,7 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
-using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
+using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings, TrixiBase
 @reexport using TrixiBase: trixi_include, trixi_include_changeprecision
@@ -56,8 +56,8 @@ include("callbacks/callbacks.jl")
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("io/io.jl")
-include("visualization/recipes_plots.jl")
 include("preprocessing/preprocessing.jl")
+include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -74,13 +74,15 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
 export StateEquationCole, StateEquationIdealGas
-export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
+export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
+       ViscosityMorrisSGS
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
        BernoulliPressureExtrapolation
+export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export BoundaryMovement
 export examples_dir, validation_dir

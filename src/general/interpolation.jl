@@ -655,7 +655,7 @@ end
     end
 
     cache.jacobian[point] += det(deformation_gradient(system, neighbor)) * volume_b * W_ab
-    cache.von_mises_stress[point] += von_mises_stress(system) * volume_b * W_ab
+    cache.von_mises_stress[point] += von_mises_stress(system, neighbor) * volume_b * W_ab
 
     sigma = cauchy_stress(system)
     for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)

@@ -27,52 +27,54 @@ Open boundary system for in- and outflow particles.
                        or a scalar for a constant density over all particles.
 
 !!! note "Note"
-    When using the [`BoundaryModelTafuni()`](@ref), the reference values (`reference_velocity`,
-    `reference_pressure`, `reference_density`) can also be set to `nothing`
-    since this model allows for either assigning physical quantities a priori or extrapolating them
-    from the fluid domaim to the buffer zones (inflow and outflow) using ghost nodes.
+    The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
+    can also be set to `nothing`.
+    In this case, they will either be extrapolated from the fluid domain ([BoundaryModelTafuni](@ref BoundaryModelTafuni))
+    or evolved using the characteristic flow variables ([BoundaryModelLastiwka](@ref BoundaryModelLastiwka)).
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in future releases.
     It is GPU-compatible (e.g., with CUDA.jl and AMDGPU.jl), but currently **not** supported with Metal.jl.
 """
-struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BZ, RV,
-                             RP, RD, B, UCU, C} <: System{NDIMS}
-    boundary_model       :: BM
-    initial_condition    :: IC
-    fluid_system         :: FS
-    fluid_system_index   :: FSI
-    smoothing_length     :: ELTYPE
-    mass                 :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    density              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    volume               :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    pressure             :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    boundary_zone        :: BZ
-    reference_velocity   :: RV
-    reference_pressure   :: RP
-    reference_density    :: RD
-    buffer               :: B
-    update_callback_used :: UCU
-    cache                :: C
+struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZ, RV,
+                             RP, RD, B, C} <: System{NDIMS}
+    boundary_model      :: BM
+    initial_condition   :: IC
+    fluid_system        :: FS
+    fluid_system_index  :: FSI
+    smoothing_length    :: ELTYPE
+    mass                :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    density             :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    volume              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    pressure            :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    boundary_candidates :: BC      # Array{UInt32, 1}: [particle]
+    fluid_candidates    :: FC      # Array{UInt32, 1}: [particle]
+    boundary_zone       :: BZ
+    reference_velocity  :: RV
+    reference_pressure  :: RP
+    reference_density   :: RD
+    buffer              :: B
+    cache               :: C
 end
 
 function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                fluid_system_index, smoothing_length, mass, density, volume,
-                               pressure, boundary_zone, reference_velocity,
-                               reference_pressure, reference_density, buffer,
-                               update_callback_used, cache)
+                               pressure, boundary_candidates, fluid_candidates,
+                               boundary_zone, reference_velocity,
+                               reference_pressure, reference_density, buffer, cache)
     OpenBoundarySPHSystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                           typeof(initial_condition), typeof(fluid_system),
-                          typeof(fluid_system_index), typeof(mass), typeof(boundary_zone),
-                          typeof(reference_velocity), typeof(reference_pressure),
-                          typeof(reference_density), typeof(buffer),
-                          typeof(update_callback_used),
+                          typeof(fluid_system_index), typeof(mass),
+                          typeof(boundary_candidates), typeof(fluid_candidates),
+                          typeof(boundary_zone), typeof(reference_velocity),
+                          typeof(reference_pressure), typeof(reference_density),
+                          typeof(buffer),
                           typeof(cache)}(boundary_model, initial_condition, fluid_system,
                                          fluid_system_index, smoothing_length, mass,
-                                         density, volume, pressure, boundary_zone,
+                                         density, volume, pressure, boundary_candidates,
+                                         fluid_candidates, boundary_zone,
                                          reference_velocity, reference_pressure,
-                                         reference_density, buffer, update_callback_used,
-                                         cache)
+                                         reference_density, buffer, cache)
 end
 
 function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
@@ -82,9 +84,6 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                reference_pressure=nothing,
                                reference_density=nothing)
     (; initial_condition) = boundary_zone
-
-    check_reference_values!(boundary_model, reference_density, reference_pressure,
-                            reference_velocity)
 
     buffer = SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -147,17 +146,18 @@ function OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                                        reference_density, reference_velocity,
                                        reference_pressure)
 
-    # These will be set later
-    update_callback_used = Ref(false)
     fluid_system_index = Ref(0)
 
     smoothing_length = initial_smoothing_length(fluid_system)
 
+    boundary_candidates = fill(false, nparticles(initial_condition))
+    fluid_candidates = fill(false, nparticles(fluid_system))
+
     return OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
                                  fluid_system_index, smoothing_length, mass, density,
-                                 volume, pressure, boundary_zone, reference_velocity_,
-                                 reference_pressure_, reference_density_, buffer,
-                                 update_callback_used, cache)
+                                 volume, pressure, boundary_candidates, fluid_candidates,
+                                 boundary_zone, reference_velocity_,
+                                 reference_pressure_, reference_density_, buffer, cache)
 end
 
 function create_cache_open_boundary(boundary_model, initial_condition,
@@ -220,13 +220,8 @@ end
     return ELTYPE
 end
 
-function reset_callback_flag!(system::OpenBoundarySPHSystem)
-    system.update_callback_used[] = false
-
-    return system
-end
-
-update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
+# The `UpdateCallback` is required to update particle positions between time steps
+@inline requires_update_callback(system::OpenBoundarySPHSystem) = true
 
 function corresponding_fluid_system(system::OpenBoundarySPHSystem, semi)
     return system.fluid_system
@@ -246,13 +241,9 @@ end
     return system.pressure
 end
 
-function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
-    if !update_from_callback && !(system.update_callback_used[])
-        throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
-    end
-
-    update_final!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
+function update_boundary_interpolation!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode,
+                                        semi, t)
+    update_boundary_model!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
 end
 
 # This function is called by the `UpdateCallback`, as the integrator array might be modified
@@ -260,6 +251,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
                                         semi, t)
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
+
+    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
     # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
@@ -270,19 +263,19 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
                                                                                    u_ode,
                                                                                    semi, t)
 
-    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
-
     return system
 end
 
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
-    (; boundary_zone) = system
+    (; boundary_zone, boundary_candidates, fluid_candidates) = system
     fluid_system = corresponding_fluid_system(system, semi)
 
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
+
+    boundary_candidates .= false
 
     # Check the boundary particles whether they're leaving the boundary zone
     @threaded semi for particle in each_moving_particle(system)
@@ -290,13 +283,28 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
         # Check if boundary particle is outside the boundary zone
         if !is_in_boundary_zone(boundary_zone, particle_coords)
-            convert_particle!(system, fluid_system, boundary_zone, particle,
-                              v, u, v_fluid, u_fluid)
+            boundary_candidates[particle] = true
         end
+    end
+
+    crossed_boundary_particles = findall(boundary_candidates)
+    available_fluid_particles = findall(==(false), fluid_system.buffer.active_particle)
+
+    @assert length(crossed_boundary_particles)<=length(available_fluid_particles) "Not enough fluid buffer particles available"
+
+    # Convert open boundary particles in the fluid domain to fluid particles
+    @threaded semi for i in eachindex(crossed_boundary_particles)
+        particle = crossed_boundary_particles[i]
+        particle_new = available_fluid_particles[i]
+
+        convert_particle!(system, fluid_system, boundary_zone, particle, particle_new,
+                          v, u, v_fluid, u_fluid)
     end
 
     update_system_buffer!(system.buffer, semi)
     update_system_buffer!(fluid_system.buffer, semi)
+
+    fluid_candidates .= false
 
     # Check the fluid particles whether they're entering the boundary zone
     @threaded semi for fluid_particle in each_moving_particle(fluid_system)
@@ -304,21 +312,37 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
         # Check if fluid particle is in boundary zone
         if is_in_boundary_zone(boundary_zone, fluid_coords)
-            convert_particle!(fluid_system, system, boundary_zone, fluid_particle,
-                              v, u, v_fluid, u_fluid)
+            fluid_candidates[fluid_particle] = true
         end
+    end
+
+    crossed_fluid_particles = findall(fluid_candidates)
+    available_boundary_particles = findall(==(false), system.buffer.active_particle)
+
+    @assert length(crossed_fluid_particles)<=length(available_boundary_particles) "Not enough boundary buffer particles available"
+
+    # Convert fluid particles in the open boundary zone to open boundary particles
+    @threaded semi for i in eachindex(crossed_fluid_particles)
+        particle = crossed_fluid_particles[i]
+        particle_new = available_boundary_particles[i]
+
+        convert_particle!(fluid_system, system, boundary_zone, particle, particle_new,
+                          v, u, v_fluid, u_fluid)
     end
 
     update_system_buffer!(system.buffer, semi)
     update_system_buffer!(fluid_system.buffer, semi)
+
+    # Since particles have been transferred, the neighborhood searches must be updated
+    update_nhs!(semi, u_ode)
 
     return system
 end
 
 # Outflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone{OutFlow}, particle, v, u,
-                                   v_fluid, u_fluid)
+                                   boundary_zone::BoundaryZone{OutFlow}, particle,
+                                   particle_new, v, u, v_fluid, u_fluid)
     deactivate_particle!(system, particle, u)
 
     return system
@@ -326,12 +350,12 @@ end
 
 # Inflow particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone{InFlow}, particle, v, u,
-                                   v_fluid, u_fluid)
+                                   boundary_zone::BoundaryZone{InFlow}, particle,
+                                   particle_new, v, u, v_fluid, u_fluid)
     (; spanning_set) = boundary_zone
 
     # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
@@ -343,8 +367,8 @@ end
 
 # Buffer particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                   boundary_zone::BoundaryZone{BidirectionalFlow}, particle,
-                                   v, u, v_fluid, u_fluid)
+                                   boundary_zone::BoundaryZone{BidirectionalFlow},
+                                   particle, particle_new, v, u, v_fluid, u_fluid)
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
@@ -356,7 +380,7 @@ end
     end
 
     # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
@@ -368,9 +392,10 @@ end
 
 # Fluid particle is in boundary zone
 @inline function convert_particle!(fluid_system::FluidSystem, system,
-                                   boundary_zone, particle, v, u, v_fluid, u_fluid)
+                                   boundary_zone, particle, particle_new,
+                                   v, u, v_fluid, u_fluid)
     # Activate particle in boundary zone
-    transfer_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
+    transfer_particle!(system, fluid_system, particle, particle_new, v, u, v_fluid, u_fluid)
 
     # Deactivate particle in interior domain
     deactivate_particle!(fluid_system, particle, u_fluid)
@@ -378,9 +403,10 @@ end
     return fluid_system
 end
 
-@inline function transfer_particle!(system_new, system_old, particle_old,
+@inline function transfer_particle!(system_new, system_old, particle_old, particle_new,
                                     v_new, u_new, v_old, u_old)
-    particle_new = activate_next_particle(system_new)
+    # Activate new particle
+    system_new.buffer.active_particle[particle_new] = true
 
     # Transfer densities
     density = current_density(v_old, system_old, particle_old)
@@ -442,22 +468,6 @@ end
 # This method is used when extrapolating quantities from the domain
 # instead of using the method of characteristics
 reference_value(value::Nothing, quantity, position, t) = quantity
-
-function check_reference_values!(boundary_model, reference_density, reference_pressure,
-                                 reference_velocity)
-    return boundary_model
-end
-
-function check_reference_values!(boundary_model::BoundaryModelLastiwka,
-                                 reference_density, reference_pressure, reference_velocity)
-    boundary_model.extrapolate_reference_values && return boundary_model
-
-    if any(isnothing.([reference_density, reference_pressure, reference_velocity]))
-        throw(ArgumentError("for `BoundaryModelLastiwka` all reference values must be specified"))
-    end
-
-    return boundary_model
-end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
