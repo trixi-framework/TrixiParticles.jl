@@ -58,9 +58,9 @@ n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_s
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
 # from the boundary, which is correct for fluids, but not for solids.
-# We therefore need to pass `tlsph=true`.
+# We therefore need to pass `place_on_shell=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (-length_clamp, 0.0), density=density, tlsph=true)
+                        (-length_clamp, 0.0), density=density, place_on_shell=true)
 
 fixed_particles = setdiff(shape_sampled, beam)
 
@@ -224,7 +224,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length_fluid, viscosity=viscosity_fluid,
                                            density_diffusion=density_diffusion,
-                                           particle_shifting=TrixiParticles.ParticleShiftingSun2019(0.1 * sound_speed),
+                                           shifting_technique=ParticleShiftingTechnique(),
                                            pressure_acceleration=tensile_instability_control)
 # fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
 #                                            sound_speed, viscosity=ViscosityAdami(; nu),
