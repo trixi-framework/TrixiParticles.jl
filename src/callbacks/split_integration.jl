@@ -1,4 +1,6 @@
 mutable struct SplitIntegrationCallback
+    # Type-stability does not matter here, and it is impossible to implement because
+    # the integration will be created during the initialization.
     integrator :: Any
     alg        :: Any
     kwargs     :: Any
@@ -34,6 +36,19 @@ function initialize_split_integration!(cb, u, t, integrator)
                                     neighborhood_search=TrivialNeighborhoodSearch{ndims(first(systems))}(),
                                     parallelization_backend=semi.parallelization_backend)
 
+    # Verify that a NHS implementation is used that does not require updates
+    # for tlsph-neighbor interaction when neighbor is static.
+    foreach_system(semi_split) do system
+        foreach_system(semi) do neighbor
+            neighborhood_search = get_neighborhood_search(system, neighbor, semi)
+            if PointNeighbors.requires_update(neighborhood_search)[1]
+                throw(ArgumentError("Split integration is only supported (and useful) " *
+                                    "when the neighborhood search does not require updates " *
+                                    "for static neighbors (e.g. GridNeighborhoodSearch)."))
+            end
+        end
+    end
+
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
 
@@ -54,9 +69,10 @@ function initialize_split_integration!(cb, u, t, integrator)
     # We need the timer here to keep the output clean because this will call `kick!` once.
     @trixi_timeit timer() "split integration" begin
         @trixi_timeit timer() "init" begin
-            TimerOutputs.@notimeit timer() split_integrator = SciMLBase.init(ode_split, alg;
-                                                                             save_everystep=false,
-                                                                             kwargs...)
+            TimerOutputs.@notimeit timer() begin
+                split_integrator = SciMLBase.init(ode_split, alg; save_everystep=false,
+                                                  kwargs...)
+            end
         end
     end
 
@@ -77,7 +93,7 @@ end
 
 # `affect!`
 function (split_integration_callback::SplitIntegrationCallback)(integrator)
-    # Function barrier for type stability
+    # Function barrier for type stability (the callback struct is untyped)
     affect_inner!(integrator, split_integration_callback.integrator)
 end
 
@@ -95,11 +111,11 @@ function affect_inner!(integrator, split_integrator)
     @trixi_timeit timer() "split integration" begin
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
-        @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
-                                                                              semi, new_t;
-                                                                              update_from_callback=true)
+        @trixi_timeit timer() "update systems and nhs" begin
+            update_systems_and_nhs(v_ode, u_ode, semi, new_t)
+        end
 
-        # Integrate the split integrator to the new time
+        # Integrate the split integrator up to the new time
         add_tstop!(split_integrator, new_t)
         @trixi_timeit timer() "solve" SciMLBase.solve!(split_integrator)
 
@@ -121,19 +137,9 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
 
     @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode_split)
 
-    # Only loop over TLSPH systems
-    @trixi_timeit timer() "copy to large v,u" copy_from_split!(v_ode, u_ode,
-                                                               v_ode_split, u_ode_split,
-                                                               semi, semi_split)
-
-    # Update the TLSPH systems with the other systems as neighbors
-    update_nhs_fun = (semi,
-                      u_ode) -> update_nhs_split!(semi, u_ode, u_ode_split,
-                                                  semi_split)
-    @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
-                                                                          semi, t;
-                                                                          systems=semi_split.systems,
-                                                                          update_nhs_fun)
+    # Update the TLSPH systems
+    @trixi_timeit timer() "update systems" update_systems_split!(semi_split, v_ode_split,
+                                                                 u_ode_split, t)
 
     @trixi_timeit timer() "system interaction" begin
         # Only loop over systems in the split integrator
@@ -174,25 +180,47 @@ function drift_split!(du_ode, v_ode, u_ode, p, t)
     drift!(du_ode, v_ode, u_ode, p.semi_split, t)
 end
 
-function update_nhs_split!(semi, u_ode, u_ode_split, semi_split)
-    # Only loop over systems in the split integrator
-    foreach_system(semi_split) do system
-        u_system = wrap_u(u_ode_split, system, semi_split)
+# Update the systems before calling `interact!` to compute forces.
+function update_systems_split!(semi, v_ode, u_ode, t)
+    # First update step before updating the NHS
+    # (for example for writing the current coordinates in the solid system)
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
-        # Loop over neighbors in the big integrator
-        foreach_system(semi) do neighbor
-            # Static NHS for solid-solid (same system) and no interaction for two distinct
-            # solid systems (TODO).
-            if !(neighbor isa TotalLagrangianSPHSystem)
-                u_neighbor = wrap_u(u_ode, neighbor, semi)
-                neighborhood_search = get_neighborhood_search(system, neighbor, semi)
+        update_positions!(system, v, u, v_ode, u_ode, semi, t)
+    end
 
-                # Only the TLSPH particles are moving. All other systems are frozen.
-                # Note that this does nothing when a grid NHS is used.
-                update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor,
-                            semi; points_moving=(true, false))
-            end
-        end
+    # Second update step.
+    # This is used to calculate density and pressure of the fluid systems
+    # before updating the boundary systems,
+    # since the fluid pressure is needed by the Adami interpolation.
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        update_quantities!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # Perform correction and pressure calculation
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        update_pressure!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # No `update_boundary_interpolation!` for performance reasons, or we will lose
+    # a lot of the speedup that we can gain with split integration.
+    # We assume that the TLSPH particles move so little during the substeps
+    # that the extrapolated pressure/density values can be treated as constant.
+
+    # Final update step for all remaining systems
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
