@@ -58,7 +58,9 @@
                                              plate_position=(0.2, 0.0),
                                              tspan=(0.0, 0.2),
                                              E=1e7, # Stiffer plate
-                                             maxiters=500)
+                                             maxiters=500) [
+                "Warning: Interrupted. Larger maxiters is needed."
+            ]
             @test sol.retcode == ReturnCode.MaxIters
             @test count_rhs_allocations(sol, semi) == 0
 
@@ -95,7 +97,9 @@
                                              tspan=(0.0, 0.2),
                                              E=1e7, # Stiffer plate
                                              maxiters=500,
-                                             extra_callback=split_integration)
+                                             extra_callback=split_integration) [
+                "Warning: Instability detected. Aborting"
+            ]
             @test sol.retcode == ReturnCode.Unstable
             @test count_rhs_allocations(sol, semi) == 0
         end

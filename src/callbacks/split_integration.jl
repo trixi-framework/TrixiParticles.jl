@@ -262,7 +262,7 @@ function system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
 
             @trixi_timeit timer() timer_str begin
                 interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                            system, neighbor, semi; integrate_tlsph=true)
+                          system, neighbor, semi; integrate_tlsph=true)
             end
         end
     end
