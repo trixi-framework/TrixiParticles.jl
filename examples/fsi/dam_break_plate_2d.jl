@@ -59,12 +59,15 @@ n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 # The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
 # first particle half a particle spacing away from the shell of the shape, which is
 # correct for fluids, but not for solids. We therefore need to pass `place_on_shell=true`.
+plate_position = (2 * initial_fluid_size[1], 0.0)
+non_fixed_position = (plate_position[1],
+                      plate_position[2] + solid_particle_spacing)
+
 plate = RectangularShape(solid_particle_spacing,
-                         (n_particles_x, n_particles_y - 1),
-                         (2initial_fluid_size[1], solid_particle_spacing),
+                         (n_particles_x, n_particles_y - 1), non_fixed_position,
                          density=solid_density, place_on_shell=true)
 fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_x, 1), (2initial_fluid_size[1], 0.0),
+                                   (n_particles_x, 1), plate_position,
                                    density=solid_density, place_on_shell=true)
 
 solid = union(plate, fixed_particles)
@@ -134,8 +137,10 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+# This can be overwritten with `trixi_include`
+extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, extra_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
