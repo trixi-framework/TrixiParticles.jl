@@ -16,10 +16,9 @@
                                                smoothing_length, 1.0)
     fluid_system.cache.density .= initial_condition.density
 
-    boundary_model = BoundaryModelDummyParticles(initial_condition.density,
-                                                 initial_condition.mass,
-                                                 AdamiPressureExtrapolation(),
-                                                 smoothing_kernel, smoothing_length)
+    boundary_model = BoundaryModelDummyParticles{2}(initial_condition.density,
+                                                    initial_condition.mass,
+                                                    AdamiPressureExtrapolation())
 
     boundary_system = BoundarySPHSystem(initial_condition, boundary_model)
 

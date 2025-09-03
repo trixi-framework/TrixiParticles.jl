@@ -135,11 +135,10 @@ open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
 # ==========================================================================================
 # ==== Boundary
 viscosity_boundary = ViscosityAdami(nu=1e-4)
-boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundary.mass,
-                                             AdamiPressureExtrapolation(),
-                                             state_equation=state_equation,
-                                             viscosity=viscosity_boundary,
-                                             smoothing_kernel, smoothing_length)
+boundary_model = BoundaryModelDummyParticles{2}(pipe.boundary.density, pipe.boundary.mass,
+                                                AdamiPressureExtrapolation(),
+                                                state_equation=state_equation,
+                                                viscosity=viscosity_boundary)
 
 boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 

@@ -27,14 +27,12 @@ function create_boundary_system(coordinates, particle_spacing, state_equation, k
                             wall_coord,
                             density=1000.0)
 
-    boundary_model = BoundaryModelDummyParticles(wall.density,
-                                                 wall.mass,
-                                                 state_equation=state_equation,
-                                                 AdamiPressureExtrapolation(),
-                                                 kernel,
-                                                 smoothing_length,
-                                                 correction=nothing,
-                                                 reference_particle_spacing=particle_spacing)
+    boundary_model = BoundaryModelDummyParticles{2}(wall.density,
+                                                    wall.mass,
+                                                    state_equation=state_equation,
+                                                    AdamiPressureExtrapolation(),
+                                                    correction=nothing,
+                                                    reference_particle_spacing=particle_spacing)
 
     boundary_system = BoundarySPHSystem(wall, boundary_model, adhesion_coefficient=0.0)
     return boundary_system

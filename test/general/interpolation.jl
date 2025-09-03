@@ -105,10 +105,9 @@
                                                    smoothing_length, viscosity=viscosity,
                                                    acceleration=(0.0, -9.81))
 
-        boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
-                                                     state_equation=state_equation,
-                                                     AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, smoothing_length)
+        boundary_model = BoundaryModelDummyParticles{2}(bnd.density, bnd.mass,
+                                                        state_equation=state_equation,
+                                                        AdamiPressureExtrapolation())
 
         boundary_system = BoundarySPHSystem(bnd, boundary_model)
 
@@ -619,10 +618,9 @@
                                                    smoothing_length, viscosity=viscosity,
                                                    acceleration=(0.0, -9.81, 0.0))
 
-        boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
-                                                     state_equation=state_equation,
-                                                     AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, smoothing_length)
+        boundary_model = BoundaryModelDummyParticles{2}(bnd.density, bnd.mass,
+                                                        state_equation=state_equation,
+                                                        AdamiPressureExtrapolation())
 
         boundary_system = BoundarySPHSystem(bnd, boundary_model)
 

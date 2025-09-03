@@ -89,13 +89,12 @@ viscosity_wall = nothing
 # For a no-slip condition the corresponding wall viscosity without SGS can be set
 # viscosity_wall = ViscosityAdami(nu=nu)
 # viscosity_wall = ViscosityMorris(nu=nu)
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
-                                             correction=nothing,
-                                             reference_particle_spacing=0,
-                                             viscosity=viscosity_wall)
+boundary_model = BoundaryModelDummyParticles{2}(tank.boundary.density, tank.boundary.mass,
+                                                state_equation=state_equation,
+                                                boundary_density_calculator,
+                                                correction=nothing,
+                                                reference_particle_spacing=0,
+                                                viscosity=viscosity_wall)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 

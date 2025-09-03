@@ -51,11 +51,9 @@
         end
 
         @testset verbose=true "`BoundarySystem`" begin
-            boundary_model = BoundaryModelDummyParticles(expected_ic.density,
-                                                         expected_ic.mass,
-                                                         SummationDensity(),
-                                                         SchoenbergCubicSplineKernel{2}(),
-                                                         1.5)
+            boundary_model = BoundaryModelDummyParticles{2}(expected_ic.density,
+                                                            expected_ic.mass,
+                                                            SummationDensity())
 
             # Overwrite values because we skip the update step
             boundary_model.pressure .= expected_ic.pressure

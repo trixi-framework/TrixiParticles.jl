@@ -71,10 +71,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = BernoulliPressureExtrapolation()
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length)
+boundary_model = BoundaryModelDummyParticles{2}(tank.boundary.density, tank.boundary.mass,
+                                                state_equation=state_equation,
+                                                boundary_density_calculator)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
@@ -90,9 +89,7 @@ hydrodynamic_masses_1 = hydrodynamic_densites_1 * solid_particle_spacing^ndims(f
 solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
                                                      hydrodynamic_masses_1,
                                                      state_equation=state_equation,
-                                                     boundary_density_calculator,
-                                                     fluid_smoothing_kernel,
-                                                     fluid_smoothing_length)
+                                                     boundary_density_calculator)
 
 hydrodynamic_densites_2 = fluid_density * ones(size(sphere2.density))
 hydrodynamic_masses_2 = hydrodynamic_densites_2 * solid_particle_spacing^ndims(fluid_system)
@@ -100,9 +97,7 @@ hydrodynamic_masses_2 = hydrodynamic_densites_2 * solid_particle_spacing^ndims(f
 solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                      hydrodynamic_masses_2,
                                                      state_equation=state_equation,
-                                                     boundary_density_calculator,
-                                                     fluid_smoothing_kernel,
-                                                     fluid_smoothing_length)
+                                                     boundary_density_calculator)
 
 solid_system_1 = TotalLagrangianSPHSystem(sphere1,
                                           solid_smoothing_kernel, solid_smoothing_length,

@@ -1,5 +1,5 @@
 @doc raw"""
-    BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+    BoundaryModelDummyParticles{NDIMS}(initial_density, hydrodynamic_mass,
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
                                 state_equation=nothing, correction=nothing,
@@ -13,8 +13,6 @@ Boundary model for `BoundarySPHSystem`.
                        See description above for more information.
 - `density_calculator`: Strategy to compute the hydrodynamic density of the boundary particles.
                         See description below for more information.
-- `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system.
-- `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
 
 # Keywords
 - `state_equation`:             This should be the same as for the adjacent fluid system
@@ -39,13 +37,11 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
+struct BoundaryModelDummyParticles{DC, VECTOR, SE, V, COR, C}
     pressure           :: VECTOR # Vector{ELTYPE}
     hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
     viscosity          :: V
     correction         :: COR
     cache              :: C
@@ -53,15 +49,13 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
-                                     density_calculator, smoothing_kernel,
-                                     smoothing_length; viscosity=nothing,
-                                     state_equation=nothing, correction=nothing,
-                                     reference_particle_spacing=0.0)
+function BoundaryModelDummyParticles{NDIMS}(initial_density, hydrodynamic_mass,
+                                            density_calculator; viscosity=nothing,
+                                            state_equation=nothing, correction=nothing,
+                                            reference_particle_spacing=0.0) where {NDIMS}
     pressure = initial_boundary_pressure(initial_density, density_calculator,
                                          state_equation)
-    NDIMS = ndims(smoothing_kernel)
-    ELTYPE = eltype(smoothing_length)
+    ELTYPE = eltype(hydrodynamic_mass)
     n_particles = length(initial_density)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
@@ -80,8 +74,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     end
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
-                                       density_calculator, smoothing_kernel,
-                                       smoothing_length, viscosity, correction, cache)
+                                       density_calculator, viscosity, correction, cache)
 end
 
 @doc raw"""

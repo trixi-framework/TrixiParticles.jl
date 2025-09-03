@@ -56,8 +56,7 @@
 
             fluid_system = FluidSystemMock()
             model_a = BoundaryModelMock()
-            model_b = BoundaryModelDummyParticles([1.0], [1.0], ContinuityDensity(), kernel,
-                                                  1.0)
+            model_b = BoundaryModelDummyParticles{1}([1.0], [1.0], ContinuityDensity())
 
             # FSI without boundary model.
             solid_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
@@ -91,8 +90,8 @@
             ic = InitialCondition(; particle_spacing=1.0, coordinates=ones(2, 2),
                                   density=[1.0, 1.0])
 
-            boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
-                                                         SummationDensity(), kernel, 1.0)
+            boundary_model = BoundaryModelDummyParticles{2}(ic.density, ic.mass,
+                                                            SummationDensity())
             boundary_system = BoundarySPHSystem(ic, boundary_model)
             fluid_system = WeaklyCompressibleSPHSystem(ic, SummationDensity(), nothing,
                                                        kernel, 1.0)
