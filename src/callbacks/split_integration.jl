@@ -7,9 +7,38 @@ mutable struct SplitIntegrationCallback
 end
 
 @doc raw"""
-    SplitIntegrationCallback()
+    SplitIntegrationCallback(alg; kwargs...)
 
-Callback to...
+Callback to integrate the `TotalLagrangianSPHSystem`s in a `Semidiscretization`
+separately from the other systems.
+After each time step of the main integrator (in which TLSPH systems are ignored),
+the TLSPH systems are integrated for multiple substeps with their own integrator.
+
+This is useful when two conditions are satisfied:
+1. The TLSPH systems require much smaller time steps than the fluid systems,
+   which is usually the case when very stiff materials are simulated.
+2. The amount of TLSPH particles is small compared to the number of fluid particles,
+   so that a fluid time step is much more expensive than a TLSPH substep.
+
+For fluid-structure interactions with very stiff materials like steel or carbon fiber
+composites, this can lead to significant speedups of several hundred times if the ratio
+of fluid to solid particles is large enough (e.g. 100:1 or more).
+
+# Arguments
+- `alg`: The time integration algorithm to use for the TLSPH systems.
+
+# Keywords
+- `kwargs...`: Additional keyword arguments passed to the integrator of the TLSPH systems.
+
+# Examples
+```jldoctest
+# Low-storage RK method with fixed step size
+callback = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                    dt=1e-5)
+
+# RK method with automatic error-based step size control
+callback = SplitIntegrationCallback(RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4)
+```
 """
 function SplitIntegrationCallback(alg; kwargs...)
     split_integration_callback = SplitIntegrationCallback(nothing, alg, kwargs)
@@ -142,33 +171,8 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
                                                                  u_ode_split, t)
 
     @trixi_timeit timer() "system interaction" begin
-        # Only loop over systems in the split integrator
-        foreach_system(semi_split) do system
-            # Loop over all neighbors in the big integrator
-            foreach_system(semi) do neighbor
-                # Construct string for the interactions timer.
-                # Avoid allocations from string construction when no timers are used.
-                if timeit_debug_enabled()
-                    system_index = system_indices(system, semi)
-                    neighbor_index = system_indices(neighbor, semi)
-                    timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-                else
-                    timer_str = ""
-                end
-
-                dv = wrap_v(dv_ode_split, system, semi_split)
-                v_system = wrap_v(v_ode_split, system, semi_split)
-                u_system = wrap_u(u_ode_split, system, semi_split)
-
-                v_neighbor = wrap_v(v_ode, neighbor, semi)
-                u_neighbor = wrap_u(u_ode, neighbor, semi)
-
-                @trixi_timeit timer() timer_str begin
-                    interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                              system, neighbor, semi; integrate_tlsph=true)
-                end
-            end
-        end
+        system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
+                                  v_ode_split, u_ode_split, semi_split)
     end
 
     @trixi_timeit timer() "source terms" add_source_terms!(dv_ode_split, v_ode_split,
@@ -221,6 +225,37 @@ function update_systems_split!(semi, v_ode, u_ode, t)
         u = wrap_u(u_ode, system, semi)
 
         update_final!(system, v, u, v_ode, u_ode, semi, t)
+    end
+end
+
+function system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
+                                   v_ode_split, u_ode_split, semi_split)
+    # Only loop over systems in the split integrator
+    foreach_system(semi_split) do system
+        # Loop over all neighbors in the big integrator
+        foreach_system(semi) do neighbor
+            # Construct string for the interactions timer.
+            # Avoid allocations from string construction when no timers are used.
+            if timeit_debug_enabled()
+                system_index = system_indices(system, semi)
+                neighbor_index = system_indices(neighbor, semi)
+                timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+            else
+                timer_str = ""
+            end
+
+            dv = wrap_v(dv_ode_split, system, semi_split)
+            v_system = wrap_v(v_ode_split, system, semi_split)
+            u_system = wrap_u(u_ode_split, system, semi_split)
+
+            v_neighbor = wrap_v(v_ode, neighbor, semi)
+            u_neighbor = wrap_u(u_ode, neighbor, semi)
+
+            @trixi_timeit timer() timer_str begin
+                interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                            system, neighbor, semi; integrate_tlsph=true)
+            end
+        end
     end
 end
 
