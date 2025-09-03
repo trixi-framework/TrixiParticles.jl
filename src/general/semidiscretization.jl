@@ -505,7 +505,7 @@ end
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 @inline function add_velocity!(du, v, particle, system::FluidSystem)
-    # This is zero unless a transport velocity is used
+    # This is zero unless a shifting technique is used
     delta_v_ = delta_v(system, particle)
 
     for i in 1:ndims(system)
