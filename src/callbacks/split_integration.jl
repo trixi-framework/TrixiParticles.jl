@@ -278,8 +278,13 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!
         setup = [
-            "alg" => update_cb.alg
+            "alg" => update_cb.alg |> typeof |> nameof |> string
         ]
+
+        for (key, value) in update_cb.kwargs
+            push!(setup, string(key) => string(value))
+        end
+
         summary_box(io, "SplitIntegrationCallback", setup)
     end
 end
