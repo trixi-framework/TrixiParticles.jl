@@ -195,7 +195,7 @@ end
                                               BoundaryModelDummyParticles},
                                  neighbor::BoundarySPHSystem)
     # This NHS is never used
-    return 0.0
+    return zero(eltype(system))
 end
 
 @inline function get_neighborhood_search(system, semi)
