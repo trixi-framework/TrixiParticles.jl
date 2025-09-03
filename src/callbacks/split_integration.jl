@@ -31,13 +31,22 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
 - `kwargs...`: Additional keyword arguments passed to the integrator of the TLSPH systems.
 
 # Examples
-```jldoctest
+```jldoctest; output=false
 # Low-storage RK method with fixed step size
 callback = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
                                     dt=1e-5)
 
 # RK method with automatic error-based step size control
 callback = SplitIntegrationCallback(RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SplitIntegrationCallback                                                                         │
+│ ════════════════════════                                                                         │
+│ alg: …………………………………………………………………… RDPK3SpFSAL49                                                    │
+│ abstol: …………………………………………………………… 1.0e-6                                                           │
+│ reltol: …………………………………………………………… 0.0001                                                           │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 function SplitIntegrationCallback(alg; kwargs...)
