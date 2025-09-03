@@ -159,12 +159,12 @@ end
 @inline function compact_support(system::OpenBoundarySPHSystem,
                                  neighbor::Union{OpenBoundarySPHSystem, BoundarySPHSystem})
     # This NHS is never used
-    return 0.0
+    return zero(eltype(system))
 end
 
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
     # This NHS is never used
-    return 0.0
+    return zero(eltype(system))
 end
 
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::DEMSystem)
