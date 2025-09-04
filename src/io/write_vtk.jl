@@ -48,15 +48,27 @@ trixi2vtk(sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
 
 ```
 """
-function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
-                   write_meta_data=true, git_hash=compute_git_hash(),
+function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
+                   prefix="", write_meta_data=true, git_hash=compute_git_hash(),
+                   max_coordinates=Inf, custom_quantities...)
+
+    # The first argument is not necessary in most cases. Since it is usually not available to the user,
+    # this API wrapper makes it optional.
+    # Note that custom quantities using the fluid acceleration will not work and return NaN acceleration.
+    return trixi2vtk(fill!(similar(vu_ode), NaN), vu_ode, semi, t; iter, output_directory,
+                     prefix, write_meta_data, git_hash, max_coordinates,
+                     custom_quantities...)
+end
+
+function trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, output_directory="out",
+                   prefix="", write_meta_data=true, git_hash=compute_git_hash(),
                    max_coordinates=Inf, custom_quantities...)
     (; systems) = semi
-    v_ode, u_ode = vu_ode.x
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
     @trixi_timeit timer() "update systems" begin
+        v_ode, u_ode = vu_ode.x
         # Don't create sub-timers here to avoid cluttering the timer output
         @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
@@ -67,23 +79,25 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
         system_index = system_indices(system, semi)
         periodic_box = get_neighborhood_search(system, semi).periodic_box
 
-        trixi2vtk(system, v_ode, u_ode, semi, t, periodic_box;
+        trixi2vtk(system, dvdu_ode, vu_ode, semi, t, periodic_box;
                   system_name=filenames[system_index], output_directory, iter, prefix,
                   write_meta_data, git_hash, max_coordinates, custom_quantities...)
     end
 end
 
 # Convert data for a single TrixiParticle system to VTK format
-function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_directory="out",
-                   prefix="", iter=nothing, system_name=vtkname(system_),
-                   write_meta_data=true, max_coordinates=Inf, git_hash=compute_git_hash(),
-                   custom_quantities...)
+function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
+                   output_directory="out", prefix="", iter=nothing,
+                   system_name=vtkname(system_), write_meta_data=true, max_coordinates=Inf,
+                   git_hash=compute_git_hash(), custom_quantities...)
     mkpath(output_directory)
 
     # Skip empty systems
     if nparticles(system_) == 0
         return
     end
+
+    v_ode_, u_ode_ = vu_ode_.x
 
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
     v_ode, u_ode, system, semi = transfer2cpu(v_ode_, u_ode_, system_, semi_)
@@ -136,10 +150,16 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_direc
         end
 
         # Extract custom quantities for this system
-        for (key, quantity) in custom_quantities
-            value = custom_quantity(quantity, system, v_ode, u_ode, semi, t)
-            if value !== nothing
-                vtk[string(key)] = value
+        if !isempty(custom_quantities)
+            dv_ode, du_ode = dvdu_ode_.x
+            dv_ode, du_ode = transfer2cpu(dv_ode, du_ode)
+
+            for (key, quantity) in custom_quantities
+                value = custom_quantity(quantity, system, dv_ode, du_ode, v_ode, u_ode,
+                                        semi, t)
+                if value !== nothing
+                    vtk[string(key)] = value
+                end
             end
         end
 
@@ -150,11 +170,11 @@ function trixi2vtk(system_, v_ode_, u_ode_, semi_, t, periodic_box; output_direc
 end
 
 function transfer2cpu(v_::AbstractGPUArray, u_, system_, semi_)
-    v = Adapt.adapt(Array, v_)
-    u = Adapt.adapt(Array, u_)
     semi = Adapt.adapt(Array, semi_)
     system_index = system_indices(system_, semi_)
     system = semi.systems[system_index]
+
+    v, u = transfer2cpu(v_, u_)
 
     return v, u, system, semi
 end
@@ -163,20 +183,32 @@ function transfer2cpu(v_, u_, system_, semi_)
     return v_, u_, system_, semi_
 end
 
-function custom_quantity(quantity::AbstractArray, system, v_ode, u_ode, semi, t)
+function transfer2cpu(v_::AbstractGPUArray, u_)
+    v = Adapt.adapt(Array, v_)
+    u = Adapt.adapt(Array, u_)
+
+    return v, u
+end
+
+function transfer2cpu(v_, u_)
+    return v_, u_
+end
+
+function custom_quantity(quantity::AbstractArray, system, dv_ode, du_ode, v_ode, u_ode,
+                         semi, t)
     return quantity
 end
 
-function custom_quantity(quantity, system, v_ode, u_ode, semi, t)
+function custom_quantity(quantity, system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     # Check if `quantity` is a function of `system`, `v_ode`, `u_ode`, `semi` and `t`
     if !isempty(methods(quantity,
-                        (typeof(system), typeof(v_ode), typeof(u_ode),
-                         typeof(semi), typeof(t))))
-        return quantity(system, v_ode, u_ode, semi, t)
+                        (typeof(system), typeof(dv_ode), typeof(du_ode), typeof(v_ode),
+                         typeof(u_ode), typeof(semi), typeof(t))))
+        return quantity(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     end
 
     # Assume `quantity` is a function of `data`
-    data = system_data(system, v_ode, u_ode, semi)
+    data = system_data(system, dv_ode, du_ode, v_ode, u_ode, semi)
     return quantity(system, data, t)
 end
 

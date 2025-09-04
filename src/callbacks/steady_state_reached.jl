@@ -131,11 +131,12 @@ end
 
     vu_ode = integrator.u
     v_ode, u_ode = vu_ode.x
+    dv_ode, du_ode = get_du(integrator).x
     semi = integrator.p
 
     # Calculate kinetic energy
     ekin = sum(semi.systems) do system
-        return kinetic_energy(system, v_ode, u_ode, semi, 0)
+        return kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, 0)
     end
 
     if length(previous_ekin) == interval_size
