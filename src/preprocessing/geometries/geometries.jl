@@ -55,3 +55,69 @@ function Base.intersect(initial_condition::InitialCondition,
 
     return intersect(result, Base.tail(geometries)...)
 end
+
+# This method is used in `boundary_zone.jl` and is defined here
+# to avoid circular dependencies with `TriangleMesh`
+"""
+    extract_transition_face(plane::TriangleMesh)
+
+Extract plane points and normal vector for the transition face of the [`BoundaryZone`](@ref)
+from a `TrixiParticles.TriangleMesh` returned by [`load_geometry`](@ref).
+The plane points are the corner points of an oriented bounding box of the given geometry.
+The geometry must be planar (i.e., all vertices should lie approximately in the same plane).
+
+!!! note "Face Normal Orientation"
+    Ensure that all face normals of the geometry point inside the fluid domain.
+    The computed plane normal is derived from averaging all face normals,
+    so consistent orientation is required.
+
+# Arguments
+- `plane`: A planar geometry.
+
+# Returns
+- `plane_points`: Tuple of three points defining the transition plane.
+- `plane_normal`: Normalized normal vector of the plane.
+
+# Example
+```julia
+file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+plane_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
+
+plane, plane_normal = extract_transition_face(plane_geometry)
+```
+"""
+function extract_transition_face(plane::TriangleMesh)
+    plane_normal = normalize(sum(plane.face_normals) / nfaces(plane))
+
+    plane_points = oriented_bounding_box(stack(plane.vertices))
+
+    # Vectors spanning the plane
+    edge1 = plane_points[:, 2] - plane_points[:, 1]
+    edge2 = plane_points[:, 3] - plane_points[:, 1]
+
+    if !isapprox(abs.(normalize(cross(edge2, edge1))), abs.(plane_normal), atol=1e-2)
+        throw(ArgumentError("`plane` might be not planar"))
+    end
+
+    return (plane_points[:, 1], plane_points[:, 2], plane_points[:, 3]), plane_normal
+end
+
+# According to:
+# https://logicatcore.github.io/scratchpad/lidar/sensor-fusion/jupyter/2021/04/20/3D-Oriented-Bounding-Box.html
+function oriented_bounding_box(point_cloud)
+    covariance_matrix = Statistics.cov(point_cloud; dims=2)
+    eigen_vectors = Statistics.eigvecs(covariance_matrix)
+    means = Statistics.mean(point_cloud, dims=2)
+
+    centered_data = point_cloud .- means
+
+    aligned_coords = eigen_vectors' * centered_data
+
+    min_corner = minimum(aligned_coords, dims=2)
+    max_corner = maximum(aligned_coords, dims=2)
+
+    plane_points = hcat(min_corner, max_corner,
+                        [min_corner[1], max_corner[2], min_corner[3]])
+
+    return eigen_vectors * plane_points .+ means
+end
