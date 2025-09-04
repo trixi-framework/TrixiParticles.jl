@@ -283,13 +283,13 @@ function set_up_boundary_zone(plane, plane_normal, density, particle_spacing,
     if isnothing(initial_condition) && isnothing(extrude_geometry)
         initial_condition = TrixiParticles.extrude_geometry(plane; particle_spacing,
                                                             density,
-                                                            direction=-plane_normal,
+                                                            direction=(-plane_normal),
                                                             n_extrude=open_boundary_layers)
     elseif !isnothing(extrude_geometry)
         initial_condition = TrixiParticles.extrude_geometry(extrude_geometry;
                                                             particle_spacing,
                                                             density,
-                                                            direction=-plane_normal,
+                                                            direction=(-plane_normal),
                                                             n_extrude=open_boundary_layers)
     else
         initial_condition = initial_condition
