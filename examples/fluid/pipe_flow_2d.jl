@@ -73,12 +73,6 @@ kinematic_viscosity = maximum(prescribed_velocity) * domain_size[2] / reynolds_n
 
 viscosity = ViscosityAdami(nu=kinematic_viscosity)
 
-fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothing_length,
-                                           sound_speed, viscosity=viscosity,
-                                           density_calculator=fluid_density_calculator,
-                                           shifting_technique=ParticleShiftingTechnique(),
-                                           buffer_size=n_buffer_particles)
-
 # Alternatively the WCSPH scheme can be used
 if wcsph
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
