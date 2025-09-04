@@ -71,7 +71,7 @@ export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
-       WendlandC6Kernel, SpikyKernel, Poly6Kernel,LaguerreGaussKernel
+       WendlandC6Kernel, SpikyKernel, Poly6Kernel, LaguerreGaussKernel
 export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS
