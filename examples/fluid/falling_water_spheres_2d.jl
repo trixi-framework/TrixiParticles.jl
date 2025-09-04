@@ -77,12 +77,11 @@ sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 wall_viscosity = nu
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=wall_viscosity),
-                                             reference_particle_spacing=fluid_particle_spacing)
+boundary_model = BoundaryModelDummyParticles{2}(tank.boundary.density, tank.boundary.mass,
+                                                state_equation=state_equation,
+                                                boundary_density_calculator,
+                                                viscosity=ViscosityAdami(nu=wall_viscosity),
+                                                reference_particle_spacing=fluid_particle_spacing)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
                                     adhesion_coefficient=1.0)

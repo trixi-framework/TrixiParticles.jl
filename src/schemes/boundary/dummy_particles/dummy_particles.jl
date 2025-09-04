@@ -1,5 +1,5 @@
 @doc raw"""
-    BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+    BoundaryModelDummyParticles{NDIMS}(initial_density, hydrodynamic_mass,
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
                                 state_equation=nothing, correction=nothing,
@@ -13,8 +13,6 @@ Boundary model for `BoundarySPHSystem`.
                        See description above for more information.
 - `density_calculator`: Strategy to compute the hydrodynamic density of the boundary particles.
                         See description below for more information.
-- `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system.
-- `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
 
 # Keywords
 - `state_equation`:             This should be the same as for the adjacent fluid system
@@ -39,13 +37,11 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
+struct BoundaryModelDummyParticles{DC, VECTOR, SE, V, COR, C}
     pressure           :: VECTOR # Vector{ELTYPE}
     hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
     viscosity          :: V
     correction         :: COR
     cache              :: C
@@ -53,15 +49,13 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
-                                     density_calculator, smoothing_kernel,
-                                     smoothing_length; viscosity=nothing,
-                                     state_equation=nothing, correction=nothing,
-                                     reference_particle_spacing=0.0)
+function BoundaryModelDummyParticles{NDIMS}(initial_density, hydrodynamic_mass,
+                                            density_calculator; viscosity=nothing,
+                                            state_equation=nothing, correction=nothing,
+                                            reference_particle_spacing=0.0) where {NDIMS}
     pressure = initial_boundary_pressure(initial_density, density_calculator,
                                          state_equation)
-    NDIMS = ndims(smoothing_kernel)
-    ELTYPE = eltype(smoothing_length)
+    ELTYPE = eltype(hydrodynamic_mass)
     n_particles = length(initial_density)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
@@ -80,8 +74,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     end
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
-                                       density_calculator, smoothing_kernel,
-                                       smoothing_length, viscosity, correction, cache)
+                                       density_calculator, viscosity, correction, cache)
 end
 
 @doc raw"""
@@ -342,8 +335,7 @@ end
 function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection},
-                                             boundary_model,
-                                             system, u, v_ode, u_ode, semi)
+                                             boundary_model, system, u, v_ode, u_ode, semi)
     (; cache, correction, smoothing_kernel) = boundary_model
     (; correction_matrix) = cache
 
@@ -479,8 +471,8 @@ end
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
-        boundary_pressure_inner!(boundary_model, density_calculator, system,
-                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
+        boundary_pressure_inner!(density_calculator, system, neighbor_system, v,
+                                 v_neighbor_system, particle, neighbor,
                                  pos_diff, distance, viscosity, cache, pressure,
                                  pressure_offset)
     end
@@ -504,14 +496,14 @@ end
                                                                        pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
-        boundary_pressure_inner!(boundary_model, density_calculator, system,
-                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
+        boundary_pressure_inner!(density_calculator, system, neighbor_system, v,
+                                 v_neighbor_system, particle, neighbor,
                                  pos_diff, distance, viscosity, cache, pressure,
                                  pressure_offset)
     end
 end
 
-@inline function boundary_pressure_inner!(boundary_model, boundary_density_calculator,
+@inline function boundary_pressure_inner!(boundary_density_calculator,
                                           system, neighbor_system::FluidSystem, v,
                                           v_neighbor_system, particle, neighbor, pos_diff,
                                           distance, viscosity, cache, pressure,
@@ -536,7 +528,7 @@ end
     sum_pressures = pressure_offset + fluid_pressure + dynamic_pressure_ +
                     hydrostatic_pressure
 
-    kernel_weight = smoothing_kernel(boundary_model, distance, particle)
+    kernel_weight = smoothing_kernel(neighbor_system, distance, particle)
 
     @inbounds pressure[particle] += sum_pressures * kernel_weight
     @inbounds cache.volume[particle] += kernel_weight

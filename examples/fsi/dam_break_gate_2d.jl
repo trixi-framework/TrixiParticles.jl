@@ -114,15 +114,14 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
-boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                                  state_equation=state_equation,
-                                                  boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
+boundary_model_tank = BoundaryModelDummyParticles{2}(tank.boundary.density,
+                                                     tank.boundary.mass,
+                                                     state_equation=state_equation,
+                                                     boundary_density_calculator)
 
-boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
-                                                  state_equation=state_equation,
-                                                  boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
+boundary_model_gate = BoundaryModelDummyParticles{2}(gate.density, gate.mass,
+                                                     state_equation=state_equation,
+                                                     boundary_density_calculator)
 
 boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
 boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate, movement=gate_movement)
@@ -136,11 +135,10 @@ solid_smoothing_kernel = WendlandC2Kernel{2}()
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses,
-                                                   state_equation=state_equation,
-                                                   AdamiPressureExtrapolation(),
-                                                   smoothing_kernel, smoothing_length)
+boundary_model_solid = BoundaryModelDummyParticles{2}(hydrodynamic_densites,
+                                                      hydrodynamic_masses,
+                                                      state_equation=state_equation,
+                                                      boundary_density_calculator)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,

@@ -85,18 +85,16 @@ is_moving(t) = true
 
 lid_movement = BoundaryMovement(lid_movement_function, is_moving)
 
-boundary_model_cavity = BoundaryModelDummyParticles(cavity.boundary.density,
-                                                    cavity.boundary.mass,
+boundary_model_cavity = BoundaryModelDummyParticle{2}(cavity.boundary.density,
+                                                      cavity.boundary.mass,
+                                                      AdamiPressureExtrapolation(),
+                                                      viscosity=viscosity,
+                                                      state_equation=state_equation)
+
+boundary_model_lid = BoundaryModelDummyParticles{2}(lid.density, lid.mass,
                                                     AdamiPressureExtrapolation(),
                                                     viscosity=viscosity,
-                                                    state_equation=state_equation,
-                                                    smoothing_kernel, smoothing_length)
-
-boundary_model_lid = BoundaryModelDummyParticles(lid.density, lid.mass,
-                                                 AdamiPressureExtrapolation(),
-                                                 viscosity=viscosity,
-                                                 state_equation=state_equation,
-                                                 smoothing_kernel, smoothing_length)
+                                                    state_equation=state_equation)
 
 boundary_system_cavity = BoundarySPHSystem(cavity.boundary, boundary_model_cavity)
 

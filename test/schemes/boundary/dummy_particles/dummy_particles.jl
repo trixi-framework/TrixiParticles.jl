@@ -1,10 +1,8 @@
 @testset verbose=true "Dummy Particles" begin
     @testset "show" begin
-        boundary_model = BoundaryModelDummyParticles([1000.0],
-                                                     [1.0],
-                                                     SummationDensity(),
-                                                     SchoenbergCubicSplineKernel{2}(),
-                                                     0.1)
+        boundary_model = BoundaryModelDummyParticles{1}([1000.0],
+                                                        [1.0],
+                                                        SummationDensity())
 
         expected_repr = "BoundaryModelDummyParticles(SummationDensity, Nothing)"
         @test repr(boundary_model) == expected_repr
@@ -50,20 +48,16 @@
                                            exponent=7)
 
         # Define pressure extrapolation methods to test
-        boundary_model_adami = BoundaryModelDummyParticles(boundary.density,
-                                                           boundary.mass,
-                                                           state_equation=state_equation,
-                                                           AdamiPressureExtrapolation(),
-                                                           smoothing_kernel,
-                                                           smoothing_length,
-                                                           viscosity=viscosity)
-        boundary_model_bernoulli = BoundaryModelDummyParticles(boundary.density,
-                                                               boundary.mass,
-                                                               state_equation=state_equation,
-                                                               BernoulliPressureExtrapolation(),
-                                                               smoothing_kernel,
-                                                               smoothing_length,
-                                                               viscosity=viscosity)
+        boundary_model_adami = BoundaryModelDummyParticles{2}(boundary.density,
+                                                              boundary.mass,
+                                                              state_equation=state_equation,
+                                                              AdamiPressureExtrapolation(),
+                                                              viscosity=viscosity)
+        boundary_model_bernoulli = BoundaryModelDummyParticles{2}(boundary.density,
+                                                                  boundary.mass,
+                                                                  state_equation=state_equation,
+                                                                  BernoulliPressureExtrapolation(),
+                                                                  viscosity=viscosity)
 
         boundary_systems = [
             BoundarySPHSystem(boundary, boundary_model_adami),
@@ -228,11 +222,10 @@
                                 density, n_layers=n_layers,
                                 faces=(true, true, true, false))
 
-        boundary_model = BoundaryModelDummyParticles(tank1.boundary.density,
-                                                     tank1.boundary.mass,
-                                                     state_equation=state_equation,
-                                                     AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, smoothing_length)
+        boundary_model = BoundaryModelDummyParticles{2}(tank1.boundary.density,
+                                                        tank1.boundary.mass,
+                                                        state_equation=state_equation,
+                                                        AdamiPressureExtrapolation())
 
         boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
         viscosity = boundary_system.boundary_model.viscosity

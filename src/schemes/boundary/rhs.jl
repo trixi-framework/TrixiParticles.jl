@@ -29,7 +29,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
                  current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-        grad_kernel = smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
+        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, particle)
 
         continuity_equation!(dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
                              grad_kernel, particle)

@@ -334,15 +334,6 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@inline function smoothing_kernel(system::BoundarySPHSystem, distance, particle)
-    (; smoothing_kernel, smoothing_length) = system.boundary_model
-    return kernel(smoothing_kernel, distance, smoothing_length)
-end
-
-@inline function smoothing_length(system::BoundarySPHSystem, particle)
-    return smoothing_length(system.boundary_model, particle)
-end
-
 function update_positions!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; movement) = system
 
@@ -427,8 +418,10 @@ end
 
 function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
     system_coords = system.coordinates
-    (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
+    (; cache) = system.boundary_model
 
+    # TODO: fix after removable of smoothing_kernel and smoothing_length from
+    # `BoundaryModelDummyParticles`
     if haskey(cache, :initial_colorfield)
         foreach_point_neighbor(system, system, system_coords, system_coords, semi,
                                points=eachparticle(system)) do particle, neighbor,
@@ -436,17 +429,31 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
             cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
                                                   system.initial_condition.density[particle] *
                                                   system.cache.color *
-                                                  kernel(smoothing_kernel,
+                                                  kernel(system.boundary_model.smoothing_kernel,
                                                          distance,
-                                                         smoothing_length)
+                                                         system.boundary_model.smoothing_length)
             cache.neighbor_count[particle] += 1
         end
     end
     return system
 end
 
-function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.smoothing_kernel
+function system_smoothing_kernel(system, neighbor_system)
+    return system_smoothing_kernel(system)
+end
+
+function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
+                                 neighbor_system::FluidSystem)
+    return system_smoothing_kernel(neighbor_system)
+end
+
+function smoothing_length(system, neighbor_system, particle)
+    return smoothing_length(system, system.particle_refinement, particle)
+end
+
+function smoothing_length(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
+                          neighbor_system::FluidSystem, particle)
+    return smoothing_length(neighbor_system, neighbor_system.particle_refinement, particle)
 end
 
 function system_correction(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})

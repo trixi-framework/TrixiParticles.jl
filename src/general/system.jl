@@ -120,6 +120,16 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
 end
 
+@inline function smoothing_kernel(system, neighbor_system, distance, particle)
+    (; smoothing_kernel) = system
+    return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
+end
+
+@inline function smoothing_kernel(system::BoundarySystem, neighbor_system::FluidSystem,
+                                  distance, particle)
+    return smoothing_kernel(neighbor_system, system, distance, particle)
+end
+
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
     return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff,
                                  distance, smoothing_length(system, particle),

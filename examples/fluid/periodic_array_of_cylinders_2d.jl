@@ -65,10 +65,9 @@ fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_le
 
 # ==========================================================================================
 # ==== Boundary
-boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
-                                             AdamiPressureExtrapolation(),
-                                             viscosity=ViscosityAdami(; nu),
-                                             smoothing_kernel, smoothing_length)
+boundary_model = BoundaryModelDummyParticles{2}(boundary.density, boundary.mass,
+                                                AdamiPressureExtrapolation(),
+                                                viscosity=ViscosityAdami(; nu))
 
 boundary_system = BoundarySPHSystem(boundary, boundary_model)
 

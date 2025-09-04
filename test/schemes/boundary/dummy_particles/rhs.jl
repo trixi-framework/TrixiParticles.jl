@@ -42,28 +42,22 @@
             # since the same code will be run as for `ContinuityDensity`.
             # The advantage of `ContinuityDensity` is that the density will be
             # perturbed without having to run a summation or Adami update step.
-            boundary_model_zeroing = BoundaryModelDummyParticles(initial_condition.density,
-                                                                 initial_condition.mass,
-                                                                 PressureZeroing(),
-                                                                 smoothing_kernel,
-                                                                 smoothing_length)
+            boundary_model_zeroing = BoundaryModelDummyParticles{2}(initial_condition.density,
+                                                                    initial_condition.mass,
+                                                                    PressureZeroing())
             boundary_system_zeroing = BoundarySPHSystem(initial_condition,
                                                         boundary_model_zeroing)
-            boundary_model_continuity = BoundaryModelDummyParticles(initial_condition.density,
-                                                                    initial_condition.mass,
-                                                                    ContinuityDensity(),
-                                                                    smoothing_kernel,
-                                                                    smoothing_length)
+            boundary_model_continuity = BoundaryModelDummyParticles{2}(initial_condition.density,
+                                                                       initial_condition.mass,
+                                                                       ContinuityDensity())
             # Overwrite `boundary_model_continuity.pressure` because we skip the update step
             boundary_model_continuity.pressure .= initial_condition.pressure
             boundary_system_continuity = BoundarySPHSystem(initial_condition,
                                                            boundary_model_continuity)
 
-            boundary_model_summation = BoundaryModelDummyParticles(initial_condition.density,
-                                                                   initial_condition.mass,
-                                                                   SummationDensity(),
-                                                                   smoothing_kernel,
-                                                                   smoothing_length)
+            boundary_model_summation = BoundaryModelDummyParticles{2}(initial_condition.density,
+                                                                      initial_condition.mass,
+                                                                      SummationDensity())
             # Overwrite `boundary_model_summation.pressure` because we skip the update step
             boundary_model_summation.pressure .= initial_condition.pressure
             # Density is stored in the cache
