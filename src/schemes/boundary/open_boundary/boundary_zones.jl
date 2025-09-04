@@ -272,28 +272,24 @@ function set_up_boundary_zone(plane, plane_normal, density, particle_spacing,
     if boundary_type isa InFlow
         # Unit vector pointing in downstream direction
         flow_direction = plane_normal
-        extrude_direction = -flow_direction
     elseif boundary_type isa OutFlow
         # Unit vector pointing in downstream direction
         flow_direction = -plane_normal
-        extrude_direction = flow_direction
     elseif boundary_type isa BidirectionalFlow
         flow_direction = nothing
-        # `plane_normal` is always pointing in the fluid domain
-        extrude_direction = -plane_normal
     end
 
     # Sample particles in boundary zone
     if isnothing(initial_condition) && isnothing(extrude_geometry)
         initial_condition = TrixiParticles.extrude_geometry(plane; particle_spacing,
                                                             density,
-                                                            direction=extrude_direction,
+                                                            direction=-plane_normal,
                                                             n_extrude=open_boundary_layers)
     elseif !isnothing(extrude_geometry)
         initial_condition = TrixiParticles.extrude_geometry(extrude_geometry;
                                                             particle_spacing,
                                                             density,
-                                                            direction=extrude_direction,
+                                                            direction=-plane_normal,
                                                             n_extrude=open_boundary_layers)
     else
         initial_condition = initial_condition
