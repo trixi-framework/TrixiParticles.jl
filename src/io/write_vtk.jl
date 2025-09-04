@@ -302,9 +302,14 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             surface_tension[1:ndims(system),
                             particle] .+= surface_tension_force(surface_tension_a,
                                                                 surface_tension_b,
-                                                                system, system, particle,
-                                                                neighbor, pos_diff,
-                                                                distance, rho_a, rho_b,
+                                                                system,
+                                                                system,
+                                                                particle,
+                                                                neighbor,
+                                                                pos_diff,
+                                                                distance,
+                                                                rho_a,
+                                                                rho_b,
                                                                 grad_kernel)
         end
         vtk["surface_tension"] = surface_tension
