@@ -48,53 +48,58 @@ For more information on the methods, see [particle packing](@ref particle_packin
                            See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length_interpolation`: Smoothing length to be used for interpolating the `SignedDistanceField` information.
                                     The default is `smoothing_length_interpolation = smoothing_length`.
+- `neighborhood_search`:   Neighborhood search used for interpolating the `SignedDistanceField`
+                           information. The default is a [`GridNeighborhoodSearch`](@ref).
 - `boundary_compress_factor`: Factor to compress the boundary particles by reducing the boundary thickness by a factor of `boundary_compress_factor`.
                               The default value is `1`, which means no compression.
                               Compression can be useful for highly convex geometries,
                               where the boundary volume increases significantly while the mass of the boundary particles remains constant.
                               Recommended values are `0.8` or `0.9`.
 """
-struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
-                             IC, M, D, K, N, SD} <: FluidSystem{NDIMS}
-    initial_condition              :: IC
-    advection_velocity             :: AV
-    mass                           :: M
-    density                        :: D
-    particle_spacing               :: ELTYPE
-    smoothing_kernel               :: K
-    smoothing_length_interpolation :: ELTYPE
-    background_pressure            :: ELTYPE
-    tlsph                          :: Bool
-    signed_distance_field          :: S
-    is_boundary                    :: Bool
-    shift_length                   :: ELTYPE
-    neighborhood_search            :: N
-    signed_distances               :: SD # Only for visualization
-    particle_refinement            :: PR
-    buffer                         :: Nothing
-    cache                          :: C
+struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, IC, ARRAY1D, K, TV,
+                             N, SD, PR, PF, C} <: FluidSystem{NDIMS}
+    initial_condition                 :: IC
+    mass                              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    density                           :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    particle_spacing                  :: ELTYPE
+    smoothing_kernel                  :: K
+    smoothing_length_interpolation    :: ELTYPE
+    transport_velocity                :: TV
+    tlsph                             :: Bool
+    signed_distance_field             :: S
+    is_boundary                       :: Bool
+    shift_length                      :: ELTYPE
+    neighborhood_search               :: N
+    signed_distances                  :: SD # Only for visualization
+    particle_refinement               :: PR
+    pressure_acceleration_formulation :: PF
+    buffer                            :: Nothing
+    correction                        :: Nothing
+    fixed_system                      :: Bool # Just to make the constructor work with Adapt.jl
+    cache                             :: C
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
                                    smoothing_kernel, smoothing_length_interpolation,
-                                   background_pressure, tlsph, signed_distance_field,
+                                   transport_velocity, tlsph, signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
-                                   signed_distances, particle_refinement, buffer,
-                                   fixed_system, cache, advection_velocity)
+                                   signed_distances, particle_refinement,
+                                   pressure_acceleration_formulation, buffer,
+                                   correction, fixed_system, cache)
         return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
-                   eltype(density), typeof(particle_refinement), typeof(cache),
-                   typeof(advection_velocity), typeof(initial_condition), typeof(mass),
-                   typeof(density), typeof(smoothing_kernel), typeof(neighborhood_search),
-                   typeof(signed_distances)}(initial_condition, advection_velocity,
-                                             mass, density, particle_spacing,
-                                             smoothing_kernel,
-                                             smoothing_length_interpolation,
-                                             background_pressure, tlsph,
-                                             signed_distance_field, is_boundary,
-                                             shift_length, neighborhood_search,
-                                             signed_distances, particle_refinement,
-                                             buffer, cache)
+                   eltype(initial_condition), typeof(initial_condition),
+                   typeof(mass), typeof(smoothing_kernel),
+                   typeof(transport_velocity), typeof(neighborhood_search),
+                   typeof(signed_distances), typeof(particle_refinement),
+                   typeof(pressure_acceleration_formulation),
+                   typeof(cache)}(initial_condition, mass, density, particle_spacing,
+                                  smoothing_kernel, smoothing_length_interpolation,
+                                  transport_velocity, tlsph, signed_distance_field,
+                                  is_boundary, shift_length, neighborhood_search,
+                                  signed_distances, particle_refinement,
+                                  pressure_acceleration_formulation, buffer,
+                                  correction, fixed_system, cache)
     end
 end
 
@@ -112,6 +117,11 @@ function ParticlePackingSystem(shape::InitialCondition;
     density = copy(shape.density)
 
     particle_refinement = nothing
+    transport_velocity = TransportVelocityAdami(background_pressure)
+    pressure_acceleration = choose_pressure_acceleration_formulation(nothing,
+                                                                     ContinuityDensity(),
+                                                                     NDIMS, ELTYPE,
+                                                                     nothing)
 
     if ndims(smoothing_kernel) != NDIMS
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -132,7 +142,8 @@ function ParticlePackingSystem(shape::InitialCondition;
                                        length(signed_distance_field.positions))
 
         # Initialize neighborhood search with signed distances
-        PointNeighbors.initialize_grid!(nhs, stack(signed_distance_field.positions))
+        PointNeighbors.initialize!(nhs, shape.coordinates,
+                                   stack(signed_distance_field.positions))
     end
 
     # If `distance_signed >= -shift_length`, the particle position is modified
@@ -152,16 +163,16 @@ function ParticlePackingSystem(shape::InitialCondition;
         shift_length = tlsph ? zero(ELTYPE) : shape.particle_spacing / 2
     end
 
-    cache = (; create_cache_refinement(shape, particle_refinement, smoothing_length)...)
-
-    advection_velocity = copy(shape.velocity)
+    cache = (; create_cache_refinement(shape, particle_refinement, smoothing_length)...,
+             create_cache_tvf(shape, transport_velocity)...)
 
     return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
                                  smoothing_kernel, smoothing_length_interpolation,
-                                 background_pressure, tlsph, signed_distance_field,
+                                 transport_velocity, tlsph, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
-                                 nothing, fixed_system, cache, advection_velocity)
+                                 pressure_acceleration, nothing, nothing, fixed_system,
+                                 cache)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
@@ -198,10 +209,9 @@ timer_name(::ParticlePackingSystem) = "packing"
 end
 
 @inline function v_nvariables(system::ParticlePackingSystem)
-    # Don't integrate fixed systems
-    fixed_packing_system(system) && return 0
-
-    return ndims(system)
+    # There is no velocity to integrate.
+    # Velocity is computed in each stage based only on the current positions.
+    return 0
 end
 
 @inline function u_nvariables(system::ParticlePackingSystem)
@@ -211,32 +221,30 @@ end
     return ndims(system)
 end
 
-@inline requires_update_callback(system::ParticlePackingSystem) = true
-
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
-    vtk["velocity"] = [advection_velocity(v, system, particle)
+    vtk["velocity"] = [delta_v(system, particle)
                        for particle in active_particles(system)]
     if write_meta_data
         vtk["signed_distances"] = system.signed_distances
     end
 end
 
-# Skip for fixed systems
-write_u0!(u0, system::ParticlePackingSystem{<:Any, true}) = u0
+write_v0!(v0, ::ParticlePackingSystem) = v0
 
 # Skip for fixed systems
-write_v0!(v0, system::ParticlePackingSystem{<:Any, true}) = v0
+write_u0!(u0, ::ParticlePackingSystem{<:Any, true}) = u0
 
-# Skip for fixed systems
+# Use initial coordinates for fixed systems
 @inline function current_coordinates(u, system::ParticlePackingSystem{<:Any, true})
     return system.initial_condition.coordinates
 end
 
-@inline function advection_velocity(v, system::ParticlePackingSystem, particle)
-    return extract_svector(system.advection_velocity, system, particle)
-end
+@inline current_density(v, system::ParticlePackingSystem) = system.density
 
-write_v0!(v0, system::ParticlePackingSystem) = (v0 .= zero(eltype(system)))
+# This is required in the transport velocity update
+@inline system_sound_speed(::ParticlePackingSystem) = 1
+
+transport_velocity(system::ParticlePackingSystem) = system.transport_velocity
 
 # Zero for fixed systems
 function kinetic_energy(system::ParticlePackingSystem{<:Any, true}, v_ode, u_ode, semi, t)
@@ -244,90 +252,86 @@ function kinetic_energy(system::ParticlePackingSystem{<:Any, true}, v_ode, u_ode
 end
 
 function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
-    (; initial_condition, is_boundary) = system
-
-    v = wrap_v(v_ode, system, semi)
+    (; is_boundary) = system
 
     # Exclude boundary packing system
     is_boundary && return zero(eltype(system))
 
     # If `each_moving_particle` is empty (no moving particles), return zero
     return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
-        velocity = advection_velocity(v, system, particle)
-        return initial_condition.mass[particle] * dot(velocity, velocity) / 2
+        velocity = delta_v(system, particle)
+        return system.mass[particle] * dot(velocity, velocity) / 2
     end
 end
 
 @inline source_terms(system::ParticlePackingSystem) = nothing
 @inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
 
-# Update from `UpdateCallback` (between time steps)
-update_particle_packing(system, v_ode, u_ode, semi, integrator) = system
-
-# Update from `UpdateCallback` (between time steps)
-function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
-                                 semi, integrator)
-    u = wrap_u(u_ode, system, semi)
-
-    update_position!(u, system, semi)
-end
-
-function update_position!(u, system::ParticlePackingSystem, semi)
-    func_name = "constrain outside particles onto surface"
-    @trixi_timeit timer() func_name constrain_particles_onto_surface!(u, system, semi)
-
-    return u
+function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, t)
+    @trixi_timeit timer() "update packing velocity" begin
+        update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
+    end
+    @trixi_timeit timer() "constrain particles onto surface" begin
+        constrain_particles_onto_surface!(system, v, u, semi)
+    end
 end
 
 # Skip for systems without `SignedDistanceField`
-constrain_particles_onto_surface!(u, system::ParticlePackingSystem{Nothing}, semi) = u
+constrain_particles_onto_surface!(system::ParticlePackingSystem{Nothing}, v, u, semi) = system
 
-function constrain_particles_onto_surface!(u, system::ParticlePackingSystem, semi)
+function constrain_particles_onto_surface!(system::ParticlePackingSystem, v, u, semi)
     (; neighborhood_search, signed_distance_field, smoothing_length_interpolation) = system
-    (; positions, distances, normals) = signed_distance_field
+    (; distances, normals) = signed_distance_field
 
-    search_radius2 = compact_support(system, system)^2
+    # Initialize neighborhood search with signed distances.
+    # Inform PointNeighbors.jl that only the particles in the system are moving,
+    # but not the particles in the SDF. For the `GridNeighborhoodSearch`, this
+    # results in the update function doing nothing.
+    system_coords = current_coordinates(u, system)
+    neighbor_coords = stack(signed_distance_field.positions)
+    PointNeighbors.update!(neighborhood_search, system_coords, neighbor_coords,
+                           points_moving=(true, false))
 
     @threaded semi for particle in eachparticle(system)
-        particle_position = current_coords(u, system, particle)
+        # Use `Ref` to ensure the variables are accessible and mutable within the closure below
+        # (see https://docs.julialang.org/en/v1/manual/performance-tips/#man-performance-captured).
+        volume = Ref(zero(eltype(system)))
+        distance_signed = Ref(zero(eltype(system)))
+        normal_vector = Ref(fill(volume[], SVector{ndims(system), eltype(system)}))
 
-        volume = zero(eltype(system))
-        distance_signed = zero(eltype(system))
-        normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
-
-        # Interpolate signed distances and normals
-        for neighbor in PointNeighbors.eachneighbor(particle_position, neighborhood_search)
-            pos_diff = positions[neighbor] - particle_position
-            distance2 = dot(pos_diff, pos_diff)
-            distance2 > search_radius2 && continue
-
-            distance = sqrt(distance2)
+        # Interpolate signed distances and normals.
+        # TODO: Use public API of PointNeighbors.jl
+        PointNeighbors.foreach_neighbor(system_coords, neighbor_coords, neighborhood_search,
+                                        particle) do particle, neighbor,
+                                                     pos_diff, distance
             kernel_weight = kernel(system.smoothing_kernel, distance,
                                    smoothing_length_interpolation)
 
-            distance_signed += distances[neighbor] * kernel_weight
-
-            normal_vector += normals[neighbor] * kernel_weight
-
-            volume += kernel_weight
+            distance_signed[] += distances[neighbor] * kernel_weight
+            normal_vector[] += normals[neighbor] * kernel_weight
+            volume[] += kernel_weight
         end
 
-        if volume > eps()
-            distance_signed /= volume
-            normal_vector /= volume
+        if volume[] > eps()
+            distance_signed[] /= volume[]
+            normal_vector[] /= volume[]
 
             # Store signed distance for visualization
-            system.signed_distances[particle] = distance_signed
+            system.signed_distances[particle] = distance_signed[]
 
-            constrain_particle!(u, system, particle, distance_signed, normal_vector)
+            constrain_particle!(system, particle, distance_signed[], normal_vector[])
         end
     end
 
-    return u
+    return system
 end
 
-function constrain_particle!(u, system, particle, distance_signed, normal_vector)
-    (; shift_length) = system
+function constrain_particle!(system, particle, distance_signed, normal_vector)
+    (; shift_length, cache) = system
+    (; delta_v) = cache
+
+    h = smoothing_length(system, particle)
+    sound_speed = system_sound_speed(system)
 
     # For fluid particles:
     # - `tlsph = true`: `shift_length = 0`
@@ -339,58 +343,39 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
         shift = (distance_signed + shift_length) * normal_vector
 
         for dim in 1:ndims(system)
-            u[dim, particle] -= shift[dim]
+            delta_v[dim, particle] -= sound_speed / h * shift[dim]
         end
     end
 
-    system.is_boundary || return u
+    system.is_boundary || return system
 
-    particle_spacing = system.initial_condition.particle_spacing
+    particle_spacing = system.particle_spacing
     shift_length_inner = system.tlsph ? particle_spacing : particle_spacing / 2
 
     if distance_signed < shift_length_inner
         shift = (distance_signed - shift_length_inner) * normal_vector
 
         for dim in 1:ndims(system)
-            u[dim, particle] -= shift[dim]
-        end
-    end
-
-    return u
-end
-
-# Skip for fixed systems
-@inline update_transport_velocity!(system::ParticlePackingSystem{<:Any, true}, v_ode,
-                                   semi) = system
-
-# Update from `UpdateCallback` (between time steps)
-@inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
-    v = wrap_v(v_ode, system, semi)
-    @threaded semi for particle in each_moving_particle(system)
-        for i in 1:ndims(system)
-            system.advection_velocity[i, particle] = v[i, particle]
-
-            # The particle velocity is set to zero at the beginning of each time step to
-            # achieve a fully stationary state.
-            v[i, particle] = zero(eltype(system))
+            delta_v[dim, particle] -= sound_speed / h * shift[dim]
         end
     end
 
     return system
 end
 
-@inline function update_transport_velocity!(system, v_ode, semi)
-    return system
-end
-
-# Skip for fixed systems
-@inline add_velocity!(du, v, particle, system::ParticlePackingSystem{<:Any, true}) = du
-
-# Add advection velocity.
 @inline function add_velocity!(du, v, particle, system::ParticlePackingSystem)
+    delta_v_ = delta_v(system, particle)
+
     for i in 1:ndims(system)
-        du[i, particle] = system.advection_velocity[i, particle]
+        @inbounds du[i, particle] = delta_v_[i]
     end
 
     return du
+end
+
+# No acceleration through interaction of particles in particle packing
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   system::ParticlePackingSystem, neighbor_system, semi)
+    return dv
 end
