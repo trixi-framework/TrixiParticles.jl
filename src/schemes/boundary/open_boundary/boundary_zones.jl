@@ -7,8 +7,10 @@ struct OutFlow end
 @doc raw"""
     BoundaryZone(; plane, plane_normal, density, particle_spacing,
                  initial_condition=nothing, extrude_geometry=nothing,
-                 open_boundary_layers::Integer, boundary_type=BidirectionalFlow(),
-                 average_inflow_velocity=true)
+                 open_boundary_layers::Integer, average_inflow_velocity=true,
+                 boundary_type=BidirectionalFlow(),
+                 reference_density=nothing, reference_pressure=nothing,
+                 reference_velocity=nothing)
 
 Boundary zone for [`OpenBoundarySPHSystem`](@ref).
 
@@ -63,6 +65,22 @@ There are three ways to specify the actual shape of the boundary zone:
                                   anisotropic buffer-particles distribution,
                                   resulting in a potential numerical instability.
                                   Averaging mitigates these effects.
+- `reference_velocity`: Reference velocity is either a function mapping each particle's coordinates
+                        and time to its velocity, an array where the ``i``-th column holds
+                        the velocity of particle ``i`` or, for a constant fluid velocity,
+                        a vector holding this velocity.
+- `reference_pressure`: Reference pressure is either a function mapping each particle's coordinates
+                        and time to its pressure, a vector holding the pressure of each particle,
+                        or a scalar for a constant pressure over all particles.
+- `reference_density`: Reference density is either a function mapping each particle's coordinates
+                       and time to its density, a vector holding the density of each particle,
+                       or a scalar for a constant density over all particles.
+
+!!! note "Note"
+    The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
+    can also be set to `nothing`.
+    In this case, they will either be extrapolated from the fluid domain ([BoundaryModelTafuniMirroring](@ref BoundaryModelTafuniMirroring))
+    or evolved using the characteristic flow variables ([BoundaryModelLastiwkaCharacteristics](@ref BoundaryModelLastiwkaCharacteristics)).
 
 # Examples
 ```julia
