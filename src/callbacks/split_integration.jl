@@ -81,6 +81,10 @@ function initialize_split_integration!(cb, u, t, integrator)
     foreach_system(semi_split) do system
         foreach_system(semi) do neighbor
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)
+            # The first element indicates if the NHS requires an update when the first
+            # system (the TLSPH system) changed.
+            # If `false`, the NHS does not need to be updated in the substeps
+            # where the neighbor is static.
             if PointNeighbors.requires_update(neighborhood_search)[1]
                 throw(ArgumentError("Split integration is only supported (and useful) " *
                                     "when the neighborhood search does not require updates " *
@@ -99,7 +103,9 @@ function initialize_split_integration!(cb, u, t, integrator)
     # Copy the initial conditions to the split integrator
     copy_to_split!(v_ode, u_ode, v0_ode_split, u0_ode_split, semi, semi_split)
 
-    # A zero `tspan` sets `tdir` to zero, which breaks adding tstops
+    # A zero `tspan` sets `tdir` to zero, which breaks adding tstops.
+    # Therefore, we have to use an arbitrary non-zero `tspan` here,
+    # but we remove the final tstop later.
     tspan = (integrator.t, integrator.t + 1)
     p = (; v_ode, u_ode, semi, semi_split)
     ode_split = DynamicalODEProblem(kick_split!, drift_split!, v0_ode_split, u0_ode_split,
