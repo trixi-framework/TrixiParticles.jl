@@ -105,10 +105,6 @@ end
     eta_b = rho_b * particle_system.nu_edac
     eta_tilde = 2 * eta_a * eta_b / (eta_a + eta_b)
 
-    smoothing_length_average = (smoothing_length(particle_system, particle) +
-                                smoothing_length(neighbor_system, neighbor)) / 2
-    tmp = eta_tilde / (distance^2 + smoothing_length_average^2 / 100)
-
     # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
     # They argued that the formulation is more flexible because of the possibility to formulate
     # different inter-particle averages or to assume different inter-particle distributions.
@@ -120,6 +116,10 @@ end
     # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
     #
     # This is similar to density diffusion in WCSPH
+    tmp = eta_tilde / (distance^2
+           +
+           smoothing_length_average(particle_system, particle, neighbor_system,
+                                    neighbor)^2 / 100)
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
     dv[end, particle] += artificial_eos + damping_term
@@ -142,4 +142,14 @@ end
                                       particle_system::EntropicallyDampedSPHSystem,
                                       grad_kernel)
     return dv
+end
+
+@inline function smoothing_length_average(system, particle, neighbor_system, neighbor)
+    return (smoothing_length(system, particle) +
+            smoothing_length(neighbor_system, neighbor)) / 2
+end
+
+@inline function smoothing_length_average(system, particle,
+                                          neighbor_system::BoundarySPHSystem, neighbor)
+    return smoothing_length(system, particle)
 end
