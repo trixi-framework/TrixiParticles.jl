@@ -113,7 +113,7 @@ function velocity_function2d(pos, t)
     return SVector(prescribed_velocity)
 end
 
-open_boundary_model = BoundaryModelTafuniMirroring(; mirror_method=ZerothOrderMirroring())
+open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
 
 reference_velocity_in = velocity_function2d
 reference_pressure_in = nothing
@@ -131,7 +131,7 @@ reference_velocity_out = nothing
 reference_pressure_out = nothing
 reference_density_out = nothing
 boundary_type_out = OutFlow()
-plane_out = ([pipe.fluid_size[1], 0.0], [pipe.fluid_size[1], domain_size[2]])
+plane_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], domain_size[2]])
 outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        reference_density=reference_density_out,

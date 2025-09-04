@@ -47,7 +47,7 @@ The interpolated values at the ghost nodes are then assigned to the correspondin
 struct ZerothOrderMirroring end
 
 @doc raw"""
-    BoundaryModelTafuniMirroring(; mirror_method=FirstOrderMirroring())
+    BoundaryModelMirroringTafuni(; mirror_method=FirstOrderMirroring())
 
 Boundary model for the `OpenBoundarySPHSystem`.
 This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
@@ -61,15 +61,15 @@ We provide three different mirroring methods:
     - [`FirstOrderMirroring`](@ref): Uses a first order correction based on the gradient of the interpolated values .
     - [`SimpleMirroring`](@ref): Similar to the first order mirroring, but does not use the gradient of the interpolated values.
 """
-struct BoundaryModelTafuniMirroring{MM}
+struct BoundaryModelMirroringTafuni{MM}
     mirror_method::MM
 end
 
-function BoundaryModelTafuniMirroring(; mirror_method=FirstOrderMirroring())
-    return BoundaryModelTafuniMirroring(mirror_method)
+function BoundaryModelMirroringTafuni(; mirror_method=FirstOrderMirroring())
+    return BoundaryModelMirroringTafuni(mirror_method)
 end
 
-function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuniMirroring,
+function update_boundary_quantities!(system, boundary_model::BoundaryModelMirroringTafuni,
                                      v, u, v_ode, u_ode, semi, t)
     (; boundary_zones, pressure, density, fluid_system, cache) = system
 
@@ -99,17 +99,18 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
         particle_coords = current_coords(u, system, particle)
 
         if prescribed_pressure
-            pressure[particle] = apply_reference_pressure(system, particle,
-                                                          particle_coords, t)
+            pressure[particle] = reference_pressure(boundary_zone, v, system, particle,
+                                                    particle_coords, t)
         end
 
         if prescribed_density
-            density[particle] = apply_reference_density(system, particle,
-                                                        particle_coords, t)
+            density[particle] = reference_density(boundary_zone, v, system, particle,
+                                                  particle_coords, t)
         end
 
         if prescribed_velocity
-            v_ref = apply_reference_velocity(system, particle, particle_coords, t)
+            v_ref = reference_velocity(boundary_zone, v, system, particle,
+                                       particle_coords, t)
 
             for dim in eachindex(v_ref)
                 @inbounds v[dim, particle] = v_ref[dim]
@@ -118,7 +119,7 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelTafuni
     end
 end
 
-function update_boundary_model!(system, ::BoundaryModelTafuniMirroring, v, u, v_ode, u_ode,
+function update_boundary_model!(system, ::BoundaryModelMirroringTafuni, v, u, v_ode, u_ode,
                                 semi, t)
     return system
 end

@@ -302,25 +302,25 @@
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwkaCharacteristics (WCSPH)" begin
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
-                                         open_boundary_model=BoundaryModelLastiwkaCharacteristics(),
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwkaCharacteristics (EDAC)" begin
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (EDAC)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=false,
-                                         open_boundary_model=BoundaryModelLastiwkaCharacteristics(),
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuniMirroring (EDAC)" begin
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (EDAC)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=false,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
@@ -330,7 +330,7 @@
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuniMirroring (WCSPH)" begin
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
@@ -347,7 +347,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
-                                         open_boundary_model=BoundaryModelLastiwkaCharacteristics(),
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          extra_callback=steady_state_reached,
                                          tspan=(0.0, 1.5), viscosity_boundary=nothing)
 
@@ -362,7 +362,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
-                                         open_boundary_model=BoundaryModelLastiwkaCharacteristics(),
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          extra_callback=steady_state_reached, dtmax=2e-3,
                                          tspan=(0.0, 1.5), viscosity_boundary=nothing)
 

@@ -11,6 +11,7 @@ end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
+# Returns `functions[index](args...)`, but in a type-stable way for a heterogeneous tuple `functions`
 @inline function apply_ith_function(functions, index, args...)
     if index == 1
         # Found the function to apply, apply it and return

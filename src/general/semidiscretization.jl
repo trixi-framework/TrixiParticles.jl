@@ -979,9 +979,9 @@ function check_configuration(system::OpenBoundarySPHSystem, systems,
     fluid_system_index = findfirst(==(system.fluid_system), systems)
     system.fluid_system_index[] = fluid_system_index
 
-    if boundary_model isa BoundaryModelLastiwkaCharacteristics &&
+    if boundary_model isa BoundaryModelCharacteristicsLastiwka &&
        any(zone -> isnothing(zone.flow_direction), boundary_zones)
-        throw(ArgumentError("`BoundaryModelLastiwkaCharacteristics` needs a specific flow direction. " *
+        throw(ArgumentError("`BoundaryModelCharacteristicsLastiwka` needs a specific flow direction. " *
                             "Please specify `InFlow()` and `OutFlow()`."))
     end
 

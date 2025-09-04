@@ -81,6 +81,7 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
 
     boundary_zone_indices = zeros(UInt8, nparticles(initial_conditions))
 
+    # Create new `BoundaryZone`s with `reference_values` set to `nothing` for type stability.
     boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
                                                   zone.spanning_set,
                                                   zone.zone_origin,
@@ -111,11 +112,12 @@ end
 function create_cache_open_boundary(boundary_model, initial_condition, reference_values)
     ELTYPE = eltype(initial_condition)
 
+    # Separate `reference_values` into pressure, density and velocity reference values
     pressure_references = map(ref -> ref.reference_pressure, reference_values)
     density_references = map(ref -> ref.reference_density, reference_values)
     velocity_references = map(ref -> ref.reference_velocity, reference_values)
 
-    if boundary_model isa BoundaryModelLastiwkaCharacteristics
+    if boundary_model isa BoundaryModelCharacteristicsLastiwka
         characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
         previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 

@@ -1,5 +1,5 @@
 @doc raw"""
-    BoundaryModelLastiwkaCharacteristics(; extrapolate_reference_values=nothing)
+    BoundaryModelCharacteristicsLastiwka(; extrapolate_reference_values=nothing)
 
 Boundary model for [`OpenBoundarySPHSystem`](@ref).
 This model uses the characteristic variables to propagate the appropriate values
@@ -19,17 +19,17 @@ For more information about the method see [description below](@ref method_of_cha
   Note that even without this extrapolation feature,
   the reference values don't need to be prescribed - they're computed from the characteristics.
 """
-struct BoundaryModelLastiwkaCharacteristics{T}
+struct BoundaryModelCharacteristicsLastiwka{T}
     extrapolate_reference_values::T
 
-    function BoundaryModelLastiwkaCharacteristics(; extrapolate_reference_values=nothing)
+    function BoundaryModelCharacteristicsLastiwka(; extrapolate_reference_values=nothing)
         return new{typeof(extrapolate_reference_values)}(extrapolate_reference_values)
     end
 end
 
 # Called from update callback via `update_open_boundary_eachstep!`
 @inline function update_boundary_quantities!(system,
-                                             boundary_model::BoundaryModelLastiwkaCharacteristics,
+                                             boundary_model::BoundaryModelCharacteristicsLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, boundary_zones, fluid_system) = system
 
@@ -48,8 +48,7 @@ end
     # Update quantities based on the characteristic variables
     @threaded semi for particle in each_moving_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
-        (; prescribed_velocity, prescribed_density, prescribed_pressure,
-         flow_direction) = boundary_zone
+        (; flow_direction) = boundary_zone
 
         particle_position = current_coords(u, system, particle)
 
@@ -57,27 +56,16 @@ end
         J2 = cache.characteristics[2, particle]
         J3 = cache.characteristics[3, particle]
 
-        if prescribed_density
-            rho_ref = apply_reference_density(system, particle, particle_position, t)
-        else
-            rho_ref = current_density(v, system, particle)
-        end
+        rho_ref = reference_density(boundary_zone, v, system, particle,
+                                    particle_position, t)
 
         density[particle] = rho_ref + ((-J1 + (J2 + J3) / 2) / sound_speed^2)
 
-        if prescribed_pressure
-            p_ref = apply_reference_pressure(system, particle, particle_position, t)
-        else
-            p_ref = current_pressure(v, system, particle)
-        end
+        p_ref = reference_pressure(boundary_zone, v, system, particle, particle_position, t)
 
         pressure[particle] = p_ref + (J2 + J3) / 2
 
-        if prescribed_velocity
-            v_ref = apply_reference_velocity(system, particle, particle_position, t)
-        else
-            v_ref = current_velocity(v, system, particle)
-        end
+        v_ref = reference_velocity(boundary_zone, v, system, particle, particle_position, t)
 
         rho = current_density(v, system, particle)
         v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction
@@ -100,7 +88,7 @@ end
 end
 
 # Called from semidiscretization
-function update_boundary_model!(system, ::BoundaryModelLastiwkaCharacteristics,
+function update_boundary_model!(system, ::BoundaryModelCharacteristicsLastiwka,
                                 v, u, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "evaluate characteristics" begin
         evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
@@ -139,36 +127,24 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    pos_diff, distance
         boundary_zone = current_boundary_zone(system, particle)
-        (; prescribed_velocity, prescribed_density, prescribed_pressure,
-         flow_direction) = boundary_zone
+        (; flow_direction) = boundary_zone
 
         neighbor_position = current_coords(u_fluid, fluid_system, neighbor)
 
         # Determine current and prescribed quantities
         rho_b = current_density(v_fluid, fluid_system, neighbor)
 
-        if prescribed_density
-            rho_ref = apply_reference_density(system, particle, neighbor_position, t)
-        else
-            rho_ref = current_density(v, system, particle)
-        end
+        rho_ref = reference_density(boundary_zone, v, system, particle,
+                                    neighbor_position, t)
 
         p_b = current_pressure(v_fluid, fluid_system, neighbor)
 
-        if prescribed_pressure
-            p_ref = apply_reference_pressure(system, particle, neighbor_position, t)
-        else
-            p_ref = current_pressure(v, system, particle)
-        end
+        p_ref = reference_pressure(boundary_zone, v, system, particle, neighbor_position, t)
 
         v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
-        if prescribed_velocity
-            v_neighbor_ref = apply_reference_velocity(system, particle, neighbor_position,
-                                                      t)
-        else
-            v_neighbor_ref = current_velocity(v, system, particle)
-        end
+        v_neighbor_ref = reference_velocity(boundary_zone, v, system, particle,
+                                            neighbor_position, t)
 
         # Determine characteristic variables
         density_term = -sound_speed^2 * (rho_b - rho_ref)
@@ -245,12 +221,11 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-# Only apply averaging at the inflow
-function average_velocity!(v, u, system, ::BoundaryModelLastiwkaCharacteristics,
+function average_velocity!(v, u, system, ::BoundaryModelCharacteristicsLastiwka,
                            boundary_zone, semi)
     (; flow_direction, plane_normal) = boundary_zone
 
-    # Outflow
+    # This is an outflow. Only apply averaging at the inflow.
     signbit(dot(flow_direction, plane_normal)) && return v
 
     particles_in_zone = findall(particle -> boundary_zone ==
