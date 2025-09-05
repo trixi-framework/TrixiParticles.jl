@@ -257,18 +257,6 @@ end
 
 @inline system_state_equation(system::EntropicallyDampedSPHSystem) = nothing
 
-# WARNING!
-# These functions are intended to be used internally to set the pressure
-# of newly activated particles in a callback.
-# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
-# outside of callbacks.
-@inline function set_particle_pressure!(v, system::EntropicallyDampedSPHSystem, particle,
-                                        pressure)
-    v[end, particle] = pressure
-
-    return v
-end
-
 @inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed
 
 @inline shifting_technique(system::EntropicallyDampedSPHSystem) = system.shifting_technique
