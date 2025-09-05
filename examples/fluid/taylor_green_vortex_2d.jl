@@ -86,13 +86,13 @@ if wcsph
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
                                                smoothing_length,
                                                viscosity=ViscosityAdami(; nu),
-                                               shifting_technique=TransportVelocityAdami(background_pressure))
+                                               shifting_technique=TransportVelocityAdami(; background_pressure))
 else
     density_calculator = SummationDensity()
     fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
                                                sound_speed,
                                                density_calculator=density_calculator,
-                                               shifting_technique=TransportVelocityAdami(background_pressure),
+                                               shifting_technique=TransportVelocityAdami(; background_pressure),
                                                viscosity=ViscosityAdami(; nu))
 end
 

@@ -284,7 +284,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "periodic_channel_2d.jl"),
                                          tspan=(0.0, 0.2),
-                                         shifting_technique=TransportVelocityAdami(50_000.0),
+                                         shifting_technique=TransportVelocityAdami(background_pressure=50_000.0),
                                          extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
