@@ -41,7 +41,6 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     pressure_acceleration_formulation :: PF
-    transport_velocity                :: Nothing
     surface_normal_method             :: Nothing # TODO
     surface_tension                   :: Nothing # TODO
     particle_refinement               :: Nothing  #TODO
@@ -131,7 +130,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
                                            smoothing_kernel, smoothing_length,
                                            reference_density,
                                            acceleration_, viscosity,
-                                           pressure_acceleration, nothing,
+                                           pressure_acceleration,
                                            nothing, surface_tension, particle_refinement,
                                            density, predicted_density,
                                            advection_velocity, d_ii, a_ii, sum_d_ij_pj,
