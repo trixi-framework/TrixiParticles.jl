@@ -103,7 +103,7 @@ plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
 plane_normal=[0.0, 0.0, 1.0]
 
 # Reference velocity function for the outflow: constant in flow direction
-velocity_out = [0.0, 0.0, 1.0]
+velocity_out = [0.0, 0.0, -1.0]
 
 outflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
                        open_boundary_layers=4, boundary_type=OutFlow(),
