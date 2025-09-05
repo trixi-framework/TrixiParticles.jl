@@ -220,7 +220,7 @@
         density = 257
 
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-        smoothing_length = 3 * particle_spacing
+        smoothing_length = 1.5 * particle_spacing
         state_equation = StateEquationCole(sound_speed=10, reference_density=257,
                                            exponent=7)
 
