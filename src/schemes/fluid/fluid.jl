@@ -173,22 +173,24 @@ end
     return nothing
 end
 
-function system_data(system::FluidSystem, v_ode, u_ode, semi)
+function system_data(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     (; mass) = system
 
+    dv = wrap_v(dv_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
     coordinates = current_coordinates(u, system)
     velocity = current_velocity(v, system)
+    acceleration = current_velocity(dv, system)
     density = current_density(v, system)
     pressure = current_pressure(v, system)
 
-    return (; coordinates, velocity, mass, density, pressure)
+    return (; coordinates, velocity, mass, density, pressure, acceleration)
 end
 
 function available_data(::FluidSystem)
-    return (:coordinates, :velocity, :mass, :density, :pressure)
+    return (:coordinates, :velocity, :mass, :density, :pressure, :acceleration)
 end
 
 include("pressure_acceleration.jl")

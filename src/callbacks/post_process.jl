@@ -229,6 +229,7 @@ end
 # `affect!`
 function (pp::PostprocessCallback)(integrator)
     @trixi_timeit timer() "apply postprocess cb" begin
+        dv_ode, du_ode = get_du(integrator).x
         vu_ode = integrator.u
         v_ode, u_ode = vu_ode.x
         semi = integrator.p
@@ -251,7 +252,7 @@ function (pp::PostprocessCallback)(integrator)
             system_index = system_indices(system, semi)
 
             for (key, f) in pp.func
-                result = custom_quantity(f, system, v_ode, u_ode, semi, t)
+                result = custom_quantity(f, system, dv_ode, du_ode, v_ode, u_ode, semi, t)
                 if result !== nothing
                     add_entry!(pp, string(key), t, result, filenames[system_index])
                     new_data = true

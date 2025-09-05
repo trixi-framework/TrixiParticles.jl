@@ -157,6 +157,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     (; interval, output_directory, custom_quantities, git_hash, verbose,
      prefix, filename, latest_saved_iter, max_coordinates) = solution_callback
 
+    dvdu_ode = get_du(integrator)
     vu_ode = integrator.u
     semi = integrator.p
     iter = get_iter(interval, integrator)
@@ -176,7 +177,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         println("Writing solution to $output_directory at t = $(integrator.t)")
     end
 
-    @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t;
+    @trixi_timeit timer() "save solution" trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
                                                     iter, output_directory, prefix,
                                                     git_hash=git_hash[], max_coordinates,
                                                     custom_quantities...)
