@@ -21,6 +21,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Renamed the keyword argument `tlsph` to `place_on_shell` for `ParticlePackingSystem`,
   `sample_boundary`, `extrude_geometry`, `RectangularShape`, and `SphereShape` (#814).
 
+- Custom quantity functions passed to `SolutionSavingCallback` or `PostprocessCallback`
+  that were not using the documented API but were functions of
+  `(system, v_ode, u_ode, semi, t)` now need to be functions
+  of `(system, dv_ode, du_ode, v_ode, u_ode, semi, t)` (#879).
+
 ### Features
 
 - Added consistent particle shifting by Sun et al. (2019) as `ConsistentShiftingSun2019` (#888).
