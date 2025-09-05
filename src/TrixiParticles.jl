@@ -56,8 +56,8 @@ include("callbacks/callbacks.jl")
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
-include("io/io.jl")
 include("preprocessing/preprocessing.jl")
+include("io/io.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
