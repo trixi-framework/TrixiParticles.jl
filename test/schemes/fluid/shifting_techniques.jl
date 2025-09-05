@@ -2,10 +2,10 @@
     @testset "Constructors" begin
         @test_nowarn TransportVelocityAdami(background_pressure=1.0)
         @test_nowarn ParticleShiftingTechniqueSun2017()
-        @test_nowarn pst = ParticleShiftingTechniqueSun2017(v_max_factor=1.2)
+        pst = @test_nowarn ParticleShiftingTechniqueSun2017(v_max_factor=1.2)
         @test pst.v_factor == 1.2
         @test_nowarn ConsistentShiftingSun2019()
-        @test_nowarn pst = ConsistentShiftingSun2019(sound_speed_factor=0.2)
+        pst = @test_nowarn ConsistentShiftingSun2019(sound_speed_factor=0.2)
         @test pst.v_factor == 0.2
 
         # Can't use both `v_max_factor` and `sound_speed_factor`
