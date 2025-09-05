@@ -65,17 +65,17 @@ There are three ways to specify the actual shape of the boundary zone:
                                   Averaging mitigates these effects.
 
 # Examples
-```julia
+```jldoctest; output=false
 # 2D
 plane_points = ([0.0, 0.0], [0.0, 1.0])
-plane_normal=[1.0, 0.0]
+plane_normal = [1.0, 0.0]
 
 inflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
                       open_boundary_layers=4, boundary_type=InFlow())
 
 # 3D
 plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
-plane_normal=[0.0, 0.0, 1.0]
+plane_normal = [0.0, 0.0, 1.0]
 
 outflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
                        open_boundary_layers=4, boundary_type=OutFlow())
@@ -85,6 +85,9 @@ circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
 
 bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1,
                                   density=1.0, extrude_geometry=circle, open_boundary_layers=4)
+
+# output
+BoundaryZone{BidirectionalFlow, InitialCondition{Float64, Matrix{Float64}, Vector{Float64}}, Base.ReinterpretArray{SVector{3, Float64}, 1, Float64, Matrix{Float64}, true}, SVector{3, Float64}, Float64, Nothing, SVector{3, Float64}}(InitialCondition{Float64}(), SVector{3, Float64}[[0.0, 0.0, -0.4], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], [0.0, 0.0, 0.0], 0.4, nothing, [0.0, 0.0, 1.0], BidirectionalFlow(), true)
 ```
 
 !!! warning "Experimental Implementation"
