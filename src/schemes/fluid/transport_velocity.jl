@@ -1,181 +1,157 @@
 """
     TransportVelocityAdami(background_pressure::Real)
 
-Transport Velocity Formulation (TVF) to suppress pairing and tensile instability.
+Transport Velocity Formulation (TVF) by [Adami et al. (2013)](@cite Adami2013)
+to suppress pairing and tensile instability.
 See [TVF](@ref transport_velocity_formulation) for more details of the method.
 
 # Arguments
 - `background_pressure`: Background pressure. Suggested is a background pressure which is
                          on the order of the reference pressure.
-
-!!! note
-    There is no need for an artificial viscosity to suppress tensile instability when using `TransportVelocityAdami`.
-    Thus, it is highly recommended to use [`ViscosityAdami`](@ref) as viscosity model,
-    since [`ArtificialViscosityMonaghan`](@ref) leads to bad results.
 """
 struct TransportVelocityAdami{T <: Real}
     background_pressure::T
 end
 
-# Calculate `v_nvariables` appropriately
-@inline factor_tvf(system::FluidSystem) = factor_tvf(system, system.transport_velocity)
-@inline factor_tvf(system, ::Nothing) = 1
-@inline factor_tvf(system, ::TransportVelocityAdami) = 2
+# No TVF for a system by default
+@inline transport_velocity(system) = nothing
 
-@inline update_transport_velocity!(system, v_ode, semi) = system
+create_cache_tvf(initial_condition, ::Nothing) = (;)
 
-@inline function update_transport_velocity!(system::FluidSystem, v_ode, semi)
-    update_transport_velocity!(system, v_ode, semi, system.transport_velocity)
+function create_cache_tvf(initial_condition, ::TransportVelocityAdami)
+    delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
+                    nparticles(initial_condition))
+
+    return (; delta_v)
 end
 
-@inline update_transport_velocity!(system, v_ode, semi, ::Nothing) = system
-
-@inline function update_transport_velocity!(system, v_ode, semi, ::TransportVelocityAdami)
-    v = wrap_v(v_ode, system, semi)
-    @threaded semi for particle in each_moving_particle(system)
-        for i in 1:ndims(system)
-            v[ndims(system) + i, particle] = v[i, particle]
-        end
-    end
-
-    return system
+# `δv` is the correction to the particle velocity due to the TVF.
+# Particles are advected with the velocity `v + δv`.
+@propagate_inbounds function delta_v(system, particle)
+    return delta_v(system, transport_velocity(system), particle)
 end
 
-function write_v0!(v0, system::FluidSystem, ::TransportVelocityAdami)
-    (; initial_condition) = system
-
-    for particle in eachparticle(system)
-        # Write particle velocities
-        for dim in 1:ndims(system)
-            v0[ndims(system) + dim, particle] = initial_condition.velocity[dim, particle]
-        end
-    end
-
-    return v0
+@propagate_inbounds function delta_v(system, ::TransportVelocityAdami, particle)
+    return extract_svector(system.cache.delta_v, system, particle)
 end
 
-# Add momentum velocity.
-@inline function add_velocity!(du, v, particle, system, ::Nothing)
-    for i in 1:ndims(system)
-        du[i, particle] = v[i, particle]
-    end
-
-    return du
+# Zero when no TVF is used
+@inline function delta_v(system, transport_velocity, particle)
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
-# Add advection velocity.
-@inline function add_velocity!(du, v, particle, system, ::TransportVelocityAdami)
-    for i in 1:ndims(system)
-        du[i, particle] = v[ndims(system) + i, particle]
-    end
-
-    return du
-end
-
-@inline function advection_velocity(v, system, particle)
-    return SVector(ntuple(@inline(dim->v[ndims(system) + dim, particle]), ndims(system)))
-end
-
-@inline function momentum_convection(system, neighbor_system, ::Nothing,
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
+@inline function dv_transport_velocity(::Nothing, system, neighbor_system,
+                                       particle, neighbor, v_system, v_neighbor_system,
+                                       m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                                       grad_kernel, correction)
     return zero(grad_kernel)
 end
 
-@inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
-    volume_a = m_a / rho_a
-    volume_b = m_b / rho_b
-    volume_term = (volume_a^2 + volume_b^2) / m_a
+@inline function dv_transport_velocity(::TransportVelocityAdami, system, neighbor_system,
+                                       particle, neighbor, v_system, v_neighbor_system,
+                                       m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                                       grad_kernel, correction)
+    v_a = current_velocity(v_system, system, particle)
+    delta_v_a = delta_v(system, particle)
 
-    momentum_velocity_a = current_velocity(v_particle_system, system, particle)
-    advection_velocity_a = advection_velocity(v_particle_system, system, particle)
+    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    delta_v_b = delta_v(neighbor_system, neighbor)
 
-    momentum_velocity_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    advection_velocity_b = advection_velocity(v_neighbor_system, neighbor_system, neighbor)
+    A_a = rho_a * v_a * delta_v_a'
+    A_b = rho_b * v_b * delta_v_b'
 
-    A_a = rho_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
-    A_b = rho_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'
-
-    return volume_term * ((A_a + A_b) / 2) * grad_kernel
+    # The following term depends on the pressure acceleration formulation.
+    # See the large comment below. In the original paper (Adami et al., 2013), this is
+    #   (V_a^2 + V_b^2) / m_a * ((A_a + A_b) / 2) * ∇W_ab.
+    # With the most common pressure acceleration formulation, this is
+    #   m_b * (A_a + A_b) / (ρ_a * ρ_b) * ∇W_ab.
+    # In order to obtain this, we pass `p_a = A_a` and `p_b = A_b` to the
+    # `pressure_acceleration` function.
+    return pressure_acceleration(system, neighbor_system, particle, neighbor,
+                                 m_a, m_b, A_a, A_b, rho_a, rho_b, pos_diff,
+                                 distance, grad_kernel, correction)
 end
 
-@inline transport_velocity!(dv, system, neighbor_system, particle, neighbor, m_a, m_b,
-                            grad_kernel) = dv
-
-@inline function transport_velocity!(dv, system::FluidSystem, neighbor_system,
-                                     particle, neighbor, m_a, m_b, grad_kernel)
-    transport_velocity!(dv, system, neighbor_system, system.transport_velocity,
-                        particle, neighbor, m_a, m_b, grad_kernel)
+function update_tvf!(system, transport_velocity, v, u, v_ode, u_ode, semi, t)
+    return system
 end
 
-@inline function transport_velocity!(dv, system, neighbor_system, ::Nothing,
-                                     particle, neighbor, m_a, m_b, grad_kernel)
-    return dv
-end
-
-@inline function transport_velocity!(dv, system, neighbor_system, ::TransportVelocityAdami,
-                                     particle, neighbor, m_a, m_b, grad_kernel)
-    (; transport_velocity) = system
+function update_tvf!(system, transport_velocity::TransportVelocityAdami, v, u, v_ode,
+                     u_ode, semi, t)
+    (; cache, correction) = system
+    (; delta_v) = cache
     (; background_pressure) = transport_velocity
 
-    NDIMS = ndims(system)
+    sound_speed = system_sound_speed(system)
 
-    # The TVF is based on the assumption that the pressure gradient is only accurately
-    # computed when the particle distribution is isotropic.
-    # That means, the force contribution vanishes only if the particle distribution is
-    # isotropic AND the field being differentiated by the kernel gradient is spatially constant.
-    # So we must guarantee a constant field and therefore the reference density is used
-    # instead of the locally computed one.
-    # TODO:
-    # volume_a = particle_spacing(system, particle)^ndims(system)
-    # volume_b = particle_spacing(neighbor_system, neighbor)^ndims(neighbor_system)
-    volume_a = m_a / system.initial_condition.density[particle]
-    volume_b = m_b / neighbor_system.initial_condition.density[neighbor]
+    set_zero!(delta_v)
 
-    volume_term = (volume_a^2 + volume_b^2) / m_a
+    foreach_system(semi) do neighbor_system
+        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
 
-    for dim in 1:NDIMS
-        dv[NDIMS + dim, particle] -= volume_term * background_pressure * grad_kernel[dim]
-    end
+        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
-    return dv
-end
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               semi;
+                               points=each_moving_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
+            m_a = @inbounds hydrodynamic_mass(system, particle)
+            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
-function reset_callback_flag!(system::FluidSystem)
-    reset_callback_flag!(system, system.transport_velocity)
-end
+            rho_a = @inbounds current_density(v, system, particle)
+            rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
 
-reset_callback_flag!(system, ::Nothing) = system
+            h = smoothing_length(system, particle)
 
-function reset_callback_flag!(system::FluidSystem, ::TransportVelocityAdami)
-    system.cache.update_callback_used[] = false
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-    return system
-end
+            # In the original paper (Adami et al., 2013), the transport velocity is applied
+            # as follows:
+            #   v_{1/2} = v_0 + Δt/2 * a,
+            # where a is the regular SPH acceleration term (pressure, viscosity, etc.).
+            #   r_1 = r_0 + Δt * (v_{1/2},
+            # where ̃v_{1/2} = v_{1/2} + Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ]
+            # is the transport velocity.
+            # We call δv_{1/2} = ̃v_{1/2} - v_{1/2} the shifting velocity.
+            # We will call δv_{1/2} the shifting velocity, which is given by
+            #   δv = -Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ],
+            # where p_0 is the background pressure, V_a = m_a / ρ_a, V_b = m_b / ρ_b.
+            # This term depends on the pressure acceleration formulation.
+            # In Zhang et al. (2017), the pressure acceleration term
+            #   m_b * (p_a / ρ_a^2 + p_b / ρ_b^2) * ∇W_ab
+            # is used. They consequently changed the shifting velocity to
+            #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 / ρ_a^2 + 1 / ρ_b^2) * ∇W_ab ].
+            # We therefore use the function `pressure_acceleration` to compute the
+            # shifting velocity according to the used pressure acceleration formulation.
+            # In most cases, this will be
+            #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
+            #
+            # In these papers, the shifting velocity is scaled by the time step Δt.
+            # We generally want the spatial discretization to be independent of the time step.
+            # Scaling the shifting velocity by the time step would lead to less shifting
+            # when very small time steps are used for testing/debugging purposes.
+            # This is especially problematic in TrixiParticles.jl, as the time step can vary
+            # significantly between different time integration methods (low vs high order).
+            # In order to eliminate the time step from the shifting velocity, we apply the
+            # CFL condition used in Adami et al. (2013):
+            #   Δt <= 0.25 * h / c,
+            # where h is the smoothing length and c is the sound speed.
+            # Applying this equation as equality yields the shifting velocity
+            #   δv = -p_0 / 8 * h / c * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
+            # The last part is achieved by passing `p_a = 1` and `p_b = 1` to the
+            # `pressure_acceleration` function.
+            delta_v_ = background_pressure / 8 * h / sound_speed *
+                       pressure_acceleration(system, neighbor_system, particle, neighbor,
+                                             m_a, m_b, 1, 1, rho_a, rho_b, pos_diff,
+                                             distance, grad_kernel, correction)
 
-function update_callback_used!(system::FluidSystem)
-    update_callback_used!(system, system.transport_velocity)
-end
-
-update_callback_used!(system, ::Nothing) = system
-
-function update_callback_used!(system, transport_velocity)
-    system.cache.update_callback_used[] = true
-end
-
-function check_tvf_configuration(system::FluidSystem, ::Nothing,
-                                 v, u, v_ode, u_ode, semi, t; update_from_callback=false)
-    return system
-end
-
-function check_tvf_configuration(system::FluidSystem, ::TransportVelocityAdami,
-                                 v, u, v_ode, u_ode, semi, t; update_from_callback=false)
-    # The `UpdateCallback` will set `system.cache.update_callback_used[]` to `true`
-    # in the initialization. However, other callbacks might update the system first, hence `update_from_callback`.
-    if !update_from_callback && !(system.cache.update_callback_used[])
-        throw(ArgumentError("`UpdateCallback` is required when using `TransportVelocityAdami`"))
+            # Write into the buffer
+            for i in eachindex(delta_v_)
+                @inbounds delta_v[i, particle] += delta_v_[i]
+            end
+        end
     end
 
     return system

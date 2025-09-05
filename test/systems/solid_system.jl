@@ -67,7 +67,7 @@
                                           boundary_model=boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(Val{:smoothing_kernel}(), " *
-                       "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
+                       "[0.0, 0.0], Val{:boundary_model}(), nothing, nothing) with 2 particles"
         @test repr(system) == show_compact
 
         show_box = """
@@ -81,7 +81,8 @@
         │ smoothing kernel: ………………………………… Val                                                              │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
-        │ penalty force: ………………………………………… Nothing                                                          │
+        │ penalty force: ………………………………………… nothing                                                          │
+        │ viscosity: …………………………………………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
 
@@ -102,7 +103,8 @@
         │ smoothing kernel: ………………………………… Val                                                              │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
-        │ penalty force: ………………………………………… Nothing                                                          │
+        │ penalty force: ………………………………………… nothing                                                          │
+        │ viscosity: …………………………………………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end

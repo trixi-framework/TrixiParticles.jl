@@ -47,23 +47,26 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS}
+struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV
     neighborhood_searches   :: NS
     parallelization_backend :: BACKEND
+    update_callback_used    :: UCU
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
     # This is an internal constructor only used in `test/count_allocations.jl`
     # and by Adapt.jl.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
-                                parallelization_backend::PointNeighbors.ParallelizationBackend)
+                                parallelization_backend::PointNeighbors.ParallelizationBackend,
+                                update_callback_used)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
-            typeof(ranges_v), typeof(neighborhood_searches)}(systems, ranges_u, ranges_v,
-                                                             neighborhood_searches,
-                                                             parallelization_backend)
+            typeof(ranges_v), typeof(neighborhood_searches),
+            typeof(update_callback_used)}(systems, ranges_u, ranges_v,
+                                          neighborhood_searches, parallelization_backend,
+                                          update_callback_used)
     end
 end
 
@@ -92,8 +95,13 @@ function Semidiscretization(systems::Union{System, Nothing}...;
                            for neighbor in systems)
                      for system in systems)
 
+    # These will be set to true inside the `UpdateCallback`.
+    # Some techniques require the use of this callback, and this flag can be used
+    # to determine if the callback is used in a simulation.
+    update_callback_used = Ref(false)
+
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
-                              parallelization_backend)
+                              parallelization_backend, update_callback_used)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -328,7 +336,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
         semi_new = Semidiscretization(set_system_links.(semi_.systems, Ref(semi_)),
                                       semi_.ranges_u, semi_.ranges_v,
                                       semi_.neighborhood_searches,
-                                      semi_.parallelization_backend)
+                                      semi_.parallelization_backend,
+                                      semi_.update_callback_used)
     else
         semi_new = semi
     end
@@ -337,10 +346,10 @@ function semidiscretize(semi, tspan; reset_threads=true)
     foreach_system(semi_new) do system
         # Initialize this system
         initialize!(system, semi_new)
-
-        # Only for systems requiring a mandatory callback
-        reset_callback_flag!(system)
     end
+
+    # Reset callback flag that will be set by the `UpdateCallback`
+    semi_new.update_callback_used[] = false
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
 end
@@ -372,10 +381,10 @@ function restart_with!(semi, sol; reset_threads=true)
         u = wrap_u(sol.u[end].x[2], system, semi)
 
         restart_with!(system, v, u)
-
-        # Only for systems requiring a mandatory callback
-        reset_callback_flag!(system)
     end
+
+    # Reset callback flag that will be set by the `UpdateCallback`
+    semi.update_callback_used[] = false
 
     return semi
 end
@@ -464,17 +473,33 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
 end
 
 @inline function add_velocity!(du, v, particle, system)
+    # Generic fallback for all systems that don't define this function
     for i in 1:ndims(system)
-        du[i, particle] = v[i, particle]
+        @inbounds du[i, particle] = v[i, particle]
     end
 
     return du
 end
 
+# Solid wall boundary system doesn't integrate the particle positions
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
+
+@inline function add_velocity!(du, v, particle, system::FluidSystem)
+    # This is zero unless a transport velocity is used
+    delta_v_ = delta_v(system, particle)
+
+    for i in 1:ndims(system)
+        @inbounds du[i, particle] = v[i, particle] + delta_v_[i]
+    end
+
+    return du
+end
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "kick!" begin
+        # Check that the `UpdateCallback` is used if required
+        check_update_callback(semi)
+
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
         @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
@@ -490,8 +515,9 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
-# Update the systems and neighborhood searches (NHS) for a simulation before calling `interact!` to compute forces
-function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=false)
+# Update the systems and neighborhood searches (NHS) for a simulation
+# before calling `interact!` to compute forces.
+function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
     foreach_system(semi) do system
@@ -523,12 +549,21 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=fals
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
+    # This update depends on the computed quantities of the fluid system and therefore
+    # needs to be after `update_quantities!`.
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
     # Final update step for all remaining systems
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback)
+        update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
@@ -858,6 +893,16 @@ function update!(neighborhood_search, x, y, semi; points_moving=(true, false),
                            parallelization_backend=semi.parallelization_backend)
 end
 
+function check_update_callback(semi)
+    foreach_system(semi) do system
+        # This check will be optimized away if the system does not require the callback
+        if requires_update_callback(system) && !semi.update_callback_used[]
+            system_name = system |> typeof |> nameof
+            throw(ArgumentError("`UpdateCallback` is required for `$system_name`"))
+        end
+    end
+end
+
 function check_configuration(systems,
                              nhs::Union{Nothing, PointNeighbors.AbstractNeighborhoodSearch})
     foreach_system(systems) do system
@@ -973,11 +1018,12 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.density,
                                  system.volume,
                                  system.pressure,
+                                 system.boundary_candidates,
+                                 system.fluid_candidates,
                                  system.boundary_zone,
                                  system.reference_velocity,
                                  system.reference_pressure,
                                  system.reference_density,
                                  system.buffer,
-                                 system.update_callback_used,
                                  system.cache)
 end

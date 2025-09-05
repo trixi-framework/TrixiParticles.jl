@@ -1,3 +1,10 @@
+# ==========================================================================================
+# 2D Falling Spheres in Fluid (FSI) - Base Setup
+#
+# This file provides a base setup for simulating one or two elastic spheres
+# falling into a fluid in a tank.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -116,7 +123,7 @@ solid_system_2 = TotalLagrangianSPHSystem(sphere2,
 semi = Semidiscretization(fluid_system, boundary_system, solid_system_1, solid_system_2)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=10)
+info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, output_directory="out", prefix="",
                                          write_meta_data=true)
 

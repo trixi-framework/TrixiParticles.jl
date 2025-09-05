@@ -1,9 +1,15 @@
-# Taylor Green vortex
+# ==========================================================================================
+# 2D Taylor-Green Vortex Simulation
 #
-# P. Ramachandran, K. Puri
-# "Entropically damped artiﬁcial compressibility for SPH".
-# In: Computers and Fluids, Volume 179 (2019), pages 579-594.
-# https://doi.org/10.1016/j.compﬂuid.2018.11.023
+# Based on:
+#   P. Ramachandran, K. Puri.
+#   "Entropically damped artiﬁcial compressibility for SPH".
+#   Computers and Fluids, Volume 179 (2019), pages 579-594.
+#   https://doi.org/10.1016/j.compfluid.2018.11.023
+#
+# This example simulates the Taylor-Green vortex, a classic benchmark case for
+# incompressible viscous flow, characterized by an array of decaying vortices.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
