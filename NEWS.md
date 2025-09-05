@@ -8,14 +8,22 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
+- The argument of `TransportVelocityAdami` is now a keyword argument.
+  `TransportVelocityAdami(1000.0)` now becomes
+  `TransportVelocityAdami(background_pressure=1000.0)` (#884).
+
 - Combined transport velocity formulation (TVF) and particle shifting technique (PST) into
   one unified framework.
   The keyword argument `transport_velocity` now changed to `shifting_technique`.
   The `ParticleShiftingCallback` has been removed. To use PST, use the `UpdateCallback`
-  instead, and pass `shifting_technique=ParticleShiftingTechnique()` to the system.
+  instead, and pass `shifting_technique=ParticleShiftingTechniqueSun2017()` to the system (#884).
 
 - Renamed the keyword argument `tlsph` to `place_on_shell` for `ParticlePackingSystem`,
-  `sample_boundary`, `extrude_geometry`, `RectangularShape`, and `SphereShape`.
+  `sample_boundary`, `extrude_geometry`, `RectangularShape`, and `SphereShape` (#814).
+
+### Features
+
+- Added consistent particle shifting by Sun et al. (2019) as `ConsistentShiftingSun2019` (#888).
 
 ## Version 0.3.1
 
