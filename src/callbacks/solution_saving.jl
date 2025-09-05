@@ -1,7 +1,7 @@
 @doc raw"""
     SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Array{Float64, 1}([]),
                            save_initial_solution=true, save_final_solution=true,
-                           output_directory="out", append_timestamp=false, prefix="", filename="",
+                           output_directory="out", append_timestamp=false, prefix="",
                            verbose=false, max_coordinates=2^15, custom_quantities...)
 
 
@@ -26,7 +26,6 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `prefix=""`:                  Prefix added to the filename.
-- `filename=""`:                The filename of the Metadata file to be saved.
 - `custom_quantities...`:       Additional user-defined quantities.
 - `verbose=false`:              Print to standard IO when a file is written.
 - `max_coordinates=2^15`:       The coordinates of particles will be clipped if their
@@ -61,7 +60,6 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 │ save final solution: ………………………… yes                                                              │
 │ output directory: ………………………………… *path ignored with filter regex above*                           │
 │ prefix: ……………………………………………………………                                                                  │
-│ filename: ………………………………………………………                                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
@@ -73,7 +71,6 @@ mutable struct SolutionSavingCallback{I, CQ}
     verbose               :: Bool
     output_directory      :: String
     prefix                :: String
-    filename              :: String
     max_coordinates       :: Float64
     custom_quantities     :: CQ
     latest_saved_iter     :: Int
@@ -84,7 +81,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_times=Float64[],
                                 save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
-                                prefix="", filename="", verbose=false,
+                                prefix="", verbose=false,
                                 max_coordinates=Float64(2^15),
                                 custom_quantities...)
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
@@ -102,7 +99,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
 
     solution_callback = SolutionSavingCallback(interval, Float64.(save_times),
                                                save_initial_solution, save_final_solution,
-                                               verbose, output_directory, prefix, filename,
+                                               verbose, output_directory, prefix,
                                                max_coordinates, custom_quantities,
                                                -1, Ref("UnknownVersion"))
 
@@ -155,7 +152,7 @@ end
 # `affect!`
 function (solution_callback::SolutionSavingCallback)(integrator)
     (; interval, output_directory, custom_quantities, git_hash, verbose,
-     prefix, filename, latest_saved_iter, max_coordinates) = solution_callback
+     prefix, latest_saved_iter, max_coordinates) = solution_callback
 
     dvdu_ode = get_du(integrator)
     vu_ode = integrator.u
@@ -261,8 +258,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
             "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix,
-            "filename" => solution_saving.filename
+            "prefix" => solution_saving.prefix
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end
@@ -288,8 +284,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
             "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix,
-            "filename" => solution_saving.filename
+            "prefix" => solution_saving.prefix
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end
@@ -314,8 +309,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
             "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix,
-            "filename" => solution_saving.filename
+            "prefix" => solution_saving.prefix
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end

@@ -1,12 +1,11 @@
 include("write_vtk.jl")
 include("read_vtk.jl")
 
-# handle "_" on optional prefix/filename strings
+# handle "_" on optional prefix strings
 add_opt_str_post(str) = (str === "" ? "" : "_$(str)")
 
 function write_meta_data(callback::SolutionSavingCallback, integrator)
     prefix = callback.prefix
-    filename = callback.filename
 
     meta_data = create_meta_data_dict(callback, integrator)
 
@@ -14,8 +13,7 @@ function write_meta_data(callback::SolutionSavingCallback, integrator)
     output_directory = callback.output_directory
     mkpath(output_directory)
     json_file = joinpath(output_directory,
-                         "meta_data" * add_opt_str_post(prefix) *
-                         add_opt_str_post(filename) * ".json")
+                         "meta" * add_opt_str_post(prefix) * ".json")
 
     open(json_file, "w") do file
         JSON.print(file, meta_data, 2)
