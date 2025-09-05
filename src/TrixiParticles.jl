@@ -23,10 +23,11 @@ using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
+                 get_du
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
-using StrideArrays: PtrArray, StaticInt
+using StrideArraysCore: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings, TrixiBase
