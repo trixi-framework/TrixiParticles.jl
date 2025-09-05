@@ -182,6 +182,20 @@ end
     return system.pressure
 end
 
+@inline function set_particle_pressure!(v, system::OpenBoundarySPHSystem, particle,
+                                        pressure)
+    system.pressure[particle] = pressure
+
+    return v
+end
+
+@inline function set_particle_density!(v, system::OpenBoundarySPHSystem, particle,
+                                       density)
+    system.density[particle] = density
+
+    return v
+end
+
 function update_boundary_interpolation!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode,
                                         semi, t)
     update_boundary_model!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
