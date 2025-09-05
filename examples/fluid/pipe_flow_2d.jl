@@ -87,7 +87,7 @@ if wcsph
     fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
                                                state_equation, smoothing_kernel,
                                                smoothing_length, viscosity=viscosity,
-                                               shifting_technique=ParticleShiftingTechnique(),
+                                               shifting_technique=ParticleShiftingTechnique(v_max_factor=1.5),
                                                buffer_size=n_buffer_particles)
 end
 
