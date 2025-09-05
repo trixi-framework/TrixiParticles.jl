@@ -5,7 +5,7 @@
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 viscosity=nothing, density_diffusion=nothing,
                                 pressure_acceleration=nothing,
-                                transport_velocity=nothing,
+                                shifting_technique=nothing,
                                 buffer_size=nothing,
                                 correction=nothing, source_terms=nothing,
                                 surface_tension=nothing, surface_normal_method=nothing,
@@ -36,8 +36,9 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 density calculator and the correction method.
                                 To use [Tensile Instability Control](@ref tic), pass
                                 [`tensile_instability_control`](@ref) here.
-- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation).
-                                Default is no TVF.
+- `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
+                                formulation](@ref transport_velocity_formulation) to use
+                                with this system. Default is no shifting.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
@@ -59,7 +60,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `color_value`:                The value used to initialize the color of particles in the system.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
-                                   PF, TV, ST, B, SRFT, SRFN, PR, C} <: FluidSystem{NDIMS}
+                                   PF, SC, ST, B, SRFT, SRFN, PR, C} <: FluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -71,7 +72,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, 
     density_diffusion                 :: DD
     correction                        :: COR
     pressure_acceleration_formulation :: PF
-    transport_velocity                :: TV
+    shifting_technique                :: SC
     source_terms                      :: ST
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
@@ -89,7 +90,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                                          ndims(smoothing_kernel)),
                                      viscosity=nothing, density_diffusion=nothing,
                                      pressure_acceleration=nothing,
-                                     transport_velocity=nothing,
+                                     shifting_technique=nothing,
                                      buffer_size=nothing,
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
@@ -147,7 +148,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                           n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
-             create_cache_tvf(initial_condition, transport_velocity)...,
+             create_cache_shifting(initial_condition, shifting_technique)...,
              color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -162,7 +163,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        density_calculator, state_equation,
                                        smoothing_kernel, acceleration_, viscosity,
                                        density_diffusion, correction, pressure_acceleration,
-                                       transport_velocity, source_terms, surface_tension,
+                                       shifting_technique, source_terms, surface_tension,
                                        surface_normal_method, buffer, particle_refinement,
                                        cache)
 end
@@ -177,6 +178,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.density_diffusion)
+    print(io, ", ", system.shifting_technique)
     print(io, ", ", system.surface_tension)
     print(io, ", ", system.surface_normal_method)
     if system.surface_normal_method isa ColorfieldSurfaceNormal
@@ -207,9 +209,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "state equation", system.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
-        summary_line(io, "tansport velocity formulation",
-                     system.transport_velocity |> typeof |> nameof)
         summary_line(io, "density diffusion", system.density_diffusion)
+        summary_line(io, "shifting technique", system.shifting_technique)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface normal method", system.surface_normal_method)
         if system.surface_normal_method isa ColorfieldSurfaceNormal
@@ -278,7 +279,7 @@ end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
 
-@inline transport_velocity(system::WeaklyCompressibleSPHSystem) = system.transport_velocity
+@inline shifting_technique(system::WeaklyCompressibleSPHSystem) = system.shifting_technique
 
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
@@ -316,7 +317,7 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
+    update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,

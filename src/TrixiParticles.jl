@@ -23,7 +23,8 @@ using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
+                 get_du
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArraysCore: PtrArray, StaticInt
@@ -65,10 +66,9 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
        BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       ParticleShiftingCallback
+       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback
 export ContinuityDensity, SummationDensity
-export PenaltyForceGanzenmueller, TransportVelocityAdami
+export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
