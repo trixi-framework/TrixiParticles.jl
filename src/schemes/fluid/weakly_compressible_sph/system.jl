@@ -279,13 +279,6 @@ end
     return system.pressure
 end
 
-@inline function set_particle_pressure!(v, system::WeaklyCompressibleSPHSystem, particle,
-                                        pressure)
-    system.pressure[particle] = pressure
-
-    return v
-end
-
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
 
 @inline shifting_technique(system::WeaklyCompressibleSPHSystem) = system.shifting_technique
