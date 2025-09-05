@@ -356,7 +356,6 @@ end
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
                                                              wcsph=true, sound_speed=20.0f0,
-                                                             pressure=0.0f0,
                                                              open_boundary_model=BoundaryModelMirroringTafuni(;
                                                                                                               mirror_method=ZerothOrderMirroring()),
                                                              boundary_type_in=BidirectionalFlow(),
@@ -373,14 +372,14 @@ end
         end
 
         @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
-            steady_state_reached = SteadyStateReachedCallback(; dt=0.002f0,
-                                                              interval_size=10,
+            steady_state_reached = SteadyStateReachedCallback(; dt=0.002f0, interval_size=5,
                                                               reltol=1.0f-3)
 
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
+                                                             open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                                              extra_callback=steady_state_reached,
                                                              tspan=(0.0f0, 1.5f0),
                                                              parallelization_backend=Main.parallelization_backend,
@@ -393,13 +392,14 @@ end
 
         @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
             steady_state_reached = SteadyStateReachedCallback(; interval=1,
-                                                              interval_size=10,
+                                                              interval_size=5,
                                                               reltol=1.0f-3)
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
                                                              extra_callback=steady_state_reached,
+                                                             open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                                              dtmax=2.0f-3,
                                                              tspan=(0.0f0, 1.5f0),
                                                              parallelization_backend=Main.parallelization_backend,
