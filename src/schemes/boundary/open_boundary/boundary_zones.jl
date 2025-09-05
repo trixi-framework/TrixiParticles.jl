@@ -451,13 +451,13 @@ end
 
 function reference_pressure(boundary_zone, v, system, particle, pos, t)
     (; prescribed_pressure) = boundary_zone
-    (; pressure_references) = system.cache
+    (; pressure_reference_values) = system.cache
 
     if prescribed_pressure
         zone_id = system.boundary_zone_indices[particle]
 
-        # `pressure_references[zone_id](pos, t)`, but in a type-stable way
-        return apply_ith_function(pressure_references, zone_id, pos, t)
+        # `pressure_reference_values[zone_id](pos, t)`, but in a type-stable way
+        return apply_ith_function(pressure_reference_values, zone_id, pos, t)
     else
         return current_pressure(v, system, particle)
     end
@@ -465,13 +465,13 @@ end
 
 function reference_density(boundary_zone, v, system, particle, pos, t)
     (; prescribed_density) = boundary_zone
-    (; density_references) = system.cache
+    (; density_reference_values) = system.cache
 
     if prescribed_density
         zone_id = system.boundary_zone_indices[particle]
 
-        # `density_references[zone_id](pos, t)`, but in a type-stable way
-        return apply_ith_function(density_references, zone_id, pos, t)
+        # `density_reference_values[zone_id](pos, t)`, but in a type-stable way
+        return apply_ith_function(density_reference_values, zone_id, pos, t)
     else
         return current_density(v, system, particle)
     end
@@ -479,13 +479,13 @@ end
 
 function reference_velocity(boundary_zone, v, system, particle, pos, t)
     (; prescribed_velocity) = boundary_zone
-    (; velocity_references) = system.cache
+    (; velocity_reference_values) = system.cache
 
     if prescribed_velocity
         zone_id = system.boundary_zone_indices[particle]
 
-        # `velocity_references[zone_id](pos, t)`, but in a type-stable way
-        return apply_ith_function(velocity_references, zone_id, pos, t)
+        # `velocity_reference_values[zone_id](pos, t)`, but in a type-stable way
+        return apply_ith_function(velocity_reference_values, zone_id, pos, t)
     else
         return current_velocity(v, system, particle)
     end

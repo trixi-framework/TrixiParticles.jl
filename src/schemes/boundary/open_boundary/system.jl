@@ -79,7 +79,7 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     boundary_candidates = fill(false, nparticles(initial_conditions))
     fluid_candidates = fill(false, nparticles(fluid_system))
 
-    boundary_zone_indices = zeros(UInt8, nparticles(initial_conditions))
+    boundary_zone_indices = zeros(Int, nparticles(initial_conditions))
 
     # Create new `BoundaryZone`s with `reference_values` set to `nothing` for type stability.
     boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
@@ -113,9 +113,9 @@ function create_cache_open_boundary(boundary_model, initial_condition, reference
     ELTYPE = eltype(initial_condition)
 
     # Separate `reference_values` into pressure, density and velocity reference values
-    pressure_references = map(ref -> ref.reference_pressure, reference_values)
-    density_references = map(ref -> ref.reference_density, reference_values)
-    velocity_references = map(ref -> ref.reference_velocity, reference_values)
+    pressure_reference_values = map(ref -> ref.reference_pressure, reference_values)
+    density_reference_values = map(ref -> ref.reference_density, reference_values)
+    velocity_reference_values = map(ref -> ref.reference_velocity, reference_values)
 
     if boundary_model isa BoundaryModelCharacteristicsLastiwka
         characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
@@ -123,13 +123,13 @@ function create_cache_open_boundary(boundary_model, initial_condition, reference
 
         return (; characteristics=characteristics,
                 previous_characteristics=previous_characteristics,
-                pressure_references=pressure_references,
-                density_references=density_references,
-                velocity_references=velocity_references)
+                pressure_reference_values=pressure_reference_values,
+                density_reference_values=density_reference_values,
+                velocity_reference_values=velocity_reference_values)
     else
-        return (; pressure_references=pressure_references,
-                density_references=density_references,
-                velocity_references=velocity_references)
+        return (; pressure_reference_values=pressure_reference_values,
+                density_reference_values=density_reference_values,
+                velocity_reference_values=velocity_reference_values)
     end
 end
 
