@@ -7,6 +7,7 @@ include("solid/discrete_element_method/discrete_element_method.jl")
 # Monaghan-Kajtar repulsive boundary particles require the `BoundarySPHSystem`
 # and the `TotalLagrangianSPHSystem`.
 include("boundary/monaghan_kajtar/monaghan_kajtar.jl")
+# implicit incompressible SPH reequires the `BoundarySPHSystem`
 include("fluid/implicit_incompressible_sph/implicit_incompressible_sph.jl")
 
 # Include rhs for all schemes

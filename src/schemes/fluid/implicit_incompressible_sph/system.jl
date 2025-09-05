@@ -8,9 +8,8 @@
                                     max_iterations=20, time_step)
 
 System for particles of a fluid.
-The implicit incompressible SPH (IISPH) scheme is used, wherein a linear system is solved
-iteratively in order to compute the correct pressure values such that the density deviation
-from the rest density is below a certain threshold.
+The system employs implicit incompressible SPH (IISPH), iteratively solving a linear system
+for the pressure so that density remains within a specified tolerance of the rest value.
 See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 
 # Arguments
@@ -22,13 +21,13 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `reference_density`:  Reference density used for the fluid particles
 
 # Keyword Arguments
-- `viscosity`:                  Currently, only [`ArtificialViscosityMorris`](@ref)
+- `viscosity`:                  Currently, only [`ViscosityMorris`](@ref)
                                 and [`ViscosityAdami`](@ref) are supported.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
-- `omega = 0.5`:                Relaxiaion parameter for the relaxed jacobi scheme
-- `max_error = 0.1`:            Maximal error (in %) for the termination condition in the relaxed jacobi scheme
-- `min_iterations = 2`:         Minimal number of iterations in the relaxed jacobi scheme, independent from the termination condition
-- `max_iterations = 20`:        Maximal number of iterations in the relaxed jacobi scheme, independent from the termination condition
+- `omega = 0.5`:                Relaxation parameter for the relaxed jacobi scheme
+- `max_error = 0.1`:            Maximum error (in %) for the termination condition in the relaxed jacobi scheme
+- `min_iterations = 2`:         Minimum number of iterations in the relaxed jacobi scheme, independent from the termination condition
+- `max_iterations = 20`:        Maximum number of iterations in the relaxed jacobi scheme, independent from the termination condition
 - `time_step`:                  Time step size used for the simulation
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
@@ -42,7 +41,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     pressure_acceleration_formulation :: PF
-    transport_velocity                :: Nothing # TODO
+    transport_velocity                :: Nothing
     surface_normal_method             :: Nothing # TODO
     surface_tension                   :: Nothing # TODO
     particle_refinement               :: Nothing  #TODO
@@ -58,6 +57,8 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     min_iterations                    :: Int     # minimum number of iterations in the pressure solver
     max_iterations                    :: Int     # maximum number of iterations in the pressure solver
     time_step                         :: ELTYPE
+    buffer                            :: Nothing #TODO
+    artificial_sound_speed            :: ELTYPE #TODO
     cache                             :: C
 end
 
@@ -70,7 +71,8 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          omega=0.5, max_error=0.1, min_iterations=2,
-                                         max_iterations=20, time_step)
+                                         max_iterations=20, time_step,
+                                         artificial_sound_speed=1000.0)
     particle_refinement = nothing # TODO
     surface_tension=nothing #TODO
 
@@ -135,7 +137,9 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
                                            advection_velocity, d_ii, a_ii, sum_d_ij_pj,
                                            sum_term, omega,
                                            max_error,
-                                           min_iterations, max_iterations, time_step, cache)
+                                           min_iterations, max_iterations, time_step,
+                                           nothing,
+                                           artificial_sound_speed, cache)
 end
 
 function write_v0!(v0, system::ImplicitIncompressibleSPHSystem)
@@ -181,21 +185,11 @@ function Base.show(io::IO, ::MIME"text/plain", system::ImplicitIncompressibleSPH
     end
 end
 
+@inline source_terms(system::ImplicitIncompressibleSPHSystem) = nothing
+
 @inline function Base.eltype(::ImplicitIncompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
-
-@inline function each_moving_particle(system::ImplicitIncompressibleSPHSystem)
-    # No buffer -> `nothing`
-    return each_moving_particle(system, nothing)
-end
-
-@inline function active_coordinates(u, system::ImplicitIncompressibleSPHSystem)
-    # No buffer -> `nothing`
-    return active_coordinates(u, system, nothing)
-end
-
-@inline active_particles(system::ImplicitIncompressibleSPHSystem) = eachparticle(system)
 
 @inline function surface_tension_model(system::ImplicitIncompressibleSPHSystem)
     return nothing
@@ -210,7 +204,7 @@ end
 end
 
 #TODO: What do we do with the sound speed? This is needed for the viscosity.
-@inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = 1000.0
+@inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = system.artificial_sound_speed
 
 # Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
@@ -237,6 +231,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     v_particle_system = wrap_v(v_ode, system, semi)
     predicted_density .= density
     set_zero!(d_ii_array)
+
     @threaded semi for particle in each_moving_particle(system)
         # Initialize the advection velocity with the current velocity plus the system acceleration
         v_particle = current_velocity(v_particle_system, system, particle)
@@ -290,7 +285,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
 
     # Set initial pressure (p_0) to a half of the current pressure value
     @threaded semi for particle in each_moving_particle(system)
-        pressure[particle] = 0.5 * pressure[particle]
+        pressure[particle] = pressure[particle] / 2
     end
 
     # Calculation the diagonal elements (a_ii-values)
@@ -320,15 +315,19 @@ end
 
 function calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
     (; a_ii, time_step) = system
+
     set_zero!(a_ii)
+
     foreach_system(semi) do neighbor_system
-        calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode, u_ode, semi, time_step)
+        calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode, u_ode,
+                                     semi, time_step)
     end
 end
 
 # Calculation of the contribution of the fluid particles to the diagonal elements (a_ii-values)
 # according to eq. 12 in Ihmsen et al. (2013).
-function calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode, u_ode, semi, time_step)
+function calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode, u_ode,
+                                      semi, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -357,7 +356,8 @@ end
 
 # Calculation of the contribution of the boundary particles the diagonal elements (a_ii-values)
 # according to Ihmsen et al. (2013)
-function calculate_diagonal_elements!(a_ii, system, neighbor_system::BoundarySystem, v, u, v_ode, u_ode, semi, time_step)
+function calculate_diagonal_elements!(a_ii, system, neighbor_system::BoundarySystem, v, u,
+                                      v_ode, u_ode, semi, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -385,10 +385,10 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
     l = 1
     terminate = false
     # Convert relative error in percent to absolute error
-    eta = max_error * 0.01 * reference_density
+    eta = max_error * reference_density / 100
     while (!terminate)
         @trixi_timeit timer() "pressure solver iteration" begin
-            avg_density_error = pressure_solve_iteration(system, avg_density_error, u,
+            avg_density_error = pressure_solve_iteration(system, u,
                                                          u_ode, semi, time_step)
             # Update termination condition
             terminate = (avg_density_error <= eta && l >= min_iterations) ||
@@ -398,7 +398,7 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
-function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, time_step)
+function pressure_solve_iteration(system, u, u_ode, semi, time_step)
     (; reference_density, sum_d_ij_pj, sum_term, pressure, predicted_density, a_ii,
      omega) = system
 
@@ -425,6 +425,7 @@ function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, tim
 
     # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
     set_zero!(sum_term)
+
     foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         system_coords = current_coordinates(u, system)
@@ -444,7 +445,7 @@ function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, tim
     end
 
     # Update the pressure values
-    avg_density_error = 0.0
+    avg_density_error = zero(eltype(system))
     @threaded semi for particle in eachparticle(system)
         # Removing instabilities by avoiding to divide by very low values of `a_ii`.
         # This is not mentioned in the paper but done in SPlisHSPlasH as well.
@@ -452,9 +453,9 @@ function pressure_solve_iteration(system, avg_density_error, u, u_ode, semi, tim
             pressure[particle] = max((1-omega) * pressure[particle] +
                                      omega / a_ii[particle] *
                                      (reference_density - predicted_density[particle] -
-                                      sum_term[particle]), 0.0)
+                                      sum_term[particle]), 0)
         else
-            pressure[particle] = 0.0
+            pressure[particle] = zero(pressure[particle])
         end
         # Calculate the average density error for the termination condition
         if (pressure[particle] != 0.0)

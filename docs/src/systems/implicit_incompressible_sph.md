@@ -3,8 +3,9 @@
 Implicit Incompressible SPH (IISPH) as introduced by [Ihmsen et al. (2013)](@cite ihmsen2013)
 is a method that achieves incompressibility by solving the pressure Poisson equation.
 The resulting linear system is iteratively solved with the relaxed Jacobi method.
-IISPH does not use a state equation to compute pressure values like the [weakly compressible
-SPH method](@ref wcsph).
+Unlike the [weakly compressible SPH method](@ref wcsph), incompressible methods determine
+pressure by enforcing the incompressibility constraint rather than using an equation of
+state.
 
 ```@autodocs
 Modules = [TrixiParticles]
@@ -17,7 +18,7 @@ continuity equation
 \frac{D\rho}{Dt} = - \rho \nabla \cdot \bm{v}.
 ```
 
-For a particle $i$, discretizing the left-hand side of the equation with a forward
+For a particle ``i``, discretizing the left-hand side of the equation with a forward
 difference yields
 
 ```math
@@ -25,13 +26,13 @@ difference yields
 ```
 
 The divergence in the right-hand side is discretized with the SPH discretization for
-particle $i$ as
+particle ``i`` as
 ```math
 -\frac{1}{\rho_i} \sum_j m_j \bm{v}_{ij} \nabla W_{ij},
 ```
 where $\bm{v}_{ij} = \bm{v}_i - \bm{v}_j$.
 
-Together, the following discretized version of the continuity equation for a particle $i$
+Together, the following discretized version of the continuity equation for a particle ``i``
 is achieved:
 ```math
 \frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j \bm{v}_{ij}(t+\Delta t) \nabla W_{ij}.
@@ -42,14 +43,14 @@ next time step, making it an implicit formulation.
 
 Using the semi-implicit Euler method, we can obtain the velocity in the next time step as
 ```math
-\bm{v}_i(t + \Delta t) = \bm{v}_i(t) + \Delta t \frac{\bm{F}_i^\text{adv}(t) + \bm{F}_i^p(t)}{m_i}
+\bm{v}_i(t + \Delta t) = \bm{v}_i(t) + \Delta t \frac{\bm{F}_i^\text{adv}(t) + \bm{F}_i^p(t)}{m_i},
 ```
 
-$\bm{F}_i^{\text{adv}}$ denotes all non-pressure forces such as gravity, viscosity, surface
-tension and more, while $\bm{F}_i^p(t)$ denotes the unknown pressure forces, which we
+where $\bm{F}_i^{\text{adv}}$ denotes all non-pressure forces such as gravity, viscosity, surface
+tension and more, while $\bm{F}_i^p$ denotes the unknown pressure forces, which we
 want to solve for.
 
-Note that the IISPH is an incompressible fluid system, which means that the density of the
+Note that the IISPH is an incompressible method, which means that the density of the
 fluid remain constant over time. By assuming a fixed reference density $\rho_0$ for all
 fluid particle over the whole time of the simulation, the density value at the next time
 step $\rho_i(t + \Delta t)$ also has to be this rest density. So $\rho_0$ can be plugged in
@@ -58,26 +59,26 @@ for $\rho_i(t + \Delta t)$ in the formula above.
 The goal is to compute the pressure values required to obtain the pressure acceleration that
 ensures each particle reaches the rest density in the next time step. At the moment these
 pressure values are unknown in $t$, but all the non-pressure forces are already known.
-Therefore a predicted velocity can be calculated which depends only on the non-pressure
+Therefore a predicted velocity can be calculated, which depends only on the non-pressure
 forces $\bm{F}_i^{\text{adv}}$:
 
 ```math
 \bm{v}_i^{\text{adv}}(t+\Delta t)= \bm{v}_i(t) + \Delta t \frac{\bm{F}_i^{\text{adv}}(t)}{m_i},
 ```
-Using this predicted velocity and the continuity equation a predicted density can also be
-determined.
+Using this predicted velocity and the continuity equation, a predicted density can be definied
+in a similar way.
 
 ```math
-\rho_i^{\text{adv}}(t + \Delta t)= \rho_i(t) + \Delta t \sum_j m_j \bm{v}_{ij}^{\text{adv}} \nabla W_{ij}(t)
+\rho_i^{\text{adv}}(t + \Delta t)= \rho_i(t) + \Delta t \sum_j m_j \bm{v}_{ij}^{\text{adv}} \nabla W_{ij}(t).
 ```
 
 To achieve the rest density, the unknown pressure forces must counteract the compression
 caused by the non-pressure forces. In other words, they must resolve the deviation between
 the predicted density and the reference density.
 
-Therefore following equation needs to be fulfilled:
+Therefore, the following equation needs to be fulfilled:
 ```math
-\Delta t ^2 \sum_j m_j \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_j^p(t)}{m_j} \right) \nabla W_{ij}(t) = \rho_0 - \rho_i^{\text{adv}}
+\Delta t ^2 \sum_j m_j \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_j^p(t)}{m_j} \right) \nabla W_{ij}(t) = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
 This expression is derived by substituting the reference density $\rho_0$ for
@@ -87,31 +88,29 @@ the predicted velocity $\bm{v}_{ij}(t+\Delta t)$ and predicted density $\rho_i^{
 The pressure force is defined as:
 
 ```math
-\bm{F}_i^p(t) = m_i  \nabla p_i = m_i \sum_j m_j \left( \frac{p_i(t)}{\rho_i^2(t)} - \frac{p_j(t)}{\rho_j^2(t)} \right) \nabla W_{ij}
+\bm{F}_i^p(t) = m_i/rho_i  \nabla p_i = m_i \sum_j m_j \left( \frac{p_i(t)}{\rho_i^2(t)} - \frac{p_j(t)}{\rho_j^2(t)} \right) \nabla W_{ij}
 ```
 
-Substituting this definition into the equation, leadsa linear system $\bm{A}(t) \bm{p}(t) = \bm{b}(t)$
-with one equation and one unknown pressure value for each particle. So in total it is a
-system with  n equations and n unknown variables for n particles.
+Substituting this definition into the equation, yields a linear system $\bm{A}(t) \bm{p}(t) = \bm{b}(t)$
+with one equation and one unknown pressure value for each particle.
+For ``n`` particles, this is a linear system with ``n`` equations and ``n`` unknowns:
 
 ```math
-\sum_j a_{ij} p_i = b_i = \rho_0 - \rho_i^{\text{adv}}
+\sum_j a_{ij} p_j = b_i = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
-This linear system must be solved in order to get the pressure values, which is done by
-using a relaxed jacobi scheme.
-
-This is a iterative numerical method to solve a linear system $Ax=b$. In each iteration the
-new values of the variable $x$ get computed by the following formular
+To solve for the pressure values, a relaxed Jacobi scheme is used.
+This is an iterative numerical method to solve a linear system $Ap=b$. In each iteration, the
+new values of $p$ are obtained as computed as
 
 ```math
-x_i^{(k+1)} = (1-\omega) x_i^{(k)} + \omega \left( \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} x_j^{(k)} \right)\right)
+p_i^{(k+1)} = (1-\omega) p_i^{(k)} + \omega \left( \frac{1}{a_{ii}} \left( b_i - \sum_{j \neq i} a_{ij} p_j^{(k)} \right)\right)
 ```
 
-In the context of the linear system for the pressure values the formula is
+Substituting the right-hand side, we obtain
 
 ```math
-p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i^{\text{adv}} \sum_{j \neq i} a_{ij}p_j^l}{a{ii}}
+p_i^{l+1} = (1-\omega) p_i^l + \omega \frac{\rho_0 - \rho_i^{\text{adv}} - \sum_{j \neq i} a_{ij}p_j^l}{a_{ii}}.
 ```
 
 Therefore the diagonal elements $a_{ii}$ and the sum $\sum_{j \neq i} a_{ij}p_j^l$ need to
@@ -126,17 +125,17 @@ The pressure acceleration is given by:
 \Delta t^2 \frac{\bm{F}_i^p}{m_i} = -\Delta t^2 \sum_j m_j \left( \frac{p_i}{\rho_i^2} + \frac{p_j}{\rho_j^2} \right)\nabla W_{ij} = \left( - \Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij} \right) p_i + \sum_j - \Delta t^2 \frac{m_j}{\rho_j^2} \nabla W_{ij}p_j
 ```
 
-The $d_{ii}p_i$ value describes the displacement of particle $i$ because of the particle $i$
-and $d_{ij}p_j$ describes the influence from the neighboring particles $j$.
+The $d_{ii}p_i$ value describes the displacement of particle ``i`` because of the particle ``i``
+and $d_{ij}p_j$ describes the influence from the neighboring particles ``j``.
 Using this new values the linear system can be rewritten as
 
 ```math
 \rho_0 - \rho_i^{\text{adv}} = \sum_j m_j \left( d_{ii}p_i + \sum_j d_{ij}p_j - d_{jj}p_j - \sum_k d_{jk}p_k \right) \nabla W_{ij}
 ```
 
-where $k$ stands for the neighbor particles of the neighbor particle $j$ from $i$.
+where $k$ stands for the neighbor particles of the neighbor particle ``j`` from ``i``.
 So the sum over the neighboring pressure values $p_j$ also includes the pressure values $p_i$,
-since $i$ is a neighbor of $j$
+since ``i`` is a neighbor of ``j``
 To separate this sum it can be written as
 
 ```math
@@ -164,10 +163,10 @@ The remaining part of the equation represents the influence of the other pressur
 p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii}} \left( \rho_0 -\rho_i^{\text{adv}} - \sum_j m_j \left( \sum_j d_{ij} p_j^l - d_{jj} p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \right).
 ```
 
-Note that the pressure value of a particle $i$ depends only on its own current pressure
-value, the pressure values of his neighboring particles, and the neighbor of those
-neighboring particle. That means that the most entries of the matrix are zero (i.e the
-system is sparse).
+Because interactions are local, limited to particles within the kernel support defined by
+the smoothing length, each particle's pressure $p_i$ depends only on its own value and
+nearby particles.
+Consequently, the matrix A is sparse (most entries are zero).
 
 The diagonal elements $a_ii$ get computed and stored at the beginning of the simulation step
 and remain unchanged throughout the relaxed Jacobi iterations. The same applies for the
@@ -259,8 +258,8 @@ used in the chosen boundary model.
 
 ### Pressure Mirroring
 When using pressure mirroring, the pressure value $p_b$ of a boundary particle is defined to
-be equal to the pressure value of the corresponding fluid particle $p_i$.In other words, the
-boundary particle "mirrors" the pressure of the fluid particle interacting with it.
+be equal to the pressure value of the corresponding fluid particle $p_i$. In other words,
+the boundary particle "mirrors" the pressure of the fluid particle interacting with it.
 As a result, the coefficient that describes the influence of a particle's own pressure value
 $p_i$ ​must also include contributions from boundary particles. Therefore, the formula for
 calculating the coefficient $d_{ii}$ must be adjusted as follows:
