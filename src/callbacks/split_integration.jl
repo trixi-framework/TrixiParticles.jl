@@ -12,15 +12,15 @@ end
 Callback to integrate the `TotalLagrangianSPHSystem`s in a `Semidiscretization`
 separately from the other systems.
 After each time step of the main integrator (in which TLSPH systems are ignored),
-the TLSPH systems are integrated for multiple substeps with their own integrator.
+the TLSPH systems are integrated for multiple smaller time steps with their own integrator.
 
-This is useful when two conditions are satisfied:
-1. The TLSPH systems require much smaller time steps than the fluid systems,
-   which is usually the case when very stiff materials are simulated.
-2. The amount of TLSPH particles is small compared to the number of fluid particles,
-   so that a fluid time step is much more expensive than a TLSPH substep.
+This is useful if the TLSPH systems require much smaller time steps than the fluid systems,
+which is usually the case when stiff materials are simulated.
+It is especially useful if additionally the number of TLSPH particles is much smaller
+than the number of fluid particles, so that a fluid time step is much more expensive
+than a TLSPH substep.
 
-For fluid-structure interactions with very stiff materials like steel or carbon fiber
+For fluid-structure interactions with stiff materials like metal or carbon fiber
 composites, this can lead to significant speedups of several hundred times if the ratio
 of fluid to solid particles is large enough (e.g. 100:1 or more).
 
