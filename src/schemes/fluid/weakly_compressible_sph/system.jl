@@ -288,7 +288,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
     compute_density!(system, u, u_ode, semi, density_calculator)
 
     @trixi_timeit timer() "update density diffusion" update!(density_diffusion, v, u,
-                                                             system, semi)
+                                                             system, v_ode, u_ode, semi)
 
     return system
 end

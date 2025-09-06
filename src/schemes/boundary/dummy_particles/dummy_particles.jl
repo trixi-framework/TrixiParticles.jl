@@ -178,6 +178,15 @@ struct PressureMirroring end
 """
 struct PressureZeroing end
 
+@doc raw"""
+    DeltaBoundaries()
+
+`density_calculator` for `BoundaryModelDummyParticles`.
+"""
+struct DeltaBoundaries{DD}
+    density_diffusion::DD
+end
+
 @inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
 function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
@@ -208,7 +217,9 @@ function create_cache_model(initial_density,
     return (; density)
 end
 
-@inline create_cache_model(initial_density, ::ContinuityDensity) = (; initial_density)
+@inline create_cache_model(initial_density,
+                           ::Union{ContinuityDensity, DeltaBoundaries}) = (;
+                                                                           initial_density)
 
 function create_cache_model(initial_density,
                             ::Union{AdamiPressureExtrapolation,
@@ -278,7 +289,7 @@ end
     return model.cache.density
 end
 
-@inline function current_density(v, ::ContinuityDensity,
+@inline function current_density(v, ::Union{ContinuityDensity, DeltaBoundaries},
                                  model::BoundaryModelDummyParticles)
     # When using `ContinuityDensity`, the density is stored in the last row of `v`
     return view(v, size(v, 1), :)
@@ -300,10 +311,13 @@ end
 function compute_density!(boundary_model,
                           ::Union{ContinuityDensity, AdamiPressureExtrapolation,
                                   BernoulliPressureExtrapolation,
-                                  PressureMirroring, PressureZeroing},
+                                  PressureMirroring, PressureZeroing,
+                                  DeltaBoundaries},
                           system, v, u, v_ode, u_ode, semi)
-    # No density update for `ContinuityDensity`, `PressureMirroring` and `PressureZeroing`.
-    # For `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation`, the density is updated in `compute_pressure!`.
+    # No density update for `ContinuityDensity`, `PressureMirroring`, `PressureZeroing`,
+    # and `DeltaBoundaries`.
+    # For `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation`,
+    # the density is updated in `compute_pressure!`.
     return boundary_model
 end
 
@@ -361,11 +375,9 @@ function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_od
     summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
 end
 
-function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
+function compute_pressure!(boundary_model,
+                           ::Union{SummationDensity, ContinuityDensity, DeltaBoundaries},
                            system, v, u, v_ode, u_ode, semi)
-
-    # Limit pressure to be non-negative to avoid attractive forces between fluid and
-    # boundary particles at free surfaces (sticking artifacts).
     @threaded semi for particle in eachparticle(system)
         apply_state_equation!(boundary_model, current_density(v, system, particle),
                               particle)
@@ -378,6 +390,8 @@ end
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function apply_state_equation!(boundary_model, density, particle)
+    # Limit pressure to be non-negative to avoid attractive forces between fluid and
+    # boundary particles at free surfaces (sticking artifacts).
     boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0)
 end
 

@@ -251,7 +251,8 @@ end
     return 0
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+@inline function n_moving_particles(system::Union{BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                                  BoundarySPHSystem{<:BoundaryModelDummyParticles{<:DeltaBoundaries}}})
     return nparticles(system)
 end
 
@@ -354,6 +355,9 @@ function update_quantities!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi,
 
     update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
+    @trixi_timeit timer() "update density diffusion" update!(boundary_model.density_calculator.density_diffusion, v, u,
+                                                             system, v_ode, u_ode, semi)
+
     return system
 end
 
@@ -381,7 +385,8 @@ function write_v0!(v0,
 end
 
 function write_v0!(v0,
-                   system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+                   system::Union{BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                 BoundarySPHSystem{<:BoundaryModelDummyParticles{<:DeltaBoundaries}}})
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
@@ -394,7 +399,8 @@ function restart_with!(system::BoundarySPHSystem, v, u)
     return system
 end
 
-function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+function restart_with!(system::Union{BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                     BoundarySPHSystem{<:BoundaryModelDummyParticles{<:DeltaBoundaries}}},
                        v, u)
     (; initial_density) = model.cache
 
