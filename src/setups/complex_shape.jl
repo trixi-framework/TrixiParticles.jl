@@ -46,14 +46,10 @@ function ComplexShape(geometry; particle_spacing, density,
                       point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
                                                                         hierarchical_winding=true,
                                                                         winding_number_factor=sqrt(eps())),
-                      store_winding_number=false, grid_offset::Real=0.0,
+                      store_winding_number=false, grid_offset=0.0,
                       max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
     if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHormann
         throw(ArgumentError("`WindingNumberHormann` only supports 2D geometries"))
-    end
-
-    if grid_offset < 0.0
-        throw(ArgumentError("only a positive `grid_offset` is supported"))
     end
 
     grid = particle_grid(geometry, particle_spacing; padding=pad_initial_particle_grid,
@@ -79,7 +75,7 @@ end
 
 """
     sample_boundary(signed_distance_field;
-                    boundary_density, boundary_thickness, tlsph=true)
+                    boundary_density, boundary_thickness, place_on_shell=true)
 
 Sample boundary particles of a complex geometry by using the [`SignedDistanceField`](@ref)
 of the geometry.
@@ -90,9 +86,9 @@ of the geometry.
 # Keywords
 - `boundary_thickness`: Thickness of the boundary
 - `boundary_density`: Density of each boundary particle.
-- `tlsph`             : When `tlsph=true`, boundary particles will be placed
+- `place_on_shell`:     When `place_on_shell=true`, boundary particles will be placed
                         one particle spacing from the surface of the geometry.
-                        Otherwise when `tlsph=true` (simulating fluid particles),
+                        Otherwise when `place_on_shell=true` (simulating fluid particles),
                         boundary particles will be placed half particle spacing away from the surface.
 
 
@@ -118,7 +114,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 ```
 """
 function sample_boundary(signed_distance_field;
-                         boundary_density, boundary_thickness, tlsph=true)
+                         boundary_density, boundary_thickness, place_on_shell=true)
     (; max_signed_distance, boundary_packing,
      positions, distances, particle_spacing) = signed_distance_field
 
@@ -144,7 +140,12 @@ function particle_grid(geometry, particle_spacing;
                        padding=2particle_spacing, grid_offset=0.0, max_nparticles=10^7)
     (; max_corner) = geometry
 
+    # First subtract the grid offset, then add it again after rounding.
+    # This is making sure that `min_corner` is `n * particle_spacing`
+    # away from `grid_offset`, so that a particle is placed at `grid_offset`.
     min_corner = geometry.min_corner .- grid_offset .- padding
+    min_corner = floor.(Int, min_corner ./ particle_spacing) .* particle_spacing
+    min_corner = min_corner .+ grid_offset
 
     n_particles_per_dimension = Tuple(ceil.(Int,
                                             (max_corner .- min_corner .+ 2padding) ./
@@ -158,6 +159,6 @@ function particle_grid(geometry, particle_spacing;
     end
 
     grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                    min_corner; tlsph=true)
+                                    min_corner; place_on_shell=true)
     return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
 end
