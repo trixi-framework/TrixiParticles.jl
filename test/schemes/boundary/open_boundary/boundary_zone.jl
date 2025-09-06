@@ -47,7 +47,6 @@
 
         error_str = "`reference_velocity` must be either a function mapping " *
                     "each particle's coordinates and time to its velocity, " *
-                    "an array where the ``i``-th column holds the velocity of particle ``i`` " *
                     "or, for a constant fluid velocity, a vector of length 2 for a 2D problem holding this velocity"
 
         reference_velocity = 1.0
