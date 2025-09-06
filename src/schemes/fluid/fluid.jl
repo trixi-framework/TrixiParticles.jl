@@ -1,16 +1,21 @@
-@inline function set_particle_density!(v, system::FluidSystem, particle, density)
-    set_particle_density!(v, system, system.density_calculator, particle, density)
-end
-
 # WARNING!
 # These functions are intended to be used internally to set the density
 # of newly activated particles in a callback.
 # DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
 # outside of callbacks.
-@inline set_particle_density!(v, system, ::SummationDensity, particle, density) = v
+@inline function set_particle_density!(v, system::FluidSystem, particle, density)
+    current_density(v, system)[particle] = density
 
-@inline function set_particle_density!(v, system, ::ContinuityDensity, particle, density)
-    v[end, particle] = density
+    return v
+end
+
+# WARNING!
+# These functions are intended to be used internally to set the pressure
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline function set_particle_pressure!(v, system::FluidSystem, particle, pressure)
+    current_pressure(v, system)[particle] = pressure
 
     return v
 end
