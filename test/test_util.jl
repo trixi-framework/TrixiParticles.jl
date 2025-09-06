@@ -45,10 +45,11 @@ macro trixi_testset(name, expr)
 end
 
 struct DummySemidiscretization
-    parallelization_backend::Any
+    parallelization_backend :: Any
+    integrate_tlsph         :: Any
 
     function DummySemidiscretization(; parallelization_backend=SerialBackend())
-        new(parallelization_backend)
+        new(parallelization_backend, Ref(true))
     end
 end
 
