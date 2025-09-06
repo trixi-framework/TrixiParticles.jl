@@ -66,8 +66,7 @@ There are three ways to specify the actual shape of the boundary zone:
                                   resulting in a potential numerical instability.
                                   Averaging mitigates these effects.
 - `reference_velocity`: Reference velocity is either a function mapping each particle's coordinates
-                        and time to its velocity, an array where the ``i``-th column holds
-                        the velocity of particle ``i`` or, for a constant fluid velocity,
+                        and time to its velocity, or, for a constant fluid velocity,
                         a vector holding this velocity.
 - `reference_pressure`: Reference pressure is either a function mapping each particle's coordinates
                         and time to its pressure, a vector holding the pressure of each particle,
@@ -88,10 +87,19 @@ There are three ways to specify the actual shape of the boundary zone:
 plane_points = ([0.0, 0.0], [0.0, 1.0])
 plane_normal=[1.0, 0.0]
 
-# Reference velocity function for the inflow: parabolic velocity profile
+# Constant reference velocity:
+velocity_in = [1.0, 0.0]
+
+# Reference velocity as a function (parabolic velocity profile):
 velocity_in = (pos, t) -> SVector(4.0 * pos[2] * (1.0 - pos[2]), 0.0)
 
-# Reference pressure function for the inflow: y-dependent profile, sinusoidal in time
+# Reference pressure as a vector:
+pressure_in = zeros(40) # `40` corresponds to `nparticles(inflow.initial_condition)`
+
+# Constant reference pressure:
+pressure_in = 0.0
+
+# Reference pressure as a function (y-dependent profile, sinusoidal in time):
 pressure_in = (pos, t) -> pos[2] * sin(2pi * t)
 
 inflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
@@ -102,12 +110,8 @@ inflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, 
 plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
 plane_normal=[0.0, 0.0, 1.0]
 
-# Reference velocity function for the outflow: constant in flow direction
-velocity_out = [0.0, 0.0, -1.0]
-
 outflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
-                       open_boundary_layers=4, boundary_type=OutFlow(),
-                       reference_velocity=velocity_out)
+                       open_boundary_layers=4, boundary_type=OutFlow())
 
 # 3D particles sampled as cylinder
 circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
@@ -159,7 +163,6 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
          (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
         throw(ArgumentError("`reference_velocity` must be either a function mapping " *
                             "each particle's coordinates and time to its velocity, " *
-                            "an array where the ``i``-th column holds the velocity of particle ``i`` " *
                             "or, for a constant fluid velocity, a vector of length $NDIMS for a $(NDIMS)D problem holding this velocity"))
     else
         if reference_velocity isa Function
