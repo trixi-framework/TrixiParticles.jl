@@ -137,11 +137,11 @@ end
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
-    if particle_system === neighbor_system
-        density_diffusion!(dv, density_diffusion, v_particle_system, particle, neighbor,
-                           pos_diff, distance, m_b, rho_a, rho_b, particle_system,
+    # if particle_system === neighbor_system
+        density_diffusion!(dv, density_diffusion, particle_system, neighbor_system,
+                           particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
                            grad_kernel)
-    end
+    # end
 
     continuity_equation_shifting!(dv, shifting_technique(particle_system),
                                   particle_system, neighbor_system,
