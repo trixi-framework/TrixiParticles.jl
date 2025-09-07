@@ -98,21 +98,30 @@ struct InitialCondition{ELTYPE, C, MATRIX, VECTOR}
     mass             :: VECTOR # Array{ELTYPE, 1}
     density          :: VECTOR # Array{ELTYPE, 1}
     pressure         :: VECTOR # Array{ELTYPE, 1}
+    normals          :: Union{Nothing, MATRIX}
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
-                          mass=nothing, pressure=0.0, particle_spacing=-1.0)
+                          mass=nothing, pressure=0.0, particle_spacing=-1.0,
+                          normals=nothing)
     NDIMS = size(coordinates, 1)
 
     return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                   pressure, particle_spacing)
+                                   pressure, particle_spacing, normals)
+end
+
+# Wrapper function for outer constructor without `normals`-keyword
+function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+                                 pressure, particle_spacing) where {NDIMS}
+    return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+                                   pressure, particle_spacing, nothing)
 end
 
 # Function barrier to make `NDIMS` static and therefore SVectors type-stable
 function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                 pressure, particle_spacing) where {NDIMS}
+                                 pressure, particle_spacing, normals) where {NDIMS}
     if !(particle_spacing isa AbstractFloat)
         throw(ArgumentError("particle spacing must be a floating point number. " *
                             "The type of the particle spacing determines the eltype " *
@@ -125,7 +134,8 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
 
     if n_particles == 0
         return InitialCondition(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
-                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
+                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0),
+                                normals)
     end
 
     # SVector of coordinates to pass to functions.
@@ -197,8 +207,15 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
         masses = mass_fun.(coordinates_svector)
     end
 
+    if normals isa AbstractMatrix
+        if size(coordinates) != size(normals)
+            throw(ArgumentError("`coordinates` and `normals` must be of the same size"))
+        end
+    end
+
     return InitialCondition(particle_spacing, coordinates, ELTYPE.(velocities),
-                            ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures))
+                            ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures),
+                            normals)
 end
 
 function Base.show(io::IO, ic::InitialCondition)
