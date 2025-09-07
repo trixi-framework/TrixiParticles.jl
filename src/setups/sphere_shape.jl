@@ -98,7 +98,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
                      velocity=zeros(length(center_position)), mass=nothing, pressure=0,
-                     coordinates_eltype=Float64)
+                     coordinates_eltype=Float64, normal=false)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -125,8 +125,12 @@ function SphereShape(particle_spacing, radius, center_position, density;
     particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
     coordinates = coordinates[:, particles_not_in_cutout]
 
+    if normal
+        normals = compute_normals(coordinates, center_position, radius)
+    end
+
     return InitialCondition(; coordinates, velocity, mass, density, pressure,
-                            particle_spacing)
+                            particle_spacing, normals)
 end
 
 """
@@ -430,4 +434,29 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
     end
 
     return particle_coords
+end
+
+function compute_normals(coordinates::Matrix{T}, center_position,
+                         radius::T) where {T}
+    normals = zeros(size(coordinates))
+    center_position = collect(center_position)
+
+    for idx in 1:size(coordinates, 2)
+        coord = coordinates[:, idx]
+
+        # Project the point at coord on the circle
+        diff = center_position - coord
+
+        # Check for division-by-zero
+        diff_norm = norm(diff)
+        if iszero(diff_norm)
+            normal = zeros(T, 2)
+        else
+            proj = center_position + radius * (diff / diff_norm)
+            normal = proj - coord
+        end
+        normals[:, idx] = normal
+    end
+
+    return normals
 end
