@@ -90,7 +90,8 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
-                     velocity=zeros(length(center_position)), mass=nothing, pressure=0)
+                     velocity=zeros(length(center_position)), mass=nothing, pressure=0,
+                     normal=false)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -116,8 +117,12 @@ function SphereShape(particle_spacing, radius, center_position, density;
     particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
     coordinates = coordinates[:, particles_not_in_cutout]
 
+    if normal
+        normals = compute_normals(coordinates, center_position, radius)
+    end
+
     return InitialCondition(; coordinates, velocity, mass, density, pressure,
-                            particle_spacing)
+                            particle_spacing, normals)
 end
 
 """
@@ -423,45 +428,46 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
     return particle_coords
 end
 
-function plot_coords(boundary::Matrix{T}, normals=nothing) where {T}
+# Copy to REPL and run
+# function plot_coords(boundary::Matrix{T}, normals=nothing) where {T}
+#     if size(boundary)[1] == 2
+#         x_b, y_b = eachrow(boundary)
 
-    if size(boundary)[1] == 2
-        x_b, y_b = eachrow(boundary)
+#         Plots.plot(x_b, y_b, seriestype=:scatter, color=:blue, label="Boundary")
 
-        plot(x_b, y_b, seriestype = :scatter, color = :blue, label = "Boundary")
+#         if normals !== nothing
+#             u, v = eachrow(normals)
+#             Plots.quiver!(x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
+#         end
 
-        if normals !== nothing
-            u, v = eachrow(normals)
-            quiver!(x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
-        end
+#     elseif size(boundary)[1] == 3
+#         x_b, y_b, z_b = eachrow(boundary)
 
+#         Plots.plot(x_b, y_b, z_b, seriestype=:scatter, color=:blue, label="Boundary")
+#     end
+# end
 
-    elseif size(boundary)[1] == 3
-        x_b, y_b, z_b = eachrow(boundary)
-
-        plot(x_b, y_b, z_b, seriestype = :scatter, color = :blue, label = "Boundary")
-    end
-end
-
-function compute_normals(coordinates::Matrix{T}, center_position::AbstractVector{T}, radius::T) where {T}
+function compute_normals(coordinates::Matrix{T}, center_position,
+                         radius::T) where {T}
     normals = zeros(size(coordinates))
+    center_position = collect(center_position)
 
     for idx in 1:size(coordinates, 2)
         coord = coordinates[:, idx]
 
         # Project the point at coord on the circle
         diff = center_position - coord
-        
+
         # Check for division-by-zero
-        if iszero(norm(diff))
+        diff_norm = norm(diff)
+        if iszero(diff_norm)
             normal = zeros(T, 2)
         else
-            proj = center_position + radius * (diff / norm(diff))
+            proj = center_position + radius * (diff / diff_norm)
             normal = proj - coord
         end
         normals[:, idx] = normal
     end
-    
-    return normals 
-end
 
+    return normals
+end

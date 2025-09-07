@@ -152,10 +152,15 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                          particle_spacing,
                                          n_particles_per_dim)
 
+        if normal
+            normals = compute_normals(boundary_coordinates, boundary_spacing,
+                                      particle_spacing, face_indices)
+        end
+
         boundary = InitialCondition(coordinates=boundary_coordinates,
                                     velocity=boundary_velocities,
                                     mass=boundary_masses, density=boundary_densities,
-                                    particle_spacing=boundary_spacing)
+                                    particle_spacing=boundary_spacing, normals=normals)
 
         # Move the tank corner in the negative coordinate directions to the desired position
         boundary.coordinates .+= min_coordinates
@@ -188,35 +193,41 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     end
 end
 
-# 2D
-function compute_normals(boundary, fluid, face_indices)
-    (; coordinates) = boundary
-    normals = zeros(size(coordinates))
-    offset = (boundary.particle_spacing + fluid.particle_spacing) / 2
+function compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
+                         face_indices)
+    _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing, face_indices,
+                     Val(size(boundary_coordinates, 1)))
+end
 
-    left_boundary = maximum(coordinates[1, face_indices[1]]) + offset
-    right_boundary = minimum(coordinates[1, face_indices[2]]) - offset
-    bottom_boundary = maximum(coordinates[2, face_indices[3]]) + offset
-    top_boundary = minimum(coordinates[2, face_indices[4]]) - offset
+# 2D
+function _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
+                          face_indices, ::Val{2})
+    normals = zeros(size(boundary_coordinates))
+    offset = (boundary_spacing + fluid_spacing) / 2
+
+    left_boundary = maximum(boundary_coordinates[1, face_indices[1]]) + offset
+    right_boundary = minimum(boundary_coordinates[1, face_indices[2]]) - offset
+    bottom_boundary = maximum(boundary_coordinates[2, face_indices[3]]) + offset
+    top_boundary = minimum(boundary_coordinates[2, face_indices[4]]) - offset
 
     #### Left boundary
     for idx in face_indices[1]
-        normals[1, idx] = abs(coordinates[1, idx] - left_boundary)
+        normals[1, idx] = abs(boundary_coordinates[1, idx] - left_boundary)
     end
 
     #### Right boundary
     for idx in face_indices[2]
-        normals[1, idx] = -abs(coordinates[1, idx] - right_boundary)
+        normals[1, idx] = -abs(boundary_coordinates[1, idx] - right_boundary)
     end
 
     #### Bottomg boundary
     for idx in face_indices[3]
-        normals[2, idx] = abs(coordinates[2, idx] - bottom_boundary)
+        normals[2, idx] = abs(boundary_coordinates[2, idx] - bottom_boundary)
     end
 
     #### Top boundary
     for idx in face_indices[4]
-        normals[2, idx] = -abs(coordinates[2, idx] - top_boundary)
+        normals[2, idx] = -abs(boundary_coordinates[2, idx] - top_boundary)
     end
 
     # TODO: edges
@@ -225,7 +236,8 @@ function compute_normals(boundary, fluid, face_indices)
 end
 
 # 3D
-function compute_normals(boundary, fluid, face_indices)
+# Note: havent properly tested this yet
+function _compute_normals(boundary, fluid, face_indices, ::Val{3})
     (; coordinates) = boundary
     normals = zeros(size(coordinates))
     offset = (boundary.particle_spacing + fluid.particle_spacing) / 2
@@ -272,27 +284,30 @@ function compute_normals(boundary, fluid, face_indices)
     return normals
 end
 
-function plot_coords(fluid::Matrix{T}, boundary::Matrix{T}, normals=nothing) where {T}
-    if size(fluid)[1] == 2
-        x_f, y_f = eachrow(fluid)
-        x_b, y_b = eachrow(boundary)
+# Copy to REPL and run
+# function plot_coords(fluid::Matrix{T}, boundary::Matrix{T}, normals=nothing) where {T}
+#     if size(fluid, 1) == 2
+#         x_f, y_f = eachrow(fluid)
+#         x_b, y_b = eachrow(boundary)
 
-        plot(x_f, y_f, seriestype=:scatter, color=:red, label="Fluid")
-        scatter!(x_b, y_b, color=:blue, label="Boundary")
+#         plt = plot(x_f, y_f, seriestype=:scatter, color=:red, label="Fluid")
+#         scatter!(plt, x_b, y_b, color=:blue, label="Boundary")
 
-        if normals !== nothing
-            u, v = eachrow(normals)
-            quiver!(x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
-        end
+#         if normals !== nothing
+#             u, v = eachrow(normals)
+#             quiver!(plt, x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
+#         end
 
-    elseif size(fluid)[1] == 3
-        x_f, y_f, z_f = eachrow(fluid)
-        x_b, y_b, z_b = eachrow(boundary)
+#     elseif size(fluid, 1) == 3
+#         x_f, y_f, z_f = eachrow(fluid)
+#         x_b, y_b, z_b = eachrow(boundary)
 
-        plot(x_f, y_f, z_f, seriestype=:scatter, color=:red, label="Fluid")
-        scatter!(x_b, y_b, z_b, color=:blue, label="Boundary")
-    end
-end
+#         plt = plot(x_f, y_f, z_f, seriestype=:scatter, color=:red, label="Fluid")
+#         scatter!(plt, x_b, y_b, z_b, color=:blue, label="Boundary")
+#     end
+
+#     return plt
+# end
 
 function round_n_particles(size, spacing, type)
     n_particles = round(Int, size / spacing)
