@@ -225,16 +225,16 @@ function compute_correction_values_inner!(kernel_correction_coefficient, dw_gamm
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         volume = m_b / rho_b
 
-        _system_smoothing_kernel = system_smoothing_kernel(system, neighbor_system)
-        _system_smoothing_length = smoothing_length(system, neighbor_system, particle)
+        smoothing_kernel = system_smoothing_kernel(system, neighbor_system)
+        smoothing_length_ = smoothing_length(system, neighbor_system, particle)
 
         # Use uncorrected kernel to compute correction coefficients
-        W = kernel(_system_smoothing_kernel, distance, _system_smoothing_length)
+        W = kernel(smoothing_kernel, distance, smoothing_length_)
 
         kernel_correction_coefficient[particle] += volume * W
         if distance > sqrt(eps())
-            grad_W = kernel_grad(_system_smoothing_kernel, pos_diff, distance,
-                                 _system_smoothing_length)
+            grad_W = kernel_grad(smoothing_kernel, pos_diff, distance,
+                                 smoothing_length_)
             tmp = volume * grad_W
             for i in axes(dw_gamma, 1)
                 dw_gamma[i, particle] += tmp[i]
