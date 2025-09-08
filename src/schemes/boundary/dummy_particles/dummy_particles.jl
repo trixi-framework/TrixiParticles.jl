@@ -478,10 +478,9 @@ end
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
-        boundary_pressure_inner!(density_calculator, system, neighbor_system, v,
-                                 v_neighbor_system, particle, neighbor,
-                                 pos_diff, distance, viscosity, cache, pressure,
-                                 pressure_offset)
+        boundary_pressure_inner!(pressure, cache, density_calculator, system,
+                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
+                                 pos_diff, distance, viscosity, pressure_offset)
     end
 end
 
@@ -503,18 +502,16 @@ end
                                                                        pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
-        boundary_pressure_inner!(density_calculator, system, neighbor_system, v,
-                                 v_neighbor_system, particle, neighbor,
-                                 pos_diff, distance, viscosity, cache, pressure,
-                                 pressure_offset)
+        boundary_pressure_inner!(pressure, cache, density_calculator, system,
+                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
+                                 pos_diff, distance, viscosity, pressure_offset)
     end
 end
 
-@inline function boundary_pressure_inner!(boundary_density_calculator,
-                                          system, neighbor_system::FluidSystem, v,
-                                          v_neighbor_system, particle, neighbor, pos_diff,
-                                          distance, viscosity, cache, pressure,
-                                          pressure_offset)
+@inline function boundary_pressure_inner!(pressure, cache, density_calculator, system,
+                                          neighbor_system::FluidSystem,
+                                          v, v_neighbor_system, particle, neighbor,
+                                          pos_diff, distance, viscosity, pressure_offset)
     density_neighbor = @inbounds current_density(v_neighbor_system, neighbor_system,
                                                  neighbor)
 
