@@ -125,6 +125,10 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
 end
 
+function smoothing_kernel(system::BoundarySystem, neighbor_system::FluidSystem)
+    return system_smoothing_kernel(neighbor_system)
+end
+
 @inline function smoothing_kernel(system::BoundarySystem, neighbor_system::FluidSystem,
                                   distance, particle)
     return smoothing_kernel(neighbor_system, system, distance, particle)
@@ -164,6 +168,14 @@ end
 
 @inline function smoothing_length(system, particle)
     return system.smoothing_length
+end
+
+@inline function smoothing_length(system, neighbor_system, particle)
+    return smoothing_length(system, system.particle_refinement, particle)
+end
+
+function smoothing_length(system::BoundarySystem, neighbor_system::FluidSystem, particle)
+    return smoothing_length(neighbor_system, neighbor_system.particle_refinement, particle)
 end
 
 @inline system_smoothing_kernel(system) = system.smoothing_kernel
