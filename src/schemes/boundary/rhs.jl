@@ -26,13 +26,22 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = current_density(v_particle_system, particle_system, particle)
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
-        v_diff = current_velocity(v_particle_system, particle_system, particle) -
-                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_a = current_velocity(v_particle_system, particle_system, particle)
+        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_diff = v_a - v_b
 
         grad_kernel = smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
 
         continuity_equation!(dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
                              grad_kernel, particle)
+
+        shifting_continuity_equation!(dv, particle_shifting(neighbor_system), v_a, v_b, m_b, rho_a, rho_b,
+                                    particle_system, neighbor_system, particle, neighbor,
+                                    grad_kernel)
+
+        density_diffusion!(dv, neighbor_system.density_diffusion, v_particle_system, particle, neighbor,
+                       pos_diff, distance, m_b, rho_a, rho_b, neighbor_system, # TODO neighbor_system
+                       grad_kernel)
     end
 
     return dv
