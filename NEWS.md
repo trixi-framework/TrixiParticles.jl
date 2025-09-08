@@ -8,6 +8,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
+- API for `OpenBoundarySPHSystem` and `BoundaryZone` changed.
+  It is now possible to pass multiple `BoundaryZone`s to a single `OpenBoundarySPHSystem`.
+  Reference values are now assigned individually to each `BoundaryZone`. (#866)
 - Combined transport velocity formulation (TVF) and particle shifting technique (PST) into
   one unified framework.
   The keyword argument `transport_velocity` now changed to `shifting_technique`.
