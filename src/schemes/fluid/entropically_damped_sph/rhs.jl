@@ -116,10 +116,9 @@ end
     # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
     #
     # This is similar to density diffusion in WCSPH
-    tmp = eta_tilde / (distance^2
-           +
-           smoothing_length_average(particle_system, particle, neighbor_system,
-                                    neighbor)^2 / 100)
+    tmp = eta_tilde / (distance^2 +
+           ((smoothing_length(system, particle) +
+             smoothing_length(neighbor_system, neighbor)) / 2)^2 / 100)
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
     dv[end, particle] += artificial_eos + damping_term
@@ -142,14 +141,4 @@ end
                                       particle_system::EntropicallyDampedSPHSystem,
                                       grad_kernel)
     return dv
-end
-
-@inline function smoothing_length_average(system, particle, neighbor_system, neighbor)
-    return (smoothing_length(system, particle) +
-            smoothing_length(neighbor_system, neighbor)) / 2
-end
-
-@inline function smoothing_length_average(system, particle,
-                                          neighbor_system::BoundarySPHSystem, neighbor)
-    return smoothing_length(system, particle)
 end
