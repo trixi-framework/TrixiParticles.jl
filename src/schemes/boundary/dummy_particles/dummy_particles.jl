@@ -525,7 +525,7 @@ end
     hydrostatic_pressure = dot(resulting_acceleration, density_neighbor * pos_diff)
 
     # Additional dynamic pressure term (only with `BernoulliPressureExtrapolation`)
-    dynamic_pressure_ = dynamic_pressure(boundary_density_calculator, density_neighbor,
+    dynamic_pressure_ = dynamic_pressure(density_calculator, density_neighbor,
                                          v, v_neighbor_system, pos_diff, distance,
                                          particle, neighbor, system, neighbor_system)
 
