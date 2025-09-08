@@ -103,16 +103,12 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    # handle "_" on optional pre/postfix strings
-    add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
-    add_opt_str_post(str) = (str === nothing ? "" : "_$(str)")
-
     file = joinpath(output_directory,
-                    add_opt_str_pre(prefix) * "$system_name"
-                    * add_opt_str_post(iter))
+                    add_underscore_to_optional_prefix(prefix) * "$system_name"
+                    * add_underscore_to_optional_postfix(iter))
 
     collection_file = joinpath(output_directory,
-                               add_opt_str_pre(prefix) * "$system_name")
+                               add_underscore_to_optional_prefix(prefix) * "$system_name")
 
     # Reset the collection when the iteration is 0
     pvd = paraview_collection(collection_file; append=iter > 0)
@@ -325,12 +321,17 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             surface_tension[1:ndims(system),
-                            particle] .+= surface_tension_force(surface_tension_a,
-                                                                surface_tension_b,
-                                                                system, system, particle,
-                                                                neighbor, pos_diff,
-                                                                distance, rho_a, rho_b,
-                                                                grad_kernel)
+            particle] .+= surface_tension_force(surface_tension_a,
+                                                                                 surface_tension_b,
+                                                                                 system,
+                                                                                 system,
+                                                                                 particle,
+                                                                                 neighbor,
+                                                                                 pos_diff,
+                                                                                 distance,
+                                                                                 rho_a,
+                                                                                 rho_b,
+                                                                                 grad_kernel)
         end
         vtk["surface_tension"] = surface_tension
 

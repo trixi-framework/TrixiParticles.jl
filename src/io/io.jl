@@ -1,19 +1,21 @@
 include("write_vtk.jl")
 include("read_vtk.jl")
 
-# handle "_" on optional prefix strings
-add_opt_str_post(str) = (str === "" ? "" : "_$(str)")
+# Handle "_" on optional prefix strings
+add_underscore_to_optional_prefix(str) = (str === "" ? "" : "$(str)_")
+# Same for optional postfix strings
+add_underscore_to_optional_postfix(str) = (str === "" ? "" : "_$(str)")
 
 function write_meta_data(callback::SolutionSavingCallback, integrator)
     prefix = callback.prefix
 
     meta_data = create_meta_data_dict(callback, integrator)
 
-    # write JSON-file
+    # write JSON file
     output_directory = callback.output_directory
     mkpath(output_directory)
     json_file = joinpath(output_directory,
-                         "meta" * add_opt_str_post(prefix) * ".json")
+                         "meta" * add_underscore_to_optional_postfix(prefix) * ".json")
 
     open(json_file, "w") do file
         JSON.print(file, meta_data, 2)
@@ -35,7 +37,7 @@ function create_meta_data_dict(callback, integrator)
     systems = Dict{String, Any}()
     foreach_system(semi) do system
         idx = system_indices(system, semi)
-        name = prefix * add_opt_str_post("$(names[idx])")
+        name = add_underscore_to_optional_prefix(prefix) * names[idx]
 
         system_data = Dict{String, Any}()
         add_system_data!(system_data, system)
@@ -61,6 +63,9 @@ function add_simulation_info!(info, git_hash, integrator)
         info["time_integrator"]["abstol"] = integrator.opts.abstol
         info["time_integrator"]["reltol"] = integrator.opts.reltol
         info["time_integrator"]["controller"] = type2string(integrator.opts.controller)
+    else
+        info["time_integrator"]["dt"] = integrator.dt
+        info["time_integrator"]["dt_max"] = integrator.opts.dtmax
     end
 
     info["technical_setup"] = Dict{String, Any}()
@@ -68,13 +73,7 @@ function add_simulation_info!(info, git_hash, integrator)
     info["technical_setup"]["#threads"] = Threads.nthreads()
 end
 
-# Skip systemdata addition for `Nothing`
 add_system_data!(system_data, data::Nothing) = system_data
-
-function add_system_data!(system_data, data)
-    throw(ArgumentError("Method for $(typeof(data)) not implemented. " *
-                        "Please add a method `add_system_data!(system_data, ::$(typeof(data)))`."))
-end
 
 function add_system_data!(system_data, system::FluidSystem)
     system_data["system_type"] = type2string(system)
@@ -85,7 +84,7 @@ function add_system_data!(system_data, system::FluidSystem)
     system_data["acceleration"] = system.acceleration
     system_data["sound_speed"] = system_sound_speed(system)
     system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
-    add_system_data!(system_data, system.shifting_technique)
+    add_system_data!(system_data, shifting_technique(system))
     add_system_data!(system_data, system.surface_tension)
     add_system_data!(system_data, system.surface_normal_method)
     add_system_data!(system_data, system.viscosity)
@@ -106,6 +105,7 @@ function add_system_data!(system_data, system::TotalLagrangianSPHSystem)
     system_data["smoothing_length"] = system.smoothing_length
     system_data["acceleration"] = system.acceleration
     add_system_data!(system_data, system.boundary_model)
+    add_system_data!(system_data, system.viscosity)
     add_system_data!(system_data, system.penalty_force)
 end
 
