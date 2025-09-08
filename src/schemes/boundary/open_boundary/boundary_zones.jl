@@ -69,11 +69,9 @@ There are three ways to specify the actual shape of the boundary zone:
                         and time to its velocity, or, for a constant fluid velocity,
                         a vector holding this velocity.
 - `reference_pressure`: Reference pressure is either a function mapping each particle's coordinates
-                        and time to its pressure, a vector holding the pressure of each particle,
-                        or a scalar for a constant pressure over all particles.
+                        and time to its pressure, or a scalar for a constant pressure over all particles.
 - `reference_density`: Reference density is either a function mapping each particle's coordinates
-                       and time to its density, a vector holding the density of each particle,
-                       or a scalar for a constant density over all particles.
+                       and time to its density, or a scalar for a constant density over all particles.
 
 !!! note "Note"
     The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
@@ -82,42 +80,58 @@ There are three ways to specify the actual shape of the boundary zone:
     or evolved using the characteristic flow variables ([BoundaryModelCharacteristicsLastiwka](@ref BoundaryModelCharacteristicsLastiwka)).
 
 # Examples
-```julia
+```jldoctest; output = false
 # 2D
 plane_points = ([0.0, 0.0], [0.0, 1.0])
-plane_normal=[1.0, 0.0]
+plane_normal = [1.0, 0.0]
 
 # Constant reference velocity:
-velocity_in = [1.0, 0.0]
+velocity_const = [1.0, 0.0]
+
+inflow_1 = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1,
+                        density=1.0, open_boundary_layers=4, boundary_type=InFlow(),
+                        reference_velocity=velocity_const)
 
 # Reference velocity as a function (parabolic velocity profile):
-velocity_in = (pos, t) -> SVector(4.0 * pos[2] * (1.0 - pos[2]), 0.0)
+velocity_func = (pos, t) -> SVector(4.0 * pos[2] * (1.0 - pos[2]), 0.0)
 
-# Reference pressure as a vector:
-pressure_in = zeros(40) # `40` corresponds to `nparticles(inflow.initial_condition)`
-
-# Constant reference pressure:
-pressure_in = 0.0
-
-# Reference pressure as a function (y-dependent profile, sinusoidal in time):
-pressure_in = (pos, t) -> pos[2] * sin(2pi * t)
-
-inflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
-                      open_boundary_layers=4, boundary_type=InFlow(),
-                      reference_velocity=velocity_in, reference_pressure=pressure_in)
+inflow_2 = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1,
+                        density=1.0, open_boundary_layers=4, boundary_type=InFlow(),
+                        reference_velocity=velocity_func)
 
 # 3D
 plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
-plane_normal=[0.0, 0.0, 1.0]
+plane_normal = [0.0, 0.0, 1.0]
 
-outflow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
-                       open_boundary_layers=4, boundary_type=OutFlow())
+# Constant reference pressure:
+pressure_const = 0.0
+
+outflow_1 = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
+                         open_boundary_layers=4, boundary_type=OutFlow(),
+                         reference_pressure=pressure_const)
+
+# Reference pressure as a function (y-dependent profile, sinusoidal in time):
+pressure_func = (pos, t) -> pos[2] * sin(2pi * t)
+
+outflow_2 = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
+                         open_boundary_layers=4, boundary_type=OutFlow(),
+                         reference_pressure=pressure_func)
 
 # 3D particles sampled as cylinder
 circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
 
 bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1,
-                                  density=1.0, extrude_geometry=circle, open_boundary_layers=4)
+                                  density=1.0, boundary_type=BidirectionalFlow(),
+                                  extrude_geometry=circle, open_boundary_layers=4)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ BoundaryZone                                                                                     │
+│ ════════════                                                                                     │
+│ boundary type: ………………………………………… bidirectional_flow                                               │
+│ #particles: ………………………………………………… 234                                                              │
+│ width: ……………………………………………………………… 0.4                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 !!! warning "Experimental Implementation"
@@ -180,7 +194,7 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
          isnothing(reference_pressure))
         throw(ArgumentError("`reference_pressure` must be either a function mapping " *
                             "each particle's coordinates and time to its pressure, " *
-                            "a vector holding the pressure of each particle, or a scalar"))
+                            "or a scalar"))
     else
         if reference_pressure isa Function
             test_result = reference_pressure(zeros(NDIMS), 0.0)
@@ -197,7 +211,7 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
          isnothing(reference_density))
         throw(ArgumentError("`reference_density` must be either a function mapping " *
                             "each particle's coordinates and time to its density, " *
-                            "a vector holding the density of each particle, or a scalar"))
+                            "or a scalar"))
     else
         if reference_density isa Function
             test_result = reference_density(zeros(NDIMS), 0.0)

@@ -61,7 +61,7 @@
 
         error_str = "`reference_pressure` must be either a function mapping " *
                     "each particle's coordinates and time to its pressure, " *
-                    "a vector holding the pressure of each particle, or a scalar"
+                    "or a scalar"
 
         reference_pressure = [1.0, 1.0]
 
@@ -76,7 +76,7 @@
 
         error_str = "`reference_density` must be either a function mapping " *
                     "each particle's coordinates and time to its density, " *
-                    "a vector holding the density of each particle, or a scalar"
+                    "or a scalar"
 
         reference_density = [1.0, 1.0]
         @test_throws ArgumentError(error_str) BoundaryZone(; plane, particle_spacing=0.1,
