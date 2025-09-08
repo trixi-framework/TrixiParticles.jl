@@ -200,9 +200,9 @@ function compute_correction_values!(system,
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
-        inner_compute_correction_values!(system, neighbor_system, semi, u_ode, v_ode,
-                                         system_coords, kernel_correction_coefficient,
-                                         dw_gamma)
+        compute_correction_values_inner!(kernel_correction_coefficient, dw_gamma,
+                                         system, neighbor_system, system_coords,
+                                         v_ode, u_ode, semi)
     end
 
     for particle in eachparticle(system), i in axes(dw_gamma, 1)
@@ -210,9 +210,9 @@ function compute_correction_values!(system,
     end
 end
 
-function inner_compute_correction_values!(system, neighbor_system, semi, u_ode, v_ode,
-                                          system_coords, kernel_correction_coefficient,
-                                          dw_gamma)
+function compute_correction_values_inner!(kernel_correction_coefficient, dw_gamma,
+                                          system, neighbor_system, system_coords,
+                                          v_ode, u_ode, semi)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
@@ -243,9 +243,10 @@ function inner_compute_correction_values!(system, neighbor_system, semi, u_ode, 
     end
 end
 
-function inner_compute_correction_values!(system::BoundarySystem,
-                                          neighbor_system::BoundarySystem, semi, u_ode,
-                                          v_ode, system_coords)
+function compute_correction_values_inner!(kernel_correction_coefficient, dw_gamma,
+                                          system::BoundarySystem,
+                                          neighbor_system::BoundarySystem, system_coords,
+                                          v_ode, u_ode, semi)
     # This is not needed
     return system
 end
