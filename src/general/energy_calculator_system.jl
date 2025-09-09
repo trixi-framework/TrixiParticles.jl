@@ -43,21 +43,32 @@ function update_quantities!(system::EnergyCalculatorSystem, v, u, v_ode, u_ode, 
 end
 
 @inline function interact!(dv_ode, v_ode, u_ode, system::EnergyCalculatorSystem,
-                           neighbor_system, semi; timer_str="")
+                           neighbor_system::SolidSystem, semi; timer_str="")
     @trixi_timeit timer() "calculate energy" begin
         dv = wrap_v(dv_ode, system, semi)
-        dv_neighbor = wrap_v(dv_ode, neighbor_system, semi)
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+        dv_fixed = neighbor_system.cache.dv_fixed
 
-        for particle in eachparticle(neighbor_system)
-            d_velocity = current_velocity(dv_neighbor, neighbor_system, particle)
-            velocity = current_velocity(v_neighbor, neighbor_system, particle)
+        n_fixed_particles = nparticles(neighbor_system) - n_moving_particles(neighbor_system)
+        for fixed_particle in 1:n_fixed_particles
+            particle = fixed_particle + n_moving_particles(neighbor_system)
+            velocity = current_velocity(nothing, neighbor_system, particle)
+            dv_particle = current_velocity(dv_fixed, neighbor_system, fixed_particle)
 
-            dv[1] -= dot(hydrodynamic_mass(neighbor_system, particle) * d_velocity,
-                         velocity)
+            # The force on the fixed particle is mass times acceleration
+            F_particle = neighbor_system.mass[particle] * dv_particle
+
+            # To obtain energy, we need to integrate the instantaneous power.
+            # Instantaneous power is force done BY the particle times prescribed velocity.
+            # The work done BY the particle is the negative of the work done ON it.
+            dv[1] -= dot(F_particle, velocity)
         end
     end
 
+    return dv_ode
+end
+
+@inline function interact!(dv_ode, v_ode, u_ode, system::EnergyCalculatorSystem,
+                           neighbor_system, semi; timer_str="")
     return dv_ode
 end
 
@@ -79,6 +90,13 @@ function write2vtk!(vtk, v, u, t, system::EnergyCalculatorSystem;
     vtk["initial_energy"] = system.initial_energy
 
     return vtk
+end
+
+function system_data(system::EnergyCalculatorSystem, dv_ode, du_ode, v_ode, u_ode, semi)
+    dv = wrap_v(dv_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
+
+    return (; energy=v[1], instantaneous_power=dv[1])
 end
 
 function Base.show(io::IO, system::EnergyCalculatorSystem)

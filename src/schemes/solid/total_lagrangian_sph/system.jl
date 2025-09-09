@@ -324,7 +324,8 @@ function (movement::BoundaryMovement)(system::TotalLagrangianSPHSystem, v, u, t)
 
     is_moving(t) || return system
 
-    @threaded system for particle in moving_particles
+    # TODO threaded
+    for particle in moving_particles
         pos_new = initial_coords(system, particle) + movement_function(t)
         vel = ForwardDiff.derivative(movement_function, t)
         acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
@@ -366,6 +367,8 @@ end
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
+
+    set_zero!(system.cache.dv_fixed)
 
     return system
 end

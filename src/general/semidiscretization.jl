@@ -212,6 +212,12 @@ end
     return 0.0
 end
 
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
+                                 neighbor::EnergyCalculatorSystem)
+    # This NHS is never used
+    return 0.0
+end
+
 @inline function compact_support(system::EnergyCalculatorSystem,
                                  neighbor::EnergyCalculatorSystem)
     # This NHS is never used

@@ -59,16 +59,25 @@ solid = union(beam, fixed_particles)
 smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
+movement_function(t) = SVector(0.0, t)
+
+is_moving(t) = t < 1.5
+
+moving_particles = (nparticles(solid) - nparticles(fixed_particles) + 1):nparticles(solid)
+boundary_movement = BoundaryMovement(movement_function, is_moving; moving_particles)
+
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
                                         material.E, material.nu,
                                         n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity),
                                         penalty_force=nothing, viscosity=nothing,
-                                        compute_forces_for_fixed_particles=true)
+                                        compute_forces_for_fixed_particles=true,
+                                        movement=boundary_movement)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(solid_system,
+energy_system = TrixiParticles.EnergyCalculatorSystem{2}()
+semi = Semidiscretization(solid_system, energy_system,
                           neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
@@ -83,12 +92,20 @@ middle_particle_id = Int(n_particles_per_dimension[1] * (n_particles_per_dimensi
 const STARTPOSITION_X = beam.coordinates[1, middle_particle_id]
 const STARTPOSITION_Y = beam.coordinates[2, middle_particle_id]
 
-function deflection_x(system, data, t)
+function deflection_x(system::TotalLagrangianSPHSystem, data, t)
     return data.coordinates[1, middle_particle_id] - STARTPOSITION_X
 end
 
-function deflection_y(system, data, t)
+function deflection_x(system, data, t)
+    return nothing
+end
+
+function deflection_y(system::TotalLagrangianSPHSystem, data, t)
     return data.coordinates[2, middle_particle_id] - STARTPOSITION_Y
+end
+
+function deflection_y(system, data, t)
+    return nothing
 end
 
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
