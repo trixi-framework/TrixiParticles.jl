@@ -159,7 +159,7 @@ function create_neighborhood_search(::Nothing, system, neighbor, global_compact_
     nhs = TrivialNeighborhoodSearch{ndims(system)}()
 
     return copy_neighborhood_search(nhs, compact_support(system, neighbor),
-                                     nparticles(neighbor))
+                                    nparticles(neighbor))
 end
 
 # function create_neighborhood_search(neighborhood_search, system, neighbor)
