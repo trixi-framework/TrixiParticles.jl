@@ -78,7 +78,6 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     penalty_force       :: PF
     viscosity           :: V
     source_terms        :: ST
-    buffer              :: Nothing
 end
 
 function TotalLagrangianSPHSystem(initial_condition,
@@ -123,7 +122,7 @@ function TotalLagrangianSPHSystem(initial_condition,
                                     n_moving_particles, young_modulus, poisson_ratio,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
-                                    penalty_force, viscosity, source_terms, nothing)
+                                    penalty_force, viscosity, source_terms)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)

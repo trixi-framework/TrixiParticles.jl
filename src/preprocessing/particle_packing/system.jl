@@ -218,8 +218,7 @@ end
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem)
     vtk["velocity"] = [advection_velocity(v, system, particle)
-                       for particle in active_particles(system)]
-    vtk["signed_distances"] = system.signed_distances
+                       for particle in eachparticle(system)]
 end
 
 # Skip for fixed systems
