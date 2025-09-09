@@ -250,3 +250,46 @@ function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{P}},
     # TODO we only have the type `P` here and just assume that we can do `P()`
     return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
 end
+
+# Data type that combined two matrices and behaves like a single matrix.
+# This is used in `TotalLagrangianSPHSystem` to combine the `dv` for moving
+# particles and the `dv_fixed` for fixed particles into a single matrix that
+# can be passed to `interact!`.
+# This is required when `compute_forces_for_fixed_particles=true` is used.
+struct CombinedMatrix{T, M1, M2} <: AbstractMatrix{T}
+    matrix1 :: M1
+    matrix2 :: M2
+
+    function CombinedMatrix(matrix1, matrix2)
+        @assert size(matrix1, 1) == size(matrix2, 1)
+        @assert eltype(matrix1) == eltype(matrix2)
+
+        new{eltype(matrix1), typeof(matrix1), typeof(matrix2)}(matrix1, matrix2)
+    end
+end
+
+@inline function Base.size(cm::CombinedMatrix)
+    return (size(cm.matrix1, 1), size(cm.matrix1, 2) + size(cm.matrix2, 2))
+end
+
+@inline function Base.getindex(cm::CombinedMatrix, i, j)
+    @boundscheck checkbounds(cm, i, j)
+
+    length1 = size(cm.matrix1, 2)
+    if j <= length1
+        return @inbounds cm.matrix1[i, j]
+    else
+        return @inbounds cm.matrix2[i, j - length1]
+    end
+end
+
+@inline function Base.setindex!(cm::CombinedMatrix, value, i, j)
+    @boundscheck checkbounds(cm, i, j)
+
+    length1 = size(cm.matrix1, 2)
+    if j <= length1
+        return @inbounds cm.matrix1[i, j] = value
+    else
+        return @inbounds cm.matrix2[i, j - length1] = value
+    end
+end

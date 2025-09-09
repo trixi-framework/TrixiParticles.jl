@@ -6,7 +6,26 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Different solids do not interact with each other (yet)
     particle_system !== neighbor_system && return dv
 
-    interact_solid_solid!(dv, v_particle_system, particle_system, semi)
+    dv_ = extend_dv(particle_system, dv)
+
+    interact_solid_solid!(dv_, v_particle_system, particle_system, semi)
+end
+
+function extend_dv(system, dv)
+    if system.compute_forces_for_fixed_particles
+        dv_fixed = system.cache.dv_fixed
+        return CombinedMatrix(dv, dv_fixed)
+    else
+        return dv
+    end
+end
+
+@inline function each_force_computation_particle(system)
+    if system.compute_forces_for_fixed_particles
+        return eachparticle(system)
+    else
+        return each_moving_particle(system)
+    end
 end
 
 # Function barrier without dispatch for unit testing
@@ -19,10 +38,10 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     # For solid-solid interaction, this has to happen in the initial coordinates.
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   initial_pos_diff,
-                                                                   initial_distance
-        # Only consider particles with a distance > 0.
+                           points=each_force_computation_particle(system)) do particle, neighbor,
+                                                                              initial_pos_diff,
+                                                                              initial_distance
+        # Only consider particles with a distance > 0
         initial_distance < sqrt(eps()) && return
 
         rho_a = @inbounds system.material_density[particle]
@@ -52,7 +71,7 @@ end
                                           m_a, m_b, rho_a, rho_b, grad_kernel)
 
         for i in 1:ndims(system)
-            @inbounds dv[i,
+            dv[i,
                          particle] += dv_stress[i] + dv_penalty_force_[i] +
                                       dv_viscosity[i]
         end
@@ -68,6 +87,16 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::FluidSystem, semi)
+    dv_ = extend_dv(particle_system, dv)
+
+    interact_solid_fluid!(dv_, v_particle_system, u_particle_system,
+                          v_neighbor_system, u_neighbor_system,
+                          particle_system, neighbor_system, semi)
+end
+
+function interact_solid_fluid!(dv, v_particle_system, u_particle_system,
+                               v_neighbor_system, u_neighbor_system,
+                               particle_system, neighbor_system, semi)
     sound_speed = system_sound_speed(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -76,11 +105,11 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
-                           points=each_moving_particle(particle_system)) do particle,
-                                                                            neighbor,
-                                                                            pos_diff,
-                                                                            distance
-        # Only consider particles with a distance > 0.
+                           points=each_force_computation_particle(particle_system)) do particle,
+                                                                                       neighbor,
+                                                                                       pos_diff,
+                                                                                       distance
+        # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
         # Apply the same force to the solid particle

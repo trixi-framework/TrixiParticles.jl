@@ -81,6 +81,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     source_terms        :: ST
     fixed_particle_movement :: M
     fixed_particles_moving  :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
+    compute_forces_for_fixed_particles :: Bool
     buffer              :: Nothing
     cache              :: C
 end
@@ -92,7 +93,8 @@ function TotalLagrangianSPHSystem(initial_condition,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
-                                  source_terms=nothing, movement=nothing)
+                                  source_terms=nothing, movement=nothing,
+                                  compute_forces_for_fixed_particles=false)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -128,7 +130,8 @@ function TotalLagrangianSPHSystem(initial_condition,
         movement.moving_particles .= collect((n_moving_particles + 1):n_particles)
     end
 
-    cache = (; acceleration=zero(initial_coordinates), velocity=zero(initial_coordinates))
+    cache = (; acceleration=zero(initial_coordinates), velocity=zero(initial_coordinates),
+             create_cache_tlsph(compute_forces_for_fixed_particles, ELTYPE, NDIMS, n_fixed_particles)...)
 
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -137,7 +140,16 @@ function TotalLagrangianSPHSystem(initial_condition,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms, movement,
-                                    Ref(!isnothing(movement)), nothing, cache)
+                                    Ref(!isnothing(movement)),
+                                    compute_forces_for_fixed_particles, nothing, cache)
+end
+
+function create_cache_tlsph(compute_forces_for_fixed_particles, ELTYPE, NDIMS, n_fixed_particles)
+    if compute_forces_for_fixed_particles
+        return (; dv_fixed=Array{ELTYPE, 2}(undef, NDIMS, n_fixed_particles))
+    end
+
+    return (;)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
