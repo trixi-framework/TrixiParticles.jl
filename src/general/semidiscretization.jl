@@ -162,6 +162,12 @@ end
     return 0.0
 end
 
+@inline function compact_support(system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                                 neighbor::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang})
+    # Use the compact support of the fluid
+    return compact_support(system.fluid_system, neighbor.fluid_system)
+end
+
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
     # This NHS is never used
     return 0.0
@@ -718,7 +724,9 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::FluidSystem, neighbor::BoundarySPHSystem,
+                     system::Union{FluidSystem,
+                                   OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang}},
+                     neighbor::BoundarySPHSystem,
                      u_system, u_neighbor, semi)
     # Boundary coordinates only change over time when `neighbor.ismoving[]`
     update!(neighborhood_search,
@@ -747,6 +755,17 @@ function update_nhs!(neighborhood_search,
 
     # TODO: Update only `active_coordinates` of open boundaries.
     # Problem: Removing inactive particles from neighboring lists is necessary.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                     neighbor::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                     u_system, u_neighbor, semi)
+
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
@@ -806,6 +825,25 @@ function update_nhs!(neighborhood_search,
     #
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
     # The current coordinates of fluids and solids change over time.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(system.ismoving[], true),
+            eachindex_y=active_particles(neighbor))
+end
+
+# This function is the same as the one above to avoid ambiguous dispatch when using `Union`
+function update_nhs!(neighborhood_search,
+                     system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
+                     neighbor::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                     u_system, u_neighbor, semi)
+    # Depending on the density calculator of the boundary model, this NHS is used for
+    # - kernel summation (`SummationDensity`)
+    # - continuity equation (`ContinuityDensity`)
+    # - pressure extrapolation (`AdamiPressureExtrapolation`)
+    #
+    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
+    # The current coordinates of open boundaries change over time.
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
@@ -1014,5 +1052,6 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.boundary_zone_indices,
                                  system.boundary_zones,
                                  system.buffer,
+                                 system.acceleration,
                                  system.cache)
 end

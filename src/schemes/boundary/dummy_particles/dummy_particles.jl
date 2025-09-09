@@ -469,7 +469,9 @@ end
 end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true}, boundary_model,
-                                                  system, neighbor_system::FluidSystem,
+                                                  system,
+                                                  neighbor_system::Union{FluidSystem,
+                                                                         OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang}},
                                                   system_coords, neighbor_coords, v,
                                                   v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -491,7 +493,9 @@ end
 # Note that this needs to be serial, as we are writing into the same
 # pressure entry from different loop iterations.
 @inline function boundary_pressure_extrapolation!(parallel::Val{false}, boundary_model,
-                                                  system, neighbor_system::FluidSystem,
+                                                  system,
+                                                  neighbor_system::Union{FluidSystem,
+                                                                         OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang}},
                                                   system_coords, neighbor_coords,
                                                   v, v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -512,9 +516,11 @@ end
 end
 
 @inline function boundary_pressure_inner!(boundary_model, boundary_density_calculator,
-                                          system, neighbor_system::FluidSystem, v,
-                                          v_neighbor_system, particle, neighbor, pos_diff,
-                                          distance, viscosity, cache, pressure,
+                                          system,
+                                          neighbor_system::Union{FluidSystem,
+                                                                 OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang}},
+                                          v, v_neighbor_system, particle, neighbor,
+                                          pos_diff, distance, viscosity, cache, pressure,
                                           pressure_offset)
     density_neighbor = @inbounds current_density(v_neighbor_system, neighbor_system,
                                                  neighbor)
