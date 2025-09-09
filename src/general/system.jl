@@ -179,6 +179,8 @@ function smoothing_length(system::BoundarySystem, neighbor_system::FluidSystem, 
 end
 
 @inline system_smoothing_kernel(system) = system.smoothing_kernel
+@inline system_smoothing_kernel(system, neighbor_system) = system.smoothing_kernel
+@inline system_smoothing_kernel(system::BoundarySystem, neighbor_system::FluidSystem) = neighbor_system.smoothing_kernel
 @inline system_correction(system) = nothing
 
 @inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
