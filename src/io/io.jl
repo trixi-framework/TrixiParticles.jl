@@ -40,6 +40,7 @@ function create_meta_data_dict(callback, integrator)
         name = add_underscore_to_optional_prefix(prefix) * names[idx]
 
         system_data = Dict{String, Any}()
+        #@autoinfiltrate
         add_system_data!(system_data, system)
 
         systems[name] = system_data
@@ -133,12 +134,14 @@ end
 
 function add_system_data!(system_data, system::OpenBoundarySPHSystem)
     system_data["system_type"] = type2string(system)
-    system_data["particle_spacing"] = particle_spacing(system, 1)
-    system_data["reference_velocity"] = type2string(system.reference_velocity)
-    system_data["reference_pressure"] = type2string(system.reference_pressure)
-    system_data["reference_density"] = type2string(system.reference_density)
+    system_data["fluid_system_index"] = system.fluid_system_index[]
+    system_data["smoothing_length"] = system.smoothing_length
     add_system_data!(system_data, system.boundary_model)
-    add_system_data!(system_data, system.boundary_zone)
+
+    system_data["boundary_zones"] = Dict{String, Any}()
+    for (indice, boundary_zone) in enumerate(system.boundary_zones)
+        add_system_data!(system_data["boundary_zones"], boundary_zone, indice)
+    end
 end
 
 function add_system_data!(system_data, system::ParticlePackingSystem)
@@ -170,12 +173,13 @@ function add_system_data!(system_data, boundary_model::BoundaryModelMonaghanKajt
     add_system_data!(system_data["boundary_model"], boundary_model.viscosity)
 end
 
-function add_system_data!(system_data, boundary_model::BoundaryModelTafuni)
+function add_system_data!(system_data, boundary_model::BoundaryModelMirroringTafuni)
     system_data["boundary_model"] = Dict{String, Any}()
     system_data["boundary_model"]["model"] = type2string(boundary_model)
+    system_data["boundary_model"]["mirror_method"] = type2string(boundary_model.mirror_method)
 end
 
-function add_system_data!(system_data, boundary_model::BoundaryModelLastiwka)
+function add_system_data!(system_data, boundary_model::BoundaryModelCharacteristicsLastiwka)
     system_data["boundary_model"] = Dict{String, Any}()
     system_data["boundary_model"]["model"] = type2string(boundary_model)
     system_data["boundary_model"]["extrapolate_reference_values"] = boundary_model.extrapolate_reference_values
@@ -277,10 +281,19 @@ function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceN
     system_data["surface_normal_method"]["ideal_density_threshold"] = surface_normal_method.ideal_density_threshold
 end
 
-function add_system_data!(system_data, boundary_zone::BoundaryZone)
-    system_data["boundary_zone"] = Dict{String, Any}()
-    system_data["boundary_zone"]["boundary_type"] = type2string(boundary_zone.boundary_type)
-    system_data["boundary_zone"]["zone_width"] = boundary_zone.zone_width
+function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
+    zone_name = "boundary_zone_" * string(indice)
+    system_data[zone_name] = Dict{String, Any}()
+    system_data[zone_name]["spanning_set"] = boundary_zone.spanning_set
+    system_data[zone_name]["zone_origin"] = boundary_zone.zone_origin
+    system_data[zone_name]["zone_width"] = boundary_zone.zone_width
+    system_data[zone_name]["flow_direction"] = boundary_zone.flow_direction
+    system_data[zone_name]["plane_normal"] = boundary_zone.plane_normal
+    system_data[zone_name]["reference_values"] = boundary_zone.reference_values
+    system_data[zone_name]["average_inflow_velocity"] = boundary_zone.average_inflow_velocity
+    system_data[zone_name]["prescribed_density"] = boundary_zone.prescribed_density
+    system_data[zone_name]["prescribed_pressure"] = boundary_zone.prescribed_pressure
+    system_data[zone_name]["prescribed_velocity"] = boundary_zone.prescribed_velocity
 end
 
 function add_system_data!(system_data, movement::BoundaryMovement)
