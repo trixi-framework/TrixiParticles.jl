@@ -202,6 +202,22 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function compact_support(system::EnergyCalculatorSystem, neighbor)
+    # This NHS is never used
+    return 0.0
+end
+
+@inline function compact_support(system, neighbor::EnergyCalculatorSystem)
+    # This NHS is never used
+    return 0.0
+end
+
+@inline function compact_support(system::EnergyCalculatorSystem,
+                                 neighbor::EnergyCalculatorSystem)
+    # This NHS is never used
+    return 0.0
+end
+
 @inline function get_neighborhood_search(system, semi)
     (; neighborhood_searches) = semi
 
@@ -395,7 +411,8 @@ function initialize_neighborhood_searches!(semi)
             PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
                                        initial_coordinates(system),
                                        initial_coordinates(neighbor),
-                                       eachindex_y=active_particles(neighbor))
+                                       eachindex_y=active_particles(neighbor),
+                                       parallelization_backend=semi.parallelization_backend)
         end
     end
 
@@ -483,6 +500,7 @@ end
 
 # Solid wall boundary system doesn't integrate the particle positions
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
+@inline add_velocity!(du, v, particle, system::EnergyCalculatorSystem) = du
 
 @inline function add_velocity!(du, v, particle, system::FluidSystem)
     # This is zero unless a shifting technique is used
@@ -886,6 +904,28 @@ function update_nhs!(neighborhood_search,
     return neighborhood_search
 end
 
+function update_nhs!(neighborhood_search,
+                     system::EnergyCalculatorSystem,
+                     neighbor, u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search, system,
+                     neighbor::EnergyCalculatorSystem,
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::EnergyCalculatorSystem,
+                     neighbor::EnergyCalculatorSystem,
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
 # Forward to PointNeighbors.jl
 function update!(neighborhood_search, x, y, semi; points_moving=(true, false),
                  eachindex_y=axes(y, 2))
@@ -972,17 +1012,17 @@ end
 
 function check_configuration(system::OpenBoundarySPHSystem, systems,
                              neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
-    (; boundary_model, boundary_zone) = system
+    (; boundary_model, boundary_zones) = system
 
     # Store index of the fluid system. This is necessary for re-linking
     # in case we use Adapt.jl to create a new semidiscretization.
     fluid_system_index = findfirst(==(system.fluid_system), systems)
     system.fluid_system_index[] = fluid_system_index
 
-    if boundary_model isa BoundaryModelLastiwka &&
-       boundary_zone isa BoundaryZone{BidirectionalFlow}
-        throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
-                            "Please specify inflow and outflow."))
+    if boundary_model isa BoundaryModelCharacteristicsLastiwka &&
+       any(zone -> isnothing(zone.flow_direction), boundary_zones)
+        throw(ArgumentError("`BoundaryModelCharacteristicsLastiwka` needs a specific flow direction. " *
+                            "Please specify `InFlow()` and `OutFlow()`."))
     end
 
     if first(PointNeighbors.requires_update(neighborhood_search))
@@ -1011,10 +1051,8 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.pressure,
                                  system.boundary_candidates,
                                  system.fluid_candidates,
-                                 system.boundary_zone,
-                                 system.reference_velocity,
-                                 system.reference_pressure,
-                                 system.reference_density,
+                                 system.boundary_zone_indices,
+                                 system.boundary_zones,
                                  system.buffer,
                                  system.cache)
 end

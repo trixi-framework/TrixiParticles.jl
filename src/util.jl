@@ -11,6 +11,17 @@ end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
+# Returns `functions[index](args...)`, but in a type-stable way for a heterogeneous tuple `functions`
+@inline function apply_ith_function(functions, index, args...)
+    if index == 1
+        # Found the function to apply, apply it and return
+        return first(functions)(args...)
+    end
+
+    # Process remaining functions
+    apply_ith_function(Base.tail(functions), index - 1, args...)
+end
+
 # Print informative message at startup
 function print_startup_message()
     s = """
