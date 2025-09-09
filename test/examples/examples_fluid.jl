@@ -314,62 +314,52 @@
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (WCSPH)" begin
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
-                                         joinpath(examples_dir(), "fluid",
-                                                  "pipe_flow_2d.jl"),
-                                         wcsph=true)
-        @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
-    end
-
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (EDAC)" begin
-        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (EDAC)" begin
-        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (EDAC)" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=false,
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          joinpath(examples_dir(), "fluid",
-                                                  "pipe_flow_2d.jl"),
-                                         open_boundary_model=BoundaryModelTafuni(),
-                                         boundary_type_in=BidirectionalFlow(),
-                                         boundary_type_out=BidirectionalFlow(),
-                                         reference_density_in=nothing,
-                                         reference_pressure_in=nothing,
-                                         reference_density_out=nothing,
-                                         reference_velocity_out=nothing)
+                                                  "pipe_flow_2d.jl"))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (WCSPH)" begin
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (EDAC)" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=false,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "pipe_flow_2d.jl"),
+                                         boundary_type_in=BidirectionalFlow(),
+                                         boundary_type_out=BidirectionalFlow())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
-                                         wcsph=true, sound_speed=20.0, pressure=0.0,
-                                         open_boundary_model=BoundaryModelTafuni(),
                                          boundary_type_in=BidirectionalFlow(),
-                                         boundary_type_out=BidirectionalFlow(),
-                                         reference_density_in=nothing,
-                                         reference_pressure_in=nothing,
-                                         reference_density_out=nothing,
-                                         reference_pressure_out=nothing,
-                                         reference_velocity_out=nothing)
+                                         boundary_type_out=BidirectionalFlow())
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10,
+        steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=5,
                                                           reltol=1e-3)
 
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          extra_callback=steady_state_reached,
                                          tspan=(0.0, 1.5), viscosity_boundary=nothing)
 
@@ -379,11 +369,12 @@
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; interval=1, interval_size=10,
+        steady_state_reached = SteadyStateReachedCallback(; interval=1, interval_size=5,
                                                           reltol=1e-3)
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          extra_callback=steady_state_reached, dtmax=2e-3,
                                          tspan=(0.0, 1.5), viscosity_boundary=nothing)
 
@@ -393,7 +384,7 @@
     end
 
     @trixi_testset "fluid/pipe_flow_3d.jl" begin
-        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+        @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_3d.jl"))
         @test sol.retcode == ReturnCode.Success

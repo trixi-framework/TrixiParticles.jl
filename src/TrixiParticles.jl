@@ -80,7 +80,8 @@ export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerr
        DensityDiffusionAntuono
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
+       PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
+       BoundaryModelMirroringTafuni,
        BernoulliPressureExtrapolation
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel

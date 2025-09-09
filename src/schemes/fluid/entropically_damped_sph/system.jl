@@ -245,6 +245,8 @@ end
     return ndims(system) + 2
 end
 
+@inline buffer(system::EntropicallyDampedSPHSystem) = system.buffer
+
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
 @inline function current_pressure(v, system::EntropicallyDampedSPHSystem, particle)
