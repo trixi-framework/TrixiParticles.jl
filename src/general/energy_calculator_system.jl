@@ -17,6 +17,8 @@ timer_name(::EnergyCalculatorSystem) = "dummy"
 
 @inline initial_coordinates(::EnergyCalculatorSystem) = nothing
 
+@inline particle_spacing(::EnergyCalculatorSystem, particle) = 0.0
+
 function write_u0!(u0, ::EnergyCalculatorSystem)
     # `u` can't be of size 0, or we have to write an extra `write2vtk` function
     u0 .= 0

@@ -41,7 +41,8 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                                 ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
                       @threaded
-using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save, VTKFieldData
+using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save,
+                VTKFieldData
 
 # `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")

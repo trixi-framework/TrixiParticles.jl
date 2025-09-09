@@ -411,7 +411,8 @@ function initialize_neighborhood_searches!(semi)
             PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
                                        initial_coordinates(system),
                                        initial_coordinates(neighbor),
-                                       eachindex_y=active_particles(neighbor))
+                                       eachindex_y=active_particles(neighbor),
+                                       parallelization_backend=semi.parallelization_backend)
         end
     end
 

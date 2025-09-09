@@ -70,66 +70,66 @@ energy_system = TrixiParticles.EnergyCalculatorSystem{2}()
 semi = Semidiscretization(fluid_system, energy_system)
 ode = semidiscretize(semi, tspan)
 
-function kinetic_energy(v, u, t, system)
+function potential_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return nothing
 end
 
-function kinetic_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
-    return sum(TrixiParticles.eachparticle(system)) do particle
-        vel = TrixiParticles.current_velocity(v, system, particle)
-        return system.mass[particle] * dot(vel, vel) / 2
-    end
-end
+function potential_energy(system::WeaklyCompressibleSPHSystem,
+                          dv_ode, du_ode, v_ode, u_ode, semi, t)
+    u = TrixiParticles.wrap_u(u_ode, system, semi)
 
-function potential_energy(v, u, t, system)
-    return nothing
-end
-
-function potential_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
     return sum(TrixiParticles.eachparticle(system)) do particle
         coords = TrixiParticles.current_coords(u, system, particle)
-        return system.mass[particle] * 0.5 * omega^2 * dot(coords, coords)
+        return system.mass[particle] * 0.5 * OMEGA^2 * dot(coords, coords)
     end
 end
 
-function mechanical_energy_normalized(v, u, t, system)
+function mechanical_energy_normalized(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return nothing
 end
 
-function mechanical_energy_normalized(v, u, t, system::WeaklyCompressibleSPHSystem)
-    return (mechanical_energy(v, u, t, system) - 898.547) / 898.547
+function mechanical_energy_normalized(system::WeaklyCompressibleSPHSystem,
+                                      dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return (mechanical_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t) - 898.547) /
+           898.547
 end
 
-function mechanical_energy(v, u, t, system)
+function mechanical_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return nothing
 end
 
-function mechanical_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
-    return kinetic_energy(v, u, t, system) + potential_energy(v, u, t, system)
+function mechanical_energy(system::WeaklyCompressibleSPHSystem,
+                           dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t) +
+           potential_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
 end
 
-function internal_energy(v, u, t, system)
+function internal_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return nothing
 end
 
-function internal_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
+function internal_energy(system::WeaklyCompressibleSPHSystem,
+                         dv_ode, du_ode, v_ode, u_ode, semi, t)
     return energy_system.current_energy[1]
 end
 
-function total_energy(v, u, t, system)
+function total_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return nothing
 end
 
-function total_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
-    return internal_energy(v, u, t, system) + mechanical_energy(v, u, t, system)
+function total_energy(system::WeaklyCompressibleSPHSystem,
+                      dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return internal_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t) +
+           mechanical_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
 end
 
-function total_energy_normalized(v, u, t, system)
+function total_energy_normalized(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return nothing
 end
 
-function total_energy_normalized(v, u, t, system::WeaklyCompressibleSPHSystem)
-    return (total_energy(v, u, t, system) - 898.547) / 898.547
+function total_energy_normalized(system::WeaklyCompressibleSPHSystem,
+                                 dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return (total_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t) - 898.547) / 898.547
 end
 
 info_callback = InfoCallback(interval=50)
