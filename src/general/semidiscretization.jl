@@ -143,7 +143,7 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
 end
 
 function create_neighborhood_search(neighborhood_search, system, neighbor,
-                                    global_compact_support::Union{Nothing, Real})
+                                    global_compact_support)
     # If we have an override for Boundary↔Boundary, use it; otherwise fall back to current logic
     support = if global_compact_support !== nothing &&
                  system isa BoundarySPHSystem && neighbor isa BoundarySPHSystem
@@ -155,16 +155,17 @@ function create_neighborhood_search(neighborhood_search, system, neighbor,
     return copy_neighborhood_search(neighborhood_search, support, nparticles(neighbor))
 end
 
-function create_neighborhood_search(::Nothing, system, neighbor)
+function create_neighborhood_search(::Nothing, system, neighbor, global_compact_support)
     nhs = TrivialNeighborhoodSearch{ndims(system)}()
 
-    return create_neighborhood_search(nhs, system, neighbor)
+    return copy_neighborhood_search(nhs, compact_support(system, neighbor),
+                                     nparticles(neighbor))
 end
 
-function create_neighborhood_search(neighborhood_search, system, neighbor)
-    return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
-                                    nparticles(neighbor))
-end
+# function create_neighborhood_search(neighborhood_search, system, neighbor)
+#     return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
+#                                     nparticles(neighbor))
+# end
 
 @inline function compact_support(system, neighbor)
     (; smoothing_kernel) = system

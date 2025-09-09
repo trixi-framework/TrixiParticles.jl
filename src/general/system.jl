@@ -209,5 +209,6 @@ end
                                    initial_smoothing_length(sys))
         end
     end
-    ArgumentError("No FluidSystem or TotalLagrangianSPHSystem found to derive compact support.")
+    throw(ArgumentError("No FluidSystem or TotalLagrangianSPHSystem found to derive compact support."))
+    return NaN
 end

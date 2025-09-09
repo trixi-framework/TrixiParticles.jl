@@ -45,6 +45,7 @@
             # Mock fluid system
             struct FluidSystemMock <: TrixiParticles.FluidSystem{2}
                 surface_tension::Nothing
+                density_calculator::Nothing
                 FluidSystemMock() = new(nothing)
             end
 

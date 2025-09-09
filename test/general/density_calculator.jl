@@ -1,5 +1,4 @@
 using OrdinaryDiffEq
-include("../test_util.jl")
 
 # Setup a single particle and calculate its density
 @testset verbose=true "DensityCalculators" begin
@@ -46,32 +45,37 @@ include("../test_util.jl")
                                              mass=water_density, density=water_density)
 
         bnd_initial_condition = InitialCondition(coordinates=reshape([-1.0, 0.0], 2, 1),
-                                                 mass=water_density, density=water_density)
+                                             mass=water_density, density=water_density)
 
         viscosity_fluid = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-        fluid_system = WeaklyCompressibleSPHSystem(initial_condition,
-                                                   SummationDensity(),
-                                                   state_equation,
-                                                   smoothing_kernel,
-                                                   smoothing_length;
-                                                   viscosity=viscosity_fluid,)
+        fluid_system = WeaklyCompressibleSPHSystem(
+            initial_condition,
+            SummationDensity(),
+            state_equation,
+            smoothing_kernel,
+            smoothing_length;
+            viscosity=viscosity_fluid,
+        )
 
         boundary_density_calculator = SummationDensity()
-        boundary_model = BoundaryModelDummyParticles(bnd_initial_condition.density,
-                                                     bnd_initial_condition.mass,
-                                                     state_equation=state_equation,
-                                                     boundary_density_calculator,
-                                                     smoothing_kernel,
-                                                     smoothing_length,
-                                                     correction=nothing,
-                                                     reference_particle_spacing=0,
-                                                     viscosity=nothing)
-        boundary_system = BoundarySPHSystem(bnd_initial_condition, boundary_model;
-                                            adhesion_coefficient=0.0)
+        boundary_model = BoundaryModelDummyParticles(
+            bnd_initial_condition.density,
+            bnd_initial_condition.mass,
+            state_equation=state_equation,
+            boundary_density_calculator,
+            smoothing_kernel,
+            smoothing_length,
+            correction=nothing,
+            reference_particle_spacing=0,
+            viscosity=nothing,
+        )
+        boundary_system = BoundarySPHSystem(bnd_initial_condition, boundary_model; adhesion_coefficient=0.0)
 
-        semi = Semidiscretization(fluid_system,
-                                  boundary_system;
-                                  neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),)
+        semi = Semidiscretization(
+            fluid_system,
+            boundary_system;
+            neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
+        )
 
         tspan = (0.0, 0.01)
         ode = semidiscretize(semi, tspan)
@@ -86,7 +90,7 @@ include("../test_util.jl")
         W1 = TrixiParticles.kernel(smoothing_kernel, 1.0, smoothing_length)
 
         # Fluid particle: self + boundary neighbor
-        @test density[1] ≈ water_density * (W0 + W1)
+        @test density[1]     ≈ water_density * (W0 + W1)
         # Boundary particle: self + fluid neighbor
         @test bnd_density[1] ≈ water_density * (W0 + W1)
     end
