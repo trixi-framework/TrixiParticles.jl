@@ -46,7 +46,7 @@ end
 @inline function pressure_acceleration(particle_system,
                                        neighbor_system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
-                                       neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                        pos_diff, distance, grad_kernel, correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
@@ -59,12 +59,12 @@ end
     # In order to avoid this, we clip the force at a "large" value, large enough to prevent
     # penetration when a reasonable `K` is used, but small enough to not cause instabilites
     # or super small time steps.
-    distance_from_singularity = max(0.01 * boundary_particle_spacing,
+    distance_from_singularity = max(boundary_particle_spacing / 100,
                                     distance - boundary_particle_spacing)
 
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
            (distance * distance_from_singularity) *
-           boundary_kernel(distance, particle_system.smoothing_length)
+           boundary_kernel(distance, smoothing_length(particle_system, particle))
 end
 
 @fastpow @inline function boundary_kernel(r, h)
@@ -72,23 +72,41 @@ end
 
     # TODO The neighborhood search fluid->boundary should use this search distance
     if q >= 2
-        return 0.0
+        return zero(eltype(r))
     end
 
     # (Monaghan, Kajtar, 2009, Section 4): The kernel should be normalized to 1.77 for q=0
-    return 1.77 / 32 * (1 + 5 / 2 * q + 2 * q^2) * (2 - q)^5
+    return (177 // 100) // 32 * (1 + 5 // 2 * q + 2 * q^2) * (2 - q)^5
 end
 
-@inline function particle_density(v, model::BoundaryModelMonaghanKajtar, system, particle)
-    (; hydrodynamic_mass, boundary_particle_spacing) = model
+@inline function current_density(v,
+                                 system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                 particle)
+    (; hydrodynamic_mass, boundary_particle_spacing) = system.boundary_model
 
     # This model does not use any particle density. However, a mean density is used for
     # `ArtificialViscosityMonaghan` in the fluid interaction.
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
 end
 
+@inline function current_density(v, model::BoundaryModelMonaghanKajtar, system)
+    # We cannot make this an array without allocating
+    error("`current_density` not implemented for `BoundaryModelMonaghanKajtar`")
+end
+
 # This model does not not use any particle pressure
-particle_pressure(v, model::BoundaryModelMonaghanKajtar, system, particle) = zero(eltype(v))
+@inline function current_pressure(v,
+                                  system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                                TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                  particle)
+    return zero(eltype(v))
+end
+
+@inline function current_pressure(v, model::BoundaryModelMonaghanKajtar, system)
+    # We cannot make this an array without allocating
+    error("`current_pressure` not implemented for `BoundaryModelMonaghanKajtar`")
+end
 
 @inline function update_pressure!(boundary_model::BoundaryModelMonaghanKajtar, system,
                                   v, u, v_ode, u_ode, semi)

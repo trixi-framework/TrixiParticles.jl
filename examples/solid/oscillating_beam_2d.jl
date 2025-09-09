@@ -1,3 +1,18 @@
+# ==========================================================================================
+# 2D Oscillating Elastic Beam (Cantilever) Simulation
+#
+# This example simulates the oscillation of a 2D elastic beam (cantilever)
+# fixed at one end and subjected to gravity. It uses the Total Lagrangian SPH (TLSPH)
+# method for solid mechanics.
+#
+# Based on:
+# J. O'Connor and B.D. Rogers
+# "A fluid-structure interaction model for free-surface flows and
+# flexible structures using smoothed particle hydrodynamics on a GPU",
+# Journal of Fluids and Structures, Volume 104, 2021.
+# DOI: 10.1016/j.jfluidstructs.2021.103312
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -23,7 +38,7 @@ fixed_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing 
                               (0.0, elastic_beam.thickness / 2), material.density,
                               cutout_min=(0.0, 0.0),
                               cutout_max=(clamp_radius, elastic_beam.thickness),
-                              tlsph=true)
+                              place_on_shell=true)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 
@@ -33,45 +48,46 @@ n_particles_per_dimension = (round(Int, elastic_beam.length / particle_spacing) 
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
 # from the boundary, which is correct for fluids, but not for solids.
-# We therefore need to pass `tlsph=true`.
+# We therefore need to pass `place_on_shell=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (0.0, 0.0), density=material.density, tlsph=true)
+                        (0.0, 0.0), density=material.density, place_on_shell=true)
 
 solid = union(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Solid
-# The kernel in the reference uses a differently scaled smoothing length,
-# so this is equivalent to the smoothing length of `sqrt(2) * particle_spacing` used in the paper.
-smoothing_length = 2 * sqrt(2) * particle_spacing
+smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
                                         material.E, material.nu,
                                         n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity),
-                                        penalty_force=nothing)
+                                        penalty_force=nothing, viscosity=nothing)
 
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(solid_system,
-                          neighborhood_search=PrecomputedNeighborhoodSearch{2}())
+                          neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
+info_callback = InfoCallback(interval=1000)
 
 # Track the position of the particle in the middle of the tip of the beam.
 middle_particle_id = Int(n_particles_per_dimension[1] * (n_particles_per_dimension[2] + 1) /
                          2)
-startposition_x = beam.coordinates[1, middle_particle_id]
-startposition_y = beam.coordinates[2, middle_particle_id]
 
-function deflection_x(v, u, t, system)
-    return system.current_coordinates[1, middle_particle_id] - startposition_x
+# Make these constants because global variables in the functions below are slow
+const STARTPOSITION_X = beam.coordinates[1, middle_particle_id]
+const STARTPOSITION_Y = beam.coordinates[2, middle_particle_id]
+
+function deflection_x(system, data, t)
+    return data.coordinates[1, middle_particle_id] - STARTPOSITION_X
 end
 
-function deflection_y(v, u, t, system)
-    return system.current_coordinates[2, middle_particle_id] - startposition_y
+function deflection_y(system, data, t)
+    return data.coordinates[2, middle_particle_id] - STARTPOSITION_Y
 end
 
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="",

@@ -4,4 +4,5 @@
     include("postprocess.jl")
     include("update.jl")
     include("solution_saving.jl")
+    include("steady_state_reached.jl")
 end

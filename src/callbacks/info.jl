@@ -57,18 +57,7 @@ end
 # affect!
 function (info_callback::InfoCallback)(integrator)
     if isfinished(integrator)
-        println("─"^100)
-        println("Trixi simulation finished.  Final time: ", integrator.t,
-                "  Time steps: ", integrator.stats.naccept, " (accepted), ",
-                integrator.iter, " (total)")
-        println("─"^100)
-        println()
-
-        # Print timer
-        TimerOutputs.complement!(timer())
-        print_timer(timer(), title="TrixiParticles.jl",
-                    allocations=true, linechars=:unicode, compact=false)
-        println()
+        print_summary(integrator)
     else
         t = integrator.t
         t_initial = first(integrator.sol.prob.tspan)
@@ -146,7 +135,9 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
     println()
 
     # Technical details
-    setup = Pair{String, Any}["#threads" => Threads.nthreads()]
+    setup = Pair{String, Any}["Julia version" => VERSION,
+                              "parallelization backend" => semi.parallelization_backend |> typeof |> nameof,
+                              "#threads" => Threads.nthreads()]
     summary_box(io, "Environment information", setup)
     println()
     println()
@@ -265,4 +256,19 @@ function summary_footer(io; total_width=100, indentation_level=0)
     end
 
     print(io, s)
+end
+
+function print_summary(integrator)
+    println("─"^100)
+    println("Trixi simulation finished.  Final time: ", integrator.t,
+            "  Time steps: ", integrator.stats.naccept, " (accepted), ",
+            integrator.iter, " (total)")
+    println("─"^100)
+    println()
+
+    # Print timer
+    TimerOutputs.complement!(timer())
+    print_timer(timer(), title="TrixiParticles.jl",
+                allocations=true, linechars=:unicode, compact=false)
+    println()
 end

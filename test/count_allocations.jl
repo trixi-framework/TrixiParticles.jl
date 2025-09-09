@@ -5,6 +5,8 @@ struct NoUpdateNeighborhoodSearch{NHS}
     nhs::NHS
 end
 
+@inline Base.ndims(nhs::NoUpdateNeighborhoodSearch) = ndims(nhs.nhs)
+
 # Copy a `Semidiscretization`, but wrap the neighborhood searches with
 # `NoUpdateNeighborhoodSearch`.
 function copy_semi_with_no_update_nhs(semi)
@@ -13,12 +15,11 @@ function copy_semi_with_no_update_nhs(semi)
                                   for searches in semi.neighborhood_searches)
 
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
-                              neighborhood_searches)
+                              neighborhood_searches, SerialBackend(), Ref(true))
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search
-@inline function PointNeighbors.foreach_neighbor(f, system_coords,
-                                                 neighbor_coords,
+@inline function PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
                                                  neighborhood_search::NoUpdateNeighborhoodSearch,
                                                  particle;
                                                  search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
@@ -29,14 +30,20 @@ end
 
 # No update
 @inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
-                                        points_moving=(true, true))
+                                        points_moving=(true, true),
+                                        eachindex_y=eachindex(y),
+                                        parallelization_backend=SerialBackend())
     return search
 end
 
 # Count allocations of one call to the right-hand side (`kick!` + `drift!`)
 function count_rhs_allocations(sol, semi)
     t = sol.t[end]
-    v_ode, u_ode = sol.u[end].x
+    v_ode_, u_ode_ = sol.u[end].x
+
+    # Make sure we don't use `ThreadedBroadcastArray`s here, which would cause allocations
+    v_ode = Array(v_ode_)
+    u_ode = Array(u_ode_)
     dv_ode = similar(v_ode)
     du_ode = similar(u_ode)
 
@@ -47,14 +54,11 @@ function count_rhs_allocations(sol, semi)
         # Disable timers, which cause extra allocations
         TrixiParticles.disable_debug_timings()
 
-        # Disable multithreading, which causes extra allocations
-        return disable_polyester_threads() do
-            # We need `@invokelatest` here to ensure that the most recent method of
-            # `TrixiParticles.timeit_debug_enabled()` is called, which is redefined in
-            # `disable_debug_timings` above.
-            return @invokelatest count_rhs_allocations_inner(dv_ode, du_ode, v_ode, u_ode,
-                                                             semi_no_nhs_update, t)
-        end
+        # We need `@invokelatest` here to ensure that the most recent method of
+        # `TrixiParticles.timeit_debug_enabled()` is called, which is redefined in
+        # `disable_debug_timings` above.
+        return @invokelatest count_rhs_allocations_inner(dv_ode, du_ode, v_ode, u_ode,
+                                                         semi_no_nhs_update, t)
     finally
         # Enable timers again
         @invokelatest TrixiParticles.enable_debug_timings()

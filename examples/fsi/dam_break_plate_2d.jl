@@ -1,9 +1,15 @@
-# 2D dam break flow against an elastic plate based on Section 6.5 of
+# ==========================================================================================
+# 2D Dam Break Flow Against an Elastic Plate
 #
-# L. Zhan, C. Peng, B. Zhang, W. Wu.
-# "A stabilized TL–WC SPH approach with GPU acceleration for three-dimensional fluid–structure interaction".
-# In: Journal of Fluids and Structures 86 (2019), pages 329-353.
-# https://doi.org/10.1016/j.jfluidstructs.2019.02.002
+# Based on Section 6.5 of:
+#   L. Zhan, C. Peng, B. Zhang, W. Wu.
+#   "A stabilized TL–WC SPH approach with GPU acceleration for three-dimensional fluid–structure interaction".
+#   Journal of Fluids and Structures, 86 (2019), pp. 329-353.
+#   https://doi.org/10.1016/j.jfluidstructs.2019.02.002
+#
+# This example simulates a 2D dam break where the collapsing water column impacts
+# a flexible elastic plate fixed at its base.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -51,21 +57,21 @@ solid_particle_spacing = thickness / (n_particles_x - 1)
 n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 
 # The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
-# first particle half a particle spacing away from the boundary, which is correct for fluids,
-# but not for solids. We therefore need to pass `tlsph=true`.
+# first particle half a particle spacing away from the shell of the shape, which is
+# correct for fluids, but not for solids. We therefore need to pass `place_on_shell=true`.
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_x, n_particles_y - 1),
                          (2initial_fluid_size[1], solid_particle_spacing),
-                         density=solid_density, tlsph=true)
+                         density=solid_density, place_on_shell=true)
 fixed_particles = RectangularShape(solid_particle_spacing,
                                    (n_particles_x, 1), (2initial_fluid_size[1], 0.0),
-                                   density=solid_density, tlsph=true)
+                                   density=solid_density, place_on_shell=true)
 
 solid = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_length = 1.75 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -88,7 +94,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Solid
-solid_smoothing_length = 2 * sqrt(2) * solid_particle_spacing
+solid_smoothing_length = sqrt(2) * solid_particle_spacing
 solid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model

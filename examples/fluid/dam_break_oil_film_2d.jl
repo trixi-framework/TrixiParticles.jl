@@ -1,4 +1,10 @@
-# 2D dam break simulation with an oil film on top
+# ==========================================================================================
+# 2D Dam Break Simulation with an Oil Film
+#
+# This example simulates a 2D dam break where a layer of oil sits on top of the water.
+# It demonstrates a multi-fluid simulation with two immiscible fluids.
+# The base water setup is loaded from the `dam_break_2d.jl` example.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -14,24 +20,34 @@ tspan = (0.0, 5.7 / sqrt(gravity))
 fluid_particle_spacing = H / 60
 
 # Numerical settings
-smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_length = 1.75 * fluid_particle_spacing
 sound_speed = 20 * sqrt(gravity * H)
 
-nu = 0.02 * smoothing_length * sound_speed / 8
-oil_viscosity = ViscosityMorris(nu=10 * nu)
+# Physical values
+nu_water = 8.9e-7
+nu_oil = 6e-5
+nu_ratio = nu_water / nu_oil
 
+nu_sim_oil = max(0.01 * smoothing_length * sound_speed, nu_oil)
+nu_sim_water = nu_ratio * nu_sim_oil
+
+oil_viscosity = ViscosityMorris(nu=nu_sim_oil)
+
+# TODO: broken if both systems use surface tension
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
-              viscosity=ViscosityMorris(nu=nu), smoothing_length=smoothing_length,
-              gravity=gravity,
-              density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),
-              sound_speed=sound_speed)
+              sol=nothing, fluid_particle_spacing=fluid_particle_spacing, tspan=tspan,
+              viscosity_fluid=ViscosityMorris(nu=nu_sim_water),
+              smoothing_length=smoothing_length,
+              gravity=gravity, density_diffusion=nothing, sound_speed=sound_speed,
+              prefix="", reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Setup oil layer
 
 oil_size = (W, 0.1 * H)
 oil_density = 700.0
+oil_eos = StateEquationCole(; sound_speed, reference_density=oil_density, exponent=1,
+                            clip_negative_pressure=false)
 
 oil = RectangularShape(fluid_particle_spacing,
                        round.(Int, oil_size ./ fluid_particle_spacing),
@@ -42,19 +58,29 @@ for i in axes(oil.coordinates, 2)
     oil.coordinates[:, i] .+= [0.0, H]
 end
 
+oil_state_equation = StateEquationCole(; sound_speed, reference_density=oil_density,
+                                       exponent=1, clip_negative_pressure=false)
 oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
-                                         state_equation, smoothing_kernel,
+                                         oil_eos, smoothing_kernel,
                                          smoothing_length, viscosity=oil_viscosity,
-                                         density_diffusion=density_diffusion,
                                          acceleration=(0.0, -gravity),
-                                         surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
-                                         correction=AkinciFreeSurfaceCorrection(oil_density))
+                                         surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
+                                         correction=AkinciFreeSurfaceCorrection(oil_density),
+                                         reference_particle_spacing=fluid_particle_spacing)
+
+# oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
+#                                          oil_eos, smoothing_kernel,
+#                                          smoothing_length, viscosity=oil_viscosity,
+#                                          acceleration=(0.0, -gravity),
+#                                          surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.03),
+#                                          reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, oil_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))
-ode = semidiscretize(semi, tspan, data_type=nothing)
+                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
+                          parallelization_backend=PolyesterBackend())
+ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
             dt=1.0, # This is overwritten by the stepsize callback

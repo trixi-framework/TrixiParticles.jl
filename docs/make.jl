@@ -1,7 +1,9 @@
 using Documenter, DocumenterCitations
 using TrixiParticles
-using TrixiBase
-using PointNeighbors
+using TrixiParticles.TrixiBase
+using TrixiParticles.PointNeighbors
+using Asciicast: Asciicast
+using Literate: Literate
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
@@ -82,6 +84,9 @@ replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_dam_break.m
 replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_beam.md"))
 replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_falling.md"))
 
+Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
+                  joinpath("docs", "src", "tutorials"))
+
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
 copy_file("CONTRIBUTING.md",
@@ -100,13 +105,18 @@ copy_file("NEWS.md")
 # Define module-wide setups such that the respective modules are available in doctests
 DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recursive=true)
 
+# Define environment variables to create plots without warnings
+# https://discourse.julialang.org/t/test-plots-on-travis-gks-cant-open-display/9465/2
+ENV["PLOTS_TEST"] = "true"
+ENV["GKSwstype"] = "100"
+
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
 makedocs(sitename="TrixiParticles.jl",
          plugins=[bib],
          # Run doctests and check docs for the following modules
-         modules=[TrixiParticles],
-         format=Documenter.HTML(),
+         modules=[TrixiParticles, TrixiBase],
+         format=Documenter.HTML(; assets=Asciicast.assets()),
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",
@@ -134,12 +144,14 @@ makedocs(sitename="TrixiParticles.jl",
                      "Util" => joinpath("general", "util.md")
                  ],
                  "Systems" => [
-                     "Discrete Element Method (Solid)" => joinpath("systems",
-                                                                   "dem.md"),
-                     "Weakly Compressible SPH (Fluid)" => joinpath("systems",
-                                                                   "weakly_compressible_sph.md"),
-                     "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
-                                                                                                  "entropically_damped_sph.md"),
+                     "Fluid Models" => [
+                         "Overview" => joinpath("systems", "fluid.md"),
+                         "Weakly Compressible SPH (Fluid)" => joinpath("systems",
+                                                                       "weakly_compressible_sph.md"),
+                         "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
+                                                                                                      "entropically_damped_sph.md")
+                     ],
+                     "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
                                                                             "total_lagrangian_sph.md"),
                      "Boundary" => joinpath("systems", "boundary.md")

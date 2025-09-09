@@ -33,12 +33,12 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `max_coordinates=2^15`:       The coordinates of particles will be clipped if their
                                 absolute values exceed this threshold.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
-                            Each custom quantity must be a function of `(v, u, t, system)`,
-                            which will be called for every system, where `v` and `u` are the
-                            wrapped solution arrays for the corresponding system and `t` is
-                            the current simulation time. Note that working with these `v`
-                            and `u` arrays requires undocumented internal functions of
-                            TrixiParticles. See [Custom Quantities](@ref custom_quantities)
+                            Each custom quantity must be a function of `(system, data, t)`,
+                            which will be called for every system, where `data` is a named
+                            tuple with fields depending on the system type, and `t` is the
+                            current simulation time. Check the available data for each
+                            system with `available_data(system)`.
+                            See [Custom Quantities](@ref custom_quantities)
                             for a list of pre-defined custom quantities that can be used here.
 
 # Examples
@@ -67,7 +67,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 """
 mutable struct SolutionSavingCallback{I, CQ}
     interval              :: I
-    save_times            :: Array{Float64, 1}
+    save_times            :: Vector{Float64}
     save_initial_solution :: Bool
     save_final_solution   :: Bool
     write_meta_data       :: Bool
@@ -81,7 +81,7 @@ mutable struct SolutionSavingCallback{I, CQ}
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
-                                save_times=Array{Float64, 1}([]),
+                                save_times=Float64[],
                                 save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
                                 prefix="", verbose=false, write_meta_data=true,
@@ -99,26 +99,25 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
         output_directory *= string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
 
-    solution_callback = SolutionSavingCallback(interval, save_times,
+    solution_callback = SolutionSavingCallback(interval, Float64.(save_times),
                                                save_initial_solution, save_final_solution,
                                                write_meta_data, verbose, output_directory,
                                                prefix, max_coordinates, custom_quantities,
                                                -1, Ref("UnknownVersion"))
 
     if length(save_times) > 0
-        # See the large comment below for an explanation why we use `finalize` here
-        return PresetTimeCallback(save_times, solution_callback, finalize=solution_callback)
+        return PresetTimeCallback(save_times, solution_callback)
     elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(solution_callback, dt,
-                                initialize=initialize_save_cb!,
+                                initialize=(initialize_save_cb!),
                                 save_positions=(false, false),
                                 final_affect=save_final_solution)
     else
         # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(solution_callback, solution_callback,
                                 save_positions=(false, false),
-                                initialize=initialize_save_cb!)
+                                initialize=(initialize_save_cb!))
     end
 end
 
@@ -136,12 +135,6 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
 
     # Save initial solution
     if solution_callback.save_initial_solution
-        # Update systems to compute quantities like density and pressure
-        semi = integrator.p
-        v_ode, u_ode = u.x
-        update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
-
-        # Apply the callback
         solution_callback(integrator)
     end
 
@@ -159,8 +152,9 @@ end
 # `affect!`
 function (solution_callback::SolutionSavingCallback)(integrator)
     (; interval, output_directory, custom_quantities, write_meta_data, git_hash,
-    verbose, prefix, latest_saved_iter, max_coordinates) = solution_callback
+     verbose, prefix, latest_saved_iter, max_coordinates) = solution_callback
 
+    dvdu_ode = get_du(integrator)
     vu_ode = integrator.u
     semi = integrator.p
     iter = get_iter(interval, integrator)
@@ -180,7 +174,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         println("Writing solution to $output_directory at t = $(integrator.t)")
     end
 
-    @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t;
+    @trixi_timeit timer() "save solution" trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
                                                     iter, output_directory, prefix,
                                                     write_meta_data, git_hash=git_hash[],
                                                     max_coordinates, custom_quantities...)
@@ -191,31 +185,42 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     return nothing
 end
 
-# `finalize`
-# This is a hack to make dispatch on a `PresetTimeCallback` possible.
-#
-# The type of the returned `DiscreteCallback` is
+# The type of the `DiscreteCallback` returned by the constructor is
 # `DiscreteCallback{typeof(condition), typeof(affect!), typeof(initialize), typeof(finalize)}`.
-# For the `PeriodicCallback`, `typeof(affect!)` contains the type of the
-# `SolutionSavingCallback`. The `PresetTimeCallback` uses anonymous functions as `condition`
-# and `affect!`, so this doesn't work here.
 #
-# This hacky workaround makes use of the type parameter `typeof(finalize)` above.
-# It's set to `FINALIZE_DEFAULT` by default in the `PresetTimeCallback`, which is a function
-# that just returns `nothing`.
-# Instead, we pass the `SolutionSavingCallback` as `finalize`, and define it to also just
-# return `nothing` when called as `initialize`.
+# When `interval` is used, this is
+# `DiscreteCallback{<:SolutionSavingCallback,
+#                   <:SolutionSavingCallback,
+#                   typeof(TrixiParticles.initialize_save_cb!)}`.
+#
+# When `dt` is used, this is
+# `DiscreteCallback{DiffEqCallbacks.var"#99#103"{...},
+#                   DiffEqCallbacks.PeriodicCallbackAffect{<:SolutionSavingCallback},
+#                   DiffEqCallbacks.var"#100#104"{...}}`.
+#
+# When `save_times` is used, this is
+# `DiscreteCallback{DiffEqCallbacks.var"#115#117"{...},
+#                   <:SolutionSavingCallback,
+#                   DiffEqCallbacks.var"#116#118"{...}}`.
+#
+# So we can unambiguously dispatch on
+# - `DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback}`,
+# - `DiscreteCallback{<:Any, <:PeriodicCallbackAffect{<:SolutionSavingCallback}}`,
+# - `DiscreteCallback{<:Any, <:SolutionSavingCallback}`.
 function (finalize::SolutionSavingCallback)(c, u, t, integrator)
     return nothing
 end
 
-function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
+# With `interval`
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
     solution_saving = cb.affect!
     print(io, "SolutionSavingCallback(interval=", solution_saving.interval, ")")
 end
 
+# With `dt`
 function Base.show(io::IO,
                    cb::DiscreteCallback{<:Any,
                                         <:PeriodicCallbackAffect{<:SolutionSavingCallback}})
@@ -225,16 +230,18 @@ function Base.show(io::IO,
     print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
 end
 
+# With `save_times`
 function Base.show(io::IO,
-                   cb::DiscreteCallback{<:Any, <:Any, <:Any, <:SolutionSavingCallback})
+                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
-    solution_saving = cb.finalize
+    solution_saving = cb.affect!
     print(io, "SolutionSavingCallback(save_times=", solution_saving.save_times, ")")
 end
 
+# With `interval`
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
+                   cb::DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
@@ -257,30 +264,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:Any, <:Any, <:SolutionSavingCallback})
-    @nospecialize cb # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, cb)
-    else
-        solution_saving = cb.finalize
-        cq = collect(solution_saving.custom_quantities)
-
-        setup = [
-            "save_times" => solution_saving.save_times,
-            "custom quantities" => isempty(cq) ? nothing : cq,
-            "save initial solution" => solution_saving.save_initial_solution ?
-                                       "yes" : "no",
-            "save final solution" => solution_saving.save_final_solution ? "yes" :
-                                     "no",
-            "output directory" => abspath(solution_saving.output_directory),
-            "prefix" => solution_saving.prefix
-        ]
-        summary_box(io, "SolutionSavingCallback", setup)
-    end
-end
-
+# With `dt`
 function Base.show(io::IO, ::MIME"text/plain",
                    cb::DiscreteCallback{<:Any,
                                         <:PeriodicCallbackAffect{<:SolutionSavingCallback}})
@@ -294,6 +278,31 @@ function Base.show(io::IO, ::MIME"text/plain",
 
         setup = [
             "dt" => solution_saving.interval,
+            "custom quantities" => isempty(cq) ? nothing : cq,
+            "save initial solution" => solution_saving.save_initial_solution ?
+                                       "yes" : "no",
+            "save final solution" => solution_saving.save_final_solution ? "yes" :
+                                     "no",
+            "output directory" => abspath(solution_saving.output_directory),
+            "prefix" => solution_saving.prefix
+        ]
+        summary_box(io, "SolutionSavingCallback", setup)
+    end
+end
+
+# With `save_times`. See comments above.
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        solution_saving = cb.affect!
+        cq = collect(solution_saving.custom_quantities)
+
+        setup = [
+            "save_times" => solution_saving.save_times,
             "custom quantities" => isempty(cq) ? nothing : cq,
             "save initial solution" => solution_saving.save_initial_solution ?
                                        "yes" : "no",

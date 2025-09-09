@@ -8,19 +8,18 @@
 #
 # `Adapt.@adapt_structure` automatically generates the `adapt` function for our custom types.
 Adapt.@adapt_structure Semidiscretization
+Adapt.@adapt_structure InitialCondition
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure DensityDiffusionAntuono
+Adapt.@adapt_structure EntropicallyDampedSPHSystem
 Adapt.@adapt_structure BoundarySPHSystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar
+Adapt.@adapt_structure BoundaryMovement
 Adapt.@adapt_structure TotalLagrangianSPHSystem
-
-# The initial conditions are only used for initialization, which happens before `adapt`ing
-# the semidiscretization, so we don't need to store `InitialCondition`s on the GPU.
-# To save precious GPU memory, we replace initial conditions by `nothing`.
-function Adapt.adapt_structure(to, ic::InitialCondition)
-    return nothing
-end
+Adapt.@adapt_structure BoundaryZone
+Adapt.@adapt_structure SystemBuffer
+Adapt.@adapt_structure OpenBoundarySPHSystem
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
@@ -29,7 +28,15 @@ function KernelAbstractions.get_backend(system::BoundarySPHSystem)
     KernelAbstractions.get_backend(system.coordinates)
 end
 
-# On GPUs, execute `f` inside a GPU kernel with KernelAbstractions.jl
-@inline function PointNeighbors.parallel_foreach(f, iterator, system::GPUSystem)
-    PointNeighbors.parallel_foreach(f, iterator, KernelAbstractions.get_backend(system))
+# This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization
+@inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
+    PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
+end
+
+function allocate(backend::KernelAbstractions.Backend, ELTYPE, size)
+    return KernelAbstractions.allocate(backend, ELTYPE, size)
+end
+
+function allocate(backend, ELTYPE, size)
+    return Array{ELTYPE, length(size)}(undef, size)
 end

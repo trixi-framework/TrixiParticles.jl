@@ -97,6 +97,24 @@ struct Polygon{NDIMS, ELTYPE}
     end
 end
 
+function Base.show(io::IO, geometry::Polygon)
+    @nospecialize geometry # reduce precompilation time
+
+    print(io, "Polygon{$(ndims(geometry)), $(eltype(geometry))}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", geometry::Polygon)
+    @nospecialize geometry # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "Polygon{$(ndims(geometry)), $(eltype(geometry))}")
+        summary_line(io, "#edges", "$(nfaces(geometry))")
+        summary_footer(io)
+    end
+end
+
 @inline Base.ndims(::Polygon{NDIMS}) where {NDIMS} = NDIMS
 
 @inline Base.eltype(::Polygon{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
@@ -118,4 +136,24 @@ end
     v2 = geometry.edge_vertices[edge][2]
 
     return v1, v2
+end
+
+@inline face_normal(edge, geometry::Polygon) = geometry.edge_normals[edge]
+
+# Although "volume" is typically associated with 3D objects, the function name
+# is intentionally kept as `volume` to maintain consistency between 2D and 3D cases.
+# This allows seamless handling of both cases without requiring differentiation
+# between dimensions in the calling code.
+# Note that this function is not part of the public API.
+function volume(polygon::Polygon)
+
+    # Compute the area of the polygon by the shoelace formula.
+    # https://en.wikipedia.org/wiki/Polygon
+    volume = sum(polygon.edge_vertices_ids, init=zero(eltype(polygon))) do edge
+        v1 = polygon.vertices[edge[1]]
+        v2 = polygon.vertices[edge[2]]
+
+        return (v1[1] * v2[2] - v2[1] * v1[2])
+    end
+    return abs(volume) / 2
 end
