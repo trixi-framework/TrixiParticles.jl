@@ -23,37 +23,42 @@ difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of parti
 """
 struct ContinuityDensity end
 
+# TODO: this is not correct if there is actual particle refinement
 function summation_density!(system, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
     set_zero!(density)
 
+    # In 'semidiscretization.jl' we ensure in 'check_summation_density'
+    # that only one type of smoothing kernel can be used.
+    smoothing_kernel = nothing
+    smoothing_length = nothing
+    foreach_system(semi) do system_
+        if system_ isa FluidSystem || system_ isa TotalLagrangianSPHSystem
+            smoothing_kernel = system_smoothing_kernel(system_)
+            smoothing_length = initial_smoothing_length(system_)
+        end
+    end
+
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute density" foreach_system(semi) do neighbor_system
-        inner_summation_density!(system, neighbor_system, u, u_ode, density, semi;
-                                 particles=particles)
+        if system isa BoundarySystem
+            println("called " => neighbor_system |> typeof |> nameof)
+        end
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+
+        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               semi,
+                               points=particles) do particle, neighbor, pos_diff, distance
+            mass = hydrodynamic_mass(neighbor_system, neighbor)
+            density[particle] += mass * kernel(smoothing_kernel, distance,
+                                               smoothing_length)
+            if system isa BoundarySystem
+                println("particle", particle, "neighbor", neighbor)
+            end
+        end
     end
-end
-
-function inner_summation_density!(system, neighbor_system, u, u_ode, density, semi;
-                                  particles=each_moving_particle(system))
-    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-
-    system_coords = current_coordinates(u, system)
-    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                           semi,
-                           points=particles) do particle, neighbor, pos_diff, distance
-        mass = hydrodynamic_mass(neighbor_system, neighbor)
-        density[particle] += mass *
-                             smoothing_kernel(system, neighbor_system, distance, particle)
-    end
-end
-
-function inner_summation_density!(system::BoundarySystem, neighbor_system::BoundarySystem,
-                                  u, u_ode, density;
-                                  particles=each_moving_particle(system))
-    # nothing to do here since boundary-boundary density is not needed
-    return system
 end

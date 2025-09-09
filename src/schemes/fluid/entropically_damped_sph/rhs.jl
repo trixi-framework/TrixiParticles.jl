@@ -117,8 +117,8 @@ end
     #
     # This is similar to density diffusion in WCSPH
     tmp = eta_tilde / (distance^2 +
-           ((smoothing_length(particle_system, particle) +
-             smoothing_length(neighbor_system, neighbor)) / 2)^2 / 100)
+           ((smoothing_length(particle_system, neighbor_system, particle) +
+             smoothing_length(neighbor_system, particle_system, neighbor)) / 2)^2 / 100)
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
     dv[end, particle] += artificial_eos + damping_term

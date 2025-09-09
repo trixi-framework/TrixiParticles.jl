@@ -357,6 +357,7 @@ function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_od
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for SummationDensity
 
+    print("called sum in bnd")
     summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
 end
 

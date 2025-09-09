@@ -175,12 +175,15 @@ end
 end
 
 function smoothing_length(system::BoundarySystem, neighbor_system::FluidSystem, particle)
-    return smoothing_length(neighbor_system, neighbor_system.particle_refinement, particle)
+    # TODO: with particle refinement
+    # return smoothing_length(system, system.particle_refinement, particle)
+    return smoothing_length(neighbor_system, particle)
 end
 
 @inline system_smoothing_kernel(system) = system.smoothing_kernel
 @inline system_smoothing_kernel(system, neighbor_system) = system.smoothing_kernel
-@inline system_smoothing_kernel(system::BoundarySystem, neighbor_system::FluidSystem) = neighbor_system.smoothing_kernel
+@inline system_smoothing_kernel(system::BoundarySystem,
+                                neighbor_system::FluidSystem) = neighbor_system.smoothing_kernel
 @inline system_correction(system) = nothing
 
 @inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
@@ -197,4 +200,14 @@ end
 
 @inline @fastpow function ideal_neighbor_count(::Val{3}, particle_spacing, compact_support)
     return floor(Int, 4 // 3 * pi * compact_support^3 / particle_spacing^3)
+end
+
+@inline function moving_system_compact_support(systems)
+    for sys in systems
+        if sys isa FluidSystem || sys isa TotalLagrangianSPHSystem
+            return compact_support(system_smoothing_kernel(sys),
+                                   initial_smoothing_length(sys))
+        end
+    end
+    ArgumentError("No FluidSystem or TotalLagrangianSPHSystem found to derive compact support.")
 end
