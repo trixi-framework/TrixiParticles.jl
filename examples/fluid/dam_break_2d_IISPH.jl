@@ -27,7 +27,7 @@ IISPH_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
 # Run the dam break simulation with these changes
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              viscosity=ViscosityAdami(nu=nu),
+              viscosity_fluid=ViscosityAdami(nu=nu),
               smoothing_kernel=smoothing_kernel,
               smoothing_length=smoothing_length,
               fluid_system=IISPH_system,
