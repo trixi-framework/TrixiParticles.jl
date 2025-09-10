@@ -466,10 +466,11 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
             foreach_system(semi) do system
                 du = wrap_u(du_ode, system, semi)
                 v = wrap_v(v_ode, system, semi)
+                u = wrap_u(u_ode, system, semi)
 
                 @threaded semi for particle in each_moving_particle(system)
                     # This can be dispatched per system
-                    add_velocity!(du, v, particle, system)
+                    add_velocity!(du, v, u, particle, system, t)
                 end
             end
         end
@@ -478,7 +479,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     return du_ode
 end
 
-@inline function add_velocity!(du, v, particle, system)
+@inline function add_velocity!(du, v, u, particle, system, t)
     # Generic fallback for all systems that don't define this function
     for i in 1:ndims(system)
         @inbounds du[i, particle] = v[i, particle]
@@ -488,9 +489,9 @@ end
 end
 
 # Solid wall boundary system doesn't integrate the particle positions
-@inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
+@inline add_velocity!(du, v, u, particle, system::BoundarySPHSystem, t) = du
 
-@inline function add_velocity!(du, v, particle, system::FluidSystem)
+@inline function add_velocity!(du, v, u, particle, system::FluidSystem, t)
     # This is zero unless a shifting technique is used
     delta_v_ = delta_v(system, particle)
 
@@ -765,7 +766,6 @@ function update_nhs!(neighborhood_search,
                      system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
                      neighbor::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
                      u_system, u_neighbor, semi)
-
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
@@ -1044,9 +1044,7 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.fluid_system_index,
                                  system.smoothing_length,
                                  system.mass,
-                                 system.density,
                                  system.volume,
-                                 system.pressure,
                                  system.boundary_candidates,
                                  system.fluid_candidates,
                                  system.boundary_zone_indices,

@@ -31,7 +31,8 @@ end
 @inline function update_boundary_quantities!(system,
                                              boundary_model::BoundaryModelCharacteristicsLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, boundary_zones, fluid_system) = system
+    (; cache, boundary_zones, fluid_system) = system
+    (; pressure, density) = cache
 
     sound_speed = system_sound_speed(fluid_system)
 
@@ -102,7 +103,7 @@ end
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
 function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, fluid_system, density, pressure) = system
+    (; volume, cache, fluid_system) = system
     (; characteristics, previous_characteristics) = cache
 
     @threaded semi for particle in eachparticle(system)
