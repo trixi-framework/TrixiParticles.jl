@@ -1004,6 +1004,7 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.initial_condition,
                                  fluid_system, # link to fluid system
                                  system.fluid_system_index,
+                                 system.smoothing_kernel,
                                  system.smoothing_length,
                                  system.mass,
                                  system.density,
@@ -1014,5 +1015,6 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.boundary_zone_indices,
                                  system.boundary_zones,
                                  system.buffer,
+                                 system.pressure_acceleration_formulation,
                                  system.cache)
 end

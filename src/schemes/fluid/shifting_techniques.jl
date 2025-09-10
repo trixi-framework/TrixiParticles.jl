@@ -145,6 +145,8 @@ function update_shifting_from_callback!(system, ::ParticleShiftingTechnique,
         end
     end
 
+    suppress_shifting_free_surface!(system, u, semi)
+
     return system
 end
 
@@ -211,8 +213,7 @@ end
 
 function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
                           u_ode, semi)
-    (; cache, correction) = system
-    (; delta_v) = cache
+    (; delta_v) = system.cache
     (; background_pressure) = shifting
 
     sound_speed = system_sound_speed(system)
@@ -278,7 +279,8 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
             delta_v_ = background_pressure / 8 * h / sound_speed *
                        pressure_acceleration(system, neighbor_system, particle, neighbor,
                                              m_a, m_b, 1, 1, rho_a, rho_b, pos_diff,
-                                             distance, grad_kernel, correction)
+                                             distance, grad_kernel,
+                                             system_correction(system))
 
             # Write into the buffer
             for i in eachindex(delta_v_)
@@ -287,5 +289,10 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
         end
     end
 
+    suppress_shifting_free_surface!(system, u, semi)
+
     return system
 end
+
+# TODO: Implement free surface detection
+@inline suppress_shifting_free_surface!(system, u, semi) = system
