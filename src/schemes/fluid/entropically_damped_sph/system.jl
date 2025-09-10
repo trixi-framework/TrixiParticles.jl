@@ -253,10 +253,6 @@ system_correction(system::EntropicallyDampedSPHSystem) = system.correction
     return v[end, particle]
 end
 
-@inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
-    return view(v, 1:ndims(system), :)
-end
-
 @inline system_state_equation(system::EntropicallyDampedSPHSystem) = nothing
 
 @inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed

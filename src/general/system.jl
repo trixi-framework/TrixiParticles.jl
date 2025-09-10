@@ -95,10 +95,9 @@ end
     return extract_svector(current_velocity(v, system), system, particle)
 end
 
-# This can be dispatched by system type, since for some systems, the current velocity
-# is stored in `v`, for others it might be stored elsewhere.
-# By default, try to extract it from `v`.
-@inline current_velocity(v, system) = v
+@inline function current_velocity(v, system)
+    return view(v, Base.OneTo(ndims(system)), each_moving_particle(system))
+end
 
 @inline function current_density(v, system::System, particle)
     return current_density(v, system)[particle]

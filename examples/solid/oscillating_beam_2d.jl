@@ -91,6 +91,7 @@ function deflection_y(system, data, t)
 end
 
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
+                                         kinetic_energy=kinetic_energy,
                                          deflection_x=deflection_x,
                                          deflection_y=deflection_y)
 

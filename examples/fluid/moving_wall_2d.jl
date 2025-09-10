@@ -73,7 +73,7 @@ semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="", kinetic_energy=kinetic_energy)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
