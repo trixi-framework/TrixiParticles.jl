@@ -63,10 +63,14 @@ end
                               modify_momentum_equation=true,
                               v_max_factor=1, sound_speed_factor=0)
 
-Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017).
-Following the original paper, the callback is applied in every time step and not
-in every stage of a multi-stage time integration method to reduce the computational
-cost and improve the stability of the scheme.
+Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017)
+and [Sun et al. (2019)](@cite Sun2019).
+The keyword arguments allow to choose between the original methods from the two papers
+and variants in between.
+
+The default values of the keyword arguments provide the version of shifting
+that we recommend based on our experiments.
+The default values are subject to change in future releases.
 
 See [Particle Shifting Technique](@ref shifting) for more information on the method.
 
@@ -126,21 +130,6 @@ We provide the following convenience constructors for common variants of the met
                                 `sound_speed_factor * c`, where `c` is the speed of sound.
                                 Only one of `v_max_factor` and `sound_speed_factor`
                                 can be non-zero.
-
-The current default is:
-```jldoctest; output = false
-    ParticleShiftingTechnique(integrate_shifting_velocity=true,
-                              update_everystage=false,
-                              modify_continuity_equation=true,
-                              second_continuity_equation_term=true,
-                              modify_momentum_equation=true,
-                              v_max_factor=1)
-
-# output
-ParticleShiftingTechnique{true, false, true, true, true, true, Int64}(1)
-```
-
-This is subject to change in future releases.
 
 !!! warning
     The Particle Shifting Technique needs to be disabled close to the free surface
