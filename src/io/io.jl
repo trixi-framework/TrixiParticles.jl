@@ -40,7 +40,6 @@ function create_meta_data_dict(callback, integrator)
         name = add_underscore_to_optional_prefix(prefix) * names[idx]
 
         system_data = Dict{String, Any}()
-        #@autoinfiltrate
         add_system_data!(system_data, system)
 
         systems[name] = system_data
