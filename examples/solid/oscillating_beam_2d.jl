@@ -23,7 +23,7 @@ n_particles_y = 5
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 4.0
-tspan = (0.0, 1.0)
+tspan = (0.0, 1.5)
 
 elastic_beam = (length=0.35, thickness=0.02)
 material = (density=1000.0, E=1.4e6, nu=0.4)
@@ -60,16 +60,16 @@ solid = union(beam, fixed_particles)
 smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-movement_function(t) = SVector(0.0, t^3 * sin(0.5 * pi * t))
+movement_function(t) = SVector(0.0, sin(pi * (t - 0.5)) + 1)
 
 is_moving(t) = t < 1.0
 
-moving_particles = (nparticles(solid) - nparticles(fixed_particles) + 1):nparticles(solid)
+moving_particles = (nparticles(solid) - (nparticles(fixed_particles) + 81) + 1):nparticles(solid)
 boundary_movement = BoundaryMovement(movement_function, is_moving; moving_particles)
 
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
                                         material.E, material.nu,
-                                        n_fixed_particles=nparticles(fixed_particles),
+                                        n_fixed_particles=nparticles(fixed_particles) + 81,
                                         acceleration=(0.0, -gravity),
                                         penalty_force=nothing, viscosity=nothing,
                                         compute_forces_for_fixed_particles=true,
@@ -113,7 +113,7 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
                                          deflection_x=deflection_x,
                                          deflection_y=deflection_y)
 
-energy_calculator = TrixiParticles.EnergyCalculatorCallback{Float64}(interval=1)
+energy_calculator = TrixiParticles.EnergyCalculatorCallback{Float64}(interval=2)
 
 callbacks = CallbackSet(info_callback, saving_callback, energy_calculator)
 
