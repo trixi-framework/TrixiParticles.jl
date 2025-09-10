@@ -133,9 +133,19 @@ function create_cache_open_boundary(boundary_model, fluid_system,
     elseif boundary_model isa BoundaryModelDynamicalPressureZhang
         # A separate array for the prescribed pressure is required,
         # since it is specified independently from the computed pressure for the momentum equation.
-        pressure_prescribed = zero(initial_condition.pressure)
+        pressure_boundary = copy(initial_condition.pressure)
 
-        cache = (; pressure_prescribed=pressure_prescribed,
+        # The first entry of the density vector can be used,
+        # as constant density has already been verified in `allocate_buffer`
+        density_rest = first(initial_condition.density)
+
+        # The first entry of the pressure vector can be used,
+        # as constant pressure has already been verified in `allocate_buffer`
+        pressure_rest = first(initial_condition.pressure)
+
+        cache = (; pressure_boundary=pressure_boundary,
+                 density_rest=density_rest,
+                 pressure_rest=pressure_rest,
                  pressure_reference_values=pressure_reference_values,
                  density_reference_values=density_reference_values,
                  velocity_reference_values=velocity_reference_values)
@@ -379,6 +389,10 @@ end
     for dim in 1:ndims(system)
         u[dim, particle] += boundary_zone.spanning_set[1][dim]
     end
+
+    impose_rest_density!(v, system, particle, system.boundary_model)
+
+    impose_rest_pressure!(v, system, particle, system.boundary_model)
 
     return system
 end

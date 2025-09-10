@@ -41,6 +41,26 @@ end
     return view(v, size(v, 1), :)
 end
 
+@inline impose_rest_density!(v, system, particle, boundary_model) = v
+
+@inline function impose_rest_density!(v, system, particle,
+                                      boundary_model::BoundaryModelDynamicalPressureZhang)
+    (; density_rest, pressure_boundary) = system.cache
+
+    # Density of recycled buffer particles is obtained following the EoS (Eq. 15, Zhang et al. 2015)
+    density = density_rest +
+              pressure_boundary[particle] / system_sound_speed(system.fluid_system)^2
+
+    set_particle_density!(v, system, particle, density)
+end
+
+@inline impose_rest_pressure!(v, system, particle, boundary_model) = v
+
+@inline function impose_rest_pressure!(v, system, particle,
+                                       boundary_model::BoundaryModelDynamicalPressureZhang)
+    set_particle_pressure!(v, system, particle, system.cache.pressure_rest)
+end
+
 function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelDynamicalPressureZhang)
     write_v0!(v0, system, system.boundary_model, system.fluid_system)
 end
@@ -62,7 +82,32 @@ end
 
 function update_boundary_model!(system, boundary_model::BoundaryModelDynamicalPressureZhang,
                                 v, u, v_ode, u_ode, semi, t)
+    (; pressure_boundary, pressure_rest) = system.cache
+
     compute_pressure!(system, system.fluid_system, v, semi)
+
+    @threaded semi for particle in each_moving_particle(system)
+        boundary_zone = current_boundary_zone(system, particle)
+
+        particle_coords = current_coords(u, system, particle)
+
+        # TODO: Clarify the author's intention here
+        # From Zhang et al. (2025):
+        #   "When the bidirectional in-/outlet buffer works with the velocity
+        #   in-/outflow boundary condition, such as in PIVO (Pressurized Inlet,
+        #   Velocity Outlet) and VIPO (Velocity Inlet, Pressure Outlet) flows, the
+        #   pressure boundary condition should also be imposed at the velocity
+        #   in-/outlet to eliminate the truncated error in approximating pressure gradient,
+        #   but the corresponding pb in Eq. (13) is given as pi.
+        #   Meanwhile, both the density and pressure of newly populated particles remain unchanged."
+        if boundary_zone.prescribed_pressure
+            # TODO: How do we prescibe zero pressure? Do we have to also update the momentum pressure?
+            pressure_boundary[particle] = reference_pressure(boundary_zone, v, system,
+                                                             particle, particle_coords, t)
+        else
+            pressure_boundary[particle] = pressure_rest
+        end
+    end
 
     return system
 end
@@ -95,7 +140,7 @@ end
 function update_boundary_quantities!(system,
                                      boundary_model::BoundaryModelDynamicalPressureZhang,
                                      v, u, v_ode, u_ode, semi, t)
-    (; pressure_prescribed) = system.cache
+    (; pressure_boundary, pressure_rest) = system.cache
 
     @threaded semi for particle in each_moving_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
@@ -105,8 +150,10 @@ function update_boundary_quantities!(system,
 
         if prescribed_pressure
             # TODO: How do we prescibe zero pressure? Do we have to also update the momentum pressure?
-            pressure_prescribed[particle] = reference_pressure(boundary_zone, v, system,
-                                                               particle, particle_coords, t)
+            pressure_boundary[particle] = reference_pressure(boundary_zone, v, system,
+                                                             particle, particle_coords, t)
+        else
+            pressure_boundary[particle] = pressure_rest
         end
 
         if prescribed_density
@@ -190,8 +237,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                        p_a, p_b, grad_kernel)
 
         # This is zero if not prescribed or vanishes for particles with full kernel support
-        p_p = cache.pressure_prescribed[particle]
-        dv_pressure_prescribed = 2 * p_p * (m_b / (rho_a * rho_b)) * grad_kernel
+        p_p = cache.pressure_boundary[particle]
+        dv_pressure_boundary = 2 * p_p * (m_b / (rho_a * rho_b)) * grad_kernel
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
         dv_viscosity_ = @inbounds dv_viscosity(viscosity_model(fluid_system,
@@ -213,7 +260,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         for i in 1:ndims(particle_system)
             @inbounds dv[i,
                          particle] += dv_pressure[i] + dv_viscosity_[i] + #dv_tvf[i] +
-                                      dv_pressure_prescribed[i]
+                                      dv_pressure_boundary[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
