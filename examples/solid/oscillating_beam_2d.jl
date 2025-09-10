@@ -22,8 +22,8 @@ n_particles_y = 5
 
 # ==========================================================================================
 # ==== Experiment Setup
-gravity = 2.0
-tspan = (0.0, 5.0)
+gravity = 4.0
+tspan = (0.0, 1.0)
 
 elastic_beam = (length=0.35, thickness=0.02)
 material = (density=1000.0, E=1.4e6, nu=0.4)
@@ -53,15 +53,16 @@ beam = RectangularShape(particle_spacing, n_particles_per_dimension,
                         (0.0, 0.0), density=material.density, place_on_shell=true)
 
 solid = union(beam, fixed_particles)
+# fixed_particles = solid
 
 # ==========================================================================================
 # ==== Solid
 smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-movement_function(t) = SVector(0.0, t)
+movement_function(t) = SVector(0.0, t^3 * sin(0.5 * pi * t))
 
-is_moving(t) = t < 1.5
+is_moving(t) = t < 1.0
 
 moving_particles = (nparticles(solid) - nparticles(fixed_particles) + 1):nparticles(solid)
 boundary_movement = BoundaryMovement(movement_function, is_moving; moving_particles)
@@ -112,7 +113,9 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
                                          deflection_x=deflection_x,
                                          deflection_y=deflection_y)
 
-callbacks = CallbackSet(info_callback, saving_callback)
+energy_calculator = TrixiParticles.EnergyCalculatorCallback{Float64}(interval=1)
+
+callbacks = CallbackSet(info_callback, saving_callback, energy_calculator)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks);

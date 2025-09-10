@@ -534,6 +534,8 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
 
         @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode,
                                                                semi, t)
+
+        update_energy_calculator_system!(dv_ode, v_ode, u_ode, semi.systems[2], semi.systems[1], semi)
     end
 
     return dv_ode
@@ -607,11 +609,12 @@ end
 
 function add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
     foreach_system(semi) do system
-        dv = wrap_v(dv_ode, system, semi)
+        dv_ = wrap_v(dv_ode, system, semi)
+        dv = extend_dv(system, dv_)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        @threaded semi for particle in each_moving_particle(system)
+        @threaded semi for particle in each_force_computation_particle(system)
             # Dispatch by system type to exclude boundary systems
             add_acceleration!(dv, particle, system)
             add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)

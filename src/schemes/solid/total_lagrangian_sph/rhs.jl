@@ -2,16 +2,20 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::TotalLagrangianSPHSystem, semi)
+                   neighbor_system::TotalLagrangianSPHSystem, semi;
+                   eachparticle=each_force_computation_particle(particle_system))
     # Different solids do not interact with each other (yet)
     particle_system !== neighbor_system && return dv
 
     dv_ = extend_dv(particle_system, dv)
 
-    interact_solid_solid!(dv_, v_particle_system, particle_system, semi)
+    interact_solid_solid!(dv_, v_particle_system, particle_system, semi;
+                         eachparticle=eachparticle)
 end
 
-function extend_dv(system, dv)
+@inline extend_dv(system, dv) = dv
+
+function extend_dv(system::TotalLagrangianSPHSystem, dv)
     if system.compute_forces_for_fixed_particles
         dv_fixed = system.cache.dv_fixed
         return CombinedMatrix(dv, dv_fixed)
@@ -21,6 +25,10 @@ function extend_dv(system, dv)
 end
 
 @inline function each_force_computation_particle(system)
+    return each_moving_particle(system)
+end
+
+@inline function each_force_computation_particle(system::TotalLagrangianSPHSystem)
     if system.compute_forces_for_fixed_particles
         return eachparticle(system)
     else
@@ -29,7 +37,8 @@ end
 end
 
 # Function barrier without dispatch for unit testing
-@inline function interact_solid_solid!(dv, v_system, system, semi)
+@inline function interact_solid_solid!(dv, v_system, system, semi;
+                                       eachparticle=each_moving_particle(system))
     (; penalty_force) = system
 
     # Everything here is done in the initial coordinates
@@ -38,9 +47,8 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     # For solid-solid interaction, this has to happen in the initial coordinates.
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
-                           points=each_force_computation_particle(system)) do particle, neighbor,
-                                                                              initial_pos_diff,
-                                                                              initial_distance
+                           points=eachparticle) do particle, neighbor,
+                                                   initial_pos_diff, initial_distance
         # Only consider particles with a distance > 0
         initial_distance < sqrt(eps()) && return
 
@@ -86,17 +94,20 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::FluidSystem, semi)
+                   neighbor_system::FluidSystem, semi;
+                   eachparticle=each_moving_particle(particle_system))
     dv_ = extend_dv(particle_system, dv)
 
     interact_solid_fluid!(dv_, v_particle_system, u_particle_system,
                           v_neighbor_system, u_neighbor_system,
-                          particle_system, neighbor_system, semi)
+                          particle_system, neighbor_system, semi;
+                          eachparticle)
 end
 
 function interact_solid_fluid!(dv, v_particle_system, u_particle_system,
                                v_neighbor_system, u_neighbor_system,
-                               particle_system, neighbor_system, semi)
+                               particle_system, neighbor_system, semi;
+                               eachparticle=each_moving_particle(particle_system))
     sound_speed = system_sound_speed(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -105,7 +116,7 @@ function interact_solid_fluid!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
-                           points=each_force_computation_particle(particle_system)) do particle,
+                           points=eachparticle) do particle,
                                                                                        neighbor,
                                                                                        pos_diff,
                                                                                        distance
@@ -199,6 +210,15 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::Union{BoundarySPHSystem, OpenBoundarySPHSystem}, semi)
+    # TODO continuity equation?
+    return dv
+end
+
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::TotalLagrangianSPHSystem,
+                   neighbor_system, semi;
+                   eachparticle=nothing)
     # TODO continuity equation?
     return dv
 end

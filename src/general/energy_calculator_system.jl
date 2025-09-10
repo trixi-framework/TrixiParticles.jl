@@ -42,8 +42,8 @@ function update_quantities!(system::EnergyCalculatorSystem, v, u, v_ode, u_ode, 
     return system
 end
 
-@inline function interact!(dv_ode, v_ode, u_ode, system::EnergyCalculatorSystem,
-                           neighbor_system::SolidSystem, semi; timer_str="")
+function update_energy_calculator_system!(dv_ode, v_ode, u_ode, system::EnergyCalculatorSystem,
+                                          neighbor_system::SolidSystem, semi)
     @trixi_timeit timer() "calculate energy" begin
         dv = wrap_v(dv_ode, system, semi)
         dv_fixed = neighbor_system.cache.dv_fixed
@@ -52,7 +52,7 @@ end
         for fixed_particle in 1:n_fixed_particles
             particle = fixed_particle + n_moving_particles(neighbor_system)
             velocity = current_velocity(nothing, neighbor_system, particle)
-            dv_particle = current_velocity(dv_fixed, neighbor_system, fixed_particle)
+            dv_particle = extract_svector(dv_fixed, neighbor_system, fixed_particle)
 
             # The force on the fixed particle is mass times acceleration
             F_particle = neighbor_system.mass[particle] * dv_particle
@@ -63,9 +63,32 @@ end
             dv[1] -= dot(F_particle, velocity)
         end
     end
-
-    return dv_ode
 end
+
+# @inline function interact!(dv_ode, v_ode, u_ode, system::EnergyCalculatorSystem,
+#                            neighbor_system::SolidSystem, semi; timer_str="")
+#     @trixi_timeit timer() "calculate energy" begin
+#         dv = wrap_v(dv_ode, system, semi)
+#         dv_fixed = neighbor_system.cache.dv_fixed
+
+#         n_fixed_particles = nparticles(neighbor_system) - n_moving_particles(neighbor_system)
+#         for fixed_particle in 1:n_fixed_particles
+#             particle = fixed_particle + n_moving_particles(neighbor_system)
+#             velocity = current_velocity(nothing, neighbor_system, particle)
+#             dv_particle = current_velocity(dv_fixed, neighbor_system, fixed_particle)
+
+#             # The force on the fixed particle is mass times acceleration
+#             F_particle = neighbor_system.mass[particle] * dv_particle
+
+#             # To obtain energy, we need to integrate the instantaneous power.
+#             # Instantaneous power is force done BY the particle times prescribed velocity.
+#             # The work done BY the particle is the negative of the work done ON it.
+#             dv[1] -= dot(F_particle, velocity)
+#         end
+#     end
+
+#     return dv_ode
+# end
 
 @inline function interact!(dv_ode, v_ode, u_ode, system::EnergyCalculatorSystem,
                            neighbor_system, semi; timer_str="")
