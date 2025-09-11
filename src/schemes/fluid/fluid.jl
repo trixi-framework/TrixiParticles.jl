@@ -1,16 +1,21 @@
-@inline function set_particle_density!(v, system::FluidSystem, particle, density)
-    set_particle_density!(v, system, system.density_calculator, particle, density)
-end
-
 # WARNING!
 # These functions are intended to be used internally to set the density
 # of newly activated particles in a callback.
 # DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
 # outside of callbacks.
-@inline set_particle_density!(v, system, ::SummationDensity, particle, density) = v
+@inline function set_particle_density!(v, system::FluidSystem, particle, density)
+    current_density(v, system)[particle] = density
 
-@inline function set_particle_density!(v, system, ::ContinuityDensity, particle, density)
-    v[end, particle] = density
+    return v
+end
+
+# WARNING!
+# These functions are intended to be used internally to set the pressure
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline function set_particle_pressure!(v, system::FluidSystem, particle, pressure)
+    current_pressure(v, system)[particle] = pressure
 
     return v
 end
@@ -85,7 +90,6 @@ function write_v0!(v0, system::FluidSystem)
     copyto!(v0, indices, system.initial_condition.velocity, indices)
 
     write_v0!(v0, system, system.density_calculator)
-    write_v0!(v0, system, system.transport_velocity)
 
     return v0
 end
@@ -199,25 +203,3 @@ include("surface_tension.jl")
 include("surface_normal_sph.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
-
-@inline function add_velocity!(du, v, particle,
-                               system::Union{EntropicallyDampedSPHSystem,
-                                             WeaklyCompressibleSPHSystem})
-    add_velocity!(du, v, particle, system, system.transport_velocity)
-end
-
-@inline function momentum_convection(system, neighbor_system,
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
-    return zero(grad_kernel)
-end
-
-@inline function momentum_convection(system,
-                                     neighbor_system::Union{EntropicallyDampedSPHSystem,
-                                                            WeaklyCompressibleSPHSystem},
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
-    momentum_convection(system, neighbor_system, system.transport_velocity,
-                        v_particle_system, v_neighbor_system, rho_a, rho_b,
-                        m_a, m_b, particle, neighbor, grad_kernel)
-end

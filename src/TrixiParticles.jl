@@ -26,7 +26,7 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
-using StrideArrays: PtrArray, StaticInt
+using StrideArraysCore: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings, TrixiBase
@@ -56,8 +56,8 @@ include("callbacks/callbacks.jl")
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("io/io.jl")
-include("visualization/recipes_plots.jl")
 include("preprocessing/preprocessing.jl")
+include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -81,6 +81,7 @@ export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
        BernoulliPressureExtrapolation
+export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export BoundaryMovement
 export examples_dir, validation_dir
