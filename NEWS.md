@@ -12,7 +12,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   - New mirroring methods 0th order, 1st order and simple mirroring have been added. (#855)
 
 - **TLSPH**:
-  - The option to add artificial viscosity has been added to increase stability. (#869)
+  - The option to add artificial viscosity has been added to increase stability of FSI. (#869)
+
 
 ### Important Bugfixes
 
