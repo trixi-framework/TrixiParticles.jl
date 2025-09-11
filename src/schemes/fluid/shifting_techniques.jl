@@ -145,7 +145,7 @@ function update_shifting_from_callback!(system, ::ParticleShiftingTechnique,
         end
     end
 
-    suppress_shifting_free_surface!(system, u, semi)
+    modify_shifting_at_free_surfaces!(system, u, semi)
 
     return system
 end
@@ -289,10 +289,10 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
         end
     end
 
-    suppress_shifting_free_surface!(system, u, semi)
+    modify_shifting_at_free_surfaces!(system, u, semi)
 
     return system
 end
 
 # TODO: Implement free surface detection
-@inline suppress_shifting_free_surface!(system, u, semi) = system
+@inline modify_shifting_at_free_surfaces!(system, u, semi) = system

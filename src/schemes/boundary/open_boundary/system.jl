@@ -447,7 +447,7 @@ function available_data(::OpenBoundarySPHSystem)
     return (:coordinates, :velocity, :density, :pressure)
 end
 
-@inline function suppress_shifting_free_surface!(system::OpenBoundarySPHSystem, u, semi)
+@inline function modify_shifting_at_free_surfaces!(system::OpenBoundarySPHSystem, u, semi)
     (; fluid_system, cache) = system
 
     @threaded semi for particle in each_moving_particle(system)
@@ -457,11 +457,14 @@ end
 
         dist_to_transition = dot(particle_coords - boundary_zone.zone_origin,
                                  -boundary_zone.plane_normal)
-        max_dist_to_transition = boundary_zone.zone_width -
-                                 compact_support(fluid_system, fluid_system)
+        dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
-        if dist_to_transition > max_dist_to_transition
-            # particle is in the free surface region
+        if dist_free_surface < compact_support(fluid_system, fluid_system)
+            # Particle is in the free surface region
+            # TODO: Ramp this up?
+            # w0 = smoothing_kernel(system, 0, particle)
+            # w = smoothing_kernel(system, dist_free_surface, particle)
+            # delta_v * w/w0
             for dim in 1:ndims(system)
                 cache.delta_v[dim, particle] = zero(eltype(system))
             end
