@@ -71,11 +71,11 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                grad_kernel)
 
         # Extra terms in the momentum equation when using a shifting technique
-        dv_tvf = dv_shifting(shifting_technique(particle_system),
-                             particle_system, neighbor_system, particle, neighbor,
-                             v_particle_system, v_neighbor_system,
-                             m_a, m_b, rho_a, rho_b, pos_diff, distance,
-                             grad_kernel, correction)
+        dv_tvf = @inbounds dv_shifting(shifting_technique(particle_system),
+                                       particle_system, neighbor_system,
+                                       v_particle_system, v_neighbor_system,
+                                       particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                       pos_diff, distance, grad_kernel, correction)
 
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,
@@ -96,10 +96,10 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
-        @inbounds continuity_equation!(dv, density_calculator, v_particle_system,
+        @inbounds continuity_equation!(dv, density_calculator, particle_system,
+                                       neighbor_system, v_particle_system,
                                        v_neighbor_system, particle, neighbor,
-                                       pos_diff, distance, m_b, rho_a, rho_b,
-                                       particle_system, neighbor_system, grad_kernel)
+                                       pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
     end
     # Debug example
     # periodic_box = neighborhood_search.periodic_box

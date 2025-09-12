@@ -56,8 +56,8 @@ include("callbacks/callbacks.jl")
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
-include("io/io.jl")
 include("preprocessing/preprocessing.jl")
+include("io/io.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
@@ -68,7 +68,9 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback
 export ContinuityDensity, SummationDensity
-export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique
+export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
+       ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
+       ContinuityEquationTermSun2019, MomentumEquationTermSun2019
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
