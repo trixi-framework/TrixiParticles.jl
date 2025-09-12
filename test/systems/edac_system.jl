@@ -221,7 +221,7 @@
 
         fluid = rectangular_patch(particle_spacing, (3, 3), seed=1)
 
-        transport_velocity = [nothing, TransportVelocityAdami(10000.0)]
+        transport_velocity = [nothing, TransportVelocityAdami(background_pressure=10000.0)]
         names = ["No TVF", "TransportVelocityAdami"]
         @testset "$(names[i])" for i in eachindex(transport_velocity)
             system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
