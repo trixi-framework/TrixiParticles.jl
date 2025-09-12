@@ -85,42 +85,47 @@ structure_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the structure boundary model
 hydrodynamic_densites_1 = fluid_density * ones(size(sphere1.density))
-hydrodynamic_masses_1 = hydrodynamic_densites_1 * structure_particle_spacing^ndims(fluid_system)
+hydrodynamic_masses_1 = hydrodynamic_densites_1 *
+                        structure_particle_spacing^ndims(fluid_system)
 
 structure_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
-                                                     hydrodynamic_masses_1,
-                                                     state_equation=state_equation,
-                                                     boundary_density_calculator,
-                                                     fluid_smoothing_kernel,
-                                                     fluid_smoothing_length)
+                                                         hydrodynamic_masses_1,
+                                                         state_equation=state_equation,
+                                                         boundary_density_calculator,
+                                                         fluid_smoothing_kernel,
+                                                         fluid_smoothing_length)
 
 hydrodynamic_densites_2 = fluid_density * ones(size(sphere2.density))
-hydrodynamic_masses_2 = hydrodynamic_densites_2 * structure_particle_spacing^ndims(fluid_system)
+hydrodynamic_masses_2 = hydrodynamic_densites_2 *
+                        structure_particle_spacing^ndims(fluid_system)
 
 structure_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
-                                                     hydrodynamic_masses_2,
-                                                     state_equation=state_equation,
-                                                     boundary_density_calculator,
-                                                     fluid_smoothing_kernel,
-                                                     fluid_smoothing_length)
+                                                         hydrodynamic_masses_2,
+                                                         state_equation=state_equation,
+                                                         boundary_density_calculator,
+                                                         fluid_smoothing_kernel,
+                                                         fluid_smoothing_length)
 
 structure_system_1 = TotalLagrangianSPHSystem(sphere1,
-                                          structure_smoothing_kernel, structure_smoothing_length,
-                                          sphere1_E, nu,
-                                          acceleration=(0.0, -gravity),
-                                          boundary_model=structure_boundary_model_1,
-                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
+                                              structure_smoothing_kernel,
+                                              structure_smoothing_length,
+                                              sphere1_E, nu,
+                                              acceleration=(0.0, -gravity),
+                                              boundary_model=structure_boundary_model_1,
+                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
 structure_system_2 = TotalLagrangianSPHSystem(sphere2,
-                                          structure_smoothing_kernel, structure_smoothing_length,
-                                          sphere2_E, nu,
-                                          acceleration=(0.0, -gravity),
-                                          boundary_model=structure_boundary_model_2,
-                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
+                                              structure_smoothing_kernel,
+                                              structure_smoothing_length,
+                                              sphere2_E, nu,
+                                              acceleration=(0.0, -gravity),
+                                              boundary_model=structure_boundary_model_2,
+                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system, structure_system_1, structure_system_2)
+semi = Semidiscretization(fluid_system, boundary_system, structure_system_1,
+                          structure_system_2)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)

@@ -35,10 +35,10 @@ particle_spacing = elastic_beam.thickness / (n_particles_y - 1)
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
 clamped_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing / 2,
-                              (0.0, elastic_beam.thickness / 2), material.density,
-                              cutout_min=(0.0, 0.0),
-                              cutout_max=(clamp_radius, elastic_beam.thickness),
-                              place_on_shell=true)
+                                (0.0, elastic_beam.thickness / 2), material.density,
+                                cutout_min=(0.0, 0.0),
+                                cutout_max=(clamp_radius, elastic_beam.thickness),
+                                place_on_shell=true)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 
@@ -60,10 +60,10 @@ smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothing_length,
-                                        material.E, material.nu,
-                                        n_clamped_particles=nparticles(clamped_particles),
-                                        acceleration=(0.0, -gravity),
-                                        penalty_force=nothing, viscosity=nothing)
+                                            material.E, material.nu,
+                                            n_clamped_particles=nparticles(clamped_particles),
+                                            acceleration=(0.0, -gravity),
+                                            penalty_force=nothing, viscosity=nothing)
 
 # ==========================================================================================
 # ==== Simulation

@@ -93,8 +93,8 @@ plate = RectangularShape(structure_particle_spacing,
                          (plate_position, structure_particle_spacing),
                          density=structure_density, place_on_shell=true)
 clamped_particles = RectangularShape(structure_particle_spacing,
-                                   (n_particles_x, 1), (plate_position, 0.0),
-                                   density=structure_density, place_on_shell=true)
+                                     (n_particles_x, 1), (plate_position, 0.0),
+                                     density=structure_density, place_on_shell=true)
 
 structure = union(plate, clamped_particles)
 
@@ -137,16 +137,17 @@ hydrodynamic_densites = fluid_density * ones(size(structure.density))
 hydrodynamic_masses = hydrodynamic_densites * structure_particle_spacing^2
 
 boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses,
-                                                   state_equation=state_equation,
-                                                   AdamiPressureExtrapolation(),
-                                                   smoothing_kernel, smoothing_length)
+                                                       hydrodynamic_masses,
+                                                       state_equation=state_equation,
+                                                       AdamiPressureExtrapolation(),
+                                                       smoothing_kernel, smoothing_length)
 
 structure_system = TotalLagrangianSPHSystem(structure,
-                                        structure_smoothing_kernel, structure_smoothing_length,
-                                        E, nu, boundary_model=boundary_model_structure,
-                                        n_clamped_particles=n_particles_x,
-                                        acceleration=(0.0, -gravity))
+                                            structure_smoothing_kernel,
+                                            structure_smoothing_length,
+                                            E, nu, boundary_model=boundary_model_structure,
+                                            n_clamped_particles=n_particles_x,
+                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Simulation

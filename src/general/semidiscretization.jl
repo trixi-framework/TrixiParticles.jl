@@ -602,7 +602,9 @@ end
 
 @inline add_acceleration!(dv, particle, system) = dv
 
-@inline function add_acceleration!(dv, particle, system::Union{AbstractFluidSystem, AbstractStructureSystem})
+@inline function add_acceleration!(dv, particle,
+                                   system::Union{AbstractFluidSystem,
+                                                 AbstractStructureSystem})
     (; acceleration) = system
 
     for i in 1:ndims(system)
@@ -932,7 +934,8 @@ end
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
     if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
-            if neighbor isa AbstractFluidSystem && isnothing(fluid_system.surface_tension) &&
+            if neighbor isa AbstractFluidSystem &&
+               isnothing(fluid_system.surface_tension) &&
                isnothing(fluid_system.surface_normal_method)
                 throw(ArgumentError("All `FluidSystem` need to use a surface tension model or a surface normal method."))
             end

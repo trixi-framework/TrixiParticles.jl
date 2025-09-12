@@ -17,7 +17,8 @@ function kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     end
 end
 
-function kinetic_energy(system::AbstractBoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
+function kinetic_energy(system::AbstractBoundarySystem,
+                        dv_ode, du_ode, v_ode, u_ode, semi, t)
     return zero(eltype(system))
 end
 

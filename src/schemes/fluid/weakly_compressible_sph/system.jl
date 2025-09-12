@@ -60,7 +60,8 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `color_value`:                The value used to initialize the color of particles in the system.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
-                                   PF, SC, ST, B, SRFT, SRFN, PR, C} <: AbstractFluidSystem{NDIMS}
+                                   PF, SC, ST, B, SRFT, SRFN, PR,
+                                   C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}

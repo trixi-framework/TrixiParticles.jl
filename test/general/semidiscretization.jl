@@ -70,14 +70,15 @@
 
             # FSI with boundary model
             structure_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
-                                                     boundary_model=model_a)
+                                                         boundary_model=model_a)
 
-            @test_nowarn TrixiParticles.check_configuration((structure_system2, fluid_system),
+            @test_nowarn TrixiParticles.check_configuration((structure_system2,
+                                                             fluid_system),
                                                             nothing)
 
             # FSI with wrong boundary model
             structure_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
-                                                     boundary_model=model_b)
+                                                         boundary_model=model_b)
 
             error_str = "`BoundaryModelDummyParticles` with density calculator " *
                         "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"

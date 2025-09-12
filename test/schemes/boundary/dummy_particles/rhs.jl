@@ -78,13 +78,13 @@
 
             # TLSPH system
             structure_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                                    smoothing_length, 0.0, 0.0,
-                                                    boundary_model=boundary_model_continuity)
+                                                        smoothing_length, 0.0, 0.0,
+                                                        boundary_model=boundary_model_continuity)
 
             # Positions of the structure particles are not used here
             u_structure = zeros(0, TrixiParticles.nparticles(structure_system))
             v_structure = vcat(initial_condition.velocity,
-                           initial_condition.density')
+                               initial_condition.density')
 
             systems = Dict(
                 "Fluid-Fluid" => second_fluid_system,

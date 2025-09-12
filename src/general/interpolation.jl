@@ -609,7 +609,8 @@ end
     return (; velocity, pressure, density)
 end
 
-@inline function create_cache_interpolation(ref_system::AbstractStructureSystem, n_points, semi)
+@inline function create_cache_interpolation(ref_system::AbstractStructureSystem,
+                                            n_points, semi)
     (; parallelization_backend) = semi
 
     velocity = allocate(parallelization_backend, eltype(ref_system),

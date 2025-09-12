@@ -171,8 +171,9 @@ end
 @inline function surface_tension_force(surface_tension_a::CohesionForceAkinci,
                                        surface_tension_b::CohesionForceAkinci,
                                        particle_system::AbstractFluidSystem,
-                                       neighbor_system::AbstractFluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+                                       neighbor_system::AbstractFluidSystem,
+                                       particle, neighbor, pos_diff, distance,
+                                       rho_a, rho_b, grad_kernel)
     # No cohesion with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
 
@@ -186,7 +187,8 @@ end
 @inline function surface_tension_force(surface_tension_a::SurfaceTensionAkinci,
                                        surface_tension_b::SurfaceTensionAkinci,
                                        particle_system::AbstractFluidSystem,
-                                       neighbor_system::AbstractFluidSystem, particle, neighbor,
+                                       neighbor_system::AbstractFluidSystem, particle,
+                                       neighbor,
                                        pos_diff, distance, rho_a, rho_b, grad_kernel)
     (; smoothing_kernel) = particle_system
     (; surface_tension_coefficient) = surface_tension_a
@@ -208,8 +210,9 @@ end
 @inline function surface_tension_force(surface_tension_a::SurfaceTensionMorris,
                                        surface_tension_b::SurfaceTensionMorris,
                                        particle_system::AbstractFluidSystem,
-                                       neighbor_system::AbstractFluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+                                       neighbor_system::AbstractFluidSystem,
+                                       particle, neighbor, pos_diff, distance,
+                                       rho_a, rho_b, grad_kernel)
     (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself
@@ -226,7 +229,8 @@ function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, se
 end
 
 # Section 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_stress_tensors!(system::AbstractFluidSystem, ::SurfaceTensionMomentumMorris,
+function compute_stress_tensors!(system::AbstractFluidSystem,
+                                 ::SurfaceTensionMomentumMorris,
                                  v, u, v_ode, u_ode, semi, t)
     (; cache) = system
     (; delta_s, stress_tensor) = cache
@@ -276,8 +280,9 @@ end
 @inline function surface_tension_force(surface_tension_a::SurfaceTensionMomentumMorris,
                                        surface_tension_b::SurfaceTensionMomentumMorris,
                                        particle_system::AbstractFluidSystem,
-                                       neighbor_system::AbstractFluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+                                       neighbor_system::AbstractFluidSystem,
+                                       particle, neighbor, pos_diff, distance,
+                                       rho_a, rho_b, grad_kernel)
     (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself

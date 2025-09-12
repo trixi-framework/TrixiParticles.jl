@@ -469,7 +469,8 @@ end
 end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true}, boundary_model,
-                                                  system, neighbor_system::AbstractFluidSystem,
+                                                  system,
+                                                  neighbor_system::AbstractFluidSystem,
                                                   system_coords, neighbor_coords, v,
                                                   v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -491,7 +492,8 @@ end
 # Note that this needs to be serial, as we are writing into the same
 # pressure entry from different loop iterations.
 @inline function boundary_pressure_extrapolation!(parallel::Val{false}, boundary_model,
-                                                  system, neighbor_system::AbstractFluidSystem,
+                                                  system,
+                                                  neighbor_system::AbstractFluidSystem,
                                                   system_coords, neighbor_coords,
                                                   v, v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model

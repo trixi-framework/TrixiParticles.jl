@@ -22,7 +22,9 @@ Adapt.@adapt_structure SystemBuffer
 Adapt.@adapt_structure OpenBoundarySPHSystem
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
-KernelAbstractions.get_backend(system::AbstractSystem) = KernelAbstractions.get_backend(system.mass)
+function KernelAbstractions.get_backend(system::AbstractSystem)
+    KernelAbstractions.get_backend(system.mass)
+end
 
 function KernelAbstractions.get_backend(system::BoundarySPHSystem)
     KernelAbstractions.get_backend(system.coordinates)

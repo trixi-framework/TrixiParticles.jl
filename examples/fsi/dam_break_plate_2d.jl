@@ -64,8 +64,8 @@ plate = RectangularShape(structure_particle_spacing,
                          (2initial_fluid_size[1], structure_particle_spacing),
                          density=structure_density, place_on_shell=true)
 clamped_particles = RectangularShape(structure_particle_spacing,
-                                   (n_particles_x, 1), (2initial_fluid_size[1], 0.0),
-                                   density=structure_density, place_on_shell=true)
+                                     (n_particles_x, 1), (2initial_fluid_size[1], 0.0),
+                                     density=structure_density, place_on_shell=true)
 
 structure = union(plate, clamped_particles)
 
@@ -104,8 +104,8 @@ hydrodynamic_masses = hydrodynamic_densites * structure_particle_spacing^2
 k_structure = gravity * initial_fluid_size[2]
 spacing_ratio_structure = fluid_particle_spacing / structure_particle_spacing
 boundary_model_structure = BoundaryModelMonaghanKajtar(k_structure, spacing_ratio_structure,
-                                                   structure_particle_spacing,
-                                                   hydrodynamic_masses)
+                                                       structure_particle_spacing,
+                                                       hydrodynamic_masses)
 
 # `BoundaryModelDummyParticles` usually produces better results, since Monaghan-Kajtar BCs
 # tend to introduce a non-physical gap between fluid and boundary.
@@ -121,11 +121,12 @@ boundary_model_structure = BoundaryModelMonaghanKajtar(k_structure, spacing_rati
 #                                                    smoothing_kernel, smoothing_length)
 
 structure_system = TotalLagrangianSPHSystem(structure,
-                                        structure_smoothing_kernel, structure_smoothing_length,
-                                        E, nu, boundary_model=boundary_model_structure,
-                                        n_clamped_particles=n_particles_x,
-                                        acceleration=(0.0, -gravity),
-                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+                                            structure_smoothing_kernel,
+                                            structure_smoothing_length,
+                                            E, nu, boundary_model=boundary_model_structure,
+                                            n_clamped_particles=n_particles_x,
+                                            acceleration=(0.0, -gravity),
+                                            penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
 # ==========================================================================================
 # ==== Simulation

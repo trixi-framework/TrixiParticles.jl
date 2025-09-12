@@ -126,7 +126,8 @@ function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode,
                                   system.cache.kernel_correction_coefficient)
 end
 
-function compute_correction_values!(system::AbstractBoundarySystem, ::ShepardKernelCorrection, u,
+function compute_correction_values!(system::AbstractBoundarySystem,
+                                    ::ShepardKernelCorrection, u,
                                     v_ode, u_ode, semi)
     return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
                                   semi,

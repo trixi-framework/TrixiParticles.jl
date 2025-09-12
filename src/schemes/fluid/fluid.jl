@@ -41,7 +41,9 @@ function create_cache_refinement(initial_condition, refinement, smoothing_length
     # TODO: If refinement is not `Nothing` and `correction` is not `Nothing`, then throw an error
 end
 
-@propagate_inbounds hydrodynamic_mass(system::AbstractFluidSystem, particle) = system.mass[particle]
+@propagate_inbounds function hydrodynamic_mass(system::AbstractFluidSystem, particle)
+    return system.mass[particle]
+end
 
 function smoothing_length(system::AbstractFluidSystem, particle)
     return smoothing_length(system, system.particle_refinement, particle)
@@ -99,11 +101,13 @@ write_v0!(v0, system::AbstractFluidSystem, _) = v0
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
 
-@inline function viscosity_model(system::AbstractFluidSystem, neighbor_system::AbstractFluidSystem)
+@inline function viscosity_model(system::AbstractFluidSystem,
+                                 neighbor_system::AbstractFluidSystem)
     return neighbor_system.viscosity
 end
 
-@inline function viscosity_model(system::AbstractFluidSystem, neighbor_system::AbstractBoundarySystem)
+@inline function viscosity_model(system::AbstractFluidSystem,
+                                 neighbor_system::AbstractBoundarySystem)
     return neighbor_system.boundary_model.viscosity
 end
 
