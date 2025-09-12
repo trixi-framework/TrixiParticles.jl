@@ -9,6 +9,7 @@ struct OutFlow end
                  initial_condition=nothing, extrude_geometry=nothing,
                  open_boundary_layers::Integer, average_inflow_velocity=true,
                  boundary_type=BidirectionalFlow(),
+                 rest_pressure=zero(eltype(density)),
                  reference_density=nothing, reference_pressure=nothing,
                  reference_velocity=nothing)
 
@@ -72,6 +73,8 @@ There are three ways to specify the actual shape of the boundary zone:
                         and time to its pressure, or a scalar for a constant pressure over all particles.
 - `reference_density`: Reference density is either a function mapping each particle's coordinates
                        and time to its density, or a scalar for a constant density over all particles.
+- `rest_pressure=0.0`: For `BoundaryModelDynamicalPressureZhang`, a rest pressure is required when the pressure is not prescribed (default is zero).
+                       This is analogous to the pressure provided to the `FluidSystem` via its `InitialCondition`.
 
 !!! note "Note"
     The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
@@ -137,13 +140,14 @@ bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_s
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{IC, S, ZO, ZW, FD, PN, R}
+struct BoundaryZone{IC, S, ZO, ZW, FD, PN, ELTYPE, R}
     initial_condition :: IC
     spanning_set      :: S
     zone_origin       :: ZO
     zone_width        :: ZW
     flow_direction    :: FD
     plane_normal      :: PN
+    rest_pressure     :: ELTYPE # Only required for `BoundaryModelDynamicalPressureZhang`
     reference_values  :: R
     # Note that the following can't be static type parameters, as all boundary zones in a system
     # must have the same type, so that we can loop over them in a type-stable way.
@@ -157,6 +161,7 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, average_inflow_velocity=true,
                       boundary_type=BidirectionalFlow(),
+                      rest_pressure=zero(eltype(density)),
                       reference_density=nothing, reference_pressure=nothing,
                       reference_velocity=nothing)
     if open_boundary_layers <= 0
@@ -245,7 +250,7 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
     end
 
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
-                        flow_direction, plane_normal_, reference_values,
+                        flow_direction, plane_normal_, rest_pressure, reference_values,
                         average_inflow_velocity, prescribed_density, prescribed_pressure,
                         prescribed_velocity)
 end

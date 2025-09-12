@@ -56,7 +56,7 @@ end
 
 @inline function impose_rest_pressure!(v, system, particle,
                                        boundary_model::BoundaryModelDynamicalPressureZhang)
-    set_particle_pressure!(v, system, particle, system.cache.pressure_rest)
+    set_particle_pressure!(v, system, particle, system.cache.pressure_boundary[particle])
 end
 
 function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelDynamicalPressureZhang)
@@ -78,9 +78,25 @@ function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelDynamicalPr
     return v0
 end
 
+function reference_pressure(boundary_zone, v,
+                            system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                            particle, pos, t)
+    (; prescribed_pressure, rest_pressure) = boundary_zone
+    (; pressure_reference_values) = system.cache
+
+    if prescribed_pressure
+        zone_id = system.boundary_zone_indices[particle]
+
+        # `pressure_reference_values[zone_id](pos, t)`, but in a type-stable way
+        return apply_ith_function(pressure_reference_values, zone_id, pos, t)
+    else
+        return rest_pressure
+    end
+end
+
 function update_boundary_model!(system, boundary_model::BoundaryModelDynamicalPressureZhang,
                                 v, u, v_ode, u_ode, semi, t)
-    (; pressure_boundary, pressure_rest) = system.cache
+    (; pressure_boundary) = system.cache
 
     compute_pressure!(system, system.fluid_system, v, semi)
 
@@ -98,13 +114,9 @@ function update_boundary_model!(system, boundary_model::BoundaryModelDynamicalPr
         #   in-/outlet to eliminate the truncated error in approximating pressure gradient,
         #   but the corresponding pb in Eq. (13) is given as pi.
         #   Meanwhile, both the density and pressure of newly populated particles remain unchanged."
-        if boundary_zone.prescribed_pressure
-            # TODO: How do we prescibe zero pressure? Do we have to also update the momentum pressure?
-            pressure_boundary[particle] = reference_pressure(boundary_zone, v, system,
-                                                             particle, particle_coords, t)
-        else
-            pressure_boundary[particle] = pressure_rest
-        end
+        # TODO: How do we prescibe zero pressure? Do we have to also update the momentum pressure?
+        pressure_boundary[particle] = reference_pressure(boundary_zone, v, system,
+                                                         particle, particle_coords, t)
     end
 
     return system
@@ -138,7 +150,7 @@ end
 function update_boundary_quantities!(system,
                                      boundary_model::BoundaryModelDynamicalPressureZhang,
                                      v, u, v_ode, u_ode, semi, t)
-    (; pressure_boundary, pressure_rest) = system.cache
+    (; pressure_boundary) = system.cache
 
     @threaded semi for particle in each_moving_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
@@ -146,13 +158,11 @@ function update_boundary_quantities!(system,
 
         particle_coords = current_coords(u, system, particle)
 
-        if prescribed_pressure
-            # TODO: How do we prescibe zero pressure? Do we have to also update the momentum pressure?
-            pressure_boundary[particle] = reference_pressure(boundary_zone, v, system,
-                                                             particle, particle_coords, t)
-        else
-            pressure_boundary[particle] = pressure_rest
-        end
+        # TODO: How do we prescibe zero pressure? Do we have to also update the momentum pressure?
+        # Pressure is always prescribed with `BoundaryModelDynamicalPressureZhang`
+        # as the term vanishes for full kernel support (see comment in boundary/rhs.jl)
+        pressure_boundary[particle] = reference_pressure(boundary_zone, v, system,
+                                                         particle, particle_coords, t)
 
         if prescribed_density
             rho_ref = reference_density(boundary_zone, v, system, particle,
@@ -195,4 +205,20 @@ function project_velocity_on_plane_normal!(v, system, particle, boundary_zone,
     end
 
     return v
+end
+
+# For prescribed velocity, the momentum equation must be set to zero,
+# since the velocity is enforced directly. Otherwise, particles would
+# not follow the prescribed velocity during the stages.
+function modify_momentum_equation!(dv, system::OpenBoundarySPHSystem, semi)
+    @threaded semi for particle in each_moving_particle(system)
+        boundary_zone = current_boundary_zone(system, particle)
+        (; prescribed_velocity) = boundary_zone
+
+        if prescribed_velocity
+            for dim in 1:ndims(system)
+                @inbounds dv[dim, particle] = zero(eltype(system))
+            end
+        end
+    end
 end

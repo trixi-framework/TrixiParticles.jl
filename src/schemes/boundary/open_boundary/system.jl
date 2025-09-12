@@ -88,6 +88,7 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   zone.zone_width,
                                                   zone.flow_direction,
                                                   zone.plane_normal,
+                                                  zone.rest_pressure,
                                                   nothing,
                                                   zone.average_inflow_velocity,
                                                   zone.prescribed_density,
@@ -131,7 +132,7 @@ function create_cache_open_boundary(boundary_model, fluid_system,
                 density_reference_values=density_reference_values,
                 velocity_reference_values=velocity_reference_values)
     elseif boundary_model isa BoundaryModelDynamicalPressureZhang
-        # A separate array for the prescribed pressure is required,
+        # A separate array for the boundary pressure is required,
         # since it is specified independently from the computed pressure for the momentum equation.
         pressure_boundary = copy(initial_condition.pressure)
 
@@ -139,13 +140,8 @@ function create_cache_open_boundary(boundary_model, fluid_system,
         # as constant density has already been verified in `allocate_buffer`
         density_rest = first(initial_condition.density)
 
-        # The first entry of the pressure vector can be used,
-        # as constant pressure has already been verified in `allocate_buffer`
-        pressure_rest = first(initial_condition.pressure)
-
         cache = (; pressure_boundary=pressure_boundary,
                  density_rest=density_rest,
-                 pressure_rest=pressure_rest,
                  pressure_reference_values=pressure_reference_values,
                  density_reference_values=density_reference_values,
                  velocity_reference_values=velocity_reference_values)
