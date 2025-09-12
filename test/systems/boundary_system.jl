@@ -45,7 +45,7 @@
             end
 
             is_moving(t) = t < 1.0
-            bm = BoundaryMovement(movement_function, is_moving)
+            bm = PrescribedMotion(movement_function, is_moving)
             system = BoundarySPHSystem(initial_condition, model, movement=bm)
 
             # Moving
@@ -79,7 +79,7 @@
 
             initial_condition = InitialCondition(; coordinates, mass, density)
 
-            bm = BoundaryMovement(movement_function, is_moving, moving_particles=[2])
+            bm = PrescribedMotion(movement_function, is_moving, moving_particles=[2])
             system = BoundarySPHSystem(initial_condition, model, movement=bm)
 
             t = 0.1

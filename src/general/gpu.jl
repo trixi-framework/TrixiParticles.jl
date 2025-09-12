@@ -15,7 +15,7 @@ Adapt.@adapt_structure EntropicallyDampedSPHSystem
 Adapt.@adapt_structure BoundarySPHSystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar
-Adapt.@adapt_structure BoundaryMovement
+Adapt.@adapt_structure PrescribedMotion
 Adapt.@adapt_structure TotalLagrangianSPHSystem
 Adapt.@adapt_structure BoundaryZone
 Adapt.@adapt_structure SystemBuffer

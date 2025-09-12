@@ -40,7 +40,7 @@ movement_function(t) = SVector(0.5t^2, 0.0)
 
 is_moving(t) = t < 1.5
 
-boundary_movement = BoundaryMovement(movement_function, is_moving,
+boundary_movement = PrescribedMotion(movement_function, is_moving,
                                      moving_particles=tank.face_indices[2])
 
 # ==========================================================================================

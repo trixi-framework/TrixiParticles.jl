@@ -63,7 +63,7 @@ gate = RectangularShape(boundary_particle_spacing,
 movement_function(t) = SVector(0.0, -285.115t^3 + 72.305t^2 + 0.1463t)
 is_moving(t) = t < 0.1
 
-gate_movement = BoundaryMovement(movement_function, is_moving)
+gate_movement = PrescribedMotion(movement_function, is_moving)
 
 # Elastic plate/beam.
 # The paper is using a thickness of 0.004, which only works properly when a similar fluid
