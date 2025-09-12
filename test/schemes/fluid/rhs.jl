@@ -151,7 +151,7 @@
                         # Density is integrated with `ContinuityDensity`
 
                         if system isa EntropicallyDampedSPHSystem
-                            v = vcat(fluid.velocity, fluid.density', fluid.pressure')
+                            v = vcat(fluid.velocity,  fluid.pressure', fluid.density')
                         else
                             v = vcat(fluid.velocity, fluid.density')
                         end
@@ -185,13 +185,9 @@
                     @test isapprox(deriv_angular_momentum, zeros(3), atol=4e-15)
 
                     # Total energy conservation
-                    function drho(::ContinuityDensity, ::WeaklyCompressibleSPHSystem,
+                    function drho(::ContinuityDensity, ::TrixiParticles.FluidSystem,
                                   particle)
                         return dv[end, particle]
-                    end
-                    function drho(::ContinuityDensity, ::EntropicallyDampedSPHSystem,
-                                  particle)
-                        return dv[end - 1, particle]
                     end
 
                     function drho(::SummationDensity, system, particle)
