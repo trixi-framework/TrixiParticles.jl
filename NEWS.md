@@ -8,14 +8,31 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
+- API for `OpenBoundarySPHSystem` and `BoundaryZone` changed.
+  It is now possible to pass multiple `BoundaryZone`s to a single `OpenBoundarySPHSystem`.
+  Reference values are now assigned individually to each `BoundaryZone`. (#866)
+
+- The argument of `TransportVelocityAdami` is now a keyword argument.
+  `TransportVelocityAdami(1000.0)` now becomes
+  `TransportVelocityAdami(background_pressure=1000.0)` (#884).
+
 - Combined transport velocity formulation (TVF) and particle shifting technique (PST) into
   one unified framework.
   The keyword argument `transport_velocity` now changed to `shifting_technique`.
   The `ParticleShiftingCallback` has been removed. To use PST, use the `UpdateCallback`
-  instead, and pass `shifting_technique=ParticleShiftingTechnique()` to the system.
+  instead, and pass `shifting_technique=ParticleShiftingTechniqueSun2017()` to the system (#884).
 
 - Renamed the keyword argument `tlsph` to `place_on_shell` for `ParticlePackingSystem`,
-  `sample_boundary`, `extrude_geometry`, `RectangularShape`, and `SphereShape`.
+  `sample_boundary`, `extrude_geometry`, `RectangularShape`, and `SphereShape` (#814).
+
+- Custom quantity functions passed to `SolutionSavingCallback` or `PostprocessCallback`
+  that were not using the documented API but were functions of
+  `(system, v_ode, u_ode, semi, t)` now need to be functions
+  of `(system, dv_ode, du_ode, v_ode, u_ode, semi, t)` (#879).
+
+### Features
+
+- Added consistent particle shifting by Sun et al. (2019) as `ConsistentShiftingSun2019` (#888).
 
 ## Version 0.3.1
 

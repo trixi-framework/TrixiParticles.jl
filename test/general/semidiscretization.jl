@@ -140,7 +140,7 @@
         v_ode = vcat(vec(v1), v2)
 
         # Avoid `SystemBuffer` barrier
-        TrixiParticles.each_moving_particle(system::Union{System1, System2}) = TrixiParticles.eachparticle(system)
+        TrixiParticles.each_moving_particle(system::Union{System1, System2}) = Base.OneTo(nparticles(system))
 
         TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi, 0.0)
 
