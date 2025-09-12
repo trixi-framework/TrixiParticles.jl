@@ -59,8 +59,8 @@ end
     ParticleShiftingTechnique(; integrate_shifting_velocity=true,
                               update_everystage=false,
                               modify_continuity_equation=true,
-                              second_continuity_equation_term=true,
-                              modify_momentum_equation=true,
+                              second_continuity_equation_term=ContinuityEquationTermSun2019(),
+                              momentum_equation_term=MomentumEquationTermSun2019(),
                               v_max_factor=1, sound_speed_factor=0)
 
 Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017)
@@ -107,15 +107,15 @@ We provide the following convenience constructors for common variants of the met
                                 but is unstable at solid wall boundaries, according to our
                                 experiments.
                                 This requires `integrate_shifting_velocity=true`.
-- `second_continuity_equation_term`: If `true`, a second term
-                                by [Sun et al. (2019)](@cite Sun2019) is added to the
+- `second_continuity_equation_term`: Additional term to be added to the
                                 continuity equation to solve the stability problems with
                                 the modified continuity equation at solid wall boundaries.
                                 This requires `modify_continuity_equation=true`.
-- `modify_momentum_equation`:   If `true`, an additional term
-                                by [Sun et al. (2019)](@cite Sun2019) is added
-                                to the momentum equation.
+                                See [`ContinuityEquationTermSun2019`](@ref).
+- `momentum_equation_term`:     Additional term to be added to the momentum equation
+                                to account for the shifting velocity.
                                 This requires `integrate_shifting_velocity=true`.
+                                See [`MomentumEquationTermSun2019`](@ref).
 - `v_max_factor`:               Factor to scale the expected maximum velocity used in the
                                 shifting velocity. The maximum expected velocity is computed as
                                 `v_max_factor * max(|v|)`, where `v` is the physical velocity.
@@ -139,17 +139,17 @@ We provide the following convenience constructors for common variants of the met
 struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                  update_everystage,
                                  modify_continuity_equation,
-                                 second_continuity_equation_term,
-                                 modify_momentum_equation,
                                  compute_v_max,
-                                 ELTYPE} <: AbstractShiftingTechnique
-    v_factor::ELTYPE
+                                 ELTYPE, S, M} <: AbstractShiftingTechnique
+    v_factor                        :: ELTYPE
+    second_continuity_equation_term :: S
+    momentum_equation_term          :: M
 
     function ParticleShiftingTechnique(; integrate_shifting_velocity=true,
                                        update_everystage=false,
                                        modify_continuity_equation=true,
-                                       second_continuity_equation_term=true,
-                                       modify_momentum_equation=true,
+                                       second_continuity_equation_term=ContinuityEquationTermSun2019(),
+                                       momentum_equation_term=MomentumEquationTermSun2019(),
                                        v_max_factor=1, sound_speed_factor=0)
         if !integrate_shifting_velocity && update_everystage
             throw(ArgumentError("ParticleShiftingTechnique: " *
@@ -163,15 +163,15 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                 "integrate_shifting_velocity=true"))
         end
 
-        if !modify_continuity_equation && second_continuity_equation_term
+        if !modify_continuity_equation && !isnothing(second_continuity_equation_term)
             throw(ArgumentError("ParticleShiftingTechnique: " *
-                                "second_continuity_equation_term=true requires " *
+                                "a second_continuity_equation_term requires " *
                                 "modify_continuity_equation=true"))
         end
 
-        if !integrate_shifting_velocity && modify_momentum_equation
+        if !integrate_shifting_velocity && !isnothing(momentum_equation_term)
             throw(ArgumentError("ParticleShiftingTechnique: " *
-                                "modify_momentum_equation=true requires " *
+                                "a momentum_equation_term requires " *
                                 "integrate_shifting_velocity=true"))
         end
 
@@ -193,9 +193,11 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
         new{integrate_shifting_velocity,
             update_everystage,
             modify_continuity_equation,
-            second_continuity_equation_term,
-            modify_momentum_equation,
-            compute_v_max, typeof(v_factor)}(v_factor)
+            compute_v_max, typeof(v_factor),
+            typeof(second_continuity_equation_term),
+            typeof(momentum_equation_term)}(v_factor,
+                                            second_continuity_equation_term,
+                                            momentum_equation_term)
     end
 end
 
@@ -211,12 +213,12 @@ This is a convenience constructor for:
 ParticleShiftingTechnique(integrate_shifting_velocity=false,
                           update_everystage=false,
                           modify_continuity_equation=false,
-                          second_continuity_equation_term=false,
-                          modify_momentum_equation=false,
+                          second_continuity_equation_term=nothing,
+                          momentum_equation_term=nothing,
                           v_max_factor=1, sound_speed_factor=0)
 
 # output
-ParticleShiftingTechnique{false, false, false, false, false, true, Int64}(1)
+ParticleShiftingTechnique{false, false, false, true, Int64, Nothing, Nothing}(1, nothing, nothing)
 ```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
@@ -229,7 +231,7 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 shifting_technique = ParticleShiftingTechniqueSun2017()
 
 # output
-ParticleShiftingTechnique{false, false, false, false, false, true, Int64}(1)
+ParticleShiftingTechnique{false, false, false, true, Int64, Nothing, Nothing}(1, nothing, nothing)
 ```
 
 !!! warning
@@ -241,8 +243,8 @@ function ParticleShiftingTechniqueSun2017(; kwargs...)
     return ParticleShiftingTechnique(; integrate_shifting_velocity=false,
                                      update_everystage=false,
                                      modify_continuity_equation=false,
-                                     second_continuity_equation_term=false,
-                                     modify_momentum_equation=false,
+                                     second_continuity_equation_term=nothing,
+                                     momentum_equation_term=nothing,
                                      v_max_factor=1, sound_speed_factor=0,
                                      kwargs...)
 end
@@ -257,12 +259,12 @@ This is a convenience constructor for:
 ParticleShiftingTechnique(integrate_shifting_velocity=true,
                           update_everystage=true,
                           modify_continuity_equation=true,
-                          second_continuity_equation_term=true,
-                          modify_momentum_equation=true,
+                          second_continuity_equation_term=ContinuityEquationTermSun2019(),
+                          momentum_equation_term=MomentumEquationTermSun2019(),
                           v_max_factor=0, sound_speed_factor=0.1)
 
 # output
-ParticleShiftingTechnique{true, true, true, true, true, false, Float64}(0.1)
+ParticleShiftingTechnique{true, true, true, false, Float64, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
@@ -282,7 +284,7 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 shifting_technique = ConsistentShiftingSun2019()
 
 # output
-ParticleShiftingTechnique{true, true, true, true, true, false, Float64}(0.1)
+ParticleShiftingTechnique{true, true, true, false, Float64, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 !!! warning
@@ -294,8 +296,8 @@ function ConsistentShiftingSun2019(; kwargs...)
     return ParticleShiftingTechnique(; integrate_shifting_velocity=true,
                                      update_everystage=true,
                                      modify_continuity_equation=true,
-                                     second_continuity_equation_term=true,
-                                     modify_momentum_equation=true,
+                                     second_continuity_equation_term=ContinuityEquationTermSun2019(),
+                                     momentum_equation_term=MomentumEquationTermSun2019(),
                                      v_max_factor=0, sound_speed_factor=0.1,
                                      kwargs...)
 end
@@ -308,10 +310,27 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, true}` means
-# `modify_momentum_equation=true`.
-@propagate_inbounds function dv_shifting(::ParticleShiftingTechnique{<:Any, <:Any,
-                                                                     <:Any, <:Any, true},
+"""
+    MomentumEquationTermSun2019()
+
+A term by [Sun et al. (2019)](@cite Sun2019) to be added to the momentum equation.
+
+See [`ParticleShiftingTechnique`](@ref).
+"""
+struct MomentumEquationTermSun2019 end
+
+# Additional term in the momentum equation due to the shifting technique
+@inline function dv_shifting(shifting::ParticleShiftingTechnique, system, neighbor_system,
+                             v_system, v_neighbor_system, particle, neighbor,
+                             m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                             grad_kernel, correction)
+    return dv_shifting(shifting.momentum_equation_term, system, neighbor_system,
+                       v_system, v_neighbor_system, particle, neighbor,
+                       m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                       grad_kernel, correction)
+end
+
+@propagate_inbounds function dv_shifting(::MomentumEquationTermSun2019,
                                          system, neighbor_system,
                                          v_system, v_neighbor_system,
                                          particle, neighbor, m_a, m_b, rho_a, rho_b,
@@ -338,18 +357,25 @@ function continuity_equation_shifting!(dv,
 
     dv[end, particle] += rho_a / rho_b * m_b * dot(delta_v_diff, grad_kernel)
 
-    second_continuity_equation_term!(dv, shifting,
+    second_continuity_equation_term!(dv, shifting.second_continuity_equation_term,
                                      system, neighbor_system,
                                      particle, neighbor, grad_kernel, rho_a, rho_b, m_b)
 
     return dv
 end
 
-# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, true}` means
-# `second_continuity_equation_term=true`.
+"""
+    ContinuityEquationTermSun2019()
+
+A second term by [Sun et al. (2019)](@cite Sun2019) to be added to the continuity equation
+to solve the stability problems with the modified continuity equation at solid wall boundaries.
+
+See [`ParticleShiftingTechnique`](@ref).
+"""
+struct ContinuityEquationTermSun2019 end
+
 @inline function second_continuity_equation_term!(dv,
-                                                  ::ParticleShiftingTechnique{<:Any, <:Any,
-                                                                              <:Any, true},
+                                                  ::ContinuityEquationTermSun2019,
                                                   system, neighbor_system,
                                                   particle, neighbor, grad_kernel,
                                                   rho_a, rho_b, m_b)
@@ -360,7 +386,7 @@ end
     return dv
 end
 
-@inline function second_continuity_equation_term!(dv, shifting,
+@inline function second_continuity_equation_term!(dv, second_continuity_equation_term,
                                                   system, neighbor_system,
                                                   particle, neighbor, grad_kernel,
                                                   rho_a, rho_b, m_b)
@@ -383,9 +409,9 @@ function update_shifting_from_callback!(system,
     update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
 end
 
-# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, <:Any, true}`
+# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, true}`
 # means `compute_v_max=true`
-function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, <:Any, true},
+function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, true},
                v, system)
     # This has similar performance to `maximum(..., eachparticle(system))`,
     # but is GPU-compatible.
@@ -395,10 +421,9 @@ function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, <
     return shifting.v_factor * v_max
 end
 
-# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, <:Any, false}`
+# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, false}`
 # means `compute_v_max=false`
-function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, <:Any,
-                                                   false},
+function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, false},
                v, system)
     sound_speed = system_sound_speed(system)
 
