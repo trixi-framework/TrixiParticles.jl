@@ -245,7 +245,7 @@ function (pp::PostprocessCallback)(integrator)
         end
 
         foreach_system(semi) do system
-            if system isa BoundarySystem && pp.exclude_boundary
+            if system isa AbstractBoundarySystem && pp.exclude_boundary
                 return
             end
 

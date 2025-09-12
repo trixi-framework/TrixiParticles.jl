@@ -3,7 +3,7 @@
 # of newly activated particles in a callback.
 # DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
 # outside of callbacks.
-@inline function set_particle_density!(v, system::FluidSystem, particle, density)
+@inline function set_particle_density!(v, system::AbstractFluidSystem, particle, density)
     current_density(v, system)[particle] = density
 
     return v
@@ -14,7 +14,7 @@ end
 # of newly activated particles in a callback.
 # DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
 # outside of callbacks.
-@inline function set_particle_pressure!(v, system::FluidSystem, particle, pressure)
+@inline function set_particle_pressure!(v, system::AbstractFluidSystem, particle, pressure)
     current_pressure(v, system)[particle] = pressure
 
     return v
@@ -41,17 +41,17 @@ function create_cache_refinement(initial_condition, refinement, smoothing_length
     # TODO: If refinement is not `Nothing` and `correction` is not `Nothing`, then throw an error
 end
 
-@propagate_inbounds hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
+@propagate_inbounds hydrodynamic_mass(system::AbstractFluidSystem, particle) = system.mass[particle]
 
-function smoothing_length(system::FluidSystem, particle)
+function smoothing_length(system::AbstractFluidSystem, particle)
     return smoothing_length(system, system.particle_refinement, particle)
 end
 
-function smoothing_length(system::FluidSystem, ::Nothing, particle)
+function smoothing_length(system::AbstractFluidSystem, ::Nothing, particle)
     return system.cache.smoothing_length
 end
 
-function initial_smoothing_length(system::FluidSystem)
+function initial_smoothing_length(system::AbstractFluidSystem)
     return initial_smoothing_length(system, system.particle_refinement)
 end
 
@@ -63,7 +63,7 @@ function initial_smoothing_length(system, refinement)
            system.initial_condition.particle_spacing
 end
 
-@inline function particle_spacing(system::FluidSystem, particle)
+@inline function particle_spacing(system::AbstractFluidSystem, particle)
     return particle_spacing(system, system.particle_refinement, particle)
 end
 
@@ -74,7 +74,7 @@ end
     return smoothing_length(system, particle) / smoothing_length_factor
 end
 
-function write_u0!(u0, system::FluidSystem)
+function write_u0!(u0, system::AbstractFluidSystem)
     (; initial_condition) = system
 
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
@@ -84,7 +84,7 @@ function write_u0!(u0, system::FluidSystem)
     return u0
 end
 
-function write_v0!(v0, system::FluidSystem)
+function write_v0!(v0, system::AbstractFluidSystem)
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
     indices = CartesianIndices(system.initial_condition.velocity)
     copyto!(v0, indices, system.initial_condition.velocity, indices)
@@ -94,20 +94,20 @@ function write_v0!(v0, system::FluidSystem)
     return v0
 end
 
-write_v0!(v0, system::FluidSystem, _) = v0
+write_v0!(v0, system::AbstractFluidSystem, _) = v0
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
 
-@inline function viscosity_model(system::FluidSystem, neighbor_system::FluidSystem)
+@inline function viscosity_model(system::AbstractFluidSystem, neighbor_system::AbstractFluidSystem)
     return neighbor_system.viscosity
 end
 
-@inline function viscosity_model(system::FluidSystem, neighbor_system::BoundarySystem)
+@inline function viscosity_model(system::AbstractFluidSystem, neighbor_system::AbstractBoundarySystem)
     return neighbor_system.boundary_model.viscosity
 end
 
-@inline system_state_equation(system::FluidSystem) = system.state_equation
+@inline system_state_equation(system::AbstractFluidSystem) = system.state_equation
 
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
@@ -121,7 +121,7 @@ function compute_density!(system, u, u_ode, semi, ::SummationDensity)
     summation_density!(system, semi, u, u_ode, density)
 end
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
+function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, semi)
     (; viscosity, acceleration, surface_tension) = system
 
     # TODO
@@ -162,7 +162,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem, semi)
     return dt
 end
 
-@inline function surface_tension_model(system::FluidSystem)
+@inline function surface_tension_model(system::AbstractFluidSystem)
     return system.surface_tension
 end
 
@@ -170,7 +170,7 @@ end
     return nothing
 end
 
-@inline function surface_normal_method(system::FluidSystem)
+@inline function surface_normal_method(system::AbstractFluidSystem)
     return system.surface_normal_method
 end
 
@@ -178,7 +178,7 @@ end
     return nothing
 end
 
-function system_data(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
+function system_data(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     (; mass) = system
 
     dv = wrap_v(dv_ode, system, semi)
@@ -194,7 +194,7 @@ function system_data(system::FluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     return (; coordinates, velocity, mass, density, pressure, acceleration)
 end
 
-function available_data(::FluidSystem)
+function available_data(::AbstractFluidSystem)
     return (:coordinates, :velocity, :mass, :density, :pressure, :acceleration)
 end
 

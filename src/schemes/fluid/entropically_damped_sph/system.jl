@@ -57,7 +57,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
-                                   AVGP, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
+                                   AVGP, ST, SRFT, SRFN, B, PR, C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC

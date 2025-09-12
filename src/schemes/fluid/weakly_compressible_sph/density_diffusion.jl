@@ -1,5 +1,5 @@
 @doc raw"""
-    DensityDiffusion
+    AbstractDensityDiffusion
 
 An abstract supertype of all density diffusion formulations.
 
@@ -13,7 +13,7 @@ Currently, the following formulations are available:
 
 See [Density Diffusion](@ref density_diffusion) for a comparison and more details.
 """
-abstract type DensityDiffusion end
+abstract type AbstractDensityDiffusion end
 
 # Most density diffusion formulations don't need updating
 function update!(density_diffusion, v, u, system, semi)
@@ -36,7 +36,7 @@ and ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
 """
-struct DensityDiffusionMolteniColagrossi{ELTYPE} <: DensityDiffusion
+struct DensityDiffusionMolteniColagrossi{ELTYPE} <: AbstractDensityDiffusion
     delta::ELTYPE
 
     function DensityDiffusionMolteniColagrossi(; delta)
@@ -66,7 +66,7 @@ where ``\rho_a`` and ``\rho_b`` denote the densities of particles ``a`` and ``b`
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
 """
-struct DensityDiffusionFerrari <: DensityDiffusion
+struct DensityDiffusionFerrari <: AbstractDensityDiffusion
     delta::Int
 
     # δ is always 1 in this formulation
@@ -108,7 +108,7 @@ where ``d`` is the number of dimensions.
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
 """
-struct DensityDiffusionAntuono{NDIMS, ELTYPE, ARRAY2D, ARRAY3D} <: DensityDiffusion
+struct DensityDiffusionAntuono{NDIMS, ELTYPE, ARRAY2D, ARRAY3D} <: AbstractDensityDiffusion
     delta                       :: ELTYPE
     correction_matrix           :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
     normalized_density_gradient :: ARRAY2D # Array{ELTYPE, 2}: [i, particle]
@@ -207,10 +207,10 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     return density_diffusion
 end
 
-@propagate_inbounds function density_diffusion!(dv, density_diffusion::DensityDiffusion,
+@propagate_inbounds function density_diffusion!(dv, density_diffusion::AbstractDensityDiffusion,
                                                 v_particle_system, particle, neighbor,
                                                 pos_diff, distance, m_b, rho_a, rho_b,
-                                                particle_system::FluidSystem, grad_kernel)
+                                                particle_system::AbstractFluidSystem, grad_kernel)
     # Density diffusion terms are all zero for distance zero
     distance < sqrt(eps(typeof(distance))) && return
 

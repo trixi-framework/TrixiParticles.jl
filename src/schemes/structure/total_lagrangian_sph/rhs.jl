@@ -67,7 +67,7 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::FluidSystem, semi)
+                   neighbor_system::AbstractFluidSystem, semi)
     sound_speed = system_sound_speed(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -144,7 +144,7 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::TotalLagrangianSPHSystem,
-                                      neighbor_system::FluidSystem,
+                                      neighbor_system::AbstractFluidSystem,
                                       grad_kernel)
     return dv
 end
@@ -153,7 +153,7 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                      neighbor_system::FluidSystem,
+                                      neighbor_system::AbstractFluidSystem,
                                       grad_kernel)
     fluid_density_calculator = neighbor_system.density_calculator
 

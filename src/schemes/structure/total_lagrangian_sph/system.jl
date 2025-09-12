@@ -485,7 +485,7 @@ end
     return neighbor_system.viscosity
 end
 
-@inline function viscosity_model(system::FluidSystem,
+@inline function viscosity_model(system::AbstractFluidSystem,
                                  neighbor_system::TotalLagrangianSPHSystem)
     return neighbor_system.boundary_model.viscosity
 end

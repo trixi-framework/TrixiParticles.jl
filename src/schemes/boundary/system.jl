@@ -14,7 +14,7 @@ The interaction between fluid and boundary particles is specified by the boundar
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
-                         CA} <: BoundarySystem{NDIMS}
+                         CA} <: AbstractBoundarySystem{NDIMS}
     initial_condition    :: IC
     coordinates          :: CO # Array{ELTYPE, 2}
     boundary_model       :: BM
@@ -98,7 +98,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 """
 struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
-                         ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS}
+                         ARRAY1D, ARRAY2D} <: AbstractBoundarySystem{NDIMS}
     initial_condition :: IC
     coordinates       :: ARRAY2D # [dimension, particle]
     radius            :: ARRAY1D # [particle]
@@ -235,7 +235,7 @@ function (movement::BoundaryMovement)(system, t, semi)
     return system
 end
 
-function (movement::Nothing)(system::System, t, semi)
+function (movement::Nothing)(system::AbstractSystem, t, semi)
     system.ismoving[] = false
 
     return system
@@ -408,11 +408,11 @@ end
 # To incorporate the effect at boundaries in the viscosity term of the RHS the neighbor
 # viscosity model has to be used.
 @inline function viscosity_model(system::BoundarySPHSystem,
-                                 neighbor_system::FluidSystem)
+                                 neighbor_system::AbstractFluidSystem)
     return neighbor_system.viscosity
 end
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
+function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractBoundarySystem, semi)
     return Inf
 end
 

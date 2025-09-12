@@ -1,17 +1,17 @@
 # Abstract supertype for all system types.
-abstract type System{NDIMS} end
+abstract type AbstractSystem{NDIMS} end
 
-abstract type FluidSystem{NDIMS} <: System{NDIMS} end
-timer_name(::FluidSystem) = "fluid"
-vtkname(system::FluidSystem) = "fluid"
+abstract type AbstractFluidSystem{NDIMS} <: AbstractSystem{NDIMS} end
+timer_name(::AbstractFluidSystem) = "fluid"
+vtkname(system::AbstractFluidSystem) = "fluid"
 
-abstract type AbstractStructureSystem{NDIMS} <: System{NDIMS} end
+abstract type AbstractStructureSystem{NDIMS} <: AbstractSystem{NDIMS} end
 timer_name(::AbstractStructureSystem) = "structure"
 vtkname(system::AbstractStructureSystem) = "structure"
 
-abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
-timer_name(::BoundarySystem) = "boundary"
-vtkname(system::BoundarySystem) = "boundary"
+abstract type AbstractBoundarySystem{NDIMS} <: AbstractSystem{NDIMS} end
+timer_name(::AbstractBoundarySystem) = "boundary"
+vtkname(system::AbstractBoundarySystem) = "boundary"
 
 @inline function set_zero!(du)
     du .= zero(eltype(du))
@@ -21,8 +21,8 @@ end
 
 initialize!(system, semi) = system
 
-@inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
-@inline Base.eltype(system::System) = error("eltype not implemented for system $system")
+@inline Base.ndims(::AbstractSystem{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.eltype(system::AbstractSystem) = error("eltype not implemented for system $system")
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(system) = ndims(system)
@@ -37,7 +37,7 @@ initialize!(system, semi) = system
 # Number of particles in the system whose positions are to be integrated (corresponds to the size of u and du)
 @inline n_moving_particles(system) = nparticles(system)
 
-@inline eachparticle(system::System) = active_particles(system)
+@inline eachparticle(system::AbstractSystem) = active_particles(system)
 @inline eachparticle(initial_condition) = Base.OneTo(nparticles(initial_condition))
 
 # Wrapper for systems with `SystemBuffer`
@@ -100,11 +100,11 @@ end
 # By default, try to extract it from `v`.
 @inline current_velocity(v, system) = v
 
-@inline function current_density(v, system::System, particle)
+@inline function current_density(v, system::AbstractSystem, particle)
     return current_density(v, system)[particle]
 end
 
-@propagate_inbounds function current_pressure(v, system::System, particle)
+@propagate_inbounds function current_pressure(v, system::AbstractSystem, particle)
     return current_pressure(v, system)[particle]
 end
 

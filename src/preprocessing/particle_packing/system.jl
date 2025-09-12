@@ -56,7 +56,7 @@ For more information on the methods, see [particle packing](@ref particle_packin
                               Recommended values are `0.8` or `0.9`.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
-                             IC, M, D, K, N, SD} <: FluidSystem{NDIMS}
+                             IC, M, D, K, N, SD} <: AbstractFluidSystem{NDIMS}
     initial_condition              :: IC
     advection_velocity             :: AV
     mass                           :: M

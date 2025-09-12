@@ -594,7 +594,7 @@ end
             neighbor_count=neighbor_count, cache...)
 end
 
-@inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)
+@inline function create_cache_interpolation(ref_system::AbstractFluidSystem, n_points, semi)
     (; parallelization_backend) = semi
 
     velocity = allocate(parallelization_backend, eltype(ref_system),
@@ -627,7 +627,7 @@ end
     return (; velocity, jacobian, von_mises_stress, cauchy_stress)
 end
 
-@inline function interpolate_system!(cache, v, system::FluidSystem,
+@inline function interpolate_system!(cache, v, system::AbstractFluidSystem,
                                      point, neighbor, volume_b, W_ab,
                                      clip_negative_pressure)
     velocity = current_velocity(v, system, neighbor)
