@@ -206,19 +206,3 @@ function project_velocity_on_plane_normal!(v, system, particle, boundary_zone,
 
     return v
 end
-
-# For prescribed velocity, the momentum equation must be set to zero,
-# since the velocity is enforced directly. Otherwise, particles would
-# not follow the prescribed velocity during the stages.
-function modify_momentum_equation!(dv, system::OpenBoundarySPHSystem, semi)
-    @threaded semi for particle in each_moving_particle(system)
-        boundary_zone = current_boundary_zone(system, particle)
-        (; prescribed_velocity) = boundary_zone
-
-        if prescribed_velocity
-            for dim in 1:ndims(system)
-                @inbounds dv[dim, particle] = zero(eltype(system))
-            end
-        end
-    end
-end

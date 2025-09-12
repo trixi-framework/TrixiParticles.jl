@@ -116,8 +116,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system)
     end
 
-    modify_momentum_equation!(dv, particle_system, semi)
-
     return dv
 end
 
