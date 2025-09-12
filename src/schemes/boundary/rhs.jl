@@ -71,12 +71,13 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
+        # Zhan et al. (2025):
         # "To avoid the lack of support near the buffer surface entirely, one may use the
         # angular momentum conservative form."
         dv_pressure = inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b,
                                                        p_a, p_b, grad_kernel)
 
-        # This is zero if not prescribed or vanishes for particles with full kernel support
+        # This vanishes for particles with full kernel support
         p_b = cache.pressure_boundary[particle]
         dv_pressure_boundary = 2 * p_b * (m_b / (rho_a * rho_b)) * grad_kernel
 
@@ -103,8 +104,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                       dv_pressure_boundary[i]
         end
 
-        v_diff = current_velocity(v_particle_system, particle_system, particle) -
-                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_diff = relative_velocity(particle_system, neighbor_system,
+                                   v_particle_system, v_neighbor_system, particle, neighbor)
 
         # Continuity equation
         @inbounds dv[ndims(particle_system) + 1,
@@ -114,6 +115,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                             particle, neighbor, pos_diff, distance,
                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system)
     end
+
+    modify_momentum_equation!(dv, particle_system, semi)
 
     return dv
 end
@@ -146,4 +149,26 @@ function pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_
     pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                         particle, neighbor, pos_diff, distance,
                         sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system.nu_edac)
+end
+
+function relative_velocity(particle_system, neighbor_system,
+                           v_particle_system, v_neighbor_system, particle, neighbor)
+    return current_velocity(v_particle_system, particle_system, particle) -
+           current_velocity(v_neighbor_system, neighbor_system, neighbor)
+end
+
+# TODO: Verify the following
+# For open boundaries, only the velocity component orthogonal to the boundary should affect the density.
+# The tangential component (parallel to the wall) is filtered out, so only the orthogonal component remains.
+# This prevents the density from being affected by tangential relative motion along the boundary wall.
+function relative_velocity(particle_system, neighbor_system::BoundarySPHSystem,
+                           v_particle_system, v_neighbor_system, particle, neighbor)
+    boundary_zone = current_boundary_zone(particle_system, particle)
+
+    v_diff = current_velocity(v_particle_system, particle_system, particle) -
+             current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+    return v_diff - dot(v_diff, boundary_zone.plane_normal) * boundary_zone.plane_normal
+
+    # return zero(SVector{ndims(particle_system), eltype(particle_system)})
 end

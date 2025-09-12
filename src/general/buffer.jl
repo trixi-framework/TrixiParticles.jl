@@ -29,16 +29,9 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
         throw(ArgumentError("`initial_condition.density` needs to be constant when using `SystemBuffer`"))
     end
 
-    if all(p -> isapprox(p, first(initial_condition.pressure), atol=eps(), rtol=eps()),
-           initial_condition.pressure)
-        pressure = first(initial_condition.pressure)
-    else
-        throw(ArgumentError("`initial_condition.pressure` needs to be constant when using `SystemBuffer`"))
-    end
-
     particle_spacing = initial_condition.particle_spacing
 
-    buffer_ic = InitialCondition(; coordinates, density, pressure, particle_spacing)
+    buffer_ic = InitialCondition(; coordinates, density, particle_spacing)
 
     return union(initial_condition, buffer_ic)
 end

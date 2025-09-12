@@ -212,28 +212,16 @@ function system_smoothing_kernel(system::OpenBoundarySPHSystem)
 end
 
 @inline function v_nvariables(system::OpenBoundarySPHSystem)
-    return v_nvariables(system, system.boundary_model)
-end
-
-@inline function v_nvariables(system::OpenBoundarySPHSystem, boundary_model)
     return ndims(system)
 end
 
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
 
 @inline function current_density(v, system::OpenBoundarySPHSystem)
-    return current_density(v, system.boundary_model, system)
-end
-
-@inline function current_density(v, boundary_model, system::OpenBoundarySPHSystem)
     return system.cache.density
 end
 
 @inline function current_pressure(v, system::OpenBoundarySPHSystem)
-    return current_pressure(v, system.boundary_model, system)
-end
-
-@inline function current_pressure(v, boundary_model, system::OpenBoundarySPHSystem)
     return system.cache.pressure
 end
 

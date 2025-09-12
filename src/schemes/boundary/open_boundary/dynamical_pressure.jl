@@ -1,41 +1,39 @@
-# TODO: Should we ensure that the solid boundary extends beyond the `BoundaryZone` to guarantee complete kernel support for all particles?
 struct BoundaryModelDynamicalPressureZhang end
 
-@inline function v_nvariables(system::OpenBoundarySPHSystem,
-                              boundary_model::BoundaryModelDynamicalPressureZhang)
-    v_nvariables(boundary_model, system, system.fluid_system)
+@inline function v_nvariables(system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang})
+    v_nvariables(system, system.fluid_system)
 end
 
-@inline function v_nvariables(::BoundaryModelDynamicalPressureZhang,
-                              system::OpenBoundarySPHSystem, ::WeaklyCompressibleSPHSystem)
+@inline function v_nvariables(system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                              ::WeaklyCompressibleSPHSystem)
     # Velocity and density is integrated
     return ndims(system) + 1
 end
 
-@inline function v_nvariables(::BoundaryModelDynamicalPressureZhang,
-                              system::OpenBoundarySPHSystem, ::EntropicallyDampedSPHSystem)
+@inline function v_nvariables(system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                              ::EntropicallyDampedSPHSystem)
     # Velocity, density and pressure is integrated
     return ndims(system) + 2
 end
 
-@inline function current_density(v, ::BoundaryModelDynamicalPressureZhang,
-                                 system::OpenBoundarySPHSystem)
+@inline function current_density(v,
+                                 system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang})
     return view(v, ndims(system) + 1, :)
 end
 
-@inline function current_pressure(v, boundary_model::BoundaryModelDynamicalPressureZhang,
-                                  system::OpenBoundarySPHSystem)
-    current_pressure(v, boundary_model, system, system.fluid_system)
+@inline function current_pressure(v,
+                                  system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang})
+    current_pressure(v, system, system.fluid_system)
 end
 
-@inline function current_pressure(v, ::BoundaryModelDynamicalPressureZhang,
-                                  system::OpenBoundarySPHSystem,
+@inline function current_pressure(v,
+                                  system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
                                   ::WeaklyCompressibleSPHSystem)
     return system.cache.pressure
 end
 
-@inline function current_pressure(v, ::BoundaryModelDynamicalPressureZhang,
-                                  system::OpenBoundarySPHSystem,
+@inline function current_pressure(v,
+                                  system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
                                   ::EntropicallyDampedSPHSystem)
     # When using `EntropicallyDampedSPHSystem`, the pressure is stored in the last row of `v`
     return view(v, size(v, 1), :)
