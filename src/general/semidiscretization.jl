@@ -88,10 +88,18 @@ function Semidiscretization(systems::Union{System, Nothing}...;
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
 
+    use_summation_density = any(system isa FluidSystem &&
+                                system.density_calculator isa SummationDensity ||
+                                system isa BoundarySystem &&
+                                system.boundary_model.density_calculator isa
+                                SummationDensity for system in systems)
+    global_compact_support = use_summation_density ?
+                             moving_system_compact_support(systems) : nothing
+
     # Create a tuple of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
-    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
-                                                      system, neighbor)
+    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search, system, neighbor,
+                                                      global_compact_support)
                            for neighbor in systems)
                      for system in systems)
 
@@ -134,16 +142,30 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-function create_neighborhood_search(::Nothing, system, neighbor)
+function create_neighborhood_search(neighborhood_search, system, neighbor,
+                                    global_compact_support)
+    # If we have an override for Boundary↔Boundary, use it; otherwise fall back to current logic
+    support = if global_compact_support !== nothing &&
+                 system isa BoundarySPHSystem && neighbor isa BoundarySPHSystem
+        global_compact_support
+    else
+        compact_support(system, neighbor)
+    end
+
+    return copy_neighborhood_search(neighborhood_search, support, nparticles(neighbor))
+end
+
+function create_neighborhood_search(::Nothing, system, neighbor, global_compact_support)
     nhs = TrivialNeighborhoodSearch{ndims(system)}()
 
-    return create_neighborhood_search(nhs, system, neighbor)
-end
-
-function create_neighborhood_search(neighborhood_search, system, neighbor)
-    return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
+    return copy_neighborhood_search(nhs, compact_support(system, neighbor),
                                     nparticles(neighbor))
 end
+
+# function create_neighborhood_search(neighborhood_search, system, neighbor)
+#     return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
+#                                     nparticles(neighbor))
+# end
 
 @inline function compact_support(system, neighbor)
     (; smoothing_kernel) = system
@@ -159,12 +181,12 @@ end
 @inline function compact_support(system::OpenBoundarySPHSystem,
                                  neighbor::OpenBoundarySPHSystem)
     # This NHS is never used
-    return 0.0
+    return zero(eltype(system))
 end
 
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
     # This NHS is never used
-    return 0.0
+    return zero(eltype(system))
 end
 
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::DEMSystem)
@@ -183,23 +205,19 @@ end
     return compact_support(system, system.boundary_model, neighbor)
 end
 
-@inline function compact_support(system, model::BoundaryModelMonaghanKajtar, neighbor)
+@inline function compact_support(system,
+                                 model::Union{BoundaryModelMonaghanKajtar,
+                                              BoundaryModelDummyParticles}, neighbor)
     # Use the compact support of the fluid for solid-fluid interaction
     return compact_support(neighbor, system)
 end
 
-@inline function compact_support(system, model::BoundaryModelMonaghanKajtar,
+@inline function compact_support(system,
+                                 model::Union{BoundaryModelMonaghanKajtar,
+                                              BoundaryModelDummyParticles},
                                  neighbor::BoundarySPHSystem)
     # This NHS is never used
-    return 0.0
-end
-
-@inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
-    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for solid-fluid
-    # interaction. Dummy particle BC use the model's compact support, which is also used
-    # for density summations.
-    (; smoothing_kernel, smoothing_length) = model
-    return compact_support(smoothing_kernel, smoothing_length)
+    return zero(eltype(system))
 end
 
 @inline function get_neighborhood_search(system, semi)
@@ -910,6 +928,7 @@ function check_configuration(systems,
     end
 
     check_system_color(systems)
+    check_summation_density(systems)
 end
 
 check_configuration(system::System, systems, nhs) = nothing
@@ -925,6 +944,32 @@ function check_system_color(systems)
 
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
             throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
+        end
+    end
+end
+
+function check_summation_density(systems)
+    if any(system isa FluidSystem && system.density_calculator isa SummationDensity ||
+           system isa BoundarySystem &&
+           system.boundary_model.density_calculator isa SummationDensity
+           for system in systems)
+        smk = nothing
+        sml = nothing
+
+        for system in systems
+            if system isa FluidSystem || system isa TotalLagrangianSPHSystem
+                if smk === nothing
+                    smk = system.smoothing_kernel
+                    sml = initial_smoothing_length(system)
+                else
+                    if system.smoothing_kernel != smk
+                        throw(ArgumentError("Using different 'smoothing_kernel's with `SummationDensity` is currently not supported."))
+                    end
+                    if system.smoothing_length != sml
+                        throw(ArgumentError("Using different 'smoothing_length's with `SummationDensity` is currently not supported."))
+                    end
+                end
+            end
         end
     end
 end

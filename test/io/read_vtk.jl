@@ -53,7 +53,7 @@
         @testset verbose=true "`BoundarySystem`" begin
             boundary_model = BoundaryModelDummyParticles(expected_ic.density,
                                                          expected_ic.mass,
-                                                         SummationDensity(),
+                                                         ContinuityDensity(),
                                                          SchoenbergCubicSplineKernel{2}(),
                                                          1.5)
 
