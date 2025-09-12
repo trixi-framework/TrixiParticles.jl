@@ -351,16 +351,17 @@ function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=fal
     v_ode, u_ode = sol.u[end].x
 
     u = wrap_u(u_ode, system, semi)
-    v = wrap_u(v_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
 
     # Check if particles come too close especially when the surface exhibits large curvature
     too_close = find_too_close_particles(u, min_particle_distance)
 
-    velocity_ = use_final_velocity ? view(v, 1:ndims(system), :) : ic.velocity
+    coordinates_ = current_coordinates(u, system)
+    velocity_ = use_final_velocity ? current_velocity(v, system) : ic.velocity
 
     not_too_close = setdiff(eachparticle(system), too_close)
 
-    coordinates = u[:, not_too_close]
+    coordinates = coordinates_[:, not_too_close]
     velocity = velocity_[:, not_too_close]
     mass = ic.mass[not_too_close]
     density = ic.density[not_too_close]
