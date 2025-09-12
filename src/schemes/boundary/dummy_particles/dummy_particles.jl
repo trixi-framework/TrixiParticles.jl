@@ -569,7 +569,7 @@ end
 @inline function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
                                   density_neighbor, v, v_neighbor_system, pos_diff,
                                   distance, particle, neighbor,
-                                  system::SolidSystem, neighbor_system)
+                                  system::AbstractStructureSystem, neighbor_system)
     relative_velocity = current_velocity(v, system, particle) .-
                         current_velocity(v_neighbor_system, neighbor_system, neighbor)
     normal_velocity = dot(relative_velocity, pos_diff) / distance

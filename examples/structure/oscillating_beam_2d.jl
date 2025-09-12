@@ -3,7 +3,7 @@
 #
 # This example simulates the oscillation of a 2D elastic beam (cantilever)
 # fixed at one end and subjected to gravity. It uses the Total Lagrangian SPH (TLSPH)
-# method for solid mechanics.
+# method for structure mechanics.
 #
 # Based on:
 # J. O'Connor and B.D. Rogers
@@ -47,19 +47,19 @@ n_particles_per_dimension = (round(Int, elastic_beam.length / particle_spacing) 
                              n_particles_clamp_x + 1, n_particles_y)
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
-# from the boundary, which is correct for fluids, but not for solids.
+# from the boundary, which is correct for fluids, but not for structures.
 # We therefore need to pass `place_on_shell=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
                         (0.0, 0.0), density=material.density, place_on_shell=true)
 
-solid = union(beam, fixed_particles)
+structure = union(beam, fixed_particles)
 
 # ==========================================================================================
-# ==== Solid
+# ==== Structure
 smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
+structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothing_length,
                                         material.E, material.nu,
                                         n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity),
@@ -67,7 +67,7 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(solid_system,
+semi = Semidiscretization(structure_system,
                           neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)

@@ -609,7 +609,7 @@ end
     return (; velocity, pressure, density)
 end
 
-@inline function create_cache_interpolation(ref_system::SolidSystem, n_points, semi)
+@inline function create_cache_interpolation(ref_system::AbstractStructureSystem, n_points, semi)
     (; parallelization_backend) = semi
 
     velocity = allocate(parallelization_backend, eltype(ref_system),
@@ -647,7 +647,7 @@ end
     return cache
 end
 
-@inline function interpolate_system!(cache, v, system::SolidSystem,
+@inline function interpolate_system!(cache, v, system::AbstractStructureSystem,
                                      point, neighbor, volume_b, W_ab,
                                      clip_negative_pressure)
     velocity = current_velocity(v, system, neighbor)

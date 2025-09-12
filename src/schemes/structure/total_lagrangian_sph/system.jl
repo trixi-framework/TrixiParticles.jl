@@ -43,7 +43,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     The fixed particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
     ```jldoctest; output = false, setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
-    solid = union(beam, fixed_particles)
+    structure = union(beam, fixed_particles)
 
     # output
     ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -57,7 +57,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V, ST} <: SolidSystem{NDIMS}
+                                YM, PR, LL, LM, K, PF, V, ST} <: AbstractStructureSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -214,7 +214,7 @@ end
     return current_density(v, system.boundary_model, system)
 end
 
-# In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
+# In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
 # corresponding to the chosen boundary model.
 @inline function current_pressure(v, system::TotalLagrangianSPHSystem)
     return current_pressure(v, system.boundary_model, system)

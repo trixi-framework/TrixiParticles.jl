@@ -77,20 +77,20 @@
             v_boundary_continuity = copy(initial_condition.density')
 
             # TLSPH system
-            solid_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+            structure_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                                     smoothing_length, 0.0, 0.0,
                                                     boundary_model=boundary_model_continuity)
 
-            # Positions of the solid particles are not used here
-            u_solid = zeros(0, TrixiParticles.nparticles(solid_system))
-            v_solid = vcat(initial_condition.velocity,
+            # Positions of the structure particles are not used here
+            u_structure = zeros(0, TrixiParticles.nparticles(structure_system))
+            v_structure = vcat(initial_condition.velocity,
                            initial_condition.density')
 
             systems = Dict(
                 "Fluid-Fluid" => second_fluid_system,
                 "Fluid-BoundaryDummyPressureZeroing" => boundary_system_zeroing,
                 "Fluid-BoundaryDummyContinuityDensity" => boundary_system_continuity,
-                "Fluid-TLSPH" => solid_system
+                "Fluid-TLSPH" => structure_system
             )
 
             if density_calculator isa SummationDensity
@@ -105,7 +105,7 @@
                 "Fluid-BoundaryDummyContinuityDensity" => (v_boundary_continuity,
                                                            u_boundary),
                 "Fluid-BoundaryDummySummationDensity" => (v_boundary, u_boundary),
-                "Fluid-TLSPH" => (v_solid, u_solid)
+                "Fluid-TLSPH" => (v_structure, u_structure)
             )
 
             return systems, vu

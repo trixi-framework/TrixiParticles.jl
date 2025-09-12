@@ -1,23 +1,23 @@
-# Solid-solid interaction
+# Structure-structure interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::TotalLagrangianSPHSystem, semi)
-    # Different solids do not interact with each other (yet)
+    # Different structures do not interact with each other (yet)
     particle_system !== neighbor_system && return dv
 
-    interact_solid_solid!(dv, v_particle_system, particle_system, semi)
+    interact_structure_structure!(dv, v_particle_system, particle_system, semi)
 end
 
 # Function barrier without dispatch for unit testing
-@inline function interact_solid_solid!(dv, v_system, system, semi)
+@inline function interact_structure_structure!(dv, v_system, system, semi)
     (; penalty_force) = system
 
     # Everything here is done in the initial coordinates
     system_coords = initial_coordinates(system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    # For solid-solid interaction, this has to happen in the initial coordinates.
+    # For structure-structure interaction, this has to happen in the initial coordinates.
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_moving_particle(system)) do particle, neighbor,
                                                                    initial_pos_diff,
@@ -63,7 +63,7 @@ end
     return dv
 end
 
-# Solid-fluid interaction
+# Structure-fluid interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
@@ -83,12 +83,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
-        # Apply the same force to the solid particle
-        # that the fluid particle experiences due to the solid particle.
-        # Note that the same arguments are passed here as in fluid-solid interact!,
+        # Apply the same force to the structure particle
+        # that the fluid particle experiences due to the structure particle.
+        # Note that the same arguments are passed here as in fluid-structure interact!,
         # except that pos_diff has a flipped sign.
         #
-        # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
+        # In fluid-structure interaction, use the "hydrodynamic mass" of the structure particles
         # corresponding to the rest density of the fluid and not the material density.
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
@@ -97,19 +97,19 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
         # Use kernel from the fluid system in order to get the same force here in
-        # solid-fluid interaction as for fluid-solid interaction.
+        # structure-fluid interaction as for fluid-structure interaction.
         # TODO this will not use corrections if the fluid uses corrections.
         grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, particle)
 
-        # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
+        # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
         # corresponding to the chosen boundary model.
         p_a = current_pressure(v_particle_system, particle_system, particle)
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
         # Particle and neighbor (and corresponding systems and all corresponding quantities)
         # are switched in the following two calls.
-        # This way, we obtain the exact same force as for the fluid-solid interaction,
-        # but with a flipped sign (because `pos_diff` is flipped compared to fluid-solid).
+        # This way, we obtain the exact same force as for the fluid-structure interaction,
+        # but with a flipped sign (because `pos_diff` is flipped compared to fluid-structure).
         dv_boundary = pressure_acceleration(neighbor_system, particle_system,
                                             neighbor, particle,
                                             m_b, m_a, p_b, p_a, rho_b, rho_a, pos_diff,
@@ -125,9 +125,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         for i in 1:ndims(particle_system)
             # Multiply `dv` (acceleration on fluid particle b) by the mass of
-            # particle b to obtain the same force as for the fluid-solid interaction.
+            # particle b to obtain the same force as for the fluid-structure interaction.
             # Divide by the material mass of particle a to obtain the acceleration
-            # of solid particle a.
+            # of structure particle a.
             dv[i, particle] += dv_particle[i] * m_b / particle_system.mass[particle]
         end
 
@@ -165,7 +165,7 @@ end
                          grad_kernel, particle)
 end
 
-# Solid-boundary interaction
+# Structure-boundary interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,

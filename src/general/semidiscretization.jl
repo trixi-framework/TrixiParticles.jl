@@ -184,7 +184,7 @@ end
 end
 
 @inline function compact_support(system, model::BoundaryModelMonaghanKajtar, neighbor)
-    # Use the compact support of the fluid for solid-fluid interaction
+    # Use the compact support of the fluid for structure-fluid interaction
     return compact_support(neighbor, system)
 end
 
@@ -195,7 +195,7 @@ end
 end
 
 @inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
-    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for solid-fluid
+    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for structure-fluid
     # interaction. Dummy particle BC use the model's compact support, which is also used
     # for density summations.
     (; smoothing_kernel, smoothing_length) = model
@@ -519,7 +519,7 @@ end
 # before calling `interact!` to compute forces.
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
-    # (for example for writing the current coordinates in the solid system)
+    # (for example for writing the current coordinates in the TLSPH system)
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
@@ -598,11 +598,11 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
 end
 
 @inline source_terms(system) = nothing
-@inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
+@inline source_terms(system::Union{FluidSystem, AbstractStructureSystem}) = system.source_terms
 
 @inline add_acceleration!(dv, particle, system) = dv
 
-@inline function add_acceleration!(dv, particle, system::Union{FluidSystem, SolidSystem})
+@inline function add_acceleration!(dv, particle, system::Union{FluidSystem, AbstractStructureSystem})
     (; acceleration) = system
 
     for i in 1:ndims(system)
@@ -710,7 +710,7 @@ function update_nhs!(neighborhood_search,
                      system::FluidSystem,
                      neighbor::Union{FluidSystem, TotalLagrangianSPHSystem},
                      u_system, u_neighbor, semi)
-    # The current coordinates of fluids and solids change over time
+    # The current coordinates of fluids and structures change over time
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
@@ -770,7 +770,7 @@ end
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::FluidSystem,
                      u_system, u_neighbor, semi)
-    # The current coordinates of fluids and solids change over time
+    # The current coordinates of fluids and structured change over time
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
@@ -787,7 +787,7 @@ end
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::BoundarySPHSystem,
                      u_system, u_neighbor, semi)
-    # The current coordinates of solids change over time.
+    # The current coordinates of structured change over time.
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
     update!(neighborhood_search,
             current_coordinates(u_system, system),
@@ -805,7 +805,7 @@ function update_nhs!(neighborhood_search,
     # - pressure extrapolation (`AdamiPressureExtrapolation`)
     #
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    # The current coordinates of fluids and solids change over time.
+    # The current coordinates of fluids and structured change over time.
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
@@ -823,7 +823,7 @@ function update_nhs!(neighborhood_search,
     # - pressure extrapolation (`AdamiPressureExtrapolation`)
     #
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    # The current coordinates of fluids and solids change over time.
+    # The current coordinates of fluids and structured change over time.
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),

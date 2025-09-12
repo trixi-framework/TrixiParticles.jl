@@ -1,4 +1,4 @@
-@testset verbose=true "Solid RHS" begin
+@testset verbose=true "Structure RHS" begin
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "interact! Mocked" begin
         # Pass specific PK1 and `pos_diff` to `interact!` and verify with
@@ -108,7 +108,7 @@
                 dv_expected[:, particle[i]] = dv_particle_expected[i]
 
                 semi = DummySemidiscretization(parallelization_backend=backends[j])
-                TrixiParticles.interact_solid_solid!(dv, v_system, system, semi)
+                TrixiParticles.interact_structure_structure!(dv, v_system, system, semi)
 
                 @test dv ≈ dv_expected
             end

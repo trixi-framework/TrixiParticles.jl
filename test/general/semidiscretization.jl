@@ -38,7 +38,7 @@
     end
 
     @testset verbose=true "Check Configuration" begin
-        @testset verbose=true "Solid-Fluid Interaction" begin
+        @testset verbose=true "Structure-Fluid Interaction" begin
             # Mock boundary model
             struct BoundaryModelMock end
 
@@ -60,28 +60,28 @@
                                                   1.0)
 
             # FSI without boundary model.
-            solid_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
+            structure_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
 
             error_str = "a boundary model for `TotalLagrangianSPHSystem` must be " *
                         "specified when simulating a fluid-structure interaction."
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
-                                                                     solid_system1,
+                                                                     structure_system1,
                                                                      neighborhood_search=nothing)
 
             # FSI with boundary model
-            solid_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+            structure_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
                                                      boundary_model=model_a)
 
-            @test_nowarn TrixiParticles.check_configuration((solid_system2, fluid_system),
+            @test_nowarn TrixiParticles.check_configuration((structure_system2, fluid_system),
                                                             nothing)
 
             # FSI with wrong boundary model
-            solid_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+            structure_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
                                                      boundary_model=model_b)
 
             error_str = "`BoundaryModelDummyParticles` with density calculator " *
                         "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
-            @test_throws ArgumentError(error_str) Semidiscretization(solid_system3,
+            @test_throws ArgumentError(error_str) Semidiscretization(structure_system3,
                                                                      fluid_system,
                                                                      neighborhood_search=nothing)
         end

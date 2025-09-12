@@ -5,9 +5,9 @@ abstract type FluidSystem{NDIMS} <: System{NDIMS} end
 timer_name(::FluidSystem) = "fluid"
 vtkname(system::FluidSystem) = "fluid"
 
-abstract type SolidSystem{NDIMS} <: System{NDIMS} end
-timer_name(::SolidSystem) = "solid"
-vtkname(system::SolidSystem) = "solid"
+abstract type AbstractStructureSystem{NDIMS} <: System{NDIMS} end
+timer_name(::AbstractStructureSystem) = "structure"
+vtkname(system::AbstractStructureSystem) = "structure"
 
 abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
 timer_name(::BoundarySystem) = "boundary"
