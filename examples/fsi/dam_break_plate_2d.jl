@@ -8,7 +8,7 @@
 #   https://doi.org/10.1016/j.jfluidstructs.2019.02.002
 #
 # This example simulates a 2D dam break where the collapsing water column impacts
-# a flexible elastic plate fixed at its base.
+# a flexible elastic plate clamped at its base.
 # ==========================================================================================
 
 using TrixiParticles
@@ -63,11 +63,11 @@ plate = RectangularShape(structure_particle_spacing,
                          (n_particles_x, n_particles_y - 1),
                          (2initial_fluid_size[1], structure_particle_spacing),
                          density=structure_density, place_on_shell=true)
-fixed_particles = RectangularShape(structure_particle_spacing,
+clamped_particles = RectangularShape(structure_particle_spacing,
                                    (n_particles_x, 1), (2initial_fluid_size[1], 0.0),
                                    density=structure_density, place_on_shell=true)
 
-structure = union(plate, fixed_particles)
+structure = union(plate, clamped_particles)
 
 # ==========================================================================================
 # ==== Fluid
@@ -123,7 +123,7 @@ boundary_model_structure = BoundaryModelMonaghanKajtar(k_structure, spacing_rati
 structure_system = TotalLagrangianSPHSystem(structure,
                                         structure_smoothing_kernel, structure_smoothing_length,
                                         E, nu, boundary_model=boundary_model_structure,
-                                        n_fixed_particles=n_particles_x,
+                                        n_clamped_particles=n_particles_x,
                                         acceleration=(0.0, -gravity),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 

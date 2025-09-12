@@ -75,7 +75,7 @@
         │ TotalLagrangianSPHSystem{2}                                                                      │
         │ ═══════════════════════════                                                                      │
         │ total #particles: ………………………………… 2                                                                │
-        │ #fixed particles: ………………………………… 0                                                                │
+        │ #clamped particles: ………………………………… 0                                                              │
         │ Young's modulus: …………………………………… 2.5                                                              │
         │ Poisson ratio: ………………………………………… 0.25                                                             │
         │ smoothing kernel: ………………………………… Val                                                              │
@@ -97,7 +97,7 @@
         │ TotalLagrangianSPHSystem{2}                                                                      │
         │ ═══════════════════════════                                                                      │
         │ total #particles: ………………………………… 2                                                                │
-        │ #fixed particles: ………………………………… 0                                                                │
+        │ #clamped particles: ………………………………… 0                                                              │
         │ Young's modulus: …………………………………… min = 1.2, max = 3.4                                             │
         │ Poisson ratio: ………………………………………… min = 0.2, max = 0.4                                             │
         │ smoothing kernel: ………………………………… Val                                                              │

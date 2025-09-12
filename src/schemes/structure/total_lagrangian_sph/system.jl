@@ -2,7 +2,7 @@
     TotalLagrangianSPHSystem(initial_condition,
                              smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio;
-                             n_fixed_particles=0, boundary_model=nothing,
+                             n_clamped_particles=0, boundary_model=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, source_terms=nothing)
 
@@ -23,9 +23,9 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
-- `n_fixed_particles`:  Number of fixed particles which are used to clamp the structure
-                        particles. Note that the fixed particles must be the **last**
-                        particles in the `InitialCondition`. See the info box below.
+- `n_clamped_particles`: Number of clamped particles which are fixed and not integrated
+                    to clamp the structure. Note that the clamped particles must be the **last**
+                    particles in the `InitialCondition`. See the info box below.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
@@ -40,10 +40,10 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     See, for example, [`SourceTermDamping`](@ref).
 
 !!! note
-    The fixed particles must be the **last** particles in the `InitialCondition`.
+    The clamped particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
-    ```jldoctest; output = false, setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
-    structure = union(beam, fixed_particles)
+    ```jldoctest; output = false, setup = :(clamped_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
+    structure = union(beam, clamped_particles)
 
     # output
     ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -54,7 +54,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     │ particle spacing: ………………………………… 0.1                                                              │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
-    where `beam` and `fixed_particles` are of type `InitialCondition`.
+    where `beam` and `clamped_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 YM, PR, LL, LM, K, PF, V, ST} <: AbstractStructureSystem{NDIMS}
@@ -83,7 +83,7 @@ end
 function TotalLagrangianSPHSystem(initial_condition,
                                   smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_fixed_particles=0, boundary_model=nothing,
+                                  n_clamped_particles=0, boundary_model=nothing,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
@@ -110,7 +110,7 @@ function TotalLagrangianSPHSystem(initial_condition,
     pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
 
-    n_moving_particles = n_particles - n_fixed_particles
+    n_moving_particles = n_particles - n_clamped_particles
 
     lame_lambda = @. young_modulus * poisson_ratio /
                      ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
@@ -153,11 +153,11 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
     if get(io, :compact, false)
         show(io, system)
     else
-        n_fixed_particles = nparticles(system) - n_moving_particles(system)
+        n_clamped_particles = nparticles(system) - n_moving_particles(system)
 
         summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
         summary_line(io, "total #particles", nparticles(system))
-        summary_line(io, "#fixed particles", n_fixed_particles)
+        summary_line(io, "#clamped particles", n_clamped_particles)
         summary_line(io, "Young's modulus", display_param(system.young_modulus))
         summary_line(io, "Poisson ratio", display_param(system.poisson_ratio))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
@@ -276,7 +276,7 @@ end
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates) = system
 
-    # `current_coordinates` stores the coordinates of both integrated and fixed particles.
+    # `current_coordinates` stores the coordinates of both integrated and clamped particles.
     # Copy the coordinates of the integrated particles from `u`.
     @threaded semi for particle in each_moving_particle(system)
         for i in 1:ndims(system)

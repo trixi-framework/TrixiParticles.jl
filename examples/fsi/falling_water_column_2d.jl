@@ -2,7 +2,7 @@
 # 2D Falling Water Column on an Elastic Beam (FSI)
 #
 # This example simulates a column of water falling under gravity and impacting
-# an elastic beam, which is fixed at one end (cantilever).
+# an elastic beam, which is clamped at one end (cantilever).
 # It demonstrates Fluid-Structure Interaction where the fluid deforms the structure.
 # ==========================================================================================
 
@@ -68,7 +68,7 @@ structure_system = TotalLagrangianSPHSystem(structure,
                                         smoothing_kernel, smoothing_length,
                                         material.E, material.nu,
                                         boundary_model=boundary_model,
-                                        n_fixed_particles=nparticles(fixed_particles),
+                                        n_clamped_particles=nparticles(clamped_particles),
                                         acceleration=(0.0, -gravity))
 
 # ==========================================================================================

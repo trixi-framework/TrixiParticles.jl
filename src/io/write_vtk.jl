@@ -403,8 +403,6 @@ function write2vtk!(vtk, viscosity::ArtificialViscosityMonaghan)
 end
 
 function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_data=true)
-    n_fixed_particles = nparticles(system) - n_moving_particles(system)
-
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]
     vtk["jacobian"] = [det(deformation_gradient(system, particle))
