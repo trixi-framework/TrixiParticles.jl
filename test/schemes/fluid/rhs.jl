@@ -151,7 +151,7 @@
                         # Density is integrated with `ContinuityDensity`
 
                         if system isa EntropicallyDampedSPHSystem
-                            v = vcat(fluid.velocity,  fluid.pressure', fluid.density')
+                            v = vcat(fluid.velocity, fluid.pressure', fluid.density')
                         else
                             v = vcat(fluid.velocity, fluid.density')
                         end
