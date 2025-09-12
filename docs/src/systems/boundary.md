@@ -9,7 +9,7 @@
 ```
 
 ```@docs
-    BoundaryMovement
+    PrescribedMotion
 ```
 
 

@@ -30,7 +30,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
-- `density_diffusion`:          Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
+- `density_diffusion`:          Density diffusion terms for this system. See [`AbstractDensityDiffusion`](@ref).
 - `pressure_acceleration`:      Pressure acceleration formulation for this system.
                                 By default, the correct formulation is chosen based on the
                                 density calculator and the correction method.
