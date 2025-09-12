@@ -70,7 +70,7 @@ function add_simulation_info!(info, git_hash, integrator)
 
     info["technical_setup"] = Dict{String, Any}()
     info["technical_setup"]["parallelization_backend"] = type2string(integrator.p.parallelization_backend)
-    info["technical_setup"]["#threads"] = Threads.nthreads()
+    info["technical_setup"]["number_of_threads"] = Threads.nthreads()
 end
 
 add_system_data!(system_data, data::Nothing) = system_data
