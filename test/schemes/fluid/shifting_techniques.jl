@@ -22,10 +22,10 @@
                                                              modify_continuity_equation=true)
         # Can't modify momentum equation if not integrating shifting velocity
         @test_throws ArgumentError ParticleShiftingTechnique(integrate_shifting_velocity=false,
-                                                             modify_momentum_equation=true)
+                                                             momentum_equation_term=MomentumEquationTermSun2019())
         # Can't use second continuity equation term if not modifying continuity equation
         @test_throws ArgumentError ParticleShiftingTechnique(integrate_shifting_velocity=true,
                                                              modify_continuity_equation=false,
-                                                             second_continuity_equation_term=true)
+                                                             second_continuity_equation_term=ContinuityEquationTermSun2019())
     end
 end
