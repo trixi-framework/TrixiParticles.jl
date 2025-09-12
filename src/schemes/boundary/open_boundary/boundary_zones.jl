@@ -80,7 +80,7 @@ There are three ways to specify the actual shape of the boundary zone:
     or evolved using the characteristic flow variables ([BoundaryModelCharacteristicsLastiwka](@ref BoundaryModelCharacteristicsLastiwka)).
 
 # Examples
-```jldoctest; output = false
+```jldoctest; output=false
 # 2D
 plane_points = ([0.0, 0.0], [0.0, 1.0])
 plane_normal = [1.0, 0.0]

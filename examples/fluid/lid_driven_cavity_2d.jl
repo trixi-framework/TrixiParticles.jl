@@ -65,7 +65,7 @@ if wcsph
                                                state_equation, smoothing_kernel,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
                                                smoothing_length, viscosity=viscosity,
-                                               shifting_technique=TransportVelocityAdami(pressure))
+                                               shifting_technique=TransportVelocityAdami(background_pressure=pressure))
 else
     state_equation = nothing
     density_calculator = ContinuityDensity()
@@ -73,7 +73,7 @@ else
                                                smoothing_length,
                                                density_calculator=density_calculator,
                                                sound_speed, viscosity=viscosity,
-                                               shifting_technique=TransportVelocityAdami(pressure))
+                                               shifting_technique=TransportVelocityAdami(background_pressure=pressure))
 end
 
 # ==========================================================================================

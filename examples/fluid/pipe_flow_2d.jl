@@ -83,7 +83,7 @@ if wcsph
                                                state_equation, smoothing_kernel,
                                                density_diffusion=density_diffusion,
                                                smoothing_length, viscosity=viscosity,
-                                               shifting_technique=ParticleShiftingTechnique(),
+                                               shifting_technique=ParticleShiftingTechnique(v_max_factor=1.5),
                                                buffer_size=n_buffer_particles)
 else
     # Alternatively the EDAC scheme can be used
