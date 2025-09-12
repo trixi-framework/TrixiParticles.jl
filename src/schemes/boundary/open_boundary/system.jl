@@ -1,6 +1,6 @@
 @doc raw"""
     OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
-                          fluid_system::FluidSystem, buffer_size::Integer,
+                          fluid_system::AbstractFluidSystem, buffer_size::Integer,
                           boundary_model)
 
 Open boundary system for in- and outflow particles.

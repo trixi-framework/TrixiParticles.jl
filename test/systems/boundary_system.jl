@@ -1,4 +1,4 @@
-@testset verbose=true "BoundarySystem" begin
+@testset verbose=true "BoundarySPHSystem" begin
     coordinates_ = [
         [1.0 2.0
          1.0 2.0],

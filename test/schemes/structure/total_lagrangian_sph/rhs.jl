@@ -53,7 +53,7 @@
             kernel_deriv = 1.0
 
             #### Mocking
-            struct MockSystem <: TrixiParticles.System{2} end
+            struct MockSystem <: TrixiParticles.AbstractSystem{2} end
             system = MockSystem()
 
             function TrixiParticles.initial_coordinates(::MockSystem)

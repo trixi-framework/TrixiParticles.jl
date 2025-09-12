@@ -1,6 +1,6 @@
 @testset verbose=true "`SystemBuffer`" begin
     # Mock fluid system
-    struct FluidSystemMock3 <: TrixiParticles.FluidSystem{2} end
+    struct FluidSystemMock3 <: TrixiParticles.AbstractFluidSystem{2} end
     TrixiParticles.initial_smoothing_length(system::FluidSystemMock3) = 1.0
     TrixiParticles.nparticles(system::FluidSystemMock3) = 1
 

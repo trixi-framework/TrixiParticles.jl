@@ -937,7 +937,8 @@ function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
             if neighbor isa AbstractFluidSystem &&
                isnothing(fluid_system.surface_tension) &&
                isnothing(fluid_system.surface_normal_method)
-                throw(ArgumentError("All `FluidSystem` need to use a surface tension model or a surface normal method."))
+                throw(ArgumentError("either none or all fluid systems in a simulation need " *
+                                    "to use a surface tension model or a surface normal method."))
             end
         end
     end
