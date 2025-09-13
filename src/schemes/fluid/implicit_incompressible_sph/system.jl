@@ -260,7 +260,7 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
     d_ii_array = system.d_ii
 
     v_particle_system = wrap_v(v_ode, system, semi)
-
+    set_zero!(d_ii_array)
     sound_speed = system_sound_speed(system) # TODO
 
     @threaded semi for particle in each_integrated_particle(system)
