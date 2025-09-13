@@ -423,7 +423,7 @@ function calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
 
     foreach_point_neighbor(system, system, system_coords, system_coords,
                            semi;
-                           points=each_moving_particle(system)) do particle,
+                           points=each_integrated_particle(system)) do particle,
                                                                    neighbor,
                                                                    pos_diff,
                                                                    distance
@@ -499,25 +499,6 @@ function calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
             sum_d_ij_pj[i, particle] += sum_dij_pj_[i]
         end
     end
-end
-
-# Function barrier for type stability
-function calculate_sum_term!(sum_term, system, neighbor_system,
-                             pressure, u, u_ode, semi, time_step)
-    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-    system_coords = current_coordinates(u, system)
-    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-    foreach_point_neighbor(system, neighbor_system, system_coords,
-                           neighbor_system_coords, semi;
-                           points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-        sum_term[particle] += calculate_sum_term(system, neighbor_system, particle,
-                                                 neighbor, pressure, grad_kernel, time_step)
-    end
-
-    return sum_term
 end
 
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
