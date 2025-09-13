@@ -283,7 +283,7 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
         foreach_point_neighbor(system, neighbor_system,
                             system_coords, neighbor_system_coords,
                             semi;
-                            points=each_moving_particle(system)) do particle,
+                            points=each_integrated_particle(system)) do particle,
                                                                     neighbor,
                                                                     pos_diff,
                                                                     distance
