@@ -327,67 +327,7 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
 
     calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode, semi, t)
 
-    #= Part of calculate_predicted_velocity
-    @threaded semi for particle in each_moving_particle(system)
-        # Initialize the advection velocity with the current velocity plus the system acceleration
-        v_particle = current_velocity(v_particle_system, system, particle)
-        for i in 1:ndims(system)
-            advection_velocity[i,
-                                particle] = v_particle[i] +
-                                            time_step * system.acceleration[i]
-        end
-    end
-
-
-    # Compute predicted velocity
-    foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-        system_coords = current_coordinates(u, system)
-        neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        foreach_point_neighbor(system, neighbor_system,
-                               system_coords, neighbor_system_coords,
-                               semi;
-                               points=each_moving_particle(system)) do particle,
-                                                                       neighbor,
-                                                                       pos_diff,
-                                                                       distance
-            m_a = @inbounds hydrodynamic_mass(system, particle)
-            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
-
-            rho_a = @inbounds current_density(v_particle_system, system, particle)
-            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
-
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-
-            dv_viscosity_ = @inbounds dv_viscosity(system, neighbor_system,
-                                                   v_particle_system, v_neighbor_system,
-                                                   particle, neighbor, pos_diff, distance,
-                                                   sound_speed, m_a, m_b, rho_a, rho_b,
-                                                   grad_kernel)
-            #= Part of calculate_predicted_velocity
-            # Add all other non-pressure forces
-            for i in 1:ndims(system)
-                @inbounds advection_velocity[i, particle] += time_step * dv_viscosity_[i]
-            end
-
-            # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
-            for i in 1:ndims(system)
-                d_ii_array[i,
-                           particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
-                                                       grad_kernel[i],
-                                                       time_step)
-            end
-            =#
-        end
-    end
-    =#
-
-    # Set initial pressure (p_0) to a half of the current pressure value
-    @threaded semi for particle in each_integrated_particle(system)
-        pressure[particle] = pressure[particle] / 2
-    end
+    initialize_pressure(system, semi)
 
     # Calculation the diagonal elements (a_ii-values)
     calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
@@ -474,6 +414,13 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
     end
 end
 
+function initialize_pressure(system, semi)
+    (; pressure) = system
+    # Set initial pressure (p_0) to a half of the current pressure value
+    @threaded semi for particle in each_moving_particle(system)
+        pressure[particle] = pressure[particle] / 2
+    end
+end
 
 function calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
     (; a_ii, time_step) = system
