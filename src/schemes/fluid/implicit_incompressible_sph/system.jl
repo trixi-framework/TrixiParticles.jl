@@ -227,7 +227,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
 
     # Initialize arrays
     v_particle_system = wrap_v(v_ode, system, semi)
-    predicted_density .= density
+    #predicted_density .= density
     set_zero!(d_ii_array)
 
     @threaded semi for particle in each_moving_particle(system)
@@ -332,6 +332,12 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
     # Calculation the diagonal elements (a_ii-values)
     calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
 
+    calculate_predicted_density(system, v, u, v_ode, u_ode, semi, t)
+end
+
+function calculate_predicted_density(system, v, u, v_ode, u_ode, semi, t)
+    (; density, predicted_density, time_step) = system
+    predicted_density .= density
     # Calculate the predicted density (with the continuity equation and predicted velocities)
     foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
