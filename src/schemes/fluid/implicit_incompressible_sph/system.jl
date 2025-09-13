@@ -241,7 +241,7 @@ function calculate_predicted_density(system, v, u, v_ode, u_ode, semi, t)
 
         foreach_point_neighbor(system, neighbor_system, system_coords,
                                neighbor_system_coords, semi,
-                               points=each_moving_particle(system)) do particle, neighbor,
+                               points=each_integrated_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
             # Calculate the predicted velocity differences
             advection_velocity_diff = predicted_velocity(system, particle) -
@@ -260,10 +260,10 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
     d_ii_array = system.d_ii
 
     v_particle_system = wrap_v(v_ode, system, semi)
-    set_zero!(d_ii_array)
+
     sound_speed = system_sound_speed(system) # TODO
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         # Initialize the advection velocity with the current velocity plus the system acceleration
         v_particle = current_velocity(v_particle_system, system, particle)
         for i in 1:ndims(system)
@@ -318,7 +318,7 @@ end
 function initialize_pressure(system, semi)
     (; pressure) = system
     # Set initial pressure (p_0) to a half of the current pressure value
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         pressure[particle] = pressure[particle] / 2
     end
 end
