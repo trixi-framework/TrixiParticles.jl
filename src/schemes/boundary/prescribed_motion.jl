@@ -38,6 +38,24 @@ struct PrescribedMotion{MF, IM, MP}
     moving_particles  :: MP # Vector{Int}
 end
 
+function initialize!(prescribed_motion::PrescribedMotion, initial_condition)
+    # Test `movement_function` return type`
+    pos = extract_svector(initial_condition.coordinates,
+                          Val(size(initial_condition.coordinates, 1)), 1)
+    if !(prescribed_motion.movement_function(pos, 0.0) isa SVector)
+        @warn "Return value of `movement_function` is not of type `SVector`. " *
+              "Returning regular `Vector`s causes allocations and significant performance overhead."
+    end
+
+    # Empty `moving_particles` means all particles are moving
+    if isempty(prescribed_motion.moving_particles)
+        # Default is an empty vector, since the number of particles is not known when
+        # instantiating `PrescribedMotion`.
+        resize!(prescribed_motion.moving_particles, nparticles(initial_condition))
+        prescribed_motion.moving_particles .= collect(1:nparticles(initial_condition))
+    end
+end
+
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
