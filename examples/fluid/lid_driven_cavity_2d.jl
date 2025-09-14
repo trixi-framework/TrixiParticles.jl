@@ -98,9 +98,9 @@ boundary_model_lid = BoundaryModelDummyParticles(lid.density, lid.mass,
                                                  state_equation=state_equation,
                                                  smoothing_kernel, smoothing_length)
 
-boundary_system_cavity = BoundarySPHSystem(cavity.boundary, boundary_model_cavity)
+boundary_system_cavity = WallBoundarySystem(cavity.boundary, boundary_model_cavity)
 
-boundary_system_lid = BoundarySPHSystem(lid, boundary_model_lid, movement=lid_movement)
+boundary_system_lid = WallBoundarySystem(lid, boundary_model_lid, movement=lid_movement)
 
 # ==========================================================================================
 # ==== Simulation

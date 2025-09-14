@@ -1,4 +1,4 @@
-@testset verbose=true "BoundarySPHSystem" begin
+@testset verbose=true "WallBoundarySystem" begin
     coordinates_ = [
         [1.0 2.0
          1.0 2.0],
@@ -16,10 +16,10 @@
             initial_condition = InitialCondition(; coordinates, mass, density)
             model = Val(:boundary_model)
 
-            system = BoundarySPHSystem(initial_condition, model)
+            system = WallBoundarySystem(initial_condition, model)
             TrixiParticles.update_positions!(system, 0, 0, 0, 0, 0, 0.0)
 
-            @test system isa BoundarySPHSystem
+            @test system isa WallBoundarySystem
             @test ndims(system) == NDIMS
             @test system.coordinates == coordinates
             @test system.boundary_model == model
@@ -46,7 +46,7 @@
 
             is_moving(t) = t < 1.0
             bm = PrescribedMotion(movement_function, is_moving)
-            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+            system = WallBoundarySystem(initial_condition, model, movement=bm)
 
             # Moving
             t = 0.6
@@ -80,7 +80,7 @@
             initial_condition = InitialCondition(; coordinates, mass, density)
 
             bm = PrescribedMotion(movement_function, is_moving, moving_particles=[2])
-            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+            system = WallBoundarySystem(initial_condition, model, movement=bm)
 
             t = 0.1
             # semi is only passed to `@threaded`
@@ -111,14 +111,14 @@
         initial_condition = InitialCondition(; coordinates, mass, density)
         model = (; hydrodynamic_mass=3)
 
-        system = BoundarySPHSystem(initial_condition, model)
+        system = WallBoundarySystem(initial_condition, model)
 
-        show_compact = "BoundarySPHSystem{2}((hydrodynamic_mass = 3,), nothing, 0.0, 0) with 2 particles"
+        show_compact = "WallBoundarySystem{2}((hydrodynamic_mass = 3,), nothing, 0.0, 0) with 2 particles"
         @test repr(system) == show_compact
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ BoundarySPHSystem{2}                                                                             │
+        │ WallBoundarySystem{2}                                                                             │
         │ ════════════════════                                                                             │
         │ #particles: ………………………………………………… 2                                                                │
         │ boundary model: ……………………………………… (hydrodynamic_mass = 3,)                                         │

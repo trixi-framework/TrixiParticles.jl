@@ -133,7 +133,7 @@ outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        reference_velocity=reference_velocity_out,
                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)
 
-open_boundary = OpenBoundarySPHSystem(inflow, outflow; fluid_system,
+open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
                                       boundary_model=open_boundary_model,
                                       buffer_size=n_buffer_particles)
 
@@ -147,7 +147,7 @@ boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
                                              viscosity=viscosity_boundary,
                                              smoothing_kernel, smoothing_length)
 
-boundary_system = BoundarySPHSystem(wall, boundary_model)
+boundary_system = WallBoundarySystem(wall, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

@@ -21,7 +21,7 @@
                                                  AdamiPressureExtrapolation(),
                                                  smoothing_kernel, smoothing_length)
 
-    boundary_system = BoundarySPHSystem(initial_condition, boundary_model)
+    boundary_system = WallBoundarySystem(initial_condition, boundary_model)
 
     semi = Semidiscretization(fluid_system, boundary_system)
 

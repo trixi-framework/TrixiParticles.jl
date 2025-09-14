@@ -4,7 +4,7 @@ include("fluid/fluid.jl")
 include("boundary/boundary.jl")
 include("structure/total_lagrangian_sph/total_lagrangian_sph.jl")
 include("structure/discrete_element_method/discrete_element_method.jl")
-# Monaghan-Kajtar repulsive boundary particles require the `BoundarySPHSystem`
+# Monaghan-Kajtar repulsive boundary particles require the `WallBoundarySystem`
 # and the `TotalLagrangianSPHSystem`.
 include("boundary/monaghan_kajtar/monaghan_kajtar.jl")
 

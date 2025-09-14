@@ -1,7 +1,7 @@
 @doc raw"""
     BoundaryModelCharacteristicsLastiwka(; extrapolate_reference_values=nothing)
 
-Boundary model for [`OpenBoundarySPHSystem`](@ref).
+Boundary model for [`OpenBoundarySystem`](@ref).
 This model uses the characteristic variables to propagate the appropriate values
 to the outlet or inlet and was proposed by Lastiwka et al. (2009).
 It requires a specific flow direction to be passed to the [`BoundaryZone`](@ref).

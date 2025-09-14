@@ -60,7 +60,7 @@
                                   average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
-            open_boundary = OpenBoundarySPHSystem(inflow; fluid_system,
+            open_boundary = OpenBoundarySystem(inflow; fluid_system,
                                                   boundary_model=BoundaryModelMirroringTafuni(),
                                                   buffer_size=0)
 
@@ -156,7 +156,7 @@
                                   average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
-            open_boundary = OpenBoundarySPHSystem(inflow; fluid_system,
+            open_boundary = OpenBoundarySystem(inflow; fluid_system,
                                                   boundary_model=BoundaryModelMirroringTafuni(),
                                                   buffer_size=0)
 
@@ -228,7 +228,7 @@
                               plane_normal=(i == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]),
                               open_boundary_layers=open_boundary_layers, density=1000.0,
                               particle_spacing, average_inflow_velocity=true)
-        open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
+        open_boundary_in = OpenBoundarySystem(inflow; fluid_system,
                                                  boundary_model=BoundaryModelMirroringTafuni(),
                                                  buffer_size=0)
 
@@ -280,7 +280,7 @@
                                    plane_normal=[-1.0, 0.0],
                                    open_boundary_layers=10, density=1000.0,
                                    particle_spacing)
-            open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
+            open_boundary_out = OpenBoundarySystem(outflow; fluid_system,
                                                       boundary_model=BoundaryModelMirroringTafuni(),
                                                       buffer_size=0)
 
@@ -304,7 +304,7 @@
             inflow = BoundaryZone(; plane=plane_in, boundary_type=InFlow(),
                                   plane_normal=[1.0, 0.0],
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
-            open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
+            open_boundary_in = OpenBoundarySystem(inflow; fluid_system,
                                                      boundary_model=BoundaryModelMirroringTafuni(),
                                                      buffer_size=0)
 
