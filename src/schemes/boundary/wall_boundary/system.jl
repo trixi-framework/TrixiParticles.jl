@@ -47,7 +47,6 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
     cache = create_cache_boundary(prescribed_motion, initial_condition)
     cache = (cache..., color=Int(color_value))
 
-    # Because of dispatches boundary model needs to be first!
     return WallBoundarySystem(initial_condition, coordinates, model, prescribed_motion,
                               ismoving, adhesion_coefficient, cache)
 end
@@ -127,7 +126,8 @@ end
     return current_acceleration(system, system.prescribed_motion, particle)
 end
 
-@inline function current_acceleration(system, ::PrescribedMotion, particle)
+@inline function current_acceleration(system::WallBoundarySystem, ::PrescribedMotion,
+                                      particle)
     (; cache, ismoving) = system
 
     if ismoving[]
@@ -137,7 +137,7 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_acceleration(system, ::Nothing, particle)
+@inline function current_acceleration(system::WallBoundarySystem, ::Nothing, particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
