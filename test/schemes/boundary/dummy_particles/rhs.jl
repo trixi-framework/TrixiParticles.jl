@@ -48,7 +48,7 @@
                                                                  smoothing_kernel,
                                                                  smoothing_length)
             boundary_system_zeroing = WallBoundarySystem(initial_condition,
-                                                        boundary_model_zeroing)
+                                                         boundary_model_zeroing)
             boundary_model_continuity = BoundaryModelDummyParticles(initial_condition.density,
                                                                     initial_condition.mass,
                                                                     ContinuityDensity(),
@@ -57,7 +57,7 @@
             # Overwrite `boundary_model_continuity.pressure` because we skip the update step
             boundary_model_continuity.pressure .= initial_condition.pressure
             boundary_system_continuity = WallBoundarySystem(initial_condition,
-                                                           boundary_model_continuity)
+                                                            boundary_model_continuity)
 
             boundary_model_summation = BoundaryModelDummyParticles(initial_condition.density,
                                                                    initial_condition.mass,
@@ -69,7 +69,7 @@
             # Density is stored in the cache
             boundary_model_summation.cache.density .= initial_condition.density
             boundary_system_summation = WallBoundarySystem(initial_condition,
-                                                          boundary_model_summation)
+                                                           boundary_model_summation)
 
             u_boundary = zeros(0, TrixiParticles.nparticles(initial_condition))
             v_boundary = zeros(0, TrixiParticles.nparticles(initial_condition))

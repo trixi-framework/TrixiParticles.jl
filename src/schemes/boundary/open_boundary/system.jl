@@ -17,7 +17,7 @@ Open boundary system for in- and outflow particles.
     This is an experimental feature and may change in any future releases.
 """
 struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZI, BZ,
-                             B, C} <: AbstractSystem{NDIMS}
+                          B, C} <: AbstractSystem{NDIMS}
     boundary_model        :: BM
     initial_condition     :: IC
     fluid_system          :: FS
@@ -36,25 +36,25 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZI, 
 end
 
 function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
-                               fluid_system_index, smoothing_length, mass, density, volume,
-                               pressure, boundary_candidates, fluid_candidates,
-                               boundary_zone_indices, boundary_zone, buffer, cache)
+                            fluid_system_index, smoothing_length, mass, density, volume,
+                            pressure, boundary_candidates, fluid_candidates,
+                            boundary_zone_indices, boundary_zone, buffer, cache)
     OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
-                          typeof(initial_condition), typeof(fluid_system),
-                          typeof(fluid_system_index), typeof(mass),
-                          typeof(boundary_candidates), typeof(fluid_candidates),
-                          typeof(boundary_zone_indices), typeof(boundary_zone),
-                          typeof(buffer),
-                          typeof(cache)}(boundary_model, initial_condition, fluid_system,
-                                         fluid_system_index, smoothing_length, mass,
-                                         density, volume, pressure, boundary_candidates,
-                                         fluid_candidates, boundary_zone_indices,
-                                         boundary_zone, buffer, cache)
+                       typeof(initial_condition), typeof(fluid_system),
+                       typeof(fluid_system_index), typeof(mass),
+                       typeof(boundary_candidates), typeof(fluid_candidates),
+                       typeof(boundary_zone_indices), typeof(boundary_zone),
+                       typeof(buffer),
+                       typeof(cache)}(boundary_model, initial_condition, fluid_system,
+                                      fluid_system_index, smoothing_length, mass,
+                                      density, volume, pressure, boundary_candidates,
+                                      fluid_candidates, boundary_zone_indices,
+                                      boundary_zone, buffer, cache)
 end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
-                               fluid_system::AbstractFluidSystem, buffer_size::Integer,
-                               boundary_model)
+                            fluid_system::AbstractFluidSystem, buffer_size::Integer,
+                            boundary_model)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
     reference_values_ = map(bz -> bz.reference_values, boundary_zones_)
 
@@ -98,9 +98,9 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                              boundary_zones)
 
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
-                                 fluid_system_index, smoothing_length, mass, density,
-                                 volume, pressure, boundary_candidates, fluid_candidates,
-                                 boundary_zone_indices, boundary_zones_new, buffer, cache)
+                              fluid_system_index, smoothing_length, mass, density,
+                              volume, pressure, boundary_candidates, fluid_candidates,
+                              boundary_zone_indices, boundary_zones_new, buffer, cache)
 end
 
 function initialize!(system::OpenBoundarySystem, semi)

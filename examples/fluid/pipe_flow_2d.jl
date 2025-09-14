@@ -134,8 +134,8 @@ outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)
 
 open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
-                                      boundary_model=open_boundary_model,
-                                      buffer_size=n_buffer_particles)
+                                   boundary_model=open_boundary_model,
+                                   buffer_size=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Boundary

@@ -178,7 +178,8 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem, WallBoundarySystem},
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem,
+                                               WallBoundarySystem},
                                  neighbor)
     return compact_support(system, system.boundary_model, neighbor)
 end
@@ -1005,18 +1006,18 @@ function set_system_links(system::OpenBoundarySystem, semi)
     fluid_system = semi.systems[system.fluid_system_index[]]
 
     return OpenBoundarySystem(system.boundary_model,
-                                 system.initial_condition,
-                                 fluid_system, # link to fluid system
-                                 system.fluid_system_index,
-                                 system.smoothing_length,
-                                 system.mass,
-                                 system.density,
-                                 system.volume,
-                                 system.pressure,
-                                 system.boundary_candidates,
-                                 system.fluid_candidates,
-                                 system.boundary_zone_indices,
-                                 system.boundary_zones,
-                                 system.buffer,
-                                 system.cache)
+                              system.initial_condition,
+                              fluid_system, # link to fluid system
+                              system.fluid_system_index,
+                              system.smoothing_length,
+                              system.mass,
+                              system.density,
+                              system.volume,
+                              system.pressure,
+                              system.boundary_candidates,
+                              system.fluid_candidates,
+                              system.boundary_zone_indices,
+                              system.boundary_zones,
+                              system.buffer,
+                              system.cache)
 end

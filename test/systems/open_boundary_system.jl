@@ -10,8 +10,8 @@
                               plane_normal=(1.0, 0.0), density=1.0,
                               open_boundary_layers=4, boundary_type=InFlow())
         system = OpenBoundarySystem(inflow; buffer_size=0,
-                                       boundary_model=BoundaryModelCharacteristicsLastiwka(),
-                                       fluid_system=FluidSystemMock2())
+                                    boundary_model=BoundaryModelCharacteristicsLastiwka(),
+                                    fluid_system=FluidSystemMock2())
 
         show_compact = "OpenBoundarySystem{2}() with 80 particles"
         @test repr(system) == show_compact
@@ -32,8 +32,8 @@
                                plane_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
                                boundary_type=OutFlow())
         system = OpenBoundarySystem(outflow; buffer_size=0,
-                                       boundary_model=BoundaryModelMirroringTafuni(),
-                                       fluid_system=FluidSystemMock2())
+                                    boundary_model=BoundaryModelMirroringTafuni(),
+                                    fluid_system=FluidSystemMock2())
 
         show_compact = "OpenBoundarySystem{2}() with 80 particles"
         @test repr(system) == show_compact
@@ -51,8 +51,8 @@
         @test repr("text/plain", system) == show_box
 
         system = OpenBoundarySystem(outflow, inflow; buffer_size=0,
-                                       boundary_model=BoundaryModelMirroringTafuni(),
-                                       fluid_system=FluidSystemMock2())
+                                    boundary_model=BoundaryModelMirroringTafuni(),
+                                    fluid_system=FluidSystemMock2())
 
         show_compact = "OpenBoundarySystem{2}() with 160 particles"
         @test repr(system) == show_compact

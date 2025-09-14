@@ -61,8 +61,8 @@
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
             open_boundary = OpenBoundarySystem(inflow; fluid_system,
-                                                  boundary_model=BoundaryModelMirroringTafuni(),
-                                                  buffer_size=0)
+                                               boundary_model=BoundaryModelMirroringTafuni(),
+                                               buffer_size=0)
 
             semi = Semidiscretization(fluid_system, open_boundary)
             TrixiParticles.initialize_neighborhood_searches!(semi)
@@ -157,8 +157,8 @@
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
             open_boundary = OpenBoundarySystem(inflow; fluid_system,
-                                                  boundary_model=BoundaryModelMirroringTafuni(),
-                                                  buffer_size=0)
+                                               boundary_model=BoundaryModelMirroringTafuni(),
+                                               buffer_size=0)
 
             semi = Semidiscretization(fluid_system, open_boundary)
             TrixiParticles.initialize_neighborhood_searches!(semi)
@@ -229,8 +229,8 @@
                               open_boundary_layers=open_boundary_layers, density=1000.0,
                               particle_spacing, average_inflow_velocity=true)
         open_boundary_in = OpenBoundarySystem(inflow; fluid_system,
-                                                 boundary_model=BoundaryModelMirroringTafuni(),
-                                                 buffer_size=0)
+                                              boundary_model=BoundaryModelMirroringTafuni(),
+                                              buffer_size=0)
 
         semi = Semidiscretization(fluid_system, open_boundary_in)
         TrixiParticles.initialize_neighborhood_searches!(semi)
@@ -281,8 +281,8 @@
                                    open_boundary_layers=10, density=1000.0,
                                    particle_spacing)
             open_boundary_out = OpenBoundarySystem(outflow; fluid_system,
-                                                      boundary_model=BoundaryModelMirroringTafuni(),
-                                                      buffer_size=0)
+                                                   boundary_model=BoundaryModelMirroringTafuni(),
+                                                   buffer_size=0)
 
             # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_out)
@@ -305,8 +305,8 @@
                                   plane_normal=[1.0, 0.0],
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
             open_boundary_in = OpenBoundarySystem(inflow; fluid_system,
-                                                     boundary_model=BoundaryModelMirroringTafuni(),
-                                                     buffer_size=0)
+                                                  boundary_model=BoundaryModelMirroringTafuni(),
+                                                  buffer_size=0)
 
             # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_in)

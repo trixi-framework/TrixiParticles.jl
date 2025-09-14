@@ -85,7 +85,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              reference_particle_spacing=fluid_particle_spacing)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
-                                    adhesion_coefficient=1.0)
+                                     adhesion_coefficient=1.0)
 
 # ==========================================================================================
 # ==== Simulation

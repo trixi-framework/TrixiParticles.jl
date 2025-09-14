@@ -14,7 +14,7 @@ The interaction between fluid and boundary particles is specified by the boundar
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
 struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
-                         CA} <: AbstractBoundarySystem{NDIMS}
+                          CA} <: AbstractBoundarySystem{NDIMS}
     initial_condition    :: IC
     coordinates          :: CO # Array{ELTYPE, 2}
     boundary_model       :: BM
@@ -27,7 +27,7 @@ struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function WallBoundarySystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, cache, buffer)
+                                ismoving, adhesion_coefficient, cache, buffer)
         ELTYPE = eltype(coordinates)
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
@@ -38,7 +38,7 @@ struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
 end
 
 function WallBoundarySystem(initial_condition, model; movement=nothing,
-                           adhesion_coefficient=0.0, color_value=0)
+                            adhesion_coefficient=0.0, color_value=0)
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(movement))
@@ -55,7 +55,7 @@ function WallBoundarySystem(initial_condition, model; movement=nothing,
 
     # Because of dispatches boundary model needs to be first!
     return WallBoundarySystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, cache, nothing)
+                              ismoving, adhesion_coefficient, cache, nothing)
 end
 
 function Base.show(io::IO, system::WallBoundarySystem)
@@ -262,7 +262,8 @@ end
 @inline v_nvariables(system::WallBoundarySystem) = 1
 @inline v_nvariables(system::BoundaryDEMSystem) = 0
 
-@inline function current_coordinates(u, system::Union{WallBoundarySystem, BoundaryDEMSystem})
+@inline function current_coordinates(u,
+                                     system::Union{WallBoundarySystem, BoundaryDEMSystem})
     return system.coordinates
 end
 
