@@ -139,7 +139,7 @@
               5.0 6.0]
         v2 = zeros(4 * 3)
         v_ode = vcat(vec(v1), v2)
-        
+
         TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi, 0.0)
 
         dv1 = TrixiParticles.wrap_v(dv_ode, system1, semi)

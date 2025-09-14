@@ -59,7 +59,7 @@ function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractFlui
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                                                                       pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = current_density(v_neighbor_system,
                                            neighbor_system, neighbor)

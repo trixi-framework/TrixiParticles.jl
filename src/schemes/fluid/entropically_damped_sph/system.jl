@@ -345,8 +345,10 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
-                               points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             pressure_average[particle] += current_pressure(v_neighbor_system,
                                                            neighbor_system, neighbor)
             neighbor_counter[particle] += 1

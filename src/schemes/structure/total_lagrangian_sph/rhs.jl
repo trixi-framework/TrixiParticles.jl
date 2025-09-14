@@ -20,8 +20,8 @@ end
     # For structure-structure interaction, this has to happen in the initial coordinates.
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
-                                                                   initial_pos_diff,
-                                                                   initial_distance
+                                                                       initial_pos_diff,
+                                                                       initial_distance
         # Only consider particles with a distance > 0
         initial_distance < sqrt(eps()) && return
 
@@ -77,9 +77,9 @@ function interact!(dv, v_particle_system, u_particle_system,
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
                            points=each_integrated_particle(particle_system)) do particle,
-                                                                            neighbor,
-                                                                            pos_diff,
-                                                                            distance
+                                                                                neighbor,
+                                                                                pos_diff,
+                                                                                distance
         # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 

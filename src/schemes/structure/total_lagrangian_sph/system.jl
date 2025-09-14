@@ -59,26 +59,26 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 YM, PR, LL, LM, K, PF, V,
                                 ST} <: AbstractStructureSystem{NDIMS}
-    initial_condition   :: IC
-    initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
-    current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
-    mass                :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    correction_matrix   :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    pk1_corrected       :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    deformation_grad    :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    material_density    :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    n_integrated_particles  :: Int64
-    young_modulus       :: YM
-    poisson_ratio       :: PR
-    lame_lambda         :: LL
-    lame_mu             :: LM
-    smoothing_kernel    :: K
-    smoothing_length    :: ELTYPE
-    acceleration        :: SVector{NDIMS, ELTYPE}
-    boundary_model      :: BM
-    penalty_force       :: PF
-    viscosity           :: V
-    source_terms        :: ST
+    initial_condition      :: IC
+    initial_coordinates    :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    current_coordinates    :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    mass                   :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    correction_matrix      :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    pk1_corrected          :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    deformation_grad       :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    material_density       :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    n_integrated_particles :: Int64
+    young_modulus          :: YM
+    poisson_ratio          :: PR
+    lame_lambda            :: LL
+    lame_mu                :: LM
+    smoothing_kernel       :: K
+    smoothing_length       :: ELTYPE
+    acceleration           :: SVector{NDIMS, ELTYPE}
+    boundary_model         :: BM
+    penalty_force          :: PF
+    viscosity              :: V
+    source_terms           :: ST
 end
 
 function TotalLagrangianSPHSystem(initial_condition,

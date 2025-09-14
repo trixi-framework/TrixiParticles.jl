@@ -34,7 +34,9 @@ vtkname(system::AbstractBoundarySystem) = "boundary"
 
 # Wrapper for systems with `SystemBuffer`
 @inline each_integrated_particle(system) = each_integrated_particle(system, buffer(system))
-@inline each_integrated_particle(system, ::Nothing) = Base.OneTo(n_integrated_particles(system))
+@inline function each_integrated_particle(system, ::Nothing)
+    return Base.OneTo(n_integrated_particles(system))
+end
 
 @inline active_coordinates(u, system) = active_coordinates(u, system, buffer(system))
 @inline active_coordinates(u, system, ::Nothing) = current_coordinates(u, system)

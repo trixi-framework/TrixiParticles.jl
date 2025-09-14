@@ -9,7 +9,8 @@ function kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     # TODO: `current_velocity` should only contain active particles
     # (see https://github.com/trixi-framework/TrixiParticles.jl/issues/850)
     velocity = reinterpret(reshape, SVector{ndims(system), eltype(v)},
-                           view(current_velocity(v, system), :, each_active_particle(system)))
+                           view(current_velocity(v, system), :,
+                                each_active_particle(system)))
     mass = view(system.mass, each_active_particle(system))
 
     return mapreduce(+, velocity, mass) do v_i, m_i

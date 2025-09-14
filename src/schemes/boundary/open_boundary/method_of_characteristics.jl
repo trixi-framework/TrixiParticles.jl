@@ -125,7 +125,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, fluid_system, system_coords, fluid_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                                                                       pos_diff, distance
         boundary_zone = current_boundary_zone(system, particle)
         (; flow_direction) = boundary_zone
 

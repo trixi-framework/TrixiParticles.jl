@@ -410,7 +410,8 @@ end
 
     range = ranges_v[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) == v_nvariables(system) * n_integrated_particles(system)
+    @boundscheck @assert length(range) ==
+                         v_nvariables(system) * n_integrated_particles(system)
 
     return wrap_array(v_ode, range,
                       (StaticInt(v_nvariables(system)), n_integrated_particles(system)))
@@ -421,7 +422,8 @@ end
 
     range = ranges_u[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) == u_nvariables(system) * n_integrated_particles(system)
+    @boundscheck @assert length(range) ==
+                         u_nvariables(system) * n_integrated_particles(system)
 
     return wrap_array(u_ode, range,
                       (StaticInt(u_nvariables(system)), n_integrated_particles(system)))

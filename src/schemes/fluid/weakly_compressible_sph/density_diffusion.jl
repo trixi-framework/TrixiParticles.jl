@@ -184,7 +184,7 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
 
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                                                                       pos_diff, distance
         # Only consider particles with a distance > 0
         distance < sqrt(eps(typeof(distance))) && return
 
