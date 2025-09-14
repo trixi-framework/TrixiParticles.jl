@@ -100,7 +100,8 @@ boundary_model_lid = BoundaryModelDummyParticles(lid.density, lid.mass,
 
 boundary_system_cavity = WallBoundarySystem(cavity.boundary, boundary_model_cavity)
 
-boundary_system_lid = WallBoundarySystem(lid, boundary_model_lid, movement=lid_movement)
+boundary_system_lid = WallBoundarySystem(lid, boundary_model_lid,
+                                         prescribed_motion=lid_movement)
 
 # ==========================================================================================
 # ==== Simulation

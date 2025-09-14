@@ -125,7 +125,8 @@ boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
                                                   smoothing_kernel, smoothing_length)
 
 boundary_system_tank = WallBoundarySystem(tank.boundary, boundary_model_tank)
-boundary_system_gate = WallBoundarySystem(gate, boundary_model_gate, movement=gate_movement)
+boundary_system_gate = WallBoundarySystem(gate, boundary_model_gate,
+                                          prescribed_motion=gate_movement)
 
 # ==========================================================================================
 # ==== Structure
