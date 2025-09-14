@@ -413,7 +413,7 @@ end
 function update_boundary_zone_indices!(system, u, boundary_zones, semi)
     set_zero!(system.boundary_zone_indices)
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         particle_coords = current_coords(u, system, particle)
 
         for (zone_id, boundary_zone) in enumerate(boundary_zones)

@@ -13,8 +13,8 @@
     TrixiParticles.v_nvariables(::System2) = 2
     TrixiParticles.nparticles(::System1) = 2
     TrixiParticles.nparticles(::System2) = 3
-    TrixiParticles.n_moving_particles(::System1) = 2
-    TrixiParticles.n_moving_particles(::System2) = 3
+    TrixiParticles.n_integrated_particles(::System1) = 2
+    TrixiParticles.n_integrated_particles(::System2) = 3
 
     TrixiParticles.compact_support(::System1, neighbor) = 0.2
     TrixiParticles.compact_support(::System2, neighbor) = 0.2
@@ -139,10 +139,7 @@
               5.0 6.0]
         v2 = zeros(4 * 3)
         v_ode = vcat(vec(v1), v2)
-
-        # Avoid `SystemBuffer` barrier
-        TrixiParticles.each_moving_particle(system::Union{System1, System2}) = Base.OneTo(nparticles(system))
-
+        
         TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi, 0.0)
 
         dv1 = TrixiParticles.wrap_v(dv_ode, system1, semi)

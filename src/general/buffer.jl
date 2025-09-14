@@ -54,11 +54,11 @@ end
     return buffer
 end
 
-@inline each_moving_particle(system, buffer) = active_particles(system, buffer)
+@inline each_integrated_particle(system, buffer) = each_active_particle(system, buffer)
 
-@inline active_coordinates(u, system, buffer) = view(u, :, active_particles(system, buffer))
+@inline active_coordinates(u, system, buffer) = view(u, :, each_active_particle(system, buffer))
 
-@inline function active_particles(system, buffer)
+@inline function each_active_particle(system, buffer)
     return view(buffer.eachparticle, 1:buffer.active_particle_count[])
 end
 

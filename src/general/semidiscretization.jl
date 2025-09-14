@@ -79,11 +79,11 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
 
-    sizes_u = [u_nvariables(system) * n_moving_particles(system)
+    sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
     ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
                      for i in eachindex(sizes_u))
-    sizes_v = [v_nvariables(system) * n_moving_particles(system)
+    sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
@@ -288,8 +288,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
         Polyester.reset_threads!()
     end
 
-    sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
-    sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
+    sizes_u = (u_nvariables(system) * n_integrated_particles(system) for system in systems)
+    sizes_v = (v_nvariables(system) * n_integrated_particles(system) for system in systems)
 
     # Use either the specified backend, e.g., `CUDABackend` or `MetalBackend` or
     # use CPU vectors for all CPU backends.
@@ -396,7 +396,7 @@ function initialize_neighborhood_searches!(semi)
             PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
                                        initial_coordinates(system),
                                        initial_coordinates(neighbor),
-                                       eachindex_y=active_particles(neighbor))
+                                       eachindex_y=each_active_particle(neighbor))
         end
     end
 
@@ -410,10 +410,10 @@ end
 
     range = ranges_v[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
+    @boundscheck @assert length(range) == v_nvariables(system) * n_integrated_particles(system)
 
     return wrap_array(v_ode, range,
-                      (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+                      (StaticInt(v_nvariables(system)), n_integrated_particles(system)))
 end
 
 @inline function wrap_u(u_ode, system, semi)
@@ -421,10 +421,10 @@ end
 
     range = ranges_u[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
+    @boundscheck @assert length(range) == u_nvariables(system) * n_integrated_particles(system)
 
     return wrap_array(u_ode, range,
-                      (StaticInt(u_nvariables(system)), n_moving_particles(system)))
+                      (StaticInt(u_nvariables(system)), n_integrated_particles(system)))
 end
 
 @inline function wrap_array(array::Array, range, size)
@@ -462,7 +462,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                 du = wrap_u(du_ode, system, semi)
                 v = wrap_v(v_ode, system, semi)
 
-                @threaded semi for particle in each_moving_particle(system)
+                @threaded semi for particle in each_integrated_particle(system)
                     # This can be dispatched per system
                     add_velocity!(du, v, particle, system)
                 end
@@ -588,7 +588,7 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        @threaded semi for particle in each_moving_particle(system)
+        @threaded semi for particle in each_integrated_particle(system)
             # Dispatch by system type to exclude boundary systems
             add_acceleration!(dv, particle, system)
             add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
@@ -717,7 +717,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -740,7 +740,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -753,7 +753,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -777,7 +777,7 @@ function update_nhs!(neighborhood_search,
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=active_particles(neighbor))
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
 end
 
 function update_nhs!(neighborhood_search,
@@ -813,7 +813,7 @@ function update_nhs!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
             semi, points_moving=(system.ismoving[], true),
-            eachindex_y=active_particles(neighbor))
+            eachindex_y=each_active_particle(neighbor))
 end
 
 # This function is the same as the one above to avoid ambiguous dispatch when using `Union`

@@ -27,20 +27,20 @@ vtkname(system::AbstractBoundarySystem) = "boundary"
 @inline nparticles(system) = length(system.mass)
 
 # Number of particles in the system whose positions are to be integrated (corresponds to the size of u and du)
-@inline n_moving_particles(system) = nparticles(system)
+@inline n_integrated_particles(system) = nparticles(system)
 
-@inline eachparticle(system::AbstractSystem) = active_particles(system)
+@inline eachparticle(system::AbstractSystem) = each_active_particle(system)
 @inline eachparticle(initial_condition) = Base.OneTo(nparticles(initial_condition))
 
 # Wrapper for systems with `SystemBuffer`
-@inline each_moving_particle(system) = each_moving_particle(system, buffer(system))
-@inline each_moving_particle(system, ::Nothing) = Base.OneTo(n_moving_particles(system))
+@inline each_integrated_particle(system) = each_integrated_particle(system, buffer(system))
+@inline each_integrated_particle(system, ::Nothing) = Base.OneTo(n_integrated_particles(system))
 
 @inline active_coordinates(u, system) = active_coordinates(u, system, buffer(system))
 @inline active_coordinates(u, system, ::Nothing) = current_coordinates(u, system)
 
-@inline active_particles(system) = active_particles(system, buffer(system))
-@inline active_particles(system, ::Nothing) = Base.OneTo(nparticles(system))
+@inline each_active_particle(system) = each_active_particle(system, buffer(system))
+@inline each_active_particle(system, ::Nothing) = Base.OneTo(nparticles(system))
 
 @inline function set_zero!(du)
     du .= zero(eltype(du))

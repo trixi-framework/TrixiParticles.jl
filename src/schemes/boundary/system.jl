@@ -247,11 +247,11 @@ end
 
 # No particle positions are advanced for boundary systems,
 # except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
-@inline function n_moving_particles(system::Union{WallBoundarySystem, BoundaryDEMSystem})
+@inline function n_integrated_particles(system::Union{WallBoundarySystem, BoundaryDEMSystem})
     return 0
 end
 
-@inline function n_moving_particles(system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+@inline function n_integrated_particles(system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return nparticles(system)
 end
 

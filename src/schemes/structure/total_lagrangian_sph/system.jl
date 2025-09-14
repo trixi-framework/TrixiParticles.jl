@@ -67,7 +67,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     pk1_corrected       :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
     deformation_grad    :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
     material_density    :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    n_moving_particles  :: Int64
+    n_integrated_particles  :: Int64
     young_modulus       :: YM
     poisson_ratio       :: PR
     lame_lambda         :: LL
@@ -111,7 +111,7 @@ function TotalLagrangianSPHSystem(initial_condition,
     pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
 
-    n_moving_particles = n_particles - n_clamped_particles
+    n_integrated_particles = n_particles - n_clamped_particles
 
     lame_lambda = @. young_modulus * poisson_ratio /
                      ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
@@ -120,7 +120,7 @@ function TotalLagrangianSPHSystem(initial_condition,
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
                                     pk1_corrected, deformation_grad, material_density,
-                                    n_moving_particles, young_modulus, poisson_ratio,
+                                    n_integrated_particles, young_modulus, poisson_ratio,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms)
@@ -154,7 +154,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
     if get(io, :compact, false)
         show(io, system)
     else
-        n_clamped_particles = nparticles(system) - n_moving_particles(system)
+        n_clamped_particles = nparticles(system) - n_integrated_particles(system)
 
         summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
         summary_line(io, "total #particles", nparticles(system))
@@ -182,8 +182,8 @@ end
     return ndims(system) + 1
 end
 
-@inline function n_moving_particles(system::TotalLagrangianSPHSystem)
-    system.n_moving_particles
+@inline function n_integrated_particles(system::TotalLagrangianSPHSystem)
+    system.n_integrated_particles
 end
 
 @inline initial_coordinates(system::TotalLagrangianSPHSystem) = system.initial_coordinates
@@ -200,7 +200,7 @@ end
 end
 
 @inline function current_velocity(v, system::TotalLagrangianSPHSystem, particle)
-    if particle > n_moving_particles(system)
+    if particle > n_integrated_particles(system)
         return zero(SVector{ndims(system), eltype(system)})
     end
 
@@ -279,7 +279,7 @@ function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode,
 
     # `current_coordinates` stores the coordinates of both integrated and clamped particles.
     # Copy the coordinates of the integrated particles from `u`.
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
             current_coordinates[i, particle] = u[i, particle]
         end
@@ -381,7 +381,7 @@ function write_u0!(u0, system::TotalLagrangianSPHSystem)
     (; initial_condition) = system
 
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
-    indices = CartesianIndices((ndims(system), each_moving_particle(system)))
+    indices = CartesianIndices((ndims(system), each_integrated_particle(system)))
     copyto!(u0, indices, initial_condition.coordinates, indices)
 
     return u0
@@ -391,7 +391,7 @@ function write_v0!(v0, system::TotalLagrangianSPHSystem)
     (; initial_condition, boundary_model) = system
 
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
-    indices = CartesianIndices((ndims(system), each_moving_particle(system)))
+    indices = CartesianIndices((ndims(system), each_integrated_particle(system)))
     copyto!(v0, indices, initial_condition.velocity, indices)
 
     write_v0!(v0, boundary_model, system)
@@ -408,7 +408,7 @@ function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
-    for particle in each_moving_particle(system)
+    for particle in each_integrated_particle(system)
         # Set particle densities
         v0[ndims(system) + 1, particle] = initial_density[particle]
     end
@@ -417,7 +417,7 @@ function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
 end
 
 function restart_with!(system::TotalLagrangianSPHSystem, v, u)
-    for particle in each_moving_particle(system)
+    for particle in each_integrated_particle(system)
         system.current_coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
     end
@@ -435,7 +435,7 @@ function von_mises_stress(system)
     von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
 
     @threaded default_backend(von_mises_stress_vector) for particle in
-                                                           each_moving_particle(system)
+                                                           each_integrated_particle(system)
         von_mises_stress_vector[particle] = von_mises_stress(system, particle)
     end
 
@@ -469,7 +469,7 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
                                   nparticles(system))
 
     @threaded default_backend(cauchy_stress_tensors) for particle in
-                                                         each_moving_particle(system)
+                                                         each_integrated_particle(system)
         F = deformation_gradient(system, particle)
         J = det(F)
         P = pk1_corrected(system, particle)
