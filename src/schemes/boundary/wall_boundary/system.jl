@@ -92,7 +92,6 @@ end
 # For all other models and density calculators, it's irrelevant.
 @inline v_nvariables(system::WallBoundarySystem) = 1
 
-
 @inline function initial_coordinates(system::WallBoundarySystem)
     initial_coordinates(system::WallBoundarySystem, system.prescribed_motion)
 end
