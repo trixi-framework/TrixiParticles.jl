@@ -66,14 +66,13 @@ function initialize!(prescribed_motion::PrescribedMotion, initial_condition)
     end
 end
 
-function (prescribed_motion::PrescribedMotion)(system, t, semi)
-    (; coordinates, cache) = system
+function (prescribed_motion::PrescribedMotion)(coordinates, velocity, acceleration,
+                                               ismoving, system, semi, t)
     (; movement_function, is_moving, moving_particles) = prescribed_motion
-    (; acceleration, velocity) = cache
 
-    system.ismoving[] = is_moving(t)
+    ismoving[] = is_moving(t)
 
-    is_moving(t) || return system
+    is_moving(t) || return nothing
 
     @threaded semi for particle in moving_particles
         pos_original = initial_coords(system, particle)
@@ -90,11 +89,5 @@ function (prescribed_motion::PrescribedMotion)(system, t, semi)
         end
     end
 
-    return system
-end
-
-function (prescribed_motion::Nothing)(system::AbstractSystem, t, semi)
-    system.ismoving[] = false
-
-    return system
+    return nothing
 end

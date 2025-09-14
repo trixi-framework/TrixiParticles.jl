@@ -177,7 +177,21 @@ end
 function update_positions!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
     (; prescribed_motion) = system
 
-    prescribed_motion(system, t, semi)
+    apply_prescribed_motion!(system, prescribed_motion, semi, t)
+end
+
+function apply_prescribed_motion!(system::WallBoundarySystem,
+                                  prescribed_motion::PrescribedMotion, semi, t)
+    (; ismoving, coordinates, cache) = system
+    (; acceleration, velocity) = cache
+
+    prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+
+    return system
+end
+
+function apply_prescribed_motion!(system::WallBoundarySystem, ::Nothing, semi, t)
+    return system
 end
 
 function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)

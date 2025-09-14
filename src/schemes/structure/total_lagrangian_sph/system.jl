@@ -57,38 +57,41 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `clamped_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V,
-                                ST} <: AbstractStructureSystem{NDIMS}
-    initial_condition      :: IC
-    initial_coordinates    :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
-    current_coordinates    :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
-    mass                   :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    correction_matrix      :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    pk1_corrected          :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    deformation_grad       :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    material_density       :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    n_integrated_particles :: Int64
-    young_modulus          :: YM
-    poisson_ratio          :: PR
-    lame_lambda            :: LL
-    lame_mu                :: LM
-    smoothing_kernel       :: K
-    smoothing_length       :: ELTYPE
-    acceleration           :: SVector{NDIMS, ELTYPE}
-    boundary_model         :: BM
-    penalty_force          :: PF
-    viscosity              :: V
-    source_terms           :: ST
+                                YM, PR, LL, LM, K, PF, V, ST, M, IM,
+                                C} <: AbstractStructureSystem{NDIMS}
+    initial_condition   :: IC
+    initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    # `current_coordinates` contains `u` plus coordinates of the fixed particles
+    current_coordinates      :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    mass                     :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    correction_matrix        :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    pk1_corrected            :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    deformation_grad         :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    material_density         :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    n_integrated_particles   :: Int64
+    young_modulus            :: YM
+    poisson_ratio            :: PR
+    lame_lambda              :: LL
+    lame_mu                  :: LM
+    smoothing_kernel         :: K
+    smoothing_length         :: ELTYPE
+    acceleration             :: SVector{NDIMS, ELTYPE}
+    boundary_model           :: BM
+    penalty_force            :: PF
+    viscosity                :: V
+    source_terms             :: ST
+    clamped_particles_motion :: M
+    clamped_particles_moving :: IM
+    cache                    :: C
 end
 
-function TotalLagrangianSPHSystem(initial_condition,
-                                  smoothing_kernel, smoothing_length,
+function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
                                   n_clamped_particles=0, boundary_model=nothing,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
-                                  source_terms=nothing)
+                                  source_terms=nothing, clamped_particles_motion=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -117,13 +120,17 @@ function TotalLagrangianSPHSystem(initial_condition,
                      ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
     lame_mu = @. (young_modulus / 2) / (1 + poisson_ratio)
 
+    ismoving = Ref(!isnothing(clamped_particles_motion))
+    initialize!(clamped_particles_motion, initial_condition)
+
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
                                     pk1_corrected, deformation_grad, material_density,
                                     n_integrated_particles, young_modulus, poisson_ratio,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
-                                    penalty_force, viscosity, source_terms)
+                                    penalty_force, viscosity, source_terms,
+                                    clamped_particles_motion, ismoving)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
@@ -275,7 +282,7 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; current_coordinates) = system
+    (; current_coordinates, clamped_particles_motion) = system
 
     # `current_coordinates` stores the coordinates of both integrated and clamped particles.
     # Copy the coordinates of the integrated particles from `u`.
@@ -284,6 +291,23 @@ function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode,
             current_coordinates[i, particle] = u[i, particle]
         end
     end
+
+    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+end
+
+function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
+                                  prescribed_motion::PrescribedMotion, semi, t)
+    (; clamped_particles_moving, current_coordinates, cache) = system
+    (; acceleration, velocity) = cache
+
+    prescribed_motion(current_coordinates, velocity, acceleration, clamped_particles_moving,
+                      system, semi, t)
+
+    return system
+end
+
+function apply_prescribed_motion!(system::TotalLagrangianSPHSystem, ::Nothing, semi, t)
+    return system
 end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
