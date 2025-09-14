@@ -31,8 +31,8 @@ struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
             typeof(coordinates), typeof(prescribed_motion), typeof(ismoving),
-            typeof(cache)}(initial_condition, coordinates, boundary_model, prescribed_motion,
-                           ismoving, adhesion_coefficient, cache)
+            typeof(cache)}(initial_condition, coordinates, boundary_model,
+                           prescribed_motion, ismoving, adhesion_coefficient, cache)
     end
 end
 
