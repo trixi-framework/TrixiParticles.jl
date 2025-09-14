@@ -34,6 +34,25 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added consistent particle shifting by Sun et al. (2019) as `ConsistentShiftingSun2019` (#888).
 
+
+## Version 0.3.2
+### Features
+
+- **Open boundaries**:
+  - Averaging of the inflow velocities has been added as an option. (#833)
+  - New mirroring methods 0th order, 1st order and simple mirroring have been added. (#855)
+
+- **TLSPH**:
+  - The option to add artificial viscosity has been added to increase stability of FSI. (#869)
+
+
+### Important Bugfixes
+
+- Fix the coordinates used for TLSPH in Adami extrapolation (#853)
+- Fix PST for small smoothing length factors (#834)
+- The TVF model has been improved to integrate correctly with time stepping (#864) 
+
+
 ## Version 0.3.1
 
 ### Features
@@ -241,3 +260,4 @@ Features:
 #### TLSPH
 
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
+
