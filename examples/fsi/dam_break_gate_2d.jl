@@ -60,7 +60,7 @@ gate = RectangularShape(boundary_particle_spacing,
                         (initial_fluid_size[1], 0.0), density=fluid_density)
 
 # Movement of the gate according to the paper
-movement_function(t) = SVector(0.0, -285.115t^3 + 72.305t^2 + 0.1463t)
+movement_function(x, t) = x + SVector(0.0, -285.115 * t^3 + 72.305 * t^2 + 0.1463 * t)
 is_moving(t) = t < 0.1
 
 gate_movement = PrescribedMotion(movement_function, is_moving)
