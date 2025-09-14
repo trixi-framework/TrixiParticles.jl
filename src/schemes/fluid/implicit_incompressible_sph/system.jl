@@ -448,6 +448,7 @@ function calculate_sum_term_values(system, u, u_ode, semi, time_step)
         calculate_sum_term!(sum_term, system, neighbor_system,
                             pressure, u, u_ode, semi, time_step)
     end
+end
 
 function pressure_update(system, u, u_ode, semi, time_step)
     (; pressure, sum_term, reference_density, a_ii, omega) = system
@@ -475,30 +476,6 @@ function pressure_update(system, u, u_ode, semi, time_step)
     avg_density_error = sum(density_error) / nparticles(system)
 
     return avg_density_error
-end
-
-function calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
-    (; sum_d_ij_pj, pressure) = system
-    set_zero!(sum_d_ij_pj)
-
-    system_coords = current_coordinates(u, system)
-
-    foreach_point_neighbor(system, system, system_coords, system_coords,
-                           semi;
-                           points=each_moving_particle(system)) do particle,
-                                                                   neighbor,
-                                                                   pos_diff,
-                                                                   distance
-        # Calculate the sum d_ij * p_j over all neighbors j for each particle i (Ihmsen et al. 2013, eq. 13)
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-        p_b = pressure[neighbor]
-        d_ab = calculate_d_ij(system, neighbor, grad_kernel, time_step)
-        sum_dij_pj_ = d_ab * p_b
-
-        for i in 1:ndims(system)
-            sum_d_ij_pj[i, particle] += sum_dij_pj_[i]
-        end
-    end
 end
 
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
