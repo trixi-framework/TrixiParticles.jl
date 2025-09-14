@@ -9,7 +9,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `boundary_model`: Boundary model (see [Boundary Models](@ref boundary_models))
 
 # Keyword Arguments
-- `movement`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
+- `prescribed_motion`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
@@ -18,44 +18,43 @@ struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
     initial_condition    :: IC
     coordinates          :: CO # Array{ELTYPE, 2}
     boundary_model       :: BM
-    movement             :: M
+    prescribed_motion    :: M
     ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     adhesion_coefficient :: ELTYPE
     cache                :: CA
-    buffer               :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
-    function WallBoundarySystem(initial_condition, coordinates, boundary_model, movement,
-                                ismoving, adhesion_coefficient, cache, buffer)
+    function WallBoundarySystem(initial_condition, coordinates, boundary_model,
+                                prescribed_motion, ismoving, adhesion_coefficient, cache)
         ELTYPE = eltype(coordinates)
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
-            typeof(coordinates), typeof(movement), typeof(ismoving),
-            typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
-                           ismoving, adhesion_coefficient, cache, buffer)
+            typeof(coordinates), typeof(prescribed_motion), typeof(ismoving),
+            typeof(cache)}(initial_condition, coordinates, boundary_model, prescribed_motion,
+                           ismoving, adhesion_coefficient, cache)
     end
 end
 
-function WallBoundarySystem(initial_condition, model; movement=nothing,
+function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
                             adhesion_coefficient=0.0, color_value=0)
     coordinates = copy(initial_condition.coordinates)
 
-    ismoving = Ref(!isnothing(movement))
+    ismoving = Ref(!isnothing(prescribed_motion))
 
-    cache = create_cache_boundary(movement, initial_condition)
+    cache = create_cache_boundary(prescribed_motion, initial_condition)
     cache = (cache..., color=Int(color_value))
 
-    if movement !== nothing && isempty(movement.moving_particles)
+    if prescribed_motion !== nothing && isempty(prescribed_motion.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
         # instantiating `PrescribedMotion`.
-        resize!(movement.moving_particles, nparticles(initial_condition))
-        movement.moving_particles .= collect(1:nparticles(initial_condition))
+        resize!(prescribed_motion.moving_particles, nparticles(initial_condition))
+        prescribed_motion.moving_particles .= collect(1:nparticles(initial_condition))
     end
 
     # Because of dispatches boundary model needs to be first!
-    return WallBoundarySystem(initial_condition, coordinates, model, movement,
-                              ismoving, adhesion_coefficient, cache, nothing)
+    return WallBoundarySystem(initial_condition, coordinates, model, prescribed_motion,
+                              ismoving, adhesion_coefficient, cache)
 end
 
 function Base.show(io::IO, system::WallBoundarySystem)
@@ -63,7 +62,7 @@ function Base.show(io::IO, system::WallBoundarySystem)
 
     print(io, "WallBoundarySystem{", ndims(system), "}(")
     print(io, system.boundary_model)
-    print(io, ", ", system.movement)
+    print(io, ", ", system.prescribed_motion)
     print(io, ", ", system.adhesion_coefficient)
     print(io, ", ", system.cache.color)
     print(io, ") with ", nparticles(system), " particles")
@@ -79,8 +78,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::WallBoundarySystem)
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "boundary model", system.boundary_model)
         summary_line(io, "movement function",
-                     isnothing(system.movement) ? "nothing" :
-                     string(system.movement.movement_function))
+                     isnothing(system.prescribed_motion) ? "nothing" :
+                     string(system.prescribed_motion.movement_function))
         summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
         summary_line(io, "color", system.cache.color)
         summary_footer(io)
@@ -199,7 +198,7 @@ timer_name(::Union{WallBoundarySystem, BoundaryDEMSystem}) = "boundary"
 end
 
 @inline function initial_coordinates(system::WallBoundarySystem)
-    initial_coordinates(system::WallBoundarySystem, system.movement)
+    initial_coordinates(system::WallBoundarySystem, system.prescribed_motion)
 end
 
 @inline initial_coordinates(system::BoundaryDEMSystem) = system.coordinates
@@ -207,13 +206,13 @@ end
 @inline initial_coordinates(system::WallBoundarySystem, ::Nothing) = system.coordinates
 
 # We need static initial coordinates as reference when system is moving
-@inline function initial_coordinates(system::WallBoundarySystem, movement)
+@inline function initial_coordinates(system::WallBoundarySystem, prescribed_motion)
     return system.cache.initial_coordinates
 end
 
-function (movement::PrescribedMotion)(system, t, semi)
+function (prescribed_motion::PrescribedMotion)(system, t, semi)
     (; coordinates, cache) = system
-    (; movement_function, is_moving, moving_particles) = movement
+    (; movement_function, is_moving, moving_particles) = prescribed_motion
     (; acceleration, velocity) = cache
 
     system.ismoving[] = is_moving(t)
@@ -235,7 +234,7 @@ function (movement::PrescribedMotion)(system, t, semi)
     return system
 end
 
-function (movement::Nothing)(system::AbstractSystem, t, semi)
+function (prescribed_motion::Nothing)(system::AbstractSystem, t, semi)
     system.ismoving[] = false
 
     return system
