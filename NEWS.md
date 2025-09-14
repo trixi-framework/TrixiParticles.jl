@@ -13,7 +13,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Renamed `OpenBoundarySPHSystem` to `OpenBoundarySystem`.
 
-- Renamed `BoundaryMovement` to `PrescribedMotion`.
+- Renamed `BoundaryMovement` to `PrescribedMotion`. The `movement_function` must now be
+  a function of `(x, t)` returning the *new position* instead of an offset.
+  For example, `movement_function(t) = SVector(t, 0.0)` now needs to be
+  `movement_function(x, t) = x + SVector(t, 0.0)`.
 
 - Renamed directory `solid` to `structure` in the examples file tree.
   VTK files for the `TotalLagrangianSPHSystem` are now also called `structure_*`.
@@ -67,7 +70,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Fix the coordinates used for TLSPH in Adami extrapolation (#853)
 - Fix PST for small smoothing length factors (#834)
-- The TVF model has been improved to integrate correctly with time stepping (#864) 
+- The TVF model has been improved to integrate correctly with time stepping (#864)
 
 
 ## Version 0.3.1
@@ -277,4 +280,3 @@ Features:
 #### TLSPH
 
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
-
