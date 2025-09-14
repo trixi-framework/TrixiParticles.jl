@@ -114,7 +114,7 @@ function add_system_data!(system_data, system::WallBoundarySystem)
     system_data["particle_spacing"] = particle_spacing(system, 1)
     system_data["adhesion_coefficient"] = system.adhesion_coefficient
     add_system_data!(system_data, system.boundary_model)
-    add_system_data!(system_data, system.movement)
+    add_system_data!(system_data, system.prescribed_motion)
 end
 
 function add_system_data!(system_data, system::BoundaryDEMSystem)

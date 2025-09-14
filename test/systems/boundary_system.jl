@@ -23,7 +23,7 @@
             @test ndims(system) == NDIMS
             @test system.coordinates == coordinates
             @test system.boundary_model == model
-            @test system.movement === nothing
+            @test system.prescribed_motion === nothing
             @test system.ismoving[] == false
         end
     end
@@ -46,12 +46,12 @@
 
             is_moving(t) = t < 1.0
             bm = PrescribedMotion(movement_function, is_moving)
-            system = WallBoundarySystem(initial_condition, model, movement=bm)
+            system = WallBoundarySystem(initial_condition, model, prescribed_motion=bm)
 
             # Moving
             t = 0.6
             # semi is only passed to `@threaded`
-            system.movement(system, t, SerialBackend())
+            system.prescribed_motion(system, t, SerialBackend())
             if NDIMS == 2
                 new_coordinates = coordinates .+ [0.5 * t, 0.3 * t^2]
                 new_velocity = [0.5, 0.6 * t] .* ones(size(new_coordinates))
@@ -68,7 +68,7 @@
 
             # Stop moving
             t = 1.0
-            system.movement(system, t, false)
+            system.prescribed_motion(system, t, false)
 
             @test isapprox(new_coordinates, system.coordinates)
 
@@ -80,11 +80,11 @@
             initial_condition = InitialCondition(; coordinates, mass, density)
 
             bm = PrescribedMotion(movement_function, is_moving, moving_particles=[2])
-            system = WallBoundarySystem(initial_condition, model, movement=bm)
+            system = WallBoundarySystem(initial_condition, model, prescribed_motion=bm)
 
             t = 0.1
             # semi is only passed to `@threaded`
-            system.movement(system, t, SerialBackend())
+            system.prescribed_motion(system, t, SerialBackend())
 
             if NDIMS == 2
                 new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2]

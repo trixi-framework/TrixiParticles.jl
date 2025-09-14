@@ -1,5 +1,6 @@
 """
-    WallBoundarySystem(initial_condition, boundary_model; movement=nothing, adhesion_coefficient=0.0)
+    WallBoundarySystem(initial_condition, boundary_model;
+                       prescribed_motion=nothing, adhesion_coefficient=0.0)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -271,7 +272,7 @@ end
 end
 
 @inline function current_velocity(v, system::WallBoundarySystem, particle)
-    return current_velocity(v, system, system.movement, particle)
+    return current_velocity(v, system, system.prescribed_motion, particle)
 end
 
 @inline function current_velocity(v, system, movement, particle)
@@ -293,7 +294,7 @@ end
 end
 
 @inline function current_acceleration(system::WallBoundarySystem, particle)
-    return current_acceleration(system, system.movement, particle)
+    return current_acceleration(system, system.prescribed_motion, particle)
 end
 
 @inline function current_acceleration(system, movement, particle)
@@ -344,9 +345,9 @@ end
 end
 
 function update_positions!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
-    (; movement) = system
+    (; prescribed_motion) = system
 
-    movement(system, t, semi)
+    prescribed_motion(system, t, semi)
 end
 
 function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
