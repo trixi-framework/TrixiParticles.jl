@@ -8,7 +8,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
-- Renamed `BoundarySPHSystem` to `WallBoundarySystem`.
+- Renamed `BoundarySPHSystem` to `WallBoundarySystem` and the keyword argument
+  `movement` to `prescribed_motion`.
 
 - Renamed `OpenBoundarySPHSystem` to `OpenBoundarySystem`.
 
