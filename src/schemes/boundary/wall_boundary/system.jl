@@ -58,151 +58,44 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
                               ismoving, adhesion_coefficient, cache)
 end
 
-function Base.show(io::IO, system::WallBoundarySystem)
-    @nospecialize system # reduce precompilation time
-
-    print(io, "WallBoundarySystem{", ndims(system), "}(")
-    print(io, system.boundary_model)
-    print(io, ", ", system.prescribed_motion)
-    print(io, ", ", system.adhesion_coefficient)
-    print(io, ", ", system.cache.color)
-    print(io, ") with ", nparticles(system), " particles")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", system::WallBoundarySystem)
-    @nospecialize system # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, system)
-    else
-        summary_header(io, "WallBoundarySystem{$(ndims(system))}")
-        summary_line(io, "#particles", nparticles(system))
-        summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "movement function",
-                     isnothing(system.prescribed_motion) ? "nothing" :
-                     string(system.prescribed_motion.movement_function))
-        summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
-        summary_line(io, "color", system.cache.color)
-        summary_footer(io)
-    end
-end
-
-"""
-    BoundaryDEMSystem(initial_condition, normal_stiffness)
-
-System for boundaries modeled by boundary particles.
-The interaction between fluid and boundary particles is specified by the boundary model.
-
-!!! warning "Experimental Implementation"
-    This is an experimental feature and may change in a future releases.
-
-"""
-struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
-                         ARRAY1D, ARRAY2D} <: AbstractBoundarySystem{NDIMS}
-    initial_condition :: IC
-    coordinates       :: ARRAY2D # [dimension, particle]
-    radius            :: ARRAY1D # [particle]
-    normal_stiffness  :: ELTYPE
-    buffer            :: Nothing
-
-    function BoundaryDEMSystem(initial_condition, normal_stiffness)
-        coordinates = initial_condition.coordinates
-        radius = 0.5 * initial_condition.particle_spacing *
-                 ones(length(initial_condition.mass))
-        NDIMS = size(coordinates, 1)
-
-        return new{NDIMS, eltype(coordinates), typeof(initial_condition), typeof(radius),
-                   typeof(coordinates)}(initial_condition, coordinates, radius,
-                                        normal_stiffness, nothing)
-    end
-end
-
-function Base.show(io::IO, system::BoundaryDEMSystem)
-    @nospecialize system # reduce precompilation time
-
-    print(io, "BoundaryDEMSystem{", ndims(system), "}(")
-    print(io, ") with ", nparticles(system), " particles")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", system::BoundaryDEMSystem)
-    @nospecialize system # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, system)
-    else
-        summary_header(io, "BoundaryDEMSystem{$(ndims(system))}")
-        summary_line(io, "#particles", nparticles(system))
-        summary_footer(io)
-    end
-end
-
-"""
-    PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
-
-# Arguments
-- `movement_function`: Time-dependent function returning an `SVector` of ``d`` dimensions
-                       for a ``d``-dimensional problem.
-- `is_moving`: Function to determine in each timestep if the particles are moving or not. Its
-   boolean return value is mandatory to determine if the neighborhood search will be updated.
-
-# Keyword Arguments
-- `moving_particles`: Indices of moving particles. Default is each particle in the system.
-
-In the example below, `motion` describes particles moving in a circle as long as
-the time is lower than `1.5`.
-
-# Examples
-```jldoctest; output = false
-movement_function(t) = SVector(cos(2pi*t), sin(2pi*t))
-is_moving(t) = t < 1.5
-
-motion = PrescribedMotion(movement_function, is_moving)
-
-# output
-PrescribedMotion{typeof(movement_function), typeof(is_moving), Vector{Int64}}(movement_function, is_moving, Int64[])
-```
-"""
-struct PrescribedMotion{MF, IM, MP}
-    movement_function :: MF
-    is_moving         :: IM
-    moving_particles  :: MP # Vector{Int}
-end
-
-# The default constructor needs to be accessible for Adapt.jl to work with this struct.
-# See the comments in general/gpu.jl for more details.
-function PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
-    if !(movement_function(0.0) isa SVector)
-        @warn "Return value of `movement_function` is not of type `SVector`. " *
-              "Returning regular `Vector`s causes allocations and significant performance overhead."
-    end
-
-    # Default value is an empty vector, which will be resized in the `WallBoundarySystem`
-    # constructor to move all particles.
-    moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
-
-    return PrescribedMotion(movement_function, is_moving, moving_particles)
-end
-
 create_cache_boundary(::Nothing, initial_condition) = (;)
 
 function create_cache_boundary(::PrescribedMotion, initial_condition)
     initial_coordinates = copy(initial_condition.coordinates)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)
+
     return (; velocity, acceleration, initial_coordinates)
 end
 
-timer_name(::Union{WallBoundarySystem, BoundaryDEMSystem}) = "boundary"
-
-@inline function Base.eltype(system::Union{WallBoundarySystem, BoundaryDEMSystem})
+@inline function Base.eltype(system::WallBoundarySystem)
     eltype(system.coordinates)
 end
+
+@inline function nparticles(system::WallBoundarySystem)
+    size(system.coordinates, 2)
+end
+
+# No particle positions are advanced for wall boundary systems,
+# except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
+@inline function n_integrated_particles(system::WallBoundarySystem)
+    return 0
+end
+
+@inline function n_integrated_particles(system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+    return nparticles(system)
+end
+
+@inline u_nvariables(system::WallBoundarySystem) = 0
+
+# For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
+# For all other models and density calculators, it's irrelevant.
+@inline v_nvariables(system::WallBoundarySystem) = 1
+
 
 @inline function initial_coordinates(system::WallBoundarySystem)
     initial_coordinates(system::WallBoundarySystem, system.prescribed_motion)
 end
-
-@inline initial_coordinates(system::BoundaryDEMSystem) = system.coordinates
 
 @inline initial_coordinates(system::WallBoundarySystem, ::Nothing) = system.coordinates
 
@@ -211,65 +104,8 @@ end
     return system.cache.initial_coordinates
 end
 
-function (prescribed_motion::PrescribedMotion)(system, t, semi)
-    (; coordinates, cache) = system
-    (; movement_function, is_moving, moving_particles) = prescribed_motion
-    (; acceleration, velocity) = cache
-
-    system.ismoving[] = is_moving(t)
-
-    is_moving(t) || return system
-
-    @threaded semi for particle in moving_particles
-        pos_new = initial_coords(system, particle) + movement_function(t)
-        vel = ForwardDiff.derivative(movement_function, t)
-        acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
-
-        @inbounds for i in 1:ndims(system)
-            coordinates[i, particle] = pos_new[i]
-            velocity[i, particle] = vel[i]
-            acceleration[i, particle] = acc[i]
-        end
-    end
-
-    return system
-end
-
-function (prescribed_motion::Nothing)(system::AbstractSystem, t, semi)
-    system.ismoving[] = false
-
-    return system
-end
-
-@inline function nparticles(system::Union{BoundaryDEMSystem, WallBoundarySystem})
-    size(system.coordinates, 2)
-end
-
-# No particle positions are advanced for boundary systems,
-# except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
-@inline function n_integrated_particles(system::Union{WallBoundarySystem,
-                                                      BoundaryDEMSystem})
-    return 0
-end
-
-@inline function n_integrated_particles(system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
-    return nparticles(system)
-end
-
-@inline u_nvariables(system::Union{WallBoundarySystem, BoundaryDEMSystem}) = 0
-
-# For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
-# For all other models and density calculators, it's irrelevant.
-@inline v_nvariables(system::WallBoundarySystem) = 1
-@inline v_nvariables(system::BoundaryDEMSystem) = 0
-
-@inline function current_coordinates(u,
-                                     system::Union{WallBoundarySystem, BoundaryDEMSystem})
+@inline function current_coordinates(u, system::WallBoundarySystem)
     return system.coordinates
-end
-
-@inline function current_velocity(v, system::BoundaryDEMSystem, particle)
-    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function current_velocity(v, system::WallBoundarySystem, particle)
@@ -298,7 +134,7 @@ end
     return current_acceleration(system, system.prescribed_motion, particle)
 end
 
-@inline function current_acceleration(system, movement, particle)
+@inline function current_acceleration(system, ::PrescribedMotion, particle)
     (; cache, ismoving) = system
 
     if ismoving[]
@@ -308,7 +144,7 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_acceleration(system, movement::Nothing, particle)
+@inline function current_acceleration(system, ::Nothing, particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
@@ -316,11 +152,11 @@ end
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
-@inline function viscous_velocity(v, viscosity, system, particle)
+@inline function viscous_velocity(v, viscosity, system::WallBoundarySystem, particle)
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
-@inline function viscous_velocity(v, viscosity::Nothing, system, particle)
+@inline function viscous_velocity(v, ::Nothing, system::WallBoundarySystem, particle)
     return current_velocity(v, system, particle)
 end
 
@@ -372,13 +208,11 @@ function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode,
     return system
 end
 
-function write_u0!(u0, system::Union{WallBoundarySystem, BoundaryDEMSystem})
+function write_u0!(u0, ::WallBoundarySystem)
     return u0
 end
 
-function write_v0!(v0,
-                   system::Union{WallBoundarySystem,
-                                 BoundaryDEMSystem})
+function write_v0!(v0, ::WallBoundarySystem)
     return v0
 end
 
@@ -407,7 +241,7 @@ function restart_with!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{
     return system
 end
 
-# To incorporate the effect at boundaries in the viscosity term of the RHS the neighbor
+# To incorporate the effect at boundaries in the viscosity term of the RHS, the neighbor
 # viscosity model has to be used.
 @inline function viscosity_model(system::WallBoundarySystem,
                                  neighbor_system::AbstractFluidSystem)
@@ -472,12 +306,31 @@ function available_data(::WallBoundarySystem)
     return (:coordinates, :velocity, :density, :pressure, :acceleration)
 end
 
-function system_data(system::BoundaryDEMSystem, dv_ode, du_ode, v_ode, u_ode, semi)
-    (; coordinates, radius, normal_stiffness) = system
+function Base.show(io::IO, system::WallBoundarySystem)
+    @nospecialize system # reduce precompilation time
 
-    return (; coordinates, radius, normal_stiffness)
+    print(io, "WallBoundarySystem{", ndims(system), "}(")
+    print(io, system.boundary_model)
+    print(io, ", ", system.prescribed_motion)
+    print(io, ", ", system.adhesion_coefficient)
+    print(io, ", ", system.cache.color)
+    print(io, ") with ", nparticles(system), " particles")
 end
 
-function available_data(::BoundaryDEMSystem)
-    return (:coordinates, :radius, :normal_stiffness)
+function Base.show(io::IO, ::MIME"text/plain", system::WallBoundarySystem)
+    @nospecialize system # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "WallBoundarySystem{$(ndims(system))}")
+        summary_line(io, "#particles", nparticles(system))
+        summary_line(io, "boundary model", system.boundary_model)
+        summary_line(io, "movement function",
+                     isnothing(system.prescribed_motion) ? "nothing" :
+                     string(system.prescribed_motion.movement_function))
+        summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
+        summary_line(io, "color", system.cache.color)
+        summary_footer(io)
+    end
 end
