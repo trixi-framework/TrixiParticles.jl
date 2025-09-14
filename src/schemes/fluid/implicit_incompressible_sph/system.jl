@@ -387,7 +387,7 @@ end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
 function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
-    (; pressure, reference_density, max_error, min_iterations, max_iterations, time_step) = system
+    (; reference_density, max_error, min_iterations, max_iterations, time_step) = system
 
     initialize_pressure(system, semi)
     l = 1
@@ -407,19 +407,16 @@ function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
 end
 
 function pressure_solve_iteration(system, u, u_ode, semi, time_step)
-    (; reference_density, sum_d_ij_pj, sum_term, pressure, predicted_density, a_ii,
-     omega, density_error) = system
+    calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
 
-    calculate_sum_d_ij_pj(sum_d_ij_pj, system, u, u_ode, semi, time_step)
+    calculate_sum_term_values(system, u, u_ode, semi, time_step)
 
-    calculate_sum_term_values(sum_term, system, u, u_ode, semi, time_step)
-
-    avg_density_error = pressure_update(pressure, sum_term, reference_density, a_ii, omega, system, u, u_ode, semi, time_step)
+    avg_density_error = pressure_update(system, u, u_ode, semi, time_step)
     return avg_density_error
 end
 
-function calculate_sum_d_ij_pj(sum_d_ij_pj, system, u, u_ode, semi, time_step)
-    (; pressure) = system
+function calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
+    (; sum_d_ij_pj, pressure) = system
     set_zero!(sum_d_ij_pj)
 
     system_coords = current_coordinates(u, system)
@@ -442,8 +439,8 @@ function calculate_sum_d_ij_pj(sum_d_ij_pj, system, u, u_ode, semi, time_step)
     end
 end
 
-function calculate_sum_term_values(sum_term, system, u, u_ode, semi, time_step)
-    (; pressure) = system
+function calculate_sum_term_values(system, u, u_ode, semi, time_step)
+    (; sum_term, pressure) = system
     # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
     set_zero!(sum_term)
 
@@ -452,8 +449,8 @@ function calculate_sum_term_values(sum_term, system, u, u_ode, semi, time_step)
                             pressure, u, u_ode, semi, time_step)
     end
 
-function pressure_update(pressure, sum_term, reference_density, a_ii, omega, system, u, u_ode, semi, time_step)
-   # (; sum_term, reference_density, a_ii, omega) = system
+function pressure_update(system, u, u_ode, semi, time_step)
+    (; pressure, sum_term, reference_density, a_ii, omega) = system
     # Update the pressure values
     avg_density_error = zero(eltype(system))
     @threaded semi for particle in eachparticle(system)
