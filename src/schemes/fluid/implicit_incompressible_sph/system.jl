@@ -217,14 +217,12 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 end
 
 function predict_advection(system, v, u, v_ode, u_ode, semi, t)
-    (; density) = system
+    (; density, pressure) = system
 
     # Compute density by kernel summation
     summation_density!(system, semi, u, u_ode, density)
 
     calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode, semi, t)
-
-    initialize_pressure(system, semi)
 
     # Calculation the diagonal elements (a_ii-values)
     calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
@@ -317,8 +315,7 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
     end
 end
 
-function initialize_pressure(system, semi)
-    (; pressure) = system
+function initialize_pressure(pressure, system, semi)
     # Set initial pressure (p_0) to a half of the current pressure value
     @threaded semi for particle in each_moving_particle(system)
         pressure[particle] = pressure[particle] / 2
@@ -389,8 +386,9 @@ end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
 function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
-    (; reference_density, max_error, min_iterations, max_iterations, time_step) = system
+    (; pressure, reference_density, max_error, min_iterations, max_iterations, time_step) = system
 
+    initialize_pressure(pressure, system, semi)
     l = 1
     terminate = false
     # Convert relative error in percent to absolute error
@@ -411,7 +409,7 @@ function pressure_solve_iteration(system, u, u_ode, semi, time_step)
     (; reference_density, sum_d_ij_pj, sum_term, pressure, predicted_density, a_ii,
      omega, density_error) = system
 
-    calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
+    calculate_sum_d_ij_pj(sum_d_ij_pj, system, u, u_ode, semi, time_step)
 
     calculate_sum_term_values(sum_term, system, u, u_ode, semi, time_step)
 
@@ -419,8 +417,8 @@ function pressure_solve_iteration(system, u, u_ode, semi, time_step)
     return avg_density_error
 end
 
-function calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
-    (; sum_d_ij_pj, pressure) = system
+function calculate_sum_d_ij_pj(sum_d_ij_pj, system, u, u_ode, semi, time_step)
+    (; pressure) = system
     set_zero!(sum_d_ij_pj)
 
     system_coords = current_coordinates(u, system)
