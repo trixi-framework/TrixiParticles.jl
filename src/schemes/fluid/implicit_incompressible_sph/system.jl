@@ -387,7 +387,7 @@ end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
 function pressure_solve(system, v, u, v_ode, u_ode, semi, t)
-    (; pressure, reference_density, max_error, min_iterations, max_iterations, time_step) = system
+    (; reference_density, max_error, min_iterations, max_iterations, time_step) = system
 
     initialize_pressure(system, semi)
     l = 1
@@ -415,8 +415,8 @@ function pressure_solve_iteration(system, u, u_ode, semi, time_step)
     return avg_density_error
 end
 
-function calculate_sum_d_ij_pj(sum_d_ij_pj, system, u, u_ode, semi, time_step)
-    (; pressure) = system
+function calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
+    (; sum_d_ij_pj, pressure) = system
     set_zero!(sum_d_ij_pj)
 
     system_coords = current_coordinates(u, system)
