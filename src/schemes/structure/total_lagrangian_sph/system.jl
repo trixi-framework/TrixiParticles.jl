@@ -96,7 +96,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
-                                  source_terms=nothing)
+                                  source_terms=nothing, clamped_particles_motion=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
