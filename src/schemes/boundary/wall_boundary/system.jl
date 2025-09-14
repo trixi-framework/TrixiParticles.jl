@@ -60,7 +60,16 @@ end
 
 create_cache_boundary(::Nothing, initial_condition) = (;)
 
-function create_cache_boundary(::PrescribedMotion, initial_condition)
+function create_cache_boundary(prescribed_motion::PrescribedMotion, initial_condition)
+    (; movement_function) = prescribed_motion
+
+    pos = extract_svector(initial_condition.coordinates,
+                          Val(size(initial_condition.coordinates, 1)), 1)
+    if !(movement_function(pos, 0.0) isa SVector)
+        @warn "Return value of `movement_function` is not of type `SVector`. " *
+              "Returning regular `Vector`s causes allocations and significant performance overhead."
+    end
+
     initial_coordinates = copy(initial_condition.coordinates)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)

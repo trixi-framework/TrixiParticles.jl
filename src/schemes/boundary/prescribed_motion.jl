@@ -29,7 +29,7 @@ is_moving2(t) = true
 motion2 = PrescribedMotion(movement_function2, is_moving2)
 
 # output
-PrescribedMotion{typeof(movement_function2), typeof(is_moving2), Vector{Int64}}(movement_function2, is_moving2, [])
+PrescribedMotion{typeof(movement_function2), typeof(is_moving2), Vector{Int64}}(movement_function2, is_moving2, Int64[])
 ```
 """
 struct PrescribedMotion{MF, IM, MP}
@@ -41,11 +41,6 @@ end
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
-    if !(movement_function(0.0) isa SVector)
-        @warn "Return value of `movement_function` is not of type `SVector`. " *
-              "Returning regular `Vector`s causes allocations and significant performance overhead."
-    end
-
     # Default value is an empty vector, which will be resized in the `WallBoundarySystem`
     # constructor to move all particles.
     moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
