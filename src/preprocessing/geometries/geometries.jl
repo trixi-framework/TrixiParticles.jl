@@ -59,7 +59,7 @@ end
 # This method is used in `boundary_zone.jl` and is defined here
 # to avoid circular dependencies with `TriangleMesh`
 """
-    planar_geometry_to_face(geometry::TriangleMesh)
+    planar_geometry_to_face(planar_geometry::TriangleMesh)
 
 Extracts a simplified rectangular face and its normal vector from an arbitrary planar geometry
 (`TriangleMesh` loaded via [`load_geometry`](@ref))
@@ -74,7 +74,7 @@ but can have complex or non-rectangular boundaries.
     The returned plane normal is computed by averaging all face normals, so consistent orientation is required.
 
 # Arguments
-- `plane`: A planar geometry (`TriangleMesh` loaded via [`load_geometry`](@ref)).
+- `planar_geometry`: A planar geometry (`TriangleMesh` loaded via [`load_geometry`](@ref)).
 
 # Returns
 - `plane_points`: Tuple of three points defining the rectangular face (corner points of the oriented bounding box).
@@ -88,10 +88,10 @@ plane_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
 plane, plane_normal = planar_geometry_to_face(plane_geometry)
 ```
 """
-function planar_geometry_to_face(geometry::TriangleMesh)
-    plane_normal = normalize(sum(geometry.face_normals) / nfaces(geometry))
+function planar_geometry_to_face(planar_geometry::TriangleMesh)
+    plane_normal = normalize(sum(planar_geometry.face_normals) / nfaces(planar_geometry))
 
-    plane_points = oriented_bounding_box(stack(geometry.vertices))
+    plane_points = oriented_bounding_box(stack(planar_geometry.vertices))
 
     # Vectors spanning the plane
     edge1 = plane_points[:, 2] - plane_points[:, 1]

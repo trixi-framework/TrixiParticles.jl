@@ -5,7 +5,7 @@ struct InFlow end
 struct OutFlow end
 
 @doc raw"""
-    BoundaryZone(; plane, plane_normal, density, particle_spacing,
+    BoundaryZone(; boundary_face, plane_normal, density, particle_spacing,
                  initial_condition=nothing, extrude_geometry=nothing,
                  open_boundary_layers::Integer, average_inflow_velocity=true,
                  boundary_type=BidirectionalFlow(),
@@ -14,22 +14,22 @@ struct OutFlow end
 
 Boundary zone for [`OpenBoundarySPHSystem`](@ref).
 
-The specified plane (line in 2D or rectangle in 3D) will be extruded in the direction
+The specified `boundary_face` (line in 2D or rectangle in 3D) will be extruded in the direction
 opposite to `plane_normal` to create a box for the boundary zone.
-To specify the plane, pass the required plane points as described below.
-For complex 3D simulations, these points can also be extracted from an STL file
-(see [`planar_geometry_to_face`](@ref) and example below).
+To specify the `boundary_face`, pass the required vertices as described below.
+For complex 3D simulations, these vertices can also be extracted from an STL file
+(see [`planar_geometry_to_face`](@ref)).
 There are three ways to specify the actual shape of the boundary zone:
 1. Don't pass `initial_condition` or `extrude_geometry`. The boundary zone box will then
    be filled with boundary particles (default).
 2. Specify `extrude_geometry` by passing a 1D shape in 2D or a 2D shape in 3D,
    which is then extruded in the direction opposite to `plane_normal` to create the boundary particles.
    - In 2D, the shape must be either an initial condition with 2D coordinates, which lies
-     on the line specified by `plane`, or an initial condition with 1D coordinates, which lies
-     on the line specified by `plane` when a y-coordinate of `0` is added.
+     on the line specified by `boundary_face`, or an initial condition with 1D coordinates,
+     which lies on the line specified by `boundary_face` when a y-coordinate of `0` is added.
    - In 3D, the shape must be either an initial condition with 3D coordinates, which lies
-     in the rectangle specified by `plane`, or an initial condition with 2D coordinates,
-     which lies in the rectangle specified by `plane` when a z-coordinate of `0` is added.
+     in the rectangle specified by `boundary_face`, or an initial condition with 2D coordinates,
+     which lies in the rectangle specified by `boundary_face` when a z-coordinate of `0` is added.
 3. Specify `initial_condition` by passing a 2D initial condition in 2D or a 3D initial condition in 3D,
    which will be used for the boundary particles.
 
@@ -37,16 +37,16 @@ There are three ways to specify the actual shape of the boundary zone:
     Particles outside the boundary zone box will be removed.
 
 # Keywords
-- `plane`: Tuple of points defining a part of the surface of the domain.
-           The points must either span a line in 2D or a rectangle in 3D.
-           This line or rectangle is then extruded in upstream direction to obtain
-           the boundary zone.
-           In 2D, pass two points ``(A, B)``, so that the interval ``[A, B]`` is
-           the inflow surface.
-           In 3D, pass three points ``(A, B, C)``, so that the rectangular inflow surface
-           is spanned by the vectors ``\widehat{AB}`` and ``\widehat{AC}``.
-           These two vectors must be orthogonal.
-- `plane_normal`: Vector defining the plane normal. It always points inside the fluid domain.
+- `boundary_face`: Tuple of vertices defining a part of the surface of the domain.
+                   The vertices must either span a line in 2D or a rectangle in 3D.
+                   This line or rectangle is then extruded in upstream direction to obtain
+                   the boundary zone.
+                   In 2D, pass two vertices ``(A, B)``, so that the interval ``[A, B]`` is
+                   the inflow surface.
+                   In 3D, pass three vertices ``(A, B, C)``, so that the rectangular inflow surface
+                   is spanned by the vectors ``\widehat{AB}`` and ``\widehat{AC}``.
+                   These two vectors must be orthogonal.
+- `plane_normal`: Vector defining the normal of the `boundary_face`. It always points inside the fluid domain.
 - `boundary_type=BidirectionalFlow()`: Specify the type of the boundary. Available types are
     - `InFlow()` for an inflow boundary
     - `OutFlow()` for an outflow boundary
@@ -57,7 +57,7 @@ There are three ways to specify the actual shape of the boundary zone:
 - `initial_condition=nothing`: `InitialCondition` for the inflow particles.
                                Particles outside the boundary zone will be removed.
                                Do not use together with `extrude_geometry`.
-- `extrude_geometry=nothing`: 1D shape in 2D or 2D shape in 3D, which lies on the plane
+- `extrude_geometry=nothing`: 1D shape in 2D or 2D shape in 3D, which lies on the `boundary_face`
                               and is extruded upstream to obtain the inflow particles.
                               See point 2 above for more details.
 - `average_inflow_velocity=true`: If `true`, the extrapolated inflow velocity is averaged
@@ -85,46 +85,47 @@ There are three ways to specify the actual shape of the boundary zone:
 # Examples
 ```jldoctest; output=false
 # 2D
-plane_points = ([0.0, 0.0], [0.0, 1.0])
+face_vertices = ([0.0, 0.0], [0.0, 1.0])
 plane_normal = [1.0, 0.0]
 
 # Constant reference velocity:
 velocity_const = [1.0, 0.0]
 
-inflow_1 = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1,
+inflow_1 = BoundaryZone(; boundary_face=face_vertices, plane_normal, particle_spacing=0.1,
                         density=1.0, open_boundary_layers=4, boundary_type=InFlow(),
                         reference_velocity=velocity_const)
 
 # Reference velocity as a function (parabolic velocity profile):
 velocity_func = (pos, t) -> SVector(4.0 * pos[2] * (1.0 - pos[2]), 0.0)
 
-inflow_2 = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1,
+inflow_2 = BoundaryZone(; boundary_face=face_vertices, plane_normal, particle_spacing=0.1,
                         density=1.0, open_boundary_layers=4, boundary_type=InFlow(),
                         reference_velocity=velocity_func)
 
 # 3D
-plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
+face_vertices = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
 plane_normal = [0.0, 0.0, 1.0]
 
 # Constant reference pressure:
 pressure_const = 0.0
 
-outflow_1 = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
-                         open_boundary_layers=4, boundary_type=OutFlow(),
+outflow_1 = BoundaryZone(; boundary_face=face_vertices, plane_normal, particle_spacing=0.1,
+                         density=1.0, open_boundary_layers=4, boundary_type=OutFlow(),
                          reference_pressure=pressure_const)
 
 # Reference pressure as a function (y-dependent profile, sinusoidal in time):
 pressure_func = (pos, t) -> pos[2] * sin(2pi * t)
 
-outflow_2 = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1, density=1.0,
-                         open_boundary_layers=4, boundary_type=OutFlow(),
+outflow_2 = BoundaryZone(; boundary_face=face_vertices, plane_normal, particle_spacing=0.1,
+                         density=1.0, open_boundary_layers=4, boundary_type=OutFlow(),
                          reference_pressure=pressure_func)
 
 # 3D particles sampled as cylinder
 circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
 
-bidirectional_flow = BoundaryZone(; plane=plane_points, plane_normal, particle_spacing=0.1,
-                                  density=1.0, boundary_type=BidirectionalFlow(),
+bidirectional_flow = BoundaryZone(; boundary_face=face_vertices, plane_normal,
+                                  particle_spacing=0.1, density=1.0,
+                                  boundary_type=BidirectionalFlow(),
                                   extrude_geometry=circle, open_boundary_layers=4)
 
 # output
@@ -156,7 +157,7 @@ struct BoundaryZone{IC, S, ZO, ZW, FD, PN, R}
     prescribed_velocity     :: Bool
 end
 
-function BoundaryZone(; plane, plane_normal, density, particle_spacing,
+function BoundaryZone(; boundary_face, plane_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, average_inflow_velocity=true,
                       boundary_type=BidirectionalFlow(),
@@ -170,8 +171,8 @@ function BoundaryZone(; plane, plane_normal, density, particle_spacing,
     plane_normal_ = normalize(SVector(plane_normal...))
 
     ic, flow_direction, spanning_set_, zone_origin,
-    zone_width = set_up_boundary_zone(plane, plane_normal_, density, particle_spacing,
-                                      initial_condition, extrude_geometry,
+    zone_width = set_up_boundary_zone(boundary_face, plane_normal_, density,
+                                      particle_spacing, initial_condition, extrude_geometry,
                                       open_boundary_layers, boundary_type)
 
     NDIMS = ndims(ic)
@@ -286,7 +287,7 @@ function Base.show(io::IO, ::MIME"text/plain", boundary_zone::BoundaryZone)
     end
 end
 
-function set_up_boundary_zone(plane, plane_normal, density, particle_spacing,
+function set_up_boundary_zone(boundary_face, plane_normal, density, particle_spacing,
                               initial_condition, extrude_geometry, open_boundary_layers,
                               boundary_type)
     if boundary_type isa InFlow
@@ -301,7 +302,7 @@ function set_up_boundary_zone(plane, plane_normal, density, particle_spacing,
 
     # Sample particles in boundary zone
     if isnothing(initial_condition) && isnothing(extrude_geometry)
-        initial_condition = TrixiParticles.extrude_geometry(plane; particle_spacing,
+        initial_condition = TrixiParticles.extrude_geometry(boundary_face; particle_spacing,
                                                             density,
                                                             direction=(-plane_normal),
                                                             n_extrude=open_boundary_layers)
@@ -321,17 +322,17 @@ function set_up_boundary_zone(plane, plane_normal, density, particle_spacing,
     zone_width = open_boundary_layers * initial_condition.particle_spacing
 
     # Vectors spanning the boundary zone/box
-    spanning_set, zone_origin = calculate_spanning_vectors(plane, zone_width)
+    spanning_set, zone_origin = calculate_spanning_vectors(boundary_face, zone_width)
 
-    # First vector of `spanning_vectors` is normal to the boundary plane.
+    # First vector of `spanning_vectors` is normal to the boundary face.
     dot_plane_normal = dot(normalize(spanning_set[:, 1]), plane_normal)
 
     if !isapprox(abs(dot_plane_normal), 1, rtol=1e-5)
-        throw(ArgumentError("`plane_normal` is not normal to the boundary plane"))
+        throw(ArgumentError("`plane_normal` is not normal to the boundary face"))
     end
 
     if boundary_type isa InFlow
-        # First vector of `spanning_vectors` is normal to the boundary plane
+        # First vector of `spanning_vectors` is normal to the boundary face
         dot_flow = dot(normalize(spanning_set[:, 1]), flow_direction)
 
         # The vector must point in upstream direction for an inflow boundary.
@@ -339,7 +340,7 @@ function set_up_boundary_zone(plane, plane_normal, density, particle_spacing,
         spanning_set[:, 1] .*= -sign(dot_flow)
 
     elseif boundary_type isa OutFlow
-        # First vector of `spanning_vectors` is normal to the boundary plane
+        # First vector of `spanning_vectors` is normal to the boundary face
         dot_flow = dot(normalize(spanning_set[:, 1]), flow_direction)
 
         # The vector must point in downstream direction for an outflow boundary.
@@ -360,30 +361,30 @@ function set_up_boundary_zone(plane, plane_normal, density, particle_spacing,
     return ic, flow_direction, spanning_set_, zone_origin, zone_width
 end
 
-function calculate_spanning_vectors(plane, zone_width)
-    return spanning_vectors(Tuple(plane), zone_width), SVector(plane[1]...)
+function calculate_spanning_vectors(boundary_face, zone_width)
+    return spanning_vectors(Tuple(boundary_face), zone_width), SVector(boundary_face[1]...)
 end
 
-function spanning_vectors(plane_points::NTuple{2}, zone_width)
-    plane_size = plane_points[2] - plane_points[1]
+function spanning_vectors(face_vertices::NTuple{2}, zone_width)
+    face_size = face_vertices[2] - face_vertices[1]
 
-    # Calculate normal vector of plane
-    b = normalize([-plane_size[2], plane_size[1]]) * zone_width
+    # Calculate normal vector of `boundary_face`
+    b = normalize([-face_size[2], face_size[1]]) * zone_width
 
-    return hcat(b, plane_size)
+    return hcat(b, face_size)
 end
 
-function spanning_vectors(plane_points::NTuple{3}, zone_width)
-    # Vectors spanning the plane
-    edge1 = plane_points[2] - plane_points[1]
-    edge2 = plane_points[3] - plane_points[1]
+function spanning_vectors(face_vertices::NTuple{3}, zone_width)
+    # Vectors spanning the `boundary_face`
+    edge1 = face_vertices[2] - face_vertices[1]
+    edge2 = face_vertices[3] - face_vertices[1]
 
     # Check if the edges are linearly dependent (to avoid degenerate planes)
     if isapprox(norm(cross(edge1, edge2)), 0.0; atol=eps())
         throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
     end
 
-    # Calculate normal vector of plane
+    # Calculate normal vector of `boundary_face`
     c = Vector(normalize(cross(edge2, edge1)) * zone_width)
 
     return hcat(c, edge1, edge2)
