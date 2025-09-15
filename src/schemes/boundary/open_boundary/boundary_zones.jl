@@ -18,7 +18,7 @@ The specified plane (line in 2D or rectangle in 3D) will be extruded in the dire
 opposite to `plane_normal` to create a box for the boundary zone.
 To specify the plane, pass the required plane points as described below.
 For complex 3D simulations, these points can also be extracted from an STL file
-(see [`extract_transition_face`](@ref) and example below).
+(see [`planar_geometry_to_face`](@ref) and example below).
 There are three ways to specify the actual shape of the boundary zone:
 1. Don't pass `initial_condition` or `extrude_geometry`. The boundary zone box will then
    be filled with boundary particles (default).

@@ -59,23 +59,25 @@ end
 # This method is used in `boundary_zone.jl` and is defined here
 # to avoid circular dependencies with `TriangleMesh`
 """
-    extract_transition_face(plane::TriangleMesh)
+    planar_geometry_to_face(plane::TriangleMesh)
 
-Extract plane points and normal vector for the transition face of the [`BoundaryZone`](@ref)
-from a `TrixiParticles.TriangleMesh` returned by [`load_geometry`](@ref).
-The plane points are the corner points of an oriented bounding box of the given geometry.
-The geometry must be planar (i.e., all vertices should lie approximately in the same plane).
+Extracts a simplified rectangular face and its normal vector from an arbitrary planar geometry
+(`TriangleMesh` loaded via [`load_geometry`](@ref))
+for use as a boundary zone interface in [`BoundaryZone`](@ref).
+This function computes the corner points of an oriented bounding box
+that best represents the essential orientation and extent of the input geometry.
+The geometry must be planar (all vertices should lie in the same plane),
+but can have complex or non-rectangular boundaries.
 
 !!! note "Face Normal Orientation"
-    Ensure that all face normals of the geometry point inside the fluid domain.
-    The computed plane normal is derived from averaging all face normals,
-    so consistent orientation is required.
+    All face normals of the input geometry must point inside the fluid domain.
+    The returned plane normal is computed by averaging all face normals, so consistent orientation is required.
 
 # Arguments
-- `plane`: A planar geometry.
+- `plane`: A planar geometry (`TriangleMesh` loaded via [`load_geometry`](@ref)).
 
 # Returns
-- `plane_points`: Tuple of three points defining the transition plane.
+- `plane_points`: Tuple of three points defining the rectangular face (corner points of the oriented bounding box).
 - `plane_normal`: Normalized normal vector of the plane.
 
 # Example
@@ -83,13 +85,13 @@ The geometry must be planar (i.e., all vertices should lie approximately in the 
 file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
 plane_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
 
-plane, plane_normal = extract_transition_face(plane_geometry)
+plane, plane_normal = planar_geometry_to_face(plane_geometry)
 ```
 """
-function extract_transition_face(plane::TriangleMesh)
-    plane_normal = normalize(sum(plane.face_normals) / nfaces(plane))
+function planar_geometry_to_face(geometry::TriangleMesh)
+    plane_normal = normalize(sum(geometry.face_normals) / nfaces(geometry))
 
-    plane_points = oriented_bounding_box(stack(plane.vertices))
+    plane_points = oriented_bounding_box(stack(geometry.vertices))
 
     # Vectors spanning the plane
     edge1 = plane_points[:, 2] - plane_points[:, 1]

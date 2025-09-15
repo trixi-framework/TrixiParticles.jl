@@ -133,7 +133,7 @@
         file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
         plane_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
 
-        plane, plane_normal = extract_transition_face(plane_geometry)
+        plane, plane_normal = planar_geometry_to_face(plane_geometry)
 
         expected_plane = ([-0.10239515072676975, 0.2644994251485518, -0.36036119092034713],
                           [0.3064669575380171, 0.2392044626289733, -0.10866880239395837],

@@ -236,7 +236,7 @@ Pages = [joinpath("schemes", "boundary", "open_boundary", "boundary_zones.jl")]
 
 ```@autodocs
 Modules = [TrixiParticles]
-Filter = t -> typeof(t) === typeof(TrixiParticles.extract_transition_face)
+Filter = t -> typeof(t) === typeof(TrixiParticles.planar_geometry_to_face)
 ```
 
 # [Open Boundary Models](@id open_boundary_models)
