@@ -141,13 +141,13 @@ bidirectional_flow = BoundaryZone(; boundary_face=face_vertices, face_normal,
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{IC, S, ZO, ZW, FD, PN, R}
+struct BoundaryZone{IC, S, ZO, ZW, FD, FN, R}
     initial_condition :: IC
     spanning_set      :: S
     zone_origin       :: ZO
     zone_width        :: ZW
     flow_direction    :: FD
-    face_normal      :: PN
+    face_normal      :: FN
     reference_values  :: R
     # Note that the following can't be static type parameters, as all boundary zones in a system
     # must have the same type, so that we can loop over them in a type-stable way.
