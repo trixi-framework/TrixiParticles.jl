@@ -1,6 +1,6 @@
 @doc raw"""
     OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
-                          fluid_system::FluidSystem, buffer_size::Integer,
+                          fluid_system::AbstractFluidSystem, buffer_size::Integer,
                           boundary_model)
 
 Open boundary system for in- and outflow particles.
@@ -17,7 +17,7 @@ Open boundary system for in- and outflow particles.
     This is an experimental feature and may change in any future releases.
 """
 struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZI, BZ,
-                             B, C} <: System{NDIMS}
+                             B, C} <: AbstractSystem{NDIMS}
     boundary_model        :: BM
     initial_condition     :: IC
     fluid_system          :: FS
@@ -53,7 +53,7 @@ function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
 end
 
 function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
-                               fluid_system::FluidSystem, buffer_size::Integer,
+                               fluid_system::AbstractFluidSystem, buffer_size::Integer,
                                boundary_model)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
     reference_values_ = map(bz -> bz.reference_values, boundary_zones_)
@@ -325,7 +325,7 @@ end
 end
 
 # Fluid particle is in boundary zone
-@inline function convert_particle!(fluid_system::FluidSystem, system,
+@inline function convert_particle!(fluid_system::AbstractFluidSystem, system,
                                    particle, particle_new, v, u, v_fluid, u_fluid)
     # Activate particle in boundary zone
     transfer_particle!(system, fluid_system, particle, particle_new, v, u, v_fluid, u_fluid)
@@ -379,12 +379,12 @@ end
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
 @inline function viscosity_model(system::OpenBoundarySPHSystem,
-                                 neighbor_system::FluidSystem)
+                                 neighbor_system::AbstractFluidSystem)
     return neighbor_system.viscosity
 end
 
 @inline function viscosity_model(system::OpenBoundarySPHSystem,
-                                 neighbor_system::BoundarySystem)
+                                 neighbor_system::AbstractBoundarySystem)
     return neighbor_system.boundary_model.viscosity
 end
 

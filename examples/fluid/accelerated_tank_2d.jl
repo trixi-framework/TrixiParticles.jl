@@ -16,7 +16,7 @@ movement_function(t) = SVector(0.0, 0.5 * 9.81 * t^2)
 
 is_moving(t) = true
 
-boundary_movement = BoundaryMovement(movement_function, is_moving)
+boundary_movement = PrescribedMotion(movement_function, is_moving)
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),

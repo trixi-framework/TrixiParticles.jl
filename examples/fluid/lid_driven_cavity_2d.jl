@@ -83,7 +83,7 @@ lid_movement_function(t) = SVector(VELOCITY_LID * t, 0.0)
 
 is_moving(t) = true
 
-lid_movement = BoundaryMovement(lid_movement_function, is_moving)
+lid_movement = PrescribedMotion(lid_movement_function, is_moving)
 
 boundary_model_cavity = BoundaryModelDummyParticles(cavity.boundary.density,
                                                     cavity.boundary.mass,

@@ -411,28 +411,28 @@ end
         end
     end
 
-    @testset verbose=true "Solid" begin
+    @testset verbose=true "Structure" begin
         # TODO after https://github.com/trixi-framework/PointNeighbors.jl/pull/10
         # is merged, there should be no need to use the `FullGridCellList`.
-        @trixi_testset "solid/oscillating_beam_2d.jl" begin
+        @trixi_testset "structure/oscillating_beam_2d.jl" begin
             # Import variables into scope
             trixi_include_changeprecision(Float32, @__MODULE__,
-                                          joinpath(examples_dir(), "solid",
+                                          joinpath(examples_dir(), "structure",
                                                    "oscillating_beam_2d.jl"),
                                           sol=nothing, ode=nothing)
 
             # Neighborhood search with `FullGridCellList` for GPU compatibility
-            min_corner = minimum(solid.coordinates, dims=2)
-            max_corner = maximum(solid.coordinates, dims=2)
+            min_corner = minimum(structure.coordinates, dims=2)
+            max_corner = maximum(structure.coordinates, dims=2)
             cell_list = FullGridCellList(; min_corner, max_corner)
-            semi_fullgrid = Semidiscretization(solid_system,
+            semi_fullgrid = Semidiscretization(structure_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
 
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
-                                                                      "solid",
+                                                                      "structure",
                                                                       "oscillating_beam_2d.jl"),
                                                              tspan=(0.0f0, 0.1f0),
                                                              semi=semi_fullgrid)
@@ -458,7 +458,7 @@ end
             # is much finer than the fluid resolution.
             cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system_tank,
-                                               boundary_system_gate, solid_system,
+                                               boundary_system_gate, structure_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)

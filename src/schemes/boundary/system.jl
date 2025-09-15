@@ -9,12 +9,12 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `boundary_model`: Boundary model (see [Boundary Models](@ref boundary_models))
 
 # Keyword Arguments
-- `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
+- `movement`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
-                         CA} <: BoundarySystem{NDIMS}
+                         CA} <: AbstractBoundarySystem{NDIMS}
     initial_condition    :: IC
     coordinates          :: CO # Array{ELTYPE, 2}
     boundary_model       :: BM
@@ -48,7 +48,7 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
 
     if movement !== nothing && isempty(movement.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
-        # instantiating `BoundaryMovement`.
+        # instantiating `PrescribedMotion`.
         resize!(movement.moving_particles, nparticles(initial_condition))
         movement.moving_particles .= collect(1:nparticles(initial_condition))
     end
@@ -98,7 +98,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 """
 struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
-                         ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS}
+                         ARRAY1D, ARRAY2D} <: AbstractBoundarySystem{NDIMS}
     initial_condition :: IC
     coordinates       :: ARRAY2D # [dimension, particle]
     radius            :: ARRAY1D # [particle]
@@ -137,18 +137,18 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundaryDEMSystem)
 end
 
 """
-    BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
+    PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
 
 # Arguments
 - `movement_function`: Time-dependent function returning an `SVector` of ``d`` dimensions
                        for a ``d``-dimensional problem.
 - `is_moving`: Function to determine in each timestep if the particles are moving or not. Its
-    boolean return value is mandatory to determine if the neighborhood search will be updated.
+   boolean return value is mandatory to determine if the neighborhood search will be updated.
 
 # Keyword Arguments
-- `moving_particles`: Indices of moving particles. Default is each particle in [`BoundarySPHSystem`](@ref).
+- `moving_particles`: Indices of moving particles. Default is each particle in the system.
 
-In the example below, `movement` describes particles moving in a circle as long as
+In the example below, `motion` describes particles moving in a circle as long as
 the time is lower than `1.5`.
 
 # Examples
@@ -156,13 +156,13 @@ the time is lower than `1.5`.
 movement_function(t) = SVector(cos(2pi*t), sin(2pi*t))
 is_moving(t) = t < 1.5
 
-movement = BoundaryMovement(movement_function, is_moving)
+motion = PrescribedMotion(movement_function, is_moving)
 
 # output
-BoundaryMovement{typeof(movement_function), typeof(is_moving), Vector{Int64}}(movement_function, is_moving, Int64[])
+PrescribedMotion{typeof(movement_function), typeof(is_moving), Vector{Int64}}(movement_function, is_moving, Int64[])
 ```
 """
-struct BoundaryMovement{MF, IM, MP}
+struct PrescribedMotion{MF, IM, MP}
     movement_function :: MF
     is_moving         :: IM
     moving_particles  :: MP # Vector{Int}
@@ -170,7 +170,7 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
+function PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
     if !(movement_function(0.0) isa SVector)
         @warn "Return value of `movement_function` is not of type `SVector`. " *
               "Returning regular `Vector`s causes allocations and significant performance overhead."
@@ -180,12 +180,12 @@ function BoundaryMovement(movement_function, is_moving; moving_particles=nothing
     # constructor to move all particles.
     moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
 
-    return BoundaryMovement(movement_function, is_moving, moving_particles)
+    return PrescribedMotion(movement_function, is_moving, moving_particles)
 end
 
 create_cache_boundary(::Nothing, initial_condition) = (;)
 
-function create_cache_boundary(::BoundaryMovement, initial_condition)
+function create_cache_boundary(::PrescribedMotion, initial_condition)
     initial_coordinates = copy(initial_condition.coordinates)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)
@@ -211,7 +211,7 @@ end
     return system.cache.initial_coordinates
 end
 
-function (movement::BoundaryMovement)(system, t, semi)
+function (movement::PrescribedMotion)(system, t, semi)
     (; coordinates, cache) = system
     (; movement_function, is_moving, moving_particles) = movement
     (; acceleration, velocity) = cache
@@ -235,7 +235,7 @@ function (movement::BoundaryMovement)(system, t, semi)
     return system
 end
 
-function (movement::Nothing)(system::System, t, semi)
+function (movement::Nothing)(system::AbstractSystem, t, semi)
     system.ismoving[] = false
 
     return system
@@ -408,11 +408,11 @@ end
 # To incorporate the effect at boundaries in the viscosity term of the RHS the neighbor
 # viscosity model has to be used.
 @inline function viscosity_model(system::BoundarySPHSystem,
-                                 neighbor_system::FluidSystem)
+                                 neighbor_system::AbstractFluidSystem)
     return neighbor_system.viscosity
 end
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
+function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractBoundarySystem, semi)
     return Inf
 end
 
