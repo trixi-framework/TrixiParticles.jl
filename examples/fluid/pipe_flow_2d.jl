@@ -113,9 +113,9 @@ reference_velocity_in = velocity_function2d
 reference_pressure_in = nothing
 reference_density_in = nothing
 boundary_type_in = InFlow()
-plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
-inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_boundary_layers,
-                      density=fluid_density, particle_spacing,
+face_in = ([0.0, 0.0], [0.0, domain_size[2]])
+inflow = BoundaryZone(; boundary_face=face_in, plane_normal=flow_direction,
+                      open_boundary_layers, density=fluid_density, particle_spacing,
                       reference_density=reference_density_in,
                       reference_pressure=reference_pressure_in,
                       reference_velocity=reference_velocity_in,
@@ -125,8 +125,8 @@ reference_velocity_out = nothing
 reference_pressure_out = nothing
 reference_density_out = nothing
 boundary_type_out = OutFlow()
-plane_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], domain_size[2]])
-outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
+face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], domain_size[2]])
+outflow = BoundaryZone(; boundary_face=face_out, plane_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        reference_density=reference_density_out,
                        reference_pressure=reference_pressure_out,

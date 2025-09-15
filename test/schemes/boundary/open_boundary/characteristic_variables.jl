@@ -35,11 +35,11 @@
 
         @testset "Flow Direction $j" for j in eachindex(flow_directions)
             flow_direction = flow_directions[j]
-            inflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
+            inflow = BoundaryZone(; boundary_face=plane_points, particle_spacing, density,
                                   plane_normal=flow_direction, open_boundary_layers,
                                   boundary_type=InFlow(), reference_velocity,
                                   reference_pressure, reference_density)
-            outflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
+            outflow = BoundaryZone(; boundary_face=plane_points, particle_spacing, density,
                                    plane_normal=(-flow_direction), open_boundary_layers,
                                    boundary_type=OutFlow(), reference_velocity,
                                    reference_pressure, reference_density)
