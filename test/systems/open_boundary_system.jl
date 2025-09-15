@@ -2,7 +2,7 @@
     @testset "`show`" begin
 
         # Mock fluid system
-        struct FluidSystemMock2 <: TrixiParticles.FluidSystem{2} end
+        struct FluidSystemMock2 <: TrixiParticles.AbstractFluidSystem{2} end
         TrixiParticles.initial_smoothing_length(system::FluidSystemMock2) = 1.0
         TrixiParticles.nparticles(system::FluidSystemMock2) = 1
 

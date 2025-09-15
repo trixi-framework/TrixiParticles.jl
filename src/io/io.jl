@@ -75,7 +75,7 @@ end
 
 add_system_data!(system_data, data::Nothing) = system_data
 
-function add_system_data!(system_data, system::FluidSystem)
+function add_system_data!(system_data, system::AbstractFluidSystem)
     system_data["system_type"] = type2string(system)
     system_data["particle_spacing"] = particle_spacing(system, 1)
     system_data["density_calculator"] = type2string(system.density_calculator)
@@ -295,12 +295,12 @@ function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
     system_data[zone_name]["prescribed_velocity"] = boundary_zone.prescribed_velocity
 end
 
-function add_system_data!(system_data, movement::BoundaryMovement)
-    system_data["movement"] = Dict{String, Any}()
-    system_data["movement"]["model"] = type2string(movement)
-    system_data["movement"]["movement_function"] = type2string(movement.movement_function)
-    system_data["movement"]["is_moving"] = type2string(movement.is_moving)
-    system_data["movement"]["moving_particles"] = movement.moving_particles
+function add_system_data!(system_data, motion::PrescribedMotion)
+    system_data["prescribed_motion"] = Dict{String, Any}()
+    system_data["prescribed_motion"]["model"] = type2string(motion)
+    system_data["prescribed_motion"]["movement_function"] = type2string(motion.movement_function)
+    system_data["prescribed_motion"]["is_moving"] = type2string(motion.is_moving)
+    system_data["prescribed_motion"]["moving_particles"] = motion.moving_particles
 end
 
 function add_system_data!(system_data, penalty_force::PenaltyForceGanzenmueller)

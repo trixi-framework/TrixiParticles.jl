@@ -469,7 +469,8 @@ end
 end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true}, boundary_model,
-                                                  system, neighbor_system::FluidSystem,
+                                                  system,
+                                                  neighbor_system::AbstractFluidSystem,
                                                   system_coords, neighbor_coords, v,
                                                   v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -491,7 +492,8 @@ end
 # Note that this needs to be serial, as we are writing into the same
 # pressure entry from different loop iterations.
 @inline function boundary_pressure_extrapolation!(parallel::Val{false}, boundary_model,
-                                                  system, neighbor_system::FluidSystem,
+                                                  system,
+                                                  neighbor_system::AbstractFluidSystem,
                                                   system_coords, neighbor_coords,
                                                   v, v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -512,7 +514,7 @@ end
 end
 
 @inline function boundary_pressure_inner!(boundary_model, boundary_density_calculator,
-                                          system, neighbor_system::FluidSystem, v,
+                                          system, neighbor_system::AbstractFluidSystem, v,
                                           v_neighbor_system, particle, neighbor, pos_diff,
                                           distance, viscosity, cache, pressure,
                                           pressure_offset)
@@ -554,7 +556,7 @@ end
 @inline function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
                                   density_neighbor, v, v_neighbor_system, pos_diff,
                                   distance, particle, neighbor,
-                                  system::BoundarySystem, neighbor_system)
+                                  system::AbstractBoundarySystem, neighbor_system)
     if system.ismoving[]
         relative_velocity = current_velocity(v, system, particle) .-
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -569,7 +571,7 @@ end
 @inline function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
                                   density_neighbor, v, v_neighbor_system, pos_diff,
                                   distance, particle, neighbor,
-                                  system::SolidSystem, neighbor_system)
+                                  system::AbstractStructureSystem, neighbor_system)
     relative_velocity = current_velocity(v, system, particle) .-
                         current_velocity(v_neighbor_system, neighbor_system, neighbor)
     normal_velocity = dot(relative_velocity, pos_diff) / distance
@@ -627,6 +629,6 @@ end
     return density
 end
 
-@inline function correction_matrix(system::BoundarySystem, particle)
+@inline function correction_matrix(system::AbstractBoundarySystem, particle)
     extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
 end

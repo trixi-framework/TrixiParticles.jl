@@ -1,6 +1,6 @@
-abstract type SmoothingKernel{NDIMS} end
+abstract type AbstractSmoothingKernel{NDIMS} end
 
-@inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
     # TODO Use `eps` relative to `h` to allow scaling of simulations
@@ -73,7 +73,7 @@ Note:
 This truncation makes this Kernel not conservative,
 which is beneficial in regards to stability but makes it less accurate.
 """
-struct GaussianKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+struct GaussianKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 @inline @fastmath function kernel(kernel::GaussianKernel, r::Real, h)
     q = r / h
@@ -133,7 +133,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct SchoenbergCubicSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+struct SchoenbergCubicSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 @muladd @inline function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     q = r / h
@@ -207,7 +207,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+struct SchoenbergQuarticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
 # Currently, specializations reducing this to simple multiplications exist only up
@@ -297,7 +297,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+struct SchoenbergQuinticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 @fastpow @muladd @inline function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     q = r / h
@@ -343,10 +343,10 @@ end
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (pi * h^2 * 478)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (pi * h^3 * 120)
 
-abstract type WendlandKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+abstract type AbstractWendlandKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 # Compact support for all Wendland kernels
-@inline compact_support(::WendlandKernel, h) = 2h
+@inline compact_support(::AbstractWendlandKernel, h) = 2h
 
 @doc raw"""
     WendlandC2Kernel{NDIMS}()
@@ -380,7 +380,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct WendlandC2Kernel{NDIMS} <: WendlandKernel{NDIMS} end
+struct WendlandC2Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 
 @fastpow @inline function kernel(kernel::WendlandC2Kernel, r::Real, h)
     q = r / h
@@ -447,7 +447,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct WendlandC4Kernel{NDIMS} <: WendlandKernel{NDIMS} end
+struct WendlandC4Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 
 @fastpow @inline function kernel(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
@@ -511,7 +511,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct WendlandC6Kernel{NDIMS} <: WendlandKernel{NDIMS} end
+struct WendlandC6Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 
 @fastpow @inline function kernel(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
@@ -577,7 +577,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct Poly6Kernel{NDIMS} <: SmoothingKernel{NDIMS} end
+struct Poly6Kernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 @inline function kernel(kernel::Poly6Kernel, r::Real, h)
     q = r / h
@@ -642,7 +642,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct SpikyKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+struct SpikyKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 @inline function kernel(kernel::SpikyKernel, r::Real, h)
     q = r / h
