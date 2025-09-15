@@ -58,7 +58,8 @@ by an additional term
     + \delta h c \sum_{b} V_b \psi_{ab} \cdot \nabla W_{ab},
 ```
 where ``V_b = m_b / \rho_b`` is the volume of particle ``b`` and ``\psi_{ab}`` depends on
-the density diffusion method (see [`AbstractDensityDiffusion`](@ref) for available terms).
+the density diffusion method (see
+[`AbstractDensityDiffusion`](@ref TrixiParticles.AbstractDensityDiffusion) for available terms).
 Also, ``\rho_a`` denotes the density of particle ``a`` and ``r_{ab} = r_a - r_b`` is the
 difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of particles
 ``a`` and ``b``.
