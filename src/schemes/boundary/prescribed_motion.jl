@@ -11,7 +11,9 @@
                        if the neighborhood search will be updated.
 
 # Keyword Arguments
-- `moving_particles`: Indices of moving particles. Default is each particle in the system.
+- `moving_particles`: Indices of moving particles. Default is each particle in the system
+                      for the [`WallBoundarySystem`](@ref) and all clamped particles
+                      for the [`TotalLagrangianSPHSystem`](@ref).
 
 # Examples
 ```jldoctest; output = false
@@ -48,7 +50,8 @@ function PrescribedMotion(movement_function, is_moving; moving_particles=nothing
     return PrescribedMotion(movement_function, is_moving, moving_particles)
 end
 
-function initialize!(prescribed_motion::PrescribedMotion, initial_condition)
+function initialize!(prescribed_motion::PrescribedMotion, initial_condition,
+                     n_clamped_particles=nparticles(initial_condition))
     # Test `movement_function` return type
     pos = extract_svector(initial_condition.coordinates,
                           Val(size(initial_condition.coordinates, 1)), 1)
@@ -57,12 +60,17 @@ function initialize!(prescribed_motion::PrescribedMotion, initial_condition)
               "Returning regular `Vector`s causes allocations and significant performance overhead."
     end
 
-    # Empty `moving_particles` means all particles are moving
+    # Empty `moving_particles` means all clamped particles are moving.
+    # For boundaries, all particles are considered clamped.
     if isempty(prescribed_motion.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
         # instantiating `PrescribedMotion`.
-        resize!(prescribed_motion.moving_particles, nparticles(initial_condition))
-        prescribed_motion.moving_particles .= collect(1:nparticles(initial_condition))
+        resize!(prescribed_motion.moving_particles, n_clamped_particles)
+
+        # Clamped particles for TLSPH are the last `n_clamped_particles` in the system
+        first_particle = nparticles(initial_condition) - n_clamped_particles + 1
+        clamped_particles = first_particle:nparticles(initial_condition)
+        prescribed_motion.moving_particles .= collect(clamped_particles)
     end
 end
 

@@ -121,7 +121,9 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
     lame_mu = @. (young_modulus / 2) / (1 + poisson_ratio)
 
     ismoving = Ref(!isnothing(clamped_particles_motion))
-    initialize!(clamped_particles_motion, initial_condition)
+    initialize!(clamped_particles_motion, initial_condition, n_clamped_particles)
+
+    cache = create_cache_tlsph(clamped_particles_motion, initial_condition)
 
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -130,51 +132,16 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
-                                    clamped_particles_motion, ismoving)
+                                    clamped_particles_motion, ismoving, cache)
 end
 
-function Base.show(io::IO, system::TotalLagrangianSPHSystem)
-    @nospecialize system # reduce precompilation time
+create_cache_tlsph(::Nothing, initial_condition) = (;)
 
-    print(io, "TotalLagrangianSPHSystem{", ndims(system), "}(")
-    print(io, "", system.smoothing_kernel)
-    print(io, ", ", system.acceleration)
-    print(io, ", ", system.boundary_model)
-    print(io, ", ", system.penalty_force)
-    print(io, ", ", system.viscosity)
-    print(io, ") with ", nparticles(system), " particles")
-end
+function create_cache_tlsph(::PrescribedMotion, initial_condition)
+    velocity = zero(initial_condition.velocity)
+    acceleration = zero(initial_condition.velocity)
 
-function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
-    @nospecialize system # reduce precompilation time
-
-    function display_param(param)
-        if param isa AbstractVector
-            min_val = round(minimum(param), digits=3)
-            max_val = round(maximum(param), digits=3)
-            return "min = $(min_val), max = $(max_val)"
-        else
-            return string(param)
-        end
-    end
-
-    if get(io, :compact, false)
-        show(io, system)
-    else
-        n_clamped_particles = nparticles(system) - n_integrated_particles(system)
-
-        summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
-        summary_line(io, "total #particles", nparticles(system))
-        summary_line(io, "#clamped particles", n_clamped_particles)
-        summary_line(io, "Young's modulus", display_param(system.young_modulus))
-        summary_line(io, "Poisson ratio", display_param(system.poisson_ratio))
-        summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "acceleration", system.acceleration)
-        summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "penalty force", system.penalty_force)
-        summary_line(io, "viscosity", system.viscosity)
-        summary_footer(io)
-    end
+    return (; velocity, acceleration)
 end
 
 @inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
@@ -536,4 +503,48 @@ function available_data(::TotalLagrangianSPHSystem)
     return (:coordinates, :initial_coordinates, :velocity, :mass, :material_density,
             :deformation_grad, :pk1_corrected, :young_modulus, :poisson_ratio,
             :lame_lambda, :lame_mu, :acceleration)
+end
+
+function Base.show(io::IO, system::TotalLagrangianSPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    print(io, "TotalLagrangianSPHSystem{", ndims(system), "}(")
+    print(io, "", system.smoothing_kernel)
+    print(io, ", ", system.acceleration)
+    print(io, ", ", system.boundary_model)
+    print(io, ", ", system.penalty_force)
+    print(io, ", ", system.viscosity)
+    print(io, ") with ", nparticles(system), " particles")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    function display_param(param)
+        if param isa AbstractVector
+            min_val = round(minimum(param), digits=3)
+            max_val = round(maximum(param), digits=3)
+            return "min = $(min_val), max = $(max_val)"
+        else
+            return string(param)
+        end
+    end
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        n_clamped_particles = nparticles(system) - n_integrated_particles(system)
+
+        summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
+        summary_line(io, "total #particles", nparticles(system))
+        summary_line(io, "#clamped particles", n_clamped_particles)
+        summary_line(io, "Young's modulus", display_param(system.young_modulus))
+        summary_line(io, "Poisson ratio", display_param(system.poisson_ratio))
+        summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
+        summary_line(io, "acceleration", system.acceleration)
+        summary_line(io, "boundary model", system.boundary_model)
+        summary_line(io, "penalty force", system.penalty_force)
+        summary_line(io, "viscosity", system.viscosity)
+        summary_footer(io)
+    end
 end
