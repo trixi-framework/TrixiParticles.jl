@@ -1,6 +1,9 @@
 # Abstract supertype for all system types.
 abstract type AbstractSystem{NDIMS} end
 
+@inline Base.ndims(::AbstractSystem{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.eltype(system::AbstractSystem) = error("eltype not implemented for system $system")
+
 abstract type AbstractFluidSystem{NDIMS} <: AbstractSystem{NDIMS} end
 timer_name(::AbstractFluidSystem) = "fluid"
 vtkname(system::AbstractFluidSystem) = "fluid"
@@ -12,17 +15,6 @@ vtkname(system::AbstractStructureSystem) = "structure"
 abstract type AbstractBoundarySystem{NDIMS} <: AbstractSystem{NDIMS} end
 timer_name(::AbstractBoundarySystem) = "boundary"
 vtkname(system::AbstractBoundarySystem) = "boundary"
-
-@inline function set_zero!(du)
-    du .= zero(eltype(du))
-
-    return du
-end
-
-initialize!(system, semi) = system
-
-@inline Base.ndims(::AbstractSystem{NDIMS}) where {NDIMS} = NDIMS
-@inline Base.eltype(system::AbstractSystem) = error("eltype not implemented for system $system")
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(system) = ndims(system)
@@ -49,6 +41,14 @@ initialize!(system, semi) = system
 
 @inline active_particles(system) = active_particles(system, buffer(system))
 @inline active_particles(system, ::Nothing) = Base.OneTo(nparticles(system))
+
+@inline function set_zero!(du)
+    du .= zero(eltype(du))
+
+    return du
+end
+
+initialize!(system, semi) = system
 
 # This should not be dispatched by system type. We always expect to get a column of `A`.
 @propagate_inbounds function extract_svector(A, system, i)

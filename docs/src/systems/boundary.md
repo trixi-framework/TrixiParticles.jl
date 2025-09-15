@@ -61,7 +61,7 @@ We provide six options to compute the boundary density and pressure, determined 
    This option usually yields the best results of the options listed here.
 2. (Only relevant for FSI) With [`BernoulliPressureExtrapolation`](@ref), the pressure is extrapolated from the
    pressure similar to the [`AdamiPressureExtrapolation`](@ref), but a relative velocity-dependent pressure part
-   is calculated between moving walls and fluids, which increases the boundary pressure in areas prone to
+   is calculated between moving bodies and fluids, which increases the boundary pressure in areas prone to
    penetrations.
 3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
