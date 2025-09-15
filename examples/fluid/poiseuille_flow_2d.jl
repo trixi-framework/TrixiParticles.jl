@@ -183,7 +183,8 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
                                          output_directory=output_directory)
 
 v_x_interpolated(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
-function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode,
+function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem, dv_ode, du_ode, v_ode,
+                          u_ode,
                           semi, t)
     start_point = [flow_length / 2, 0.0]
     end_point = [flow_length / 2, wall_distance]

@@ -19,10 +19,10 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     # For structure-structure interaction, this has to happen in the initial coordinates.
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   initial_pos_diff,
-                                                                   initial_distance
-        # Only consider particles with a distance > 0.
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       initial_pos_diff,
+                                                                       initial_distance
+        # Only consider particles with a distance > 0
         initial_distance < sqrt(eps()) && return
 
         rho_a = @inbounds system.material_density[particle]
@@ -73,14 +73,14 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
-                           points=each_moving_particle(particle_system)) do particle,
-                                                                            neighbor,
-                                                                            pos_diff,
-                                                                            distance
-        # Only consider particles with a distance > 0.
+                           points=each_integrated_particle(particle_system)) do particle,
+                                                                                neighbor,
+                                                                                pos_diff,
+                                                                                distance
+        # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
         # Apply the same force to the structure particle

@@ -100,7 +100,7 @@ function update_boundary_model!(system, boundary_model::BoundaryModelDynamicalPr
 
     compute_pressure!(system, system.fluid_system, v, semi)
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
 
         particle_coords = current_coords(u, system, particle)
@@ -152,7 +152,7 @@ function update_boundary_quantities!(system,
                                      v, u, v_ode, u_ode, semi, t)
     (; pressure_boundary) = system.cache
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
         (; prescribed_density, prescribed_pressure, prescribed_velocity) = boundary_zone
 

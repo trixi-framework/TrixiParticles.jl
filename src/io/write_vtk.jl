@@ -136,7 +136,7 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
         vtk["ndims"] = ndims(system)
 
         vtk["particle_spacing"] = [particle_spacing(system, particle)
-                                   for particle in active_particles(system)]
+                                   for particle in each_active_particle(system)]
 
         # Extract custom quantities for this system
         if !isempty(custom_quantities)
@@ -307,7 +307,7 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
 
     if system.surface_tension isa SurfaceTensionMorris ||
        system.surface_tension isa SurfaceTensionMomentumMorris
-        surface_tension = zeros((ndims(system), n_moving_particles(system)))
+        surface_tension = zeros((ndims(system), n_integrated_particles(system)))
         system_coords = current_coordinates(u, system)
 
         surface_tension_a = surface_tension_model(system)
