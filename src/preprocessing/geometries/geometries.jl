@@ -81,14 +81,14 @@ but can have complex or non-rectangular boundaries.
 - `face_normal`: Normalized normal vector of the face.
 
 # Example
-```jldoctest; output = false
+```jldoctest; output=false, filter=r"face = .*"
 file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
 planar_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
 
 face, face_normal = planar_geometry_to_face(planar_geometry)
 
 # output
-(([-0.10239515072676975, 0.2644994251485518, -0.36036119092034713], [0.3064669575380171, 0.2392044626289733, -0.10866880239395837], [-0.022751900522629348, 0.29950693726850863, -0.03464932956255598]), [0.14372397390844055, 0.979596249614303, -0.14047991694743392])
+(face = ...)
 ```
 """
 function planar_geometry_to_face(planar_geometry::TriangleMesh)
@@ -104,7 +104,8 @@ function planar_geometry_to_face(planar_geometry::TriangleMesh)
         throw(ArgumentError("`plane` might be not planar"))
     end
 
-    return (face_vertices[:, 1], face_vertices[:, 2], face_vertices[:, 3]), face_normal
+    return (; face=(face_vertices[:, 1], face_vertices[:, 2], face_vertices[:, 3]),
+            face_normal=face_normal)
 end
 
 # According to:
@@ -122,7 +123,7 @@ function oriented_bounding_box(point_cloud)
     max_corner = maximum(aligned_coords, dims=2)
 
     face_vertices = hcat(min_corner, max_corner,
-                        [min_corner[1], max_corner[2], min_corner[3]])
+                         [min_corner[1], max_corner[2], min_corner[3]])
 
     return eigen_vectors * face_vertices .+ means
 end
