@@ -8,8 +8,21 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
-- API for `OpenBoundarySPHSystem` and `BoundaryZone` changed.
-  It is now possible to pass multiple `BoundaryZone`s to a single `OpenBoundarySPHSystem`.
+- Renamed `BoundarySPHSystem` to `WallBoundarySystem` and the keyword argument
+  `movement` to `prescribed_motion`.
+
+- Renamed `OpenBoundarySPHSystem` to `OpenBoundarySystem`.
+
+- Renamed `BoundaryMovement` to `PrescribedMotion`.
+
+- Renamed directory `solid` to `structure` in the examples file tree.
+  VTK files for the `TotalLagrangianSPHSystem` are now also called `structure_*`.
+
+- Renamed keyword argument `n_fixed_particles` of the `TotalLagrangianSPHSystem`
+  to `n_clamped_particles`.
+
+- API for `OpenBoundarySystem` and `BoundaryZone` changed.
+  It is now possible to pass multiple `BoundaryZone`s to a single `OpenBoundarySystem`.
   Reference values are now assigned individually to each `BoundaryZone`. (#866)
 
 - The argument of `TransportVelocityAdami` is now a keyword argument.

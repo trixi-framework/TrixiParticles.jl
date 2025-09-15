@@ -52,7 +52,7 @@
             @test isapprox(fluid_system.cache.density, test.density, rtol=1e-5)
         end
 
-        @testset verbose=true "`BoundarySPHSystem`" begin
+        @testset verbose=true "`WallBoundarySystem`" begin
             boundary_model = BoundaryModelDummyParticles(expected_ic.density,
                                                          expected_ic.mass,
                                                          SummationDensity(),
@@ -63,7 +63,7 @@
             boundary_model.pressure .= expected_ic.pressure
             boundary_model.cache.density .= expected_ic.density
 
-            boundary_system = BoundarySPHSystem(expected_ic, boundary_model)
+            boundary_system = WallBoundarySystem(expected_ic, boundary_model)
             semi = Semidiscretization(boundary_system)
 
             # Create dummy ODE solutions
@@ -73,16 +73,16 @@
             x = (; v_ode, u_ode)
             vu_ode = (; x)
 
-            # Write out `BoundarySPHSystem` Simulation-File
+            # Write out `WallBoundarySystem` Simulation-File
             trixi2vtk(boundary_system, dvdu_ode, vu_ode, semi, 0.0,
                       nothing; system_name="tmp_file_boundary", output_directory=tmp_dir,
                       iter=1)
 
-            # Load `BoundarySPHSystem` Simulation-File
+            # Load `WallBoundarySystem` Simulation-File
             test = vtk2trixi(joinpath(tmp_dir, "tmp_file_boundary_1.vtu"))
 
             @test isapprox(boundary_system.coordinates, test.coordinates, rtol=1e-5)
-            # The velocity is always zero for `BoundarySPHSystem`
+            # The velocity is always zero for `WallBoundarySystem`
             @test isapprox(zeros(size(test.velocity)), test.velocity, rtol=1e-5)
             @test isapprox(boundary_model.pressure, test.pressure, rtol=1e-5)
             @test isapprox(boundary_model.cache.density, test.density, rtol=1e-5)

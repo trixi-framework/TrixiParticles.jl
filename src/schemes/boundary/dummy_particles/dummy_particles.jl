@@ -5,7 +5,7 @@
                                 state_equation=nothing, correction=nothing,
                                 reference_particle_spacing=0.0)
 
-Boundary model for `BoundarySPHSystem`.
+Boundary model for [`WallBoundarySystem`](@ref).
 
 # Arguments
 - `initial_density`: Vector holding the initial density of each boundary particle.

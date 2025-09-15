@@ -1,7 +1,7 @@
 # Boundary System
 
 ```@docs
-    BoundarySPHSystem
+    WallBoundarySystem
 ```
 
 ```@docs

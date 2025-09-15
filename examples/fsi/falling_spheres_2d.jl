@@ -76,7 +76,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Structure
