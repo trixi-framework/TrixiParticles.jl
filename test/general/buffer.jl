@@ -8,12 +8,12 @@
                         open_boundary_layers=2, density=1.0, face_normal=[1.0, 0.0],
                         reference_density=1.0, reference_pressure=0.0,
                         reference_velocity=[0, 0], boundary_type=InFlow())
-    system = OpenBoundarySPHSystem(zone; fluid_system=FluidSystemMock3(),
-                                   boundary_model=BoundaryModelCharacteristicsLastiwka(),
-                                   buffer_size=0)
-    system_buffer = OpenBoundarySPHSystem(zone; buffer_size=5,
-                                          boundary_model=BoundaryModelCharacteristicsLastiwka(),
-                                          fluid_system=FluidSystemMock3())
+    system = OpenBoundarySystem(zone; fluid_system=FluidSystemMock3(),
+                                boundary_model=BoundaryModelCharacteristicsLastiwka(),
+                                buffer_size=0)
+    system_buffer = OpenBoundarySystem(zone; buffer_size=5,
+                                       boundary_model=BoundaryModelCharacteristicsLastiwka(),
+                                       fluid_system=FluidSystemMock3())
 
     n_particles = nparticles(system)
 

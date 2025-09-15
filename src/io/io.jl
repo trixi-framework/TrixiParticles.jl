@@ -109,12 +109,12 @@ function add_system_data!(system_data, system::TotalLagrangianSPHSystem)
     add_system_data!(system_data, system.penalty_force)
 end
 
-function add_system_data!(system_data, system::BoundarySPHSystem)
+function add_system_data!(system_data, system::WallBoundarySystem)
     system_data["system_type"] = type2string(system)
     system_data["particle_spacing"] = particle_spacing(system, 1)
     system_data["adhesion_coefficient"] = system.adhesion_coefficient
     add_system_data!(system_data, system.boundary_model)
-    add_system_data!(system_data, system.movement)
+    add_system_data!(system_data, system.prescribed_motion)
 end
 
 function add_system_data!(system_data, system::BoundaryDEMSystem)
@@ -131,7 +131,7 @@ function add_system_data!(system_data, system::DEMSystem)
     add_system_data!(system_data, system.contact_model)
 end
 
-function add_system_data!(system_data, system::OpenBoundarySPHSystem)
+function add_system_data!(system_data, system::OpenBoundarySystem)
     system_data["system_type"] = type2string(system)
     system_data["fluid_system_index"] = system.fluid_system_index[]
     system_data["smoothing_length"] = system.smoothing_length

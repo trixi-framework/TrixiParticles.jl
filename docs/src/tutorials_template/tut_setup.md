@@ -161,7 +161,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
                                              smoothing_kernel, smoothing_length)
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 nothing # hide
 ```
 

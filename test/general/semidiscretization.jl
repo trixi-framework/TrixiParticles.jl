@@ -94,7 +94,7 @@
 
             boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                          SummationDensity(), kernel, 1.0)
-            boundary_system = BoundarySPHSystem(ic, boundary_model)
+            boundary_system = WallBoundarySystem(ic, boundary_model)
             fluid_system = WeaklyCompressibleSPHSystem(ic, SummationDensity(), nothing,
                                                        kernel, 1.0)
 

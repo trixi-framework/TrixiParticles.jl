@@ -41,7 +41,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 formulation](@ref transport_velocity_formulation) to use
                                 with this system. Default is no shifting.
 - `buffer_size`:                Number of buffer particles.
-                                This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+                                This is needed when simulating with [`OpenBoundarySystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`

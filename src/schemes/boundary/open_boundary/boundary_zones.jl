@@ -12,7 +12,7 @@ struct OutFlow end
                  reference_density=nothing, reference_pressure=nothing,
                  reference_velocity=nothing)
 
-Boundary zone for [`OpenBoundarySPHSystem`](@ref).
+Boundary zone for [`OpenBoundarySystem`](@ref).
 
 The specified `boundary_face` (line in 2D or rectangle in 3D) will be extruded in the direction
 opposite to `face_normal` to create a box for the boundary zone.

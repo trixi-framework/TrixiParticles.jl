@@ -110,7 +110,7 @@
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length)
 
-        boundary_system = BoundarySPHSystem(bnd, boundary_model)
+        boundary_system = WallBoundarySystem(bnd, boundary_model)
 
         # Overwrite `system.pressure` because we skip the update step
         fluid_system.pressure .= fluid.pressure
@@ -624,7 +624,7 @@
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length)
 
-        boundary_system = BoundarySPHSystem(bnd, boundary_model)
+        boundary_system = WallBoundarySystem(bnd, boundary_model)
 
         # Overwrite `system.pressure` because we skip the update step
         fluid_system.pressure .= fluid.pressure
