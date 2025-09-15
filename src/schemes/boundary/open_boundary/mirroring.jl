@@ -49,7 +49,7 @@ struct ZerothOrderMirroring end
 @doc raw"""
     BoundaryModelMirroringTafuni(; mirror_method=FirstOrderMirroring())
 
-Boundary model for the `OpenBoundarySPHSystem`.
+Boundary model for the [`OpenBoundarySystem`](@ref).
 This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
 to the buffer zones (inflow and outflow) using ghost nodes.
 The position of the ghost nodes is obtained by mirroring the boundary particles
@@ -92,7 +92,7 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelMirror
         end
     end
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
         (; prescribed_density, prescribed_pressure, prescribed_velocity) = boundary_zone
 
@@ -141,7 +141,7 @@ function extrapolate_values!(system,
     # of the ghost node positions of each particle.
     # We can do this because we require the neighborhood search to support querying neighbors
     # of arbitrary positions (see `PointNeighbors.requires_update`).
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
         (; prescribed_density, prescribed_pressure, prescribed_velocity) = boundary_zone
 
@@ -288,7 +288,7 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
     # of the ghost node positions of each particle.
     # We can do this because we require the neighborhood search to support querying neighbors
     # of arbitrary positions (see `PointNeighbors.requires_update`).
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
         (; prescribed_pressure, prescribed_density, prescribed_velocity) = boundary_zone
 
@@ -501,7 +501,7 @@ function average_velocity!(v, u, system, boundary_zone, semi)
 
     particles_in_zone = findall(particle -> boundary_zone ==
                                             current_boundary_zone(system, particle),
-                                each_moving_particle(system))
+                                each_integrated_particle(system))
 
     intersect!(candidates, particles_in_zone)
 

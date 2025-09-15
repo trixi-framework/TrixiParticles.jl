@@ -36,7 +36,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `average_pressure_reduction`: Whether to subtract the average pressure of neighboring particles
                                 from the local pressure (default: `true` when using shifting, `false` otherwise).
 - `buffer_size`:                Number of buffer particles.
-                                This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+                                This is needed when simulating with [`OpenBoundarySystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
@@ -57,7 +57,8 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
-                                   AVGP, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
+                                   AVGP, ST, SRFT, SRFN, B, PR,
+                                   C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
@@ -344,8 +345,10 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
-                               points=each_moving_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             pressure_average[particle] += current_pressure(v_neighbor_system,
                                                            neighbor_system, neighbor)
             neighbor_counter[particle] += 1
@@ -375,7 +378,7 @@ function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
 end
 
 function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
-    for particle in each_moving_particle(system)
+    for particle in each_integrated_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
         system.initial_condition.pressure[particle] = v[end, particle]

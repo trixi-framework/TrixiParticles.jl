@@ -1,4 +1,4 @@
-@testset verbose=true "Solid RHS" begin
+@testset verbose=true "Structure RHS" begin
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "interact! Mocked" begin
         # Pass specific PK1 and `pos_diff` to `interact!` and verify with
@@ -34,7 +34,7 @@
 
         @testset verbose=true "Test $i" for i in 1:4
             #### Setup
-            each_moving_particle = [particle[i]] # Only calculate dv for this one particle
+            each_integrated_particle = [particle[i]] # Only calculate dv for this one particle
             eachparticle = [particle[i], neighbor[i]]
             initial_coordinates = 1000 * ones(2, 10) # Just something that's not zero to catch errors
             initial_coordinates[:, particle[i]] = initial_coordinates_particle[i]
@@ -53,7 +53,7 @@
             kernel_deriv = 1.0
 
             #### Mocking
-            struct MockSystem <: TrixiParticles.System{2} end
+            struct MockSystem <: TrixiParticles.AbstractSystem{2} end
             system = MockSystem()
 
             function TrixiParticles.initial_coordinates(::MockSystem)
@@ -84,7 +84,7 @@
             end
 
             TrixiParticles.eachparticle(::MockSystem) = eachparticle
-            TrixiParticles.each_moving_particle(::MockSystem) = each_moving_particle
+            TrixiParticles.each_integrated_particle(::MockSystem) = each_integrated_particle
 
             function TrixiParticles.add_acceleration!(_, _, ::MockSystem)
                 return nothing
@@ -108,7 +108,7 @@
                 dv_expected[:, particle[i]] = dv_particle_expected[i]
 
                 semi = DummySemidiscretization(parallelization_backend=backends[j])
-                TrixiParticles.interact_solid_solid!(dv, v_system, system, semi)
+                TrixiParticles.interact_structure_structure!(dv, v_system, system, semi)
 
                 @test dv ≈ dv_expected
             end
