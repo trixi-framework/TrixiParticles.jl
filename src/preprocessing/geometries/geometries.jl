@@ -59,7 +59,7 @@ end
 # This method is used in `boundary_zone.jl` and is defined here
 # to avoid circular dependencies with `TriangleMesh`
 """
-    planar_geometry_to_face(plane::TriangleMesh)
+    planar_geometry_to_face(geometry::TriangleMesh)
 
 Extracts a simplified rectangular face and its normal vector from an arbitrary planar geometry
 (`TriangleMesh` loaded via [`load_geometry`](@ref))
