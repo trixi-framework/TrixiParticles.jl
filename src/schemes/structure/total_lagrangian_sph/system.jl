@@ -2,7 +2,8 @@
     TotalLagrangianSPHSystem(initial_condition,
                              smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio;
-                             n_clamped_particles=0, boundary_model=nothing,
+                             n_clamped_particles=0, clamped_particles_motion=nothing,
+                             boundary_model=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, source_terms=nothing)
 
@@ -26,6 +27,9 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 - `n_clamped_particles`: Number of clamped particles which are fixed and not integrated
                     to clamp the structure. Note that the clamped particles must be the **last**
                     particles in the `InitialCondition`. See the info box below.
+- `clamped_particles_motion`: Prescribed motion of the clamped particles.
+                    If `nothing` (default), the clamped particles are fixed.
+                    See [`PrescribedMotion`](@ref) for details.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
@@ -54,7 +58,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     │ particle spacing: ………………………………… 0.1                                                              │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
-    where `beam` and `clamped_particles` are of type `InitialCondition`.
+    where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 YM, PR, LL, LM, K, PF, V, ST, M, IM,
@@ -87,11 +91,12 @@ end
 
 function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_clamped_particles=0, boundary_model=nothing,
+                                  n_clamped_particles=0, clamped_particles_motion=nothing,
+                                  boundary_model=nothing,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
-                                  source_terms=nothing, clamped_particles_motion=nothing)
+                                  source_terms=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
