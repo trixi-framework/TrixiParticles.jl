@@ -109,7 +109,7 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 
 if tfv
     background_pressure = 7 * fluid_density * v_max^2
-    transport_velocity = TransportVelocityAdami(background_pressure)
+    transport_velocity = TransportVelocityAdami(; background_pressure)
 else
     transport_velocity = nothing
 end
@@ -148,9 +148,9 @@ outflow = BoundaryZone(; plane=plane_out, plane_normal=(.-(flow_direction)),
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)
 
-open_boundary = OpenBoundarySPHSystem(inflow, outflow; fluid_system,
-                                      boundary_model=BoundaryModelDynamicalPressureZhang(),
-                                      buffer_size=n_buffer_particles)
+open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
+                                   boundary_model=BoundaryModelDynamicalPressureZhang(),
+                                   buffer_size=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Boundary
@@ -162,7 +162,7 @@ boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
                                              viscosity=viscosity,
                                              smoothing_kernel, smoothing_length)
 
-boundary_system = BoundarySPHSystem(wall, boundary_model)
+boundary_system = WallBoundarySystem(wall, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
@@ -183,7 +183,7 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
                                          output_directory=output_directory)
 
 v_x_interpolated(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
-function v_x_interpolated(system::TrixiParticles.FluidSystem, dv_ode, du_ode, v_ode, u_ode,
+function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode,
                           semi, t)
     start_point = [flow_length / 2, 0.0]
     end_point = [flow_length / 2, wall_distance]

@@ -159,7 +159,7 @@ end
 # For open boundaries, only the velocity component orthogonal to the boundary should affect the density.
 # The tangential component (parallel to the wall) is filtered out, so only the orthogonal component remains.
 # This prevents the density from being affected by tangential relative motion along the boundary wall.
-function relative_velocity(particle_system, neighbor_system::BoundarySPHSystem,
+function relative_velocity(particle_system, neighbor_system::WallBoundarySystem,
                            v_particle_system, v_neighbor_system, particle, neighbor)
     boundary_zone = current_boundary_zone(particle_system, particle)
 
