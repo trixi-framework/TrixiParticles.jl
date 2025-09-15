@@ -287,7 +287,7 @@ function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
     system_data[zone_name]["zone_origin"] = boundary_zone.zone_origin
     system_data[zone_name]["zone_width"] = boundary_zone.zone_width
     system_data[zone_name]["flow_direction"] = boundary_zone.flow_direction
-    system_data[zone_name]["plane_normal"] = boundary_zone.plane_normal
+    system_data[zone_name]["face_normal"] = boundary_zone.face_normal
     system_data[zone_name]["reference_values"] = boundary_zone.reference_values
     system_data[zone_name]["average_inflow_velocity"] = boundary_zone.average_inflow_velocity
     system_data[zone_name]["prescribed_density"] = boundary_zone.prescribed_density

@@ -15,7 +15,7 @@
             ([0.0, 0.0], [0.0, domain_length]),
             ([0.0, 0.0], [-domain_length, domain_length])
         ]
-        plane_boundary_normal = [[1.0, 0.0], [1.0, 1.0]]
+        boundary_face_normal = [[1.0, 0.0], [1.0, 1.0]]
 
         function pressure_function(pos)
             t = 0
@@ -54,9 +54,9 @@
 
         fluid_system.cache.density .= domain_fluid.density
 
-        @testset verbose=true "plane normal $i" for i in eachindex(files)
+        @testset verbose=true "face normal $i" for i in eachindex(files)
             inflow = BoundaryZone(; boundary_face=boundary_faces[i], boundary_type=InFlow(),
-                                  plane_normal=plane_boundary_normal[i],
+                                  face_normal=boundary_face_normal[i],
                                   average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
@@ -110,7 +110,7 @@
             ([0.0, 0.0, 0.0], [domain_length, 0.0, 0.0],
              [0.0, domain_length, domain_length])
         ]
-        plane_boundary_normal = [[0.0, 0.0, 1.0], [0.0, -1.0, 1.0]]
+        boundary_face_normal = [[0.0, 0.0, 1.0], [0.0, -1.0, 1.0]]
 
         function pressure_function(pos)
             t = 0
@@ -150,9 +150,9 @@
 
         fluid_system.cache.density .= domain_fluid.density
 
-        @testset verbose=true "plane normal $i" for i in eachindex(files)
+        @testset verbose=true "face normal $i" for i in eachindex(files)
             inflow = BoundaryZone(; boundary_face=boundary_faces[i], boundary_type=InFlow(),
-                                  plane_normal=plane_boundary_normal[i],
+                                  face_normal=boundary_face_normal[i],
                                   average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
@@ -218,14 +218,14 @@
         fluid_system.cache.density .= 1000.0
 
         if i == 2
-            plane_in = ([0.0, 0.0], [0.0, domain_length])
+            face_in = ([0.0, 0.0], [0.0, domain_length])
         else
-            plane_in = ([0.0, 0.0, 0.0], [0.0, domain_length, 0.0],
+            face_in = ([0.0, 0.0, 0.0], [0.0, domain_length, 0.0],
                         [0.0, 0.0, domain_length])
         end
 
-        inflow = BoundaryZone(; boundary_face=plane_in, boundary_type=InFlow(),
-                              plane_normal=(i == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]),
+        inflow = BoundaryZone(; boundary_face=face_in, boundary_type=InFlow(),
+                              face_normal=(i == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]),
                               open_boundary_layers=open_boundary_layers, density=1000.0,
                               particle_spacing, average_inflow_velocity=true)
         open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
@@ -277,7 +277,7 @@
             face_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
 
             outflow = BoundaryZone(; boundary_face=face_out, boundary_type=OutFlow(),
-                                   plane_normal=[-1.0, 0.0],
+                                   face_normal=[-1.0, 0.0],
                                    open_boundary_layers=10, density=1000.0,
                                    particle_spacing)
             open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
@@ -302,7 +302,7 @@
             face_in = ([0.0, 0.0], [0.0, domain_size[2]])
 
             inflow = BoundaryZone(; boundary_face=face_in, boundary_type=InFlow(),
-                                  plane_normal=[1.0, 0.0],
+                                  face_normal=[1.0, 0.0],
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
             open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
                                                      boundary_model=BoundaryModelMirroringTafuni(),

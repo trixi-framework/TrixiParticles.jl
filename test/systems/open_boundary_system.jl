@@ -8,7 +8,7 @@
 
         inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
                               particle_spacing=0.05,
-                              plane_normal=(1.0, 0.0), density=1.0,
+                              face_normal=(1.0, 0.0), density=1.0,
                               open_boundary_layers=4, boundary_type=InFlow())
         system = OpenBoundarySPHSystem(inflow; buffer_size=0,
                                        boundary_model=BoundaryModelCharacteristicsLastiwka(),
@@ -31,7 +31,7 @@
 
         outflow = BoundaryZone(; boundary_face=([5.0, 0.0], [5.0, 1.0]),
                                particle_spacing=0.05,
-                               plane_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
+                               face_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
                                boundary_type=OutFlow())
         system = OpenBoundarySPHSystem(outflow; buffer_size=0,
                                        boundary_model=BoundaryModelMirroringTafuni(),

@@ -83,7 +83,7 @@ but can have complex or non-rectangular boundaries.
 # Example
 ```jldoctest; output=false, filter=r"face = .*"
 file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
-planar_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
+planar_geometry = load_geometry(joinpath(file, "inflow_geometry.stl"))
 
 face, face_normal = planar_geometry_to_face(planar_geometry)
 
@@ -96,12 +96,12 @@ function planar_geometry_to_face(planar_geometry::TriangleMesh)
 
     face_vertices = oriented_bounding_box(stack(planar_geometry.vertices))
 
-    # Vectors spanning the plane
+    # Vectors spanning the face
     edge1 = face_vertices[:, 2] - face_vertices[:, 1]
     edge2 = face_vertices[:, 3] - face_vertices[:, 1]
 
     if !isapprox(abs.(normalize(cross(edge2, edge1))), abs.(face_normal), atol=1e-2)
-        throw(ArgumentError("`plane` might be not planar"))
+        throw(ArgumentError("geometry might be not planar"))
     end
 
     return (; face=(face_vertices[:, 1], face_vertices[:, 2], face_vertices[:, 3]),

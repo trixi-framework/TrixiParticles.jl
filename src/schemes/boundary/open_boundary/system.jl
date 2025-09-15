@@ -89,7 +89,7 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   zone.zone_origin,
                                                   zone.zone_width,
                                                   zone.flow_direction,
-                                                  zone.plane_normal,
+                                                  zone.face_normal,
                                                   nothing,
                                                   zone.average_inflow_velocity,
                                                   zone.prescribed_density,
@@ -306,8 +306,8 @@ end
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
-    # `plane_normal` is always pointing into the fluid domain.
-    if signbit(dot(relative_position, boundary_zone.plane_normal))
+    # `face_normal` is always pointing into the fluid domain.
+    if signbit(dot(relative_position, boundary_zone.face_normal))
         deactivate_particle!(system, particle, u)
 
         return system
