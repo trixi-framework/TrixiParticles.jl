@@ -113,10 +113,12 @@
             ]
 
             @testset verbose=true "Flow Direction $j" for j in eachindex(flow_directions)
-                inflow = BoundaryZone(; boundary_face=(vertex_1, vertex_2), particle_spacing,
+                inflow = BoundaryZone(; boundary_face=(vertex_1, vertex_2),
+                                      particle_spacing,
                                       face_normal=flow_directions[j], density=1.0,
                                       open_boundary_layers, boundary_type=InFlow())
-                outflow = BoundaryZone(; boundary_face=(vertex_1, vertex_2), particle_spacing,
+                outflow = BoundaryZone(; boundary_face=(vertex_1, vertex_2),
+                                       particle_spacing,
                                        face_normal=(-flow_directions[j]), density=1.0,
                                        open_boundary_layers, boundary_type=OutFlow())
 

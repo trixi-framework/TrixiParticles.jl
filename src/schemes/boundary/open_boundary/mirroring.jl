@@ -226,7 +226,7 @@ function extrapolate_values!(system,
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
                 project_velocity_on_face_normal!(v_open_boundary, system, particle,
-                                                  boundary_zone)
+                                                 boundary_zone)
             end
 
             # No else: `correction_matrix[][1, 1] <= eps()` means no fluid neighbors
@@ -267,7 +267,7 @@ function extrapolate_values!(system,
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
                 project_velocity_on_face_normal!(v_open_boundary, system, particle,
-                                                  boundary_zone)
+                                                 boundary_zone)
             end
         end
     end
@@ -354,7 +354,7 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
                 project_velocity_on_face_normal!(v_open_boundary, system, particle,
-                                                  boundary_zone)
+                                                 boundary_zone)
             end
         end
     end

@@ -221,7 +221,7 @@
             face_in = ([0.0, 0.0], [0.0, domain_length])
         else
             face_in = ([0.0, 0.0, 0.0], [0.0, domain_length, 0.0],
-                        [0.0, 0.0, domain_length])
+                       [0.0, 0.0, domain_length])
         end
 
         inflow = BoundaryZone(; boundary_face=face_in, boundary_type=InFlow(),
