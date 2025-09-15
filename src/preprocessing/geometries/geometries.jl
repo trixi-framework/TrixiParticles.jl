@@ -77,31 +77,34 @@ but can have complex or non-rectangular boundaries.
 - `planar_geometry`: A planar geometry (`TriangleMesh` loaded via [`load_geometry`](@ref)).
 
 # Returns
-- `plane_points`: Tuple of three points defining the rectangular face (corner points of the oriented bounding box).
-- `plane_normal`: Normalized normal vector of the plane.
+- `face_vertices`: Tuple of three vertices defining the rectangular face (corner points of the oriented bounding box).
+- `face_normal`: Normalized normal vector of the face.
 
 # Example
-```julia
+```jldoctest; output = false
 file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
-plane_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
+planar_geometry = load_geometry(joinpath(file, "inflow_plane.stl"))
 
-plane, plane_normal = planar_geometry_to_face(plane_geometry)
+face, face_normal = planar_geometry_to_face(planar_geometry)
+
+# output
+(([-0.10239515072676975, 0.2644994251485518, -0.36036119092034713], [0.3064669575380171, 0.2392044626289733, -0.10866880239395837], [-0.022751900522629348, 0.29950693726850863, -0.03464932956255598]), [0.14372397390844055, 0.979596249614303, -0.14047991694743392])
 ```
 """
 function planar_geometry_to_face(planar_geometry::TriangleMesh)
-    plane_normal = normalize(sum(planar_geometry.face_normals) / nfaces(planar_geometry))
+    face_normal = normalize(sum(planar_geometry.face_normals) / nfaces(planar_geometry))
 
-    plane_points = oriented_bounding_box(stack(planar_geometry.vertices))
+    face_vertices = oriented_bounding_box(stack(planar_geometry.vertices))
 
     # Vectors spanning the plane
-    edge1 = plane_points[:, 2] - plane_points[:, 1]
-    edge2 = plane_points[:, 3] - plane_points[:, 1]
+    edge1 = face_vertices[:, 2] - face_vertices[:, 1]
+    edge2 = face_vertices[:, 3] - face_vertices[:, 1]
 
-    if !isapprox(abs.(normalize(cross(edge2, edge1))), abs.(plane_normal), atol=1e-2)
+    if !isapprox(abs.(normalize(cross(edge2, edge1))), abs.(face_normal), atol=1e-2)
         throw(ArgumentError("`plane` might be not planar"))
     end
 
-    return (plane_points[:, 1], plane_points[:, 2], plane_points[:, 3]), plane_normal
+    return (face_vertices[:, 1], face_vertices[:, 2], face_vertices[:, 3]), face_normal
 end
 
 # According to:
@@ -118,8 +121,8 @@ function oriented_bounding_box(point_cloud)
     min_corner = minimum(aligned_coords, dims=2)
     max_corner = maximum(aligned_coords, dims=2)
 
-    plane_points = hcat(min_corner, max_corner,
+    face_vertices = hcat(min_corner, max_corner,
                         [min_corner[1], max_corner[2], min_corner[3]])
 
-    return eigen_vectors * plane_points .+ means
+    return eigen_vectors * face_vertices .+ means
 end
