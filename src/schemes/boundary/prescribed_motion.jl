@@ -38,6 +38,16 @@ struct PrescribedMotion{MF, IM, MP}
     moving_particles  :: MP # Vector{Int}
 end
 
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
+    # Default value is an empty vector, which will be resized in the `WallBoundarySystem`
+    # constructor to move all particles.
+    moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
+
+    return PrescribedMotion(movement_function, is_moving, moving_particles)
+end
+
 function initialize!(prescribed_motion::PrescribedMotion, initial_condition)
     # Test `movement_function` return type`
     pos = extract_svector(initial_condition.coordinates,
@@ -54,16 +64,6 @@ function initialize!(prescribed_motion::PrescribedMotion, initial_condition)
         resize!(prescribed_motion.moving_particles, nparticles(initial_condition))
         prescribed_motion.moving_particles .= collect(1:nparticles(initial_condition))
     end
-end
-
-# The default constructor needs to be accessible for Adapt.jl to work with this struct.
-# See the comments in general/gpu.jl for more details.
-function PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
-    # Default value is an empty vector, which will be resized in the `WallBoundarySystem`
-    # constructor to move all particles.
-    moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
-
-    return PrescribedMotion(movement_function, is_moving, moving_particles)
 end
 
 function (prescribed_motion::PrescribedMotion)(system, t, semi)
