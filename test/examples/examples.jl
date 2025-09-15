@@ -23,6 +23,23 @@
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
+
+        @trixi_testset "structure/oscillating_beam_2d.jl with rotating clamp" begin
+            # Simple rotation
+            movement_function(x, t) = SVector(cos(2pi * t) * x[1] - sin(2pi * t) * x[2],
+                                              sin(2pi * t) * x[1] + cos(2pi * t) * x[2])
+            is_moving(t) = t < 0.1
+            prescribed_motion = PrescribedMotion(movement_function, is_moving)
+
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "oscillating_beam_2d.jl"),
+                                             tspan=(0.0, 0.2),
+                                             penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
+                                             clamped_particles_motion=prescribed_motion)
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
     end
 
     @testset verbose=true "FSI" begin
