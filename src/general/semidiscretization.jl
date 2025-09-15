@@ -485,7 +485,7 @@ end
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 @inline function add_velocity!(du, v, particle, system::FluidSystem)
-    # This is zero unless a transport velocity is used
+    # This is zero unless a shifting technique is used
     delta_v_ = delta_v(system, particle)
 
     for i in 1:ndims(system)
@@ -972,17 +972,17 @@ end
 
 function check_configuration(system::OpenBoundarySPHSystem, systems,
                              neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
-    (; boundary_model, boundary_zone) = system
+    (; boundary_model, boundary_zones) = system
 
     # Store index of the fluid system. This is necessary for re-linking
     # in case we use Adapt.jl to create a new semidiscretization.
     fluid_system_index = findfirst(==(system.fluid_system), systems)
     system.fluid_system_index[] = fluid_system_index
 
-    if boundary_model isa BoundaryModelLastiwka &&
-       boundary_zone isa BoundaryZone{BidirectionalFlow}
-        throw(ArgumentError("`BoundaryModelLastiwka` needs a specific flow direction. " *
-                            "Please specify inflow and outflow."))
+    if boundary_model isa BoundaryModelCharacteristicsLastiwka &&
+       any(zone -> isnothing(zone.flow_direction), boundary_zones)
+        throw(ArgumentError("`BoundaryModelCharacteristicsLastiwka` needs a specific flow direction. " *
+                            "Please specify `InFlow()` and `OutFlow()`."))
     end
 
     if first(PointNeighbors.requires_update(neighborhood_search))
@@ -1011,10 +1011,8 @@ function set_system_links(system::OpenBoundarySPHSystem, semi)
                                  system.pressure,
                                  system.boundary_candidates,
                                  system.fluid_candidates,
-                                 system.boundary_zone,
-                                 system.reference_velocity,
-                                 system.reference_pressure,
-                                 system.reference_density,
+                                 system.boundary_zone_indices,
+                                 system.boundary_zones,
                                  system.buffer,
                                  system.cache)
 end

@@ -78,7 +78,6 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     penalty_force       :: PF
     viscosity           :: V
     source_terms        :: ST
-    buffer              :: Nothing
 end
 
 function TotalLagrangianSPHSystem(initial_condition,
@@ -123,7 +122,7 @@ function TotalLagrangianSPHSystem(initial_condition,
                                     n_moving_particles, young_modulus, poisson_ratio,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
-                                    penalty_force, viscosity, source_terms, nothing)
+                                    penalty_force, viscosity, source_terms)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
@@ -491,10 +490,11 @@ end
     return neighbor_system.boundary_model.viscosity
 end
 
-function system_data(system::TotalLagrangianSPHSystem, v_ode, u_ode, semi)
+function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     (; mass, material_density, deformation_grad, pk1_corrected, young_modulus,
      poisson_ratio, lame_lambda, lame_mu) = system
 
+    dv = wrap_v(dv_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
@@ -504,11 +504,11 @@ function system_data(system::TotalLagrangianSPHSystem, v_ode, u_ode, semi)
 
     return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
             material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
-            lame_lambda, lame_mu)
+            lame_lambda, lame_mu, acceleration=current_velocity(dv, system))
 end
 
 function available_data(::TotalLagrangianSPHSystem)
     return (:coordinates, :initial_coordinates, :velocity, :mass, :material_density,
             :deformation_grad, :pk1_corrected, :young_modulus, :poisson_ratio,
-            :lame_lambda, :lame_mu)
+            :lame_lambda, :lame_mu, :acceleration)
 end

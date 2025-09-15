@@ -37,7 +37,6 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIM
     acceleration        :: SVector{NDIMS, ELTYPE}
     source_terms        :: ST
     contact_model       :: CM
-    buffer              :: Nothing
 
     function DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
                        acceleration=ntuple(_ -> 0.0,
@@ -65,7 +64,7 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST, CM} <: SolidSystem{NDIM
                    typeof(mass), typeof(source_terms),
                    typeof(contact_model)}(initial_condition, mass, radius,
                                           damping_coefficient, acceleration_, source_terms,
-                                          contact_model, nothing)
+                                          contact_model)
     end
 end
 
@@ -150,7 +149,7 @@ end
     return system.radius[particle]
 end
 
-function system_data(system::DEMSystem, v_ode, u_ode, semi)
+function system_data(system::DEMSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     (; mass, radius, damping_coefficient) = system
 
     v = wrap_v(v_ode, system, semi)

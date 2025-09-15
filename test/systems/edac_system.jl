@@ -32,7 +32,7 @@
             @test system.mass == mass
             @test system.smoothing_kernel == smoothing_kernel
             @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
-            @test system.transport_velocity isa Nothing
+            @test system.shifting_technique isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
@@ -87,7 +87,7 @@
             @test system.mass == setup.mass
             @test system.smoothing_kernel == smoothing_kernel
             @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
-            @test system.transport_velocity isa Nothing
+            @test system.shifting_technique isa Nothing
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
@@ -140,7 +140,7 @@
         │ viscosity: …………………………………………………… Nothing                                                          │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
-        │ tansport velocity formulation:  Nothing                                                          │
+        │ shifting technique: …………………………… nothing                                                          │
         │ average pressure reduction: ……… no                                                               │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ surface tension: …………………………………… nothing                                                          │
@@ -221,11 +221,11 @@
 
         fluid = rectangular_patch(particle_spacing, (3, 3), seed=1)
 
-        transport_velocity = [nothing, TransportVelocityAdami(10000.0)]
+        transport_velocity = [nothing, TransportVelocityAdami(background_pressure=10000.0)]
         names = ["No TVF", "TransportVelocityAdami"]
         @testset "$(names[i])" for i in eachindex(transport_velocity)
             system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                                 transport_velocity=transport_velocity[i],
+                                                 shifting_technique=transport_velocity[i],
                                                  average_pressure_reduction=true,
                                                  smoothing_length, 0.0)
             semi = Semidiscretization(system)

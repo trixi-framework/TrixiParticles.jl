@@ -70,13 +70,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                sound_speed, m_a, m_b, rho_a, rho_b,
                                                grad_kernel)
 
-        # Add convection term (only when using `TransportVelocityAdami`)
-        dv_tvf = dv_transport_velocity(transport_velocity(particle_system),
+        # Extra terms in the momentum equation when using a shifting technique
+        dv_tvf = @inbounds dv_shifting(shifting_technique(particle_system),
                                        particle_system, neighbor_system,
-                                       particle, neighbor,
                                        v_particle_system, v_neighbor_system,
-                                       m_a, m_b, rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, correction)
+                                       particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                       pos_diff, distance, grad_kernel, correction)
 
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,
@@ -97,10 +96,10 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
-        @inbounds continuity_equation!(dv, density_calculator, v_particle_system,
+        @inbounds continuity_equation!(dv, density_calculator, particle_system,
+                                       neighbor_system, v_particle_system,
                                        v_neighbor_system, particle, neighbor,
-                                       pos_diff, distance, m_b, rho_a, rho_b,
-                                       particle_system, neighbor_system, grad_kernel)
+                                       pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
     end
     # Debug example
     # periodic_box = neighborhood_search.periodic_box
@@ -114,20 +113,20 @@ end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
+                                      particle_system, neighbor_system,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system, neighbor_system, grad_kernel)
+                                      m_b, rho_a, rho_b, grad_kernel)
     return dv
 end
 
 # This formulation was chosen to be consistent with the used pressure_acceleration formulations.
 @propagate_inbounds function continuity_equation!(dv, density_calculator::ContinuityDensity,
+                                                  particle_system::WeaklyCompressibleSPHSystem,
+                                                  neighbor_system,
                                                   v_particle_system, v_neighbor_system,
                                                   particle, neighbor, pos_diff, distance,
-                                                  m_b, rho_a, rho_b,
-                                                  particle_system::WeaklyCompressibleSPHSystem,
-                                                  neighbor_system, grad_kernel)
+                                                  m_b, rho_a, rho_b, grad_kernel)
     (; density_diffusion) = particle_system
 
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
@@ -135,7 +134,7 @@ end
 
     dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
 
-    # Artificial density diffusion should only be applied to system(s) representing a fluid
+    # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
     if particle_system === neighbor_system
@@ -143,6 +142,10 @@ end
                            pos_diff, distance, m_b, rho_a, rho_b, particle_system,
                            grad_kernel)
     end
+
+    continuity_equation_shifting!(dv, shifting_technique(particle_system),
+                                  particle_system, neighbor_system,
+                                  particle, neighbor, grad_kernel, rho_a, rho_b, m_b)
 end
 
 @propagate_inbounds function particle_neighbor_pressure(v_particle_system,
