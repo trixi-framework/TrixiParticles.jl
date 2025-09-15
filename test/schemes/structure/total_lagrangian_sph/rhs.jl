@@ -34,7 +34,7 @@
 
         @testset verbose=true "Test $i" for i in 1:4
             #### Setup
-            each_moving_particle = [particle[i]] # Only calculate dv for this one particle
+            each_integrated_particle = [particle[i]] # Only calculate dv for this one particle
             eachparticle = [particle[i], neighbor[i]]
             initial_coordinates = 1000 * ones(2, 10) # Just something that's not zero to catch errors
             initial_coordinates[:, particle[i]] = initial_coordinates_particle[i]
@@ -84,7 +84,7 @@
             end
 
             TrixiParticles.eachparticle(::MockSystem) = eachparticle
-            TrixiParticles.each_moving_particle(::MockSystem) = each_moving_particle
+            TrixiParticles.each_integrated_particle(::MockSystem) = each_integrated_particle
 
             function TrixiParticles.add_acceleration!(_, _, ::MockSystem)
                 return nothing

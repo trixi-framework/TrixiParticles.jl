@@ -46,7 +46,7 @@ end
     end
 
     # Update quantities based on the characteristic variables
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
         (; flow_direction) = boundary_zone
 
@@ -124,8 +124,8 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
 
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, fluid_system, system_coords, fluid_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
         boundary_zone = current_boundary_zone(system, particle)
         (; flow_direction) = boundary_zone
 
@@ -164,7 +164,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # Thus, we compute the characteristics for the particles that are outside the influence
     # of fluid particles by using the average of the values of the previous time step.
     # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         # Particle is outside of the influence of fluid particles
         if isapprox(volume[particle], 0)
 
@@ -175,7 +175,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
             avg_J3 = zero(eltype(volume))
             counter = 0
 
-            for neighbor in each_moving_particle(system)
+            for neighbor in each_integrated_particle(system)
                 # Make sure that only neighbors in the influence of
                 # the fluid particles are used.
                 if volume[neighbor] > sqrt(eps())
@@ -230,7 +230,7 @@ function average_velocity!(v, u, system, ::BoundaryModelCharacteristicsLastiwka,
 
     particles_in_zone = findall(particle -> boundary_zone ==
                                             current_boundary_zone(system, particle),
-                                each_moving_particle(system))
+                                each_integrated_particle(system))
 
     # Division inside the `sum` closure to maintain GPU compatibility
     avg_velocity = sum(particles_in_zone) do particle

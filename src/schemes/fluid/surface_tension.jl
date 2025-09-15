@@ -242,7 +242,7 @@ function compute_stress_tensors!(system::AbstractFluidSystem,
     NDIMS = ndims(system)
 
     @trixi_timeit timer() "compute surface stress tensor" begin
-        @threaded semi for particle in each_moving_particle(system)
+        @threaded semi for particle in each_integrated_particle(system)
             normal = surface_normal(system, particle)
             delta_s_particle = delta_s[particle]
             if delta_s_particle > eps()
@@ -271,7 +271,7 @@ function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris,
 
     set_zero!(delta_s)
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         delta_s[particle] = norm(surface_normal(system, particle))
     end
     return system

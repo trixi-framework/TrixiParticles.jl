@@ -58,8 +58,8 @@ function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractFlui
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = current_density(v_neighbor_system,
                                            neighbor_system, neighbor)
@@ -129,7 +129,7 @@ function remove_invalid_normals!(system::AbstractFluidSystem, surface_tension,
     (; cache) = system
 
     # We remove invalid normals (too few neighbors) to reduce the impact of underdefined normals
-    for particle in each_moving_particle(system)
+    for particle in each_integrated_particle(system)
         # A corner has that many neighbors assuming a regular 2 * r distribution and a compact_support of 4r
         if cache.neighbor_count[particle] < 2^ndims(system) + 1
             cache.surface_normal[1:ndims(system), particle] .= 0
@@ -154,7 +154,7 @@ function remove_invalid_normals!(system::AbstractFluidSystem,
     normal_condition2 = (interface_threshold /
                          compact_support(smoothing_kernel, smoothing_length_))^2
 
-    for particle in each_moving_particle(system)
+    for particle in each_integrated_particle(system)
 
         # Heuristic condition if there is no gas phase to find the free surface.
         # We remove normals for particles which have a lot of support e.g. they are in the interior.
@@ -250,8 +250,8 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
     end
 
     # Eq. 23
-    for i in 1:n_moving_particles(system)
-        curvature[i] /= (correction_factor[i] + eps())
+    for particle in each_integrated_particle(system)
+        curvature[particle] /= (correction_factor[particle] + eps())
     end
 
     return system

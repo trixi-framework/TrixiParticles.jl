@@ -43,6 +43,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `(system, v_ode, u_ode, semi, t)` now need to be functions
   of `(system, dv_ode, du_ode, v_ode, u_ode, semi, t)` (#879).
 
+- Renamed `each_moving_particle` to `each_integrated_particle`,
+  `n_moving_particles` to `n_integrated_particles`
+  and `active_particles` to `each_active_particle`.
+
 ### Features
 
 - Added consistent particle shifting by Sun et al. (2019) as `ConsistentShiftingSun2019` (#888).

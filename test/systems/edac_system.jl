@@ -165,7 +165,7 @@
                                              smoothing_length, sound_speed)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
-                   TrixiParticles.n_moving_particles(system))
+                   TrixiParticles.n_integrated_particles(system))
         TrixiParticles.write_u0!(u0, system)
 
         @test u0 == coordinates
@@ -191,7 +191,7 @@
                                              smoothing_length, sound_speed)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
-                   TrixiParticles.n_moving_particles(system))
+                   TrixiParticles.n_integrated_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
         system.cache.density .= density
@@ -208,7 +208,7 @@
                                              smoothing_length, sound_speed)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
-                   TrixiParticles.n_moving_particles(system))
+                   TrixiParticles.n_integrated_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
         @test v0 == vcat(velocity, [0.8, 1.0]')

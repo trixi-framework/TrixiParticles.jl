@@ -410,7 +410,7 @@ function write_v0!(v0, system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
 end
 
 function restart_with!(system::WeaklyCompressibleSPHSystem, v, u)
-    for particle in each_moving_particle(system)
+    for particle in each_integrated_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
     end
@@ -423,7 +423,7 @@ function restart_with!(system, ::SummationDensity, v, u)
 end
 
 function restart_with!(system, ::ContinuityDensity, v, u)
-    for particle in each_moving_particle(system)
+    for particle in each_integrated_particle(system)
         system.initial_condition.density[particle] = v[end, particle]
     end
 
