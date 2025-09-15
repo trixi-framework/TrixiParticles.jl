@@ -1,7 +1,7 @@
 @doc raw"""
     OpenBoundarySystem(boundary_zone::BoundaryZone;
-                          fluid_system::AbstractFluidSystem, buffer_size::Integer,
-                          boundary_model)
+                       fluid_system::AbstractFluidSystem, buffer_size::Integer,
+                       boundary_model)
 
 Open boundary system for in- and outflow particles.
 
@@ -184,15 +184,13 @@ end
     return system.pressure
 end
 
-@inline function set_particle_pressure!(v, system::OpenBoundarySystem, particle,
-                                        pressure)
+@inline function set_particle_pressure!(v, system::OpenBoundarySystem, particle, pressure)
     system.pressure[particle] = pressure
 
     return v
 end
 
-@inline function set_particle_density!(v, system::OpenBoundarySystem, particle,
-                                       density)
+@inline function set_particle_density!(v, system::OpenBoundarySystem, particle, density)
     system.density[particle] = density
 
     return v
