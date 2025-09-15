@@ -70,7 +70,7 @@ boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              viscosity=ViscosityAdami(; nu),
                                              smoothing_kernel, smoothing_length)
 
-boundary_system = BoundarySPHSystem(boundary, boundary_model)
+boundary_system = WallBoundarySystem(boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

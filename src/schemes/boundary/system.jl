@@ -1,5 +1,6 @@
 """
-    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing, adhesion_coefficient=0.0)
+    WallBoundarySystem(initial_condition, boundary_model;
+                       prescribed_motion=nothing, adhesion_coefficient=0.0)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -9,78 +10,77 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `boundary_model`: Boundary model (see [Boundary Models](@ref boundary_models))
 
 # Keyword Arguments
-- `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
+- `prescribed_motion`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
-                         CA} <: BoundarySystem{NDIMS}
+struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
+                          CA} <: AbstractBoundarySystem{NDIMS}
     initial_condition    :: IC
     coordinates          :: CO # Array{ELTYPE, 2}
     boundary_model       :: BM
-    movement             :: M
+    prescribed_motion    :: M
     ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     adhesion_coefficient :: ELTYPE
     cache                :: CA
-    buffer               :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
-    function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, cache, buffer)
+    function WallBoundarySystem(initial_condition, coordinates, boundary_model,
+                                prescribed_motion, ismoving, adhesion_coefficient, cache)
         ELTYPE = eltype(coordinates)
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
-            typeof(coordinates), typeof(movement), typeof(ismoving),
-            typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
-                           ismoving, adhesion_coefficient, cache, buffer)
+            typeof(coordinates), typeof(prescribed_motion), typeof(ismoving),
+            typeof(cache)}(initial_condition, coordinates, boundary_model,
+                           prescribed_motion, ismoving, adhesion_coefficient, cache)
     end
 end
 
-function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                           adhesion_coefficient=0.0, color_value=0)
+function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
+                            adhesion_coefficient=0.0, color_value=0)
     coordinates = copy(initial_condition.coordinates)
 
-    ismoving = Ref(!isnothing(movement))
+    ismoving = Ref(!isnothing(prescribed_motion))
 
-    cache = create_cache_boundary(movement, initial_condition)
+    cache = create_cache_boundary(prescribed_motion, initial_condition)
     cache = (cache..., color=Int(color_value))
 
-    if movement !== nothing && isempty(movement.moving_particles)
+    if prescribed_motion !== nothing && isempty(prescribed_motion.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
-        # instantiating `BoundaryMovement`.
-        resize!(movement.moving_particles, nparticles(initial_condition))
-        movement.moving_particles .= collect(1:nparticles(initial_condition))
+        # instantiating `PrescribedMotion`.
+        resize!(prescribed_motion.moving_particles, nparticles(initial_condition))
+        prescribed_motion.moving_particles .= collect(1:nparticles(initial_condition))
     end
 
     # Because of dispatches boundary model needs to be first!
-    return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, cache, nothing)
+    return WallBoundarySystem(initial_condition, coordinates, model, prescribed_motion,
+                              ismoving, adhesion_coefficient, cache)
 end
 
-function Base.show(io::IO, system::BoundarySPHSystem)
+function Base.show(io::IO, system::WallBoundarySystem)
     @nospecialize system # reduce precompilation time
 
-    print(io, "BoundarySPHSystem{", ndims(system), "}(")
+    print(io, "WallBoundarySystem{", ndims(system), "}(")
     print(io, system.boundary_model)
-    print(io, ", ", system.movement)
+    print(io, ", ", system.prescribed_motion)
     print(io, ", ", system.adhesion_coefficient)
     print(io, ", ", system.cache.color)
     print(io, ") with ", nparticles(system), " particles")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
+function Base.show(io::IO, ::MIME"text/plain", system::WallBoundarySystem)
     @nospecialize system # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, system)
     else
-        summary_header(io, "BoundarySPHSystem{$(ndims(system))}")
+        summary_header(io, "WallBoundarySystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "boundary model", system.boundary_model)
         summary_line(io, "movement function",
-                     isnothing(system.movement) ? "nothing" :
-                     string(system.movement.movement_function))
+                     isnothing(system.prescribed_motion) ? "nothing" :
+                     string(system.prescribed_motion.movement_function))
         summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
         summary_line(io, "color", system.cache.color)
         summary_footer(io)
@@ -98,7 +98,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 """
 struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
-                         ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS}
+                         ARRAY1D, ARRAY2D} <: AbstractBoundarySystem{NDIMS}
     initial_condition :: IC
     coordinates       :: ARRAY2D # [dimension, particle]
     radius            :: ARRAY1D # [particle]
@@ -137,18 +137,18 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundaryDEMSystem)
 end
 
 """
-    BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
+    PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
 
 # Arguments
 - `movement_function`: Time-dependent function returning an `SVector` of ``d`` dimensions
                        for a ``d``-dimensional problem.
 - `is_moving`: Function to determine in each timestep if the particles are moving or not. Its
-    boolean return value is mandatory to determine if the neighborhood search will be updated.
+   boolean return value is mandatory to determine if the neighborhood search will be updated.
 
 # Keyword Arguments
-- `moving_particles`: Indices of moving particles. Default is each particle in [`BoundarySPHSystem`](@ref).
+- `moving_particles`: Indices of moving particles. Default is each particle in the system.
 
-In the example below, `movement` describes particles moving in a circle as long as
+In the example below, `motion` describes particles moving in a circle as long as
 the time is lower than `1.5`.
 
 # Examples
@@ -156,13 +156,13 @@ the time is lower than `1.5`.
 movement_function(t) = SVector(cos(2pi*t), sin(2pi*t))
 is_moving(t) = t < 1.5
 
-movement = BoundaryMovement(movement_function, is_moving)
+motion = PrescribedMotion(movement_function, is_moving)
 
 # output
-BoundaryMovement{typeof(movement_function), typeof(is_moving), Vector{Int64}}(movement_function, is_moving, Int64[])
+PrescribedMotion{typeof(movement_function), typeof(is_moving), Vector{Int64}}(movement_function, is_moving, Int64[])
 ```
 """
-struct BoundaryMovement{MF, IM, MP}
+struct PrescribedMotion{MF, IM, MP}
     movement_function :: MF
     is_moving         :: IM
     moving_particles  :: MP # Vector{Int}
@@ -170,50 +170,50 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
+function PrescribedMotion(movement_function, is_moving; moving_particles=nothing)
     if !(movement_function(0.0) isa SVector)
         @warn "Return value of `movement_function` is not of type `SVector`. " *
               "Returning regular `Vector`s causes allocations and significant performance overhead."
     end
 
-    # Default value is an empty vector, which will be resized in the `BoundarySPHSystem`
+    # Default value is an empty vector, which will be resized in the `WallBoundarySystem`
     # constructor to move all particles.
     moving_particles = isnothing(moving_particles) ? Int[] : vec(moving_particles)
 
-    return BoundaryMovement(movement_function, is_moving, moving_particles)
+    return PrescribedMotion(movement_function, is_moving, moving_particles)
 end
 
 create_cache_boundary(::Nothing, initial_condition) = (;)
 
-function create_cache_boundary(::BoundaryMovement, initial_condition)
+function create_cache_boundary(::PrescribedMotion, initial_condition)
     initial_coordinates = copy(initial_condition.coordinates)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)
     return (; velocity, acceleration, initial_coordinates)
 end
 
-timer_name(::Union{BoundarySPHSystem, BoundaryDEMSystem}) = "boundary"
+timer_name(::Union{WallBoundarySystem, BoundaryDEMSystem}) = "boundary"
 
-@inline function Base.eltype(system::Union{BoundarySPHSystem, BoundaryDEMSystem})
+@inline function Base.eltype(system::Union{WallBoundarySystem, BoundaryDEMSystem})
     eltype(system.coordinates)
 end
 
-@inline function initial_coordinates(system::BoundarySPHSystem)
-    initial_coordinates(system::BoundarySPHSystem, system.movement)
+@inline function initial_coordinates(system::WallBoundarySystem)
+    initial_coordinates(system::WallBoundarySystem, system.prescribed_motion)
 end
 
 @inline initial_coordinates(system::BoundaryDEMSystem) = system.coordinates
 
-@inline initial_coordinates(system::BoundarySPHSystem, ::Nothing) = system.coordinates
+@inline initial_coordinates(system::WallBoundarySystem, ::Nothing) = system.coordinates
 
 # We need static initial coordinates as reference when system is moving
-@inline function initial_coordinates(system::BoundarySPHSystem, movement)
+@inline function initial_coordinates(system::WallBoundarySystem, prescribed_motion)
     return system.cache.initial_coordinates
 end
 
-function (movement::BoundaryMovement)(system, t, semi)
+function (prescribed_motion::PrescribedMotion)(system, t, semi)
     (; coordinates, cache) = system
-    (; movement_function, is_moving, moving_particles) = movement
+    (; movement_function, is_moving, moving_particles) = prescribed_motion
     (; acceleration, velocity) = cache
 
     system.ismoving[] = is_moving(t)
@@ -235,34 +235,35 @@ function (movement::BoundaryMovement)(system, t, semi)
     return system
 end
 
-function (movement::Nothing)(system::System, t, semi)
+function (prescribed_motion::Nothing)(system::AbstractSystem, t, semi)
     system.ismoving[] = false
 
     return system
 end
 
-@inline function nparticles(system::Union{BoundaryDEMSystem, BoundarySPHSystem})
+@inline function nparticles(system::Union{BoundaryDEMSystem, WallBoundarySystem})
     size(system.coordinates, 2)
 end
 
 # No particle positions are advanced for boundary systems,
 # except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
-@inline function n_moving_particles(system::Union{BoundarySPHSystem, BoundaryDEMSystem})
+@inline function n_moving_particles(system::Union{WallBoundarySystem, BoundaryDEMSystem})
     return 0
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+@inline function n_moving_particles(system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return nparticles(system)
 end
 
-@inline u_nvariables(system::Union{BoundarySPHSystem, BoundaryDEMSystem}) = 0
+@inline u_nvariables(system::Union{WallBoundarySystem, BoundaryDEMSystem}) = 0
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
 # For all other models and density calculators, it's irrelevant.
-@inline v_nvariables(system::BoundarySPHSystem) = 1
+@inline v_nvariables(system::WallBoundarySystem) = 1
 @inline v_nvariables(system::BoundaryDEMSystem) = 0
 
-@inline function current_coordinates(u, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
+@inline function current_coordinates(u,
+                                     system::Union{WallBoundarySystem, BoundaryDEMSystem})
     return system.coordinates
 end
 
@@ -270,8 +271,8 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_velocity(v, system::BoundarySPHSystem, particle)
-    return current_velocity(v, system, system.movement, particle)
+@inline function current_velocity(v, system::WallBoundarySystem, particle)
+    return current_velocity(v, system, system.prescribed_motion, particle)
 end
 
 @inline function current_velocity(v, system, movement, particle)
@@ -288,12 +289,12 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_velocity(v, system::BoundarySPHSystem)
-    error("`current_velocity(v, system)` is not implemented for `BoundarySPHSystem`")
+@inline function current_velocity(v, system::WallBoundarySystem)
+    error("`current_velocity(v, system)` is not implemented for `WallBoundarySystem`")
 end
 
-@inline function current_acceleration(system::BoundarySPHSystem, particle)
-    return current_acceleration(system, system.movement, particle)
+@inline function current_acceleration(system::WallBoundarySystem, particle)
+    return current_acceleration(system, system.prescribed_motion, particle)
 end
 
 @inline function current_acceleration(system, movement, particle)
@@ -310,7 +311,7 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function viscous_velocity(v, system::BoundarySPHSystem, particle)
+@inline function viscous_velocity(v, system::WallBoundarySystem, particle)
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
@@ -322,34 +323,34 @@ end
     return current_velocity(v, system, particle)
 end
 
-@inline function current_density(v, system::BoundarySPHSystem)
+@inline function current_density(v, system::WallBoundarySystem)
     return current_density(v, system.boundary_model, system)
 end
 
-@inline function current_pressure(v, system::BoundarySPHSystem)
+@inline function current_pressure(v, system::WallBoundarySystem)
     return current_pressure(v, system.boundary_model, system)
 end
 
-@inline function hydrodynamic_mass(system::BoundarySPHSystem, particle)
+@inline function hydrodynamic_mass(system::WallBoundarySystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@inline function smoothing_kernel(system::BoundarySPHSystem, distance, particle)
+@inline function smoothing_kernel(system::WallBoundarySystem, distance, particle)
     (; smoothing_kernel, smoothing_length) = system.boundary_model
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
-@inline function smoothing_length(system::BoundarySPHSystem, particle)
+@inline function smoothing_length(system::WallBoundarySystem, particle)
     return smoothing_length(system.boundary_model, particle)
 end
 
-function update_positions!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; movement) = system
+function update_positions!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
+    (; prescribed_motion) = system
 
-    movement(system, t, semi)
+    prescribed_motion(system, t, semi)
 end
 
-function update_quantities!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
     update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
@@ -359,29 +360,29 @@ end
 
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_boundary_interpolation!` after `update_quantities!`.
-function update_boundary_interpolation!(system::BoundarySPHSystem, v, u, v_ode, u_ode,
+function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode, u_ode,
                                         semi, t)
     (; boundary_model) = system
 
-    # Note that `update_pressure!(::BoundarySPHSystem, ...)` is empty,
+    # Note that `update_pressure!(::WallBoundarySystem, ...)` is empty,
     # so no pressure is updated in the previous update steps.
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
 
-function write_u0!(u0, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
+function write_u0!(u0, system::Union{WallBoundarySystem, BoundaryDEMSystem})
     return u0
 end
 
 function write_v0!(v0,
-                   system::Union{BoundarySPHSystem,
+                   system::Union{WallBoundarySystem,
                                  BoundaryDEMSystem})
     return v0
 end
 
 function write_v0!(v0,
-                   system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+                   system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
@@ -390,11 +391,11 @@ function write_v0!(v0,
     return v0
 end
 
-function restart_with!(system::BoundarySPHSystem, v, u)
+function restart_with!(system::WallBoundarySystem, v, u)
     return system
 end
 
-function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+function restart_with!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                        v, u)
     (; initial_density) = model.cache
 
@@ -407,16 +408,16 @@ end
 
 # To incorporate the effect at boundaries in the viscosity term of the RHS the neighbor
 # viscosity model has to be used.
-@inline function viscosity_model(system::BoundarySPHSystem,
-                                 neighbor_system::FluidSystem)
+@inline function viscosity_model(system::WallBoundarySystem,
+                                 neighbor_system::AbstractFluidSystem)
     return neighbor_system.viscosity
 end
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem, semi)
+function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractBoundarySystem, semi)
     return Inf
 end
 
-function initialize!(system::BoundarySPHSystem, semi)
+function initialize!(system::WallBoundarySystem, semi)
     initialize_colorfield!(system, system.boundary_model, semi)
     return system
 end
@@ -445,15 +446,15 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
     return system
 end
 
-function system_smoothing_kernel(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
+function system_smoothing_kernel(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.smoothing_kernel
 end
 
-function system_correction(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
+function system_correction(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.correction
 end
 
-function system_data(system::BoundarySPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
+function system_data(system::WallBoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi)
     dv = [current_acceleration(system, particle) for particle in eachparticle(system)]
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
@@ -466,7 +467,7 @@ function system_data(system::BoundarySPHSystem, dv_ode, du_ode, v_ode, u_ode, se
     return (; coordinates, velocity, density, pressure, acceleration=dv)
 end
 
-function available_data(::BoundarySPHSystem)
+function available_data(::WallBoundarySystem)
     return (:coordinates, :velocity, :density, :pressure, :acceleration)
 end
 

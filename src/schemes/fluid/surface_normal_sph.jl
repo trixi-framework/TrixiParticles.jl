@@ -33,7 +33,7 @@ function create_cache_surface_normal(::ColorfieldSurfaceNormal, ELTYPE, NDIMS, n
     return (; surface_normal, neighbor_count, colorfield, correction_factor)
 end
 
-@inline function surface_normal(particle_system::FluidSystem, particle)
+@inline function surface_normal(particle_system::AbstractFluidSystem, particle)
     (; cache) = particle_system
     return extract_svector(cache.surface_normal, particle_system, particle)
 end
@@ -47,7 +47,8 @@ end
 
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # and Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics".
-function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_system, v,
+function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractFluidSystem,
+                      u_system, v,
                       v_neighbor_system, u_neighbor_system, semi, surface_normal_method,
                       ::ColorfieldSurfaceNormal)
     (; cache) = system
@@ -76,9 +77,9 @@ end
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: This is the simplest form of normal approximation commonly used in SPH and comes
 # with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
-function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_system,
-                      v, v_neighbor_system, u_neighbor_system, semi, surface_normal_method,
-                      neighbor_surface_normal_method)
+function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractBoundarySystem,
+                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
+                      surface_normal_method, neighbor_surface_normal_method)
     (; cache) = system
     (; colorfield, initial_colorfield) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surface_normal_method
@@ -123,7 +124,7 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
     return system
 end
 
-function remove_invalid_normals!(system::FluidSystem, surface_tension,
+function remove_invalid_normals!(system::AbstractFluidSystem, surface_tension,
                                  surface_normal_method)
     (; cache) = system
 
@@ -139,7 +140,7 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension,
 end
 
 # See Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function remove_invalid_normals!(system::FluidSystem,
+function remove_invalid_normals!(system::AbstractFluidSystem,
                                  surface_tension::Union{SurfaceTensionMorris,
                                                         SurfaceTensionMomentumMorris},
                                  surface_normal_method::ColorfieldSurfaceNormal)
@@ -185,7 +186,7 @@ function compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_o
     return system
 end
 
-function compute_surface_normal!(system::FluidSystem,
+function compute_surface_normal!(system::AbstractFluidSystem,
                                  surface_normal_method_::ColorfieldSurfaceNormal,
                                  v, u, v_ode, u_ode, semi, t)
     (; cache, surface_tension) = system
@@ -214,8 +215,8 @@ function calc_curvature!(system, neighbor_system, u_system, v,
 end
 
 # Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_system, v,
-                         v_neighbor_system, u_neighbor_system, semi,
+function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractFluidSystem,
+                         u_system, v, v_neighbor_system, u_neighbor_system, semi,
                          surface_normal_method::ColorfieldSurfaceNormal,
                          neighbor_surface_normal_method::ColorfieldSurfaceNormal)
     (; cache) = system
@@ -260,8 +261,9 @@ function compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t
     return system
 end
 
-function compute_curvature!(system::FluidSystem, surface_tension::SurfaceTensionMorris, v,
-                            u, v_ode, u_ode, semi, t)
+function compute_curvature!(system::AbstractFluidSystem,
+                            surface_tension::SurfaceTensionMorris,
+                            v, u, v_ode, u_ode, semi, t)
     (; cache, surface_tension) = system
 
     # Reset surface curvature

@@ -36,7 +36,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `average_pressure_reduction`: Whether to subtract the average pressure of neighboring particles
                                 from the local pressure (default: `true` when using shifting, `false` otherwise).
 - `buffer_size`:                Number of buffer particles.
-                                This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+                                This is needed when simulating with [`OpenBoundarySystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
@@ -57,7 +57,8 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
-                                   AVGP, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
+                                   AVGP, ST, SRFT, SRFN, B, PR,
+                                   C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC

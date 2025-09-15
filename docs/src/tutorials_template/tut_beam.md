@@ -1,5 +1,5 @@
 # Example file
 ```julia
-!!include:examples/solid/oscillating_beam_2d.jl!!
+!!include:examples/structure/oscillating_beam_2d.jl!!
 
 ```

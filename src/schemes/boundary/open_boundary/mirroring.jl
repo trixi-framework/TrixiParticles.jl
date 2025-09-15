@@ -49,7 +49,7 @@ struct ZerothOrderMirroring end
 @doc raw"""
     BoundaryModelMirroringTafuni(; mirror_method=FirstOrderMirroring())
 
-Boundary model for the `OpenBoundarySPHSystem`.
+Boundary model for the [`OpenBoundarySystem`](@ref).
 This model implements the method of [Tafuni et al. (2018)](@cite Tafuni2018) to extrapolate the properties from the fluid domain
 to the buffer zones (inflow and outflow) using ghost nodes.
 The position of the ghost nodes is obtained by mirroring the boundary particles

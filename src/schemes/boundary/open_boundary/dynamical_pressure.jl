@@ -1,39 +1,39 @@
 struct BoundaryModelDynamicalPressureZhang end
 
-@inline function v_nvariables(system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang})
+@inline function v_nvariables(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
     v_nvariables(system, system.fluid_system)
 end
 
-@inline function v_nvariables(system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+@inline function v_nvariables(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                               ::WeaklyCompressibleSPHSystem)
     # Velocity and density is integrated
     return ndims(system) + 1
 end
 
-@inline function v_nvariables(system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+@inline function v_nvariables(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                               ::EntropicallyDampedSPHSystem)
     # Velocity, density and pressure is integrated
     return ndims(system) + 2
 end
 
 @inline function current_density(v,
-                                 system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang})
+                                 system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
     return view(v, ndims(system) + 1, :)
 end
 
 @inline function current_pressure(v,
-                                  system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang})
+                                  system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
     current_pressure(v, system, system.fluid_system)
 end
 
 @inline function current_pressure(v,
-                                  system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                                  system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                                   ::WeaklyCompressibleSPHSystem)
     return system.cache.pressure
 end
 
 @inline function current_pressure(v,
-                                  system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                                  system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                                   ::EntropicallyDampedSPHSystem)
     # When using `EntropicallyDampedSPHSystem`, the pressure is stored in the last row of `v`
     return view(v, size(v, 1), :)
@@ -59,11 +59,11 @@ end
     set_particle_pressure!(v, system, particle, system.cache.pressure_boundary[particle])
 end
 
-function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelDynamicalPressureZhang)
+function write_v0!(v0, system::OpenBoundarySystem, ::BoundaryModelDynamicalPressureZhang)
     write_v0!(v0, system, system.boundary_model, system.fluid_system)
 end
 
-function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelDynamicalPressureZhang,
+function write_v0!(v0, system::OpenBoundarySystem, ::BoundaryModelDynamicalPressureZhang,
                    ::EntropicallyDampedSPHSystem)
     v0[size(v0, 1) - 1, :] = system.initial_condition.density
     v0[size(v0, 1), :] = system.initial_condition.pressure
@@ -71,7 +71,7 @@ function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelDynamicalPr
     return v0
 end
 
-function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelDynamicalPressureZhang,
+function write_v0!(v0, system::OpenBoundarySystem, ::BoundaryModelDynamicalPressureZhang,
                    ::WeaklyCompressibleSPHSystem)
     v0[size(v0, 1), :] = system.initial_condition.density
 
@@ -79,7 +79,7 @@ function write_v0!(v0, system::OpenBoundarySPHSystem, ::BoundaryModelDynamicalPr
 end
 
 function reference_pressure(boundary_zone, v,
-                            system::OpenBoundarySPHSystem{<:BoundaryModelDynamicalPressureZhang},
+                            system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                             particle, pos, t)
     (; prescribed_pressure, rest_pressure) = boundary_zone
     (; pressure_reference_values) = system.cache
@@ -122,12 +122,12 @@ function update_boundary_model!(system, boundary_model::BoundaryModelDynamicalPr
     return system
 end
 
-function compute_pressure!(system::OpenBoundarySPHSystem,
+function compute_pressure!(system::OpenBoundarySystem,
                            fluid_system::EntropicallyDampedSPHSystem, v, semi)
     return system
 end
 
-function compute_pressure!(system::OpenBoundarySPHSystem,
+function compute_pressure!(system::OpenBoundarySystem,
                            fluid_system::WeaklyCompressibleSPHSystem, v, semi)
     @threaded semi for particle in eachparticle(system)
         apply_state_equation!(system, fluid_system, current_density(v, system, particle),
@@ -140,7 +140,7 @@ end
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function apply_state_equation!(system::OpenBoundarySPHSystem,
+@inline function apply_state_equation!(system::OpenBoundarySystem,
                                        fluid_system::WeaklyCompressibleSPHSystem, density,
                                        particle)
     system.cache.pressure[particle] = fluid_system.state_equation(density)
