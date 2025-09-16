@@ -250,10 +250,6 @@ end
 
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
-@inline function current_pressure(v, system::EntropicallyDampedSPHSystem, particle)
-    return v[ndims(system) + 1, particle]
-end
-
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
     return view(v, 1:ndims(system), :)
 end
@@ -264,11 +260,11 @@ end
 
 @inline shifting_technique(system::EntropicallyDampedSPHSystem) = system.shifting_technique
 
-@inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
+@propagate_inbounds function average_pressure(system::EntropicallyDampedSPHSystem, particle)
     average_pressure(system, system.average_pressure_reduction, particle)
 end
 
-@inline function average_pressure(system, ::Val{true}, particle)
+@propagate_inbounds function average_pressure(system, ::Val{true}, particle)
     return system.cache.pressure_average[particle]
 end
 
