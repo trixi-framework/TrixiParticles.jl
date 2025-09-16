@@ -204,10 +204,10 @@
         end
     end
 
-    @trixi_testset "fluid/dam_break_2d_IISPH.jl" begin
+    @trixi_testset "fluid/dam_break_2d_iisph.jl" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
-                                                  "dam_break_2d_IISPH.jl"),
+                                                  "dam_break_2d_iisph.jl"),
                                          tspan=(0.0, 0.1)) [
             r"┌ Info: The desired tank length in y-direction .*\n",
             r"└ New tank length in y-direction.*\n"

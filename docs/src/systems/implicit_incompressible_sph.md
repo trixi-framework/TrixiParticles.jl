@@ -145,21 +145,21 @@ To separate this sum, it can be written as
 With this separation, the equation for the linear system can again be rewritten as
 
 ```math
-\rho_0 - \rho_i^{\text{adv}} = p_i \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij}  + \sum_j m_j \left ( \sum_j d_{ij} p_j - d_{jj} p_j - \sum_{k \neq i} d_{jk}p_k \right) \nabla W_{ij}.
+\rho_0 - \rho_i^{\text{adv}} = p_i \sum_j m_j ( d_{ii} - d_{ji})\nabla W_{ij}  + \sum_j m_j \left ( \sum_j d_{ij} p_j - d_{jj} p_j - \sum_{k \neq i} d_{jk}p_k \right) \nabla W_{ij}.
 ```
 
 In this formulation all coefficients that are getting multiplied with the pressure value ``p_i``
 are separated from the other. The diagonal elements ``a_{ii}`` can therefore be defined as:
 
 ```math
-a_{ii} = \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij}.
+a_{ii} = \sum_j m_j ( d_{ii} - d_{ji})\nabla W_{ij}.
 ```
 
 The remaining part of the equation represents the influence of the other pressure values ``p_j``.
 ​Hence, the final relaxed Jacobi iteration takes the form:
 
 ```math
-p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii}} \left( \rho_0 -\rho_i^{\text{adv}} - \sum_j m_j \left( \sum_h d_{ih} p_h^l - d_{hh} p_h^l - \sum_{k \neq i} d_{hk} p_k^l \right) \nabla W_{ij} \right).
+p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii}} \left( \rho_0 -\rho_i^{\text{adv}} - \sum_j m_j \left( \sum_k d_{ik} p_k^l - d_{jj} p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \right).
 ```
 
 Because interactions are local, limited to particles within the kernel support defined by
@@ -229,12 +229,7 @@ This leads to the following updated formulation of the linear system:
 \Delta t^2 \sum_j m_j \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_j^p(t)}{m_j} \right) \nabla W_{ij} + \Delta t^2 \sum_b m_b \frac{\bm{F}_i^p(t)}{m_i} \nabla W_{ib} = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
-It is important to note that, because boundary particles have no velocity, the pressure
-acceleration of a fluid particle does not directly depend on the pressure forces of boundary
-particles. However, the pressure forces of both the particle itself and its neighboring
-fluid particles depend on the pressure values of all neighboring particles—this includes
-boundary particles. Therefore, the pressure of a fluid particle is indirectly influenced by
-the pressure values of nearby boundary particles.
+Note that, since boundary particles are fixed, the force ``F_b^p`` is zero and does not appear in this equation.
 
 The pressure force acting on a fluid particle is computed as:
 
@@ -244,7 +239,7 @@ The pressure force acting on a fluid particle is computed as:
 
 This also leads to an updated version of the equation for the diagonal elements:
 ```math
-a_{ii} = \sum_j m_j ( d_{ii} - d_{ij})\nabla W_{ij} + \sum_b m_b (-d_{bi}) \nabla W_{ib}.
+a_{ii} = \sum_j m_j ( d_{ii} - d_{ji})\nabla W_{ij} + \sum_b m_b (-d_{bi}) \nabla W_{ib}.
 ```
 
 From this point forward, the computation of the coefficients required for the Jacobi scheme
@@ -254,8 +249,8 @@ used in the chosen boundary model.
 
 
 ### Pressure Mirroring
-When using pressure mirroring, the pressure value $p_b$ of a boundary particle in the equation
-above is defined to be equal to the pressure of the corresponding fluid particle $p_i$.
+When using pressure mirroring, the pressure value ``p_b`` of a boundary particle in the equation
+above is defined to be equal to the pressure of the corresponding fluid particle ``p_i``.
 In other words, the boundary particle "mirrors" the pressure of the fluid particle interacting
 with it. As a result, the coefficient that describes the influence of a particle's own
 pressure value ``p_i`` ​must also include contributions from boundary particles. Therefore,
@@ -268,10 +263,11 @@ d_{ii} = -\Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij} - \Delta t^2 \sum
 The corresponding relaxed Jacobi iteration for pressure mirroring then becomes:
 
 ```math
-\begin{align}
-p_i^{l+1} = &(1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \left( \rho_0 - \rho_i^{\text{adv}} - \sum_j m_j \left( \sum_j d_{ih} p_h^l - d_{hh}p_h^l - \sum_{k \neq i} d_{hk} p_k^l \right) \nabla W_{ij} \right. \\
-&- \left. \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right).
-\end{align}
+\begin{align*}
+p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i^{\text{adv}}
+ - \sum_j m_j \left( \sum_k d_{ik} p_k^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \right. \\
+& \quad - \left. \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right).
+\end{align*}
 ```
 
 ### Pressure Zeroing
@@ -289,8 +285,9 @@ approach. However, the contribution from boundary particles vanishes due to thei
 pressure:
 
 ```math
-\begin{align}
-p_i^{l+1} = &(1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} \left( \rho_0 - \rho_i^{\text{adv}} - \sum_j m_j \left( \sum_j d_{ih} p_h^l - d_{hh}p_h^l - \sum_{k \neq i} d_{hk} p_k^l \right) \nabla W_{ij} \right. \\
-&- \left. \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right).
-\end{align}
+\begin{align*}
+p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i^{\text{adv}}
+ - \sum_j m_j \left( \sum_k d_{ik} p_k^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \right. \\
+& \quad - \left. \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right).
+\end{align*}
 ```

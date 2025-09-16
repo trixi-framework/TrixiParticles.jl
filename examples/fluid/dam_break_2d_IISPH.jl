@@ -32,6 +32,7 @@ trixi_include(@__MODULE__,
               smoothing_length=smoothing_length,
               fluid_system=IISPH_system,
               boundary_density_calculator=PressureZeroing(),
+              tspan=tspan,
               state_equation=nothing,
               callbacks=CallbackSet(info_callback, saving_callback),
               time_integration_algorithm=SymplecticEuler(), dt=time_step)
