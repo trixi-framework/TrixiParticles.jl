@@ -133,9 +133,10 @@ Using this new values the linear system can be rewritten as
 \rho_0 - \rho_i^{\text{adv}} = \sum_j m_j \left( d_{ii}p_i + \sum_k d_{ik}p_k - d_{jj}p_j - \sum_k d_{jk}p_k \right) \nabla W_{ij},
 ```
 
-where ``k`` stands for the neighbor particles of the neighbor particle ``j`` from ``i``.
-So the sum over the neighboring pressure values ``p_j`` also includes the pressure values ``p_i``,
-since ``i`` is a neighbor of ``j``.
+where in the first sum over ``k``,  ``k`` stands for the neighbor particles of ``i`` and in
+the second sum ``k``stands for neighbor particles of neighbor particle ``j`` from ``i``.
+So the sum over the neighboring pressure values ``p_j`` also includes the pressure values
+``p_i``, since ``i`` is a neighbor of ``j``.
 To separate this sum, it can be written as
 
 ```math
