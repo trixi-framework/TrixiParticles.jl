@@ -1,7 +1,7 @@
 @doc raw"""
-    OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
-                          fluid_system::FluidSystem, buffer_size::Integer,
-                          boundary_model)
+    OpenBoundarySystem(boundary_zone::BoundaryZone;
+                       fluid_system::AbstractFluidSystem, buffer_size::Integer,
+                       boundary_model)
 
 Open boundary system for in- and outflow particles.
 
@@ -16,8 +16,8 @@ Open boundary system for in- and outflow particles.
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZI, BZ,
-                             B, PF, SC, C} <: System{NDIMS}
+struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZI, BZ,
+                          B, PF, ST, C} <: System{NDIMS}
     boundary_model                    :: BM
     initial_condition                 :: IC
     fluid_system                      :: FS
@@ -34,36 +34,37 @@ struct OpenBoundarySPHSystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC,
     boundary_zones                    :: BZ
     buffer                            :: B
     pressure_acceleration_formulation :: PF
-    shifting_technique                :: SC
+    shifting_technique                :: ST
     cache                             :: C
 end
 
-function OpenBoundarySPHSystem(boundary_model, initial_condition, fluid_system,
-                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
-                               density, volume, pressure, boundary_candidates,
-                               fluid_candidates, boundary_zone_indices, boundary_zone,
-                               buffer, pressure_acceleration_formulation,
-                               shifting_technique, cache)
-    OpenBoundarySPHSystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
-                          typeof(initial_condition), typeof(fluid_system),
-                          typeof(fluid_system_index), typeof(smoothing_kernel),
-                          typeof(mass), typeof(boundary_candidates),
-                          typeof(fluid_candidates), typeof(boundary_zone_indices),
-                          typeof(boundary_zone), typeof(buffer),
-                          typeof(pressure_acceleration_formulation),
-                          typeof(shifting_technique),
-                          typeof(cache)}(boundary_model, initial_condition, fluid_system,
-                                         fluid_system_index, smoothing_kernel,
-                                         smoothing_length, mass, density, volume, pressure,
-                                         boundary_candidates, fluid_candidates,
-                                         boundary_zone_indices, boundary_zone, buffer,
-                                         pressure_acceleration_formulation,
-                                         shifting_technique, cache)
+function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
+                            fluid_system_index, smoothing_kernel, smoothing_length, mass,
+                            density, volume, pressure, boundary_candidates,
+                            fluid_candidates, boundary_zone_indices, boundary_zone,
+                            buffer, pressure_acceleration_formulation,
+                            shifting_technique, cache)
+    OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
+                       typeof(initial_condition), typeof(fluid_system),
+                       typeof(fluid_system_index), typeof(smoothing_kernel),
+                       typeof(mass), typeof(boundary_candidates),
+                       typeof(fluid_candidates), typeof(boundary_zone_indices),
+                       typeof(boundary_zone), typeof(buffer),
+                       typeof(pressure_acceleration_formulation),
+                       typeof(shifting_technique),
+                       typeof(cache)}(boundary_model, initial_condition, fluid_system,
+                                      fluid_system_index, smoothing_kernel,
+                                      smoothing_length, mass, density, volume, pressure,
+                                      boundary_candidates, fluid_candidates,
+                                      boundary_zone_indices, boundary_zone, buffer,
+                                      pressure_acceleration_formulation,
+                                      shifting_technique, cache)
 end
 
-function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
-                               fluid_system::FluidSystem, buffer_size::Integer,
-                               boundary_model, apply_shifting=true)
+function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
+                            fluid_system::AbstractFluidSystem, buffer_size::Integer,
+                            boundary_model,
+                            shifting_technique=shifting_technique(fluid_system))
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
     reference_values_ = map(bz -> bz.reference_values, boundary_zones_)
 
@@ -78,10 +79,8 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     density = copy(initial_conditions.density)
     volume = similar(initial_conditions.density)
 
-    shifting_technique_ = apply_shifting ? shifting_technique(fluid_system) : nothing
-
     cache = (;
-             create_cache_shifting(initial_conditions, shifting_technique_)...,
+             create_cache_shifting(initial_conditions, shifting_technique)...,
              create_cache_open_boundary(boundary_model, initial_conditions,
                                         reference_values_)...)
 
@@ -111,16 +110,16 @@ function OpenBoundarySPHSystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   zone.prescribed_velocity),
                              boundary_zones)
 
-    return OpenBoundarySPHSystem(boundary_model, initial_conditions, fluid_system,
-                                 fluid_system_index, smoothing_kernel, smoothing_length,
-                                 mass, density, volume, pressure, boundary_candidates,
-                                 fluid_candidates, boundary_zone_indices,
-                                 boundary_zones_new, buffer,
-                                 fluid_system.pressure_acceleration_formulation,
-                                 shifting_technique_, cache)
+    return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
+                              fluid_system_index, smoothing_kernel, smoothing_length,
+                              mass, density, volume, pressure, boundary_candidates,
+                              fluid_candidates, boundary_zone_indices,
+                              boundary_zones_new, buffer,
+                              fluid_system.pressure_acceleration_formulation,
+                              shifting_technique, cache)
 end
 
-function initialize!(system::OpenBoundarySPHSystem, semi)
+function initialize!(system::OpenBoundarySystem, semi)
     (; boundary_zones) = system
 
     update_boundary_zone_indices!(system, initial_coordinates(system), boundary_zones, semi)
@@ -152,23 +151,23 @@ function create_cache_open_boundary(boundary_model, initial_condition, reference
     end
 end
 
-timer_name(::OpenBoundarySPHSystem) = "open_boundary"
-vtkname(system::OpenBoundarySPHSystem) = "open_boundary"
+timer_name(::OpenBoundarySystem) = "open_boundary"
+vtkname(system::OpenBoundarySystem) = "open_boundary"
 
-function Base.show(io::IO, system::OpenBoundarySPHSystem)
+function Base.show(io::IO, system::OpenBoundarySystem)
     @nospecialize system # reduce precompilation time
 
-    print(io, "OpenBoundarySPHSystem{", ndims(system), "}(")
+    print(io, "OpenBoundarySystem{", ndims(system), "}(")
     print(io, ") with ", nparticles(system), " particles")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
+function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySystem)
     @nospecialize system # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, system)
     else
-        summary_header(io, "OpenBoundarySPHSystem{$(ndims(system))}")
+        summary_header(io, "OpenBoundarySystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "#buffer_particles", system.buffer.buffer_size)
         summary_line(io, "#boundary_zones", length(system.boundary_zones))
@@ -178,50 +177,48 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
     end
 end
 
-@inline function Base.eltype(::OpenBoundarySPHSystem{<:Any, ELTYPE}) where {ELTYPE}
+@inline function Base.eltype(::OpenBoundarySystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
 
-@inline buffer(system::OpenBoundarySPHSystem) = system.buffer
+@inline buffer(system::OpenBoundarySystem) = system.buffer
 
 # The `UpdateCallback` is required to update particle positions between time steps
-@inline requires_update_callback(system::OpenBoundarySPHSystem) = true
+@inline requires_update_callback(system::OpenBoundarySystem) = true
 
-function smoothing_length(system::OpenBoundarySPHSystem, particle)
+function smoothing_length(system::OpenBoundarySystem, particle)
     return system.smoothing_length
 end
 
-@inline function shifting_technique(system::OpenBoundarySPHSystem)
+@inline function shifting_technique(system::OpenBoundarySystem)
     return system.shifting_technique
 end
 
-system_sound_speed(system::OpenBoundarySPHSystem) = system_sound_speed(system.fluid_system)
+system_sound_speed(system::OpenBoundarySystem) = system_sound_speed(system.fluid_system)
 
-@inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
+@inline hydrodynamic_mass(system::OpenBoundarySystem, particle) = system.mass[particle]
 
-@inline function current_density(v, system::OpenBoundarySPHSystem)
+@inline function current_density(v, system::OpenBoundarySystem)
     return system.density
 end
 
-@inline function current_pressure(v, system::OpenBoundarySPHSystem)
+@inline function current_pressure(v, system::OpenBoundarySystem)
     return system.pressure
 end
 
-@inline function set_particle_pressure!(v, system::OpenBoundarySPHSystem, particle,
-                                        pressure)
+@inline function set_particle_pressure!(v, system::OpenBoundarySystem, particle, pressure)
     system.pressure[particle] = pressure
 
     return v
 end
 
-@inline function set_particle_density!(v, system::OpenBoundarySPHSystem, particle,
-                                       density)
+@inline function set_particle_density!(v, system::OpenBoundarySystem, particle, density)
     system.density[particle] = density
 
     return v
 end
 
-@inline function add_velocity!(du, v, u, particle, system::OpenBoundarySPHSystem, t)
+@inline function add_velocity!(du, v, u, particle, system::OpenBoundarySystem, t)
     boundary_zone = current_boundary_zone(system, particle)
 
     pos = current_coords(u, system, particle)
@@ -237,14 +234,14 @@ end
     return du
 end
 
-function update_boundary_interpolation!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode,
+function update_boundary_interpolation!(system::OpenBoundarySystem, v, u, v_ode, u_ode,
                                         semi, t)
     update_boundary_model!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end
 
 # This function is called by the `UpdateCallback`, as the integrator array might be modified
-function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode,
+function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode,
                                         semi, t)
     (; boundary_model) = system
 
@@ -272,7 +269,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     boundary_candidates .= false
 
     # Check the boundary particles whether they're leaving the boundary zone
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         particle_coords = current_coords(u, system, particle)
 
         # Check if boundary particle is outside the boundary zone
@@ -303,7 +300,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     fluid_candidates .= false
 
     # Check the fluid particles whether they're entering the boundary zone
-    @threaded semi for fluid_particle in each_moving_particle(fluid_system)
+    @threaded semi for fluid_particle in each_integrated_particle(fluid_system)
         fluid_coords = current_coords(u_fluid, fluid_system, fluid_particle)
 
         # Check if fluid particle is in any boundary zone
@@ -340,7 +337,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 end
 
 # Buffer particle is outside the boundary zone
-@inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
+@inline function convert_particle!(system::OpenBoundarySystem, fluid_system,
                                    boundary_zone, particle, particle_new,
                                    v, u, v_fluid, u_fluid)
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
@@ -365,7 +362,7 @@ end
 end
 
 # Fluid particle is in boundary zone
-@inline function convert_particle!(fluid_system::FluidSystem, system,
+@inline function convert_particle!(fluid_system::AbstractFluidSystem, system,
                                    particle, particle_new, v, u, v_fluid, u_fluid)
     # Activate particle in boundary zone
     transfer_particle!(system, fluid_system, particle, particle_new, v, u, v_fluid, u_fluid)
@@ -398,7 +395,7 @@ end
     return system_new
 end
 
-function write_v0!(v0, system::OpenBoundarySPHSystem)
+function write_v0!(v0, system::OpenBoundarySystem)
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
     indices = CartesianIndices(system.initial_condition.velocity)
     copyto!(v0, indices, system.initial_condition.velocity, indices)
@@ -406,7 +403,7 @@ function write_v0!(v0, system::OpenBoundarySPHSystem)
     return v0
 end
 
-function write_u0!(u0, system::OpenBoundarySPHSystem)
+function write_u0!(u0, system::OpenBoundarySystem)
     (; initial_condition) = system
 
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
@@ -418,20 +415,20 @@ end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
-@inline function viscosity_model(system::OpenBoundarySPHSystem,
-                                 neighbor_system::FluidSystem)
+@inline function viscosity_model(system::OpenBoundarySystem,
+                                 neighbor_system::AbstractFluidSystem)
     return neighbor_system.viscosity
 end
 
-@inline function viscosity_model(system::OpenBoundarySPHSystem,
-                                 neighbor_system::BoundarySystem)
+@inline function viscosity_model(system::OpenBoundarySystem,
+                                 neighbor_system::AbstractBoundarySystem)
     return neighbor_system.boundary_model.viscosity
 end
 
 # When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
-@inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
+@inline viscosity_model(system, neighbor_system::OpenBoundarySystem) = system.viscosity
 
-function system_data(system::OpenBoundarySPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
+function system_data(system::OpenBoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
@@ -443,11 +440,11 @@ function system_data(system::OpenBoundarySPHSystem, dv_ode, du_ode, v_ode, u_ode
     return (; coordinates, velocity, density, pressure)
 end
 
-function available_data(::OpenBoundarySPHSystem)
+function available_data(::OpenBoundarySystem)
     return (:coordinates, :velocity, :density, :pressure)
 end
 
-@inline function modify_shifting_at_free_surfaces!(system::OpenBoundarySPHSystem, u, semi)
+@inline function modify_shifting_at_free_surfaces!(system::OpenBoundarySystem, u, semi)
     (; fluid_system, cache) = system
 
     @threaded semi for particle in each_moving_particle(system)

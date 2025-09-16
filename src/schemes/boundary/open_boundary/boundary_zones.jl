@@ -12,7 +12,7 @@ struct OutFlow end
                  reference_density=nothing, reference_pressure=nothing,
                  reference_velocity=nothing)
 
-Boundary zone for [`OpenBoundarySPHSystem`](@ref).
+Boundary zone for [`OpenBoundarySystem`](@ref).
 
 The specified plane (line in 2D or rectangle in 3D) will be extruded in the direction
 opposite to `plane_normal` to create a box for the boundary zone.
@@ -80,7 +80,7 @@ There are three ways to specify the actual shape of the boundary zone:
     or evolved using the characteristic flow variables ([BoundaryModelCharacteristicsLastiwka](@ref BoundaryModelCharacteristicsLastiwka)).
 
 # Examples
-```jldoctest; output = false
+```jldoctest; output=false
 # 2D
 plane_points = ([0.0, 0.0], [0.0, 1.0])
 plane_normal = [1.0, 0.0]
@@ -413,7 +413,7 @@ end
 function update_boundary_zone_indices!(system, u, boundary_zones, semi)
     set_zero!(system.boundary_zone_indices)
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         particle_coords = current_coords(u, system, particle)
 
         for (zone_id, boundary_zone) in enumerate(boundary_zones)

@@ -245,7 +245,7 @@ function (pp::PostprocessCallback)(integrator)
         end
 
         foreach_system(semi) do system
-            if system isa BoundarySystem && pp.exclude_boundary
+            if system isa AbstractBoundarySystem && pp.exclude_boundary
                 return
             end
 
@@ -266,7 +266,7 @@ function (pp::PostprocessCallback)(integrator)
 
         if isfinished(integrator) ||
            (pp.write_file_interval > 0 && backup_condition(pp, integrator))
-            write_postprocess_callback(pp)
+            write_postprocess_callback(pp, integrator)
         end
 
         # Tell OrdinaryDiffEq that `u` has not been modified
@@ -285,13 +285,14 @@ end
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
-function write_postprocess_callback(pp::PostprocessCallback)
+function write_postprocess_callback(pp::PostprocessCallback, integrator)
     isempty(pp.data) && return
 
     mkpath(pp.output_directory)
 
     data = Dict{String, Any}()
-    write_meta_data!(data, pp.git_hash[])
+    data["meta"] = create_meta_data_dict(pp, integrator)
+
     prepare_series_data!(data, pp)
 
     time_stamp = ""
@@ -339,15 +340,6 @@ function create_series_dict(values, times, system_name="")
                 "system_name" => system_name,
                 "values" => values,
                 "time" => times)
-end
-
-function write_meta_data!(data, git_hash)
-    meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => git_hash,
-                     "julia_version" => string(VERSION))
-
-    data["meta"] = meta_data
-    return data
 end
 
 function write_csv(abs_file_path, data)

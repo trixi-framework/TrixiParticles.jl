@@ -59,7 +59,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "system.jl")]
+Pages = [joinpath("schemes", "structure", "total_lagrangian_sph", "system.jl")]
 ```
 
 ## Penalty Force
@@ -100,7 +100,7 @@ where the error vector is defined as
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "penalty_force.jl")]
+Pages = [joinpath("schemes", "structure", "total_lagrangian_sph", "penalty_force.jl")]
 ```
 
 ## Viscosity

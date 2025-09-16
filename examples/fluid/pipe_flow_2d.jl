@@ -83,7 +83,7 @@ if wcsph
                                                state_equation, smoothing_kernel,
                                                density_diffusion=density_diffusion,
                                                smoothing_length, viscosity=viscosity,
-                                               shifting_technique=ParticleShiftingTechnique(),
+                                               shifting_technique=ParticleShiftingTechnique(v_max_factor=1.5),
                                                buffer_size=n_buffer_particles)
 else
     # Alternatively the EDAC scheme can be used
@@ -133,9 +133,9 @@ outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
                        reference_velocity=reference_velocity_out,
                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)
 
-open_boundary = OpenBoundarySPHSystem(inflow, outflow; fluid_system,
-                                      boundary_model=open_boundary_model,
-                                      buffer_size=n_buffer_particles)
+open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
+                                   boundary_model=open_boundary_model,
+                                   buffer_size=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Boundary
@@ -147,7 +147,7 @@ boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
                                              viscosity=viscosity_boundary,
                                              smoothing_kernel, smoothing_length)
 
-boundary_system = BoundarySPHSystem(wall, boundary_model)
+boundary_system = WallBoundarySystem(wall, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

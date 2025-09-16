@@ -11,14 +11,14 @@ function interact!(dv, v_particle_system, u_particle_system,
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
-                           points=each_moving_particle(particle_system)) do particle,
-                                                                            neighbor,
-                                                                            pos_diff,
-                                                                            distance
-        # Only consider particles with a distance > 0.
+                           points=each_integrated_particle(particle_system)) do particle,
+                                                                                neighbor,
+                                                                                pos_diff,
+                                                                                distance
+        # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
         rho_a = current_density(v_particle_system, particle_system, particle)
@@ -53,10 +53,10 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Extra terms in the momentum equation when using a shifting technique
         dv_tvf = dv_shifting(shifting_technique(particle_system),
-                             particle_system, neighbor_system, particle, neighbor,
+                             particle_system, neighbor_system,
                              v_particle_system, v_neighbor_system,
-                             m_a, m_b, rho_a, rho_b, pos_diff, distance,
-                             grad_kernel, correction)
+                             particle, neighbor, m_a, m_b, rho_a, rho_b,
+                             pos_diff, distance, grad_kernel, correction)
 
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
