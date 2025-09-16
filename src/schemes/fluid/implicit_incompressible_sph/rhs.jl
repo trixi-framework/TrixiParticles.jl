@@ -12,9 +12,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           semi;
-                           points=each_moving_particle(particle_system)) do particle,
+                           system_coords, neighbor_system_coords, semi;
+                           points=each_integrated_particle(particle_system)) do particle,
                                                                             neighbor,
                                                                             pos_diff,
                                                                             distance
@@ -32,7 +31,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # The following call is equivalent to
         #     `p_a = particle_pressure(v_particle_system, particle_system, particle)`
         #     `p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)`
-        # Only when the neighbor system is a `BoundarySPHSystem` or a `TotalLagrangianSPHSystem`
+        # Only when the neighbor system is a `WallBoundarySystem` or a `TotalLagrangianSPHSystem`
         # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
         # the pressure of the fluid particle.
         p_a,
