@@ -36,12 +36,12 @@
             initial_condition = InitialCondition(; coordinates, mass, density)
             model = (; hydrodynamic_mass=3)
 
-            function movement_function(t)
+            function movement_function(x, t)
                 if NDIMS == 2
-                    return SVector(0.5 * t, 0.3 * t^2)
+                    return x + SVector(0.5 * t, 0.3 * t^2)
                 end
 
-                return SVector(0.5 * t, 0.3 * t^2, 0.1 * t^3)
+                return x + SVector(0.5 * t, 0.3 * t^2, 0.1 * t^3)
             end
 
             is_moving(t) = t < 1.0

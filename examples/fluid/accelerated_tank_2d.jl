@@ -12,7 +12,7 @@ using OrdinaryDiffEq
 fluid_particle_spacing = 0.05
 
 # Function for moving boundaries
-movement_function(t) = SVector(0.0, 0.5 * 9.81 * t^2)
+movement_function(x, t) = x + SVector(0.0, 0.5 * 9.81 * t^2)
 
 is_moving(t) = true
 

@@ -42,16 +42,10 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(prescribed_motion))
+    initialize!(prescribed_motion, initial_condition)
 
     cache = create_cache_boundary(prescribed_motion, initial_condition)
     cache = (cache..., color=Int(color_value))
-
-    if prescribed_motion !== nothing && isempty(prescribed_motion.moving_particles)
-        # Default is an empty vector, since the number of particles is not known when
-        # instantiating `PrescribedMotion`.
-        resize!(prescribed_motion.moving_particles, nparticles(initial_condition))
-        prescribed_motion.moving_particles .= collect(1:nparticles(initial_condition))
-    end
 
     # Because of dispatches boundary model needs to be first!
     return WallBoundarySystem(initial_condition, coordinates, model, prescribed_motion,
@@ -60,7 +54,7 @@ end
 
 create_cache_boundary(::Nothing, initial_condition) = (;)
 
-function create_cache_boundary(::PrescribedMotion, initial_condition)
+function create_cache_boundary(prescribed_motion::PrescribedMotion, initial_condition)
     initial_coordinates = copy(initial_condition.coordinates)
     velocity = zero(initial_condition.velocity)
     acceleration = zero(initial_condition.velocity)

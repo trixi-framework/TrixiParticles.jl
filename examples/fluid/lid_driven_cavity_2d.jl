@@ -79,7 +79,7 @@ end
 # ==========================================================================================
 # ==== Boundary
 
-lid_movement_function(t) = SVector(VELOCITY_LID * t, 0.0)
+lid_movement_function(x, t) = x + SVector(VELOCITY_LID * t, 0.0)
 
 is_moving(t) = true
 
