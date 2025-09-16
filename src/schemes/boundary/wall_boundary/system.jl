@@ -42,7 +42,7 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(prescribed_motion))
-    initialize!(prescribed_motion, initial_condition)
+    initialize_prescribed_motion!(prescribed_motion, initial_condition)
 
     cache = create_cache_boundary(prescribed_motion, initial_condition)
     cache = (cache..., color=Int(color_value))

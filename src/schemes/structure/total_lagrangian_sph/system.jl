@@ -126,7 +126,8 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
     lame_mu = @. (young_modulus / 2) / (1 + poisson_ratio)
 
     ismoving = Ref(!isnothing(clamped_particles_motion))
-    initialize!(clamped_particles_motion, initial_condition, n_clamped_particles)
+    initialize_prescribed_motion!(clamped_particles_motion, initial_condition,
+                                  n_clamped_particles)
 
     cache = create_cache_tlsph(clamped_particles_motion, initial_condition)
 

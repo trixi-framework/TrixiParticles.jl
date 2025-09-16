@@ -50,8 +50,9 @@ function PrescribedMotion(movement_function, is_moving; moving_particles=nothing
     return PrescribedMotion(movement_function, is_moving, moving_particles)
 end
 
-function initialize!(prescribed_motion::PrescribedMotion, initial_condition,
-                     n_clamped_particles=nparticles(initial_condition))
+function initialize_prescribed_motion!(prescribed_motion::PrescribedMotion,
+                                       initial_condition,
+                                       n_clamped_particles=nparticles(initial_condition))
     # Test `movement_function` return type
     pos = extract_svector(initial_condition.coordinates,
                           Val(size(initial_condition.coordinates, 1)), 1)
@@ -72,6 +73,13 @@ function initialize!(prescribed_motion::PrescribedMotion, initial_condition,
         clamped_particles = first_particle:nparticles(initial_condition)
         prescribed_motion.moving_particles .= collect(clamped_particles)
     end
+
+    return prescribed_motion
+end
+
+function initialize_prescribed_motion!(::Nothing, initial_condition,
+                                       n_clamped_particles=nparticles(initial_condition))
+    return nothing
 end
 
 function (prescribed_motion::PrescribedMotion)(coordinates, velocity, acceleration,
