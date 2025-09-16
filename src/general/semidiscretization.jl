@@ -1057,6 +1057,5 @@ function set_system_links(system::OpenBoundarySystem, semi)
                               system.boundary_zone_indices,
                               system.boundary_zones,
                               system.buffer,
-                              system.acceleration,
                               system.cache)
 end

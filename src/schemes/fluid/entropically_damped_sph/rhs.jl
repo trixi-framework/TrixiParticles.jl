@@ -24,8 +24,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
-        p_a = current_pressure(v_particle_system, particle_system, particle)
-        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
+        p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
         # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
         # errors due to large pressures by subtracting the average pressure of neighboring
@@ -33,7 +33,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # It results in significant improvement for EDAC, especially with TVF,
         # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
         # Note that the return value is zero when not using average pressure reduction.
-        p_avg = average_pressure(particle_system, particle)
+        p_avg = @inbounds average_pressure(particle_system, particle)
 
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
@@ -53,11 +53,11 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                grad_kernel)
 
         # Extra terms in the momentum equation when using a shifting technique
-        dv_tvf = dv_shifting(shifting_technique(particle_system),
-                             particle_system, neighbor_system,
-                             v_particle_system, v_neighbor_system,
-                             particle, neighbor, m_a, m_b, rho_a, rho_b,
-                             pos_diff, distance, grad_kernel, correction)
+        dv_tvf = @inbounds dv_shifting(shifting_technique(particle_system),
+                                       particle_system, neighbor_system,
+                                       v_particle_system, v_neighbor_system,
+                                       particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                       pos_diff, distance, grad_kernel, correction)
 
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
                                                    particle_system, neighbor_system,
@@ -126,6 +126,7 @@ end
     # This is similar to density diffusion in WCSPH
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
+    # Pressure is stored in `v` right after the velocity
     dv[ndims(particle_system) + 1, particle] += artificial_eos + damping_term
 
     return dv
