@@ -49,7 +49,7 @@ function PrescribedMotion(movement_function, is_moving; moving_particles=nothing
 end
 
 function initialize!(prescribed_motion::PrescribedMotion, initial_condition)
-    # Test `movement_function` return type`
+    # Test `movement_function` return type
     pos = extract_svector(initial_condition.coordinates,
                           Val(size(initial_condition.coordinates, 1)), 1)
     if !(prescribed_motion.movement_function(pos, 0.0) isa SVector)
