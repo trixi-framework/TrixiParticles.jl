@@ -116,14 +116,14 @@ end
 # "Actually, such constraint helps the present viscous term in Eq. (13) to handle
 # the lack of support along the same direction, since the normal component of the stress
 # to the buffer surface has been canceled out."
-function relative_velocity(particle_system, neighbor_system::WallBoundarySystem,
-                           v_particle_system, v_neighbor_system, particle, neighbor)
-    boundary_zone = current_boundary_zone(particle_system, particle)
+# function relative_velocity(particle_system, neighbor_system::WallBoundarySystem,
+#                            v_particle_system, v_neighbor_system, particle, neighbor)
+#     boundary_zone = current_boundary_zone(particle_system, particle)
 
-    v_diff = current_velocity(v_particle_system, particle_system, particle) -
-             current_velocity(v_neighbor_system, neighbor_system, neighbor)
+#     v_diff = current_velocity(v_particle_system, particle_system, particle) -
+#              current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    return v_diff - dot(v_diff, boundary_zone.plane_normal) * boundary_zone.plane_normal
+#     return v_diff - dot(v_diff, boundary_zone.plane_normal) * boundary_zone.plane_normal
 
-    # return zero(SVector{ndims(particle_system), eltype(particle_system)})
-end
+#     # return zero(SVector{ndims(particle_system), eltype(particle_system)})
+# end

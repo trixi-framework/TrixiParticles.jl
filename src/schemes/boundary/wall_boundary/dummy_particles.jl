@@ -533,8 +533,8 @@ end
 
     # Hydrostatic pressure term from fluid and boundary acceleration
     # TODO: rename acceleration and add a function `system_external_acceleration`
-    resulting_acceleration = neighbor_system.acceleration -
-                             @inbounds current_acceleration(system, particle)
+    resulting_acceleration = @inbounds acceleration_source(neighbor_system) -
+                                       @inbounds current_acceleration(system, particle)
     hydrostatic_pressure = dot(resulting_acceleration, density_neighbor * pos_diff)
 
     # Additional dynamic pressure term (only with `BernoulliPressureExtrapolation`)

@@ -30,15 +30,13 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, ARRAY1D, BC, FC, BZI, 
     boundary_zone_indices :: BZI     # Array{UInt8, 1}: [particle]
     boundary_zones        :: BZ
     buffer                :: B
-    acceleration          :: SVector{NDIMS, ELTYPE}
     cache                 :: C
 end
 
 function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                             fluid_system_index, smoothing_length, mass, volume,
                             boundary_candidates, fluid_candidates,
-                            boundary_zone_indices, boundary_zone, buffer,
-                            acceleration, cache)
+                            boundary_zone_indices, boundary_zone, buffer, cache)
     OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                        typeof(initial_condition), typeof(fluid_system),
                        typeof(fluid_system_index), typeof(mass),
@@ -47,8 +45,7 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                        typeof(cache)}(boundary_model, initial_condition, fluid_system,
                                       fluid_system_index, smoothing_length, mass,
                                       volume, boundary_candidates, fluid_candidates,
-                                      boundary_zone_indices, boundary_zone, buffer,
-                                      acceleration, cache)
+                                      boundary_zone_indices, boundary_zone, buffer, cache)
 end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
@@ -98,8 +95,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
                               fluid_system_index, smoothing_length, mass, volume,
                               boundary_candidates, fluid_candidates,
-                              boundary_zone_indices, boundary_zones_new, buffer,
-                              fluid_system.acceleration, cache)
+                              boundary_zone_indices, boundary_zones_new, buffer, cache)
 end
 
 function initialize!(system::OpenBoundarySystem, semi)
@@ -205,6 +201,8 @@ end
 function system_smoothing_kernel(system::OpenBoundarySystem)
     system.fluid_system.smoothing_kernel
 end
+
+@inline acceleration_source(system::OpenBoundarySystem) = system.fluid_system.acceleration
 
 @inline function v_nvariables(system::OpenBoundarySystem)
     return ndims(system)
