@@ -35,7 +35,8 @@ const dynamic_viscosity = sqrt(fluid_density * wall_distance^3 * pressure_drop /
 
 v_max = wall_distance^2 * pressure_drop / (8 * dynamic_viscosity * flow_length)
 
-sound_speed = 100 * v_max
+sound_speed_factor = 100
+sound_speed = sound_speed_factor * v_max
 
 flow_direction = (1.0, 0.0)
 
@@ -108,7 +109,7 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=1)
 
 if tfv
-    background_pressure = 7 * fluid_density * v_max^2
+    background_pressure = 7 * sound_speed_factor / 10 * fluid_density * v_max^2
     transport_velocity = TransportVelocityAdami(; background_pressure)
 else
     transport_velocity = nothing
