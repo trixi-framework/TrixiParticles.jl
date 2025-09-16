@@ -26,8 +26,9 @@
 
         @trixi_testset "structure/oscillating_beam_2d.jl with rotating clamp" begin
             # Simple rotation
-            movement_function(x, t) = SVector(cos(2pi * t) * x[1] - sin(2pi * t) * x[2],
-                                              sin(2pi * t) * x[1] + cos(2pi * t) * x[2])
+            movement_function(x,
+                              t) = SVector(cos(2pi * t) * x[1] - sin(2pi * t) * x[2],
+                                           sin(2pi * t) * x[1] + cos(2pi * t) * x[2])
             is_moving(t) = t < 0.1
             prescribed_motion = PrescribedMotion(movement_function, is_moving)
 
