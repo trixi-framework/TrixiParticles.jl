@@ -130,7 +130,7 @@ and ``d_{ij}p_j`` describes the influence from the neighboring particles ``j``.
 Using this new values the linear system can be rewritten as
 
 ```math
-\rho_0 - \rho_i^{\text{adv}} = \sum_j m_j \left( d_{ii}p_i + \sum_j d_{ij}p_j - d_{jj}p_j - \sum_k d_{jk}p_k \right) \nabla W_{ij},
+\rho_0 - \rho_i^{\text{adv}} = \sum_j m_j \left( d_{ii}p_i + \sum_k d_{ik}p_k - d_{jj}p_j - \sum_k d_{jk}p_k \right) \nabla W_{ij},
 ```
 
 where ``k`` stands for the neighbor particles of the neighbor particle ``j`` from ``i``.
@@ -145,7 +145,7 @@ To separate this sum, it can be written as
 With this separation, the equation for the linear system can again be rewritten as
 
 ```math
-\rho_0 - \rho_i^{\text{adv}} = p_i \sum_j m_j ( d_{ii} - d_{ji})\nabla W_{ij}  + \sum_j m_j \left ( \sum_j d_{ij} p_j - d_{jj} p_j - \sum_{k \neq i} d_{jk}p_k \right) \nabla W_{ij}.
+\rho_0 - \rho_i^{\text{adv}} = p_i \sum_j m_j ( d_{ii} - d_{ji})\nabla W_{ij}  + \sum_j m_j \left ( \sum_k d_{ik} p_k - d_{jj} p_j - \sum_{k \neq i} d_{jk}p_k \right) \nabla W_{ij}.
 ```
 
 In this formulation all coefficients that are getting multiplied with the pressure value ``p_i``
@@ -266,7 +266,7 @@ The corresponding relaxed Jacobi iteration for pressure mirroring then becomes:
 \begin{align*}
 p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i^{\text{adv}}
  - \sum_j m_j \left( \sum_k d_{ik} p_k^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \right. \\
-& \quad - \left. \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right).
+& \quad - \left. \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ib} \right).
 \end{align*}
 ```
 
@@ -288,6 +288,6 @@ pressure:
 \begin{align*}
 p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i^{\text{adv}}
  - \sum_j m_j \left( \sum_k d_{ik} p_k^l - d_{jj}p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \right. \\
-& \quad - \left. \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ij} \right).
+& \quad - \left. \sum_b m_b \sum_j d_{ij} p_j^l \nabla W_{ib} \right).
 \end{align*}
 ```

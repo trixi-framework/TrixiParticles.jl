@@ -248,10 +248,8 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
 
         foreach_point_neighbor(system, neighbor_system,
                                system_coords, neighbor_system_coords, semi;
-                               points=each_moving_particle(system)) do particle,
-                                                                       neighbor,
-                                                                       pos_diff,
-                                                                       distance
+                               points=each_moving_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
             m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -273,8 +271,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
             for i in 1:ndims(system)
                 d_ii_array[i,
                            particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
-                                                       grad_kernel[i],
-                                                       time_step)
+                                                       grad_kernel[i], time_step)
             end
         end
     end
@@ -402,11 +399,10 @@ function pressure_solve_iteration(system, u, u_ode, semi, time_step)
 
     foreach_point_neighbor(system, system, system_coords, system_coords,
                            semi;
-                           points=each_moving_particle(system)) do particle,
-                                                                   neighbor,
-                                                                   pos_diff,
-                                                                   distance
-        # Calculate the sum d_ij * p_j over all neighbors j for each particle i (Ihmsen et al. 2013, eq. 13)
+                           points=each_moving_particle(system)) do particle, neighbor,
+                                                                   pos_diff, distance
+        # Calculate the sum d_ij * p_j over all neighbors j for each particle i
+        # (Ihmsen et al. 2013, eq. 13)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         p_b = pressure[neighbor]
         d_ab = calculate_d_ij(system, neighbor, grad_kernel, time_step)
