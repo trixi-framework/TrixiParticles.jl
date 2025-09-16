@@ -36,7 +36,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 reset_wall!(tank, (false, true, false, false), (0.0, tank.fluid_size[1], 0.0, 0.0))
 
 # Movement function
-movement_function(t) = SVector(0.5t^2, 0.0)
+movement_function(x, t) = x + SVector(0.5 * t^2, 0.0)
 
 is_moving(t) = t < 1.5
 
