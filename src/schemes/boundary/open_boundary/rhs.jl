@@ -4,7 +4,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                    neighbor_system, semi)
-    (; fluid_system, cache) = particle_system
+    (; fluid_system, cache, boundary_model) = particle_system
 
     sound_speed = system_sound_speed(fluid_system)
 
@@ -71,15 +71,23 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Continuity equation
         @inbounds dv[end, particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
 
-        # TODO
-        # density_diffusion!(dv, system.density_diffusion,
-        #                    v_particle_system, particle, neighbor,
-        #                    pos_diff, distance, m_b, rho_a, rho_b,
-        #                    particle_system, grad_kernel)
+        # TODO: Add density diffusion to `OpenBoundarySystem` instead of accessing it from the fluid system
+        density_diffusion!(dv, particle_system.fluid_system.density_diffusion,
+                           v_particle_system, particle, neighbor,
+                           pos_diff, distance, m_b, rho_a, rho_b,
+                           particle_system.fluid_system, grad_kernel)
 
         pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                             particle, neighbor, pos_diff, distance,
                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system)
+    end
+
+    # This ensures that, even during stages, the velocity remains aligned with the boundary zone
+    @threaded semi for particle in each_integrated_particle(particle_system)
+        boundary_zone = current_boundary_zone(particle_system, particle)
+
+        project_velocity_on_plane_normal!(dv, particle_system, particle, boundary_zone,
+                                          boundary_model)
     end
 
     return dv

@@ -136,7 +136,7 @@ plane_in = ([0.0, 0.0], [0.0, pipe.fluid_size[2]])
 inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_boundary_layers,
                       density=fluid_density, particle_spacing,
                       #   reference_velocity=velocity_profile,
-                      #   rest_pressure=0.2,
+                      rest_pressure=0.2,
                       reference_pressure=0.2,
                       initial_condition=inlet.fluid, boundary_type=boundary_type_in)
 
@@ -144,6 +144,7 @@ boundary_type_out = BidirectionalFlow()
 plane_out = ([pipe.fluid_size[1], 0.0], [pipe.fluid_size[1], pipe.fluid_size[2]])
 outflow = BoundaryZone(; plane=plane_out, plane_normal=(.-(flow_direction)),
                        reference_pressure=0.1,
+                       rest_pressure=0.1,
                        #   reference_velocity=velocity_profile,
                        open_boundary_layers, density=fluid_density, particle_spacing,
                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)
@@ -179,13 +180,12 @@ semi = Semidiscretization(fluid_system, open_boundary,
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
-                                         output_directory=output_directory)
+saving_callback = SolutionSavingCallback(dt=0.02,
+                                         prefix="", output_directory=output_directory)
 
 v_x_interpolated(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
-function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem, dv_ode, du_ode, v_ode,
-                          u_ode,
-                          semi, t)
+function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem,
+                          dv_ode, du_ode, v_ode, u_ode, semi, t)
     start_point = [flow_length / 2, 0.0]
     end_point = [flow_length / 2, wall_distance]
 
@@ -200,6 +200,7 @@ pp_callback = PostprocessCallback(; dt=0.02,
                                   output_directory=output_directory,
                                   v_x=v_x_interpolated, filename="result",
                                   write_csv=true, write_file_interval=1)
+# pp_callback = nothing
 
 extra_callback = nothing
 
@@ -208,7 +209,7 @@ callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
