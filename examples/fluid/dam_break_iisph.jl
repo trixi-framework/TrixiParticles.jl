@@ -7,8 +7,8 @@ trixi_include(@__MODULE__,
               sol=nothing, ode=nothing)
 
 # Change smoothing kernel and length
-smoothing_length = 1.6 * fluid_particle_spacing
-smoothing_kernel = WendlandC2Kernel{2}()
+smoothing_length = 1.0 * fluid_particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Calculate kinematic viscosity for the viscosity model
 nu = 0.02 * smoothing_length * sound_speed / 8
@@ -20,7 +20,7 @@ IISPH_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
                                                smoothing_length, fluid_density,
                                                viscosity=ViscosityAdami(nu=nu),
                                                acceleration=(0.0, -gravity),
-                                               min_iterations=10,
+                                               min_iterations=2,
                                                max_iterations=30,
                                                time_step=time_step)
 
