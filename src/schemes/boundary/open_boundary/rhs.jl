@@ -59,18 +59,23 @@ function interact!(dv, v_particle_system, u_particle_system,
         #                      m_a, m_b, rho_a, rho_b, pos_diff, distance,
         #                      grad_kernel, correction)
 
+        dv_particle = dv_pressure + dv_viscosity_ + dv_pressure_boundary # + dv_tvf
+
         for i in 1:ndims(particle_system)
-            @inbounds dv[i,
-                         particle] += dv_pressure[i] + dv_viscosity_[i] + #dv_tvf[i] +
-                                      dv_pressure_boundary[i]
+            @inbounds dv[i, particle] += dv_particle[i]
         end
 
         v_diff = relative_velocity(particle_system, neighbor_system,
                                    v_particle_system, v_neighbor_system, particle, neighbor)
 
         # Continuity equation
-        @inbounds dv[ndims(particle_system) + 1,
-                     particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
+        @inbounds dv[end, particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
+
+        # TODO
+        # density_diffusion!(dv, system.density_diffusion,
+        #                    v_particle_system, particle, neighbor,
+        #                    pos_diff, distance, m_b, rho_a, rho_b,
+        #                    particle_system, grad_kernel)
 
         pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                             particle, neighbor, pos_diff, distance,
