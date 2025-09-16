@@ -454,8 +454,10 @@ function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
-                               points=each_moving_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             rho_a = current_density(v, system, particle)
             rho_b = current_density(v_neighbor, neighbor_system, neighbor)
@@ -618,8 +620,10 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
-                               points=each_moving_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 

@@ -251,8 +251,8 @@ function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
     # Exclude boundary packing system
     is_boundary && return zero(eltype(system))
 
-    # If `each_moving_particle` is empty (no moving particles), return zero
-    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
+    # If `each_integrated_particle` is empty (no integrated particles), return zero
+    return sum(each_integrated_particle(system), init=zero(eltype(system))) do particle
         velocity = advection_velocity(v, system, particle)
         return initial_condition.mass[particle] * dot(velocity, velocity) / 2
     end
@@ -366,7 +366,7 @@ end
 # Update from `UpdateCallback` (between time steps)
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
     v = wrap_v(v_ode, system, semi)
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
             system.advection_velocity[i, particle] = v[i, particle]
 

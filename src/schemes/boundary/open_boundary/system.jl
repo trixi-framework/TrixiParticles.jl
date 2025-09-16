@@ -230,7 +230,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     boundary_candidates .= false
 
     # Check the boundary particles whether they're leaving the boundary zone
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         particle_coords = current_coords(u, system, particle)
 
         # Check if boundary particle is outside the boundary zone
@@ -261,7 +261,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     fluid_candidates .= false
 
     # Check the fluid particles whether they're entering the boundary zone
-    @threaded semi for fluid_particle in each_moving_particle(fluid_system)
+    @threaded semi for fluid_particle in each_integrated_particle(fluid_system)
         fluid_coords = current_coords(u_fluid, fluid_system, fluid_particle)
 
         # Check if fluid particle is in any boundary zone

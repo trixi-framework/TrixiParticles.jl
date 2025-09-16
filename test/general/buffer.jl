@@ -18,9 +18,9 @@
     n_particles = nparticles(system)
 
     @testset "Iterators" begin
-        @test TrixiParticles.each_moving_particle(system) == 1:n_particles
+        @test TrixiParticles.each_integrated_particle(system) == 1:n_particles
 
-        @test TrixiParticles.each_moving_particle(system_buffer) == 1:n_particles
+        @test TrixiParticles.each_integrated_particle(system_buffer) == 1:n_particles
 
         # Activate a particle
         particle_id = findfirst(==(false), system_buffer.buffer.active_particle)
@@ -29,7 +29,7 @@
         TrixiParticles.update_system_buffer!(system_buffer.buffer,
                                              DummySemidiscretization())
 
-        @test TrixiParticles.each_moving_particle(system_buffer) == 1:(n_particles + 1)
+        @test TrixiParticles.each_integrated_particle(system_buffer) == 1:(n_particles + 1)
 
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
                                             ones(2, particle_id))
@@ -37,7 +37,7 @@
         TrixiParticles.update_system_buffer!(system_buffer.buffer,
                                              DummySemidiscretization())
 
-        @test TrixiParticles.each_moving_particle(system_buffer) == 1:n_particles
+        @test TrixiParticles.each_integrated_particle(system_buffer) == 1:n_particles
 
         particle_id = 5
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
@@ -46,7 +46,7 @@
         TrixiParticles.update_system_buffer!(system_buffer.buffer,
                                              DummySemidiscretization())
 
-        @test TrixiParticles.each_moving_particle(system_buffer) ==
+        @test TrixiParticles.each_integrated_particle(system_buffer) ==
               setdiff(1:n_particles, particle_id)
     end
 
