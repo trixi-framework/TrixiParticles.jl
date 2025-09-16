@@ -4,7 +4,7 @@
         "solver_version": "f836223-dirty",
         "solver_name": "TrixiParticles.jl"
     },
-    "deflection_x_solid_1": {
+    "deflection_x_structure_1": {
         "n_values": 1001,
         "time": [
             0.0,
@@ -1009,7 +1009,7 @@
             9.99,
             10.0
         ],
-        "system_name": "solid",
+        "system_name": "structure",
         "values": [
             0.0,
             -2.1757223800378256e-10,
@@ -2016,7 +2016,7 @@
         "datatype": "Float64",
         "type": "series"
     },
-    "deflection_y_solid_1": {
+    "deflection_y_structure_1": {
         "n_values": 1001,
         "time": [
             0.0,
@@ -3021,7 +3021,7 @@
             9.99,
             10.0
         ],
-        "system_name": "solid",
+        "system_name": "structure",
         "values": [
             0.0,
             -9.999999694490329e-5,

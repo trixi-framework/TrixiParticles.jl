@@ -2,7 +2,7 @@
     BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
                                 viscosity=nothing)
 
-Boundary model for `BoundarySPHSystem`.
+Boundary model for [`WallBoundarySystem`](@ref).
 
 # Arguments
 - `K`: Scaling factor for repulsive force.
@@ -44,7 +44,7 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
 end
 
 @inline function pressure_acceleration(particle_system,
-                                       neighbor_system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                       neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                        particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                        pos_diff, distance, grad_kernel, correction)
@@ -80,7 +80,7 @@ end
 end
 
 @inline function current_density(v,
-                                 system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                 system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                  particle)
     (; hydrodynamic_mass, boundary_particle_spacing) = system.boundary_model
@@ -97,7 +97,7 @@ end
 
 # This model does not not use any particle pressure
 @inline function current_pressure(v,
-                                  system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                  system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                 TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                   particle)
     return zero(eltype(v))

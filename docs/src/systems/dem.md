@@ -19,12 +19,12 @@ and moments acting upon them.
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "solid", "discrete_element_method", "system.jl")]
+Pages = [joinpath("schemes", "structure", "discrete_element_method", "system.jl")]
 ```
 
 ### Contact Models
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "solid", "discrete_element_method", "contact_models.jl")]
+Pages = [joinpath("schemes", "structure", "discrete_element_method", "contact_models.jl")]
 ```

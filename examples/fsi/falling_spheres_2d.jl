@@ -11,7 +11,7 @@ using OrdinaryDiffEq
 # ==========================================================================================
 # ==== Resolution
 fluid_particle_spacing = 0.02
-solid_particle_spacing = fluid_particle_spacing
+structure_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -48,9 +48,9 @@ nu = 0.0
 
 sphere1_center = (0.5, 1.6)
 sphere2_center = (1.5, 1.6)
-sphere1 = SphereShape(solid_particle_spacing, sphere1_radius, sphere1_center,
+sphere1 = SphereShape(structure_particle_spacing, sphere1_radius, sphere1_center,
                       sphere1_density, sphere_type=VoxelSphere())
-sphere2 = SphereShape(solid_particle_spacing, sphere2_radius, sphere2_center,
+sphere2 = SphereShape(structure_particle_spacing, sphere2_radius, sphere2_center,
                       sphere2_density, sphere_type=VoxelSphere())
 
 # ==========================================================================================
@@ -76,56 +76,60 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
-# ==== Solid
-solid_smoothing_length = sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = WendlandC2Kernel{2}()
+# ==== Structure
+structure_smoothing_length = sqrt(2) * structure_particle_spacing
+structure_smoothing_kernel = WendlandC2Kernel{2}()
 
-# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
+# For the FSI we need the hydrodynamic masses and densities in the structure boundary model
 hydrodynamic_densites_1 = fluid_density * ones(size(sphere1.density))
-hydrodynamic_masses_1 = hydrodynamic_densites_1 * solid_particle_spacing^ndims(fluid_system)
+hydrodynamic_masses_1 = hydrodynamic_densites_1 *
+                        structure_particle_spacing^ndims(fluid_system)
 
-solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
-                                                     hydrodynamic_masses_1,
-                                                     state_equation=state_equation,
-                                                     boundary_density_calculator,
-                                                     fluid_smoothing_kernel,
-                                                     fluid_smoothing_length)
+structure_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
+                                                         hydrodynamic_masses_1,
+                                                         state_equation=state_equation,
+                                                         boundary_density_calculator,
+                                                         fluid_smoothing_kernel,
+                                                         fluid_smoothing_length)
 
 hydrodynamic_densites_2 = fluid_density * ones(size(sphere2.density))
-hydrodynamic_masses_2 = hydrodynamic_densites_2 * solid_particle_spacing^ndims(fluid_system)
+hydrodynamic_masses_2 = hydrodynamic_densites_2 *
+                        structure_particle_spacing^ndims(fluid_system)
 
-solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
-                                                     hydrodynamic_masses_2,
-                                                     state_equation=state_equation,
-                                                     boundary_density_calculator,
-                                                     fluid_smoothing_kernel,
-                                                     fluid_smoothing_length)
+structure_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
+                                                         hydrodynamic_masses_2,
+                                                         state_equation=state_equation,
+                                                         boundary_density_calculator,
+                                                         fluid_smoothing_kernel,
+                                                         fluid_smoothing_length)
 
-solid_system_1 = TotalLagrangianSPHSystem(sphere1,
-                                          solid_smoothing_kernel, solid_smoothing_length,
-                                          sphere1_E, nu,
-                                          acceleration=(0.0, -gravity),
-                                          boundary_model=solid_boundary_model_1,
-                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
+structure_system_1 = TotalLagrangianSPHSystem(sphere1,
+                                              structure_smoothing_kernel,
+                                              structure_smoothing_length,
+                                              sphere1_E, nu,
+                                              acceleration=(0.0, -gravity),
+                                              boundary_model=structure_boundary_model_1,
+                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
-solid_system_2 = TotalLagrangianSPHSystem(sphere2,
-                                          solid_smoothing_kernel, solid_smoothing_length,
-                                          sphere2_E, nu,
-                                          acceleration=(0.0, -gravity),
-                                          boundary_model=solid_boundary_model_2,
-                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
+structure_system_2 = TotalLagrangianSPHSystem(sphere2,
+                                              structure_smoothing_kernel,
+                                              structure_smoothing_length,
+                                              sphere2_E, nu,
+                                              acceleration=(0.0, -gravity),
+                                              boundary_model=structure_boundary_model_2,
+                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system, solid_system_1, solid_system_2)
+semi = Semidiscretization(fluid_system, boundary_system, structure_system_1,
+                          structure_system_2)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.02, output_directory="out", prefix="",
-                                         write_meta_data=true)
+saving_callback = SolutionSavingCallback(dt=0.02, output_directory="out", prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

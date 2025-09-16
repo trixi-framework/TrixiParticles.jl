@@ -58,7 +58,8 @@ by an additional term
     + \delta h c \sum_{b} V_b \psi_{ab} \cdot \nabla W_{ab},
 ```
 where ``V_b = m_b / \rho_b`` is the volume of particle ``b`` and ``\psi_{ab}`` depends on
-the density diffusion method (see [`DensityDiffusion`](@ref) for available terms).
+the density diffusion method (see
+[`AbstractDensityDiffusion`](@ref TrixiParticles.AbstractDensityDiffusion) for available terms).
 Also, ``\rho_a`` denotes the density of particle ``a`` and ``r_{ab} = r_a - r_b`` is the
 difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of particles
 ``a`` and ``b``.
@@ -152,8 +153,74 @@ as explained in [Sun2018](@cite Sun2018) on page 29, right above Equation 9.
 The ``\delta``-SPH method (WCSPH with density diffusion) together with this formulation
 of PST is commonly referred to as ``\delta^+``-SPH.
 
-The Particle Shifting Technique can be applied in form
-of the [`ParticleShiftingCallback`](@ref).
+To apply particle shifting, use the keyword argument `shifting_technique` in the constructor
+of a system that supports it.
+
+
+## [Transport Velocity Formulation (TVF)](@id transport_velocity_formulation)
+
+An alternative formulation is the so-called Transport Velocity Formulation (TVF)
+by [Adami (2013)](@cite Adami2013).
+[Ramachandran (2019)](@cite Ramachandran2019) applied the TVF also for the [EDAC](@ref edac)
+scheme.
+
+The transport velocity ``\tilde{v}_a`` of particle ``a`` is used to evolve the position
+of the particle ``r_a`` from one time step to the next by
+```math
+\frac{\mathrm{d} r_a}{\mathrm{d}t} = \tilde{v}_a
+```
+and is obtained at every time step ``\Delta t`` from
+```math
+\tilde{v}_a (t + \Delta t) = v_a (t) + \Delta t \left(\frac{\tilde{\mathrm{d}} v_a}{\mathrm{d}t} - \frac{1}{\rho_a} \nabla p_{\text{background}} \right),
+```
+where ``\rho_a`` is the density of particle ``a`` and ``p_{\text{background}}``
+is a constant background pressure field.
+The tilde in the second term of the right-hand side indicates that the material derivative
+has an advection part.
+
+The discretized form of the last term is
+```math
+ -\frac{1}{\rho_a} \nabla p_{\text{background}} \approx  -\frac{p_{\text{background}}}{m_a} \sum_b \left(V_a^2 + V_b^2 \right) \nabla_a W_{ab},
+```
+where ``V_a``, ``V_b`` denote the volume of particles ``a`` and ``b`` respectively.
+Note that although in the continuous case ``\nabla p_{\text{background}} = 0``,
+the discretization is not 0th-order consistent for **non**-uniform particle distribution,
+which means that there is a non-vanishing contribution only when particles are disordered.
+That also means that ``p_{\text{background}}`` occurs as pre-factor to correct
+the trajectory of a particle resulting in uniform pressure distributions.
+Suggested is a background pressure which is in the order of the reference pressure,
+but it can be chosen arbitrarily large when the time-step criterion is adjusted.
+
+The inviscid momentum equation with an additional convection term for a particle
+moving with ``\tilde{v}`` is
+```math
+\frac{\tilde{\mathrm{d}} \left( \rho v \right)}{\mathrm{d}t} = -\nabla p +  \nabla \cdot \bm{A},
+```
+where the tensor ``\bm{A} = \rho v\left(\tilde{v}-v\right)^T`` is a consequence
+of the modified advection velocity and can be interpreted as the convection of momentum
+with the relative velocity ``\tilde{v}-v``.
+
+The discretized form of the momentum equation for a particle ``a`` reads as
+```math
+\frac{\tilde{\mathrm{d}} v_a}{\mathrm{d}t} = \frac{1}{m_a} \sum_b \left(V_a^2 + V_b^2 \right) \left[ -\tilde{p}_{ab} \nabla_a W_{ab} + \frac{1}{2} \left(\bm{A}_a + \bm{A}_b \right) \cdot \nabla_a W_{ab} \right].
+```
+Here, ``\tilde{p}_{ab}`` is the density-weighted pressure
+```math
+\tilde{p}_{ab} = \frac{\rho_b p_a + \rho_a p_b}{\rho_a + \rho_b},
+```
+with the density ``\rho_a``, ``\rho_b`` and the pressure ``p_a``, ``p_b`` of particles ``a``
+and ``b``, respectively. ``\bm{A}_a`` and ``\bm{A}_b`` are the convection tensors
+for particle ``a`` and ``b``, respectively, and are given, e.g., for particle ``a``,
+as ``\bm{A}_a = \rho v_a\left(\tilde{v}_a-v_a\right)^T``.
+
+To apply the TVF, use the keyword argument `shifting_technique` in the constructor
+of a system that supports it.
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "fluid", "shifting_techniques.jl")]
+```
+
 
 ## [Tensile Instability Control](@id tic)
 
