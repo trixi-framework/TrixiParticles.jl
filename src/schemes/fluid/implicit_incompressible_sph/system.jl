@@ -51,6 +51,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     a_ii                              :: ARRAY1D # Diagonal elements of the implicit pressure equation (Eq. 6)
     sum_d_ij_pj                       :: ARRAY2D # \sum_j d_{ij} p_j (Eq. 10)
     sum_term                          :: ARRAY1D # Sum term of Eq. 13
+    density_error                     :: ARRAY1D # Temporary storage for reduction
     omega                             :: ELTYPE  # Relaxed Jacobi parameter
     max_error                         :: ELTYPE  # maximal error of the average density deviation (in %)
     min_iterations                    :: Int     # minimum number of iterations in the pressure solver
@@ -121,6 +122,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
     advection_velocity = zeros(ELTYPE, NDIMS, n_particles)
     sum_d_ij_pj = zeros(ELTYPE, NDIMS, n_particles)
     sum_term = zeros(ELTYPE, n_particles)
+    density_error = zeros(ELTYPE, n_particles)
 
     cache = (;
              create_cache_refinement(initial_condition, particle_refinement,
@@ -128,17 +130,13 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
 
     return ImplicitIncompressibleSPHSystem(initial_condition, mass, pressure,
                                            smoothing_kernel, smoothing_length,
-                                           reference_density,
-                                           acceleration_, viscosity,
-                                           pressure_acceleration,
-                                           nothing, surface_tension, particle_refinement,
-                                           density, predicted_density,
+                                           reference_density, acceleration_, viscosity,
+                                           pressure_acceleration, nothing, surface_tension,
+                                           particle_refinement, density, predicted_density,
                                            advection_velocity, d_ii, a_ii, sum_d_ij_pj,
-                                           sum_term, omega,
-                                           max_error,
+                                           sum_term, density_error, omega, max_error,
                                            min_iterations, max_iterations, time_step,
-                                           nothing,
-                                           artificial_sound_speed, cache)
+                                           nothing, artificial_sound_speed, cache)
 end
 
 function write_v0!(v0, system::ImplicitIncompressibleSPHSystem)
@@ -218,9 +216,9 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 end
 
 function predict_advection(system, v, u, v_ode, u_ode, semi, t)
-    (; density, predicted_density, advection_velocity, pressure,
-     time_step) = system
+    (; density, predicted_density, advection_velocity, pressure, time_step) = system
     d_ii_array = system.d_ii
+
     sound_speed = system_sound_speed(system) # TODO
 
     # Compute density by kernel summation
@@ -249,8 +247,7 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         foreach_point_neighbor(system, neighbor_system,
-                               system_coords, neighbor_system_coords,
-                               semi;
+                               system_coords, neighbor_system_coords, semi;
                                points=each_moving_particle(system)) do particle,
                                                                        neighbor,
                                                                        pos_diff,
@@ -333,10 +330,8 @@ function calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords, semi;
-                           points=each_moving_particle(system)) do particle,
-                                                                   neighbor,
-                                                                   pos_diff,
-                                                                   distance
+                           points=each_moving_particle(system)) do particle, neighbor,
+                                                                   pos_diff, distance
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
         # Compute d_ji according to eq. 9 in Ihmsen et al. (2013).
@@ -399,7 +394,7 @@ end
 
 function pressure_solve_iteration(system, u, u_ode, semi, time_step)
     (; reference_density, sum_d_ij_pj, sum_term, pressure, predicted_density, a_ii,
-     omega) = system
+     omega, density_error) = system
 
     set_zero!(sum_d_ij_pj)
 
@@ -426,21 +421,8 @@ function pressure_solve_iteration(system, u, u_ode, semi, time_step)
     set_zero!(sum_term)
 
     foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        system_coords = current_coordinates(u, system)
-        neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        foreach_point_neighbor(system, neighbor_system, system_coords,
-                               neighbor_system_coords, semi;
-                               points=each_moving_particle(system)) do particle,
-                                                                       neighbor,
-                                                                       pos_diff,
-                                                                       distance
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-            sum_term[particle] += calculate_sum_term(system, neighbor_system, particle,
-                                                     neighbor, pressure, grad_kernel,
-                                                     time_step)
-        end
+        calculate_sum_term!(sum_term, system, neighbor_system,
+                            pressure, u, u_ode, semi, time_step)
     end
 
     # Update the pressure values
@@ -461,11 +443,31 @@ function pressure_solve_iteration(system, u, u_ode, semi, time_step)
             new_density = a_ii[particle]*pressure[particle] + sum_term[particle] -
                           (reference_density - predicted_density[particle]) +
                           reference_density
-            avg_density_error += (new_density - reference_density)
+            density_error[particle] = (new_density - reference_density)
         end
     end
-    avg_density_error /= nparticles(system)
+    avg_density_error = sum(density_error) / nparticles(system)
+
     return avg_density_error
+end
+
+# Function barrier for type stability
+function calculate_sum_term!(sum_term, system, neighbor_system,
+                             pressure, u, u_ode, semi, time_step)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    system_coords = current_coordinates(u, system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    foreach_point_neighbor(system, neighbor_system, system_coords,
+                           neighbor_system_coords, semi;
+                           points=each_moving_particle(system)) do particle, neighbor,
+                                                                   pos_diff, distance
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+        sum_term[particle] += calculate_sum_term(system, neighbor_system, particle,
+                                                 neighbor, pressure, grad_kernel, time_step)
+    end
+
+    return sum_term
 end
 
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
