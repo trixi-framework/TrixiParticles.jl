@@ -51,7 +51,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     a_ii                              :: ARRAY1D # Diagonal elements of the implicit pressure equation (Eq. 6)
     sum_d_ij_pj                       :: ARRAY2D # \sum_j d_{ij} p_j (Eq. 10)
     sum_term                          :: ARRAY1D # Sum term of Eq. 13
-    density_error                     :: ARRAY1D # Temporary storage for reduction
+    density_error                     :: ARRAY1D # Temporary storage for parallel reduction
     omega                             :: ELTYPE  # Relaxed Jacobi parameter
     max_error                         :: ELTYPE  # maximal error of the average density deviation (in %)
     min_iterations                    :: Int     # minimum number of iterations in the pressure solver
