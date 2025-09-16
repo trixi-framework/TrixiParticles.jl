@@ -16,7 +16,7 @@ viscosity = ViscosityAdami(; nu)
 
 # Use IISPH as fluid system
 time_step = 1e-3
-IISPH_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
+iisph_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
                                                smoothing_length, fluid_density,
                                                viscosity=ViscosityAdami(nu=nu),
                                                acceleration=(0.0, -gravity),
@@ -30,7 +30,7 @@ trixi_include(@__MODULE__,
               viscosity_fluid=ViscosityAdami(nu=nu),
               smoothing_kernel=smoothing_kernel,
               smoothing_length=smoothing_length,
-              fluid_system=IISPH_system,
+              fluid_system=iisph_system,
               boundary_density_calculator=PressureZeroing(),
               tspan=tspan,
               state_equation=nothing,
