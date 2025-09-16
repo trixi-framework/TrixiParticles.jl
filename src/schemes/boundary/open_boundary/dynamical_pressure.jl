@@ -18,7 +18,7 @@ end
 
 @inline function current_density(v,
                                  system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
-    return view(v, ndims(system) + 1, :)
+    return view(v, size(v, 1), :)
 end
 
 @inline function current_pressure(v,
@@ -35,8 +35,7 @@ end
 @inline function current_pressure(v,
                                   system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                                   ::EntropicallyDampedSPHSystem)
-    # When using `EntropicallyDampedSPHSystem`, the pressure is stored in the last row of `v`
-    return view(v, size(v, 1), :)
+    return view(v, ndims(system) + 1, :)
 end
 
 @inline impose_rest_density!(v, system, particle, boundary_model) = v
@@ -65,8 +64,8 @@ end
 
 function write_v0!(v0, system::OpenBoundarySystem, ::BoundaryModelDynamicalPressureZhang,
                    ::EntropicallyDampedSPHSystem)
-    v0[size(v0, 1) - 1, :] = system.initial_condition.density
-    v0[size(v0, 1), :] = system.initial_condition.pressure
+    v0[size(v0, 1), :] = system.initial_condition.density
+    v0[size(v0, 1) - 1, :] = system.initial_condition.pressure
 
     return v0
 end

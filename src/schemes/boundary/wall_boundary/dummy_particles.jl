@@ -84,6 +84,8 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        smoothing_length, viscosity, correction, cache)
 end
 
+@inline Base.ndims(boundary_model::BoundaryModelDummyParticles) = ndims(boundary_model.smoothing_kernel)
+
 @doc raw"""
     AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
 
@@ -530,6 +532,7 @@ end
                                                 neighbor)
 
     # Hydrostatic pressure term from fluid and boundary acceleration
+    # TODO: rename acceleration and add a function `system_external_acceleration`
     resulting_acceleration = neighbor_system.acceleration -
                              @inbounds current_acceleration(system, particle)
     hydrostatic_pressure = dot(resulting_acceleration, density_neighbor * pos_diff)

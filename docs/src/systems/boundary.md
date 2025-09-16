@@ -217,9 +217,8 @@ a no-slip condition is imposed. When omitting the viscous interaction
 !!! warning
     The no-slip conditions for `BoundaryModelMonaghanKajtar` have not been verified yet.
 
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "boundary", "monaghan_kajtar", "monaghan_kajtar.jl")]
+```@docs
+    BoundaryModelMonaghanKajtar
 ```
 
 # [Open Boundaries](@id open_boundary)
