@@ -185,7 +185,7 @@
                     @test isapprox(deriv_angular_momentum, zeros(3), atol=4e-15)
 
                     # Total energy conservation
-                    function drho(::ContinuityDensity, ::TrixiParticles.FluidSystem,
+                    function drho(::ContinuityDensity, ::TrixiParticles.AbstractFluidSystem,
                                   particle)
                         return dv[end, particle]
                     end
