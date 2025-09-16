@@ -65,7 +65,7 @@ forces ``\bm{F}_i^{\text{adv}}``:
 ```math
 \bm{v}_i^{\text{adv}}(t+\Delta t)= \bm{v}_i(t) + \Delta t \frac{\bm{F}_i^{\text{adv}}(t)}{m_i},
 ```
-Using this predicted velocity and the continuity equation, a predicted density can be definied
+Using this predicted velocity and the continuity equation, a predicted density can be defined
 in a similar way as
 
 ```math
