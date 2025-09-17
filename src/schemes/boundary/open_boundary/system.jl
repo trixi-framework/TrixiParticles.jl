@@ -59,7 +59,9 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                             fluid_system::AbstractFluidSystem, buffer_size::Integer,
                             boundary_model,
                             pressure_acceleration=fluid_system.pressure_acceleration_formulation,
-                            shifting_technique=shifting_technique(fluid_system))
+                            shifting_technique=boundary_model isa
+                                               BoundaryModelDynamicalPressureZhang ?
+                                               shifting_technique(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
     reference_values_ = map(bz -> bz.reference_values, boundary_zones_)
 

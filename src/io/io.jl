@@ -136,11 +136,6 @@ function add_system_data!(system_data, system::OpenBoundarySystem)
     system_data["fluid_system_index"] = system.fluid_system_index[]
     system_data["smoothing_length"] = system.smoothing_length
     add_system_data!(system_data, system.boundary_model)
-
-    system_data["boundary_zones"] = Dict{String, Any}()
-    for (indice, boundary_zone) in enumerate(system.boundary_zones)
-        add_system_data!(system_data["boundary_zones"], boundary_zone, indice)
-    end
 end
 
 function add_system_data!(system_data, system::ParticlePackingSystem)
