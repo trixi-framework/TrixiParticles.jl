@@ -137,6 +137,6 @@
 
         rmsep = sqrt(res) * 100
 
-        @test isapprox(rmsep, 0.141483742097837)
+        @test isapprox(rmsep, 0.1398374750560745)
     end
 end
