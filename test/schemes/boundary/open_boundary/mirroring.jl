@@ -71,7 +71,7 @@
             v_open_boundary = zero(inflow.initial_condition.velocity)
             v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
-            TrixiParticles.set_zero!(open_boundary.pressure)
+            TrixiParticles.set_zero!(open_boundary.cache.pressure)
 
             TrixiParticles.extrapolate_values!(open_boundary, FirstOrderMirroring(),
                                                v_open_boundary, v_fluid,
@@ -82,7 +82,7 @@
             #           v=domain_fluid.velocity, p=domain_fluid.pressure)
 
             # trixi2vtk(open_boundary.initial_condition, filename="open_boundary",
-            #           v=v_open_boundary, p=open_boundary.pressure)
+            #           v=v_open_boundary, p=open_boundary.cache.pressure)
 
             data = TrixiParticles.CSV.read(joinpath(validation_dir, files[i]),
                                            TrixiParticles.DataFrame)
@@ -92,7 +92,7 @@
             expected_pressure = data.var"p"
 
             @test isapprox(v_open_boundary, expected_velocity, atol=1e-3)
-            @test isapprox(open_boundary.pressure, expected_pressure, atol=1e-3)
+            @test isapprox(open_boundary.cache.pressure, expected_pressure, atol=1e-3)
         end
     end
 
@@ -167,7 +167,7 @@
             v_open_boundary = zero(inflow.initial_condition.velocity)
             v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
-            TrixiParticles.set_zero!(open_boundary.pressure)
+            TrixiParticles.set_zero!(open_boundary.cache.pressure)
 
             TrixiParticles.extrapolate_values!(open_boundary, FirstOrderMirroring(),
                                                v_open_boundary, v_fluid,
@@ -178,7 +178,7 @@
             #           v=domain_fluid.velocity, p=domain_fluid.pressure)
 
             # trixi2vtk(open_boundary.initial_condition, filename="open_boundary",
-            #           v=v_open_boundary, p=open_boundary.pressure)
+            #           v=v_open_boundary, p=open_boundary.cache.pressure)
 
             data = TrixiParticles.CSV.read(joinpath(validation_dir, files[i]),
                                            TrixiParticles.DataFrame)
@@ -189,7 +189,7 @@
             expected_pressure = data.var"p"
 
             @test isapprox(v_open_boundary, expected_velocity, atol=1e-2)
-            @test isapprox(open_boundary.pressure, expected_pressure, atol=1e-2)
+            @test isapprox(open_boundary.cache.pressure, expected_pressure, atol=1e-2)
         end
     end
 
@@ -240,7 +240,7 @@
         u_open_boundary = inflow.initial_condition.coordinates
         v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
-        TrixiParticles.set_zero!(open_boundary_in.pressure)
+        TrixiParticles.set_zero!(open_boundary_in.cache.pressure)
 
         TrixiParticles.extrapolate_values!(open_boundary_in, FirstOrderMirroring(),
                                            v_open_boundary, v_fluid,
@@ -292,7 +292,7 @@
             v_open_boundary = zero(outflow.initial_condition.velocity)
             v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
-            TrixiParticles.set_zero!(open_boundary_out.pressure)
+            TrixiParticles.set_zero!(open_boundary_out.cache.pressure)
 
             TrixiParticles.extrapolate_values!(open_boundary_out, mirror_method,
                                                v_open_boundary, v_fluid,
@@ -315,7 +315,7 @@
 
             v_open_boundary = zero(inflow.initial_condition.velocity)
 
-            TrixiParticles.set_zero!(open_boundary_in.pressure)
+            TrixiParticles.set_zero!(open_boundary_in.cache.pressure)
 
             TrixiParticles.extrapolate_values!(open_boundary_in, mirror_method,
                                                v_open_boundary, v_fluid,
@@ -337,8 +337,8 @@
                        for particle in TrixiParticles.eachparticle(fluid_system)]
 
             fluid_system.initial_condition.pressure .= p_fluid
-            open_boundary_in.initial_condition.pressure .= open_boundary_in.pressure
-            open_boundary_out.initial_condition.pressure .= open_boundary_out.pressure
+            open_boundary_in.initial_condition.pressure .= open_boundary_in.cache.pressure
+            open_boundary_out.initial_condition.pressure .= open_boundary_out.cache.pressure
 
             entire_domain = union(fluid_system.initial_condition,
                                   open_boundary_in.initial_condition,

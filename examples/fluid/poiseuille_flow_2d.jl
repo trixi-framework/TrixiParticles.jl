@@ -203,8 +203,8 @@ function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem,
     start_point = [flow_length / 2, 0.0]
     end_point = [flow_length / 2, wall_distance]
 
-    values = interpolate_line(start_point, end_point, 500, semi, system, v_ode, u_ode;
-                              cut_off_bnd=false, clip_negative_pressure=false)
+    values = interpolate_line(start_point, end_point, 100, semi, system, v_ode, u_ode;
+                              cut_off_bnd=true, clip_negative_pressure=false)
 
     return values.velocity[1, :]
 end
@@ -213,7 +213,7 @@ info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="", output_directory="out")
 
 pp_callback = PostprocessCallback(; dt=0.02, output_directory="out",
-                                  v_x=v_x_interpolated, filename="result",
+                                  v_x=v_x_interpolated, filename="result_vx",
                                   write_csv=true, write_file_interval=1)
 extra_callback = nothing
 

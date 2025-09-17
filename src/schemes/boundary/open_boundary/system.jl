@@ -166,9 +166,8 @@ function create_cache_open_boundary(boundary_model, fluid_system,
         if fluid_system isa EntropicallyDampedSPHSystem
             # Density and pressure is stored in `v`
             return cache
-
-        elseif fluid_system isa WeaklyCompressibleSPHSystem
-            # Density is stored in `v`
+        else
+            # Only density is stored in `v`
             return (; pressure=copy(initial_condition.pressure), cache...)
         end
     else
@@ -203,8 +202,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySystem)
         summary_line(io, "#boundary_zones", length(system.boundary_zones))
         summary_line(io, "fluid system", type2string(system.fluid_system))
         summary_line(io, "boundary model", type2string(system.boundary_model))
-        summary_line(io, "density diffusion", density_diffusion(system))
-        summary_line(io, "shifting technique", shifting_technique(system))
+        if system.boundary_model isa BoundaryModelDynamicalPressureZhang
+            summary_line(io, "density diffusion", density_diffusion(system))
+            summary_line(io, "shifting technique", shifting_technique(system))
+        end
         summary_footer(io)
     end
 end
