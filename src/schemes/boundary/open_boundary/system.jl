@@ -148,15 +148,15 @@ function create_cache_open_boundary(boundary_model, fluid_system,
         # as constant density has already been verified in `allocate_buffer`
         density_rest = first(initial_condition.density)
 
-        dd = fluid_system.density_diffusion
+        dd = density_diffusion(fluid_system)
         if dd isa DensityDiffusionAntuono
-            density_diffusion = DensityDiffusionAntuono(initial_condition; delta=dd.delta)
+            density_diffusion_ = DensityDiffusionAntuono(initial_condition; delta=dd.delta)
         else
-            density_diffusion = dd
+            density_diffusion_ = dd
         end
 
         cache = (; density_calculator=ContinuityDensity(),
-                 density_diffusion=density_diffusion,
+                 density_diffusion=density_diffusion_,
                  pressure_boundary=pressure_boundary,
                  density_rest=density_rest,
                  pressure_reference_values=pressure_reference_values,

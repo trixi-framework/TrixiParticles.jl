@@ -13,7 +13,6 @@
 
 using TrixiParticles
 using OrdinaryDiffEq
-using Plots
 
 # ==========================================================================================
 # ==== Resolution
