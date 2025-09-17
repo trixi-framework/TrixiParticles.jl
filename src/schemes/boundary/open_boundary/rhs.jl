@@ -39,8 +39,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                        p_a, p_b, grad_kernel)
 
         # This vanishes for particles with full kernel support
-        p_b = cache.pressure_boundary[particle]
-        dv_pressure_boundary = 2 * p_b * (m_b / (rho_a * rho_b)) * grad_kernel
+        p_boundary = cache.pressure_boundary[particle]
+        dv_pressure_boundary = 2 * p_boundary * (m_b / (rho_a * rho_b)) * grad_kernel
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
         dv_viscosity_ = @inbounds dv_viscosity(viscosity_model(fluid_system,
