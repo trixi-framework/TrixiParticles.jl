@@ -487,9 +487,9 @@ end
 end
 
 # Solid wall boundary system doesn't integrate the particle positions
-@inline add_velocity!(du, v, particle, system::WallBoundarySystem, t) = du
+@inline add_velocity!(du, v, u, particle, system::WallBoundarySystem, t) = du
 
-@inline function add_velocity!(du, v, particle, system::AbstractFluidSystem, t)
+@inline function add_velocity!(du, v, u, particle, system::AbstractFluidSystem, t)
     # This is zero unless a shifting technique is used
     delta_v_ = delta_v(system, particle)
 
