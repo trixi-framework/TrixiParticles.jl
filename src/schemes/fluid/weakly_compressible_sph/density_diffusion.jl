@@ -213,7 +213,8 @@ end
                                                 density_diffusion::AbstractDensityDiffusion,
                                                 v_particle_system, particle, neighbor,
                                                 pos_diff, distance, m_b, rho_a, rho_b,
-                                                particle_system::AbstractFluidSystem,
+                                                particle_system::Union{AbstractFluidSystem,
+                                                                       OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                 grad_kernel)
     # Density diffusion terms are all zero for distance zero
     distance < sqrt(eps(typeof(distance))) && return

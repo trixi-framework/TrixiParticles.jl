@@ -94,14 +94,16 @@ pipe = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density
 inlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                         fluid_density, n_layers=boundary_layers,
                         velocity=(pos) -> velocity_profile(pos, 0), pressure=0.2,
-                        min_coordinates=(-open_boundary_size[1], 0.0),
+                        min_coordinates=(0.0, 0.0),
                         faces=(false, false, true, true))
 
 outlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density, n_layers=boundary_layers,
                          velocity=(pos) -> velocity_profile(pos, 0), pressure=0.1,
-                         min_coordinates=(pipe.fluid_size[1], 0.0),
+                         min_coordinates=(pipe.fluid_size[1] - open_boundary_size[1], 0.0),
                          faces=(false, false, true, true))
+
+fluid = setdiff(pipe.fluid, inlet.fluid, outlet.fluid)
 
 n_buffer_particles = 10 * pipe.n_particles_per_dimension[2]^2
 
@@ -122,7 +124,7 @@ shifting_technique = TransportVelocityAdami(; background_pressure)
 if wcsph
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                        exponent=1)
-    fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
+    fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                                state_equation, smoothing_kernel,
                                                buffer_size=n_buffer_particles,
                                                shifting_technique=shifting_technique,
@@ -131,7 +133,7 @@ if wcsph
 else
     state_equation = nothing
 
-    fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel,
+    fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
                                                smoothing_length,
                                                sound_speed, viscosity=viscosity,
                                                density_calculator=fluid_density_calculator,
@@ -144,7 +146,7 @@ end
 open_boundary_model = BoundaryModelDynamicalPressureZhang()
 
 boundary_type_in = BidirectionalFlow()
-plane_in = ([0.0, 0.0], [0.0, pipe.fluid_size[2]])
+plane_in = ([open_boundary_size[1], 0.0], [open_boundary_size[1], pipe.fluid_size[2]])
 reference_velocity_in = nothing
 reference_pressure_in = 0.2
 inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_boundary_layers,
@@ -154,7 +156,8 @@ inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_bounda
                       initial_condition=inlet.fluid, boundary_type=boundary_type_in)
 
 boundary_type_out = BidirectionalFlow()
-plane_out = ([pipe.fluid_size[1], 0.0], [pipe.fluid_size[1], pipe.fluid_size[2]])
+plane_out = ([pipe.fluid_size[1] - open_boundary_size[1], 0.0],
+             [pipe.fluid_size[1] - open_boundary_size[1], pipe.fluid_size[2]])
 reference_velocity_out = nothing
 reference_pressure_out = 0.1
 outflow = BoundaryZone(; plane=plane_out, plane_normal=(.-(flow_direction)),
@@ -170,7 +173,7 @@ open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
 
 # ==========================================================================================
 # ==== Boundary
-wall = union(pipe.boundary, inlet.boundary, outlet.boundary)
+wall = union(pipe.boundary)
 
 boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
                                              AdamiPressureExtrapolation(),
@@ -182,8 +185,8 @@ boundary_system = WallBoundarySystem(wall, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-min_corner = minimum(inlet.boundary.coordinates .- 2 * particle_spacing, dims=2)
-max_corner = maximum(outlet.boundary.coordinates .+ 2 * particle_spacing, dims=2)
+min_corner = minimum(wall.coordinates .- 2 * particle_spacing, dims=2)
+max_corner = maximum(wall.coordinates .+ 2 * particle_spacing, dims=2)
 
 nhs = GridNeighborhoodSearch{2}(; cell_list=FullGridCellList(; min_corner, max_corner),
                                 update_strategy=ParallelUpdate())

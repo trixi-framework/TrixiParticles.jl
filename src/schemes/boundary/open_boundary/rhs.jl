@@ -72,10 +72,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         @inbounds dv[end, particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
 
         # TODO: Add density diffusion to `OpenBoundarySystem` instead of accessing it from the fluid system
-        density_diffusion!(dv, particle_system.fluid_system.density_diffusion,
+        density_diffusion!(dv, density_diffusion(particle_system),
                            v_particle_system, particle, neighbor,
                            pos_diff, distance, m_b, rho_a, rho_b,
-                           particle_system.fluid_system, grad_kernel)
+                           particle_system, grad_kernel)
 
         pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                             particle, neighbor, pos_diff, distance,

@@ -283,7 +283,7 @@ function Base.show(io::IO, ::MIME"text/plain", boundary_zone::BoundaryZone)
         summary_header(io, "BoundaryZone")
         summary_line(io, "boundary type", boundary_type_name(boundary_zone))
         summary_line(io, "#particles", nparticles(boundary_zone.initial_condition))
-        summary_line(io, "width", round(boundary_zone.zone_width, digits=3))
+        summary_line(io, "width", round(boundary_zone.zone_width, digits=6))
         summary_footer(io)
     end
 end

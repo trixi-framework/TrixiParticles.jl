@@ -38,6 +38,10 @@ end
     return view(v, ndims(system) + 1, :)
 end
 
+@inline density_diffusion(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}) = system.cache.density_diffusion
+
+@inline density_calculator(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}) = system.cache.density_calculator
+
 @inline impose_rest_density!(v, system, particle, boundary_model) = v
 
 @inline function impose_rest_density!(v, system, particle,
@@ -55,7 +59,8 @@ end
 
 @inline function impose_rest_pressure!(v, system, particle,
                                        boundary_model::BoundaryModelDynamicalPressureZhang)
-    set_particle_pressure!(v, system, particle, system.cache.pressure_boundary[particle])
+    boundary_zone = current_boundary_zone(system, particle)
+    set_particle_pressure!(v, system, particle, boundary_zone.rest_pressure)
 end
 
 function write_v0!(v0, system::OpenBoundarySystem, ::BoundaryModelDynamicalPressureZhang)
@@ -153,7 +158,7 @@ function update_boundary_quantities!(system,
 
     @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
-        (; prescribed_density, prescribed_pressure, prescribed_velocity) = boundary_zone
+        (; prescribed_density, prescribed_velocity) = boundary_zone
 
         particle_coords = current_coords(u, system, particle)
 
