@@ -151,11 +151,6 @@ end
     return compact_support(smoothing_kernel, initial_smoothing_length(system))
 end
 
-@inline function compact_support(system::OpenBoundarySystem, neighbor)
-    # Use the compact support of the fluid
-    return compact_support(neighbor, system)
-end
-
 @inline function compact_support(system::OpenBoundarySystem,
                                  neighbor::OpenBoundarySystem)
     # This NHS is never used
