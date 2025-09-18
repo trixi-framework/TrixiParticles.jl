@@ -1,9 +1,9 @@
 # ==========================================================================================
 # ==== Falling Rocks Simulation Setup
 #
-# This example sets up a simulation of falling rocks within a rectangular tank.
-# The tank is generated using a helper function (RectangularTank) which creates
-# a "fluid" region (containing the rock particles) and a "boundary" region (representing walls).
+# Two tanks are created with identical geometric and material parameters.
+# Their rock particles are raised slightly to let them fall under gravity.
+# Tank 1 uses a Hertzian contact model; Tank 2 uses a Linear contact model.
 # ==========================================================================================
 
 using TrixiParticles
@@ -20,23 +20,30 @@ rock_density = 3000.0
 tank_width = 2.0
 tank_height = 4.0
 
-# Create a rectangular tank. The tank has a "fluid" region for the rock particles
-# and a "boundary" region for the container walls.
-tank = RectangularTank(particle_spacing, (rock_width, rock_height),
-                       (tank_width, tank_height), rock_density,
-                       n_layers=2)
+# Create two rectangular tanks.
+tank1 = RectangularTank(particle_spacing, (rock_width, rock_height),
+                        (tank_width, tank_height), rock_density,
+                        n_layers=2)
+tank2 = RectangularTank(particle_spacing, (rock_width, rock_height),
+                        (tank_width, tank_height), rock_density,
+                        n_layers=2, min_coordinates=(tank_width + 0.5, 0.0))
 
 # ==========================================================================================
 # ==== Systems
+# ==== Adjust Particle Positions
 #
 # We adjust the rock positions upward to allow them to fall under gravity.
 # Next, we create a contact model and use it to build the rock (DEM) system.
+# Raise the rock particles so that they fall under gravity.
+# Shift tank2 horizontally to avoid overlap.
 # ==========================================================================================
 
+# Move the rock particles up to let them fall
 # Move the rock particles up to let them fall
 tank.fluid.coordinates[2, :] .+= 0.5
 # small perturbation
 tank.fluid.coordinates .+= 0.01 .* (2 .* rand(size(tank.fluid.coordinates)) .- 1)
+tank1.fluid.coordinates[2, :] .+= 0.5
 
 # Create a contact model.
 # Option 1: Hertzian contact model (uses elastic modulus and Poisson's ratio)
@@ -50,12 +57,30 @@ rock_system = DEMSystem(tank.fluid, contact_model; damping_coefficient=0.0001,
 
 # Construct the boundary system for the tank walls.
 boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)
+tank2.fluid.coordinates[2, :] .+= 0.5
 
 # ==========================================================================================
 # ==== Simulation
 # ==========================================================================================
+# Contact model for tank1: Hertzian contact model.
+contact_model1 = HertzContactModel(10e9, 0.3)
+# Contact model for tank2: Linear contact model.
+contact_model2 = LinearContactModel(6 * 10e5)
 
-semi = Semidiscretization(rock_system, boundary_system)
+# Construct DEM systems for each tank.
+rock_system1 = DEMSystem(tank1.fluid, contact_model1;
+                         damping_coefficient=0.0001,
+                         acceleration=(0.0, gravity))
+rock_system2 = DEMSystem(tank2.fluid, contact_model2;
+                         damping_coefficient=0.0001,
+                         acceleration=(0.0, gravity))
+
+# Construct the boundary systems for the tank walls.
+boundary_system1 = BoundaryDEMSystem(tank1.boundary, 10e7)
+boundary_system2 = BoundaryDEMSystem(tank2.boundary, 10e7)
+
+semi = Semidiscretization(rock_system1, rock_system2,
+                          boundary_system1, boundary_system2)
 
 tspan = (0.0, 4.0)
 ode = semidiscretize(semi, tspan)
