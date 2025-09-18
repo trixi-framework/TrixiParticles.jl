@@ -3,7 +3,7 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 @inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    # Numerical precision note:
+    # Numerical precision note (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913):
     # We use `eps(h^2)` as a threshold to avoid division by very small distances.
     # Here, `h` is the smoothing length.
     # The comparison `distance^2 < eps(h^2)` is preferred over `distance < sqrt(eps(h^2))`
