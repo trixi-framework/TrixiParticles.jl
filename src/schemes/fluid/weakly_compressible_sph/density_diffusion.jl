@@ -187,6 +187,9 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
+        # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+        distance^2 < sqrt(eps(distance^2)) && return
+
         rho_a = current_density(v, system, particle)
         rho_b = current_density(v, system, neighbor)
 
