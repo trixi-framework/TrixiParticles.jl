@@ -32,11 +32,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
-        # Zhan et al. (2025):
-        # "To avoid the lack of support near the buffer surface entirely, one may use the
-        # angular momentum conservative form."
-        dv_pressure = inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b,
-                                                       p_a, p_b, grad_kernel)
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system,
+                                            particle, neighbor,
+                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                            distance, grad_kernel,
+                                            system_correction(particle_system))
 
         # This vanishes for particles with full kernel support
         p_boundary = cache.pressure_boundary[particle]
@@ -82,13 +82,15 @@ function interact!(dv, v_particle_system, u_particle_system,
                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system)
     end
 
+    # TODO: Enabling the following causes angular momentum conservation tests to fail.
+    # Discarding this step should be acceptable since its impact is negligible.
     # This ensures that, even during stages, the velocity remains aligned with the boundary zone
-    @threaded semi for particle in each_integrated_particle(particle_system)
-        boundary_zone = current_boundary_zone(particle_system, particle)
+    # @threaded semi for particle in each_integrated_particle(particle_system)
+    #     boundary_zone = current_boundary_zone(particle_system, particle)
 
-        project_velocity_on_plane_normal!(dv, particle_system, particle, boundary_zone,
-                                          boundary_model)
-    end
+    #     project_velocity_on_plane_normal!(dv, particle_system, particle, boundary_zone,
+    #                                       boundary_model)
+    # end
 
     return dv
 end

@@ -540,4 +540,36 @@
             @test isapprox(pressures[i], pressures_expected[i])
         end
     end
+
+    @testset verbose=true "integrated variables $(n_dims)D" for n_dims in (2, 3)
+        particle_spacing = 0.1
+        initial_condition = rectangular_patch(particle_spacing, ntuple(_ -> 2, n_dims))
+
+        plane = n_dims == 2 ? ([0.0, 0.0], [0.0, 1.0]) :
+                ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 1.0])
+        plane_normal = n_dims == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]
+        inflow = BoundaryZone(; plane, boundary_type=InFlow(), plane_normal,
+                              open_boundary_layers=10, density=1.0, particle_spacing)
+
+        system_wcsph = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),
+                                                   nothing,
+                                                   SchoenbergCubicSplineKernel{n_dims}(), 1)
+
+        open_boundary_wcsph = OpenBoundarySystem(inflow; fluid_system=system_wcsph,
+                                                 buffer_size=0,
+                                                 boundary_model=BoundaryModelMirroringTafuni())
+
+        @test TrixiParticles.v_nvariables(open_boundary_wcsph) == n_dims
+
+        system_edac_1 = EntropicallyDampedSPHSystem(initial_condition,
+                                                    SchoenbergCubicSplineKernel{n_dims}(),
+                                                    1.0,
+                                                    1.0)
+
+        open_boundary_edac_1 = OpenBoundarySystem(inflow; fluid_system=system_edac_1,
+                                                  buffer_size=0,
+                                                  boundary_model=BoundaryModelMirroringTafuni())
+
+        @test TrixiParticles.v_nvariables(open_boundary_edac_1) == n_dims
+    end
 end
