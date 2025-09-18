@@ -4,7 +4,7 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
     # TODO Use `eps` relative to `h` to allow scaling of simulations
-    distance < eps(typeof(h)) && return zero(pos_diff)
+    distance < sqrt(eps(h)) && return zero(pos_diff)
 
     return kernel_deriv(kernel, distance, h) / distance * pos_diff
 end
