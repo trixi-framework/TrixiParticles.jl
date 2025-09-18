@@ -570,6 +570,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
+    # update iisph system
     update_implicit_sph!(semi, v_ode, u_ode, t)
 
     # Perform correction and pressure calculation
