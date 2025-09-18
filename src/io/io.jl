@@ -135,12 +135,8 @@ function add_system_data!(system_data, system::OpenBoundarySystem)
     system_data["system_type"] = type2string(system)
     system_data["fluid_system_index"] = system.fluid_system_index[]
     system_data["smoothing_length"] = system.smoothing_length
+    system_data["number_of_boundary_zones"] = length(system.boundary_zones)
     add_system_data!(system_data, system.boundary_model)
-
-    system_data["boundary_zones"] = Dict{String, Any}()
-    for (indice, boundary_zone) in enumerate(system.boundary_zones)
-        add_system_data!(system_data["boundary_zones"], boundary_zone, indice)
-    end
 end
 
 function add_system_data!(system_data, system::ParticlePackingSystem)
@@ -299,8 +295,6 @@ function add_system_data!(system_data, motion::PrescribedMotion)
     system_data["prescribed_motion"] = Dict{String, Any}()
     system_data["prescribed_motion"]["model"] = type2string(motion)
     system_data["prescribed_motion"]["movement_function"] = type2string(motion.movement_function)
-    system_data["prescribed_motion"]["is_moving"] = type2string(motion.is_moving)
-    system_data["prescribed_motion"]["moving_particles"] = motion.moving_particles
 end
 
 function add_system_data!(system_data, penalty_force::PenaltyForceGanzenmueller)
