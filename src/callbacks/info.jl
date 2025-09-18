@@ -122,9 +122,9 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
 
     # Time integration
     setup = Pair{String, Any}["Start time" => first(integrator.sol.prob.tspan),
-                              "Final time" => last(integrator.sol.prob.tspan),
-                              "time integrator" => integrator.alg |> typeof |> nameof,
-                              "adaptive" => integrator.opts.adaptive]
+    "Final time" => last(integrator.sol.prob.tspan),
+    "time integrator" => integrator.alg |> typeof |> nameof,
+    "adaptive" => integrator.opts.adaptive]
     if integrator.opts.adaptive
         push!(setup,
               "abstol" => integrator.opts.abstol,
@@ -136,8 +136,8 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
 
     # Technical details
     setup = Pair{String, Any}["Julia version" => VERSION,
-                              "parallelization backend" => semi.parallelization_backend |> typeof |> nameof,
-                              "#threads" => Threads.nthreads()]
+    "parallelization backend" => semi.parallelization_backend |> typeof |> nameof,
+    "#threads" => Threads.nthreads()]
     summary_box(io, "Environment information", setup)
     println()
     println()

@@ -233,8 +233,8 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
         v_particle = current_velocity(v_particle_system, system, particle)
         for i in 1:ndims(system)
             advection_velocity[i,
-                               particle] = v_particle[i] +
-                                           time_step * system.acceleration[i]
+            particle] = v_particle[i] +
+                                              time_step * system.acceleration[i]
         end
     end
 
@@ -247,8 +247,10 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
 
         foreach_point_neighbor(system, neighbor_system,
                                system_coords, neighbor_system_coords, semi;
-                               points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -269,8 +271,8 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
             # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
             for i in 1:ndims(system)
                 d_ii_array[i,
-                           particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
-                                                       grad_kernel[i], time_step)
+                particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
+                                                          grad_kernel[i], time_step)
             end
         end
     end
@@ -291,8 +293,10 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
 
         foreach_point_neighbor(system, neighbor_system, system_coords,
                                neighbor_system_coords, semi,
-                               points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             # Calculate the predicted velocity differences
             advection_velocity_diff = predicted_velocity(system, particle) -
                                       predicted_velocity(neighbor_system, neighbor)
@@ -327,7 +331,7 @@ function calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                                                                       pos_diff, distance
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
         # Compute d_ji according to eq. 9 in Ihmsen et al. (2013).
@@ -346,7 +350,8 @@ end
 
 # Calculation of the contribution of the Abstractboundary particles the diagonal elements (a_ii-values)
 # according to Ihmsen et al. (2013)
-function calculate_diagonal_elements!(a_ii, system, neighbor_system::AbstractBoundarySystem, v, u,
+function calculate_diagonal_elements!(a_ii, system, neighbor_system::AbstractBoundarySystem,
+                                      v, u,
                                       v_ode, u_ode, semi, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
@@ -354,10 +359,8 @@ function calculate_diagonal_elements!(a_ii, system, neighbor_system::AbstractBou
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords, semi;
-                           points=each_integrated_particle(system)) do particle,
-                                                                   neighbor,
-                                                                   pos_diff,
-                                                                   distance
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
         d_ii_ = d_ii(system, particle)
@@ -398,7 +401,7 @@ function pressure_solve_iteration(system, u, u_ode, semi, time_step)
 
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                                                                       pos_diff, distance
         # Calculate the sum d_ij * p_j over all neighbors j for each particle i
         # (Ihmsen et al. 2013, eq. 13)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
@@ -455,7 +458,7 @@ function calculate_sum_term!(sum_term, system, neighbor_system,
     foreach_point_neighbor(system, neighbor_system, system_coords,
                            neighbor_system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                                                                       pos_diff, distance
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         sum_term[particle] += calculate_sum_term(system, neighbor_system, particle,
                                                  neighbor, pressure, grad_kernel, time_step)
@@ -548,7 +551,8 @@ function calculate_sum_term(system, neighbor_system::ImplicitIncompressibleSPHSy
     return m_j * dot(sum_dik_pk - d_jj * p_j - (sum_djk_pk - d_ji * p_i), grad_kernel)
 end
 
-function calculate_sum_term(system, neighbor_system::AbstractBoundarySystem, particle, neighbor,
+function calculate_sum_term(system, neighbor_system::AbstractBoundarySystem, particle,
+                            neighbor,
                             pressure, grad_kernel, time_step)
     sum_dik_pk = sum_dij_pj(system, particle)
     m_j = hydrodynamic_mass(neighbor_system, neighbor)

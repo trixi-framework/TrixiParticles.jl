@@ -68,8 +68,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i,
-                         particle] += dv_pressure[i] + dv_viscosity_[i] + dv_tvf[i] +
-                                      dv_surface_tension[i] + dv_adhesion[i]
+            particle] += dv_pressure[i] + dv_viscosity_[i] + dv_tvf[i] +
+                                         dv_surface_tension[i] + dv_adhesion[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
