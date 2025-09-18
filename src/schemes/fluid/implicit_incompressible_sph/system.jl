@@ -281,12 +281,9 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         foreach_point_neighbor(system, neighbor_system,
-                            system_coords, neighbor_system_coords,
-                            semi;
-                            points=each_integrated_particle(system)) do particle,
-                                                                    neighbor,
-                                                                    pos_diff,
-                                                                    distance
+                            system_coords, neighbor_system_coords, semi;
+                            points=each_integrated_particle(system)) do particle, neighbor,
+                                                                        pos_diff, distance
             m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -410,13 +407,14 @@ function pressure_solve_iteration(system, u, u_ode, semi, time_step)
     calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
 
     calculate_sum_term_values(system, u, u_ode, semi, time_step)
-
+    # Update the pressure values
     avg_density_error = pressure_update(system, u, u_ode, semi, time_step)
     return avg_density_error
 end
 
 function calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
     (; sum_d_ij_pj, pressure) = system
+
     set_zero!(sum_d_ij_pj)
 
     system_coords = current_coordinates(u, system)
@@ -427,7 +425,8 @@ function calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
                                                                    neighbor,
                                                                    pos_diff,
                                                                    distance
-        # Calculate the sum d_ij * p_j over all neighbors j for each particle i (Ihmsen et al. 2013, eq. 13)
+        # Calculate the sum d_ij * p_j over all neighbors j for each particle i
+        # (Ihmsen et al. 2013, eq. 13)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         p_b = pressure[neighbor]
         d_ab = calculate_d_ij(system, neighbor, grad_kernel, time_step)
@@ -451,9 +450,10 @@ function calculate_sum_term_values(system, u, u_ode, semi, time_step)
 end
 
 function pressure_update(system, u, u_ode, semi, time_step)
-    (; pressure, sum_term, reference_density, a_ii, omega) = system
-    # Update the pressure values
+    (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
+
     avg_density_error = zero(eltype(system))
+
     @threaded semi for particle in eachparticle(system)
         # Removing instabilities by avoiding to divide by very low values of `a_ii`.
         # This is not mentioned in the paper but done in SPlisHSPlasH as well.
@@ -476,6 +476,25 @@ function pressure_update(system, u, u_ode, semi, time_step)
     avg_density_error = sum(density_error) / nparticles(system)
 
     return avg_density_error
+end
+
+# Function barrier for type stability
+function calculate_sum_term!(sum_term, system, neighbor_system,
+                             pressure, u, u_ode, semi, time_step)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    system_coords = current_coordinates(u, system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    foreach_point_neighbor(system, neighbor_system, system_coords,
+                           neighbor_system_coords, semi;
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+        sum_term[particle] += calculate_sum_term(system, neighbor_system, particle,
+                                                 neighbor, pressure, grad_kernel, time_step)
+    end
+
+    return sum_term
 end
 
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
