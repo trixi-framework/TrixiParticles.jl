@@ -57,8 +57,9 @@
             open_boundary_edac.boundary_zone_indices .= 1
             open_boundary_wcsph.boundary_zone_indices .= 1
 
-            @testset "`OpenBoundarySystem` with `$(nameof(typeof(system.fluid_system)))`" for system in (open_boundary_wcsph,
-                                                                                                         open_boundary_edac)
+            @testset "`OpenBoundarySystem` with `$(nameof(typeof(system.fluid_system)))`" for system in
+                                                                                              (open_boundary_wcsph,
+                                                                                               open_boundary_edac)
                 u = ic.coordinates
 
                 # Density is integrated with `ContinuityDensity`
