@@ -60,7 +60,8 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                           system_coords, neighbor_coords,
                                           semi) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0
-        distance < sqrt(eps()) && return
+        # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+        distance^2 < sqrt(eps(distance^2)) && return
 
         # Original version
         # dv = -G * mass[neighbor] * pos_diff / norm(pos_diff)^3

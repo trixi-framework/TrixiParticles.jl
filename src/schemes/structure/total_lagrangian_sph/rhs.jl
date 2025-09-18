@@ -22,9 +22,6 @@ end
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        initial_pos_diff,
                                                                        initial_distance
-        # Only consider particles with a distance > 0
-        initial_distance < sqrt(eps()) && return
-
         rho_a = @inbounds system.material_density[particle]
         rho_b = @inbounds system.material_density[neighbor]
 
