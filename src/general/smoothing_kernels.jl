@@ -15,7 +15,6 @@ abstract type AbstractSmoothingKernel{NDIMS} end
     return kernel_deriv(kernel, distance, h) / distance * pos_diff
 end
 
-
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h, correction, system,
                                        particle)
     return kernel_grad(kernel, pos_diff, distance, h)
