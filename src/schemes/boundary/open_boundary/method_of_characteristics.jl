@@ -178,7 +178,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
             for neighbor in each_integrated_particle(system)
                 # Make sure that only neighbors in the influence of
                 # the fluid particles are used.
-                if isapprox(volume[neighbor], 0)
+                if volume[neighbor]^2 > eps(volume[neighbor]^2)
                     avg_J1 += previous_characteristics[1, neighbor]
                     avg_J2 += previous_characteristics[2, neighbor]
                     avg_J3 += previous_characteristics[3, neighbor]
