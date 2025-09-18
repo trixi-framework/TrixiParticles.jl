@@ -3,8 +3,14 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 @inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    # TODO Use `eps` relative to `h` to allow scaling of simulations
-    distance < sqrt(eps(h)) && return zero(pos_diff)
+    # Numerical precision note (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913):
+    # We use `eps(h^2)` as a threshold to avoid division by very small distances.
+    # Here, `h` is the smoothing length.
+    # The comparison `distance^2 < eps(h^2)` is preferred over `distance < sqrt(eps(h^2))`
+    # for efficiency, since it avoids an unnecessary square root.
+    # This ensures that for particles that are extremely close (or coincident),
+    # the gradient is set to zero, which is physically and numerically justified in SPH simulations.
+    distance^2 < eps(h^2) && return zero(pos_diff)
 
     return kernel_deriv(kernel, distance, h) / distance * pos_diff
 end
