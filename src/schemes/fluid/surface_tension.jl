@@ -175,7 +175,7 @@ end
                                        particle, neighbor, pos_diff, distance,
                                        rho_a, rho_b, grad_kernel)
     # No cohesion with oneself.
-    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
     distance^2 < sqrt(eps(distance^2)) && return zero(pos_diff)
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
@@ -196,7 +196,7 @@ end
 
     smoothing_length_ = smoothing_length(particle_system, particle)
     # No surface tension with oneself.
-    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
     distance^2 < sqrt(eps(distance^2)) && return zero(pos_diff)
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
@@ -218,7 +218,7 @@ end
     (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself.
-    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
     distance^2 < sqrt(eps(distance^2)) && return zero(pos_diff)
 
     n_a = surface_normal(particle_system, particle)
@@ -289,7 +289,7 @@ end
     (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself.
-    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
     distance^2 < sqrt(eps(distance^2)) && return zero(pos_diff)
 
     S_a = stress_tensor(particle_system, particle)
@@ -307,7 +307,7 @@ end
     (; adhesion_coefficient) = neighbor_system
 
     # No adhesion with oneself.
-    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
     distance^2 < sqrt(eps(distance^2)) && return zero(pos_diff)
 
     # No reason to calculate the adhesion force if adhesion coefficient is near zero
