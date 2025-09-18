@@ -77,9 +77,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Only consider particles with a distance > 0
-        distance < sqrt(eps()) && return
-
         # Apply the same force to the structure particle
         # that the fluid particle experiences due to the structure particle.
         # Note that the same arguments are passed here as in fluid-structure interact!,
