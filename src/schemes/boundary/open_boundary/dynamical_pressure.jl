@@ -1,3 +1,14 @@
+@doc raw"""
+    BoundaryModelDynamicalPressureZhang()
+
+Boundary model for the [`OpenBoundarySystem`](@ref).
+This model implements the method of [Zhang et al. (2025)](@cite Zhang2025) for imposing dynamical pressure conditions at open boundaries.
+In this model, the momentum equation is solved for particles within the [`BoundaryZone`](@ref).
+The prescribed boundary pressure is directly incorporated into the SPH approximation of the pressure gradient for particles near the boundary.
+This model is highly robust for handling bidirectional flow,
+allowing particles to enter or leave the domain through a single boundary surface.
+For more information about the method see [description below](@ref dynamical_pressure).
+"""
 struct BoundaryModelDynamicalPressureZhang end
 
 @inline function v_nvariables(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})

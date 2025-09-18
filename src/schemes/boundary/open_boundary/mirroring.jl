@@ -57,9 +57,9 @@ into the fluid along a direction that is normal to the open boundary.
 Fluid properties are then interpolated at these ghost node positions using surrounding fluid particles.
 The values are then mirrored back to the boundary particles.
 We provide three different mirroring methods:
-    - [`ZerothOrderMirroring`](@ref): Uses a Shepard interpolation to interpolate the values.
-    - [`FirstOrderMirroring`](@ref): Uses a first order correction based on the gradient of the interpolated values .
-    - [`SimpleMirroring`](@ref): Similar to the first order mirroring, but does not use the gradient of the interpolated values.
+- [`ZerothOrderMirroring`](@ref): Uses a Shepard interpolation to interpolate the values.
+- [`FirstOrderMirroring`](@ref): Uses a first order correction based on the gradient of the interpolated values .
+- [`SimpleMirroring`](@ref): Similar to the first order mirroring, but does not use the gradient of the interpolated values.
 """
 struct BoundaryModelMirroringTafuni{MM}
     mirror_method::MM
