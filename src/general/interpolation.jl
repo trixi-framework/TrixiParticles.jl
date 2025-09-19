@@ -628,6 +628,11 @@ end
     return (; velocity, jacobian, von_mises_stress, cauchy_stress)
 end
 
+function interpolate_system!(cache, v, neighbor_system,
+                             point, neighbor, volume_b, W_ab, clip_negative_pressure)
+    return cache
+end
+
 @inline function interpolate_system!(cache, v, system::AbstractFluidSystem,
                                      point, neighbor, volume_b, W_ab,
                                      clip_negative_pressure)

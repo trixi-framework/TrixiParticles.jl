@@ -15,6 +15,8 @@ See [Density Diffusion](@ref density_diffusion) for a comparison and more detail
 """
 abstract type AbstractDensityDiffusion end
 
+@inline density_diffusion(system) = nothing
+
 # Most density diffusion formulations don't need updating
 function update!(density_diffusion, v, u, system, semi)
     return density_diffusion
@@ -217,8 +219,7 @@ end
     distance < sqrt(eps(typeof(distance))) && return
 
     (; delta) = density_diffusion
-    (; state_equation) = particle_system
-    (; sound_speed) = state_equation
+    sound_speed = system_sound_speed(particle_system)
 
     volume_b = m_b / rho_b
 

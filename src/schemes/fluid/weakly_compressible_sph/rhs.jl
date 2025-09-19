@@ -111,43 +111,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-# With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
-@inline function continuity_equation!(dv, density_calculator::SummationDensity,
-                                      particle_system, neighbor_system,
-                                      v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b, grad_kernel)
-    return dv
-end
-
-# This formulation was chosen to be consistent with the used pressure_acceleration formulations.
-@propagate_inbounds function continuity_equation!(dv, density_calculator::ContinuityDensity,
-                                                  particle_system::WeaklyCompressibleSPHSystem,
-                                                  neighbor_system,
-                                                  v_particle_system, v_neighbor_system,
-                                                  particle, neighbor, pos_diff, distance,
-                                                  m_b, rho_a, rho_b, grad_kernel)
-    (; density_diffusion) = particle_system
-
-    vdiff = current_velocity(v_particle_system, particle_system, particle) -
-            current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-    dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
-
-    # Artificial density diffusion should only be applied to systems representing a fluid
-    # with the same physical properties i.e. density and viscosity.
-    # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
-    if particle_system === neighbor_system
-        density_diffusion!(dv, density_diffusion, v_particle_system, particle, neighbor,
-                           pos_diff, distance, m_b, rho_a, rho_b, particle_system,
-                           grad_kernel)
-    end
-
-    continuity_equation_shifting!(dv, shifting_technique(particle_system),
-                                  particle_system, neighbor_system,
-                                  particle, neighbor, grad_kernel, rho_a, rho_b, m_b)
-end
-
 @propagate_inbounds function particle_neighbor_pressure(v_particle_system,
                                                         v_neighbor_system,
                                                         particle_system, neighbor_system,
