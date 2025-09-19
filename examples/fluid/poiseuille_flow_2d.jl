@@ -145,23 +145,24 @@ end
 open_boundary_model = BoundaryModelDynamicalPressureZhang()
 
 boundary_type_in = BidirectionalFlow()
-plane_in = ([open_boundary_size[1], 0.0], [open_boundary_size[1], pipe.fluid_size[2]])
+face_in = ([open_boundary_size[1], 0.0], [open_boundary_size[1], pipe.fluid_size[2]])
 reference_velocity_in = nothing
 reference_pressure_in = 0.2
-inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_boundary_layers,
-                      density=fluid_density, particle_spacing, rest_pressure=0.2,
+inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
+                      open_boundary_layers, density=fluid_density, particle_spacing,
+                      rest_pressure=0.2, # TODO: is this needed?
                       reference_velocity=reference_velocity_in,
                       reference_pressure=reference_pressure_in,
                       initial_condition=inlet.fluid, boundary_type=boundary_type_in)
 
 boundary_type_out = BidirectionalFlow()
-plane_out = ([pipe.fluid_size[1] - open_boundary_size[1], 0.0],
-             [pipe.fluid_size[1] - open_boundary_size[1], pipe.fluid_size[2]])
+face_out = ([pipe.fluid_size[1] - open_boundary_size[1], 0.0],
+            [pipe.fluid_size[1] - open_boundary_size[1], pipe.fluid_size[2]])
 reference_velocity_out = nothing
 reference_pressure_out = 0.1
-outflow = BoundaryZone(; plane=plane_out, plane_normal=(.-(flow_direction)),
+outflow = BoundaryZone(; boundary_face=face_out, face_normal=(.-(flow_direction)),
                        open_boundary_layers, density=fluid_density, particle_spacing,
-                       rest_pressure=0.1,
+                       rest_pressure=0.1, # TODO: is this needed?
                        reference_velocity=reference_velocity_out,
                        reference_pressure=reference_pressure_out,
                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)

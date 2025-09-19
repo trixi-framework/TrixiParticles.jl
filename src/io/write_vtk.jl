@@ -184,8 +184,7 @@ function transfer2cpu(v_, u_)
 end
 
 function transfer2cpu(a_::AbstractGPUArray)
-    a = Adapt.adapt(Array, a_)
-    return a
+    return Adapt.adapt(Array, a_)
 end
 
 function transfer2cpu(a_)

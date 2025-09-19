@@ -233,6 +233,11 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "open_boundary", "boundary_zones.jl")]
 ```
 
+```@autodocs
+Modules = [TrixiParticles]
+Filter = t -> typeof(t) === typeof(TrixiParticles.planar_geometry_to_face)
+```
+
 # [Open Boundary Models](@id open_boundary_models)
 We offer two models for open boundaries, with the choice depending on the specific problem and flow characteristics near the boundary:
 1. [**Method of characteristics**](@ref method_of_characteristics): The method of characteristics is typically used in problems where tracking of wave propagation

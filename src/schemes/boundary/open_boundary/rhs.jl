@@ -88,7 +88,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     # @threaded semi for particle in each_integrated_particle(particle_system)
     #     boundary_zone = current_boundary_zone(particle_system, particle)
 
-    #     project_velocity_on_plane_normal!(dv, particle_system, particle, boundary_zone,
+    #     project_velocity_on_face_normal!(dv, particle_system, particle, boundary_zone,
     #                                       boundary_model)
     # end
 
@@ -133,7 +133,7 @@ end
 #     v_diff = current_velocity(v_particle_system, particle_system, particle) -
 #              current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-#     return v_diff - dot(v_diff, boundary_zone.plane_normal) * boundary_zone.plane_normal
+#     return v_diff - dot(v_diff, boundary_zone.face_normal) * boundary_zone.face_normal
 
 #     # return zero(SVector{ndims(particle_system), eltype(particle_system)})
 # end

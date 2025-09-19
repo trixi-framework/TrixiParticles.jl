@@ -97,7 +97,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   zone.zone_origin,
                                                   zone.zone_width,
                                                   zone.flow_direction,
-                                                  zone.plane_normal,
+                                                  zone.face_normal,
                                                   zone.rest_pressure,
                                                   nothing,
                                                   zone.average_inflow_velocity,
@@ -383,8 +383,8 @@ end
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
-    # `plane_normal` is always pointing into the fluid domain.
-    if signbit(dot(relative_position, boundary_zone.plane_normal))
+    # `face_normal` is always pointing into the fluid domain.
+    if signbit(dot(relative_position, boundary_zone.face_normal))
         deactivate_particle!(system, particle, u)
 
         return system
@@ -503,7 +503,7 @@ end
         particle_coords = current_coords(u, system, particle)
 
         dist_to_transition = dot(particle_coords - boundary_zone.zone_origin,
-                                 -boundary_zone.plane_normal)
+                                 -boundary_zone.face_normal)
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)

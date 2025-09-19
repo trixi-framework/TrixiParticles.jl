@@ -25,8 +25,8 @@
 
             min_coords = vec(minimum(ic.coordinates, dims=2)) .- particle_spacing
             max_coords = vec(maximum(ic.coordinates, dims=2)) .+ particle_spacing
-            bz = BoundaryZone(; plane=(min_coords, [min_coords[1], max_coords[2]]),
-                              boundary_type=OutFlow(), plane_normal=[-1.0, 0.0],
+            bz = BoundaryZone(; boundary_face=(min_coords, [min_coords[1], max_coords[2]]),
+                              boundary_type=OutFlow(), face_normal=[-1.0, 0.0],
                               open_boundary_layers=10, initial_condition=ic,
                               density=1.0, particle_spacing)
             bz.initial_condition.mass .= ic.mass
@@ -120,10 +120,10 @@
         particle_spacing = 0.1
         initial_condition = rectangular_patch(particle_spacing, ntuple(_ -> 2, n_dims))
 
-        plane = n_dims == 2 ? ([0.0, 0.0], [0.0, 1.0]) :
-                ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 1.0])
-        plane_normal = n_dims == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]
-        inflow = BoundaryZone(; plane, boundary_type=InFlow(), plane_normal,
+        boundary_face = n_dims == 2 ? ([0.0, 0.0], [0.0, 1.0]) :
+                        ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 1.0])
+        face_normal = n_dims == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]
+        inflow = BoundaryZone(; boundary_face, boundary_type=InFlow(), face_normal,
                               open_boundary_layers=10, density=1.0, particle_spacing)
 
         system_wcsph = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),

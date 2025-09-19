@@ -198,22 +198,22 @@ function update_boundary_quantities!(system,
         # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
         # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
         # only this component of interpolated velocity is kept [...]"
-        project_velocity_on_plane_normal!(v, system, particle, boundary_zone,
-                                          boundary_model)
+        project_velocity_on_face_normal!(v, system, particle, boundary_zone,
+                                         boundary_model)
     end
 
     return system
 end
 
-function project_velocity_on_plane_normal!(v, system, particle, boundary_zone,
-                                           boundary_model::BoundaryModelDynamicalPressureZhang)
+function project_velocity_on_face_normal!(v, system, particle, boundary_zone,
+                                          boundary_model::BoundaryModelDynamicalPressureZhang)
     # Project the velocity on the normal direction of the boundary zone
     # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
     # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
     # only this component of interpolated velocity is kept [...]"
     v_particle = current_velocity(v, system, particle)
-    v_particle_projected = dot(v_particle, boundary_zone.plane_normal) *
-                           boundary_zone.plane_normal
+    v_particle_projected = dot(v_particle, boundary_zone.face_normal) *
+                           boundary_zone.face_normal
 
     for dim in eachindex(v_particle)
         @inbounds v[dim, particle] = v_particle_projected[dim]

@@ -10,8 +10,9 @@
         TrixiParticles.nparticles(system::FluidSystemMock2) = 1
         TrixiParticles.system_smoothing_kernel(system::FluidSystemMock2) = nothing
 
-        inflow = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
-                              plane_normal=(1.0, 0.0), density=1.0,
+        inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                              particle_spacing=0.05,
+                              face_normal=(1.0, 0.0), density=1.0,
                               open_boundary_layers=4, boundary_type=InFlow())
         system = OpenBoundarySystem(inflow; buffer_size=0,
                                     boundary_model=BoundaryModelCharacteristicsLastiwka(),
@@ -32,8 +33,9 @@
 
         @test repr("text/plain", system) == show_box
 
-        outflow = BoundaryZone(; plane=([5.0, 0.0], [5.0, 1.0]), particle_spacing=0.05,
-                               plane_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
+        outflow = BoundaryZone(; boundary_face=([5.0, 0.0], [5.0, 1.0]),
+                               particle_spacing=0.05,
+                               face_normal=(1.0, 0.0), density=1.0, open_boundary_layers=4,
                                boundary_type=OutFlow())
         system = OpenBoundarySystem(outflow; buffer_size=0,
                                     boundary_model=BoundaryModelMirroringTafuni(),

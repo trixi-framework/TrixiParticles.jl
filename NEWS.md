@@ -28,6 +28,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   It is now possible to pass multiple `BoundaryZone`s to a single `OpenBoundarySystem`.
   Reference values are now assigned individually to each `BoundaryZone`. (#866)
 
+- Rename keyword arguments `plane` and `plane_normal` for `BoundaryZone` to `boundary_face` and `face_normal` (#597).
+
 - The argument of `TransportVelocityAdami` is now a keyword argument.
   `TransportVelocityAdami(1000.0)` now becomes
   `TransportVelocityAdami(background_pressure=1000.0)` (#884).

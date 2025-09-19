@@ -205,10 +205,10 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
         end
 
         boundary_zone = current_boundary_zone(system, particle)
-        (; flow_direction, plane_normal) = boundary_zone
+        (; flow_direction, face_normal) = boundary_zone
 
         # Outflow
-        if signbit(dot(flow_direction, plane_normal))
+        if signbit(dot(flow_direction, face_normal))
             # J3 is prescribed (i.e. determined from the exterior of the domain).
             # J1 and J2 is transmitted from the domain interior.
             characteristics[3, particle] = zero(eltype(characteristics))
@@ -225,10 +225,10 @@ end
 
 function average_velocity!(v, u, system, ::BoundaryModelCharacteristicsLastiwka,
                            boundary_zone, semi)
-    (; flow_direction, plane_normal) = boundary_zone
+    (; flow_direction, face_normal) = boundary_zone
 
     # This is an outflow. Only apply averaging at the inflow.
-    signbit(dot(flow_direction, plane_normal)) && return v
+    signbit(dot(flow_direction, face_normal)) && return v
 
     particles_in_zone = findall(particle -> boundary_zone ==
                                             current_boundary_zone(system, particle),
