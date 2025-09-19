@@ -453,7 +453,7 @@ end
             # Neighborhood search with `FullGridCellList` for GPU compatibility
             min_corner = minimum(tank.boundary.coordinates, dims=2)
             max_corner = maximum(tank.boundary.coordinates, dims=2)
-            max_corner[2] = gate_height + movement_function(0.1)[2]
+            max_corner[2] = gate_height + movement_function([0, 0], 0.1f0)[2]
             # We need a very high `max_points_per_cell` because the plate resolution
             # is much finer than the fluid resolution.
             cell_list = FullGridCellList(; min_corner, max_corner)

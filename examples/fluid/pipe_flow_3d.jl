@@ -40,7 +40,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"),
               tspan=tspan, prescribed_velocity=prescribed_velocity,
               open_boundary_layers=open_boundary_layers, min_coords_inlet=min_coords_inlet,
               min_coords_outlet=min_coords_outlet,
-              plane_in=([0.0, 0.0, 0.0], [0.0, domain_size[2], 0.0],
-                        [0.0, 0.0, domain_size[3]]),
-              plane_out=([domain_size[1], 0.0, 0.0], [domain_size[1], domain_size[2], 0.0],
-                         [domain_size[1], 0.0, domain_size[3]]))
+              face_in=([0.0, 0.0, 0.0], [0.0, domain_size[2], 0.0],
+                       [0.0, 0.0, domain_size[3]]),
+              face_out=([domain_size[1], 0.0, 0.0], [domain_size[1], domain_size[2], 0.0],
+                        [domain_size[1], 0.0, domain_size[3]]))

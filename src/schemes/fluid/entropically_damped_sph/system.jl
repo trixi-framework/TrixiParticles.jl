@@ -250,10 +250,6 @@ end
 
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
-@inline function current_pressure(v, system::EntropicallyDampedSPHSystem, particle)
-    return v[end, particle]
-end
-
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
     return view(v, 1:ndims(system), :)
 end
@@ -264,11 +260,11 @@ end
 
 @inline shifting_technique(system::EntropicallyDampedSPHSystem) = system.shifting_technique
 
-@inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
+@propagate_inbounds function average_pressure(system::EntropicallyDampedSPHSystem, particle)
     average_pressure(system, system.average_pressure_reduction, particle)
 end
 
-@inline function average_pressure(system, ::Val{true}, particle)
+@propagate_inbounds function average_pressure(system, ::Val{true}, particle)
     return system.cache.pressure_average[particle]
 end
 
@@ -286,12 +282,12 @@ end
 
 @inline function current_density(v, ::ContinuityDensity,
                                  system::EntropicallyDampedSPHSystem)
-    # When using `ContinuityDensity`, the density is stored in the second to last row of `v`
-    return view(v, size(v, 1) - 1, :)
+    # When using `ContinuityDensity`, the density is stored in the last row of `v`
+    return view(v, size(v, 1), :)
 end
 
-@inline function current_pressure(v, ::EntropicallyDampedSPHSystem)
-    return view(v, size(v, 1), :)
+@inline function current_pressure(v, system::EntropicallyDampedSPHSystem)
+    return view(v, ndims(system) + 1, :)
 end
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
@@ -364,15 +360,15 @@ end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::SummationDensity)
     # Note that `.=` is very slightly faster, but not GPU-compatible
-    v0[end, :] = system.initial_condition.pressure
+    v0[ndims(system) + 1, :] = system.initial_condition.pressure
 
     return v0
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
     # Note that `.=` is very slightly faster, but not GPU-compatible
-    v0[end - 1, :] = system.initial_condition.density
-    v0[end, :] = system.initial_condition.pressure
+    v0[end, :] = system.initial_condition.density
+    v0[ndims(system) + 1, :] = system.initial_condition.pressure
 
     return v0
 end
