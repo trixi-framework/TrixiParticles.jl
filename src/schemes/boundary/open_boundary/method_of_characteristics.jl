@@ -1,7 +1,7 @@
 @doc raw"""
     BoundaryModelCharacteristicsLastiwka(; extrapolate_reference_values=nothing)
 
-Boundary model for [`OpenBoundarySPHSystem`](@ref).
+Boundary model for [`OpenBoundarySystem`](@ref).
 This model uses the characteristic variables to propagate the appropriate values
 to the outlet or inlet and was proposed by Lastiwka et al. (2009).
 It requires a specific flow direction to be passed to the [`BoundaryZone`](@ref).
@@ -46,7 +46,7 @@ end
     end
 
     # Update quantities based on the characteristic variables
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
         (; flow_direction) = boundary_zone
 
@@ -124,8 +124,8 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
 
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, fluid_system, system_coords, fluid_coords, semi;
-                           points=each_moving_particle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
         boundary_zone = current_boundary_zone(system, particle)
         (; flow_direction) = boundary_zone
 
@@ -164,7 +164,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # Thus, we compute the characteristics for the particles that are outside the influence
     # of fluid particles by using the average of the values of the previous time step.
     # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         # Particle is outside of the influence of fluid particles
         if isapprox(volume[particle], 0)
 
@@ -175,7 +175,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
             avg_J3 = zero(eltype(volume))
             counter = 0
 
-            for neighbor in each_moving_particle(system)
+            for neighbor in each_integrated_particle(system)
                 # Make sure that only neighbors in the influence of
                 # the fluid particles are used.
                 if volume[neighbor] > sqrt(eps())
@@ -203,10 +203,10 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
         end
 
         boundary_zone = current_boundary_zone(system, particle)
-        (; flow_direction, plane_normal) = boundary_zone
+        (; flow_direction, face_normal) = boundary_zone
 
         # Outflow
-        if signbit(dot(flow_direction, plane_normal))
+        if signbit(dot(flow_direction, face_normal))
             # J3 is prescribed (i.e. determined from the exterior of the domain).
             # J1 and J2 is transmitted from the domain interior.
             characteristics[3, particle] = zero(eltype(characteristics))
@@ -223,14 +223,14 @@ end
 
 function average_velocity!(v, u, system, ::BoundaryModelCharacteristicsLastiwka,
                            boundary_zone, semi)
-    (; flow_direction, plane_normal) = boundary_zone
+    (; flow_direction, face_normal) = boundary_zone
 
     # This is an outflow. Only apply averaging at the inflow.
-    signbit(dot(flow_direction, plane_normal)) && return v
+    signbit(dot(flow_direction, face_normal)) && return v
 
     particles_in_zone = findall(particle -> boundary_zone ==
                                             current_boundary_zone(system, particle),
-                                each_moving_particle(system))
+                                each_integrated_particle(system))
 
     # Division inside the `sum` closure to maintain GPU compatibility
     avg_velocity = sum(particles_in_zone) do particle

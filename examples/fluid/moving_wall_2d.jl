@@ -36,11 +36,11 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 reset_wall!(tank, (false, true, false, false), (0.0, tank.fluid_size[1], 0.0, 0.0))
 
 # Movement function
-movement_function(t) = SVector(0.5t^2, 0.0)
+movement_function(x, t) = x + SVector(0.5 * t^2, 0.0)
 
 is_moving(t) = t < 1.5
 
-boundary_movement = BoundaryMovement(movement_function, is_moving,
+boundary_movement = PrescribedMotion(movement_function, is_moving,
                                      moving_particles=tank.face_indices[2])
 
 # ==========================================================================================
@@ -64,8 +64,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    movement=boundary_movement)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
+                                     prescribed_motion=boundary_movement)
 
 # ==========================================================================================
 # ==== Simulation

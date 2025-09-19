@@ -34,7 +34,7 @@
             @test system.current_coordinates == coordinates
             @test system.mass == mass
             @test system.material_density == material_densities
-            @test system.n_moving_particles == 2
+            @test system.n_integrated_particles == 2
             @test system.young_modulus == E
             @test system.poisson_ratio == nu
             @test system.lame_lambda == 1.0
@@ -75,7 +75,7 @@
         │ TotalLagrangianSPHSystem{2}                                                                      │
         │ ═══════════════════════════                                                                      │
         │ total #particles: ………………………………… 2                                                                │
-        │ #fixed particles: ………………………………… 0                                                                │
+        │ #clamped particles: …………………………… 0                                                                │
         │ Young's modulus: …………………………………… 2.5                                                              │
         │ Poisson ratio: ………………………………………… 0.25                                                             │
         │ smoothing kernel: ………………………………… Val                                                              │
@@ -97,7 +97,7 @@
         │ TotalLagrangianSPHSystem{2}                                                                      │
         │ ═══════════════════════════                                                                      │
         │ total #particles: ………………………………… 2                                                                │
-        │ #fixed particles: ………………………………… 0                                                                │
+        │ #clamped particles: …………………………… 0                                                                │
         │ Young's modulus: …………………………………… min = 1.2, max = 3.4                                             │
         │ Poisson ratio: ………………………………………… min = 0.2, max = 0.4                                             │
         │ smoothing kernel: ………………………………… Val                                                              │
@@ -330,7 +330,7 @@
                                           boundary_model=boundary_model)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
-                   TrixiParticles.n_moving_particles(system))
+                   TrixiParticles.n_integrated_particles(system))
         TrixiParticles.write_u0!(u0, system)
 
         @test u0 == coordinates
@@ -357,7 +357,7 @@
                                           boundary_model=boundary_model)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
-                   TrixiParticles.n_moving_particles(system))
+                   TrixiParticles.n_integrated_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
         @test v0 == velocity

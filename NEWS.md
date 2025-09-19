@@ -8,9 +8,27 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
-- API for `OpenBoundarySPHSystem` and `BoundaryZone` changed.
-  It is now possible to pass multiple `BoundaryZone`s to a single `OpenBoundarySPHSystem`.
+- Renamed `BoundarySPHSystem` to `WallBoundarySystem` and the keyword argument
+  `movement` to `prescribed_motion`.
+
+- Renamed `OpenBoundarySPHSystem` to `OpenBoundarySystem`.
+
+- Renamed `BoundaryMovement` to `PrescribedMotion`. The `movement_function` must now be
+  a function of `(x, t)` returning the *new position* instead of an offset.
+  For example, `movement_function(t) = SVector(t, 0.0)` now needs to be
+  `movement_function(x, t) = x + SVector(t, 0.0)`.
+
+- Renamed directory `solid` to `structure` in the examples file tree.
+  VTK files for the `TotalLagrangianSPHSystem` are now also called `structure_*`.
+
+- Renamed keyword argument `n_fixed_particles` of the `TotalLagrangianSPHSystem`
+  to `n_clamped_particles`.
+
+- API for `OpenBoundarySystem` and `BoundaryZone` changed.
+  It is now possible to pass multiple `BoundaryZone`s to a single `OpenBoundarySystem`.
   Reference values are now assigned individually to each `BoundaryZone`. (#866)
+
+- Rename keyword arguments `plane` and `plane_normal` for `BoundaryZone` to `boundary_face` and `face_normal` (#597).
 
 - The argument of `TransportVelocityAdami` is now a keyword argument.
   `TransportVelocityAdami(1000.0)` now becomes
@@ -30,9 +48,32 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `(system, v_ode, u_ode, semi, t)` now need to be functions
   of `(system, dv_ode, du_ode, v_ode, u_ode, semi, t)` (#879).
 
+- Renamed `each_moving_particle` to `each_integrated_particle`,
+  `n_moving_particles` to `n_integrated_particles`
+  and `active_particles` to `each_active_particle`.
+
 ### Features
 
 - Added consistent particle shifting by Sun et al. (2019) as `ConsistentShiftingSun2019` (#888).
+
+
+## Version 0.3.2
+### Features
+
+- **Open boundaries**:
+  - Averaging of the inflow velocities has been added as an option. (#833)
+  - New mirroring methods 0th order, 1st order and simple mirroring have been added. (#855)
+
+- **TLSPH**:
+  - The option to add artificial viscosity has been added to increase stability of FSI. (#869)
+
+
+### Important Bugfixes
+
+- Fix the coordinates used for TLSPH in Adami extrapolation (#853)
+- Fix PST for small smoothing length factors (#834)
+- The TVF model has been improved to integrate correctly with time stepping (#864)
+
 
 ## Version 0.3.1
 

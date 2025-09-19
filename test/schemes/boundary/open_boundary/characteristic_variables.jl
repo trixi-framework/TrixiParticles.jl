@@ -18,29 +18,29 @@
     # Add small offset to avoid "ArgumentError: density must be positive and larger than `eps()`"
     reference_density = (pos, t) -> 1000.0 * (t + sqrt(eps()))
 
-    # Plane points of open boundary
-    plane_points_1 = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
-    plane_points_2 = [[0.0, 1.0], [0.2, 2.0], [2.3, 0.5]]
+    # Face vertices of open boundary
+    face_vertices_1 = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
+    face_vertices_2 = [[0.0, 1.0], [0.2, 2.0], [2.3, 0.5]]
 
-    @testset "Points $i" for i in eachindex(plane_points_1)
+    @testset "Points $i" for i in eachindex(face_vertices_1)
         n_influenced = influenced_particles[i]
 
-        plane_points = [plane_points_1[i], plane_points_2[i]]
+        face_vertices = [face_vertices_1[i], face_vertices_2[i]]
 
-        plane_size = plane_points[2] - plane_points[1]
+        face_size = face_vertices[2] - face_vertices[1]
         flow_directions = [
-            normalize([-plane_size[2], plane_size[1]]),
-            -normalize([-plane_size[2], plane_size[1]])
+            normalize([-face_size[2], face_size[1]]),
+            -normalize([-face_size[2], face_size[1]])
         ]
 
         @testset "Flow Direction $j" for j in eachindex(flow_directions)
             flow_direction = flow_directions[j]
-            inflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
-                                  plane_normal=flow_direction, open_boundary_layers,
+            inflow = BoundaryZone(; boundary_face=face_vertices, particle_spacing, density,
+                                  face_normal=flow_direction, open_boundary_layers,
                                   boundary_type=InFlow(), reference_velocity,
                                   reference_pressure, reference_density)
-            outflow = BoundaryZone(; plane=plane_points, particle_spacing, density,
-                                   plane_normal=(-flow_direction), open_boundary_layers,
+            outflow = BoundaryZone(; boundary_face=face_vertices, particle_spacing, density,
+                                   face_normal=(-flow_direction), open_boundary_layers,
                                    boundary_type=OutFlow(), reference_velocity,
                                    reference_pressure, reference_density)
 
@@ -54,7 +54,7 @@
 
                 sign_ = (TrixiParticles.boundary_type_name(boundary_zone) == "inflow") ?
                         1 : -1
-                fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,
+                fluid = extrude_geometry(face_vertices; particle_spacing, n_extrude=4,
                                          density, pressure,
                                          direction=(sign_ * flow_direction))
 
@@ -63,9 +63,9 @@
                                                            density_calculator=ContinuityDensity(),
                                                            smoothing_length, sound_speed)
 
-                boundary_system = OpenBoundarySPHSystem(boundary_zone;
-                                                        fluid_system, buffer_size=0,
-                                                        boundary_model=BoundaryModelCharacteristicsLastiwka())
+                boundary_system = OpenBoundarySystem(boundary_zone;
+                                                     fluid_system, buffer_size=0,
+                                                     boundary_model=BoundaryModelCharacteristicsLastiwka())
 
                 semi = Semidiscretization(fluid_system, boundary_system)
 

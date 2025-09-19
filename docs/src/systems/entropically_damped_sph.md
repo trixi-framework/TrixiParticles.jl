@@ -7,7 +7,8 @@ this scheme uses a pressure evolution equation to calculate the pressure
 ```
 which is derived by [Clausen (2013)](@cite Clausen2013). This equation is similar to the continuity equation (first term, see
 [`ContinuityDensity`](@ref)), but also contains a pressure damping term (second term, similar to density diffusion
-see [`DensityDiffusion`](@ref)), which reduces acoustic pressure waves through an entropy-generation mechanism.
+see [`AbstractDensityDiffusion`](@ref TrixiParticles.AbstractDensityDiffusion)),
+which reduces acoustic pressure waves through an entropy-generation mechanism.
 
 The pressure evolution is discretized with the SPH method by [Ramachandran (2019)](@cite Ramachandran2019) as following:
 

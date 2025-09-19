@@ -75,7 +75,7 @@ end
 
 add_system_data!(system_data, data::Nothing) = system_data
 
-function add_system_data!(system_data, system::FluidSystem)
+function add_system_data!(system_data, system::AbstractFluidSystem)
     system_data["system_type"] = type2string(system)
     system_data["particle_spacing"] = particle_spacing(system, 1)
     system_data["density_calculator"] = type2string(system.density_calculator)
@@ -109,12 +109,12 @@ function add_system_data!(system_data, system::TotalLagrangianSPHSystem)
     add_system_data!(system_data, system.penalty_force)
 end
 
-function add_system_data!(system_data, system::BoundarySPHSystem)
+function add_system_data!(system_data, system::WallBoundarySystem)
     system_data["system_type"] = type2string(system)
     system_data["particle_spacing"] = particle_spacing(system, 1)
     system_data["adhesion_coefficient"] = system.adhesion_coefficient
     add_system_data!(system_data, system.boundary_model)
-    add_system_data!(system_data, system.movement)
+    add_system_data!(system_data, system.prescribed_motion)
 end
 
 function add_system_data!(system_data, system::BoundaryDEMSystem)
@@ -131,16 +131,12 @@ function add_system_data!(system_data, system::DEMSystem)
     add_system_data!(system_data, system.contact_model)
 end
 
-function add_system_data!(system_data, system::OpenBoundarySPHSystem)
+function add_system_data!(system_data, system::OpenBoundarySystem)
     system_data["system_type"] = type2string(system)
     system_data["fluid_system_index"] = system.fluid_system_index[]
     system_data["smoothing_length"] = system.smoothing_length
+    system_data["number_of_boundary_zones"] = length(system.boundary_zones)
     add_system_data!(system_data, system.boundary_model)
-
-    system_data["boundary_zones"] = Dict{String, Any}()
-    for (indice, boundary_zone) in enumerate(system.boundary_zones)
-        add_system_data!(system_data["boundary_zones"], boundary_zone, indice)
-    end
 end
 
 function add_system_data!(system_data, system::ParticlePackingSystem)
@@ -287,7 +283,7 @@ function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
     system_data[zone_name]["zone_origin"] = boundary_zone.zone_origin
     system_data[zone_name]["zone_width"] = boundary_zone.zone_width
     system_data[zone_name]["flow_direction"] = boundary_zone.flow_direction
-    system_data[zone_name]["plane_normal"] = boundary_zone.plane_normal
+    system_data[zone_name]["face_normal"] = boundary_zone.face_normal
     system_data[zone_name]["reference_values"] = boundary_zone.reference_values
     system_data[zone_name]["average_inflow_velocity"] = boundary_zone.average_inflow_velocity
     system_data[zone_name]["prescribed_density"] = boundary_zone.prescribed_density
@@ -295,12 +291,10 @@ function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
     system_data[zone_name]["prescribed_velocity"] = boundary_zone.prescribed_velocity
 end
 
-function add_system_data!(system_data, movement::BoundaryMovement)
-    system_data["movement"] = Dict{String, Any}()
-    system_data["movement"]["model"] = type2string(movement)
-    system_data["movement"]["movement_function"] = type2string(movement.movement_function)
-    system_data["movement"]["is_moving"] = type2string(movement.is_moving)
-    system_data["movement"]["moving_particles"] = movement.moving_particles
+function add_system_data!(system_data, motion::PrescribedMotion)
+    system_data["prescribed_motion"] = Dict{String, Any}()
+    system_data["prescribed_motion"]["model"] = type2string(motion)
+    system_data["prescribed_motion"]["movement_function"] = type2string(motion.movement_function)
 end
 
 function add_system_data!(system_data, penalty_force::PenaltyForceGanzenmueller)

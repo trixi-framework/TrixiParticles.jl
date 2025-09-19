@@ -11,11 +11,11 @@
         particle_spacing = 0.05
         domain_length = 1.0
 
-        plane_boundary = [
+        boundary_faces = [
             ([0.0, 0.0], [0.0, domain_length]),
             ([0.0, 0.0], [-domain_length, domain_length])
         ]
-        plane_boundary_normal = [[1.0, 0.0], [1.0, 1.0]]
+        boundary_face_normal = [[1.0, 0.0], [1.0, 1.0]]
 
         function pressure_function(pos)
             t = 0
@@ -54,15 +54,15 @@
 
         fluid_system.cache.density .= domain_fluid.density
 
-        @testset verbose=true "plane normal $i" for i in eachindex(files)
-            inflow = BoundaryZone(; plane=plane_boundary[i], boundary_type=InFlow(),
-                                  plane_normal=plane_boundary_normal[i],
+        @testset verbose=true "face normal $i" for i in eachindex(files)
+            inflow = BoundaryZone(; boundary_face=boundary_faces[i], boundary_type=InFlow(),
+                                  face_normal=boundary_face_normal[i],
                                   average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
-            open_boundary = OpenBoundarySPHSystem(inflow; fluid_system,
-                                                  boundary_model=BoundaryModelMirroringTafuni(),
-                                                  buffer_size=0)
+            open_boundary = OpenBoundarySystem(inflow; fluid_system,
+                                               boundary_model=BoundaryModelMirroringTafuni(),
+                                               buffer_size=0)
 
             semi = Semidiscretization(fluid_system, open_boundary)
             TrixiParticles.initialize_neighborhood_searches!(semi)
@@ -105,12 +105,12 @@
         particle_spacing = 0.05
         domain_length = 1.0
 
-        plane_boundary = [
+        boundary_faces = [
             ([0.0, 0.0, 0.0], [domain_length, 0.0, 0.0], [0.0, domain_length, 0.0]),
             ([0.0, 0.0, 0.0], [domain_length, 0.0, 0.0],
              [0.0, domain_length, domain_length])
         ]
-        plane_boundary_normal = [[0.0, 0.0, 1.0], [0.0, -1.0, 1.0]]
+        boundary_face_normal = [[0.0, 0.0, 1.0], [0.0, -1.0, 1.0]]
 
         function pressure_function(pos)
             t = 0
@@ -150,15 +150,15 @@
 
         fluid_system.cache.density .= domain_fluid.density
 
-        @testset verbose=true "plane normal $i" for i in eachindex(files)
-            inflow = BoundaryZone(; plane=plane_boundary[i], boundary_type=InFlow(),
-                                  plane_normal=plane_boundary_normal[i],
+        @testset verbose=true "face normal $i" for i in eachindex(files)
+            inflow = BoundaryZone(; boundary_face=boundary_faces[i], boundary_type=InFlow(),
+                                  face_normal=boundary_face_normal[i],
                                   average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
-            open_boundary = OpenBoundarySPHSystem(inflow; fluid_system,
-                                                  boundary_model=BoundaryModelMirroringTafuni(),
-                                                  buffer_size=0)
+            open_boundary = OpenBoundarySystem(inflow; fluid_system,
+                                               boundary_model=BoundaryModelMirroringTafuni(),
+                                               buffer_size=0)
 
             semi = Semidiscretization(fluid_system, open_boundary)
             TrixiParticles.initialize_neighborhood_searches!(semi)
@@ -218,19 +218,19 @@
         fluid_system.cache.density .= 1000.0
 
         if i == 2
-            plane_in = ([0.0, 0.0], [0.0, domain_length])
+            face_in = ([0.0, 0.0], [0.0, domain_length])
         else
-            plane_in = ([0.0, 0.0, 0.0], [0.0, domain_length, 0.0],
-                        [0.0, 0.0, domain_length])
+            face_in = ([0.0, 0.0, 0.0], [0.0, domain_length, 0.0],
+                       [0.0, 0.0, domain_length])
         end
 
-        inflow = BoundaryZone(; plane=plane_in, boundary_type=InFlow(),
-                              plane_normal=(i == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]),
+        inflow = BoundaryZone(; boundary_face=face_in, boundary_type=InFlow(),
+                              face_normal=(i == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]),
                               open_boundary_layers=open_boundary_layers, density=1000.0,
                               particle_spacing, average_inflow_velocity=true)
-        open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
-                                                 boundary_model=BoundaryModelMirroringTafuni(),
-                                                 buffer_size=0)
+        open_boundary_in = OpenBoundarySystem(inflow; fluid_system,
+                                              boundary_model=BoundaryModelMirroringTafuni(),
+                                              buffer_size=0)
 
         semi = Semidiscretization(fluid_system, open_boundary_in)
         TrixiParticles.initialize_neighborhood_searches!(semi)
@@ -274,15 +274,15 @@
 
             fluid_system.cache.density .= domain_fluid.density
 
-            plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
+            face_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
 
-            outflow = BoundaryZone(; plane=plane_out, boundary_type=OutFlow(),
-                                   plane_normal=[-1.0, 0.0],
+            outflow = BoundaryZone(; boundary_face=face_out, boundary_type=OutFlow(),
+                                   face_normal=[-1.0, 0.0],
                                    open_boundary_layers=10, density=1000.0,
                                    particle_spacing)
-            open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
-                                                      boundary_model=BoundaryModelMirroringTafuni(),
-                                                      buffer_size=0)
+            open_boundary_out = OpenBoundarySystem(outflow; fluid_system,
+                                                   boundary_model=BoundaryModelMirroringTafuni(),
+                                                   buffer_size=0)
 
             # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_out)
@@ -299,14 +299,14 @@
                                                outflow.initial_condition.coordinates,
                                                domain_fluid.coordinates, semi)
 
-            plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
+            face_in = ([0.0, 0.0], [0.0, domain_size[2]])
 
-            inflow = BoundaryZone(; plane=plane_in, boundary_type=InFlow(),
-                                  plane_normal=[1.0, 0.0],
+            inflow = BoundaryZone(; boundary_face=face_in, boundary_type=InFlow(),
+                                  face_normal=[1.0, 0.0],
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
-            open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
-                                                     boundary_model=BoundaryModelMirroringTafuni(),
-                                                     buffer_size=0)
+            open_boundary_in = OpenBoundarySystem(inflow; fluid_system,
+                                                  boundary_model=BoundaryModelMirroringTafuni(),
+                                                  buffer_size=0)
 
             # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_in)
