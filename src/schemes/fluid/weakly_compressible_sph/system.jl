@@ -285,6 +285,8 @@ end
 
 @inline shifting_technique(system::WeaklyCompressibleSPHSystem) = system.shifting_technique
 
+@inline density_diffusion(system::WeaklyCompressibleSPHSystem) = system.density_diffusion
+
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system

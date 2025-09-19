@@ -4,8 +4,8 @@
     TrixiParticles.initial_smoothing_length(system::FluidSystemMock3) = 1.0
     TrixiParticles.nparticles(system::FluidSystemMock3) = 1
 
-    zone = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
-                        open_boundary_layers=2, density=1.0, plane_normal=[1.0, 0.0],
+    zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
+                        open_boundary_layers=2, density=1.0, face_normal=[1.0, 0.0],
                         reference_density=1.0, reference_pressure=0.0,
                         reference_velocity=[0, 0], boundary_type=InFlow())
     system = OpenBoundarySystem(zone; fluid_system=FluidSystemMock3(),
