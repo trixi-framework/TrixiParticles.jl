@@ -22,7 +22,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 - `smoothing_length`:   Smoothing length to be used for this system.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
-# Keyword Arguments
+# Keywords
 - `n_clamped_particles`: Number of clamped particles which are fixed and not integrated
                     to clamp the structure. Note that the clamped particles must be the **last**
                     particles in the `InitialCondition`. See the info box below.

@@ -22,7 +22,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `smoothing_length`:   Smoothing length to be used for this system.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
-# Keyword Arguments
+# Keywords
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 Recommended: [`ViscosityAdami`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
