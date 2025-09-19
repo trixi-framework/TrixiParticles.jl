@@ -1,7 +1,7 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodySystem{NDIMS, ELTYPE <: Real, IC} <: TrixiParticles.System{NDIMS}
+struct NBodySystem{NDIMS, ELTYPE <: Real, IC} <: TrixiParticles.AbstractSystem{NDIMS}
     initial_condition :: IC
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE
@@ -105,13 +105,17 @@ end
 
 TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem; write_meta_data=true)
+function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
     (; mass) = system
 
     vtk["velocity"] = v
     vtk["mass"] = mass
 
     return vtk
+end
+
+function TrixiParticles.add_system_data!(system_data, system::NBodySystem)
+    return system_data
 end
 
 function Base.show(io::IO, system::NBodySystem)

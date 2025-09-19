@@ -3,7 +3,7 @@
                                 smoothing_length, sound_speed;
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
-                                transport_velocity=nothing,
+                                shifting_technique=nothing,
                                 alpha=0.5, viscosity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
                                 surface_normal_method=nothing, buffer_size=nothing,
@@ -30,12 +30,13 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 When set to `nothing`, the pressure acceleration formulation for the
                                 corresponding [density calculator](@ref density_calculator) is chosen.
 - `density_calculator`:         [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
-- `transport_velocity`:         [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation).
-                                Default is no TVF.
+- `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
+                                formulation](@ref transport_velocity_formulation) to use
+                                with this system. Default is no shifting.
 - `average_pressure_reduction`: Whether to subtract the average pressure of neighboring particles
-                                from the local pressure (default: `true` when using TVF, `false` otherwise).
+                                from the local pressure (default: `true` when using shifting, `false` otherwise).
 - `buffer_size`:                Number of buffer particles.
-                                This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+                                This is needed when simulating with [`OpenBoundarySystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
@@ -56,7 +57,8 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
-                                   AVGP, ST, SRFT, SRFN, B, PR, C} <: FluidSystem{NDIMS}
+                                   AVGP, ST, SRFT, SRFN, B, PR,
+                                   C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
@@ -67,7 +69,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, 
     acceleration                      :: SVector{NDIMS, ELTYPE}
     correction                        :: COR
     pressure_acceleration_formulation :: PF
-    transport_velocity                :: TV
+    shifting_technique                :: TV
     average_pressure_reduction        :: AVGP
     source_terms                      :: ST
     surface_tension                   :: SRFT
@@ -83,8 +85,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      smoothing_length, sound_speed;
                                      pressure_acceleration=inter_particle_averaged_pressure,
                                      density_calculator=SummationDensity(),
-                                     transport_velocity=nothing,
-                                     average_pressure_reduction=(!isnothing(transport_velocity)),
+                                     shifting_technique=nothing,
+                                     average_pressure_reduction=(!isnothing(shifting_technique)),
                                      alpha=0.5, viscosity=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
@@ -137,7 +139,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
     cache = (; create_cache_density(initial_condition, density_calculator)...,
-             create_cache_tvf(initial_condition, transport_velocity)...,
+             create_cache_shifting(initial_condition, shifting_technique)...,
              create_cache_avg_pressure_reduction(initial_condition,
                                                  avg_pressure_reduction)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
@@ -161,14 +163,14 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                                 typeof(density_calculator), typeof(smoothing_kernel),
                                 typeof(viscosity), typeof(correction),
-                                typeof(pressure_acceleration), typeof(transport_velocity),
+                                typeof(pressure_acceleration), typeof(shifting_technique),
                                 typeof(avg_pressure_reduction), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_normal_method),
                                 typeof(buffer), Nothing,
                                 typeof(cache)}(initial_condition, mass, density_calculator,
                                                smoothing_kernel, sound_speed, viscosity,
                                                nu_edac, acceleration_, correction,
-                                               pressure_acceleration, transport_velocity,
+                                               pressure_acceleration, shifting_technique,
                                                avg_pressure_reduction,
                                                source_terms, surface_tension,
                                                surface_normal_method, buffer,
@@ -218,8 +220,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "viscosity", system.viscosity |> typeof |> nameof)
         summary_line(io, "ν₍EDAC₎", "≈ $(round(system.nu_edac; digits=3))")
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "tansport velocity formulation",
-                     system.transport_velocity |> typeof |> nameof)
+        summary_line(io, "shifting technique", system.shifting_technique)
         summary_line(io, "average pressure reduction",
                      typeof(system.average_pressure_reduction).parameters[1] ? "yes" : "no")
         summary_line(io, "acceleration", system.acceleration)
@@ -245,11 +246,9 @@ end
     return ndims(system) + 2
 end
 
-system_correction(system::EntropicallyDampedSPHSystem) = system.correction
+@inline buffer(system::EntropicallyDampedSPHSystem) = system.buffer
 
-@inline function current_pressure(v, system::EntropicallyDampedSPHSystem, particle)
-    return v[end, particle]
-end
+system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
     return view(v, 1:ndims(system), :)
@@ -259,13 +258,13 @@ end
 
 @inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed
 
-@inline transport_velocity(system::EntropicallyDampedSPHSystem) = system.transport_velocity
+@inline shifting_technique(system::EntropicallyDampedSPHSystem) = system.shifting_technique
 
-@inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
+@propagate_inbounds function average_pressure(system::EntropicallyDampedSPHSystem, particle)
     average_pressure(system, system.average_pressure_reduction, particle)
 end
 
-@inline function average_pressure(system, ::Val{true}, particle)
+@propagate_inbounds function average_pressure(system, ::Val{true}, particle)
     return system.cache.pressure_average[particle]
 end
 
@@ -283,12 +282,12 @@ end
 
 @inline function current_density(v, ::ContinuityDensity,
                                  system::EntropicallyDampedSPHSystem)
-    # When using `ContinuityDensity`, the density is stored in the second to last row of `v`
-    return view(v, size(v, 1) - 1, :)
+    # When using `ContinuityDensity`, the density is stored in the last row of `v`
+    return view(v, size(v, 1), :)
 end
 
-@inline function current_pressure(v, ::EntropicallyDampedSPHSystem)
-    return view(v, size(v, 1), :)
+@inline function current_pressure(v, system::EntropicallyDampedSPHSystem)
+    return view(v, ndims(system) + 1, :)
 end
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
@@ -309,7 +308,7 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.average_pressure_reduction, v_ode, u_ode, semi)
-    update_tvf!(system, transport_velocity(system), v, u, v_ode, u_ode, semi, t)
+    update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end
 
 # No average pressure reduction is used
@@ -342,8 +341,10 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
-                               points=each_moving_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             pressure_average[particle] += current_pressure(v_neighbor_system,
                                                            neighbor_system, neighbor)
             neighbor_counter[particle] += 1
@@ -359,21 +360,21 @@ end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::SummationDensity)
     # Note that `.=` is very slightly faster, but not GPU-compatible
-    v0[end, :] = system.initial_condition.pressure
+    v0[ndims(system) + 1, :] = system.initial_condition.pressure
 
     return v0
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
     # Note that `.=` is very slightly faster, but not GPU-compatible
-    v0[end - 1, :] = system.initial_condition.density
-    v0[end, :] = system.initial_condition.pressure
+    v0[end, :] = system.initial_condition.density
+    v0[ndims(system) + 1, :] = system.initial_condition.pressure
 
     return v0
 end
 
 function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
-    for particle in each_moving_particle(system)
+    for particle in each_integrated_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
         system.initial_condition.pressure[particle] = v[end, particle]

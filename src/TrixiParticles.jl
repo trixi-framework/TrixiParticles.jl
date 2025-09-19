@@ -23,9 +23,11 @@ using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
+                 get_du
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
+using Statistics: Statistics
 using StrideArraysCore: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
@@ -44,7 +46,7 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
-include("general/system.jl")
+include("general/abstract_system.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
@@ -55,42 +57,43 @@ include("callbacks/callbacks.jl")
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
-include("io/io.jl")
 include("preprocessing/preprocessing.jl")
+include("io/io.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem
+       WallBoundarySystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       ParticleShiftingCallback
+       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback
 export ContinuityDensity, SummationDensity
-export PenaltyForceGanzenmueller, TransportVelocityAdami
+export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
+       ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
+       ContinuityEquationTermSun2019, MomentumEquationTermSun2019
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
 export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS
-export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
-       DensityDiffusionAntuono
+export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffusionAntuono
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
+       PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
+       BoundaryModelMirroringTafuni,
        BernoulliPressureExtrapolation
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
-export BoundaryMovement
+export PrescribedMotion
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
-       sample_boundary
+       sample_boundary, planar_geometry_to_face
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection

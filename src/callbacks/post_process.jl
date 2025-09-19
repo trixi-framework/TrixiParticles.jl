@@ -229,6 +229,7 @@ end
 # `affect!`
 function (pp::PostprocessCallback)(integrator)
     @trixi_timeit timer() "apply postprocess cb" begin
+        dv_ode, du_ode = get_du(integrator).x
         vu_ode = integrator.u
         v_ode, u_ode = vu_ode.x
         semi = integrator.p
@@ -244,15 +245,17 @@ function (pp::PostprocessCallback)(integrator)
         end
 
         foreach_system(semi) do system
-            if system isa BoundarySystem && pp.exclude_boundary
+            if system isa AbstractBoundarySystem && pp.exclude_boundary
                 return
             end
 
             system_index = system_indices(system, semi)
 
             for (key, f) in pp.func
-                result = custom_quantity(f, system, v_ode, u_ode, semi, t)
-                if result !== nothing
+                result_ = custom_quantity(f, system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+                if result_ !== nothing
+                    # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
+                    result = transfer2cpu(result_)
                     add_entry!(pp, string(key), t, result, filenames[system_index])
                     new_data = true
                 end
@@ -265,7 +268,7 @@ function (pp::PostprocessCallback)(integrator)
 
         if isfinished(integrator) ||
            (pp.write_file_interval > 0 && backup_condition(pp, integrator))
-            write_postprocess_callback(pp)
+            write_postprocess_callback(pp, integrator)
         end
 
         # Tell OrdinaryDiffEq that `u` has not been modified
@@ -284,13 +287,14 @@ end
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
-function write_postprocess_callback(pp::PostprocessCallback)
+function write_postprocess_callback(pp::PostprocessCallback, integrator)
     isempty(pp.data) && return
 
     mkpath(pp.output_directory)
 
     data = Dict{String, Any}()
-    write_meta_data!(data, pp.git_hash[])
+    data["meta"] = create_meta_data_dict(pp, integrator)
+
     prepare_series_data!(data, pp)
 
     time_stamp = ""
@@ -338,15 +342,6 @@ function create_series_dict(values, times, system_name="")
                 "system_name" => system_name,
                 "values" => values,
                 "time" => times)
-end
-
-function write_meta_data!(data, git_hash)
-    meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => git_hash,
-                     "julia_version" => string(VERSION))
-
-    data["meta"] = meta_data
-    return data
 end
 
 function write_csv(abs_file_path, data)
