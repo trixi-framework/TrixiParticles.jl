@@ -225,8 +225,8 @@ function extrapolate_values!(system,
                 # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
-                project_velocity_on_plane_normal!(v_open_boundary, system, particle,
-                                                  boundary_zone)
+                project_velocity_on_face_normal!(v_open_boundary, system, particle,
+                                                 boundary_zone)
             end
 
             # No else: `correction_matrix[][1, 1] <= eps()` means no fluid neighbors
@@ -266,8 +266,8 @@ function extrapolate_values!(system,
                 # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
-                project_velocity_on_plane_normal!(v_open_boundary, system, particle,
-                                                  boundary_zone)
+                project_velocity_on_face_normal!(v_open_boundary, system, particle,
+                                                 boundary_zone)
             end
         end
     end
@@ -353,8 +353,8 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
                 # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
-                project_velocity_on_plane_normal!(v_open_boundary, system, particle,
-                                                  boundary_zone)
+                project_velocity_on_face_normal!(v_open_boundary, system, particle,
+                                                 boundary_zone)
             end
         end
     end
@@ -476,27 +476,27 @@ end
 
 function mirror_position(particle_coords, boundary_zone)
     particle_position = particle_coords - boundary_zone.zone_origin
-    dist = dot(particle_position, boundary_zone.plane_normal)
+    dist = dot(particle_position, boundary_zone.face_normal)
 
-    return particle_coords - 2 * dist * boundary_zone.plane_normal
+    return particle_coords - 2 * dist * boundary_zone.face_normal
 end
 
 # Only for inflow boundary zones
 function average_velocity!(v, u, system, boundary_zone, semi)
-    (; plane_normal, zone_origin, initial_condition, flow_direction) = boundary_zone
+    (; face_normal, zone_origin, initial_condition, flow_direction) = boundary_zone
 
     # Bidirectional flow
     isnothing(flow_direction) && return v
 
     # Outflow
-    signbit(dot(flow_direction, plane_normal)) && return v
+    signbit(dot(flow_direction, face_normal)) && return v
 
     # We only use the extrapolated velocity in the vicinity of the transition region.
     # Otherwise, if the boundary zone is too large, averaging would be excessively influenced
     # by the fluid velocity further away from the boundary.
     max_dist = initial_condition.particle_spacing * 110 / 100
 
-    candidates = findall(x -> dot(x - zone_origin, -plane_normal) <= max_dist,
+    candidates = findall(x -> dot(x - zone_origin, -face_normal) <= max_dist,
                          reinterpret(reshape, SVector{ndims(system), eltype(u)}, u))
 
     particles_in_zone = findall(particle -> boundary_zone ==
@@ -521,22 +521,22 @@ function average_velocity!(v, u, system, boundary_zone, semi)
 end
 
 # Only for inflow boundary zones
-function project_velocity_on_plane_normal!(v, system, particle, boundary_zone)
-    (; plane_normal, flow_direction) = boundary_zone
+function project_velocity_on_face_normal!(v, system, particle, boundary_zone)
+    (; face_normal, flow_direction) = boundary_zone
 
     # Bidirectional flow
     isnothing(flow_direction) && return v
 
     # Outflow
-    signbit(dot(flow_direction, plane_normal)) && return v
+    signbit(dot(flow_direction, face_normal)) && return v
 
     # Project `vel` on the normal direction of the boundary zone
     # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
     # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
     # only this component of interpolated velocity is kept [...]"
     v_particle = current_velocity(v, system, particle)
-    v_particle_projected = dot(v_particle, boundary_zone.plane_normal) *
-                           boundary_zone.plane_normal
+    v_particle_projected = dot(v_particle, boundary_zone.face_normal) *
+                           boundary_zone.face_normal
 
     for dim in eachindex(v_particle)
         @inbounds v[dim, particle] = v_particle_projected[dim]
