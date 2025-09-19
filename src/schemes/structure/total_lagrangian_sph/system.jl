@@ -2,7 +2,8 @@
     TotalLagrangianSPHSystem(initial_condition,
                              smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio;
-                             n_clamped_particles=0, boundary_model=nothing,
+                             n_clamped_particles=0, clamped_particles_motion=nothing,
+                             boundary_model=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, source_terms=nothing)
 
@@ -26,6 +27,9 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 - `n_clamped_particles`: Number of clamped particles which are fixed and not integrated
                     to clamp the structure. Note that the clamped particles must be the **last**
                     particles in the `InitialCondition`. See the info box below.
+- `clamped_particles_motion`: Prescribed motion of the clamped particles.
+                    If `nothing` (default), the clamped particles are fixed.
+                    See [`PrescribedMotion`](@ref) for details.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
@@ -54,37 +58,41 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     │ particle spacing: ………………………………… 0.1                                                              │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
-    where `beam` and `clamped_particles` are of type `InitialCondition`.
+    where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V,
-                                ST} <: AbstractStructureSystem{NDIMS}
-    initial_condition      :: IC
-    initial_coordinates    :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
-    current_coordinates    :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
-    mass                   :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    correction_matrix      :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    pk1_corrected          :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    deformation_grad       :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    material_density       :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    n_integrated_particles :: Int64
-    young_modulus          :: YM
-    poisson_ratio          :: PR
-    lame_lambda            :: LL
-    lame_mu                :: LM
-    smoothing_kernel       :: K
-    smoothing_length       :: ELTYPE
-    acceleration           :: SVector{NDIMS, ELTYPE}
-    boundary_model         :: BM
-    penalty_force          :: PF
-    viscosity              :: V
-    source_terms           :: ST
+                                YM, PR, LL, LM, K, PF, V, ST, M, IM,
+                                C} <: AbstractStructureSystem{NDIMS}
+    initial_condition   :: IC
+    initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    # `current_coordinates` contains `u` plus coordinates of the fixed particles
+    current_coordinates      :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    mass                     :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    correction_matrix        :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    pk1_corrected            :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    deformation_grad         :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    material_density         :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    n_integrated_particles   :: Int64
+    young_modulus            :: YM
+    poisson_ratio            :: PR
+    lame_lambda              :: LL
+    lame_mu                  :: LM
+    smoothing_kernel         :: K
+    smoothing_length         :: ELTYPE
+    acceleration             :: SVector{NDIMS, ELTYPE}
+    boundary_model           :: BM
+    penalty_force            :: PF
+    viscosity                :: V
+    source_terms             :: ST
+    clamped_particles_motion :: M
+    clamped_particles_moving :: IM
+    cache                    :: C
 end
 
-function TotalLagrangianSPHSystem(initial_condition,
-                                  smoothing_kernel, smoothing_length,
+function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_clamped_particles=0, boundary_model=nothing,
+                                  n_clamped_particles=0, clamped_particles_motion=nothing,
+                                  boundary_model=nothing,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
@@ -117,57 +125,29 @@ function TotalLagrangianSPHSystem(initial_condition,
                      ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
     lame_mu = @. (young_modulus / 2) / (1 + poisson_ratio)
 
+    ismoving = Ref(!isnothing(clamped_particles_motion))
+    initialize_prescribed_motion!(clamped_particles_motion, initial_condition,
+                                  n_clamped_particles)
+
+    cache = create_cache_tlsph(clamped_particles_motion, initial_condition)
+
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
                                     pk1_corrected, deformation_grad, material_density,
                                     n_integrated_particles, young_modulus, poisson_ratio,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
-                                    penalty_force, viscosity, source_terms)
+                                    penalty_force, viscosity, source_terms,
+                                    clamped_particles_motion, ismoving, cache)
 end
 
-function Base.show(io::IO, system::TotalLagrangianSPHSystem)
-    @nospecialize system # reduce precompilation time
+create_cache_tlsph(::Nothing, initial_condition) = (;)
 
-    print(io, "TotalLagrangianSPHSystem{", ndims(system), "}(")
-    print(io, "", system.smoothing_kernel)
-    print(io, ", ", system.acceleration)
-    print(io, ", ", system.boundary_model)
-    print(io, ", ", system.penalty_force)
-    print(io, ", ", system.viscosity)
-    print(io, ") with ", nparticles(system), " particles")
-end
+function create_cache_tlsph(::PrescribedMotion, initial_condition)
+    velocity = zero(initial_condition.velocity)
+    acceleration = zero(initial_condition.velocity)
 
-function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
-    @nospecialize system # reduce precompilation time
-
-    function display_param(param)
-        if param isa AbstractVector
-            min_val = round(minimum(param), digits=3)
-            max_val = round(maximum(param), digits=3)
-            return "min = $(min_val), max = $(max_val)"
-        else
-            return string(param)
-        end
-    end
-
-    if get(io, :compact, false)
-        show(io, system)
-    else
-        n_clamped_particles = nparticles(system) - n_integrated_particles(system)
-
-        summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
-        summary_line(io, "total #particles", nparticles(system))
-        summary_line(io, "#clamped particles", n_clamped_particles)
-        summary_line(io, "Young's modulus", display_param(system.young_modulus))
-        summary_line(io, "Poisson ratio", display_param(system.poisson_ratio))
-        summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "acceleration", system.acceleration)
-        summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "penalty force", system.penalty_force)
-        summary_line(io, "viscosity", system.viscosity)
-        summary_footer(io)
-    end
+    return (; velocity, acceleration)
 end
 
 @inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
@@ -275,7 +255,7 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; current_coordinates) = system
+    (; current_coordinates, clamped_particles_motion) = system
 
     # `current_coordinates` stores the coordinates of both integrated and clamped particles.
     # Copy the coordinates of the integrated particles from `u`.
@@ -284,6 +264,23 @@ function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode,
             current_coordinates[i, particle] = u[i, particle]
         end
     end
+
+    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+end
+
+function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
+                                  prescribed_motion::PrescribedMotion, semi, t)
+    (; clamped_particles_moving, current_coordinates, cache) = system
+    (; acceleration, velocity) = cache
+
+    prescribed_motion(current_coordinates, velocity, acceleration, clamped_particles_moving,
+                      system, semi, t)
+
+    return system
+end
+
+function apply_prescribed_motion!(system::TotalLagrangianSPHSystem, ::Nothing, semi, t)
+    return system
 end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
@@ -512,4 +509,48 @@ function available_data(::TotalLagrangianSPHSystem)
     return (:coordinates, :initial_coordinates, :velocity, :mass, :material_density,
             :deformation_grad, :pk1_corrected, :young_modulus, :poisson_ratio,
             :lame_lambda, :lame_mu, :acceleration)
+end
+
+function Base.show(io::IO, system::TotalLagrangianSPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    print(io, "TotalLagrangianSPHSystem{", ndims(system), "}(")
+    print(io, "", system.smoothing_kernel)
+    print(io, ", ", system.acceleration)
+    print(io, ", ", system.boundary_model)
+    print(io, ", ", system.penalty_force)
+    print(io, ", ", system.viscosity)
+    print(io, ") with ", nparticles(system), " particles")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    function display_param(param)
+        if param isa AbstractVector
+            min_val = round(minimum(param), digits=3)
+            max_val = round(maximum(param), digits=3)
+            return "min = $(min_val), max = $(max_val)"
+        else
+            return string(param)
+        end
+    end
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        n_clamped_particles = nparticles(system) - n_integrated_particles(system)
+
+        summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
+        summary_line(io, "total #particles", nparticles(system))
+        summary_line(io, "#clamped particles", n_clamped_particles)
+        summary_line(io, "Young's modulus", display_param(system.young_modulus))
+        summary_line(io, "Poisson ratio", display_param(system.poisson_ratio))
+        summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
+        summary_line(io, "acceleration", system.acceleration)
+        summary_line(io, "boundary model", system.boundary_model)
+        summary_line(io, "penalty force", system.penalty_force)
+        summary_line(io, "viscosity", system.viscosity)
+        summary_footer(io)
+    end
 end
