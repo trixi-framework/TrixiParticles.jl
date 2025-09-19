@@ -140,8 +140,8 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
 
         # Extract custom quantities for this system
         if !isempty(custom_quantities)
-            dv_ode, du_ode = dvdu_ode_.x
-            dv_ode, du_ode = transfer2cpu(dv_ode, du_ode)
+            dv_ode_, du_ode_ = dvdu_ode_.x
+            dv_ode, du_ode = transfer2cpu(dv_ode_, du_ode_)
 
             for (key, quantity) in custom_quantities
                 value = custom_quantity(quantity, system, dv_ode, du_ode, v_ode, u_ode,
@@ -173,14 +173,22 @@ function transfer2cpu(v_, u_, system_, semi_)
 end
 
 function transfer2cpu(v_::AbstractGPUArray, u_)
-    v = Adapt.adapt(Array, v_)
-    u = Adapt.adapt(Array, u_)
+    v = transfer2cpu(v_)
+    u = transfer2cpu(u_)
 
     return v, u
 end
 
 function transfer2cpu(v_, u_)
     return v_, u_
+end
+
+function transfer2cpu(a_::AbstractGPUArray)
+    return Adapt.adapt(Array, a_)
+end
+
+function transfer2cpu(a_)
+    return a_
 end
 
 function custom_quantity(quantity::AbstractArray, system, dv_ode, du_ode, v_ode, u_ode,
