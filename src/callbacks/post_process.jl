@@ -252,8 +252,10 @@ function (pp::PostprocessCallback)(integrator)
             system_index = system_indices(system, semi)
 
             for (key, f) in pp.func
-                result = custom_quantity(f, system, dv_ode, du_ode, v_ode, u_ode, semi, t)
-                if result !== nothing
+                result_ = custom_quantity(f, system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+                if result_ !== nothing
+                    # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
+                    result = transfer2cpu(result_)
                     add_entry!(pp, string(key), t, result, filenames[system_index])
                     new_data = true
                 end
