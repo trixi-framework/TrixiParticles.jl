@@ -56,8 +56,6 @@ function Base.intersect(initial_condition::InitialCondition,
     return intersect(result, Base.tail(geometries)...)
 end
 
-# This method is used in `boundary_zone.jl` and is defined here
-# to avoid circular dependencies with `TriangleMesh`
 """
     planar_geometry_to_face(planar_geometry::TriangleMesh)
 
@@ -100,8 +98,8 @@ function planar_geometry_to_face(planar_geometry::TriangleMesh)
     edge1 = face_vertices[:, 2] - face_vertices[:, 1]
     edge2 = face_vertices[:, 3] - face_vertices[:, 1]
 
-    if !isapprox(abs.(normalize(cross(edge2, edge1))), abs.(face_normal), atol=1e-2)
-        throw(ArgumentError("geometry might be not planar"))
+    if abs(dot(edge1, face_normal)) > 1e-2 || abs(dot(edge2, face_normal)) > 1e-2
+        throw(ArgumentError("geometry is not planar"))
     end
 
     return (; face=(face_vertices[:, 1], face_vertices[:, 2], face_vertices[:, 3]),
