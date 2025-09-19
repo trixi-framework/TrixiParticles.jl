@@ -233,8 +233,8 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
         v_particle = current_velocity(v_particle_system, system, particle)
         for i in 1:ndims(system)
             advection_velocity[i,
-            particle] = v_particle[i] +
-                                              time_step * system.acceleration[i]
+                               particle] = v_particle[i] +
+                                           time_step * system.acceleration[i]
         end
     end
 
@@ -271,8 +271,8 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
             # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
             for i in 1:ndims(system)
                 d_ii_array[i,
-                particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
-                                                          grad_kernel[i], time_step)
+                           particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
+                                                       grad_kernel[i], time_step)
             end
         end
     end

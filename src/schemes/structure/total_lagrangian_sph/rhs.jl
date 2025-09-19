@@ -53,8 +53,8 @@ end
 
         for i in 1:ndims(system)
             @inbounds dv[i,
-            particle] += dv_stress[i] + dv_penalty_force_[i] +
-                                         dv_viscosity[i]
+                         particle] += dv_stress[i] + dv_penalty_force_[i] +
+                                      dv_viscosity[i]
         end
 
         # TODO continuity equation for boundary model with `ContinuityDensity`?
