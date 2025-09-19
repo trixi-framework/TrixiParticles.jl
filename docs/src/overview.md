@@ -38,11 +38,11 @@ flowchart TD
     style dummy width:0;
     dummy --> C["drift!<br/>(update du/dt)"];
 
-    subgraph kick["<div style='padding: 10px'>kick! (update dv/dt)</div>"]
+    subgraph kick["<div style='padding: 10px; font-weight: bold;'>kick! (update dv/dt)</div>"]
         %% Horizontal layout within this subgraph
         direction LR;
 
-        subgraph updates["<div style='padding: 10px'>update_systems_and_nhs</div>"]
+        subgraph updates["<div style='padding: 10px; font-weight: bold;'>update_systems_and_nhs</div>"]
             %% Vertical layout within this subgraph
             direction TB;
 
