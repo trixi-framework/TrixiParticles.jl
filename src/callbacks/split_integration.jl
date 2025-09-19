@@ -93,8 +93,8 @@ function initialize_split_integration!(cb, u, t, integrator)
         end
     end
 
-    sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
-    sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
+    sizes_u = (u_nvariables(system) * n_integrated_particles(system) for system in systems)
+    sizes_v = (v_nvariables(system) * n_integrated_particles(system) for system in systems)
 
     v_ode, u_ode = integrator.u.x
     v0_ode_split = similar(v_ode, sum(sizes_v))
@@ -284,7 +284,7 @@ end
         v_split = wrap_v(v_ode_split, system, semi_split)
         u_split = wrap_u(u_ode_split, system, semi_split)
 
-        @threaded semi for particle in each_moving_particle(system)
+        @threaded semi for particle in each_integrated_particle(system)
             for i in axes(v, 1)
                 v_split[i, particle] = v[i, particle]
             end
@@ -304,7 +304,7 @@ end
         v_split = wrap_v(v_ode_split, system, semi_split)
         u_split = wrap_u(u_ode_split, system, semi_split)
 
-        @threaded semi for particle in each_moving_particle(system)
+        @threaded semi for particle in each_integrated_particle(system)
             for i in axes(v, 1)
                 v[i, particle] = v_split[i, particle]
             end
