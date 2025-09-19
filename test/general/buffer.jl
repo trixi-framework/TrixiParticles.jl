@@ -1,19 +1,21 @@
 @testset verbose=true "`SystemBuffer`" begin
     # Mock fluid system
-    struct FluidSystemMock3 <: TrixiParticles.AbstractFluidSystem{2} end
+    struct FluidSystemMock3 <: TrixiParticles.AbstractFluidSystem{2}
+        pressure_acceleration_formulation::Nothing
+    end
     TrixiParticles.initial_smoothing_length(system::FluidSystemMock3) = 1.0
     TrixiParticles.nparticles(system::FluidSystemMock3) = 1
+    TrixiParticles.system_smoothing_kernel(system::FluidSystemMock3) = nothing
 
     zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
                         open_boundary_layers=2, density=1.0, face_normal=[1.0, 0.0],
                         reference_density=1.0, reference_pressure=0.0,
                         reference_velocity=[0, 0], boundary_type=InFlow())
-    system = OpenBoundarySystem(zone; fluid_system=FluidSystemMock3(),
-                                boundary_model=BoundaryModelCharacteristicsLastiwka(),
-                                buffer_size=0)
+    system = OpenBoundarySystem(zone; fluid_system=FluidSystemMock3(nothing), buffer_size=0,
+                                boundary_model=BoundaryModelCharacteristicsLastiwka())
     system_buffer = OpenBoundarySystem(zone; buffer_size=5,
                                        boundary_model=BoundaryModelCharacteristicsLastiwka(),
-                                       fluid_system=FluidSystemMock3())
+                                       fluid_system=FluidSystemMock3(nothing))
 
     n_particles = nparticles(system)
 

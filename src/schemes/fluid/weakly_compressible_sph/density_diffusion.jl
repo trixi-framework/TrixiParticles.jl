@@ -187,8 +187,9 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
-        # Only consider particles with a distance > 0
-        distance < sqrt(eps(typeof(distance))) && return
+        # Density diffusion terms are all zero for distance zero.
+        # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
+        distance^2 < sqrt(eps(distance^2)) && return
 
         rho_a = current_density(v, system, particle)
         rho_b = current_density(v, system, neighbor)
@@ -213,10 +214,12 @@ end
                                                 density_diffusion::AbstractDensityDiffusion,
                                                 v_particle_system, particle, neighbor,
                                                 pos_diff, distance, m_b, rho_a, rho_b,
-                                                particle_system::AbstractFluidSystem,
+                                                particle_system::Union{AbstractFluidSystem,
+                                                                       OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                 grad_kernel)
-    # Density diffusion terms are all zero for distance zero
-    distance < sqrt(eps(typeof(distance))) && return
+    # Density diffusion terms are all zero for distance zero.
+    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
+    distance^2 < sqrt(eps(distance^2)) && return
 
     (; delta) = density_diffusion
     sound_speed = system_sound_speed(particle_system)

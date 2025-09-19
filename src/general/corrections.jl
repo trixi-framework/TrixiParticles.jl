@@ -216,7 +216,9 @@ function compute_correction_values!(system,
                        smoothing_length(system, particle))
 
             kernel_correction_coefficient[particle] += volume * W
-            if distance > sqrt(eps())
+
+            # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+            if distance^2 > eps(distance^2)
                 grad_W = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
                                      smoothing_length(system, particle))
                 tmp = volume * grad_W

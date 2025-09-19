@@ -31,7 +31,8 @@ end
 @inline function update_boundary_quantities!(system,
                                              boundary_model::BoundaryModelCharacteristicsLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, boundary_zones, fluid_system) = system
+    (; cache, boundary_zones, fluid_system) = system
+    (; pressure, density) = cache
 
     sound_speed = system_sound_speed(fluid_system)
 
@@ -102,7 +103,7 @@ end
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
 function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, fluid_system, density, pressure) = system
+    (; volume, cache, fluid_system) = system
     (; characteristics, previous_characteristics) = cache
 
     @threaded semi for particle in eachparticle(system)
@@ -178,7 +179,8 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
             for neighbor in each_integrated_particle(system)
                 # Make sure that only neighbors in the influence of
                 # the fluid particles are used.
-                if volume[neighbor] > sqrt(eps())
+                # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+                if volume[neighbor]^2 > eps(volume[neighbor]^2)
                     avg_J1 += previous_characteristics[1, neighbor]
                     avg_J2 += previous_characteristics[2, neighbor]
                     avg_J3 += previous_characteristics[3, neighbor]

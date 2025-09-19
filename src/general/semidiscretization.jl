@@ -151,15 +151,16 @@ end
     return compact_support(smoothing_kernel, initial_smoothing_length(system))
 end
 
-@inline function compact_support(system::OpenBoundarySystem, neighbor)
-    # Use the compact support of the fluid
-    return compact_support(neighbor, system)
-end
-
 @inline function compact_support(system::OpenBoundarySystem,
                                  neighbor::OpenBoundarySystem)
     # This NHS is never used
     return 0.0
+end
+
+@inline function compact_support(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                                 neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
+    # Use the compact support of the fluid
+    return compact_support(system.fluid_system, neighbor.fluid_system)
 end
 
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
@@ -463,10 +464,11 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
             foreach_system(semi) do system
                 du = wrap_u(du_ode, system, semi)
                 v = wrap_v(v_ode, system, semi)
+                u = wrap_u(u_ode, system, semi)
 
                 @threaded semi for particle in each_integrated_particle(system)
                     # This can be dispatched per system
-                    add_velocity!(du, v, particle, system)
+                    add_velocity!(du, v, u, particle, system, t)
                 end
             end
         end
@@ -475,7 +477,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     return du_ode
 end
 
-@inline function add_velocity!(du, v, particle, system)
+@inline function add_velocity!(du, v, u, particle, system, t)
     # Generic fallback for all systems that don't define this function
     for i in 1:ndims(system)
         @inbounds du[i, particle] = v[i, particle]
@@ -485,9 +487,9 @@ end
 end
 
 # Solid wall boundary system doesn't integrate the particle positions
-@inline add_velocity!(du, v, particle, system::WallBoundarySystem) = du
+@inline add_velocity!(du, v, u, particle, system::WallBoundarySystem, t) = du
 
-@inline function add_velocity!(du, v, particle, system::AbstractFluidSystem)
+@inline function add_velocity!(du, v, u, particle, system::AbstractFluidSystem, t)
     # This is zero unless a shifting technique is used
     delta_v_ = delta_v(system, particle)
 
@@ -723,7 +725,9 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::AbstractFluidSystem, neighbor::WallBoundarySystem,
+                     system::Union{AbstractFluidSystem,
+                                   OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
+                     neighbor::WallBoundarySystem,
                      u_system, u_neighbor, semi)
     # Boundary coordinates only change over time when `neighbor.ismoving[]`
     update!(neighborhood_search,
@@ -752,6 +756,16 @@ function update_nhs!(neighborhood_search,
 
     # TODO: Update only `active_coordinates` of open boundaries.
     # Problem: Removing inactive particles from neighboring lists is necessary.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                     neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                     u_system, u_neighbor, semi)
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
@@ -811,6 +825,25 @@ function update_nhs!(neighborhood_search,
     #
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
     # The current coordinates of fluids and structured change over time.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(system.ismoving[], true),
+            eachindex_y=each_active_particle(neighbor))
+end
+
+# This function is the same as the one above to avoid ambiguous dispatch when using `Union`
+function update_nhs!(neighborhood_search,
+                     system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                     neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                     u_system, u_neighbor, semi)
+    # Depending on the density calculator of the boundary model, this NHS is used for
+    # - kernel summation (`SummationDensity`)
+    # - continuity equation (`ContinuityDensity`)
+    # - pressure extrapolation (`AdamiPressureExtrapolation`)
+    #
+    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
+    # The current coordinates of open boundaries change over time.
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
@@ -1011,15 +1044,16 @@ function set_system_links(system::OpenBoundarySystem, semi)
                               system.initial_condition,
                               fluid_system, # link to fluid system
                               system.fluid_system_index,
+                              system.smoothing_kernel,
                               system.smoothing_length,
                               system.mass,
-                              system.density,
                               system.volume,
-                              system.pressure,
                               system.boundary_candidates,
                               system.fluid_candidates,
                               system.boundary_zone_indices,
                               system.boundary_zones,
                               system.buffer,
+                              system.pressure_acceleration_formulation,
+                              system.shifting_technique,
                               system.cache)
 end

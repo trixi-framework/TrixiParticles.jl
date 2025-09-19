@@ -12,7 +12,8 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        distance < sqrt(eps()) && return
+        # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+        distance^2 < sqrt(eps(distance^2)) && return
 
         # Retrieve particle properties
         m_a = particle_system.mass[particle]
