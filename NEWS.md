@@ -8,6 +8,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
+- Rename keyword arguments `plane` and `plane_normal` for `BoundaryZone` to `boundary_face` and `face_normal` (#597).
+
 - Renamed `BoundarySPHSystem` to `WallBoundarySystem` and the keyword argument
   `movement` to `prescribed_motion`.
 
