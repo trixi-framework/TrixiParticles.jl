@@ -18,6 +18,9 @@ During a single time step or an intermediate step of the time integration scheme
 (with key parts highlighted in orange/yellow).
 
 ```mermaid
+%% Make arrows bend at right angles
+%%{ init : { "flowchart" : { "curve" : "stepAfter" }}}%%
+
 %% TD means vertical layout
 flowchart TD
     %% --- Define color palette and styles ---
@@ -29,13 +32,17 @@ flowchart TD
     classDef physics fill:#fce5cd,stroke:#333,color:#333
 
     A(simulation) --> B[time integration];
-    B --> C["drift!<br/>(update du/dt)"];
 
-    subgraph kick["kick! (update dv/dt)"]
+    %% Add hidden dummy node to branch the arrow nicely
+    B --- dummy[ ];
+    style dummy width:0;
+    dummy --> C["drift!<br/>(update du/dt)"];
+
+    subgraph kick["<div style='padding: 10px'>kick! (update dv/dt)</div>"]
         %% Horizontal layout within this subgraph
         direction LR;
 
-        subgraph "update_systems_and_nhs"
+        subgraph updates["<div style='padding: 10px'>update_systems_and_nhs</div>"]
             %% Vertical layout within this subgraph
             direction TB;
 
@@ -49,20 +56,20 @@ flowchart TD
             H --> I --> J --> K --> L --> M;
         end
 
-        F[system_interaction!];
-        G[gravity_and_damping!];
+        F["system_interaction!<br/>(e.g. momentum/continuity equation)"];
+        G["add_source_terms!<br/>(gravity and source terms)"];
 
-        update_systems_and_nhs --> F --> G;
+        updates --> F --> G;
     end
 
-    B --> kick;
+    dummy --> kick;
 
     %% Color the sub-tasks by their function
     class A start_node;
     class B time_integration;
     class C primary_stage;
     class kick primary_stage;
-    class update_systems_and_nhs update;
+    class updates update;
     class H,I,J,K,L,M updates;
     class F,G physics;
 
