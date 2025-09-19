@@ -2,7 +2,7 @@
 
 A Total Lagrangian framework is used wherein the governing equations are formulated such that
 all relevant quantities and operators are measured with respect to the
-initial configuration ([O’Connor & Rogers, 2021](@cite O’Connor2021), [Belytschko et al., 2000](@cite Belytschko2000)).
+initial configuration ([O’Connor & Rogers, 2021](@cite OConnor2021), [Belytschko et al., 2000](@cite Belytschko2000)).
 
 The governing equations with respect to the initial configuration are given by:
 ```math
@@ -11,7 +11,7 @@ The governing equations with respect to the initial configuration are given by:
 where the zero subscript denotes a derivative with respect to the initial configuration
 and $\bm{P}$ is the first Piola-Kirchhoff (PK1) stress tensor.
 
-The discretized version of this equation is given by [O’Connor & Rogers (2021)](@cite O’Connor2021):
+The discretized version of this equation is given by [O’Connor & Rogers (2021)](@cite OConnor2021):
 ```math
 \frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t} = \sum_b m_{0b}
     \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
