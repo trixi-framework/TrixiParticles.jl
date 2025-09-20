@@ -8,7 +8,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
-- Added `ImplicitIncompressibleSPHSystem` as an incompressible SPH solver (#751).
+- Added an incompressible SPH solver `ImplicitIncompressibleSPHSystem` (#751).
+
 
 
 ## Version 0.4

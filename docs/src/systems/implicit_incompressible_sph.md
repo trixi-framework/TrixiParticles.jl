@@ -1,6 +1,6 @@
 # [Implicit Incompressible SPH](@id iisph)
 
-Implicit Incompressible SPH (IISPH) as introduced by [Ihmsen et al. (2013)](@cite ihmsen2013)
+Implicit Incompressible SPH (IISPH) as introduced by [Ihmsen et al. (2013)](@cite Ihmsen2013)
 is a method that achieves incompressibility by solving the pressure Poisson equation.
 The resulting linear system is iteratively solved with the relaxed Jacobi method.
 Unlike the [weakly compressible SPH method](@ref wcsph), incompressible methods determine
