@@ -276,12 +276,14 @@ function (pp::PostprocessCallback)(integrator)
     end
 end
 
-@inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
+@inline function backup_condition(cb::Union{PostprocessCallback{Int},
+                                            TableDataSavingCallback{Int}}, integrator)
     return integrator.stats.naccept > 0 &&
            round(integrator.stats.naccept / cb.interval) % cb.write_file_interval == 0
 end
 
-@inline function backup_condition(cb::PostprocessCallback, integrator)
+@inline function backup_condition(cb::Union{PostprocessCallback, TableDataSavingCallback},
+                                  integrator)
     return integrator.stats.naccept > 0 &&
            round(Int, integrator.t / cb.interval) % cb.write_file_interval == 0
 end
