@@ -218,7 +218,7 @@ end
                                                 grad_kernel)
     # Density diffusion terms are all zero for distance zero.
     # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
-    distance^2 < sqrt(eps(distance^2)) && return
+    distance^2 < sqrt(eps(initial_smoothing_length(particle_system)^2)) && return
 
     (; delta) = density_diffusion
     sound_speed = system_sound_speed(particle_system)
