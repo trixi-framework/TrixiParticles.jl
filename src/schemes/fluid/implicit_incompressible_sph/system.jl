@@ -33,7 +33,7 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
                                        IC, K, V, PF, C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
-    mass                              :: ARRAY1D     # Array{ELTYPE, 1}
+    mass                              :: ARRAY1D # Array{ELTYPE, 1}
     pressure                          :: ARRAY1D
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
@@ -43,7 +43,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     pressure_acceleration_formulation :: PF
     surface_normal_method             :: Nothing # TODO
     surface_tension                   :: Nothing # TODO
-    particle_refinement               :: Nothing  #TODO
+    particle_refinement               :: Nothing # TODO
     density                           :: ARRAY1D
     predicted_density                 :: ARRAY1D
     advection_velocity                :: ARRAY2D # Array{ELTYPE, 2}
@@ -57,7 +57,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     min_iterations                    :: Int     # minimum number of iterations in the pressure solver
     max_iterations                    :: Int     # maximum number of iterations in the pressure solver
     time_step                         :: ELTYPE
-    artificial_sound_speed            :: ELTYPE #TODO
+    artificial_sound_speed            :: ELTYPE  # TODO
     cache                             :: C
 end
 
@@ -73,7 +73,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
                                          max_iterations=20, time_step,
                                          artificial_sound_speed=1000.0)
     particle_refinement = nothing # TODO
-    surface_tension=nothing #TODO
+    surface_tension = nothing # TODO
 
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
@@ -199,7 +199,7 @@ end
     return system.density
 end
 
-#TODO: What do we do with the sound speed? This is needed for the viscosity.
+# TODO: What do we do with the sound speed? This is needed for the viscosity.
 @inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = system.artificial_sound_speed
 
 # Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
