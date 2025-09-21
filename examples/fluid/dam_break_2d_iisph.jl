@@ -7,6 +7,8 @@ trixi_include(@__MODULE__,
               sol=nothing, ode=nothing)
 
 # Change smoothing kernel and length to get a stable simulation
+# IISPH doesn't require a large compact support like WCSPH and performs worse with a typical
+# smoothing length
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
