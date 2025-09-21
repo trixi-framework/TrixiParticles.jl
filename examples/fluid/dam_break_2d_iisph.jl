@@ -11,6 +11,8 @@ smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Calculate kinematic viscosity for the viscosity model
+# Only ViscosityAdami and ViscosityMorris can be used for IISPH simulations since they don't
+# need a state equation
 nu = 0.02 * smoothing_length * sound_speed / 8
 viscosity = ViscosityAdami(; nu)
 
