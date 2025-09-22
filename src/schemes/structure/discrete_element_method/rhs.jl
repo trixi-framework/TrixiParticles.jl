@@ -13,7 +13,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                                                                                 pos_diff,
                                                                                 distance
         # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
-        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+        distance^2 < eps(first(particle_system.radius)^2) && return
 
         # Retrieve particle properties
         m_a = particle_system.mass[particle]
