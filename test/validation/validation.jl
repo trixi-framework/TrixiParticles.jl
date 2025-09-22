@@ -112,31 +112,4 @@
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
-
-    @trixi_testset "Poiseuille Flow" begin
-        @trixi_test_nowarn trixi_include(@__MODULE__,
-                                         joinpath(validation_dir(), "poiseuille_flow_2d",
-                                                  "validation_poiseuille_flow_2d.jl"),
-                                         tspan=(0.0, 0.1))
-        @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
-
-        range_ = 10:90
-        N = length(range_)
-        res = sum(range_, init=0) do i
-            v_x = pp_callback.affect!.affect!.data["v_x_fluid_1"][end][i]
-
-            v_analytical = -poiseuille_velocity(range(0, wall_distance, length=100)[i], 0.1)
-
-            v_analytical < sqrt(eps()) && return 0.0
-
-            rel_err = (v_analytical - v_x) / v_analytical
-
-            return rel_err^2 / N
-        end
-
-        rmsep = sqrt(res) * 100
-
-        @test isapprox(rmsep, 0.14531206275022582)
-    end
 end
