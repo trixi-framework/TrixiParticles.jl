@@ -409,7 +409,6 @@ end
                                                                       "pipe_flow_2d.jl"),
                                                              open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                                              extra_callback=steady_state_reached,
-                                                             saving_callback=nothing,
                                                              tspan=(0.0f0, 1.5f0),
                                                              parallelization_backend=Main.parallelization_backend,
                                                              viscosity_boundary=nothing)
