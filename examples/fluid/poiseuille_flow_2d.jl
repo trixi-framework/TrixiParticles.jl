@@ -61,11 +61,11 @@ function poiseuille_velocity(y, t)
 
     for n in 0:10  # Limit to 10 terms for convergence
         coefficient = (4 * pressure_drop * wall_distance^2) /
-                      (dynamic_viscosity * flow_length * π^3 * (2 * n + 1)^3)
+                      (dynamic_viscosity * flow_length * pi^3 * (2 * n + 1)^3)
 
-        sine_term = sin(π * y * (2 * n + 1) / wall_distance)
+        sine_term = sin(pi * y * (2 * n + 1) / wall_distance)
 
-        exp_term = exp(-((2 * n + 1)^2 * π^2 * dynamic_viscosity * t) /
+        exp_term = exp(-((2 * n + 1)^2 * pi^2 * dynamic_viscosity * t) /
                        (fluid_density * wall_distance^2))
 
         transient_sum += coefficient * sine_term * exp_term
@@ -82,7 +82,7 @@ function velocity_profile(pos, t)
     y = pos[2]  # y-coordinate
     v_x = poiseuille_velocity(y, t)
 
-    return (-v_x, 0.0)  # (v_x, v_y)
+    return (-v_x, 0.0)
 end
 
 pipe = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density,
@@ -150,7 +150,6 @@ reference_velocity_in = nothing
 reference_pressure_in = 0.2
 inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
                       open_boundary_layers, density=fluid_density, particle_spacing,
-                      rest_pressure=0.2, # TODO: is this needed?
                       reference_velocity=reference_velocity_in,
                       reference_pressure=reference_pressure_in,
                       initial_condition=inlet.fluid, boundary_type=boundary_type_in)
@@ -162,7 +161,6 @@ reference_velocity_out = nothing
 reference_pressure_out = 0.1
 outflow = BoundaryZone(; boundary_face=face_out, face_normal=(.-(flow_direction)),
                        open_boundary_layers, density=fluid_density, particle_spacing,
-                       rest_pressure=0.1, # TODO: is this needed?
                        reference_velocity=reference_velocity_out,
                        reference_pressure=reference_pressure_out,
                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)
@@ -222,6 +220,6 @@ callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);

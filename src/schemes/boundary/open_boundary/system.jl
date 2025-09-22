@@ -230,6 +230,7 @@ end
 @inline function v_nvariables(system::OpenBoundarySystem)
     return ndims(system)
 end
+
 @inline function shifting_technique(system::OpenBoundarySystem)
     return system.shifting_technique
 end
@@ -507,11 +508,7 @@ end
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)
-            # Particle is in the free surface region
-            # TODO: Ramp this up?
-            # w0 = smoothing_kernel(system, 0, particle)
-            # w = smoothing_kernel(system, dist_free_surface, particle)
-            # delta_v * w/w0
+            # Disable shifting for this particle
             for dim in 1:ndims(system)
                 cache.delta_v[dim, particle] = zero(eltype(system))
             end

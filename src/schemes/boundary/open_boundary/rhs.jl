@@ -1,4 +1,3 @@
-
 # Full interaction for open boundaries using `BoundaryModelDynamicalPressureZhang`
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
@@ -51,27 +50,18 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                sound_speed, m_a, m_b, rho_a, rho_b,
                                                grad_kernel)
 
-        # Extra terms in the momentum equation when using a shifting technique
-        # TODO: Do we need this?
-        # dv_tvf = dv_shifting(shifting_technique(fluid_system),
-        #                      particle_system, neighbor_system, particle, neighbor,
-        #                      v_particle_system, v_neighbor_system,
-        #                      m_a, m_b, rho_a, rho_b, pos_diff, distance,
-        #                      grad_kernel, correction)
-
-        dv_particle = dv_pressure + dv_viscosity_ + dv_pressure_boundary # + dv_tvf
+        dv_particle = dv_pressure + dv_viscosity_ + dv_pressure_boundary
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_particle[i]
         end
 
-        v_diff = relative_velocity(particle_system, neighbor_system,
-                                   v_particle_system, v_neighbor_system, particle, neighbor)
+        v_diff = current_velocity(v_particle_system, particle_system, particle) -
+                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
         # Continuity equation
         @inbounds dv[end, particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
 
-        # TODO: Add density diffusion to `OpenBoundarySystem` instead of accessing it from the fluid system
         density_diffusion!(dv, density_diffusion(particle_system),
                            v_particle_system, particle, neighbor,
                            pos_diff, distance, m_b, rho_a, rho_b,
@@ -84,10 +74,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # TODO: Enabling the following causes angular momentum conservation tests to fail.
     # Discarding this step should be acceptable since its impact is negligible.
-    # This ensures that, even during stages, the velocity remains aligned with the boundary zone
+    #
     # @threaded semi for particle in each_integrated_particle(particle_system)
     #     boundary_zone = current_boundary_zone(particle_system, particle)
-
+    #
+    #     This ensures that, even during stages, the velocity remains aligned with the boundary zone
     #     project_velocity_on_face_normal!(dv, particle_system, particle, boundary_zone,
     #                                       boundary_model)
     # end
@@ -110,30 +101,3 @@ function pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_
                         particle, neighbor, pos_diff, distance,
                         sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system.nu_edac)
 end
-
-function relative_velocity(particle_system, neighbor_system,
-                           v_particle_system, v_neighbor_system, particle, neighbor)
-    return current_velocity(v_particle_system, particle_system, particle) -
-           current_velocity(v_neighbor_system, neighbor_system, neighbor)
-end
-
-# TODO: Verify the following
-# For open boundaries, only the velocity component orthogonal to the boundary should affect the density.
-# The tangential component (parallel to the wall) is filtered out, so only the orthogonal component remains.
-# This prevents the density from being affected by tangential relative motion along the boundary wall.
-# Contrary:
-# only projected velocities:
-# "Actually, such constraint helps the present viscous term in Eq. (13) to handle
-# the lack of support along the same direction, since the normal component of the stress
-# to the buffer surface has been canceled out."
-# function relative_velocity(particle_system, neighbor_system::WallBoundarySystem,
-#                            v_particle_system, v_neighbor_system, particle, neighbor)
-#     boundary_zone = current_boundary_zone(particle_system, particle)
-
-#     v_diff = current_velocity(v_particle_system, particle_system, particle) -
-#              current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-#     return v_diff - dot(v_diff, boundary_zone.face_normal) * boundary_zone.face_normal
-
-#     # return zero(SVector{ndims(particle_system), eltype(particle_system)})
-# end

@@ -99,6 +99,14 @@ function reference_pressure(boundary_zone, v,
     (; prescribed_pressure, rest_pressure) = boundary_zone
     (; pressure_reference_values) = system.cache
 
+    # From Zhang et al. (2025):
+    #   "When the bidirectional in-/outlet buffer works with the velocity
+    #   in-/outflow boundary condition, such as in PIVO (Pressurized Inlet,
+    #   Velocity Outlet) and VIPO (Velocity Inlet, Pressure Outlet) flows, the
+    #   pressure boundary condition should also be imposed at the velocity
+    #   in-/outlet to eliminate the truncated error in approximating pressure gradient,
+    #   but the corresponding p_b in Eq. (13) is given as p_i.
+    #   Meanwhile, both the density and pressure of newly populated particles remain unchanged."
     if prescribed_pressure
         zone_id = system.boundary_zone_indices[particle]
 
@@ -117,19 +125,8 @@ function update_boundary_model!(system, boundary_model::BoundaryModelDynamicalPr
 
     @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
-
         particle_coords = current_coords(u, system, particle)
 
-        # TODO: Clarify the author's intention here
-        # From Zhang et al. (2025):
-        #   "When the bidirectional in-/outlet buffer works with the velocity
-        #   in-/outflow boundary condition, such as in PIVO (Pressurized Inlet,
-        #   Velocity Outlet) and VIPO (Velocity Inlet, Pressure Outlet) flows, the
-        #   pressure boundary condition should also be imposed at the velocity
-        #   in-/outlet to eliminate the truncated error in approximating pressure gradient,
-        #   but the corresponding pb in Eq. (13) is given as pi.
-        #   Meanwhile, both the density and pressure of newly populated particles remain unchanged."
-        # TODO: How do we prescibe zero pressure? Do we have to also update the momentum pressure?
         pressure_boundary[particle] = reference_pressure(boundary_zone, v, system,
                                                          particle, particle_coords, t)
     end
@@ -173,9 +170,8 @@ function update_boundary_quantities!(system,
 
         particle_coords = current_coords(u, system, particle)
 
-        # TODO: How do we prescibe zero pressure? Do we have to also update the momentum pressure?
         # Pressure is always prescribed with `BoundaryModelDynamicalPressureZhang`
-        # as the term vanishes for full kernel support (see comment in boundary/rhs.jl)
+        # as the term in the momentum equation vanishes for full kernel support
         pressure_boundary[particle] = reference_pressure(boundary_zone, v, system,
                                                          particle, particle_coords, t)
 
