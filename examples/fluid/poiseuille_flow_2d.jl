@@ -90,6 +90,9 @@ pipe = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density
                        pressure=(pos) -> 0.2 + (0.1 - 0.2) * (pos[1] / flow_length),
                        n_layers=boundary_layers, faces=(false, false, true, true))
 
+# The analytical solution depends on the length of the fluid domain.
+# Thus, the `BoundaryZone`s extend into the fluid domain because the pressure is not
+# prescribed at the `boundary_face`, but at the free surface of the `BoundaryZone`.
 inlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                         fluid_density, n_layers=boundary_layers,
                         velocity=(pos) -> velocity_profile(pos, 0), pressure=0.2,
