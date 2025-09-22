@@ -55,26 +55,4 @@ plot!(p, (y) -> -poiseuille_velocity(y, target_time), xlims=(0, wall_distance),
       legendposition=:outerright, size=(750, 400),
       ylims=(-0.002, 0.014), label="analytical", linewidth=3, linestyle=:dash, color=:black)
 
-rmsep = Float64[]
-for t_target in (0.1, 0.3, 0.6, 0.9, 2.0)
-    idx = argmin(abs.(times .- t_target))  # Nearest available time point
-
-    range_ = 10:90
-    N = length(range_)
-    positions = range(0, wall_distance, length=100)
-    res = sum(range_, init=0) do i
-        v_x = v_x_arrays[idx][i]
-
-        v_analytical = -poiseuille_velocity(positions[i], t_target)
-
-        v_analytical < sqrt(eps()) && return 0.0
-
-        rel_err = (v_analytical - v_x) / v_analytical
-
-        return rel_err^2 / N
-    end
-
-    push!(rmsep, sqrt(res) * 100)
-end
-
-p
+@show p
