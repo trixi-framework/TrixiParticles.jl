@@ -188,7 +188,7 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
         # Density diffusion terms are all zero for distance zero.
-        # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
+        # See `src/general/smoothing_kernels.jl` for more details.
         distance^2 < eps(initial_smoothing_length(system)^2) && return
 
         rho_a = current_density(v, system, particle)
@@ -217,7 +217,7 @@ end
                                                 particle_system::AbstractFluidSystem,
                                                 grad_kernel)
     # Density diffusion terms are all zero for distance zero.
-    # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913).
+    # See `src/general/smoothing_kernels.jl` for more details.
     distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
 
     (; delta) = density_diffusion

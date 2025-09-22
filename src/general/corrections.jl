@@ -217,7 +217,7 @@ function compute_correction_values!(system,
 
             kernel_correction_coefficient[particle] += volume * W
 
-            # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+            # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
             if distance^2 > eps(initial_smoothing_length(system)^2)
                 grad_W = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
                                      smoothing_length(system, particle))
