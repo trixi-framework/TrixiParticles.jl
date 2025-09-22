@@ -24,7 +24,7 @@ end
                                                                        initial_distance
         # Only consider particles with a distance > 0.
         # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
-        initial_distance^2 < eps(initial_distance^2) && return
+        initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
 
         rho_a = @inbounds system.material_density[particle]
         rho_b = @inbounds system.material_density[neighbor]
@@ -83,7 +83,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 distance
         # Only consider particles with a distance > 0.
         # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
-        distance^2 < eps(distance^2) && return
+        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
 
         # Apply the same force to the structure particle
         # that the fluid particle experiences due to the structure particle.
