@@ -102,7 +102,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # to determine if the callback is used in a simulation.
     update_callback_used = Ref(false)
 
-    # Always integrate TLSph systems together with other systems.
+    # Always integrate TLSPH systems together with other systems.
     # For split integration, a copy of the semidiscretization will be created
     # with this set to false.
     integrate_tlsph = Ref(true)
