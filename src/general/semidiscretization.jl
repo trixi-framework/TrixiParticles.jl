@@ -167,12 +167,12 @@ end
 @inline function compact_support(system::OpenBoundarySystem,
                                  neighbor::OpenBoundarySystem)
     # This NHS is never used
-    return 0.0
+    return zero(eltype(system))
 end
 
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
     # This NHS is never used
-    return 0.0
+    return zero(eltype(system))
 end
 
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::DEMSystem)
@@ -200,7 +200,7 @@ end
 @inline function compact_support(system, model::BoundaryModelMonaghanKajtar,
                                  neighbor::WallBoundarySystem)
     # This NHS is never used
-    return 0.0
+    return zero(eltype(system))
 end
 
 @inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
