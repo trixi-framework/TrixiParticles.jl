@@ -167,7 +167,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
     @threaded semi for particle in each_integrated_particle(system)
         # Particle is outside of the influence of fluid particles.
-        # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+        # `volume` is in the order of 1 / h^d, so volume * h^d is in the order of 1.
         if volume[particle] * smoothing_length^ndims(system) < eps(eltype(smoothing_length))
 
             # Using the average of the values at the previous time step for particles which
@@ -180,7 +180,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
             for neighbor in each_integrated_particle(system)
                 # Make sure that only neighbors in the influence of
                 # the fluid particles are used.
-                # Handle numerical precision issues (see also https://github.com/trixi-framework/TrixiParticles.jl/pull/913)
+                # `volume` is in the order of 1 / h^d, so volume * h^d is in the order of 1.
                 if volume[neighbor] * smoothing_length^ndims(system) >
                    eps(eltype(smoothing_length))
                     avg_J1 += previous_characteristics[1, neighbor]
