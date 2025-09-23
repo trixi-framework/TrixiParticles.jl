@@ -100,7 +100,7 @@ function (prescribed_motion::Nothing)(system::AbstractSystem, t, semi)
 end
 
 """
-    OscillatingMotion2D(frequency, translation_vector, rotation_angle, rotation_center;
+    OscillatingMotion2D(; frequency, translation_vector, rotation_angle, rotation_center,
                         rotation_phase_offset=0, tspan=(-Inf, Inf),
                         ramp_up_tspan=(0.0, 0.0), moving_particles=nothing)
 
@@ -109,25 +109,41 @@ The motion is a combination of a translation and a rotation around a center poin
 with the same frequency. Note that a phase offset can be specified for a rotation
 that is out of sync with the translation.
 
-# Arguments
+# Keywords
 - `frequency`:          Frequency of the oscillation in Hz.
 - `translation_vector`: Vector specifying the amplitude and direction of the translation.
 - `rotation_angle`:     Maximum rotation angle in radians.
 - `rotation_center`:    Center point of the rotation as an `SVector`.
 
-# Keywords
+# Keywords (optional)
 - `rotation_phase_offset=0`: Phase offset of the rotation in number of periods (`1` = 1 period).
 - `tspan=(-Inf, Inf)`:  Time span in which the motion is active. Outside of this time span,
                         particles remain at their last position.
-- `ramp_up_tspan=(0.0, 0.0)`: Time span in which the motion is smoothly ramped up from zero
-                        to full amplitude. Outside of this time span, the motion has full amplitude.
-                        If the length of the time span is zero, no ramp-up is applied.
+- `ramp_up_tspan`:      Time span in which the motion is smoothly ramped up from zero
+                        to full amplitude.
+                        Outside of this time span, the motion has full amplitude.
+                        Default is no ramp-up.
 - `moving_particles`:   Indices of moving particles. Default is each particle in the system
                         for the [`WallBoundarySystem`](@ref) and all clamped particles
                         for the [`TotalLagrangianSPHSystem`](@ref).
+
+# Examples
+```jldoctest; output = false, filter = r"PrescribedMotion{.*"
+# Oscillating motion with frequency 1 Hz, translation amplitude 1 in x-direction,
+# rotation angle 90 degrees (pi/2) around the origin.
+frequency = 1.0
+translation_vector = SVector(1.0, 0.0)
+rotation_angle = pi / 2
+rotation_center = SVector(0.0, 0.0)
+
+motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
+                             rotation_center)
+
+# output
+PrescribedMotion{...}
 """
-function OscillatingMotion2D(frequency, translation_vector, rotation_angle, rotation_center;
-                             rotation_phase_offset=0, tspan=(-Inf, Inf),
+function OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
+                             rotation_center, rotation_phase_offset=0, tspan=(-Inf, Inf),
                              ramp_up_tspan=(0.0, 0.0), moving_particles=nothing)
     @inline function movement_function(x, t)
         if isfinite(tspan[1])

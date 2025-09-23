@@ -7,7 +7,7 @@
             rotation_angle = pi
             rotation_center = SVector(0.0, 0.0)
 
-            motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
+            motion = OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
                                          rotation_center)
             movement_function = motion.movement_function
 
@@ -29,7 +29,7 @@
             rotation_angle = 0.0
             rotation_center = SVector(0.0, 0.0)
 
-            motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
+            motion = OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
                                          rotation_center)
             movement_function = motion.movement_function
 
@@ -47,8 +47,8 @@
             rotation_center = SVector(0.0, 0.0)
             tspan = (0.4, 1.4)
 
-            motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
-                                         rotation_center; tspan=tspan)
+            motion = OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
+                                         rotation_center, tspan)
             movement_function = motion.movement_function
 
             @test isapprox(movement_function([0.0, 0.0], 0.4), [0.0, 0.0], atol=eps())
@@ -64,7 +64,7 @@
             rotation_angle = pi / 2
             rotation_center = SVector(0.0, 0.0)
 
-            motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
+            motion = OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
                                          rotation_center)
             movement_function = motion.movement_function
 
@@ -82,9 +82,8 @@
             rotation_center = SVector(0.0, 0.0)
             rotation_phase_offset = 0.25
 
-            motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
-                                         rotation_center;
-                                         rotation_phase_offset=rotation_phase_offset)
+            motion = OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
+                                         rotation_center, rotation_phase_offset)
             movement_function = motion.movement_function
 
             @test isapprox(movement_function([1.0, 0.0], 0.0), [0.0, -1.0], atol=eps())
@@ -101,9 +100,8 @@
             rotation_center = SVector(0.0, 0.0)
             ramp_up_tspan = (0.0, 1.0)
 
-            motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
-                                         rotation_center;
-                                         ramp_up_tspan=ramp_up_tspan)
+            motion = OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
+                                         rotation_center, ramp_up_tspan)
             movement_function = motion.movement_function
 
             @test isapprox(movement_function([0.0, 0.0], 0.0), [0.0, 0.0], atol=eps())
@@ -126,9 +124,8 @@
             rotation_center = SVector(0.0, 0.0)
             tspan = (0.5, 1.5)
 
-            motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
-                                         rotation_center;
-                                         tspan=tspan)
+            motion = OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
+                                         rotation_center, tspan)
             ismoving = motion.is_moving
 
             @test !ismoving(-0.5)
