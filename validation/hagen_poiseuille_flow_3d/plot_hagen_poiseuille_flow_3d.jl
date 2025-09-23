@@ -2,21 +2,16 @@ using TrixiParticles
 using Plots
 using Bessels
 
+particle_spacing_factor = 20
+
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
-              sol=nothing)
+              particle_spacing_factor=particle_spacing_factor, sol=nothing)
 
-# output_directory = joinpath(examples_dir(), validation_dir(), "hagen_poiseuille_flow_3d")
-output_directory = "out"
-
-data = TrixiParticles.CSV.read(joinpath(output_directory, "result_vx.csv"),
-                               TrixiParticles.DataFrame)
-
-times = data[!, "time"]
-v_x_arrays = [eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]]
-
-# Roots of J_0
+# First five roots of the Bessel function of the first kind, J₀(x),
+# required for the analytical solution of the transient velocity profile in axisymmetric pipe flow.
 const roots_J_0 = [2.4048255577, 5.5200781103, 8.6537279129, 11.7915344391, 14.9309177086]
 
+# Analytical velocity evolution given in eq. 18
 function hagen_poiseuille_velocity(r, t)
     # Base profile (stationary part)
     base_profile = (pressure_drop / (4 * dynamic_viscosity * flow_length)) *
@@ -25,7 +20,7 @@ function hagen_poiseuille_velocity(r, t)
     # Transient terms (Fourier series)
     transient_sum = 0.0
 
-    for n in 1:5
+    for n in eachindex(roots_J_0)
         alpha = roots_J_0[n]
         J_1 = besselj(1, alpha)
         J_2 = besselj(2, alpha)
@@ -45,73 +40,30 @@ function hagen_poiseuille_velocity(r, t)
     return v_x
 end
 
-t_targets = [0.03, 0.05, 0.07, 0.14, 0.3, 1.0]
+output_directory = joinpath(examples_dir(), validation_dir(), "hagen_poiseuille_flow_3d")
 
-idx = argmin(abs.(times .- t_targets[1]))  # Nearest available time point
-p = scatter(range(-pipe_radius, pipe_radius, length=50), v_x_arrays[idx][1:2:100],
-            label="TrixiP (0.03s)", linewidth=3, markersize=5, opacity=0.4)
-plot!(p, (y) -> hagen_poiseuille_velocity(y, t_targets[1]),
-      xlims=(-pipe_radius, pipe_radius), legendposition=:outerright, size=(750, 400),
-      ylims=(-0.001, 0.005), label=nothing, linewidth=3, linestyle=:dash, color=:black)
+data = TrixiParticles.CSV.read(joinpath(output_directory,
+                                        "result_vx" * "_dp_$particle_spacing_factor" *
+                                        ".csv"),
+                               TrixiParticles.DataFrame)
 
-idx = argmin(abs.(times .- t_targets[2]))  # Nearest available time point
-scatter!(p, range(-pipe_radius, pipe_radius, length=50), v_x_arrays[idx][1:2:100],
-         label="TrixiP (0.05s)", linewidth=3, markersize=5, opacity=0.4)
-plot!((y) -> hagen_poiseuille_velocity(y, t_targets[2]), xlims=(-pipe_radius, pipe_radius),
-      legendposition=:outerright, size=(750, 400),
-      ylims=(-0.001, 0.005), label=nothing, linewidth=3, linestyle=:dash, color=:black)
+times = data[!, "time"]
+times_ref = [0.03, 0.05, 0.07, 0.14, 0.3, 1.0]
+positions = range(-pipe_radius, pipe_radius, length=100)
+data_range = 10:90
+data_indices = findall(t -> t in times_ref, times)
+v_x_vector = [eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]][data_indices]
 
-idx = argmin(abs.(times .- t_targets[3]))  # Nearest available time point
-scatter!(p, range(-pipe_radius, pipe_radius, length=50), v_x_arrays[idx][1:2:100],
-         label="TrixiP (0.07s)", linewidth=3, markersize=5, opacity=0.4)
-plot!((y) -> hagen_poiseuille_velocity(y, t_targets[3]), xlims=(-pipe_radius, pipe_radius),
-      legendposition=:outerright, size=(750, 400),
-      ylims=(-0.001, 0.005),
-      label=nothing, linewidth=3, linestyle=:dash, color=:black)
-
-idx = argmin(abs.(times .- t_targets[4]))  # Nearest available time point
-scatter!(p, range(-pipe_radius, pipe_radius, length=50), v_x_arrays[idx][1:2:100],
-         label="TrixiP (0.14s)", linewidth=3, markersize=5, opacity=0.4)
-plot!((y) -> hagen_poiseuille_velocity(y, t_targets[4]), xlims=(-pipe_radius, pipe_radius),
-      legendposition=:outerright, size=(750, 400),
-      ylims=(-0.001, 0.005),
-      label=nothing, linewidth=3, linestyle=:dash, color=:black)
-
-idx = argmin(abs.(times .- t_targets[5]))  # Nearest available time point
-scatter!(p, range(-pipe_radius, pipe_radius, length=50), v_x_arrays[idx][1:2:100],
-         label="TrixiP (0.3s)", linewidth=3, markersize=5, opacity=0.4)
-plot!((y) -> hagen_poiseuille_velocity(y, t_targets[5]), xlims=(-pipe_radius, pipe_radius),
-      legendposition=:outerright, size=(750, 400),
-      ylims=(-0.001, 0.005),
-      label=nothing, linewidth=3, linestyle=:dash, color=:black)
-
-idx = argmin(abs.(times .- t_targets[6]))  # Nearest available time point
-scatter!(p, range(-pipe_radius, pipe_radius, length=50), v_x_arrays[idx][1:2:100],
-         label="TrixiP (∞)", linewidth=3, markersize=5, opacity=0.4)
-plot!((y) -> hagen_poiseuille_velocity(y, t_targets[6]), xlims=(-pipe_radius, pipe_radius),
-      legendposition=:outerright, size=(750, 400),
-      ylims=(-0.001, 0.005),
-      label="analytical", linewidth=3, linestyle=:dash, color=:black)
-
-yaxis!(p, ylabel="x velocity (m/s)")
-xaxis!(p, xlabel="y position (m)")
-plot!(left_margin=5Plots.mm)
-plot!(bottom_margin=5Plots.mm)
-
-
-
+# Calculate RMSEP error (eq. 17, Zhang et al.)
 rmsep_run = Float64[]
-for t_target in [0.03, 0.05, 0.07, 0.14, 0.3, 1.0]
-    idx = argmin(abs.(times .- t_target))  # Nearest available time point
+for (i, t) in enumerate(times_ref)
+    N = length(data_range)
+    res = sum(data_range, init=0) do j
+        v_x = v_x_vector[i][j]
 
-    range_ = 10:90
-    N = length(range_)
-    positions = range(-pipe_radius, pipe_radius, length=100)
-    res = sum(range_, init=0) do i
-        v_x = v_x_arrays[idx][i]
+        v_analytical = hagen_poiseuille_velocity(positions[j], t)
 
-        v_analytical = hagen_poiseuille_velocity(positions[i], t_target)
-
+        # Avoid dividing by zero
         v_analytical < sqrt(eps()) && return 0.0
 
         rel_err = (v_analytical - v_x) / v_analytical
@@ -121,3 +73,38 @@ for t_target in [0.03, 0.05, 0.07, 0.14, 0.3, 1.0]
 
     push!(rmsep_run, sqrt(res) * 100)
 end
+
+# RMSEP error (%) from Zhang et al. (2025)
+rmsep_reference = [2.97, 1.88, 1.61, 1.5, 0.74, 0.89]
+
+p_rmsep = scatter(collect(times_ref), rmsep_run, markersize=5, label="TrixiP")
+scatter!(p_rmsep, collect(times_ref), rmsep_reference, marker=:x, markersize=5,
+         markerstrokewidth=3, label="Zhang et al. (2025)")
+
+yaxis!(p_rmsep, ylabel="RMSEP error (%)", ylims=(0, 7))
+xaxis!(p_rmsep, xlabel="t", xlims=(0, 1.2))
+plot!(left_margin=5Plots.mm)
+plot!(right_margin=5Plots.mm)
+plot!(bottom_margin=5Plots.mm)
+
+@show p_rmsep
+
+plot_range = range(-pipe_radius, pipe_radius, length=50)
+v_x_plot = view(stack(v_x_vector), 1:2:100, :)
+label_ = "TrixiP (" .* ["0.1" "0.3" "0.6" "0.9" "∞"] .* " s)"
+line_colors = cgrad(:coolwarm, length(times_ref), categorical=true)
+
+p = scatter(plot_range, v_x_plot, label=label_, linewidth=3, markersize=5, opacity=0.6,
+            palette=line_colors.colors, legend_position=:outerright)
+for t in times_ref
+    label_ = t == 1.0 ? "analytical" : nothing
+    plot!(p, (y) -> hagen_poiseuille_velocity(y, t), xlims=(-pipe_radius, pipe_radius),
+          ylims=(-0.001, 0.005), label=label_, linewidth=3, linestyle=:dash, color=:black)
+end
+
+yaxis!(p, ylabel="x velocity (m/s)")
+xaxis!(p, xlabel="y position (m)")
+plot!(left_margin=5Plots.mm)
+plot!(bottom_margin=5Plots.mm)
+
+@show p

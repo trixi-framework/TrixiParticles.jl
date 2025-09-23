@@ -1,17 +1,16 @@
 # ==========================================================================================
-# 3D TODO
+# 3D Hagen-Poiseuille Flow Simulation (Weakly Compressible SPH)
 #
 # Based on:
 #   Zhan, X., et al. "Dynamical pressure boundary condition for weakly compressible smoothed particle hydrodynamics"
 #   Physics of Fluids, Volume 37
 #   https://doi.org/10.1063/5.0254575
 #
-# TODO
+# This example sets up a 3D Hagen-Poiseuille flow simulation in a circular pipe
+# including open boundary conditions.
 # ==========================================================================================
 using TrixiParticles
 using OrdinaryDiffEq
-
-voxel_sphere = false
 
 # ==========================================================================================
 # ==== Resolution
@@ -19,8 +18,8 @@ const flow_length = 0.004
 const pipe_radius = 0.0005
 pipe_diameter = 2 * pipe_radius
 
-particle_count_spanning_pipe = 30
-particle_spacing = pipe_diameter / particle_count_spanning_pipe
+particle_spacing_factor = 30
+particle_spacing = pipe_diameter / particle_spacing_factor
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
@@ -52,7 +51,7 @@ flow_direction = (1.0, 0.0, 0.0)
 n_particles_length = ceil(Int, flow_length / particle_spacing)
 wall_2d = SphereShape(particle_spacing, pipe_radius, (0.0, 0.0),
                       fluid_density, n_layers=boundary_layers, layer_outwards=true,
-                      sphere_type=voxel_sphere ? VoxelSphere() : RoundSphere())
+                      sphere_type=RoundSphere())
 # Extend 2d coordinates to 3d by adding x-coordinates
 wall_2d_coordinates = hcat(particle_spacing / 2 * ones(nparticles(wall_2d)),
                            wall_2d.coordinates')'
@@ -62,7 +61,7 @@ pipe_wall = extrude_geometry(wall_2d_coordinates; particle_spacing,
                              n_extrude=n_particles_length)
 
 circle = SphereShape(particle_spacing, pipe_radius, (0.0, 0.0), fluid_density,
-                     sphere_type=voxel_sphere ? VoxelSphere() : RoundSphere())
+                     sphere_type=RoundSphere())
 # Extend 2d coordinates to 3d by adding x-coordinates
 circle_coordinates = hcat(particle_spacing / 2 * ones(nparticles(circle)),
                           circle.coordinates')'
@@ -161,28 +160,12 @@ semi = Semidiscretization(fluid_system, open_boundary,
 
 ode = semidiscretize(semi, tspan)
 
-v_x_interpolated(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
-function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem{3},
-                          dv_ode, du_ode, v_ode, u_ode, semi, t)
-    start_point = [flow_length / 2, -pipe_radius, 0.0]
-    end_point = [flow_length / 2, pipe_radius, 0.0]
-
-    values = interpolate_line(start_point, end_point, 100, semi, system, v_ode, u_ode;
-                              cut_off_bnd=true, clip_negative_pressure=false)
-
-    return values.velocity[1, :]
-end
-
 info_callback = InfoCallback(interval=20)
 saving_callback = SolutionSavingCallback(dt=0.01, prefix="", output_directory="out")
 
-pp_callback = PostprocessCallback(; dt=0.01, output_directory="out",
-                                  v_x=v_x_interpolated, filename="result_vx",
-                                  write_csv=true, write_file_interval=1)
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), pp_callback,
-                        extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)

@@ -7,8 +7,7 @@
 #   https://doi.org/10.1063/5.0254575
 #
 # This example sets up a 2D Poiseuille flow simulation in a rectangular channel
-# including open boundary conditions and
-# transient analytical solution for comparison and error analysis.
+# including open boundary conditions.
 # ==========================================================================================
 
 using TrixiParticles

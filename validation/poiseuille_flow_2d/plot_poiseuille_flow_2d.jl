@@ -39,7 +39,7 @@ data = TrixiParticles.CSV.read(joinpath(output_directory, "result_vx.csv"),
                                TrixiParticles.DataFrame)
 
 times = data[!, "time"]
-times_ref = (0.1, 0.3, 0.6, 0.9, 2.0)
+times_ref = [0.1, 0.3, 0.6, 0.9, 2.0]
 positions = range(0, wall_distance, length=100)
 data_range = 1:100
 data_indices = findall(t -> t in times_ref, times)
@@ -66,16 +66,11 @@ for (i, t) in enumerate(times_ref)
 end
 
 # RMSEP error (%) from Zhang et al. (2025)
-rmsep_reference = [
-    1.81,
-    0.95,
-    0.67,
-    0.86,
-    1.22
-]
+rmsep_reference = [1.81, 0.95, 0.67, 0.86, 1.22]
 
-p_rmsep = scatter(collect(times_ref), rmsep_run, label="TrixiP")
-scatter!(p_rmsep, collect(times_ref), rmsep_reference, label="Zhang et al. (2025)")
+p_rmsep = scatter(times_ref, rmsep_run, markersize=5, label="TrixiP")
+scatter!(p_rmsep, times_ref, rmsep_reference, marker=:x, markersize=5,
+         markerstrokewidth=3, label="Zhang et al. (2025)")
 
 yaxis!(p_rmsep, ylabel="RMSEP error (%)", ylims=(0, 2))
 xaxis!(p_rmsep, xlabel="t", xlims=(0, 2))
