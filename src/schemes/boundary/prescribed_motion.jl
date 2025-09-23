@@ -101,8 +101,8 @@ end
 
 """
     OscillatingMotion2D(frequency, translation_vector, rotation_angle, rotation_center;
-                        rotation_phase_offset=0, tspan=(-Inf, Inf), ramp_up=0,
-                        moving_particles=nothing)
+                        rotation_phase_offset=0, tspan=(-Inf, Inf),
+                        ramp_up_tspan=(0.0, 0.0), moving_particles=nothing)
 
 Create a [`PrescribedMotion`](@ref) for a 2D oscillating motion of particles.
 The motion is a combination of a translation and a rotation around a center point
@@ -119,8 +119,9 @@ that is out of sync with the translation.
 - `rotation_phase_offset=0`: Phase offset of the rotation in number of periods (`1` = 1 period).
 - `tspan=(-Inf, Inf)`:  Time span in which the motion is active. Outside of this time span,
                         particles remain at their last position.
-- `ramp_up=0`:          Time in seconds in which the motion is smoothly ramped up from zero
-                        to full amplitude. A value of `0` means no ramp-up.
+- `ramp_up_tspan=(0.0, 0.0)`: Time span in which the motion is smoothly ramped up from zero
+                        to full amplitude. Outside of this time span, the motion has full amplitude.
+                        If the length of the time span is zero, no ramp-up is applied.
 - `moving_particles`:   Indices of moving particles. Default is each particle in the system
                         for the [`WallBoundarySystem`](@ref) and all clamped particles
                         for the [`TotalLagrangianSPHSystem`](@ref).

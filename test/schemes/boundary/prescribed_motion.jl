@@ -18,7 +18,7 @@
             @test isapprox(movement_function([1.0, 0.0], 0.5), [1.0, 0.0], atol=10eps())
             # Half rotation after one quarter phase (rotation angle is one half rotation)
             @test isapprox(movement_function([1.0, 0.0], 0.25), [-1.0, 0.0], atol=10eps())
-            # Quarter rotation
+            # Quarter rotation (0.5 * rotation_angle = 90 degrees)
             @test isapprox(movement_function([1.0, 0.0], asin(0.5) / 2pi), [0.0, 1.0],
                            atol=10eps())
         end
