@@ -16,8 +16,8 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-const wall_distance = 0.001
-const flow_length = 0.004
+const wall_distance = 0.001 # distance between top and bottom wall
+const flow_length = 0.004 # distance between inflow and outflow
 
 particle_spacing = wall_distance / 50
 
@@ -40,6 +40,8 @@ open_boundary_size = (open_boundary_layers * particle_spacing, domain_size[2])
 fluid_density = 1000.0
 reynolds_number = 50
 const pressure_drop = 0.1
+pressure_out = 0.1
+pressure_in = pressure_out + pressure_drop
 const dynamic_viscosity = sqrt(fluid_density * wall_distance^3 * pressure_drop /
                                (8 * flow_length * reynolds_number))
 
@@ -50,59 +52,20 @@ sound_speed = sound_speed_factor * v_max
 
 flow_direction = (1.0, 0.0)
 
-# Analytical velocity evolution given in eq. 16
-function poiseuille_velocity(y, t)
-
-    # Base profile (stationary part)
-    base_profile = (pressure_drop / (2 * dynamic_viscosity * flow_length)) * y *
-                   (y - wall_distance)
-
-    # Transient terms (Fourier series)
-    transient_sum = 0.0
-
-    for n in 0:10  # Limit to 10 terms for convergence
-        coefficient = (4 * pressure_drop * wall_distance^2) /
-                      (dynamic_viscosity * flow_length * pi^3 * (2 * n + 1)^3)
-
-        sine_term = sin(pi * y * (2 * n + 1) / wall_distance)
-
-        exp_term = exp(-((2 * n + 1)^2 * pi^2 * dynamic_viscosity * t) /
-                       (fluid_density * wall_distance^2))
-
-        transient_sum += coefficient * sine_term * exp_term
-    end
-
-    # Total velocity
-    v_x = base_profile + transient_sum
-
-    return v_x
-end
-
-# The `velocity_profile` function wraps `poiseuille_velocity` to facilitate its use for validation purposes
-function velocity_profile(pos, t)
-    y = pos[2]  # y-coordinate
-    v_x = poiseuille_velocity(y, t)
-
-    return (-v_x, 0.0)
-end
-
 pipe = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density,
-                       velocity=(pos) -> velocity_profile(pos, 0),
-                       pressure=(pos) -> 0.2 + (0.1 - 0.2) * (pos[1] / flow_length),
+                       pressure=(pos) -> pressure_out +
+                                         pressure_drop * (1 - (pos[1] / flow_length)),
                        n_layers=boundary_layers, faces=(false, false, true, true))
 
 # The analytical solution depends on the length of the fluid domain.
 # Thus, the `BoundaryZone`s extend into the fluid domain because the pressure is not
 # prescribed at the `boundary_face`, but at the free surface of the `BoundaryZone`.
 inlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
-                        fluid_density, n_layers=boundary_layers,
-                        velocity=(pos) -> velocity_profile(pos, 0), pressure=0.2,
-                        min_coordinates=(0.0, 0.0),
-                        faces=(false, false, true, true))
+                        fluid_density, n_layers=boundary_layers, pressure=pressure_in,
+                        min_coordinates=(0.0, 0.0), faces=(false, false, true, true))
 
 outlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density, n_layers=boundary_layers,
-                         velocity=(pos) -> velocity_profile(pos, 0), pressure=0.1,
                          min_coordinates=(pipe.fluid_size[1] - open_boundary_size[1], 0.0),
                          faces=(false, false, true, true))
 
@@ -199,28 +162,12 @@ semi = Semidiscretization(fluid_system, open_boundary,
 
 ode = semidiscretize(semi, tspan)
 
-v_x_interpolated(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
-function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem,
-                          dv_ode, du_ode, v_ode, u_ode, semi, t)
-    start_point = [flow_length / 2, 0.0]
-    end_point = [flow_length / 2, wall_distance]
-
-    values = interpolate_line(start_point, end_point, 100, semi, system, v_ode, u_ode;
-                              cut_off_bnd=true, clip_negative_pressure=false)
-
-    return values.velocity[1, :]
-end
-
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="", output_directory="out")
 
-pp_callback = PostprocessCallback(; dt=0.02, output_directory="out",
-                                  v_x=v_x_interpolated, filename="result_vx",
-                                  write_csv=true, write_file_interval=1)
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
-                        pp_callback, extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
