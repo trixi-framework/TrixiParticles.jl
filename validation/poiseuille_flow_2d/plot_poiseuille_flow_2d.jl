@@ -41,7 +41,7 @@ data = TrixiParticles.CSV.read(joinpath(output_directory, "result_vx.csv"),
 times = data[!, "time"]
 times_ref = [0.1, 0.3, 0.6, 0.9, 2.0]
 positions = range(0, wall_distance, length=100)
-data_range = 1:100
+data_range = 2:98
 data_indices = findall(t -> t in times_ref, times)
 v_x_vector = [eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]][data_indices]
 
@@ -72,8 +72,8 @@ p_rmsep = scatter(times_ref, rmsep_run, markersize=5, label="TrixiP")
 scatter!(p_rmsep, times_ref, rmsep_reference, marker=:x, markersize=5,
          markerstrokewidth=3, label="Zhang et al. (2025)")
 
-yaxis!(p_rmsep, ylabel="RMSEP error (%)", ylims=(0, 2))
-xaxis!(p_rmsep, xlabel="t", xlims=(0, 2))
+yaxis!(p_rmsep, ylabel="RMSEP error (%)", ylims=(0, 4))
+xaxis!(p_rmsep, xlabel="t", xlims=(0, 2.05))
 plot!(left_margin=5Plots.mm)
 plot!(right_margin=5Plots.mm)
 plot!(bottom_margin=5Plots.mm)
@@ -86,7 +86,7 @@ label_ = "TrixiP (" .* ["0.1" "0.3" "0.6" "0.9" "∞"] .* " s)"
 line_colors = cgrad(:coolwarm, length(times_ref), categorical=true)
 
 p = scatter(plot_range, v_x_plot, label=label_, linewidth=3, markersize=5, opacity=0.6,
-            palette=line_colors.colors, legend_position=:outerright)
+            palette=line_colors.colors, legend_position=:outerright, size=(750, 400))
 for t in times_ref
     label_ = t == 2.0 ? "analytical" : nothing
     plot!(p, (y) -> -poiseuille_velocity(y, t), xlims=(0, wall_distance),
