@@ -50,6 +50,7 @@ sound_speed = sound_speed_factor * v_max
 
 flow_direction = (1.0, 0.0)
 
+# Analytical velocity evolution given in eq. 16
 function poiseuille_velocity(y, t)
 
     # Base profile (stationary part)
@@ -77,7 +78,7 @@ function poiseuille_velocity(y, t)
     return v_x
 end
 
-# For the inflow velocity
+# The `velocity_profile` function wraps `poiseuille_velocity` to facilitate its use for validation purposes
 function velocity_profile(pos, t)
     y = pos[2]  # y-coordinate
     v_x = poiseuille_velocity(y, t)
