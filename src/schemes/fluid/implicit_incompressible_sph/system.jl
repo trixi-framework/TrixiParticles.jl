@@ -11,6 +11,8 @@ System for particles of a fluid.
 The system employs implicit incompressible SPH (IISPH), iteratively solving a linear system
 for the pressure so that density remains within a specified tolerance of the rest value.
 See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
+!!! note "Time Integration"
+    This system only supports time integration with `SymplecticEuler()`. No other schemes are currently supported.
 
 # Arguments
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.

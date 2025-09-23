@@ -1,20 +1,25 @@
 # 2D dam break simulation using implicit incompressible SPH (IISPH)
 using TrixiParticles
 
+fluid_particle_spacing = 0.015
+
 # Load setup from dam break example
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, ode=nothing)
 
-# Change smoothing kernel and length to get a stable simulation
 # IISPH doesn't require a large compact support like WCSPH and performs worse with a typical
-# smoothing length
-smoothing_length = 1.2 * fluid_particle_spacing
+# smoothing length used for WCSPH.
+smoothing_length = 1.0 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+# This kernel slightly overestimates the density, so we reduce the mass slightly
+# to obtain a density slightly below the reference density.
+# Otherwise, the fluid will jump slightly at the beginning of the simulation.
+tank.fluid.mass .*= 0.995
 
-# Calculate kinematic viscosity for the viscosity model
+# Calculate kinematic viscosity for the viscosity model.
 # Only ViscosityAdami and ViscosityMorris can be used for IISPH simulations since they don't
-# need a state equation
+# require a speed of sound.
 nu = 0.02 * smoothing_length * sound_speed / 8
 viscosity = ViscosityAdami(; nu)
 
