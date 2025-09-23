@@ -20,7 +20,7 @@
             @test isapprox(movement_function([1.0, 0.0], 0.25), [-1.0, 0.0], atol=10eps())
             # Quarter rotation
             @test isapprox(movement_function([1.0, 0.0], asin(0.5) / 2pi), [0.0, 1.0],
-                                             atol=10eps())
+                           atol=10eps())
         end
 
         @testset "Simple Translation" begin
