@@ -100,11 +100,11 @@ function (prescribed_motion::Nothing)(system::AbstractSystem, t, semi)
 end
 
 """
-    OscillatingMotion(frequency, translation_vector, rotation_angle, rotation_center;
-                      rotation_phase_offset=0, tspan=(-Inf, Inf), ramp_up=0,
-                      moving_particles=nothing)
+    OscillatingMotion2D(frequency, translation_vector, rotation_angle, rotation_center;
+                        rotation_phase_offset=0, tspan=(-Inf, Inf), ramp_up=0,
+                        moving_particles=nothing)
 
-Create a [`PrescribedMotion`](@ref) for an oscillating motion of particles.
+Create a [`PrescribedMotion`](@ref) for a 2D oscillating motion of particles.
 The motion is a combination of a translation and a rotation around a center point
 with the same frequency. Note that a phase offset can be specified for a rotation
 that is out of sync with the translation.
@@ -125,10 +125,14 @@ that is out of sync with the translation.
                         for the [`WallBoundarySystem`](@ref) and all clamped particles
                         for the [`TotalLagrangianSPHSystem`](@ref).
 """
-function OscillatingMotion(frequency, translation_vector, rotation_angle, rotation_center;
-                           rotation_phase_offset=0, tspan=(-Inf, Inf),
-                           ramp_up_tspan=(0.0, 0.0), moving_particles=nothing)
+function OscillatingMotion2D(frequency, translation_vector, rotation_angle, rotation_center;
+                             rotation_phase_offset=0, tspan=(-Inf, Inf),
+                             ramp_up_tspan=(0.0, 0.0), moving_particles=nothing)
     @inline function movement_function(x, t)
+        if isfinite(tspan[1])
+            t = t - tspan[1]
+        end
+
         sin_scaled = sin(frequency * 2pi * t)
         translation = sin_scaled * translation_vector
         x_centered = x .- rotation_center
