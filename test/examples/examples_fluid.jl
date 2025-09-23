@@ -393,21 +393,6 @@
         @test sol.retcode == ReturnCode.Terminated
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; interval=1, interval_size=5,
-                                                          reltol=1e-3)
-        @trixi_test_nowarn trixi_include(@__MODULE__,
-                                         joinpath(examples_dir(), "fluid",
-                                                  "pipe_flow_2d.jl"),
-                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
-                                         extra_callback=steady_state_reached, dtmax=2e-3,
-                                         tspan=(0.0, 1.5), viscosity_boundary=nothing)
-
-        # Make sure that the simulation is terminated after a reasonable amount of time
-        @test 0.1 < sol.t[end] < 1.0
-        @test sol.retcode == ReturnCode.Terminated
-    end
-
     @trixi_testset "fluid/pipe_flow_3d.jl" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",

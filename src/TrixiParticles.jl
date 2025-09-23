@@ -22,9 +22,10 @@ using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
-using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
+using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
-                 get_du
+                 add_tstop!, get_du
+
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
@@ -68,7 +69,8 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
        ImplicitIncompressibleSPHSystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback
+       PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
+       SplitIntegrationCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
