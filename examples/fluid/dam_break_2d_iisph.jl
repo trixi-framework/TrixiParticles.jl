@@ -6,6 +6,7 @@ fluid_particle_spacing = 0.015
 # Load setup from dam break example
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              fluid_particle_spacing=fluid_particle_spacing,
               sol=nothing, ode=nothing)
 
 # IISPH doesn't require a large compact support like WCSPH and performs worse with a typical
