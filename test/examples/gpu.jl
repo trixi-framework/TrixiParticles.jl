@@ -311,7 +311,6 @@ end
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
                                                              wcsph=true,
-                                                             pp_callback=nothing,
                                                              parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -325,7 +324,6 @@ end
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
                                                              wcsph=false,
-                                                             pp_callback=nothing,
                                                              parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
