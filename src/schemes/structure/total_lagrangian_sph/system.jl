@@ -326,8 +326,8 @@ end
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
                            semi) do particle, neighbor, initial_pos_diff, initial_distance
-        # Only consider particles with a distance > 0.
-        initial_distance < sqrt(eps()) && return
+        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+        initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
 
         volume = mass[neighbor] / material_density[neighbor]
         pos_diff = current_coords(system, particle) - current_coords(system, neighbor)

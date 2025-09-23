@@ -3,8 +3,13 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 @inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    # TODO Use `eps` relative to `h` to allow scaling of simulations
-    distance < sqrt(eps(typeof(h))) && return zero(pos_diff)
+    # For `distance == 0`, the analytical gradient is zero, but the code divides by zero.
+    # To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the smoothing length `h`,
+    # `distance^2` is in the order of `h^2`, hence the comparison `distance^2 < eps(h^2)`.
+    # Note that this is faster than `distance < sqrt(eps(h^2))`.
+    # Also note that `sqrt(eps(h^2)) != eps(h)`.
+    distance^2 < eps(h^2) && return zero(pos_diff)
 
     return kernel_deriv(kernel, distance, h) / distance * pos_diff
 end
