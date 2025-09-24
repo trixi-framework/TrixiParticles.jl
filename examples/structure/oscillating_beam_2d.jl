@@ -63,7 +63,8 @@ structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothi
                                             material.E, material.nu,
                                             n_clamped_particles=nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity),
-                                            penalty_force=nothing, viscosity=nothing)
+                                            penalty_force=nothing, viscosity=nothing,
+                                            clamped_particles_motion=nothing)
 
 # ==========================================================================================
 # ==== Simulation

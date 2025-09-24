@@ -42,12 +42,11 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(prescribed_motion))
-    initialize!(prescribed_motion, initial_condition)
+    initialize_prescribed_motion!(prescribed_motion, initial_condition)
 
     cache = create_cache_boundary(prescribed_motion, initial_condition)
     cache = (cache..., color=Int(color_value))
 
-    # Because of dispatches boundary model needs to be first!
     return WallBoundarySystem(initial_condition, coordinates, model, prescribed_motion,
                               ismoving, adhesion_coefficient, cache)
 end
@@ -105,7 +104,7 @@ end
     return current_velocity(v, system, system.prescribed_motion, particle)
 end
 
-@inline function current_velocity(v, system, movement, particle)
+@inline function current_velocity(v, system, prescribed_motion, particle)
     (; cache, ismoving) = system
 
     if ismoving[]
@@ -115,7 +114,7 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_velocity(v, system, movement::Nothing, particle)
+@inline function current_velocity(v, system, prescribed_motion::Nothing, particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
@@ -127,7 +126,8 @@ end
     return current_acceleration(system, system.prescribed_motion, particle)
 end
 
-@inline function current_acceleration(system, ::PrescribedMotion, particle)
+@inline function current_acceleration(system::WallBoundarySystem, ::PrescribedMotion,
+                                      particle)
     (; cache, ismoving) = system
 
     if ismoving[]
@@ -137,7 +137,7 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_acceleration(system, ::Nothing, particle)
+@inline function current_acceleration(system::WallBoundarySystem, ::Nothing, particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
@@ -177,7 +177,21 @@ end
 function update_positions!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
     (; prescribed_motion) = system
 
-    prescribed_motion(system, t, semi)
+    apply_prescribed_motion!(system, prescribed_motion, semi, t)
+end
+
+function apply_prescribed_motion!(system::WallBoundarySystem,
+                                  prescribed_motion::PrescribedMotion, semi, t)
+    (; ismoving, coordinates, cache) = system
+    (; acceleration, velocity) = cache
+
+    prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+
+    return system
+end
+
+function apply_prescribed_motion!(system::WallBoundarySystem, ::Nothing, semi, t)
+    return system
 end
 
 function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
