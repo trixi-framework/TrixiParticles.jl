@@ -214,7 +214,7 @@ function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integra
     cb.git_hash[] = compute_git_hash()
 
     # Apply the callback
-    cb(integrator)
+    cb(integrator; from_initialize=true)
 
     return cb
 end
@@ -227,10 +227,19 @@ function (pp::PostprocessCallback)(u, t, integrator)
 end
 
 # `affect!`
-function (pp::PostprocessCallback)(integrator)
+function (pp::PostprocessCallback)(integrator; from_initialize=false)
     @trixi_timeit timer() "apply postprocess cb" begin
-        dv_ode, du_ode = get_du(integrator).x
         vu_ode = integrator.u
+        if from_initialize
+            # Avoid calling `get_du` here, since it will call the RHS function
+            # if it is called before the first time step.
+            # This would cause problems with `semi.update_callback_used`,
+            # which might not yet be set to `true` at this point if the `UpdateCallback`
+            # comes AFTER the `PostprocessCallback` in the `CallbackSet`.
+            dv_ode, du_ode = zero(vu_ode).x
+        else
+            dv_ode, du_ode = get_du(integrator).x
+        end
         v_ode, u_ode = vu_ode.x
         semi = integrator.p
         t = integrator.t
