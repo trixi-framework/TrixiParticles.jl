@@ -516,12 +516,20 @@ function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_
     coordinates = current_coordinates(u, system)
     initial_coordinates_ = initial_coordinates(system)
     velocity = [current_velocity(v, system, particle) for particle in eachparticle(system)]
-    clamped_particles = (n_integrated_particles(system) + 1):nparticles(system)
-    acceleration = hcat(dv, view(system.cache.acceleration, :, clamped_particles))
+    acceleration = system_data_acceleration(dv, system, system.clamped_particles_motion)
 
     return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
             material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
             lame_lambda, lame_mu, acceleration)
+end
+
+function system_data_acceleration(dv, system::TotalLagrangianSPHSystem, ::Nothing)
+    return dv
+end
+
+function system_data_acceleration(dv, system::TotalLagrangianSPHSystem, ::PrescribedMotion)
+    clamped_particles = (n_integrated_particles(system) + 1):nparticles(system)
+    return hcat(dv, view(system.cache.acceleration, :, clamped_particles))
 end
 
 function available_data(::TotalLagrangianSPHSystem)
