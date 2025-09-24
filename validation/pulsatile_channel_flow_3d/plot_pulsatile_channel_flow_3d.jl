@@ -64,7 +64,8 @@ yticks = (range(1, 100, length=3), ["R" "0" "R"])
 
 p = scatter(x_run, y_run, color=:red, opacity=0.5, xminorticks=6, xminorgrid=1,
             minorgridalpha=0.4, label=["numerical" "" "" "" "" "" "" "" "" "" "" "" ""])
-plot!(p, x_analytic, y_analytic, legend=false, xlabel="time (s)", ylabel="radial coordinate",
+plot!(p, x_analytic, y_analytic, legend=false, xlabel="time (s)",
+      ylabel="radial coordinate",
       linewidth=2, linestyle=:dash, xticks=xticks, yticks=yticks, color=:black,
       size=(1000, 300), label=["analytical" "" "" "" "" "" "" "" "" "" "" "" ""])
 
