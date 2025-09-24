@@ -404,7 +404,8 @@ function initialize_neighborhood_searches!(semi)
             PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
                                        initial_coordinates(system),
                                        initial_coordinates(neighbor),
-                                       eachindex_y=each_active_particle(neighbor))
+                                       eachindex_y=each_active_particle(neighbor),
+                                       parallelization_backend=semi.parallelization_backend)
         end
     end
 
@@ -459,7 +460,13 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
-    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system, semi), systems)
+    return minimum(systems) do system
+        if system isa TotalLagrangianSPHSystem && !semi.integrate_tlsph[]
+            # Skip TLSPH systems if they are not integrated
+            return Inf
+        end
+        return calculate_dt(v_ode, u_ode, cfl_number, system, semi)
+    end
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
@@ -536,6 +543,23 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     end
 
     return dv_ode
+end
+
+@inline save_acceleration!(system, dv_ode, semi) = system
+
+@inline function save_acceleration!(system::TotalLagrangianSPHSystem, dv_ode, semi)
+    if semi.integrate_tlsph[]
+        # Save the acceleration in the system
+        dv = wrap_v(dv_ode, system, semi)
+
+        @threaded semi for particle in each_moving_particle(system)
+            for i in 1:ndims(system)
+                system.cache.acceleration[i, particle] = dv[i, particle]
+            end
+        end
+    end
+
+    return system
 end
 
 # Update the systems and neighborhood searches (NHS) for a simulation
