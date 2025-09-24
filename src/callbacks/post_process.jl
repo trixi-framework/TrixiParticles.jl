@@ -234,8 +234,8 @@ function (pp::PostprocessCallback)(integrator; from_initialize=false)
             # Avoid calling `get_du` here, since it will call the RHS function
             # if it is called before the first time step.
             # This would cause problems with `semi.update_callback_used`,
-            # which might be set to `true` AFTER this call here if the `UpdateCallback`
-            # comes after the `SolutionSavingCallback` in the `CallbackSet`.
+            # which might not yet be set to `true` at this point if the `UpdateCallback`
+            # comes AFTER the `PostprocessCallback` in the `CallbackSet`.
             dv_ode, du_ode = zero(vu_ode).x
         else
             dv_ode, du_ode = get_du(integrator).x
