@@ -7,7 +7,7 @@ using Bessels
 particle_spacing_factor = 30
 
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "pulsatile_channel_flow_3d.jl"),
+              joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
               particle_spacing_factor=particle_spacing_factor, sol=nothing)
 
 # Analytical velocity evolution given in eq. 18
@@ -16,12 +16,13 @@ function womersley_velocity_profile(r, t)
     kinematic_viscosity = dynamic_viscosity / fluid_density
     alpha = pipe_radius * sqrt(omega / kinematic_viscosity)
 
-    amp_pressure(n) = 25 #* cos(n * omega * t)
+    # pressure gradient magnitute for the frequency
+    pressure_gradient = -25
 
     v_x = 0.0
 
-    for n in 1:5
-        amp = im * amp_pressure(n) / (fluid_density * n * omega)
+    for n in 1
+        amp = im * pressure_gradient / (fluid_density * n * omega)
 
         term_1 = besselj0(alpha * sqrt(n) * im^(3 / 2) * r / pipe_radius)
         term_2 = besselj0(alpha * sqrt(n) * im^(3 / 2))
@@ -34,71 +35,72 @@ function womersley_velocity_profile(r, t)
     return v_x
 end
 
-output_directory = joinpath(examples_dir(), validation_dir(), "pulsatile_channel_flow_3d")
+# line_colors = cgrad(:coolwarm, length(time_range), categorical=true)
+# p = plot(palette=line_colors.colors)
+# for t in time_range
+#     plot!(p, (r) -> womersley_velocity_profile(r, t), xlims=(-pipe_radius, pipe_radius),
+#           ylims=(-5e-3, 5e-3), label="t = $(round(t, digits=3))", linewidth=3,
+#           linestyle=:dash)
+# end
+# p
 
-data = TrixiParticles.CSV.read(joinpath(output_directory,
-                                        "result_vx" * "_dp_$particle_spacing_factor" *
-                                        ".csv"),
-                               TrixiParticles.DataFrame)
+# Zeitpunkte und Radialpositionen
+times = range(0, 2π, length=13)  # 12 Zeitpunkte über 2 Perioden
+r_vals = range(-pipe_radius, pipe_radius, length=100)
+velocity_grid = range(0, 13 * 5e-3, length=13)
+velocities = stack([womersley_velocity_profile.(r, times) for r in r_vals])
+velocities_shifted = copy(velocities')
 
-times = data[!, "time"]
-times_ref = [0.03, 0.05, 0.07, 0.14, 0.3, 1.0]
-positions = range(-pipe_radius, pipe_radius, length=100)
-data_range = 10:90
-data_indices = findall(t -> t in times_ref, times)
-v_x_vector = [eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]][data_indices]
-
-# Calculate RMSEP error (eq. 17, Zhang et al.)
-rmsep_run = Float64[]
-for (i, t) in enumerate(times_ref)
-    N = length(data_range)
-    res = sum(data_range, init=0) do j
-        v_x = v_x_vector[i][j]
-
-        v_analytical = hagen_poiseuille_velocity(positions[j], t)
-
-        # Avoid dividing by zero
-        v_analytical < sqrt(eps()) && return 0.0
-
-        rel_err = (v_analytical - v_x) / v_analytical
-
-        return rel_err^2 / N
-    end
-
-    push!(rmsep_run, sqrt(res) * 100)
+for i in eachindex(velocity_grid)
+    velocities_shifted[:, i] .+= velocity_grid[i]
 end
 
-# RMSEP error (%) from Zhang et al. (2025)
-rmsep_reference = [2.97, 1.88, 1.61, 1.5, 0.74, 0.89]
+A = velocities_shifted
+xs = [A[:, j] for j in 1:size(A, 2)]
+ys = fill(1:size(A, 1), size(A, 2))
+xticks = (range(0, 13 * 5e-3, length=3), ["0" "pi" "2pi"])   # Positionen + Labels
+yticks = (range(1, 100, length=3), ["R" "0" "R"])             # jede 20. Zeile
 
-p_rmsep = scatter(collect(times_ref), rmsep_run, markersize=5, label="TrixiP")
-scatter!(p_rmsep, collect(times_ref), rmsep_reference, marker=:x, markersize=5,
-         markerstrokewidth=3, label="Zhang et al. (2025)")
+p = plot(xs, ys, legend=false, xlabel="time", ylabel="radial coordinate",
+         xticks=xticks, yticks=yticks, color=:black, size=(900, 300))
 
-yaxis!(p_rmsep, ylabel="RMSEP error (%)", ylims=(0, 7))
-xaxis!(p_rmsep, xlabel="t", xlims=(0, 1.2))
-plot!(left_margin=5Plots.mm)
-plot!(right_margin=5Plots.mm)
-plot!(bottom_margin=5Plots.mm)
+plot!(p, left_margin=5Plots.mm)
+plot!(p, bottom_margin=5Plots.mm)
+p
 
-@show p_rmsep
+# # Oberer Plot: Druckgradient
+# p1 = plot(range(0, 4π, length=100), t -> cos(t),
+#           xlabel="Time (s)", ylabel="Pressure gradient",
+#           title="", linewidth=2, legend=false,
+#           xlims=(0, 4π), grid=true)
 
-plot_range = range(-pipe_radius, pipe_radius, length=50)
-v_x_plot = view(stack(v_x_vector), 1:2:100, :)
-label_ = "TrixiP (" .* ["0.1" "0.3" "0.6" "0.9" "∞"] .* " s)"
-line_colors = cgrad(:coolwarm, length(times_ref), categorical=true)
+# # Xticks bei Vielfachen von π
+# # plot!(p1, xticks=([0, 2π, 3π, 4π], ["0", "2π", "3π", "4π"]))
 
-p = scatter(plot_range, v_x_plot, label=label_, linewidth=3, markersize=5, opacity=0.6,
-            palette=line_colors.colors, legend_position=:outerright)
-for t in times_ref
-    label_ = t == 1.0 ? "analytical" : nothing
-    plot!(p, (y) -> hagen_poiseuille_velocity(y, t), xlims=(-pipe_radius, pipe_radius),
-          ylims=(-0.001, 0.005), label=label_, linewidth=3, linestyle=:dash, color=:black)
-end
+# # # Unterer Plot: Geschwindigkeitsprofile
+# # p2 = plot(xlabel="Velocity (m/s)", ylabel="Radial coordinate",
+# #           legend=:topright, grid=true, ylims=(-pipe_radius, pipe_radius),
+# #           gridwidth=1, gridcolor=:gray, gridalpha=0.3)
 
-yaxis!(p, ylabel="x velocity (m/s)")
-xaxis!(p, xlabel="y position (m)")
-plot!(left_margin=5Plots.mm)
-plot!(bottom_margin=5Plots.mm)
+# # # Geschwindigkeitsprofile für verschiedene Zeitpunkte plotten
+# # for (i, t) in enumerate(times)
+# #     velocities = [womersley_velocity_profile(abs(r), t) for r in r_vals]
 
-@show p
+# #     if i == 1
+# #         plot!(p2, velocities, r_vals, linewidth=2, color=:red,
+# #               label="Analytical", alpha=0.9)
+# #         scatter!(p2, velocities[1:15:end], r_vals[1:15:end],
+# #                  markersize=2, color=:red, markerstrokewidth=0,
+# #                  label="Numerical", alpha=0.7, markershape=:circle)
+# #     else
+# #         plot!(p2, velocities, r_vals, linewidth=2, color=:red,
+# #               label="", alpha=0.9)
+# #         scatter!(p2, velocities[1:15:end], r_vals[1:15:end],
+# #                  markersize=2, color=:red, markerstrokewidth=0,
+# #                  label="", alpha=0.7, markershape=:circle)
+# #     end
+# # end
+
+# # # Beide Plots kombinieren
+# # plot(p1, p2, layout=(2, 1), size=(800, 600),
+# #      left_margin=5Plots.mm, bottom_margin=5Plots.mm)
