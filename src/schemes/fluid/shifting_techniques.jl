@@ -7,7 +7,7 @@ abstract type AbstractShiftingTechnique end
 # The version for a specific system type will override this generic version.
 requires_update_callback(system) = requires_update_callback(shifting_technique(system))
 requires_update_callback(::Nothing) = false
-requires_update_callback(::AbstractShiftingTechnique) = true
+requires_update_callback(::AbstractShiftingTechnique) = false
 
 # This is called from the `UpdateCallback`
 particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, dt) = u_ode
@@ -301,6 +301,10 @@ function ConsistentShiftingSun2019(; kwargs...)
                                      v_max_factor=0, sound_speed_factor=0.1,
                                      kwargs...)
 end
+
+# `ParticleShiftingTechnique{<:Any, false}` means `update_everystage=false`,
+# so the `UpdateCallback` is required to update the shifting velocity.
+requires_update_callback(::ParticleShiftingTechnique{<:Any, false}) = true
 
 # `ParticleShiftingTechnique{false}` means `integrate_shifting_velocity=false`.
 # Zero if PST is applied in a callback as a position correction
