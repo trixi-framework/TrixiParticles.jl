@@ -140,7 +140,8 @@ end
     @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
             du_system[i,
-                      particle] = duprev_system[i, particle] + dt * kdu_system[i, particle]
+                      particle] = duprev_system[i, particle] +
+                                  dt * kdu_system[i, particle]
         end
     end
 end
