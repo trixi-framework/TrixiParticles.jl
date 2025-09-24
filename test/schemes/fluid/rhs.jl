@@ -2,6 +2,7 @@
     @testset verbose=true "`pressure_acceleration`" begin
         # Use `@trixi_testset` to isolate the mock functions in a separate namespace
         @trixi_testset "Symmetry" begin
+            TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
             masses = [[0.01, 0.01], [0.73, 0.31]]
             densities = [
                 [1000.0, 1000.0],
@@ -53,7 +54,8 @@
                         (p_a, p_b) in pressures, grad_kernel in grad_kernels
                         @testset verbose=true "$system_name" for system_name in [
                             "WCSPH",
-                            "EDAC"
+                            "EDAC",
+                            "IISPH"
                         ]
                             if system_name == "WCSPH"
                                 system = WeaklyCompressibleSPHSystem(fluid,
@@ -68,6 +70,12 @@
                                                                      smoothing_length, 0.0;
                                                                      density_calculator,
                                                                      pressure_acceleration)
+                            elseif system_name == "IISPH"
+                                system = ImplicitIncompressibleSPHSystem(fluid,
+                                                                         smoothing_kernel,
+                                                                         smoothing_length,
+                                                                         1000.0,
+                                                                         time_step=0.001)
                             end
 
                             # Compute accelerations a -> b and b -> a
@@ -131,21 +139,35 @@
                                                           pressure_acceleration=nothing,
                                                           density_calculator=density_calculator,
                                                           smoothing_length, 0.0)
+
+                system_iisph = ImplicitIncompressibleSPHSystem(fluid, smoothing_kernel,
+                                                               smoothing_length, 1000.0,
+                                                               time_step=0.001)
+
                 n_particles = TrixiParticles.nparticles(system_edac)
 
                 # Overwrite `system.pressure` because we skip the update step
                 system_wcsph.pressure .= fluid.pressure
-                @testset "`$(nameof(typeof(system)))`" for system in (system_wcsph,
-                                                            system_edac)
+                system_iisph.pressure .= fluid.pressure
+                if density_calculator isa TrixiParticles.SummationDensity
+                    systems = (system_wcsph, system_edac, system_iisph)
+                else
+                    # IISPH is always using `SummationDensity``
+                    systems = (system_wcsph, system_edac)
+                end
+                @testset "`$(nameof(typeof(system)))`" for system in systems
                     u = fluid.coordinates
                     if density_calculator isa SummationDensity
                         # Density is stored in the cache
                         v = fluid.velocity
-                        system.cache.density .= fluid.density
-
-                        if system isa EntropicallyDampedSPHSystem
-                            # pressure is integrated
+                        if system isa WeaklyCompressibleSPHSystem
+                            system.cache.density .= fluid.density
+                        elseif system isa EntropicallyDampedSPHSystem
+                            # Pressure is integrated
+                            system.cache.density .= fluid.density
                             v = vcat(fluid.velocity, fluid.pressure')
+                        else
+                            system.density .= fluid.density
                         end
                     else
                         # Density is integrated with `ContinuityDensity`

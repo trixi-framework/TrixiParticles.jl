@@ -2,9 +2,13 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::TotalLagrangianSPHSystem, semi)
+                   neighbor_system::TotalLagrangianSPHSystem, semi;
+                   integrate_tlsph=semi.integrate_tlsph[])
     # Different structures do not interact with each other (yet)
-    particle_system !== neighbor_system && return dv
+    particle_system === neighbor_system || return dv
+
+    # Skip interaction if TLSPH systems are integrated separately
+    integrate_tlsph || return dv
 
     interact_structure_structure!(dv, v_particle_system, particle_system, semi)
 end
@@ -22,8 +26,8 @@ end
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        initial_pos_diff,
                                                                        initial_distance
-        # Only consider particles with a distance > 0
-        initial_distance < sqrt(eps()) && return
+        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+        initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
 
         rho_a = @inbounds system.material_density[particle]
         rho_b = @inbounds system.material_density[neighbor]
@@ -51,10 +55,10 @@ end
                                           current_pos_diff, current_distance,
                                           m_a, m_b, rho_a, rho_b, grad_kernel)
 
+        dv_particle = dv_stress + dv_penalty_force_ + dv_viscosity
+
         for i in 1:ndims(system)
-            @inbounds dv[i,
-                         particle] += dv_stress[i] + dv_penalty_force_[i] +
-                                      dv_viscosity[i]
+            @inbounds dv[i, particle] += dv_particle[i]
         end
 
         # TODO continuity equation for boundary model with `ContinuityDensity`?
@@ -67,7 +71,11 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::AbstractFluidSystem, semi)
+                   neighbor_system::AbstractFluidSystem, semi;
+                   integrate_tlsph=semi.integrate_tlsph[])
+    # Skip interaction if TLSPH systems are integrated separately
+    integrate_tlsph || return dv
+
     sound_speed = system_sound_speed(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -80,8 +88,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Only consider particles with a distance > 0
-        distance < sqrt(eps()) && return
+        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
 
         # Apply the same force to the structure particle
         # that the fluid particle experiences due to the structure particle.
@@ -169,7 +177,8 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem}, semi)
+                   neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem}, semi;
+                   integrate_tlsph=semi.integrate_tlsph[])
     # TODO continuity equation?
     return dv
 end

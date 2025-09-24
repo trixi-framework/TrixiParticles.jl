@@ -102,7 +102,7 @@ end
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
 function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, fluid_system, density, pressure) = system
+    (; volume, cache, fluid_system, smoothing_length) = system
     (; characteristics, previous_characteristics) = cache
 
     @threaded semi for particle in eachparticle(system)
@@ -165,8 +165,9 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # of fluid particles by using the average of the values of the previous time step.
     # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
     @threaded semi for particle in each_integrated_particle(system)
-        # Particle is outside of the influence of fluid particles
-        if isapprox(volume[particle], 0)
+        # Particle is outside of the influence of fluid particles.
+        # `volume` is in the order of 1 / h^d, so volume * h^d is in the order of 1.
+        if volume[particle] * smoothing_length^ndims(system) < eps(eltype(smoothing_length))
 
             # Using the average of the values at the previous time step for particles which
             # are outside of the influence of fluid particles.
@@ -178,7 +179,9 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
             for neighbor in each_integrated_particle(system)
                 # Make sure that only neighbors in the influence of
                 # the fluid particles are used.
-                if volume[neighbor] > sqrt(eps())
+                # `volume` is in the order of 1 / h^d, so volume * h^d is in the order of 1.
+                if volume[neighbor] * smoothing_length^ndims(system) >
+                   eps(eltype(smoothing_length))
                     avg_J1 += previous_characteristics[1, neighbor]
                     avg_J2 += previous_characteristics[2, neighbor]
                     avg_J3 += previous_characteristics[3, neighbor]
