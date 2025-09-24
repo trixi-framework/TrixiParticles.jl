@@ -4,7 +4,7 @@ using Bessels
 
 # TODO
 
-particle_spacing_factor = 20
+particle_spacing_factor = 30
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "pulsatile_channel_flow_3d.jl"),

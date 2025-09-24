@@ -11,7 +11,7 @@
 # ==========================================================================================
 using TrixiParticles
 
-particle_spacing_factor = 10
+particle_spacing_factor = 30
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
               tspan=(0.0, 1.0), sol=nothing,

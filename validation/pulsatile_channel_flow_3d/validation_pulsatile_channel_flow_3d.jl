@@ -12,7 +12,7 @@ function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem{3},
     return values.velocity[1, :]
 end
 
-particle_spacing_factor = 10
+particle_spacing_factor = 30
 output_directory = joinpath(validation_dir(), "pulsatile_channel_flow_3d")
 pp_callback = PostprocessCallback(; dt=0.01, output_directory=output_directory,
                                   v_x=v_x_interpolated,
