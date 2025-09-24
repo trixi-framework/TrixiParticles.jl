@@ -34,7 +34,7 @@ initial_velocity = (1.0, 0.0)
 particle_spacing = fin_thickness / (n_particles_y - 1)
 fluid_particle_spacing = particle_spacing
 
-smoothing_length_solid = sqrt(2) * particle_spacing
+smoothing_length_structure = sqrt(2) * particle_spacing
 smoothing_length_fluid = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
@@ -57,14 +57,14 @@ n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_s
                              n_particles_y)
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
-# from the boundary, which is correct for fluids, but not for solids.
+# from the boundary, which is correct for fluids, but not for structures.
 # We therefore need to pass `place_on_shell=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
                         (-length_clamp, 0.0), density=density, place_on_shell=true)
 
 fixed_particles = setdiff(shape_sampled, beam)
 
-# solid = union(beam, fixed_particles)
+# structure = union(beam, fixed_particles)
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 4
@@ -73,7 +73,7 @@ fluid_density = 1000.0
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
                        faces=(false, false, true, true), velocity=initial_velocity)
-# fluid = setdiff(tank.fluid, solid)
+# fluid = setdiff(tank.fluid, structure)
 
 # ==========================================================================================
 # ==== Packing
@@ -121,10 +121,10 @@ packed_foot = InitialCondition(sol_packing, foot_packing_system, semi_packing)
 packed_foot.coordinates .+= center
 beam.coordinates .+= center
 
-solid = union(beam, packed_foot)
-fluid = setdiff(tank.fluid, solid)
+structure = union(beam, packed_foot)
+fluid = setdiff(tank.fluid, structure)
 
-n_fixed_particles = nparticles(solid) - nparticles(beam)
+n_clamped_particles = nparticles(structure) - nparticles(beam)
 
 # Pack the fluid against the fin and the tank boundary
 pack_window = TrixiParticles.Polygon(stack([
@@ -144,7 +144,7 @@ pack_window = TrixiParticles.Polygon(stack([
 pack_fluid = intersect(fluid, pack_window)
 # and those outside the window
 fixed_fluid = setdiff(fluid, pack_fluid)
-fixed_union = union(fixed_fluid, solid)
+fixed_union = union(fixed_fluid, structure)
 
 fluid_packing_system = ParticlePackingSystem(pack_fluid; smoothing_length=smoothing_length_packing,
                                              signed_distance_field=nothing, background_pressure)
@@ -175,42 +175,42 @@ rotation_phase_offset = 0.12 # periods
 translation_vector = SVector(0.0, amplitude)
 rotation_angle = rotation_deg * pi / 180
 
-boundary_movement = TrixiParticles.oscillating_movement(frequency,
-                                                        SVector(0.0, amplitude),
-                                                        rotation_angle, center;
-                                                        rotation_phase_offset, ramp_up=0.5)
+boundary_motion = OscillatingMotion2D(; frequency,
+                                      translation_vector=SVector(0.0, amplitude),
+                                      rotation_angle, rotation_center=center,
+                                      rotation_phase_offset, ramp_up_tspan=(0.0, 0.5))
 
 sound_speed = 40.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1, background_pressure=0.0)
 
 # ==========================================================================================
-# ==== Solid
+# ==== Structure
 boundary_density_calculator = AdamiPressureExtrapolation()
 viscosity_fluid = ViscosityAdami(nu=1e-4)
 viscosity_fin = ViscosityAdami(nu=1e-4)
 
-# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-hydrodynamic_densites = fluid_density * ones(size(solid.density))
+# For the FSI we need the hydrodynamic masses and densities in the structure boundary model
+hydrodynamic_densites = fluid_density * ones(size(structure.density))
 hydrodynamic_masses = hydrodynamic_densites * particle_spacing^2
 
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    hydrodynamic_masses,
                                                    state_equation=state_equation,
                                                    boundary_density_calculator,
                                                    smoothing_kernel, smoothing_length_fluid,
                                                    viscosity=viscosity_fin)
 
-# k_solid = 1.0
-# beta_solid = fluid_particle_spacing / particle_spacing
-# boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
+# k_structure = 1.0
+# beta_structure = fluid_particle_spacing / particle_spacing
+# boundary_model_structure = BoundaryModelMonaghanKajtar(k_structure, beta_structure,
 #                                                    particle_spacing,
 #                                                    hydrodynamic_masses)
 
-solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length_solid,
+structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothing_length_structure,
                                         modulus, poisson_ratio;
-                                        n_fixed_particles, movement=boundary_movement,
-                                        boundary_model=boundary_model_solid,
+                                        n_clamped_particles, clamped_particles_motion=boundary_motion,
+                                        boundary_model=boundary_model_structure,
                                         viscosity=ArtificialViscosityMonaghan(alpha=0.01),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
@@ -238,7 +238,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length_fluid)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
@@ -248,7 +248,7 @@ periodic_box = PeriodicBox(; min_corner, max_corner)
 cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list, update_strategy=ParallelUpdate())
 
-semi = Semidiscretization(fluid_system, boundary_system, solid_system; neighborhood_search,
+semi = Semidiscretization(fluid_system, boundary_system, structure_system; neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
