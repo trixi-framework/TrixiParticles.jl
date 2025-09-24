@@ -1057,6 +1057,15 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     end
 end
 
+function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
+    foreach_system(systems) do neighbor
+        if neighbor isa WeaklyCompressibleSPHSystem
+            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
+            `WeaklyCompressibleSPHSystem`"))
+        end
+    end
+end
+
 function check_configuration(system::OpenBoundarySystem, systems,
                              neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
     (; boundary_model, boundary_zones) = system
