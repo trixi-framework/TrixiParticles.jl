@@ -517,7 +517,7 @@ function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_
     initial_coordinates_ = initial_coordinates(system)
     velocity = [current_velocity(v, system, particle) for particle in eachparticle(system)]
     clamped_particles = (n_integrated_particles(system) + 1):nparticles(system)
-    acceleration = vcat(dv, view(system.cache.acceleration, :, clamped_particles))
+    acceleration = hcat(dv, view(system.cache.acceleration, :, clamped_particles))
 
     return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
             material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
