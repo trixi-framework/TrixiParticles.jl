@@ -1,6 +1,5 @@
 @doc raw"""
-    TotalLagrangianSPHSystem(initial_condition,
-                             smoothing_kernel, smoothing_length,
+    TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio;
                              n_clamped_particles=0, clamped_particles_motion=nothing,
                              boundary_model=nothing,
@@ -180,11 +179,29 @@ end
 end
 
 @inline function current_velocity(v, system::TotalLagrangianSPHSystem, particle)
-    if particle > n_integrated_particles(system)
-        return zero(SVector{ndims(system), eltype(system)})
+    if particle <= system.n_integrated_particles
+        return extract_svector(v, system, particle)
     end
 
-    return extract_svector(v, system, particle)
+    return current_clamped_velocity(v, system, system.clamped_particles_motion, particle)
+end
+
+@inline function current_clamped_velocity(v, system, prescribed_motion, particle)
+    (; cache, clamped_particles_moving) = system
+
+    if clamped_particles_moving[]
+        return extract_svector(cache.velocity, system, particle)
+    end
+
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+@inline function current_clamped_velocity(v, system, prescribed_motion::Nothing, particle)
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+@inline function current_velocity(v, system::TotalLagrangianSPHSystem)
+    error("`current_velocity(v, system)` is not implemented for `TotalLagrangianSPHSystem`")
 end
 
 @inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
@@ -498,11 +515,13 @@ function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_
 
     coordinates = current_coordinates(u, system)
     initial_coordinates_ = initial_coordinates(system)
-    velocity = current_velocity(v, system)
+    velocity = [current_velocity(v, system, particle) for particle in eachparticle(system)]
+    clamped_particles = (n_integrated_particles(system) + 1):nparticles(system)
+    acceleration = vcat(dv, view(system.cache.acceleration, :, clamped_particles))
 
     return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
             material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
-            lame_lambda, lame_mu, acceleration=current_velocity(dv, system))
+            lame_lambda, lame_mu, acceleration)
 end
 
 function available_data(::TotalLagrangianSPHSystem)

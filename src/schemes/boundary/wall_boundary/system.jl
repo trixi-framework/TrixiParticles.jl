@@ -104,7 +104,7 @@ end
     return current_velocity(v, system, system.prescribed_motion, particle)
 end
 
-@inline function current_velocity(v, system, movement, particle)
+@inline function current_velocity(v, system, prescribed_motion, particle)
     (; cache, ismoving) = system
 
     if ismoving[]
@@ -114,7 +114,7 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_velocity(v, system, movement::Nothing, particle)
+@inline function current_velocity(v, system, prescribed_motion::Nothing, particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
 
