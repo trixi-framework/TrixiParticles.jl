@@ -2,12 +2,9 @@ using TrixiParticles
 using Plots
 using Bessels
 
-# TODO
-
 particle_spacing_factor = 30
 
-trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
               particle_spacing_factor=particle_spacing_factor, sol=nothing)
 
 # Analytical velocity evolution given in eq. 18
@@ -35,72 +32,42 @@ function womersley_velocity_profile(r, t)
     return v_x
 end
 
-# line_colors = cgrad(:coolwarm, length(time_range), categorical=true)
-# p = plot(palette=line_colors.colors)
-# for t in time_range
-#     plot!(p, (r) -> womersley_velocity_profile(r, t), xlims=(-pipe_radius, pipe_radius),
-#           ylims=(-5e-3, 5e-3), label="t = $(round(t, digits=3))", linewidth=3,
-#           linestyle=:dash)
-# end
-# p
+output_directory = joinpath(examples_dir(), validation_dir(), "pulsatile_channel_flow_3d")
 
-# Zeitpunkte und Radialpositionen
-times = range(0, 2π, length=13)  # 12 Zeitpunkte über 2 Perioden
-r_vals = range(-pipe_radius, pipe_radius, length=100)
-velocity_grid = range(0, 13 * 5e-3, length=13)
-velocities = stack([womersley_velocity_profile.(r, times) for r in r_vals])
-velocities_shifted = copy(velocities')
+data = TrixiParticles.CSV.read(joinpath(output_directory,
+                                        "result_vx" * "_dp_$particle_spacing_factor" *
+                                        ".csv"), TrixiParticles.DataFrame)
+
+times = round.(data[!, "time"], digits=2)
+times_ref = round.(range(2pi, 4pi, step=0.51), digits=2)
+positions = range(-pipe_radius, pipe_radius, length=100)
+data_indices = findall(t -> t in times_ref, times)
+v_x_vector = stack([eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]][data_indices])
+
+velocity_grid = range(0, length(times_ref) * 5e-3, length=length(times_ref))
+velocities_analytic = stack([womersley_velocity_profile.(r, times_ref) for r in positions])'
 
 for i in eachindex(velocity_grid)
-    velocities_shifted[:, i] .+= velocity_grid[i]
+    velocities_analytic[:, i] .+= velocity_grid[i]
+    v_x_vector[:, i] .+= velocity_grid[i]
 end
 
-A = velocities_shifted
-xs = [A[:, j] for j in 1:size(A, 2)]
-ys = fill(1:size(A, 1), size(A, 2))
-xticks = (range(0, 13 * 5e-3, length=3), ["0" "pi" "2pi"])   # Positionen + Labels
-yticks = (range(1, 100, length=3), ["R" "0" "R"])             # jede 20. Zeile
+x_analytic = [velocities_analytic[:, j] for j in 1:size(velocities_analytic, 2)]
+y_analytic = fill(1:size(velocities_analytic, 1), size(velocities_analytic, 2))
 
-p = plot(xs, ys, legend=false, xlabel="time", ylabel="radial coordinate",
-         xticks=xticks, yticks=yticks, color=:black, size=(900, 300))
+x_run = [v_x_vector[1:3:100, j] for j in 1:size(v_x_vector, 2)]
+y_run = fill(1:3:size(v_x_vector, 1), size(v_x_vector, 2))
 
-plot!(p, left_margin=5Plots.mm)
-plot!(p, bottom_margin=5Plots.mm)
+xticks = (range(0, length(times_ref) * 5e-3, length=3), ["2π" "3π" "4π"])
+xminorticks = collect(velocity_grid)
+yticks = (range(1, 100, length=3), ["R" "0" "R"])
+
+p = scatter(x_run, y_run, color=:red, opacity=0.5, xminorticks=6, xminorgrid=1,
+            minorgridalpha=0.4, label=["numerical" "" "" "" "" "" "" "" "" "" "" "" ""])
+plot!(p, x_analytic, y_analytic, legend=false, xlabel="time (s)", ylabel="radial coordinate",
+      linewidth=2, linestyle=:dash, xticks=xticks, yticks=yticks, color=:black,
+      size=(1000, 300), label=["analytical" "" "" "" "" "" "" "" "" "" "" "" ""])
+
+plot!(p, left_margin=5Plots.mm, bottom_margin=5Plots.mm)
+plot!(p, legend_position=:outerright)
 p
-
-# # Oberer Plot: Druckgradient
-# p1 = plot(range(0, 4π, length=100), t -> cos(t),
-#           xlabel="Time (s)", ylabel="Pressure gradient",
-#           title="", linewidth=2, legend=false,
-#           xlims=(0, 4π), grid=true)
-
-# # Xticks bei Vielfachen von π
-# # plot!(p1, xticks=([0, 2π, 3π, 4π], ["0", "2π", "3π", "4π"]))
-
-# # # Unterer Plot: Geschwindigkeitsprofile
-# # p2 = plot(xlabel="Velocity (m/s)", ylabel="Radial coordinate",
-# #           legend=:topright, grid=true, ylims=(-pipe_radius, pipe_radius),
-# #           gridwidth=1, gridcolor=:gray, gridalpha=0.3)
-
-# # # Geschwindigkeitsprofile für verschiedene Zeitpunkte plotten
-# # for (i, t) in enumerate(times)
-# #     velocities = [womersley_velocity_profile(abs(r), t) for r in r_vals]
-
-# #     if i == 1
-# #         plot!(p2, velocities, r_vals, linewidth=2, color=:red,
-# #               label="Analytical", alpha=0.9)
-# #         scatter!(p2, velocities[1:15:end], r_vals[1:15:end],
-# #                  markersize=2, color=:red, markerstrokewidth=0,
-# #                  label="Numerical", alpha=0.7, markershape=:circle)
-# #     else
-# #         plot!(p2, velocities, r_vals, linewidth=2, color=:red,
-# #               label="", alpha=0.9)
-# #         scatter!(p2, velocities[1:15:end], r_vals[1:15:end],
-# #                  markersize=2, color=:red, markerstrokewidth=0,
-# #                  label="", alpha=0.7, markershape=:circle)
-# #     end
-# # end
-
-# # # Beide Plots kombinieren
-# # plot(p1, p2, layout=(2, 1), size=(800, 600),
-# #      left_margin=5Plots.mm, bottom_margin=5Plots.mm)
