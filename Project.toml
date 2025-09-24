@@ -1,7 +1,7 @@
 name = "TrixiParticles"
 uuid = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
 authors = ["erik.faulhaber <44124897+efaulhaber@users.noreply.github.com>"]
-version = "0.4"
+version = "0.4.1-dev"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -62,6 +62,7 @@ RecipesBase = "1"
 Reexport = "1"
 SciMLBase = "2"
 StaticArrays = "1"
+Statistics = "1"
 StrideArraysCore = "0.5.7"
 TimerOutputs = "0.5.25"
 TrixiBase = "0.1.5"

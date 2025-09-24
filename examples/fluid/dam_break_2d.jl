@@ -133,6 +133,7 @@ stepsize_callback = StepsizeCallback(cfl=0.9)
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
                         density_reinit_cb, saving_paper)
 
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
+sol = solve(ode, time_integration_scheme,
             dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks);
