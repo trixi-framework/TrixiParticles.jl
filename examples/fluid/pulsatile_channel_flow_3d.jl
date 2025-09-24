@@ -23,7 +23,11 @@ function dynamic_pressure_drop(pos, t)
     return pressure_drop + (flow_length - pos[1]) / flow_length * pressure_drop * cos(t)
 end
 
+saving_callback = SolutionSavingCallback(dt=0.01, prefix="", output_directory="out")
+extra_callback = nothing
+
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
               tspan=(0.0, 12.6), particle_spacing_factor=particle_spacing_factor,
+              extra_callback=extra_callback, saving_callback=saving_callback, v_max=v_max,
               reference_pressure_in=dynamic_pressure_drop,
-              reference_pressure_out=dynamic_pressure_drop, v_max=v_max)
+              reference_pressure_out=dynamic_pressure_drop)
