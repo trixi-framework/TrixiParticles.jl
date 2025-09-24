@@ -2,7 +2,7 @@ using TrixiParticles
 using Plots
 using Bessels
 
-particle_spacing_factor = 30
+particle_spacing_factor = 40
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
               particle_spacing_factor=particle_spacing_factor, sol=nothing)
