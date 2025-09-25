@@ -137,4 +137,35 @@
             end
         end
     end
+
+    @testset verbose=true "integrated variables $(n_dims)D" for n_dims in (2, 3)
+        particle_spacing = 0.1
+        initial_condition = rectangular_patch(particle_spacing, ntuple(_ -> 2, n_dims))
+
+        boundary_face = n_dims == 2 ? ([0.0, 0.0], [0.0, 1.0]) :
+                        ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 1.0])
+        face_normal = n_dims == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]
+        inflow = BoundaryZone(; boundary_face, boundary_type=InFlow(), face_normal,
+                              open_boundary_layers=10, density=1.0, particle_spacing)
+
+        system_wcsph = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),
+                                                   nothing,
+                                                   SchoenbergCubicSplineKernel{n_dims}(), 1)
+
+        open_boundary_wcsph = OpenBoundarySystem(inflow; fluid_system=system_wcsph,
+                                                 buffer_size=0,
+                                                 boundary_model=BoundaryModelCharacteristicsLastiwka())
+
+        @test TrixiParticles.v_nvariables(open_boundary_wcsph) == n_dims
+
+        system_edac = EntropicallyDampedSPHSystem(initial_condition,
+                                                  SchoenbergCubicSplineKernel{n_dims}(),
+                                                  1.0, 1.0)
+
+        open_boundary_edac = OpenBoundarySystem(inflow; fluid_system=system_edac,
+                                                buffer_size=0,
+                                                boundary_model=BoundaryModelCharacteristicsLastiwka())
+
+        @test TrixiParticles.v_nvariables(open_boundary_edac) == n_dims
+    end
 end

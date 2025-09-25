@@ -43,3 +43,5 @@ function summation_density!(system, semi, u, u_ode, density;
         end
     end
 end
+
+@inline density_calculator(system) = system.density_calculator

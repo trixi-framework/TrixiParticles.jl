@@ -472,7 +472,8 @@ end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true}, boundary_model,
                                                   system,
-                                                  neighbor_system::AbstractFluidSystem,
+                                                  neighbor_system::Union{AbstractFluidSystem,
+                                                                         OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                   system_coords, neighbor_coords, v,
                                                   v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -495,7 +496,8 @@ end
 # pressure entry from different loop iterations.
 @inline function boundary_pressure_extrapolation!(parallel::Val{false}, boundary_model,
                                                   system,
-                                                  neighbor_system::AbstractFluidSystem,
+                                                  neighbor_system::Union{AbstractFluidSystem,
+                                                                         OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                   system_coords, neighbor_coords,
                                                   v, v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -516,9 +518,11 @@ end
 end
 
 @inline function boundary_pressure_inner!(boundary_model, boundary_density_calculator,
-                                          system, neighbor_system::AbstractFluidSystem, v,
-                                          v_neighbor_system, particle, neighbor, pos_diff,
-                                          distance, viscosity, cache, pressure,
+                                          system,
+                                          neighbor_system::Union{AbstractFluidSystem,
+                                                                 OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
+                                          v, v_neighbor_system, particle, neighbor,
+                                          pos_diff, distance, viscosity, cache, pressure,
                                           pressure_offset)
     density_neighbor = @inbounds current_density(v_neighbor_system, neighbor_system,
                                                  neighbor)
@@ -528,8 +532,9 @@ end
                                                 neighbor)
 
     # Hydrostatic pressure term from fluid and boundary acceleration
-    resulting_acceleration = neighbor_system.acceleration -
-                             @inbounds current_acceleration(system, particle)
+    # TODO: rename acceleration and add a function `system_external_acceleration`
+    resulting_acceleration = @inbounds acceleration_source(neighbor_system) -
+                                       @inbounds current_acceleration(system, particle)
     hydrostatic_pressure = dot(resulting_acceleration, density_neighbor * pos_diff)
 
     # Additional dynamic pressure term (only with `BernoulliPressureExtrapolation`)
