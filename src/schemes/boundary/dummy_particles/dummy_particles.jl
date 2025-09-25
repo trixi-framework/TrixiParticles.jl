@@ -66,7 +66,9 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator)...,
-             create_cache_model(correction, initial_density, NDIMS, n_particles)...)
+             create_cache_model(correction, initial_density, NDIMS, n_particles)...,
+             #  create_cache_model(density_calculator, initial_condition)...
+             )
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -178,6 +180,88 @@ struct PressureMirroring end
 """
 struct PressureZeroing end
 
+@doc raw"""
+    MarronePressureExtrapolation()
+
+`density_calculator` for `BoundaryModelDummyParticles`.
+
+!!! note
+    This boundary model was orignally proposed in [𝛿-SPH Model for Simulating Violent Impact Flows](https://www.researchgate.net/publication/241077909_-SPH_model_for_simulating_violent_impact_flows).
+"""
+struct MarronePressureExtrapolation end
+
+@doc raw"""
+    MarroneMLSKernel{NDIMS}()
+
+The Moving Least-Squares Kernel by Marrone et al. is used to compute the pressure of dummy particles for `MarronePressureExtrapolation`.
+"""
+
+struct MarroneMLSKernel{NDIMS} <: SmoothingKernel{NDIMS}
+    inner_kernel :: SmoothingKernel
+    basis        :: Array{Float64, 3}
+    momentum     :: Array{Float64, 3}
+end
+
+function MarroneMLSKernel{NDIMS}(inner_kernel::SmoothingKernel{NDIMS},
+                                 num_particles) where {NDIMS}
+    basis = zeros((num_particles, num_particles, NDIMS+1))
+    momentum = zeros((num_particles, NDIMS+1, NDIMS+1))
+    return MarroneMLSKernel{NDIMS}(inner_kernel, basis, momentum)
+end
+
+# Compute the Marrone MLS-Kernel for the points with indices i and j
+@inline function boundary_kernel_marrone(smoothing_kernel::MarroneMLSKernel, i, j, distance,
+                                         smoothing_length)
+    (; inner_kernel, basis, momentum) = smoothing_kernel
+    ndims = size(momentum, 2)
+    e = ndims == 3 ? [1.0, 0.0, 0.0] : [1.0, 0.0, 0.0, 0.0]
+
+    kernel_weight = kernel(inner_kernel, distance, smoothing_length)
+    M_inv = momentum[i, :, :]
+
+    return dot((M_inv * e), (basis[i, j, :] * kernel_weight))
+end
+
+function compute_basis_marrone(kernel::MarroneMLSKernel, system,
+                               system_coords::AbstractMatrix, semi)
+    (; basis) = kernel
+    basis .= 1
+    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
+        basis[particle, neighbor, :] = [1; -pos_diff]
+    end
+end
+
+function compute_momentum_marrone(kernel::MarroneMLSKernel, system, system_coords, semi,
+                                  volume, smoothing_length)
+    (; inner_kernel, basis, momentum) = kernel
+    momentum .= 0
+
+    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
+        kernel_weight = TrixiParticles.kernel(inner_kernel, distance, smoothing_length)
+        momentum[particle, :, :] += basis[particle, neighbor, :] .*
+                                    basis[neighbor, particle, :]' .*
+                                    kernel_weight .* volume[neighbor]
+    end
+
+    for particle in eachparticle(system)
+        momentum[particle, :, :] = inv(momentum[particle, :, :])
+    end
+end
+
+# I dont know if this is correct...
+@inline compact_support(kernel::MarroneMLSKernel,
+                        h) = compact_support(kernel.inner_kernel, h)
+
+struct DefaultKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+
+function kernel(kernel::DefaultKernel, r::Real, h)
+    return 1
+end
+
 @inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
 function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
@@ -202,7 +286,8 @@ function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_p
 end
 
 function create_cache_model(initial_density,
-                            ::Union{SummationDensity, PressureMirroring, PressureZeroing})
+                            ::Union{SummationDensity, PressureMirroring, PressureZeroing,
+                                    MarronePressureExtrapolation})
     density = copy(initial_density)
 
     return (; density)
@@ -212,7 +297,8 @@ end
 
 function create_cache_model(initial_density,
                             ::Union{AdamiPressureExtrapolation,
-                                    BernoulliPressureExtrapolation})
+                                    BernoulliPressureExtrapolation,
+                                    MarronePressureExtrapolation})
     density = copy(initial_density)
     volume = similar(initial_density)
 
@@ -228,6 +314,14 @@ function create_cache_model(viscosity, n_particles, n_dims)
 
     return (; wall_velocity)
 end
+
+# create_cache_model(density_calculator, initial_condition::InitialCondition) = (;)
+
+# function create_cache_model(density_calculator::MarronePressureExtrapolation, initial_condition::InitialCondition)
+#     (; coordinates, normals) = initial_condition
+#     interpolation_points = coordinates .+ 2 .* normals
+#     return (; interpolation_points)
+# end
 
 @inline reset_cache!(cache, viscosity) = set_zero!(cache.volume)
 
@@ -382,9 +476,17 @@ end
     boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0)
 end
 
+function boundary_pressure_extrapolation!(boundary_model, system,
+                                          neighbor_system, system_coords,
+                                          neighbor_coords, v, v_neighbor_system,
+                                          semi)
+    return boundary_model
+end
+
 function compute_pressure!(boundary_model,
                            ::Union{AdamiPressureExtrapolation,
-                                   BernoulliPressureExtrapolation},
+                                   BernoulliPressureExtrapolation,
+                                   MarronePressureExtrapolation},
                            system, v, u, v_ode, u_ode, semi)
     (; pressure, cache, viscosity) = boundary_model
     (; allow_loop_flipping) = boundary_model.density_calculator
@@ -466,6 +568,7 @@ end
                                                   neighbor_system, system_coords,
                                                   neighbor_coords, v, v_neighbor_system,
                                                   semi)
+    @info 1
     return boundary_model
 end
 
@@ -476,6 +579,8 @@ end
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
 
+    @info 2
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=eachparticle(system)) do particle, neighbor,
@@ -484,6 +589,53 @@ end
                                  neighbor_system, v, v_neighbor_system, particle, neighbor,
                                  pos_diff, distance, viscosity, cache, pressure,
                                  pressure_offset)
+    end
+end
+
+@inline function boundary_pressure_extrapolation!(parallel::Val{true},
+                                                  boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation,
+                                                                                              ELTYPE,
+                                                                                              VECTOR,
+                                                                                              SE,
+                                                                                              K,
+                                                                                              V,
+                                                                                              COR,
+                                                                                              C},
+                                                  system, neighbor_system::FluidSystem,
+                                                  system_coords, neighbor_coords, v,
+                                                  v_neighbor_system,
+                                                  semi) where {ELTYPE, VECTOR, SE, K, V,
+                                                               COR, C}
+    (; pressure, cache, viscosity, density_calculator) = boundary_model
+    (; smoothing_kernel, smoothing_length) = boundary_model
+    (; normals) = system.initial_condition
+    interpolation_coords = system_coords + (2 * normals) # Need only be computed once -> put into cache 
+
+    neighbor_volume = neighbor_system.mass /
+                      current_density(v_neighbor_system, neighbor_system)
+    compute_basis_marrone(smoothing_kernel, neighbor_system, neighbor_coords, semi)
+    compute_momentum_marrone(smoothing_kernel, neighbor_system, neighbor_coords, semi,
+                             neighbor_volume, smoothing_length)
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
+    foreach_point_neighbor(system, neighbor_system, interpolation_coords, neighbor_coords,
+                           semi;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
+        boundary_pressure_inner!(boundary_model, density_calculator, system,
+                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
+                                 pos_diff, distance, viscosity, cache, pressure)
+    end
+
+    for particle in eachparticle(system)
+        f = neighbor_system.acceleration # Idk where the force acting on the body/system is being stored
+        # particle_density = current_density(v_neighbor_system, neighbor_system, particle) # density of the fluid interpolation of the ghost particle
+        particle_density = 1
+        particle_boundary_distance = norm(normals[:, particle]) # distance from boundary particle to the boundary
+        particle_normal = normals[:, particle] / particle_boundary_distance # normal unit vector to the boundary
+
+        pressure[particle] += 2 * particle_boundary_distance * particle_density *
+                              dot(f, particle_normal)
     end
 end
 
@@ -498,6 +650,8 @@ end
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
 
+    @info 3
+
     # This needs to be serial to avoid race conditions when writing into `system`
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
                            points=each_moving_particle(neighbor_system),
@@ -510,6 +664,22 @@ end
                                  pos_diff, distance, viscosity, cache, pressure,
                                  pressure_offset)
     end
+end
+
+# Why call this `neighbor` in the first place, why not just `fluid`?
+@inline function boundary_pressure_inner!(boundary_model,
+                                          boundary_density_calculator::MarronePressureExtrapolation,
+                                          system, neighbor_system::FluidSystem, v,
+                                          v_neighbor_system, particle, neighbor, pos_diff,
+                                          distance, viscosity, cache, pressure)
+    (; smoothing_kernel, smoothing_length) = boundary_model
+    neighbor_pressure = current_pressure(v_neighbor_system, neighbor_system)[neighbor]
+    kernel_weight = boundary_kernel_marrone(smoothing_kernel, particle, neighbor, distance,
+                                            smoothing_length)
+    neighbor_volume = neighbor_system.mass[neighbor] /
+                      current_density(v_neighbor_system, neighbor_system)[neighbor]
+
+    pressure[particle] += neighbor_pressure * kernel_weight * neighbor_volume
 end
 
 @inline function boundary_pressure_inner!(boundary_model, boundary_density_calculator,
