@@ -207,7 +207,7 @@ end
 # Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    @trixi_timeit timer() "predict advection" predict_advection(system, v, u, v_ode, u_ode,
+    @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
                                                                 semi, t)
 
     @trixi_timeit timer() "pressure solver" pressure_solve!(system, v, u, v_ode, u_ode,
@@ -216,7 +216,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     return system
 end
 
-function predict_advection(system, v, u, v_ode, u_ode, semi, t)
+function predict_advection!(system, v, u, v_ode, u_ode, semi, t)
     (; density) = system
 
     # Compute density by kernel summation
@@ -227,10 +227,12 @@ function predict_advection(system, v, u, v_ode, u_ode, semi, t)
     # Calculation the diagonal elements (a_ii-values)
     calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
 
-    calculate_predicted_density(system, v, u, v_ode, u_ode, semi, t)
+    calculate_predicted_density!(system, v, u, v_ode, u_ode, semi, t)
+
+    return system
 end
 
-function calculate_predicted_density(system, v, u, v_ode, u_ode, semi, t)
+function calculate_predicted_density!(system, v, u, v_ode, u_ode, semi, t)
     (; density, predicted_density, time_step) = system
 
     predicted_density .= density
@@ -256,6 +258,8 @@ function calculate_predicted_density(system, v, u, v_ode, u_ode, semi, t)
                                            dot(advection_velocity_diff, grad_kernel)
         end
     end
+
+    return system
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
@@ -314,15 +318,19 @@ function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_od
             end
         end
     end
+
+    return system
 end
 
-function initialize_pressure(system, semi)
+function initialize_pressure!(system, semi)
     (; pressure) = system
 
     # Set initial pressure (p_0) to a half of the current pressure value
     @threaded semi for particle in each_integrated_particle(system)
         pressure[particle] = pressure[particle] / 2
     end
+
+    return system
 end
 
 function calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
@@ -391,7 +399,7 @@ end
 function pressure_solve!(system, v, u, v_ode, u_ode, semi, t)
     (; reference_density, max_error, min_iterations, max_iterations, time_step) = system
 
-    initialize_pressure(system, semi)
+    initialize_pressure!(system, semi)
     l = 1
     terminate = false
     # Convert relative error in percent to absolute error
@@ -414,6 +422,7 @@ function pressure_solve_iteration(system, u, u_ode, semi, time_step)
     calculate_sum_d_ij_pj!(system, u, u_ode, semi, time_step)
 
     calculate_sum_term_values!(system, u, u_ode, semi, time_step)
+
     # Update the pressure values
     avg_density_error = pressure_update(system, u, u_ode, semi, time_step)
 
@@ -427,8 +436,7 @@ function calculate_sum_d_ij_pj!(system, u, u_ode, semi, time_step)
 
     system_coords = current_coordinates(u, system)
 
-    foreach_point_neighbor(system, system, system_coords, system_coords,
-                           semi;
+    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
         # Calculate the sum d_ij * p_j over all neighbors j for each particle i
@@ -442,6 +450,8 @@ function calculate_sum_d_ij_pj!(system, u, u_ode, semi, time_step)
             sum_d_ij_pj[i, particle] += sum_dij_pj_[i]
         end
     end
+
+    return system
 end
 
 # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
