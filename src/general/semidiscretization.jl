@@ -47,14 +47,13 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
+struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV
     neighborhood_searches   :: NS
     parallelization_backend :: BACKEND
     update_callback_used    :: UCU
-    integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
@@ -62,13 +61,12 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
     # and by Adapt.jl.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
-                                update_callback_used, integrate_tlsph)
+                                update_callback_used)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
-            typeof(update_callback_used),
-            typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_searches, parallelization_backend,
-                                     update_callback_used, integrate_tlsph)
+            typeof(update_callback_used)}(systems, ranges_u, ranges_v,
+                                          neighborhood_searches, parallelization_backend,
+                                          update_callback_used)
     end
 end
 
@@ -102,14 +100,8 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # to determine if the callback is used in a simulation.
     update_callback_used = Ref(false)
 
-    # Always integrate TLSPH systems together with other systems.
-    # For split integration, a copy of the semidiscretization will be created
-    # with this set to false.
-    integrate_tlsph = Ref(true)
-
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
-                              parallelization_backend, update_callback_used,
-                              integrate_tlsph)
+                              parallelization_backend, update_callback_used)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -167,12 +159,12 @@ end
 @inline function compact_support(system::OpenBoundarySystem,
                                  neighbor::OpenBoundarySystem)
     # This NHS is never used
-    return zero(eltype(system))
+    return 0.0
 end
 
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
     # This NHS is never used
-    return zero(eltype(system))
+    return 0.0
 end
 
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::DEMSystem)
@@ -200,7 +192,7 @@ end
 @inline function compact_support(system, model::BoundaryModelMonaghanKajtar,
                                  neighbor::WallBoundarySystem)
     # This NHS is never used
-    return zero(eltype(system))
+    return 0.0
 end
 
 @inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
@@ -346,7 +338,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
                                       semi_.ranges_u, semi_.ranges_v,
                                       semi_.neighborhood_searches,
                                       semi_.parallelization_backend,
-                                      semi_.update_callback_used, semi_.integrate_tlsph)
+                                      semi_.update_callback_used)
     else
         semi_new = semi
     end
@@ -474,25 +466,13 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
 
                 @threaded semi for particle in each_integrated_particle(system)
                     # This can be dispatched per system
-                    add_velocity!(du, v, particle, system, semi)
+                    add_velocity!(du, v, particle, system)
                 end
             end
         end
     end
 
     return du_ode
-end
-
-@inline function add_velocity!(du, v, particle, system, semi::Semidiscretization)
-    add_velocity!(du, v, particle, system)
-end
-
-@inline function add_velocity!(du, v, particle, system::TotalLagrangianSPHSystem,
-                               semi::Semidiscretization)
-    # Only add velocity for TLSPH systems if they are integrated
-    if semi.integrate_tlsph[]
-        add_velocity!(du, v, particle, system)
-    end
 end
 
 @inline function add_velocity!(du, v, particle, system)
@@ -564,6 +544,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
+    update_implicit_sph!(semi, v_ode, u_ode, t)
+
     # Perform correction and pressure calculation
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
@@ -604,23 +586,16 @@ function update_nhs!(semi, u_ode)
     end
 end
 
-# The `SplitIntegrationCallback` overwrites `semi_wrap` to use a different
-# semidiscretization for wrapping arrays.
-# TODO `semi` is not used yet, but will be used when the source terms API is modified
-# to match the custom quantities API.
-function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
-    foreach_system(semi_wrap) do system
-        dv = wrap_v(dv_ode, system, semi_wrap)
-        v = wrap_v(v_ode, system, semi_wrap)
-        u = wrap_u(u_ode, system, semi_wrap)
+function add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
+    foreach_system(semi) do system
+        dv = wrap_v(dv_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
         @threaded semi for particle in each_integrated_particle(system)
-            # Dispatch by system type to exclude boundary systems.
-            # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
-            # can be used in the `SplitIntegrationCallback` as well.
-            add_acceleration!(dv, particle, system, semi_wrap.integrate_tlsph[])
-            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t,
-                                    semi_wrap.integrate_tlsph[])
+            # Dispatch by system type to exclude boundary systems
+            add_acceleration!(dv, particle, system)
+            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
         end
     end
 
@@ -629,15 +604,6 @@ end
 
 @inline source_terms(system) = nothing
 @inline source_terms(system::Union{AbstractFluidSystem, AbstractStructureSystem}) = system.source_terms
-
-@inline function add_acceleration!(dv, particle, system, integrate_tlsph)
-    add_acceleration!(dv, particle, system)
-end
-
-@inline function add_acceleration!(dv, particle, system::TotalLagrangianSPHSystem,
-                                   integrate_tlsph)
-    integrate_tlsph && add_acceleration!(dv, particle, system)
-end
 
 @inline add_acceleration!(dv, particle, system) = dv
 
@@ -651,17 +617,6 @@ end
     end
 
     return dv
-end
-
-@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t,
-                                         integrate_tlsph)
-    add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
-end
-
-@inline function add_source_terms_inner!(dv, v, u, particle,
-                                         system::TotalLagrangianSPHSystem,
-                                         source_terms_, t, integrate_tlsph)
-    integrate_tlsph && add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
 end
 
 @inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
@@ -939,7 +894,7 @@ function update_nhs!(neighborhood_search,
 end
 
 # Forward to PointNeighbors.jl
-function update!(neighborhood_search, x, y, semi; points_moving=(true, true),
+function update!(neighborhood_search, x, y, semi; points_moving=(true, false),
                  eachindex_y=axes(y, 2))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving, eachindex_y,
                            parallelization_backend=semi.parallelization_backend)
