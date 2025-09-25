@@ -305,7 +305,10 @@ end
 
     # Check if particle is in- or outside the fluid domain.
     # `face_normal` is always pointing into the fluid domain.
-    if signbit(dot(relative_position, boundary_zone.face_normal))
+    dist_to_transition = dot(relative_position, -boundary_zone.face_normal)
+    dist_free_surface = boundary_zone.zone_width - dist_to_transition
+    if dist_free_surface < dist_to_transition
+        # Particle is outside the fluid domain
         deactivate_particle!(system, particle, u)
 
         return system
