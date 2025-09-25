@@ -241,8 +241,10 @@ function calculate_predicted_density(system, v, u, v_ode, u_ode, semi, t)
 
         foreach_point_neighbor(system, neighbor_system, system_coords,
                                neighbor_system_coords, semi,
-                               points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             # Calculate the predicted velocity differences
             advection_velocity_diff = predicted_velocity(system, particle) -
                                       predicted_velocity(neighbor_system, neighbor)
@@ -268,8 +270,8 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
         v_particle = current_velocity(v_particle_system, system, particle)
         for i in 1:ndims(system)
             advection_velocity[i,
-                                particle] = v_particle[i] +
-                                            time_step * system.acceleration[i]
+                               particle] = v_particle[i] +
+                                           time_step * system.acceleration[i]
         end
     end
 
@@ -281,9 +283,11 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         foreach_point_neighbor(system, neighbor_system,
-                            system_coords, neighbor_system_coords, semi;
-                            points=each_integrated_particle(system)) do particle, neighbor,
-                                                                        pos_diff, distance
+                               system_coords, neighbor_system_coords, semi;
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -293,10 +297,10 @@ function calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             dv_viscosity_ = @inbounds dv_viscosity(system, neighbor_system,
-                                                v_particle_system, v_neighbor_system,
-                                                particle, neighbor, pos_diff, distance,
-                                                sound_speed, m_a, m_b, rho_a, rho_b,
-                                                grad_kernel)
+                                                   v_particle_system, v_neighbor_system,
+                                                   particle, neighbor, pos_diff, distance,
+                                                   sound_speed, m_a, m_b, rho_a, rho_b,
+                                                   grad_kernel)
             # Add all other non-pressure forces
             for i in 1:ndims(system)
                 @inbounds advection_velocity[i, particle] += time_step * dv_viscosity_[i]
@@ -422,9 +426,9 @@ function calculate_sum_d_ij_pj(system, u, u_ode, semi, time_step)
     foreach_point_neighbor(system, system, system_coords, system_coords,
                            semi;
                            points=each_integrated_particle(system)) do particle,
-                                                                   neighbor,
-                                                                   pos_diff,
-                                                                   distance
+                                                                       neighbor,
+                                                                       pos_diff,
+                                                                       distance
         # Calculate the sum d_ij * p_j over all neighbors j for each particle i
         # (Ihmsen et al. 2013, eq. 13)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
