@@ -152,10 +152,9 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                          particle_spacing,
                                          n_particles_per_dim)
 
-        if normal
-            normals = compute_normals(boundary_coordinates, boundary_spacing,
-                                      particle_spacing, face_indices)
-        end
+        normals = normal == false ? nothing :
+                  compute_normals(boundary_coordinates, boundary_spacing, particle_spacing,
+                                  face_indices, faces)
 
         boundary = InitialCondition(coordinates=boundary_coordinates,
                                     velocity=boundary_velocities,
@@ -194,40 +193,49 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 end
 
 function compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
-                         face_indices)
+                         face_indices, faces)
     _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing, face_indices,
+                     faces,
                      Val(size(boundary_coordinates, 1)))
 end
 
 # 2D
 function _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
-                          face_indices, ::Val{2})
+                          face_indices, faces, ::Val{2})
     normals = zeros(size(boundary_coordinates))
+    face_indices = Tuple(vec(x) for x in face_indices)
     offset = (boundary_spacing + fluid_spacing) / 2
 
-    left_boundary = maximum(boundary_coordinates[1, face_indices[1]]) + offset
-    right_boundary = minimum(boundary_coordinates[1, face_indices[2]]) - offset
-    bottom_boundary = maximum(boundary_coordinates[2, face_indices[3]]) + offset
-    top_boundary = minimum(boundary_coordinates[2, face_indices[4]]) - offset
-
     #### Left boundary
-    for idx in face_indices[1]
-        normals[1, idx] = abs(boundary_coordinates[1, idx] - left_boundary)
+    if faces[1]
+        left_boundary = maximum(boundary_coordinates[1, face_indices[1]]) + offset
+        for idx in face_indices[1]
+            normals[1, idx] = abs(boundary_coordinates[1, idx] - left_boundary)
+        end
     end
 
     #### Right boundary
-    for idx in face_indices[2]
-        normals[1, idx] = -abs(boundary_coordinates[1, idx] - right_boundary)
+    if faces[2]
+        right_boundary = minimum(boundary_coordinates[1, face_indices[2]]) - offset
+        for idx in face_indices[2]
+            normals[1, idx] = -abs(boundary_coordinates[1, idx] - right_boundary)
+        end
     end
 
     #### Bottomg boundary
-    for idx in face_indices[3]
-        normals[2, idx] = abs(boundary_coordinates[2, idx] - bottom_boundary)
+    if faces[3]
+        bottom_boundary = maximum(boundary_coordinates[2, face_indices[3]]) + offset
+        for idx in face_indices[3]
+            normals[2, idx] = abs(boundary_coordinates[2, idx] - bottom_boundary)
+        end
     end
 
     #### Top boundary
-    for idx in face_indices[4]
-        normals[2, idx] = -abs(boundary_coordinates[2, idx] - top_boundary)
+    if faces[4]
+        top_boundary = minimum(boundary_coordinates[2, face_indices[4]]) - offset
+        for idx in face_indices[4]
+            normals[2, idx] = -abs(boundary_coordinates[2, idx] - top_boundary)
+        end
     end
 
     # TODO: edges
@@ -237,46 +245,58 @@ end
 
 # 3D
 # Note: havent properly tested this yet
-function _compute_normals(boundary, fluid, face_indices, ::Val{3})
+function _compute_normals(boundary, fluid, face_indices, faces, ::Val{3})
     (; coordinates) = boundary
     normals = zeros(size(coordinates))
+    face_indices = Tuple(vec(x) for x in face_indices)
     offset = (boundary.particle_spacing + fluid.particle_spacing) / 2
 
-    x_neg_boundary = maximum(coordinates[1, face_indices[1]]) + offset
-    x_pos_boundary = minimum(coordinates[1, face_indices[2]]) - offset
-    y_neg_boundary = maximum(coordinates[2, face_indices[3]]) + offset
-    y_pos_boundary = minimum(coordinates[2, face_indices[4]]) - offset
-    z_neg_boundary = maximum(coordinates[3, face_indices[5]]) + offset
-    z_pos_boundary = minimum(coordinates[3, face_indices[6]]) - offset
-
     #### +x boundary
-    for idx in face_indices[1]
-        normals[1, idx] = abs(coordinates[1, idx] - x_neg_boundary)
+    if faces[1]
+        x_neg_boundary = maximum(coordinates[1, face_indices[1]]) + offset
+        for idx in face_indices[1]
+            normals[1, idx] = abs(coordinates[1, idx] - x_neg_boundary)
+        end
     end
 
     #### -x boundary
-    for idx in face_indices[2]
-        normals[1, idx] = -abs(coordinates[1, idx] - x_pos_boundary)
+    if faces[2]
+        for idx in face_indices[2]
+            x_pos_boundary = minimum(coordinates[1, face_indices[2]]) - offset
+            normals[1, idx] = -abs(coordinates[1, idx] - x_pos_boundary)
+        end
     end
 
     #### +y boundary
-    for idx in face_indices[3]
-        normals[2, idx] = abs(coordinates[2, idx] - y_neg_boundary)
+    if faces[3]
+        y_neg_boundary = maximum(coordinates[2, face_indices[3]]) + offset
+        for idx in face_indices[3]
+            normals[2, idx] = abs(coordinates[2, idx] - y_neg_boundary)
+        end
     end
 
     #### -y boundary
-    for idx in face_indices[4]
-        normals[2, idx] = -abs(coordinates[2, idx] - y_pos_boundary)
+    if faces[4]
+        y_pos_boundary = minimum(coordinates[2, face_indices[4]]) - offset
+        for idx in face_indices[4]
+            normals[2, idx] = -abs(coordinates[2, idx] - y_pos_boundary)
+        end
     end
 
     #### +z boundary
-    for idx in face_indices[5]
-        normals[3, idx] = abs(coordinates[3, idx] - z_neg_boundary)
+    if faces[5]
+        z_neg_boundary = maximum(coordinates[3, face_indices[5]]) + offset
+        for idx in face_indices[5]
+            normals[3, idx] = abs(coordinates[3, idx] - z_neg_boundary)
+        end
     end
 
     #### -z boundary
-    for idx in face_indices[6]
-        normals[3, idx] = -abs(coordinates[3, idx] - z_pos_boundary)
+    if faces[6]
+        z_pos_boundary = minimum(coordinates[3, face_indices[6]]) - offset
+        for idx in face_indices[6]
+            normals[3, idx] = -abs(coordinates[3, idx] - z_pos_boundary)
+        end
     end
 
     # TODO: edges
@@ -874,8 +894,8 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
 
                 # Set position
                 boundary.coordinates[dim,
-                                     particle] = positions[face] + layer_shift +
-                                                 0.5particle_spacing
+                particle] = positions[face] + layer_shift +
+                                                      0.5particle_spacing
             end
         end
     end
