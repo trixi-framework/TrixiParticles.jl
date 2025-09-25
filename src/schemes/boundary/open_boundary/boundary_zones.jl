@@ -444,6 +444,8 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
                 system.boundary_zone_indices[particle] = zone_id
             end
         end
+
+        @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found"
     end
 
     return system
