@@ -1,0 +1,102 @@
+{
+  "simulation_info": {
+    "julia_version": "1.12.0",
+    "technical_setup": {
+      "number_of_threads": 96,
+      "parallelization_backend": "PolyesterBackend"
+    },
+    "time_integrator": {
+      "start_time": 0.0,
+      "reltol": 0.0001,
+      "integrator_type": "RDPK3SpFSAL35",
+      "adaptive": true,
+      "final_time": 0.04,
+      "controller": "PIDController",
+      "abstol": 1.0e-6
+    },
+    "solver_version": "4d9c5c77-dirty",
+    "solver_name": "TrixiParticles.jl"
+  },
+  "system_data": {
+    "boundary_1": {
+      "boundary_model": {
+        "state_equation": {
+          "model": "StateEquationCole",
+          "reference_density": 1000.0,
+          "background_pressure": 0.0,
+          "exponent": 1.0
+        },
+        "density_calculator": "AdamiPressureExtrapolation",
+        "model": "BoundaryModelDummyParticles",
+        "smoothing_length": 0.003,
+        "smoothing_kernel": "WendlandC2Kernel"
+      },
+      "particle_spacing": 0.002,
+      "system_type": "WallBoundarySystem",
+      "adhesion_coefficient": 0.0
+    },
+    "fluid_1": {
+      "shifting_technique": {
+        "model": "ParticleShiftingTechnique"
+      },
+      "viscosity_model": {
+        "nu": 0.0005,
+        "model": "ViscosityAdami",
+        "epsilon": 0.01
+      },
+      "density_diffusion": {
+        "model": "DensityDiffusionMolteniColagrossi",
+        "delta": 0.1
+      },
+      "system_type": "WeaklyCompressibleSPHSystem",
+      "smoothing_kernel": "WendlandC2Kernel",
+      "acceleration": [
+        0.0,
+        0.0
+      ],
+      "pressure_acceleration_formulation": "tensile_instability_control",
+      "state_equation": {
+        "model": "StateEquationCole",
+        "reference_density": 1000.0,
+        "background_pressure": 0.0,
+        "exponent": 1.0
+      },
+      "density_calculator": "ContinuityDensity",
+      "smoothing_length": 0.003,
+      "particle_spacing": 0.002,
+      "sound_speed": 15.0
+    },
+    "boundary_2": {
+      "boundary_model": {
+        "state_equation": {
+          "model": "StateEquationCole",
+          "reference_density": 1000.0,
+          "background_pressure": 0.0,
+          "exponent": 1.0
+        },
+        "density_calculator": "AdamiPressureExtrapolation",
+        "model": "BoundaryModelDummyParticles",
+        "viscosity_model": {
+          "nu": 0.0005,
+          "model": "ViscosityAdami",
+          "epsilon": 0.01
+        },
+        "smoothing_length": 0.003,
+        "smoothing_kernel": "WendlandC2Kernel"
+      },
+      "particle_spacing": 0.002,
+      "system_type": "WallBoundarySystem",
+      "adhesion_coefficient": 0.0
+    },
+    "open_boundary_1": {
+      "fluid_system_index": 1,
+      "number_of_boundary_zones": 2,
+      "boundary_model": {
+        "mirror_method": "ZerothOrderMirroring",
+        "model": "BoundaryModelMirroringTafuni"
+      },
+      "system_type": "OpenBoundarySystem",
+      "smoothing_length": 0.003
+    }
+  }
+}
