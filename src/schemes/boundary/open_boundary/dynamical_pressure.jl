@@ -182,11 +182,18 @@ function update_boundary_quantities!(system,
         end
 
         if prescribed_velocity
-            v_ref = reference_velocity(boundary_zone, v, system, particle,
-                                       particle_coords, t)
+            dist_to_transition = dot(particle_coords - boundary_zone.zone_origin,
+                                     -boundary_zone.face_normal)
+            dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
-            for dim in eachindex(v_ref)
-                @inbounds v[dim, particle] = v_ref[dim]
+            # Only impose the velocity to particles near the free surface
+            if dist_free_surface < compact_support(system, system)
+                v_ref = reference_velocity(boundary_zone, v, system, particle,
+                                           particle_coords, t)
+
+                for dim in eachindex(v_ref)
+                    @inbounds v[dim, particle] = v_ref[dim]
+                end
             end
         end
 
