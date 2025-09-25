@@ -39,6 +39,7 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZ
     buffer                            :: B
     pressure_acceleration_formulation :: PF
     shifting_technique                :: ST
+    has_pressure_model                :: Bool
     cache                             :: C
 end
 
@@ -46,7 +47,8 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                             fluid_system_index, smoothing_kernel, smoothing_length, mass,
                             volume, boundary_candidates, fluid_candidates,
                             boundary_zone_indices, boundary_zone, buffer,
-                            pressure_acceleration, shifting_technique, cache)
+                            pressure_acceleration, shifting_technique, has_pressure_model,
+                            cache)
     OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                        typeof(initial_condition), typeof(fluid_system),
                        typeof(fluid_system_index), typeof(smoothing_kernel), typeof(mass),
@@ -58,7 +60,7 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                                       smoothing_length, mass, volume, boundary_candidates,
                                       fluid_candidates, boundary_zone_indices,
                                       boundary_zone, buffer, pressure_acceleration,
-                                      shifting_technique, cache)
+                                      shifting_technique, has_pressure_model, cache)
 end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
@@ -101,6 +103,9 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     # Create new `BoundaryZone`s with `reference_values` set to `nothing` for type stability.
     # `reference_values` are only used as API feature to temporarily store the reference values
     # in the `BoundaryZone`, but they are not used in the actual simulation.
+    # Do the same for the `pressure_model`. # TODO
+    has_pressure_model = any(zone -> zone.pressure_model.is_prescribed, boundary_zones)
+
     boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
                                                   zone.spanning_set,
                                                   zone.zone_origin,
@@ -108,6 +113,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   zone.flow_direction,
                                                   zone.face_normal,
                                                   zone.rest_pressure,
+                                                  nothing,
+                                                  has_pressure_model ? zone.pressure_model :
                                                   nothing,
                                                   zone.average_inflow_velocity,
                                                   zone.prescribed_density,
@@ -119,7 +126,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
                               volume, boundary_candidates, fluid_candidates,
                               boundary_zone_indices, boundary_zones_new, buffer,
-                              pressure_acceleration, shifting_technique, cache)
+                              pressure_acceleration, shifting_technique, has_pressure_model,
+                              cache)
 end
 
 function initialize!(system::OpenBoundarySystem, semi)
@@ -292,13 +300,15 @@ end
 
 # This function is called by the `UpdateCallback`, as the integrator array might be modified
 function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode,
-                                        semi, t)
+                                        semi, t, dt)
     (; boundary_model) = system
 
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
+
+    update_pressure_model!(system, v, u, semi, dt)
 
     # Update density, pressure and velocity based on the specific boundary model
     @trixi_timeit timer() "update boundary quantities" begin
@@ -308,7 +318,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
     return system
 end
 
-update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
+update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, dt) = system
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
     (; boundary_zones, boundary_candidates, fluid_candidates, fluid_system) = system
