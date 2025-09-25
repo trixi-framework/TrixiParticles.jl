@@ -208,7 +208,7 @@ end
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
-                                                                semi, t)
+                                                                 semi, t)
 
     @trixi_timeit timer() "pressure solver" pressure_solve!(system, v, u, v_ode, u_ode,
                                                             semi, t)
