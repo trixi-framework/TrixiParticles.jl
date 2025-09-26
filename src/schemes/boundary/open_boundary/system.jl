@@ -12,6 +12,12 @@ Open boundary system for in- and outflow particles.
 - `fluid_system`: The corresponding fluid system
 - `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
 - `buffer_size`: Number of buffer particles.
+- `pressure_acceleration`: Pressure acceleration formulation for the system. Required only
+                           when using [`BoundaryModelDynamicalPressureZhang`](@ref).
+                           Defaults to the formulation from `fluid_system` if applicable; otherwise, `nothing`.
+- `shifting_technique`: [Shifting technique](@ref shifting) or [transport velocity formulation](@ref transport_velocity_formulation)
+                        for this system. Defaults to the technique from `fluid_system`.
+                        Supported only for [`BoundaryModelDynamicalPressureZhang`](@ref), yet.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
@@ -58,7 +64,10 @@ end
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                             fluid_system::AbstractFluidSystem, buffer_size::Integer,
                             boundary_model,
-                            pressure_acceleration=fluid_system.pressure_acceleration_formulation,
+                            pressure_acceleration=boundary_model isa
+                                                  BoundaryModelDynamicalPressureZhang ?
+                                                  fluid_system.pressure_acceleration_formulation :
+                                                  nothing,
                             shifting_technique=boundary_model isa
                                                BoundaryModelDynamicalPressureZhang ?
                                                shifting_technique(fluid_system) : nothing)
@@ -148,7 +157,7 @@ function create_cache_open_boundary(boundary_model, fluid_system,
         pressure_boundary = copy(initial_condition.pressure)
 
         # The first entry of the density vector can be used,
-        # as constant density has already been verified in `allocate_buffer`
+        # as it was already verified in `allocate_buffer` that the density array is constant.
         density_rest = first(initial_condition.density)
 
         dd = density_diffusion(fluid_system)
@@ -507,6 +516,7 @@ end
 
         particle_coords = current_coords(u, system, particle)
 
+        # The zone origin lies within the transition plane between boundary zone and fluid domain
         dist_to_transition = dot(particle_coords - boundary_zone.zone_origin,
                                  -boundary_zone.face_normal)
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
