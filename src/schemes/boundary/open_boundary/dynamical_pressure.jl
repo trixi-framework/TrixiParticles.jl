@@ -166,7 +166,7 @@ function update_boundary_quantities!(system,
 
     @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
-        (; prescribed_density, prescribed_velocity) = boundary_zone
+        (; prescribed_density, prescribed_velocity, impose_full_velocity) = boundary_zone
 
         particle_coords = current_coords(u, system, particle)
 
@@ -186,8 +186,9 @@ function update_boundary_quantities!(system,
                                      -boundary_zone.face_normal)
             dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
-            # Only impose the velocity to particles near the free surface
-            if dist_free_surface < compact_support(system, system)
+            # If the velocity is not prescribed throughout the entire boundary zone,
+            # impose it only to particles near the free surface
+            if dist_free_surface < compact_support(system, system) || impose_full_velocity
                 v_ref = reference_velocity(boundary_zone, v, system, particle,
                                            particle_coords, t)
 
