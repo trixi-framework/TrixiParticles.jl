@@ -1,4 +1,4 @@
-# Full interaction for open boundaries using `BoundaryModelDynamicalPressureZhang`
+# Interaction for open boundaries only with `BoundaryModelDynamicalPressureZhang`
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
@@ -10,7 +10,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_system_coords, semi;
                            points=each_integrated_particle(particle_system)) do particle,
@@ -37,7 +37,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             distance, grad_kernel,
                                             system_correction(particle_system))
 
-        # This vanishes for particles with full kernel support
+        # This term vanishes for particles with full kernel support
         p_boundary = cache.pressure_boundary[particle]
         dv_pressure_boundary = 2 * p_boundary * (m_b / (rho_a * rho_b)) * grad_kernel
 
