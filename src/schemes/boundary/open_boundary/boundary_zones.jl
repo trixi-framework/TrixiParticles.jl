@@ -159,6 +159,7 @@ struct BoundaryZone{IC, S, ZO, ZW, FD, FN, RP, R, PM}
     pressure_model    :: PM
     # Note that the following can't be static type parameters, as all boundary zones in a system
     # must have the same type, so that we can loop over them in a type-stable way.
+    impose_full_velocity    :: Bool
     average_inflow_velocity :: Bool
     prescribed_density      :: Bool
     prescribed_pressure     :: Bool
@@ -168,6 +169,7 @@ end
 function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, average_inflow_velocity=true,
+                      impose_full_velocity=true,
                       boundary_type=BidirectionalFlow(),
                       pressure_model=nothing,
                       rest_pressure=zero(eltype(density)),
@@ -271,7 +273,8 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
 
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, face_normal_, Ref(rest_pressure), reference_values,
-                        pressure_model_, average_inflow_velocity, prescribed_density,
+                        pressure_model_, impose_full_velocity,
+                        average_inflow_velocity, prescribed_density,
                         prescribed_pressure, prescribed_velocity)
 end
 
