@@ -327,7 +327,7 @@ function set_up_boundary_zone(boundary_face, face_normal, density, particle_spac
     # First vector of `spanning_vectors` is normal to the boundary face.
     dot_face_normal = dot(normalize(spanning_set[:, 1]), face_normal)
 
-    if !isapprox(abs(dot_face_normal), 1, rtol=1e-5)
+    if !isapprox(abs(dot_face_normal), 1)
         throw(ArgumentError("`face_normal` is not normal to the boundary face"))
     end
 
@@ -426,6 +426,12 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
                 system.boundary_zone_indices[particle] = zone_id
             end
         end
+
+        # This typically only occurs if `face_normal` is not exactly normal to the `boundary_face`.
+        # In such cases, particles that are actually outside the simulation domain (outflow particles)
+        # may be incorrectly kept active as inflow particles and therefore cannot be assigned to any boundary zone.
+        # See https://github.com/trixi-framework/TrixiParticles.jl/pull/926 for details.
+        @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found for active buffer particle"
     end
 
     return system

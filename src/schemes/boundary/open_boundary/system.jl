@@ -301,10 +301,14 @@ end
 @inline function convert_particle!(system::OpenBoundarySystem, fluid_system,
                                    boundary_zone, particle, particle_new,
                                    v, u, v_fluid, u_fluid)
+    # Position relative to the origin of the transition face
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
     # `face_normal` is always pointing into the fluid domain.
+    # Since this function is called for a particle that left the boundary zone,
+    # it is sufficient to check if it is closer to the free surface or the transition face
+    # to determine if it exited the boundary zone into the fluid or through the free surface.
     dist_to_transition = dot(relative_position, -boundary_zone.face_normal)
     dist_free_surface = boundary_zone.zone_width - dist_to_transition
     if dist_free_surface < dist_to_transition
