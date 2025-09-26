@@ -26,7 +26,7 @@ n_particles_beam_y = 5
 
 # Overwrite `sol` assignment to skip time integration
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"),
+              joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
               n_particles_y=n_particles_beam_y, sol=nothing, tspan=tspan,
               penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
@@ -49,12 +49,12 @@ run_file_name = joinpath("out",
 reference_data = JSON.parsefile(reference_file_name)
 run_data = JSON.parsefile(run_file_name)
 
-error_deflection_x = interpolated_mse(reference_data["deflection_x_solid_1"]["time"],
-                                      reference_data["deflection_x_solid_1"]["values"],
-                                      run_data["deflection_x_solid_1"]["time"],
-                                      run_data["deflection_x_solid_1"]["values"])
+error_deflection_x = interpolated_mse(reference_data["deflection_x_structure_1"]["time"],
+                                      reference_data["deflection_x_structure_1"]["values"],
+                                      run_data["deflection_x_structure_1"]["time"],
+                                      run_data["deflection_x_structure_1"]["values"])
 
-error_deflection_y = interpolated_mse(reference_data["deflection_y_solid_1"]["time"],
-                                      reference_data["deflection_y_solid_1"]["values"],
-                                      run_data["deflection_y_solid_1"]["time"],
-                                      run_data["deflection_y_solid_1"]["values"])
+error_deflection_y = interpolated_mse(reference_data["deflection_y_structure_1"]["time"],
+                                      reference_data["deflection_y_structure_1"]["values"],
+                                      run_data["deflection_y_structure_1"]["time"],
+                                      run_data["deflection_y_structure_1"]["values"])
