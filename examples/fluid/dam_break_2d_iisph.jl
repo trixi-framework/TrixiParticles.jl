@@ -6,7 +6,6 @@ fluid_particle_spacing = 0.015
 # Load setup from dam break example
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              fluid_particle_spacing=fluid_particle_spacing,
               sol=nothing, ode=nothing)
 
 # IISPH doesn't require a large compact support like WCSPH and performs worse with a typical
@@ -37,6 +36,7 @@ fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid, smoothing_kernel,
 # Run the dam break simulation with these changes
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              neighborhood_search=neighborhood_search,
               viscosity_fluid=ViscosityAdami(nu=nu),
               smoothing_kernel=smoothing_kernel,
               smoothing_length=smoothing_length,
@@ -46,3 +46,4 @@ trixi_include(@__MODULE__,
               state_equation=nothing,
               callbacks=CallbackSet(info_callback, saving_callback),
               time_integration_scheme=SymplecticEuler(), dt=time_step)
+# Add sol and ode for further iisph simulations using trixi_include

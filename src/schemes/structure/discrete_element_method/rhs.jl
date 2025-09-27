@@ -12,8 +12,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # See `src/general/smoothing_kernels.jl` for more details.
-        distance^2 < eps(first(particle_system.radius)^2) && return
+        distance < sqrt(eps()) && return
 
         # Retrieve particle properties
         m_a = particle_system.mass[particle]
