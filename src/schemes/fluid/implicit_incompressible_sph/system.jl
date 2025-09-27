@@ -444,7 +444,7 @@ function pressure_solve!(semi, v_ode, u_ode , t)
         end
     end
 
-    return system
+    return semi
 end
 
 function initialize_pressure!(system, semi)
