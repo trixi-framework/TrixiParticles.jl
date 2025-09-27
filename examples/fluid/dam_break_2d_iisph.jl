@@ -45,4 +45,4 @@ trixi_include(@__MODULE__,
               state_equation=nothing,
               callbacks=CallbackSet(info_callback, saving_callback),
               time_integration_scheme=SymplecticEuler(), dt=time_step)
-#Add sol and ode for further iisph simulations using trixi_include
+# Add sol and ode for further iisph simulations using trixi_include
