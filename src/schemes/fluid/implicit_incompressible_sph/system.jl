@@ -226,8 +226,7 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
     return semi
 end
 
-
-function predict_advection(semi, v_ode, u_ode, t)
+function predict_advection!(semi, v_ode, u_ode, t)
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
@@ -253,7 +252,8 @@ function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_od
     return system
 end
 
-function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
+function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompressibleSPHSystem,
+                                                       v, u, v_ode, u_ode, semi, t)
     (; advection_velocity, time_step) = system
     d_ii_array = system.d_ii
 
@@ -279,12 +279,11 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         foreach_point_neighbor(system, neighbor_system,
-                            system_coords, neighbor_system_coords,
-                            semi;
-                            points=each_integrated_particle(system)) do particle,
-                                                                    neighbor,
-                                                                    pos_diff,
-                                                                    distance
+                               system_coords, neighbor_system_coords, semi;
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -294,10 +293,10 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             dv_viscosity_ = @inbounds dv_viscosity(system, neighbor_system,
-                                                v_particle_system, v_neighbor_system,
-                                                particle, neighbor, pos_diff, distance,
-                                                sound_speed, m_a, m_b, rho_a, rho_b,
-                                                grad_kernel)
+                                                   v_particle_system, v_neighbor_system,
+                                                   particle, neighbor, pos_diff, distance,
+                                                   sound_speed, m_a, m_b, rho_a, rho_b,
+                                                   grad_kernel)
             # Add all other non-pressure forces
             for i in 1:ndims(system)
                 @inbounds advection_velocity[i, particle] += time_step * dv_viscosity_[i]
@@ -318,7 +317,8 @@ function calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
     return system
 end
 
-function calculate_diagonal_elements!(system::ImplicitIncompressibleSPHSystem, v, u, v_ode, u_ode, semi)
+function calculate_diagonal_elements!(system::ImplicitIncompressibleSPHSystem, v, u, v_ode,
+                                      u_ode, semi)
     (; a_ii, time_step) = system
 
     set_zero!(a_ii)
@@ -384,7 +384,8 @@ function calculate_predicted_density!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function calculate_predicted_density!(system::ImplicitIncompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
+function calculate_predicted_density!(system::ImplicitIncompressibleSPHSystem, v, u, v_ode,
+                                      u_ode, semi, t)
     (; density, predicted_density, time_step) = system
 
     predicted_density .= density
@@ -397,8 +398,10 @@ function calculate_predicted_density!(system::ImplicitIncompressibleSPHSystem, v
 
         foreach_point_neighbor(system, neighbor_system, system_coords,
                                neighbor_system_coords, semi,
-                               points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             # Calculate the predicted velocity differences
             advection_velocity_diff = predicted_velocity(system, particle) -
                                       predicted_velocity(neighbor_system, neighbor)
@@ -412,7 +415,7 @@ function calculate_predicted_density!(system::ImplicitIncompressibleSPHSystem, v
 end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
-function pressure_solve!(semi, v_ode, u_ode , t)
+function pressure_solve!(semi, v_ode, u_ode, t)
     foreach_system(semi) do system
         initialize_pressure!(system, semi)
     end
@@ -421,9 +424,11 @@ function pressure_solve!(semi, v_ode, u_ode , t)
     min_iters = 1
     max_iters = 10000
     max_err = 100.0
+
     foreach_system(semi) do system
         if system isa ImplicitIncompressibleSPHSystem
             (; max_error, min_iterations, max_iterations) = system
+
             min_iters = max(min_iterations, min_iters)
             max_iters = min(max_iterations, max_iters)
             max_err = min(max_error, max_err)
@@ -453,6 +458,7 @@ end
 
 function initialize_pressure!(system::ImplicitIncompressibleSPHSystem, semi)
     (; pressure) = system
+
     # Set initial pressure (p_0) to a half of the current pressure value
     @threaded semi for particle in each_integrated_particle(system)
         pressure[particle] = pressure[particle] / 2
@@ -493,15 +499,16 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
     end
 end
 
-function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system::ImplicitIncompressibleSPHSystem, u, u_ode, semi)
+function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
+                                neighbor_system::ImplicitIncompressibleSPHSystem, u, u_ode,
+                                semi)
     (; time_step) = system
     (; pressure) = neighbor_system
 
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u, neighbor_system)
 
-    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                           semi;
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
         # Calculate the sum d_ij * p_j over all neighbors j for each particle i
@@ -519,7 +526,8 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system::ImplicitIn
     return system
 end
 
-function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system::AbstractBoundarySystem, u, u_ode, semi)
+function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
+                                neighbor_system::AbstractBoundarySystem, u, u_ode, semi)
     return system
 end
 
@@ -527,9 +535,10 @@ function calculate_sum_term_values!(system, u, u_ode, semi)
     return system
 end
 
+# Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
 function calculate_sum_term_values!(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi)
     (; sum_term, pressure, time_step) = system
-    # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
+
     set_zero!(sum_term)
 
     foreach_system(semi) do neighbor_system
