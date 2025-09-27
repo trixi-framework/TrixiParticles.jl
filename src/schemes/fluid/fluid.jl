@@ -113,6 +113,8 @@ end
 
 @inline system_state_equation(system::AbstractFluidSystem) = system.state_equation
 
+@inline acceleration_source(system::AbstractFluidSystem) = system.acceleration
+
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
     return system

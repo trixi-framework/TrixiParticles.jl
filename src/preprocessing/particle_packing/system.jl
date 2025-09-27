@@ -384,10 +384,13 @@ end
 end
 
 # Skip for fixed systems
-@inline add_velocity!(du, v, particle, system::ParticlePackingSystem{<:Any, true}) = du
+@inline function add_velocity!(du, v, u, particle,
+                               system::ParticlePackingSystem{<:Any, true}, t)
+    return du
+end
 
-# Add advection velocity.
-@inline function add_velocity!(du, v, particle, system::ParticlePackingSystem)
+# Add advection velocity
+@inline function add_velocity!(du, v, u, particle, system::ParticlePackingSystem, t)
     for i in 1:ndims(system)
         du[i, particle] = system.advection_velocity[i, particle]
     end

@@ -31,7 +31,8 @@ end
 @inline function update_boundary_quantities!(system,
                                              boundary_model::BoundaryModelCharacteristicsLastiwka,
                                              v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, boundary_zones, fluid_system) = system
+    (; cache, boundary_zones, fluid_system) = system
+    (; pressure, density) = cache
 
     sound_speed = system_sound_speed(fluid_system)
 
