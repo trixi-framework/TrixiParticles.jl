@@ -7,7 +7,7 @@ In this model, the momentum equation is solved for particles within the [`Bounda
 The prescribed boundary pressure is directly incorporated into the SPH approximation of the pressure gradient for particles near the boundary.
 This model is highly robust for handling bidirectional flow,
 allowing particles to enter or leave the domain through a single boundary surface.
-For more information about the method see [description below](@ref dynamical_pressure).
+For more information about the method see [the documentation](@ref dynamical_pressure).
 """
 struct BoundaryModelDynamicalPressureZhang end
 
@@ -49,9 +49,13 @@ end
     return view(v, ndims(system) + 1, :)
 end
 
-@inline density_diffusion(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}) = system.cache.density_diffusion
+@inline function density_diffusion(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
+    return system.cache.density_diffusion
+end
 
-@inline density_calculator(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}) = system.cache.density_calculator
+@inline function density_calculator(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
+    return system.cache.density_calculator
+end
 
 @inline impose_rest_density!(v, system, particle, boundary_model) = v
 
@@ -107,6 +111,8 @@ function reference_pressure(boundary_zone, v,
     #   in-/outlet to eliminate the truncated error in approximating pressure gradient,
     #   but the corresponding p_b in Eq. (13) is given as p_i.
     #   Meanwhile, both the density and pressure of newly populated particles remain unchanged."
+    #
+    # In simple words: If no pressure is prescribed, we still prescribe the rest pressure.
     if prescribed_pressure
         zone_id = system.boundary_zone_indices[particle]
 
@@ -170,8 +176,8 @@ function update_boundary_quantities!(system,
 
         particle_coords = current_coords(u, system, particle)
 
-        # Pressure is always prescribed with `BoundaryModelDynamicalPressureZhang`
-        # as the term in the momentum equation vanishes for full kernel support
+        # Pressure is always prescribed with `BoundaryModelDynamicalPressureZhang`,
+        # as the term in the momentum equation vanishes for full kernel support.
         pressure_boundary[particle] = reference_pressure(boundary_zone, v, system,
                                                          particle, particle_coords, t)
 
@@ -182,19 +188,11 @@ function update_boundary_quantities!(system,
         end
 
         if prescribed_velocity
-            dist_to_transition = dot(particle_coords - boundary_zone.zone_origin,
-                                     -boundary_zone.face_normal)
-            dist_free_surface = boundary_zone.zone_width - dist_to_transition
+            v_ref = reference_velocity(boundary_zone, v, system, particle,
+                                       particle_coords, t)
 
-            # If the velocity is not prescribed throughout the entire boundary zone,
-            # impose it only to particles near the free surface
-            if dist_free_surface < compact_support(system, system) || impose_full_velocity
-                v_ref = reference_velocity(boundary_zone, v, system, particle,
-                                           particle_coords, t)
-
-                for dim in eachindex(v_ref)
-                    @inbounds v[dim, particle] = v_ref[dim]
-                end
+            for dim in eachindex(v_ref)
+                @inbounds v[dim, particle] = v_ref[dim]
             end
         end
 

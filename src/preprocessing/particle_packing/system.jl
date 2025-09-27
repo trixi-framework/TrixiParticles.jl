@@ -389,7 +389,7 @@ end
     return du
 end
 
-# Add advection velocity.
+# Add advection velocity
 @inline function add_velocity!(du, v, u, particle, system::ParticlePackingSystem, t)
     for i in 1:ndims(system)
         du[i, particle] = system.advection_velocity[i, particle]
