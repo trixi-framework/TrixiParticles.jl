@@ -109,7 +109,6 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   zone.face_normal,
                                                   zone.rest_pressure,
                                                   nothing,
-                                                  zone.impose_full_velocity,
                                                   zone.average_inflow_velocity,
                                                   zone.prescribed_density,
                                                   zone.prescribed_pressure,

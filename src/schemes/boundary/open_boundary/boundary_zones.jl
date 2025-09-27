@@ -155,7 +155,6 @@ struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R}
     reference_values  :: R
     # Note that the following can't be static type parameters, as all boundary zones in a system
     # must have the same type, so that we can loop over them in a type-stable way.
-    impose_full_velocity    :: Bool
     average_inflow_velocity :: Bool
     prescribed_density      :: Bool
     prescribed_pressure     :: Bool
@@ -165,7 +164,6 @@ end
 function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, average_inflow_velocity=true,
-                      impose_full_velocity=true,
                       boundary_type=BidirectionalFlow(),
                       rest_pressure=zero(eltype(density)),
                       reference_density=nothing, reference_pressure=nothing,
@@ -257,8 +255,8 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
 
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, face_normal_, rest_pressure, reference_values,
-                        impose_full_velocity, average_inflow_velocity, prescribed_density,
-                        prescribed_pressure, prescribed_velocity)
+                        average_inflow_velocity, prescribed_density, prescribed_pressure,
+                        prescribed_velocity)
 end
 
 function boundary_type_name(boundary_zone::BoundaryZone)
@@ -433,8 +431,6 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
                 system.boundary_zone_indices[particle] = zone_id
             end
         end
-
-        @assert system.boundary_zone_indices[particle]!=0 "No boundary zone found for active buffer particle"
     end
 
     return system
