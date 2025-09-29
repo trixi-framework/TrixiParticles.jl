@@ -120,8 +120,12 @@ function oriented_bounding_box(point_cloud)
     min_corner = minimum(aligned_coords, dims=2)
     max_corner = maximum(aligned_coords, dims=2)
 
-    rect_coords = hcat(min_corner, max_corner,
-                       [min_corner[1], max_corner[2], min_corner[3]])
+    if length(min_corner) == 2
+        rect_coords = hcat(min_corner, max_corner, [min_corner[1], max_corner[2]])
+    else
+        rect_coords = hcat(min_corner, max_corner,
+                           [min_corner[1], max_corner[2], min_corner[3]])
+    end
 
     rotated_rect_coords = eigen_vectors * rect_coords .+ means
 
@@ -130,7 +134,7 @@ end
 
 """
     OrientedBox(; box_origin, orientation_vector, edge_lengths::Tuple)
-    OrientedBox(geometry::TrixiParticles.TriangleMesh; scale::Real=1)
+    OrientedBox(geometry::TriangleMesh; local_axis_scale::Tuple)
 
 Constructor for a parallelogram spanned by two orthogonal edge vectors,
 a parallelepiped spanned by three orthogonal edge vectors,
@@ -142,9 +146,20 @@ or a parallelepiped enclosing a 3D geometry.
 # Keywords
 - `box_origin`: The origin corner of the box.
 - `orientation_vector`: A vector describing the main direction of the box.
-- `edge_lengths::Tuple`: The lengths of the edges of the box:
-                            - In 2D: `(length_x, length_y)`
-                            - In 3D: `(length_x, length_y, length_z)`
+- `edge_lengths`: The lengths of the edges of the box:
+                    - In 2D: `(length_x, length_y)`
+                    - In 3D: `(length_x, length_y, length_z)`
+- `local_axis_scale`: Allows for anisotropic scaling along the oriented axes of the `OrientedBox`
+                      (the eigenvectors of the geometry's covariance matrix).
+                      Default is no scaling.
+                      The tuple components correspond to:
+                        - first element: scaling along the first eigenvector (local x-axis),
+                        - second element: scaling along the second eigenvector (local y-axis),
+                        - third element: scaling along the third eigenvector (local z-axis).
+                      Note: Scaling is always applied in the local `OrientedBox`
+                      coordinate system, i.e. along its oriented axes.
+                      Scaling along arbitrary world directions is not supported,
+                      as this would break the orthogonality of the spanning vectors.
 
 # Examples
 ```jldoctest; output=false
@@ -194,7 +209,7 @@ function OrientedBox(; box_origin, orientation_vector, edge_lengths::Tuple)
     return OrientedBox(SVector{NDIMS}(box_origin), spanning_vectors)
 end
 
-function OrientedBox(geometry::TriangleMesh)
+function OrientedBox(geometry::TriangleMesh; local_axis_scale::Tuple=(0, 0, 0))
     point_cloud = stack(geometry.vertices)
     vertices, eigen_vectors, (min_corner, max_corner) = oriented_bounding_box(point_cloud)
 
@@ -207,7 +222,51 @@ function OrientedBox(geometry::TriangleMesh)
     # Create spanning vectors using the eigen vectors scaled by edge lengths
     spanning_vectors = ntuple(i -> SVector{3}(eigen_vectors[:, i] * edge_lengths[i]), 3)
 
-    return OrientedBox(box_origin, spanning_vectors)
+    prod(local_axis_scale) > 0 || return OrientedBox(box_origin, spanning_vectors)
+
+    # Uniform scaling about the center, center remains unchanged
+    v1, v2, v3 = spanning_vectors
+    center = box_origin + (v1 + v2 + v3) / 2
+
+    # Scaling factor per oriented axis
+    s1, s2, s3 = local_axis_scale
+
+    # New spanning vectors
+    v1p, v2p, v3p = s1 * v1, s2 * v2, s3 * v3
+
+    new_origin = center - (v1p + v2p + v3p) / 2
+
+    return OrientedBox(new_origin, (v1p, v2p, v3p))
+end
+
+function OrientedBox(geometry::Polygon; local_axis_scale::Tuple=(0, 0))
+    point_cloud = stack(geometry.vertices)
+    vertices, eigen_vectors, (min_corner, max_corner) = oriented_bounding_box(point_cloud)
+
+    # Use the first vertex as box origin (bottom-left-front corner)
+    box_origin = SVector{2}(vertices[:, 1])
+
+    # Calculate edge lengths from min/max corners
+    edge_lengths = max_corner - min_corner
+
+    # Create spanning vectors using the eigen vectors scaled by edge lengths
+    spanning_vectors = ntuple(i -> SVector{2}(eigen_vectors[:, i] * edge_lengths[i]), 2)
+
+    prod(local_axis_scale) > 0 || return OrientedBox(box_origin, spanning_vectors)
+
+    # Uniform scaling about the center, center remains unchanged
+    v1, v2 = spanning_vectors
+    center = box_origin + (v1 + v2) / 2
+
+    # Scaling factor per oriented axis
+    s1, s2 = local_axis_scale
+
+    # New spanning vectors
+    v1p, v2p = s1 * v1, s2 * v2
+
+    new_origin = center - (v1p + v2p) / 2
+
+    return OrientedBox(new_origin, (v1p, v2p))
 end
 
 @inline Base.ndims(::OrientedBox{NDIMS}) where {NDIMS} = NDIMS
@@ -254,8 +313,8 @@ function is_in_oriented_box(coordinates::AbstractArray, box)
 end
 
 @inline function is_in_oriented_box(particle_coords::SVector{NDIMS}, box) where {NDIMS}
-    (; spanning_vectors, zone_origin) = box
-    relative_position = particle_coords - zone_origin
+    (; spanning_vectors, box_origin) = box
+    relative_position = particle_coords - box_origin
 
     for dim in 1:NDIMS
         span_dim = spanning_vectors[dim]

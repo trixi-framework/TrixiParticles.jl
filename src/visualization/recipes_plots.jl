@@ -170,3 +170,41 @@ RecipesBase.@recipe function f(geometry::Polygon)
         return (x, y)
     end
 end
+
+RecipesBase.@recipe function f(box::OrientedBox{2})
+    # Get the box origin and spanning vectors
+    origin = box.box_origin
+    v1, v2 = box.spanning_vectors
+
+    # Calculate all 4 corners of the rectangle
+    # Corner 1: origin
+    # Corner 2: origin + v1
+    # Corner 3: origin + v1 + v2 (diagonal corner)
+    # Corner 4: origin + v2
+    corners = hcat(origin,
+                   origin + v1,
+                   origin + v1 + v2,
+                   origin + v2,
+                   origin)  # Close the rectangle by returning to start
+
+    x = corners[1, :]
+    y = corners[2, :]
+
+    aspect_ratio --> :equal
+    grid --> false
+
+    # First plot the vertices as a scatter plot
+    @series begin
+        seriestype --> :scatter
+        return (x, y)
+    end
+
+    # Now plot the edges as a line plot
+    @series begin
+        # Ignore series in legend and color cycling. Note that `:=` forces the attribute,
+        # whereas `-->` would only set it if it is not already set.
+        primary := false
+
+        return (x, y)
+    end
+end
