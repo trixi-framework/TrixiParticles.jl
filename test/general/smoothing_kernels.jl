@@ -37,7 +37,8 @@
             WendlandC4Kernel,
             WendlandC6Kernel,
             SpikyKernel,
-            Poly6Kernel
+            Poly6Kernel,
+            LaguerreGaussKernel
         ]
 
         @testset "$kernel" for kernel in kernels

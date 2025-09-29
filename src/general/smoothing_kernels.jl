@@ -351,7 +351,7 @@ end
 abstract type AbstractWendlandKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 # Compact support for all Wendland kernels
-@inline compact_support(::AbstractWendlandKernel, h) = 2h
+@inline compact_support(::AbstractWendlandKernel, h) = 2 * h
 
 @doc raw"""
     WendlandC2Kernel{NDIMS}()
@@ -698,9 +698,9 @@ Eulerian / total Lagrangian SPH with relaxed particles.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct LaguerreGaussKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+struct LaguerreGaussKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@muladd @inline function kernel(kernel::LaguerreGaussKernel, r::Real, h)
+@fastpow @muladd @inline function kernel(kernel::LaguerreGaussKernel, r::Real, h)
     s = r / h
     # polynomial part: 1 - s^2/2 + s^4/6
     poly = 1 - s^2 / 2 + s^4 / 6
@@ -708,6 +708,7 @@ struct LaguerreGaussKernel{NDIMS} <: SmoothingKernel{NDIMS} end
     # zero out for s ≥ 2
     return ifelse(s < 2, val, zero(val))
 end
+
 @muladd @inline function kernel_deriv(kernel::LaguerreGaussKernel, r::Real, h)
     invh = 1 / h
     s = r * invh
@@ -720,6 +721,26 @@ end
 end
 
 @inline compact_support(::LaguerreGaussKernel, h) = 2 * h
-@inline normalization_factor(::LaguerreGaussKernel{1}, h) = (8 / (5 * sqrt(pi))) / h
-@inline normalization_factor(::LaguerreGaussKernel{2}, h) = (3 / (pi)) / (h^2)
-@inline normalization_factor(::LaguerreGaussKernel{3}, h) = (8 / (pi^(3 // 2))) / (h^3)
+# Original normalization factors as in Wang2024
+# @inline normalization_factor(::LaguerreGaussKernel{1}, h) = (8 / (5 * sqrt(pi))) / h
+# @inline normalization_factor(::LaguerreGaussKernel{2}, h) = (3 / (pi)) / (h^2)
+# @inline normalization_factor(::LaguerreGaussKernel{3}, h) = (8 / (pi^(3 // 2))) / (h^3)
+
+# Renormalized to the truncated integral over [0,2h]
+@inline function normalization_factor(::LaguerreGaussKernel{1}, h)
+    # C' = 1 / (2 * h * integral)
+    # integral = (7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4)
+    return (1 / (2 * ((7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4)))) / h
+end
+
+@inline function normalization_factor(::LaguerreGaussKernel{2}, h)
+    # C' = 1 / (2 * pi * h^2 * integral)
+    # integral = (5 - 17 * exp(-4)) / 12
+    return (6 / (pi * (5 - 17 * exp(-4)))) / h^2
+end
+
+@inline function normalization_factor(::LaguerreGaussKernel{3}, h)
+    # C' = 1 / (4 * pi * h^3 * integral)
+    # integral = (7 * sqrt(pi) / 32) * erf(2) - (77 / 24) * exp(-4)
+    return (1 / (4 * pi * ((7 * sqrt(pi) / 32) * erf(2) - (77 / 24) * exp(-4)))) / h^3
+end
