@@ -134,7 +134,7 @@ end
 
 """
     OrientedBoundingBox(; box_origin, orientation_vector, edge_lengths::Tuple)
-    OrientedBoundingBox(geometry::TriangleMesh; local_axis_scale::Tuple)
+    OrientedBoundingBox(geometry; local_axis_scale::Tuple)
 
 Constructor for a parallelogram spanned by two orthogonal edge vectors,
 a parallelepiped spanned by three orthogonal edge vectors,
@@ -155,7 +155,7 @@ or a parallelepiped enclosing a 3D geometry.
                       The tuple components correspond to:
                         - first element: scaling along the first eigenvector (local x-axis),
                         - second element: scaling along the second eigenvector (local y-axis),
-                        - third element: scaling along the third eigenvector (local z-axis).
+                        - third element (only in 3D): scaling along the third eigenvector (local z-axis).
                       Note: Scaling is always applied in the local `OrientedBoundingBox`
                       coordinate system, i.e. along its oriented axes.
                       Scaling along arbitrary world directions is not supported,
@@ -164,24 +164,18 @@ or a parallelepiped enclosing a 3D geometry.
 # Examples
 ```jldoctest; output=false
 # 2D
-OrientedBoundingBox(
-    box_origin = [0.0, 0.0],
-    orientation_vector = [1.0, 1.0],
-    edge_lengths = (2.0, 1.0)
-)
+OrientedBoundingBox(box_origin=[0.0, 0.0], orientation_vector=[1.0, 1.0],
+                    edge_lengths=(2.0, 1.0))
 
 # 3D
-OrientedBoundingBox(
-    box_origin = [0.5, -0.2, 0.0],
-    orientation_vector = [0.0, 0.0, 1.0],
-    edge_lengths = (1.0, 2.0, 3.0)
-)
+OrientedBoundingBox(box_origin=[0.5, -0.2, 0.0], orientation_vector=[0.0, 0.0, 1.0],
+                    edge_lengths=(1.0, 2.0, 3.0))
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ OrientedBoundingBox (3D)                                                                                 │
-│ ════════════════                                                                                 │
-│ zone origin: ……………………………………………… [0.5, -0.2, 0.0]                                                 │
+│ OrientedBoundingBox (3D)                                                                         │
+│ ════════════════════════                                                                         │
+│ box origin: ………………………………………………… [0.5, -0.2, 0.0]                                                 │
 │ edge lengths: …………………………………………… (1.0, 2.0, 3.0)                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 """
