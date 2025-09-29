@@ -107,11 +107,11 @@ which results in a 1st-order-accurate SPH method (see [Bonet, 1999](@cite Bonet1
 """
 struct MixedKernelGradientCorrection end
 
-function kernel_correction_coefficient(system::FluidSystem, particle)
+function kernel_correction_coefficient(system::AbstractFluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
 end
 
-function kernel_correction_coefficient(system::BoundarySystem, particle)
+function kernel_correction_coefficient(system::AbstractBoundarySystem, particle)
     return system.boundary_model.cache.kernel_correction_coefficient[particle]
 end
 
@@ -126,7 +126,8 @@ function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode,
                                   system.cache.kernel_correction_coefficient)
 end
 
-function compute_correction_values!(system::BoundarySystem, ::ShepardKernelCorrection, u,
+function compute_correction_values!(system::AbstractBoundarySystem,
+                                    ::ShepardKernelCorrection, u,
                                     v_ode, u_ode, semi)
     return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
                                   semi,
@@ -160,15 +161,15 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
     return kernel_correction_coefficient
 end
 
-function dw_gamma(system::FluidSystem, particle)
+function dw_gamma(system::AbstractFluidSystem, particle)
     return extract_svector(system.cache.dw_gamma, system, particle)
 end
 
-function dw_gamma(system::BoundarySystem, particle)
+function dw_gamma(system::AbstractBoundarySystem, particle)
     return extract_svector(system.boundary_model.cache.dw_gamma, system, particle)
 end
 
-function compute_correction_values!(system::FluidSystem,
+function compute_correction_values!(system::AbstractFluidSystem,
                                     correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection}, u,
                                     v_ode, u_ode, semi)
@@ -178,7 +179,7 @@ function compute_correction_values!(system::FluidSystem,
                                system.cache.dw_gamma)
 end
 
-function compute_correction_values!(system::BoundarySystem,
+function compute_correction_values!(system::AbstractBoundarySystem,
                                     correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection}, u,
                                     v_ode, u_ode, semi)
@@ -215,7 +216,9 @@ function compute_correction_values!(system,
                        smoothing_length(system, particle))
 
             kernel_correction_coefficient[particle] += volume * W
-            if distance > sqrt(eps())
+
+            # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+            if distance^2 > eps(initial_smoothing_length(system)^2)
                 grad_W = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
                                      smoothing_length(system, particle))
                 tmp = volume * grad_W

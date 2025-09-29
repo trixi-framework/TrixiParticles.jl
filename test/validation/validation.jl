@@ -65,8 +65,8 @@
             @test isapprox(error_wcsph_P2, 0, atol=5e-4)
         else
             # Reference values are computed with 1.11
-            @test isapprox(error_edac_P1, 0, atol=eps())
-            @test isapprox(error_edac_P2, 0, atol=eps())
+            @test isapprox(error_edac_P1, 0, atol=5e-7)
+            @test isapprox(error_edac_P2, 0, atol=4e-11)
             @test isapprox(error_wcsph_P1, 0, atol=eps())
             @test isapprox(error_wcsph_P2, 0, atol=eps())
         end
