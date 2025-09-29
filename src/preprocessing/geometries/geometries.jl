@@ -136,19 +136,21 @@ end
     OrientedBoundingBox(; box_origin, orientation_vector, edge_lengths::Tuple)
     OrientedBoundingBox(geometry; local_axis_scale::Tuple)
 
-Constructor for a parallelogram spanned by two orthogonal edge vectors,
-a parallelepiped spanned by three orthogonal edge vectors,
-or a parallelepiped enclosing a 3D geometry.
+Creates an oriented bounding box (rectangle in 2D or cuboid in 3D) that can be
+rotated and positioned arbitrarily in space.
+
+The box is defined either by explicit parameters
+or by automatically fitting it around an existing geometry with optional scaling.
 
 # Arguments
 - `geometry`: Geometry returned by [`load_geometry`](@ref).
 
 # Keywords
-- `box_origin`: The origin corner of the box.
+- `box_origin`: The corner point from which the box is constructed.
 - `orientation_vector`: A vector describing the main direction of the box.
 - `edge_lengths`: The lengths of the edges of the box:
-                    - In 2D: `(length_x, length_y)`
-                    - In 3D: `(length_x, length_y, length_z)`
+                    - In 2D: `(width, height)`
+                    - In 3D: `(width, height, depth)`
 - `local_axis_scale`: Allows for anisotropic scaling along the oriented axes of the `OrientedBoundingBox`
                       (the eigenvectors of the geometry's covariance matrix).
                       Default is no scaling.
