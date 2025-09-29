@@ -85,8 +85,7 @@ export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffus
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
-       BoundaryModelMirroringTafuni,
-       BernoulliPressureExtrapolation
+       BoundaryModelMirroringTafuni, BernoulliPressureExtrapolation
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export PrescribedMotion
@@ -96,7 +95,7 @@ export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
-       sample_boundary, planar_geometry_to_face
+       sample_boundary, planar_geometry_to_face, OrientedBox
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
