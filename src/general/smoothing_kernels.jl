@@ -676,7 +676,7 @@ end
     LaguerreGaussKernel{NDIMS}()
 
 Truncated Laguerre–Gauss kernel (fourth-order smoothing) as defined in
-Wang et al., *J. Comput. Phys.* 519 (2024) 113385. Its radial form uses
+[Wang2024](@cite). Its radial form uses
 `s = r/h` and is truncated at `s = 2` (compact support `2h`):
 
 ```math
