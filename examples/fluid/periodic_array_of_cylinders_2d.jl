@@ -60,7 +60,7 @@ smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergQuarticSplineKernel{2}()
 fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
                                            sound_speed, viscosity=ViscosityAdami(; nu),
-                                           transport_velocity=TransportVelocityAdami(pressure),
+                                           shifting_technique=TransportVelocityAdami(background_pressure=pressure),
                                            acceleration=(acceleration_x, 0.0))
 
 # ==========================================================================================
@@ -70,7 +70,7 @@ boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              viscosity=ViscosityAdami(; nu),
                                              smoothing_kernel, smoothing_length)
 
-boundary_system = BoundarySPHSystem(boundary, boundary_model)
+boundary_system = WallBoundarySystem(boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
