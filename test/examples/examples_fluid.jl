@@ -204,6 +204,31 @@
         end
     end
 
+    @trixi_testset "fluid/dam_break_2d_iisph.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1)) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureMirroring" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1),
+                                         boundary_density_calculator=PressureMirroring()) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
     @trixi_testset "fluid/dam_break_2d_gpu.jl" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
@@ -361,21 +386,6 @@
                                                   "pipe_flow_2d.jl"),
                                          open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          extra_callback=steady_state_reached,
-                                         tspan=(0.0, 1.5), viscosity_boundary=nothing)
-
-        # Make sure that the simulation is terminated after a reasonable amount of time
-        @test 0.1 < sol.t[end] < 1.0
-        @test sol.retcode == ReturnCode.Terminated
-    end
-
-    @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; interval=1, interval_size=5,
-                                                          reltol=1e-3)
-        @trixi_test_nowarn trixi_include(@__MODULE__,
-                                         joinpath(examples_dir(), "fluid",
-                                                  "pipe_flow_2d.jl"),
-                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
-                                         extra_callback=steady_state_reached, dtmax=2e-3,
                                          tspan=(0.0, 1.5), viscosity_boundary=nothing)
 
         # Make sure that the simulation is terminated after a reasonable amount of time

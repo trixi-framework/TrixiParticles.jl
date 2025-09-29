@@ -135,7 +135,7 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
 
     # Save initial solution
     if solution_callback.save_initial_solution
-        solution_callback(integrator)
+        solution_callback(integrator; from_initialize=true)
     end
 
     return nothing
@@ -150,12 +150,21 @@ function (solution_callback::SolutionSavingCallback)(u, t, integrator)
 end
 
 # `affect!`
-function (solution_callback::SolutionSavingCallback)(integrator)
+function (solution_callback::SolutionSavingCallback)(integrator; from_initialize=false)
     (; interval, output_directory, custom_quantities, git_hash, verbose,
      prefix, latest_saved_iter, max_coordinates) = solution_callback
 
-    dvdu_ode = get_du(integrator)
     vu_ode = integrator.u
+    if from_initialize
+        # Avoid calling `get_du` here, since it will call the RHS function
+        # if it is called before the first time step.
+        # This would cause problems with `semi.update_callback_used`,
+        # which might not yet be set to `true` at this point if the `UpdateCallback`
+        # comes AFTER the `SolutionSavingCallback` in the `CallbackSet`.
+        dvdu_ode = zero(vu_ode)
+    else
+        dvdu_ode = get_du(integrator)
+    end
     semi = integrator.p
     iter = get_iter(interval, integrator)
 
