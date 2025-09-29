@@ -171,7 +171,7 @@ RecipesBase.@recipe function f(geometry::Polygon)
     end
 end
 
-RecipesBase.@recipe function f(box::OrientedBox{2})
+RecipesBase.@recipe function f(box::OrientedBoundingBox{2})
     # Get the box origin and spanning vectors
     origin = box.box_origin
     v1, v2 = box.spanning_vectors

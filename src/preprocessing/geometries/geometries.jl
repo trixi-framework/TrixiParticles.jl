@@ -133,8 +133,8 @@ function oriented_bounding_box(point_cloud)
 end
 
 """
-    OrientedBox(; box_origin, orientation_vector, edge_lengths::Tuple)
-    OrientedBox(geometry::TriangleMesh; local_axis_scale::Tuple)
+    OrientedBoundingBox(; box_origin, orientation_vector, edge_lengths::Tuple)
+    OrientedBoundingBox(geometry::TriangleMesh; local_axis_scale::Tuple)
 
 Constructor for a parallelogram spanned by two orthogonal edge vectors,
 a parallelepiped spanned by three orthogonal edge vectors,
@@ -149,14 +149,14 @@ or a parallelepiped enclosing a 3D geometry.
 - `edge_lengths`: The lengths of the edges of the box:
                     - In 2D: `(length_x, length_y)`
                     - In 3D: `(length_x, length_y, length_z)`
-- `local_axis_scale`: Allows for anisotropic scaling along the oriented axes of the `OrientedBox`
+- `local_axis_scale`: Allows for anisotropic scaling along the oriented axes of the `OrientedBoundingBox`
                       (the eigenvectors of the geometry's covariance matrix).
                       Default is no scaling.
                       The tuple components correspond to:
                         - first element: scaling along the first eigenvector (local x-axis),
                         - second element: scaling along the second eigenvector (local y-axis),
                         - third element: scaling along the third eigenvector (local z-axis).
-                      Note: Scaling is always applied in the local `OrientedBox`
+                      Note: Scaling is always applied in the local `OrientedBoundingBox`
                       coordinate system, i.e. along its oriented axes.
                       Scaling along arbitrary world directions is not supported,
                       as this would break the orthogonality of the spanning vectors.
@@ -164,14 +164,14 @@ or a parallelepiped enclosing a 3D geometry.
 # Examples
 ```jldoctest; output=false
 # 2D
-OrientedBox(
+OrientedBoundingBox(
     box_origin = [0.0, 0.0],
     orientation_vector = [1.0, 1.0],
     edge_lengths = (2.0, 1.0)
 )
 
 # 3D
-OrientedBox(
+OrientedBoundingBox(
     box_origin = [0.5, -0.2, 0.0],
     orientation_vector = [0.0, 0.0, 1.0],
     edge_lengths = (1.0, 2.0, 3.0)
@@ -179,19 +179,19 @@ OrientedBox(
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ OrientedBox (3D)                                                                                 │
+│ OrientedBoundingBox (3D)                                                                                 │
 │ ════════════════                                                                                 │
 │ zone origin: ……………………………………………… [0.5, -0.2, 0.0]                                                 │
 │ edge lengths: …………………………………………… (1.0, 2.0, 3.0)                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 """
-struct OrientedBox{NDIMS, ELTYPE <: Real, SV}
+struct OrientedBoundingBox{NDIMS, ELTYPE <: Real, SV}
     box_origin       :: SVector{NDIMS, ELTYPE}
     spanning_vectors :: SV
 end
 
 # Constructor with orientation vector (from box_origin to opposite corner)
-function OrientedBox(; box_origin, orientation_vector, edge_lengths::Tuple)
+function OrientedBoundingBox(; box_origin, orientation_vector, edge_lengths::Tuple)
     NDIMS = length(box_origin)
 
     @assert length(orientation_vector) == NDIMS
@@ -206,10 +206,10 @@ function OrientedBox(; box_origin, orientation_vector, edge_lengths::Tuple)
     spanning_vectors = ntuple(i -> SVector{NDIMS}(R[:, i] * edge_lengths[i]),
                               length(edge_lengths))
 
-    return OrientedBox(SVector{NDIMS}(box_origin), spanning_vectors)
+    return OrientedBoundingBox(SVector{NDIMS}(box_origin), spanning_vectors)
 end
 
-function OrientedBox(geometry::TriangleMesh; local_axis_scale::Tuple=(0, 0, 0))
+function OrientedBoundingBox(geometry::TriangleMesh; local_axis_scale::Tuple=(0, 0, 0))
     point_cloud = stack(geometry.vertices)
     vertices, eigen_vectors, (min_corner, max_corner) = oriented_bounding_box(point_cloud)
 
@@ -222,7 +222,7 @@ function OrientedBox(geometry::TriangleMesh; local_axis_scale::Tuple=(0, 0, 0))
     # Create spanning vectors using the eigen vectors scaled by edge lengths
     spanning_vectors = ntuple(i -> SVector{3}(eigen_vectors[:, i] * edge_lengths[i]), 3)
 
-    prod(local_axis_scale) > 0 || return OrientedBox(box_origin, spanning_vectors)
+    prod(local_axis_scale) > 0 || return OrientedBoundingBox(box_origin, spanning_vectors)
 
     # Uniform scaling about the center, center remains unchanged
     v1, v2, v3 = spanning_vectors
@@ -236,10 +236,10 @@ function OrientedBox(geometry::TriangleMesh; local_axis_scale::Tuple=(0, 0, 0))
 
     new_origin = center - (v1p + v2p + v3p) / 2
 
-    return OrientedBox(new_origin, (v1p, v2p, v3p))
+    return OrientedBoundingBox(new_origin, (v1p, v2p, v3p))
 end
 
-function OrientedBox(geometry::Polygon; local_axis_scale::Tuple=(0, 0))
+function OrientedBoundingBox(geometry::Polygon; local_axis_scale::Tuple=(0, 0))
     point_cloud = stack(geometry.vertices)
     vertices, eigen_vectors, (min_corner, max_corner) = oriented_bounding_box(point_cloud)
 
@@ -252,7 +252,7 @@ function OrientedBox(geometry::Polygon; local_axis_scale::Tuple=(0, 0))
     # Create spanning vectors using the eigen vectors scaled by edge lengths
     spanning_vectors = ntuple(i -> SVector{2}(eigen_vectors[:, i] * edge_lengths[i]), 2)
 
-    prod(local_axis_scale) > 0 || return OrientedBox(box_origin, spanning_vectors)
+    prod(local_axis_scale) > 0 || return OrientedBoundingBox(box_origin, spanning_vectors)
 
     # Uniform scaling about the center, center remains unchanged
     v1, v2 = spanning_vectors
@@ -266,18 +266,18 @@ function OrientedBox(geometry::Polygon; local_axis_scale::Tuple=(0, 0))
 
     new_origin = center - (v1p + v2p) / 2
 
-    return OrientedBox(new_origin, (v1p, v2p))
+    return OrientedBoundingBox(new_origin, (v1p, v2p))
 end
 
-@inline Base.ndims(::OrientedBox{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.ndims(::OrientedBoundingBox{NDIMS}) where {NDIMS} = NDIMS
 
-function Base.show(io::IO, ::MIME"text/plain", box::OrientedBox)
+function Base.show(io::IO, ::MIME"text/plain", box::OrientedBoundingBox)
     @nospecialize box # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, box)
     else
-        summary_header(io, "OrientedBox ($(ndims(box))D)")
+        summary_header(io, "OrientedBoundingBox ($(ndims(box))D)")
         summary_line(io, "box origin", box.box_origin)
         summary_line(io, "edge lengths", norm.(box.spanning_vectors))
         summary_footer(io)
@@ -331,12 +331,13 @@ end
     return true
 end
 
-@inline function Base.intersect(initial_condition::InitialCondition, boxes::OrientedBox...)
+@inline function Base.intersect(initial_condition::InitialCondition,
+                                boxes::OrientedBoundingBox...)
     (; coordinates, density, mass, velocity, pressure, particle_spacing) = initial_condition
     box = first(boxes)
 
     if ndims(box) != ndims(initial_condition)
-        throw(ArgumentError("all passed `OrientedBox`s must have the same dimensionality as the initial condition"))
+        throw(ArgumentError("all passed `OrientedBoundingBox`s must have the same dimensionality as the initial condition"))
     end
 
     keep_indices = fill(false, nparticles(initial_condition))
@@ -355,12 +356,13 @@ end
     return intersect(result, Base.tail(boxes)...)
 end
 
-@inline function Base.setdiff(initial_condition::InitialCondition, boxes::OrientedBox...)
+@inline function Base.setdiff(initial_condition::InitialCondition,
+                              boxes::OrientedBoundingBox...)
     (; coordinates, density, mass, velocity, pressure, particle_spacing) = initial_condition
     box = first(boxes)
 
     if ndims(box) != ndims(initial_condition)
-        throw(ArgumentError("all passed `OrientedBox`s must have the same dimensionality as the initial condition"))
+        throw(ArgumentError("all passed `OrientedBoundingBox`s must have the same dimensionality as the initial condition"))
     end
 
     keep_indices = fill(false, nparticles(initial_condition))
