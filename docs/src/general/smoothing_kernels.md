@@ -12,7 +12,7 @@ The following smoothing kernels are currently available:
 | [`WendlandC6Kernel`](@ref)                | $[0, 2h]$         | $1.7$ to $2.5$        | General                 | +++++     |
 | [`Poly6Kernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $2.5$        | Academic                | +         |
 | [`SpikyKernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $3.0$        | Academic                | +         |
-| [`LaguerreGaussKernel`](@ref)             | $[0, 2h]$         | $1.3$ to $1.5$        | TLSPH/Eulerian          | ++++      |
+| [`LaguerreGaussKernel`](@ref)             | $[0, 2h]$         | $1.3$ to $1.5$        | General                 | ++++      |
 
 Any Kernel with a stability rating of more than '+++' doesn't suffer from pair-instability.
 
