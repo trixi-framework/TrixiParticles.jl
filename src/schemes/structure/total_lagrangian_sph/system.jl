@@ -53,7 +53,7 @@ There are two approaches to specify clamped particles in the system:
                     See, for example, [`SourceTermDamping`](@ref).
 
 !!! note
-    If specifing the clamped particles manually (via `n_clamped_particles`),
+    If specifying the clamped particles manually (via `n_clamped_particles`),
     the clamped particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
     ```jldoctest; output = false, setup = :(clamped_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
