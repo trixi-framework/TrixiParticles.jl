@@ -76,8 +76,11 @@ There are three ways to specify the actual shape of the boundary zone:
                         and time to its pressure, or a scalar for a constant pressure over all particles.
 - `reference_density`: Reference density is either a function mapping each particle's coordinates
                        and time to its density, or a scalar for a constant density over all particles.
-- `rest_pressure=0.0`: For `BoundaryModelDynamicalPressureZhang`, a rest pressure is required when the pressure is not prescribed (default is zero).
-                       This is analogous to the pressure provided to the `FluidSystem` via its `InitialCondition`.
+- `rest_pressure=0.0`: For `BoundaryModelDynamicalPressureZhang`, a rest pressure is required when the pressure is not prescribed.
+                       This should match the rest pressure of the fluid system.
+                       Per default it is set to zero (assuming a gauge pressure system).
+                       - For `EntropicallyDampedSPHSystem`: Use the initial pressure from the `InitialCondition`
+                       - For `WeaklyCompressibleSPHSystem`: Use the background pressure from the equation of state
 
 !!! note "Note"
     The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
