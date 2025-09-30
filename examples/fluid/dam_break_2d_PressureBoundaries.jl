@@ -37,4 +37,4 @@ trixi_include(@__MODULE__,
               tspan=tspan,
               state_equation=nothing,
               callbacks=CallbackSet(info_callback, saving_callback),
-              time_integration_algorithm=SymplecticEuler(), dt=time_step)
+              time_integration_scheme=SymplecticEuler(), dt=time_step)

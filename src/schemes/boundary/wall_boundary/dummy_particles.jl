@@ -960,17 +960,17 @@ function calculate_sum_term(system, boundary_model, ::PressureBoundaries, neighb
     return 0
 end
 
-function calculate_source_term(system::AbstractBoundarySystem, particle)
+function iisph_source_term(system::AbstractBoundarySystem, particle)
     (; boundary_model) = system
     (; density_calculator) = boundary_model
-    return calculate_source_term(system, boundary_model, density_calculator, particle)
+    return iisph_source_term(system, boundary_model, density_calculator, particle)
 end
 
-function calculate_source_term(system, boundary_model, density_calculator, particle)
+function iisph_source_term(system, boundary_model, density_calculator, particle)
     return system
 end
 
-function calculate_source_term(system, boundary_model, ::PressureBoundaries, particle)
+function iisph_source_term(system, boundary_model, ::PressureBoundaries, particle)
     (; reference_density, predicted_density) = boundary_model.cache
     return reference_density - predicted_density[particle]
 end
