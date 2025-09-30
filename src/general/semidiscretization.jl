@@ -564,6 +564,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
+    update_implicit_sph!(semi, v_ode, u_ode, t)
+
     # Perform correction and pressure calculation
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
