@@ -102,7 +102,9 @@ function planar_geometry_to_face(planar_geometry::TriangleMesh)
         throw(ArgumentError("geometry is not planar"))
     end
 
-    computed_face_normal = SVector(normalize(cross(edge1, edge2))...)
+    # The `face_normal` computed above might not be exactly orthogonal to the plane
+    # spanned by `edge1` and `edge2`, but this is important for some computations later.
+    computed_face_normal = SVector(Tuple(normalize(cross(edge1, edge2))))
     computed_face_normal *= sign(dot(computed_face_normal, face_normal))
 
     return (; face=(face_vertices[:, 1], face_vertices[:, 2], face_vertices[:, 3]),
