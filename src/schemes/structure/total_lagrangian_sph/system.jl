@@ -1,10 +1,11 @@
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition,
-                             smoothing_kernel, smoothing_length,
-                             young_modulus, poisson_ratio;
-                             n_clamped_particles=0, boundary_model=nothing,
-                             acceleration=ntuple(_ -> 0.0, NDIMS),
-                             penalty_force=nothing, source_terms=nothing)
+                                  smoothing_kernel, smoothing_length,
+                                  young_modulus, poisson_ratio;
+                                  n_clamped_particles=0, clamped_particles=Int[],
+                                  acceleration=ntuple(_ -> 0.0, NDIMS),
+                                  penalty_force=nothing, viscosity=nothing,
+                                  source_terms=nothing, boundary_model=nothing)
 
 System for particles of an elastic structure.
 
@@ -12,6 +13,16 @@ A Total Lagrangian framework is used wherein the governing equations are formula
 all relevant quantities and operators are measured with respect to the
 initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
 See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
+
+There are two approaches to specify clamped particles in the system:
+
+1. **Manual ordering**: Provide the number of clamped particles via `n_clamped_particles`,
+   ensuring that these particles are the last entries in the `InitialCondition`
+   (see the info box below for details).
+
+2. **Automatic ordering**: Pass the indices of the particles to be clamped via `clamped_particles`.
+   In this case, the specified particles will be internally reordered so that they become
+   the last particles in the `InitialCondition`.
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
@@ -24,8 +35,10 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 
 # Keyword Arguments
 - `n_clamped_particles`: Number of clamped particles which are fixed and not integrated
-                    to clamp the structure. Note that the clamped particles must be the **last**
-                    particles in the `InitialCondition`. See the info box below.
+                         to clamp the structure. Note that the clamped particles must be the **last**
+                         particles in the `InitialCondition`. See the info box below.
+- `clamped_particles`: Indices of the clamped particles which are fixed and not integrated
+                       to clamp the structure.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
@@ -40,7 +53,8 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     See, for example, [`SourceTermDamping`](@ref).
 
 !!! note
-    The clamped particles must be the **last** particles in the `InitialCondition`.
+    If specifing the clamped particles manually (via `n_clamped_particles`),
+    the clamped particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
     ```jldoctest; output = false, setup = :(clamped_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
     structure = union(beam, clamped_particles)
@@ -84,11 +98,11 @@ end
 function TotalLagrangianSPHSystem(initial_condition,
                                   smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_clamped_particles=0, boundary_model=nothing,
+                                  n_clamped_particles=0, clamped_particles=Int[],
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
-                                  source_terms=nothing)
+                                  source_terms=nothing, boundary_model=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -101,6 +115,18 @@ function TotalLagrangianSPHSystem(initial_condition,
     acceleration_ = SVector(acceleration...)
     if length(acceleration_) != NDIMS
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    # Handle clamped particles:
+    # If only n_clamped_particles > 0: assume manual ordering (do nothing).
+    # If both are 0/empty: no clamped particles (do nothing).
+    if !isempty(clamped_particles)
+        # Check consistency if both methods are used
+        if n_clamped_particles > 0 && n_clamped_particles != length(clamped_particles)
+            throw(ArgumentError("`n_clamped_particles` must equal length of `clamped_particles` when both are specified"))
+        end
+        n_clamped_particles = length(clamped_particles)
+        move_particles_to_end!(initial_condition, clamped_particles)
     end
 
     initial_coordinates = copy(initial_condition.coordinates)

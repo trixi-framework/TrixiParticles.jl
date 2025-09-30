@@ -415,3 +415,16 @@ function find_too_close_particles(coords, min_distance)
 
     return result
 end
+
+function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move)
+    sort_key = [i in particle_ids_to_move ? 1 : 0 for i in eachparticle(ic)]
+    permutation = sortperm(sort_key)
+
+    ic.coordinates .= ic.coordinates[:, permutation]
+    ic.velocity .= ic.velocity[:, permutation]
+    ic.mass .= ic.mass[permutation]
+    ic.density .= ic.density[permutation]
+    ic.pressure .= ic.pressure[permutation]
+
+    return ic
+end
