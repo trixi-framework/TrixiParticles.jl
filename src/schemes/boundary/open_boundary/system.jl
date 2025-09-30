@@ -307,11 +307,9 @@ end
     # Check if particle is in- or outside the fluid domain.
     # `face_normal` is always pointing into the fluid domain.
     # Since this function is called for a particle that left the boundary zone,
-    # it is sufficient to check if it is closer to the free surface or the transition face
-    # to determine if it exited the boundary zone into the fluid or through the free surface.
-    dist_to_transition = dot(relative_position, -boundary_zone.face_normal)
-    dist_free_surface = boundary_zone.zone_width - dist_to_transition
-    if dist_free_surface < dist_to_transition
+    # it is sufficient to check if the dot product between the relative position and the face normal is negative
+    # to determine if it exited the boundary zone through the free surface (outflow).
+    if signbit(dot(relative_position, boundary_zone.face_normal))
         # Particle is outside the fluid domain
         deactivate_particle!(system, particle, u)
 
