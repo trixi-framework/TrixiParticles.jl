@@ -67,6 +67,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                            pos_diff, distance, m_b, rho_a, rho_b,
                            particle_system, grad_kernel)
 
+        # Open boundary pressure evolution matches the corresponding fluid system:
+        # - EDAC: Compute pressure evolution like the fluid system
+        # - WCSPH: No pressure evolution (pressure from EOS)
         pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                             particle, neighbor, pos_diff, distance,
                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system)
