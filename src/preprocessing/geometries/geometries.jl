@@ -149,19 +149,19 @@ or by automatically fitting it around an existing geometry with optional scaling
 - `box_origin`: The corner point from which the box is constructed.
 - `orientation_vector`: A vector describing the main direction of the box.
 - `edge_lengths`: The lengths of the edges of the box:
-                    - In 2D: `(width, height)`
-                    - In 3D: `(width, height, depth)`
+    - In 2D: `(width, height)`
+    - In 3D: `(width, height, depth)`
 - `local_axis_scale`: Allows for anisotropic scaling along the oriented axes of the `OrientedBoundingBox`
-                      (the eigenvectors of the geometry's covariance matrix).
-                      Default is no scaling.
-                      The tuple components correspond to:
-                        - first element: scaling along the first eigenvector (local x-axis),
-                        - second element: scaling along the second eigenvector (local y-axis),
-                        - third element (only in 3D): scaling along the third eigenvector (local z-axis).
-                      Note: Scaling is always applied in the local `OrientedBoundingBox`
-                      coordinate system, i.e. along its oriented axes.
-                      Scaling along arbitrary world directions is not supported,
-                      as this would break the orthogonality of the spanning vectors.
+    (the eigenvectors of the geometry's covariance matrix). Default is no scaling.
+    The tuple components correspond to:
+    - first element: scaling along the first eigenvector (local x-axis),
+    - second element: scaling along the second eigenvector (local y-axis),
+    - third element (only in 3D): scaling along the third eigenvector (local z-axis).
+
+    **Note:** Scaling is always applied in the local `OrientedBoundingBox`
+    coordinate system, i.e. along its oriented axes.
+    Scaling along arbitrary world directions is not supported,
+    as this would break the orthogonality of the spanning vectors.
 
 # Examples
 ```jldoctest; output=false
@@ -180,6 +180,7 @@ OrientedBoundingBox(box_origin=[0.5, -0.2, 0.0], orientation_vector=[0.0, 0.0, 1
 │ box origin: ………………………………………………… [0.5, -0.2, 0.0]                                                 │
 │ edge lengths: …………………………………………… (1.0, 2.0, 3.0)                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
 """
 struct OrientedBoundingBox{NDIMS, ELTYPE <: Real, SV}
     box_origin       :: SVector{NDIMS, ELTYPE}
