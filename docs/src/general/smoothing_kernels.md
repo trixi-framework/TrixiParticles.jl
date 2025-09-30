@@ -14,7 +14,7 @@ The following smoothing kernels are currently available:
 | [`SpikyKernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $3.0$        | Academic                | +         |
 | [`LaguerreGaussKernel`](@ref)             | $[0, 2h]$         | $1.3$ to $1.5$        | General                 | ++++      |
 
-Any Kernel with a stability rating of more than '+++' doesn't suffer from pair-instability.
+Any Kernel with a stability rating of more than '+++' doesn't suffer from pairing-instability.
 
 ```julia
 using TrixiParticles

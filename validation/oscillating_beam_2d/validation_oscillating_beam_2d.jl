@@ -59,6 +59,6 @@ error_deflection_y = interpolated_mse(reference_data["deflection_y_structure_1"]
                                       run_data["deflection_y_structure_1"]["time"],
                                       run_data["deflection_y_structure_1"]["values"])
 
-@info("Validation results for oscillating beam 2D with $n_particles_beam_y particles in beam thickness:")
-@info("  MSE deflection x: $error_deflection_x")
-@info("  MSE deflection y: $error_deflection_y")
+println("Validation results for oscillating beam 2D with $n_particles_beam_y particles in beam thickness:")
+println("  MSE deflection x: $error_deflection_x")
+println("  MSE deflection y: $error_deflection_y")
