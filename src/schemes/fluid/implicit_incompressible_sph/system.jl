@@ -230,7 +230,7 @@ function predict_advection!(semi, v_ode, u_ode, t)
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        calculate_predicted_velocity_and_d_ii_values(system, v, u, v_ode, u_ode, semi, t)
+        calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     foreach_system(semi) do system
@@ -242,10 +242,10 @@ function predict_advection!(semi, v_ode, u_ode, t)
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        calculate_predicted_density(system, v, u, v_ode, u_ode, semi, t)
+        calculate_predicted_density!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    return system
+    return semi
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
@@ -443,7 +443,7 @@ function pressure_solve!(semi, v_ode, u_ode, t)
         @trixi_timeit timer() "pressure solver iteration" begin
             avg_density_error = pressure_solve_iteration(semi, u_ode)
             # Update termination condition
-            terminate = (avg_density_error <= eta && l >= min_iters) ||
+            terminate = (avg_density_error[] <= eta && l >= min_iters) ||
                         l >= max_iters
             l += 1
         end
@@ -476,13 +476,13 @@ function pressure_solve_iteration(semi, u_ode)
         calculate_sum_term_values!(system, u, u_ode, semi)
     end
 
-    avg_density_error = 0.0
+    avg_density_error = Ref(0.0)
     foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
-        avg_density_error += pressure_update(system, u, u_ode, semi)
+        avg_density_error[] += pressure_update(system, u, u_ode, semi)
     end
 
-    return avg_density_error
+    return avg_density_error[]
 end
 
 function calculate_sum_d_ij_pj!(system, u, u_ode, semi)
@@ -582,7 +582,7 @@ function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi
         if abs(a_ii[particle]) > 1.0e-9
             pressure[particle] = max((1 - omega) * pressure[particle] +
                                      omega / a_ii[particle] *
-                                     (calculate_source_term(system, particle) -
+                                     (iisph_source_term(system, particle) -
                                       sum_term[particle]), 0)
         else
             pressure[particle] = zero(pressure[particle])
@@ -590,7 +590,7 @@ function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi
         # Calculate the average density error for the termination condition
         if (pressure[particle] != 0.0)
             new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
-                          calculate_source_term(system, particle) +
+                          iisph_source_term(system, particle) +
                           reference_density
             density_error[particle] = (new_density - reference_density)
         end
