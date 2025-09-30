@@ -26,8 +26,8 @@ end
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        initial_pos_diff,
                                                                        initial_distance
-        # Only consider particles with a distance > 0
-        initial_distance < sqrt(eps()) && return
+        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+        initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
 
         rho_a = @inbounds system.material_density[particle]
         rho_b = @inbounds system.material_density[neighbor]
@@ -55,10 +55,10 @@ end
                                           current_pos_diff, current_distance,
                                           m_a, m_b, rho_a, rho_b, grad_kernel)
 
+        dv_particle = dv_stress + dv_penalty_force_ + dv_viscosity
+
         for i in 1:ndims(system)
-            @inbounds dv[i,
-                         particle] += dv_stress[i] + dv_penalty_force_[i] +
-                                      dv_viscosity[i]
+            @inbounds dv[i, particle] += dv_particle[i]
         end
 
         # TODO continuity equation for boundary model with `ContinuityDensity`?
@@ -88,8 +88,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Only consider particles with a distance > 0
-        distance < sqrt(eps()) && return
+        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
 
         # Apply the same force to the structure particle
         # that the fluid particle experiences due to the structure particle.
