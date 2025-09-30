@@ -2,7 +2,8 @@
     TotalLagrangianSPHSystem(initial_condition,
                                   smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_clamped_particles=0, clamped_particles=Int[],
+                                  n_clamped_particles=0,
+                                  clamped_particles::Vector{Int}=Int[],
                                   acceleration=ntuple(_ -> 0.0, NDIMS),
                                   penalty_force=nothing, viscosity=nothing,
                                   source_terms=nothing, boundary_model=nothing)
@@ -37,8 +38,8 @@ There are two approaches to specify clamped particles in the system:
 - `n_clamped_particles`: Number of clamped particles which are fixed and not integrated
                          to clamp the structure. Note that the clamped particles must be the **last**
                          particles in the `InitialCondition`. See the info box below.
-- `clamped_particles`: Indices of the clamped particles which are fixed and not integrated
-                       to clamp the structure.
+- `clamped_particles`: A vector of indices specifying the clamped particles which are fixed
+                       and not integrated to clamp the structure.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
@@ -98,7 +99,8 @@ end
 function TotalLagrangianSPHSystem(initial_condition,
                                   smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_clamped_particles=0, clamped_particles=Int[],
+                                  n_clamped_particles=0,
+                                  clamped_particles::Vector{Int}=Int[],
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
