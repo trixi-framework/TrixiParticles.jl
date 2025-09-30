@@ -1,12 +1,12 @@
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition,
-                                  smoothing_kernel, smoothing_length,
-                                  young_modulus, poisson_ratio;
-                                  n_clamped_particles=0,
-                                  clamped_particles::Vector{Int}=Int[],
-                                  acceleration=ntuple(_ -> 0.0, NDIMS),
-                                  penalty_force=nothing, viscosity=nothing,
-                                  source_terms=nothing, boundary_model=nothing)
+                             smoothing_kernel, smoothing_length,
+                             young_modulus, poisson_ratio;
+                             n_clamped_particles=0,
+                             clamped_particles::Vector{Int}=Int[],
+                             acceleration=ntuple(_ -> 0.0, NDIMS),
+                             penalty_force=nothing, viscosity=nothing,
+                             source_terms=nothing, boundary_model=nothing)
 
 System for particles of an elastic structure.
 
