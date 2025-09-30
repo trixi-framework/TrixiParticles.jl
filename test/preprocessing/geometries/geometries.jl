@@ -258,7 +258,7 @@
         end
 
         @testset verbose=true "`is_in_oriented_box`" begin
-            @testset "Manual Construction 2D" begin
+            @testset verbose=true "Manual Construction 2D" begin
                 # Simple axis-aligned box
                 box_2d = OrientedBoundingBox(box_origin=[0.0, 0.0],
                                              orientation_vector=[1.0, 0.0],
@@ -280,7 +280,7 @@
                 end
             end
 
-            @testset "Rotated Box 2D" begin
+            @testset verbose=true "Rotated Box 2D" begin
                 # 45° rotated box
                 box_rotated = OrientedBoundingBox(box_origin=[0.0, 0.0],
                                                   orientation_vector=[1.0, 1.0],
@@ -312,7 +312,8 @@
                     @test expected == TrixiParticles.is_in_oriented_box(point, box_rotated)
                 end
             end
-            @testset "Manual Construction 3D" begin
+
+            @testset verbose=true "Manual Construction 3D" begin
                 # Simple axis-aligned box
                 box_3d = OrientedBoundingBox(box_origin=[0.0, 0.0, 0.0],
                                              orientation_vector=[1.0, 0.0, 0.0],
@@ -339,7 +340,7 @@
                 end
             end
 
-            @testset "Rotated Box 3D" begin
+            @testset verbose=true "Rotated Box 3D" begin
                 # Box oriented along space diagonal
                 orientation_vector = [1.0, 1.0, 1.0]
                 box_rotated = OrientedBoundingBox(; box_origin=[0.0, 0.0, 0.0],
@@ -359,6 +360,21 @@
                     (point, expected) = query_points[k]
                     @test expected == TrixiParticles.is_in_oriented_box(point, box_rotated)
                 end
+            end
+
+            @testset verbose=true "Set Operations" begin
+                shape = RectangularShape(0.1, (10, 10), (0.0, 0.0), density=1.0)
+                box_1 = OrientedBoundingBox(box_origin=[0.0, 0.0],
+                                            orientation_vector=[1.0, 0.0],
+                                            edge_lengths=(1.0, 1.0))
+                box_2 = OrientedBoundingBox(box_origin=[0.0, 0.0],
+                                            orientation_vector=[1.0, 0.0],
+                                            edge_lengths=(1.0, 0.5))
+
+                @test nparticles(intersect(shape, box_1)) == 100
+                @test nparticles(setdiff(shape, box_1)) == 0
+                @test nparticles(intersect(shape, box_2)) == 50
+                @test nparticles(setdiff(shape, box_2)) == 50
             end
         end
 

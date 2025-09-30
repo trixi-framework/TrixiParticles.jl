@@ -336,12 +336,7 @@ end
         throw(ArgumentError("all passed `OrientedBoundingBox`s must have the same dimensionality as the initial condition"))
     end
 
-    keep_indices = fill(false, nparticles(initial_condition))
-    @threaded default_backend(coordinates) for particle in eachparticle(initial_condition)
-        particle_coords = current_coords(coordinates, initial_condition, particle)
-
-        keep_indices[particle] = is_in_oriented_box(particle_coords, box)
-    end
+    keep_indices = is_in_oriented_box(coordinates, box)
 
     result = InitialCondition(; coordinates=coordinates[:, keep_indices],
                               density=density[keep_indices], mass=mass[keep_indices],
@@ -361,15 +356,12 @@ end
         throw(ArgumentError("all passed `OrientedBoundingBox`s must have the same dimensionality as the initial condition"))
     end
 
-    keep_indices = fill(false, nparticles(initial_condition))
-    @threaded default_backend(coordinates) for particle in eachparticle(initial_condition)
-        particle_coords = current_coords(coordinates, initial_condition, particle)
-
-        keep_indices[particle] = !is_in_oriented_box(particle_coords, box)
-    end
+    delete_indices = is_in_oriented_box(coordinates, box)
+    keep_indices = setdiff(eachparticle(initial_condition), delete_indices)
 
     result = InitialCondition(; coordinates=coordinates[:, keep_indices],
-                              density=density[keep_indices], mass=mass[keep_indices],
+                              density=density[keep_indices],
+                              mass=mass[keep_indices],
                               velocity=velocity[:, keep_indices],
                               pressure=pressure[keep_indices],
                               particle_spacing)
