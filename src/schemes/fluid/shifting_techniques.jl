@@ -692,5 +692,5 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
     return system
 end
 
-# TODO: Implement free surface detection
+# TODO: Implement dispatch for free surface detection once shifting techniques support free surface handling
 @inline modify_shifting_at_free_surfaces!(system, u, semi) = system
