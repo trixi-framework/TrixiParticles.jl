@@ -299,8 +299,8 @@ function orientation_matrix(primary_direction, ::NTuple{3})
 end
 
 function is_in_oriented_box(coordinates::AbstractArray, box)
-    is_in_box = fill(false, nparticles(initial_condition))
-    @threaded default_backend(coordinates) for particle in eachparticle(initial_condition)
+    is_in_box = fill(false, size(coordinates, 2))
+    @threaded default_backend(coordinates) for particle in axes(coordinates, 2)
         particle_coords = current_coords(coordinates, box, particle)
         is_in_box[particle] = is_in_oriented_box(particle_coords, box)
     end
