@@ -523,7 +523,11 @@ end
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)
-            # Disable shifting for this particle
+            # Disable shifting for this particle.
+            # Note that Sun et al. 2017 proposes a more sophisticated approach with a transition phase
+            # where only the component orthogonal to the free surface is kept and the tangential
+            # component is set to zero. However, we assume laminar flow in the boundary zone,
+            # so we simply disable shifting completely.
             for dim in 1:ndims(system)
                 cache.delta_v[dim, particle] = zero(eltype(system))
             end
