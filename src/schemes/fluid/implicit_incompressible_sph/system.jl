@@ -597,7 +597,7 @@ function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi
     end
     avg_density_error = sum(density_error) / (nparticles(system) * reference_density)
 
-   return avg_density_error
+    return avg_density_error
 end
 
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
