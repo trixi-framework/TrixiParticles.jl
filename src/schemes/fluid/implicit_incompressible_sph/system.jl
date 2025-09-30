@@ -523,12 +523,12 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
         end
     end
 
-    return system
+    return sum_d_ij_pj
 end
 
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system::AbstractBoundarySystem, u, u_ode, semi)
-    return system
+    return sum_d_ij_pj
 end
 
 function calculate_sum_term_values!(system, u, u_ode, semi)
@@ -597,7 +597,7 @@ function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi
     end
     avg_density_error = sum(density_error) / (nparticles(system) * reference_density)
 
-    return avg_density_error
+   return avg_density_error
 end
 
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
