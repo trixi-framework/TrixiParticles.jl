@@ -14,7 +14,7 @@
       "controller": "PIDController",
       "abstol": 1.0e-6
     },
-    "solver_version": "da445e3-dirty",
+    "solver_version": "9d306e2-dirty",
     "solver_name": "TrixiParticles.jl"
   },
   "system_data": {
