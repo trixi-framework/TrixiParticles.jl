@@ -1,13 +1,14 @@
 struct RCRWindkesselModel{ELTYPE <: Real}
     characteristic_resistance :: ELTYPE
     peripheral_resistance     :: ELTYPE
-    # Compliance is analogous to a capacitor in an electric circuit.
-    # In biomechanics, this models the "stretchiness" of vessels such as the aorta.
     compliance                :: ELTYPE
     is_prescribed             :: Bool
 end
 
 function RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
+
+    # Compliance is analogous to a capacitor in an electric circuit.
+    # In biomechanics, this models the "stretchiness" of vessels.
     return RCRWindkesselModel(characteristic_resistance, peripheral_resistance, compliance,
                               true)
 end
@@ -40,7 +41,7 @@ function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone
 
     # Use kernel support radius as thickness for the flow rate calculation slice
     # TODO: Check thinner slice, e.g. `1 * particle_spacing`
-    dvolume = compact_support(system.fluid_system, system.fluid_system)
+    dvolume = compact_support(system, system)
 
     # Find particles within a thin slice near the boundary face for flow rate computation
     candidates = findall(x -> dot(x - zone_origin, -face_normal) <= dvolume,

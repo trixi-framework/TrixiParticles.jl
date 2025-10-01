@@ -297,6 +297,10 @@ function Base.show(io::IO, ::MIME"text/plain", boundary_zone::BoundaryZone)
         summary_line(io, "boundary type", boundary_type_name(boundary_zone))
         summary_line(io, "#particles", nparticles(boundary_zone.initial_condition))
         summary_line(io, "width", round(boundary_zone.zone_width, digits=6))
+        if !isnothing(boundary_zone.pressure_model) &&
+           boundary_zone.pressure_model.is_prescribed
+            summary_line(io, "pressure model", type2string(boundary_zone.pressure_model))
+        end
         summary_footer(io)
     end
 end
