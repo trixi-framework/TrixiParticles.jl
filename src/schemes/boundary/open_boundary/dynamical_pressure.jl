@@ -63,11 +63,12 @@ end
                                       boundary_model::BoundaryModelDynamicalPressureZhang)
     (; density_rest, pressure_boundary) = system.cache
 
-    # Density of recycled buffer particles is obtained following the EoS (Eq. 15, Zhang et al. 2025)
-    density = density_rest +
-              pressure_boundary[particle] / system_sound_speed(system.fluid_system)^2
+    state_equation = system_state_equation(system.fluid_system)
+    density = current_density(v, system)
 
-    set_particle_density!(v, system, particle, density)
+    # Density of recycled buffer particles is obtained following the EoS (Eq. 15, Zhang et al. 2025)
+    inverse_state_equation!(density, density_rest, state_equation, pressure_boundary,
+                            particle)
 end
 
 @inline impose_rest_pressure!(v, system, particle, boundary_model) = v
@@ -149,20 +150,11 @@ end
 function compute_pressure!(system::OpenBoundarySystem,
                            fluid_system::WeaklyCompressibleSPHSystem, v, semi)
     @threaded semi for particle in eachparticle(system)
-        apply_state_equation!(system, fluid_system, current_density(v, system, particle),
-                              particle)
+        density = current_density(v, system, particle)
+        system.cache.pressure[particle] = fluid_system.state_equation(density)
     end
 
     return system
-end
-
-# Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
-# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
-# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function apply_state_equation!(system::OpenBoundarySystem,
-                                       fluid_system::WeaklyCompressibleSPHSystem, density,
-                                       particle)
-    system.cache.pressure[particle] = fluid_system.state_equation(density)
 end
 
 # Called from update callback via `update_open_boundary_eachstep!`
@@ -173,7 +165,7 @@ function update_boundary_quantities!(system,
 
     @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
-        (; prescribed_density, prescribed_velocity, impose_full_velocity) = boundary_zone
+        (; prescribed_density, prescribed_velocity) = boundary_zone
 
         particle_coords = current_coords(u, system, particle)
 
@@ -223,4 +215,16 @@ function project_velocity_on_face_normal!(v, system, particle, boundary_zone,
     end
 
     return v
+end
+
+function inverse_state_equation!(density, density_rest, state_equation::Nothing,
+                                 pressure, particle)
+    # If no equation of state is provided (e.g. for an `EntropicallyDampedSPHSystem`),
+    # set the particle's density to the rest density.
+    @inbounds density[particle] = density_rest
+    return density
+end
+
+function inverse_state_equation!(density, density_rest, state_equation, pressure, particle)
+    return inverse_state_equation!(density, state_equation, pressure, particle)
 end

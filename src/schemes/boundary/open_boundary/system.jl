@@ -130,7 +130,6 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                                zone.face_normal,
                                                                zone.rest_pressure,
                                                                nothing, pressure_model,
-                                                               zone.impose_full_velocity,
                                                                zone.average_inflow_velocity,
                                                                zone.prescribed_density,
                                                                zone.prescribed_pressure,
@@ -416,13 +415,15 @@ end
 @inline function convert_particle!(system::OpenBoundarySystem, fluid_system,
                                    boundary_zone, particle, particle_new,
                                    v, u, v_fluid, u_fluid)
+    # Position relative to the origin of the transition face
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
     # `face_normal` is always pointing into the fluid domain.
-    dist_to_transition = dot(relative_position, -boundary_zone.face_normal)
-    dist_free_surface = boundary_zone.zone_width - dist_to_transition
-    if dist_free_surface < dist_to_transition
+    # Since this function is called for a particle that left the boundary zone,
+    # it is sufficient to check if the dot product between the relative position and the face normal is negative
+    # to determine if it exited the boundary zone through the free surface (outflow).
+    if dot(relative_position, boundary_zone.face_normal) < 0
         # Particle is outside the fluid domain
         deactivate_particle!(system, particle, u)
 
@@ -547,7 +548,11 @@ end
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)
-            # Disable shifting for this particle
+            # Disable shifting for this particle.
+            # Note that Sun et al. 2017 proposes a more sophisticated approach with a transition phase
+            # where only the component orthogonal to the free surface is kept and the tangential
+            # component is set to zero. However, we assume laminar flow in the boundary zone,
+            # so we simply disable shifting completely.
             for dim in 1:ndims(system)
                 cache.delta_v[dim, particle] = zero(eltype(system))
             end

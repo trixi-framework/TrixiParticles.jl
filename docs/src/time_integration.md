@@ -52,7 +52,7 @@ A list of schemes for general `ODEProblem`s can be found
 [here](https://docs.sciml.ai/DiffEqDocs/stable/solvers/ode_solve/).
 We commonly use the following three schemes:
 - `CarpenterKennedy2N54(williamson_condition=false)`: A five-stage, fourth order
-  low-storage Runge-Kutta method designed by [Carpenter and Kennedy](@cite CarpenterKennedy)
+  low-storage Runge-Kutta method designed by [Carpenter and Kennedy](@cite Carpenter1994)
   for hyperbolic problems.
 - `RDPK3SpFSAL35()`: A 5-stage, third order low-storage Runge-Kutta scheme with embedded
   error estimator, optimized for compressible fluid mechanics [Ranocha2022](@cite).
