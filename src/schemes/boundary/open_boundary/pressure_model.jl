@@ -1,6 +1,8 @@
 struct RCRWindkesselModel{ELTYPE <: Real}
     characteristic_resistance :: ELTYPE
     peripheral_resistance     :: ELTYPE
+    # Compliance is analogous to a capacitor in an electric circuit.
+    # In biomechanics, this models the "stretchiness" of vessels such as the aorta.
     compliance                :: ELTYPE
     is_prescribed             :: Bool
 end
