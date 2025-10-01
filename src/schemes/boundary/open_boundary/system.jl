@@ -509,6 +509,8 @@ function available_data(::OpenBoundarySystem)
     return (:coordinates, :velocity, :density, :pressure)
 end
 
+# The boundary zone has a free surface opposite to the fluid domain transition.
+# Shifting must be disabled near this free surface.
 @inline function modify_shifting_at_free_surfaces!(system::OpenBoundarySystem, u, semi)
     (; fluid_system, cache) = system
 
