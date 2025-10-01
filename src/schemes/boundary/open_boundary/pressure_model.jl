@@ -18,16 +18,13 @@ function update_pressure_model!(system::OpenBoundarySystem, v, u, semi, dt)
     @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
         if boundary_zone.pressure_model.is_prescribed
-            update_pressure_model!(boundary_zone.pressure_model, system,
-                                   system.boundary_model, particle, v, u, dt)
+            update_pressure_model!(boundary_zone.pressure_model, system, particle, v, u, dt)
         end
     end
 end
 
 function update_pressure_model!(pressure_model::RCRWindkesselModel,
-                                system::OpenBoundarySystem,
-                                boundary_model::BoundaryModelDynamicalPressureZhang,
-                                particle, v, u, dt)
+                                system::OpenBoundarySystem, particle, v, u, dt)
     dt < sqrt(eps()) && return pressure_model
     (; characteristic_resistance, peripheral_resistance, compliance) = pressure_model
     zone_id = system.boundary_zone_indices[particle]
@@ -61,6 +58,7 @@ function calculate_flow_rate!(system, boundary_zone, zone_id, v, u)
     (; face_normal, zone_origin) = boundary_zone
 
     # Use kernel support radius as thickness for the flow rate calculation slice
+    # TODO: Check thinner slice, e.g. `1 * particle_spacing`
     dvolume = compact_support(system.fluid_system, system.fluid_system)
 
     # Find particles within a thin slice near the boundary face for flow rate computation
