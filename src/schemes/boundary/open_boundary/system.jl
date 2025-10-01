@@ -100,27 +100,11 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
 
     boundary_zone_indices = zeros(Int, nparticles(initial_conditions))
 
+    pressure_models, pressure_model_values = extract_pressure_models(boundary_zones_)
+
     # Create new `BoundaryZone`s with `reference_values` set to `nothing` for type stability.
     # `reference_values` are only used as API feature to temporarily store the reference values
     # in the `BoundaryZone`, but they are not used in the actual simulation.
-    zone_indices = findall(zone -> !isnothing(zone.pressure_model), boundary_zones_)
-    if isempty(zone_indices)
-        pressure_models = fill(nothing, length(boundary_zones_))
-        pressure_model_values = nothing
-    else
-        zero_ = zero(eltype(mass))
-        dummy_model = RCRWindkesselModel(zero_, zero_, zero_, false)
-        pressure_models = fill(dummy_model, length(boundary_zones_))
-        pressure_models[zone_indices] .= map(zone -> RCRWindkesselModel(zone.pressure_model.characteristic_resistance,
-                                                                        zone.pressure_model.peripheral_resistance,
-                                                                        zone.pressure_model.compliance,
-                                                                        true),
-                                             boundary_zones_[zone_indices])
-        pressure_model_values = ntuple(_ -> (pressure=Ref(zero_),
-                                             previous_flow_rate=Ref(zero_),
-                                             flow_rate=Ref(zero_)), length(boundary_zones_))
-    end
-
     boundary_zones_new = (map((zone,
                                pressure_model) -> BoundaryZone(zone.initial_condition,
                                                                zone.spanning_set,
@@ -213,6 +197,35 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
                 density_reference_values=density_reference_values,
                 velocity_reference_values=velocity_reference_values)
     end
+end
+
+function extract_pressure_models(boundary_zones)
+    zone_indices = findall(zone -> !isnothing(zone.pressure_model), boundary_zones)
+    if isempty(zone_indices)
+        pressure_models = fill(nothing, length(boundary_zones))
+        pressure_model_values = nothing
+
+    else
+        # Build a vector of pressure models, using a dummy instance for boundary zones
+        # that lack a pressure model to maintain type stability.
+        # This vector is then passed to the new boundary zone instances.
+        zero_ = zero(eltype(first(boundary_zones).initial_condition))
+        dummy_model = RCRWindkesselModel(zero_, zero_, zero_, false)
+        pressure_models = fill(dummy_model, length(boundary_zones))
+        pressure_models[zone_indices] .= map(zone -> RCRWindkesselModel(zone.pressure_model.characteristic_resistance,
+                                                                        zone.pressure_model.peripheral_resistance,
+                                                                        zone.pressure_model.compliance,
+                                                                        true),
+                                             boundary_zones[zone_indices])
+
+        # Store values that are updated during the simulation.
+        # These must be kept separately to ensure type stability of the boundary zone.
+        pressure_model_values = ntuple(_ -> (pressure=Ref(zero_),
+                                             previous_flow_rate=Ref(zero_),
+                                             flow_rate=Ref(zero_)), length(boundary_zones))
+    end
+
+    return pressure_models, pressure_model_values
 end
 
 timer_name(::OpenBoundarySystem) = "open_boundary"
