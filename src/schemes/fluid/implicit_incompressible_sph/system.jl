@@ -360,8 +360,7 @@ end
 # Calculation of the contribution of the Abstractboundary particles the diagonal elements (a_ii-values)
 # according to Ihmsen et al. (2013)
 function calculate_diagonal_elements!(a_ii, system, neighbor_system::AbstractBoundarySystem,
-                                      v, u,
-                                      v_ode, u_ode, semi, time_step)
+                                      v, u, v_ode, u_ode, semi, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
