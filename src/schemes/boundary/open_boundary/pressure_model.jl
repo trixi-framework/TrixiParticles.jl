@@ -13,48 +13,27 @@ end
 function update_pressure_model!(system::OpenBoundarySystem, v, u, semi, dt)
     isnothing(system.pressure_model_values) && return system
 
-    calculate_flow_rate!(system, v, u)
+    calculate_flow_rate_and_pressure!(system, v, u, dt)
 
-    @threaded semi for particle in each_integrated_particle(system)
-        boundary_zone = current_boundary_zone(system, particle)
-        if boundary_zone.pressure_model.is_prescribed
-            update_pressure_model!(boundary_zone.pressure_model, system, particle, v, u, dt)
-        end
-    end
+    return system
 end
 
-function update_pressure_model!(pressure_model::RCRWindkesselModel,
-                                system::OpenBoundarySystem, particle, v, u, dt)
-    dt < sqrt(eps()) && return pressure_model
-    (; characteristic_resistance, peripheral_resistance, compliance) = pressure_model
-    zone_id = system.boundary_zone_indices[particle]
-    (; flow_rate, previous_flow_rate, pressure) = system.pressure_model_values[zone_id]
-
-    term_1 = (1 + characteristic_resistance / peripheral_resistance) * flow_rate[]
-    term_2 = compliance * peripheral_resistance * (flow_rate[] - previous_flow_rate[]) / dt
-    term_3 = compliance * pressure[] / dt
-    divisor = compliance / dt + 1 / characteristic_resistance
-
-    pressure_new = (term_1 + term_2 + term_3) / divisor
-
-    # TODO: Why is this not working on the GPU?
-    pressure[] = pressure_new
-
-    return pressure_model
-end
-
-function calculate_flow_rate!(system, v, u)
+function calculate_flow_rate_and_pressure!(system, v, u, dt)
     for (zone_id, boundary_zone) in enumerate(system.boundary_zones)
         if boundary_zone.pressure_model.is_prescribed
-            calculate_flow_rate!(system, boundary_zone, zone_id, v, u)
+            calculate_flow_rate_and_pressure!(boundary_zone.pressure_model, system,
+                                              boundary_zone, zone_id, v, u, dt)
         end
     end
 
     return system
 end
 
-function calculate_flow_rate!(system, boundary_zone, zone_id, v, u)
-    (; previous_flow_rate, flow_rate) = system.pressure_model_values[zone_id]
+function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone,
+                                           zone_id, v, u, dt)
+    dt < sqrt(eps()) && return pressure_model
+    (; characteristic_resistance, peripheral_resistance, compliance) = pressure_model
+    (; flow_rate, pressure) = system.pressure_model_values[zone_id]
     (; face_normal, zone_origin) = boundary_zone
 
     # Use kernel support radius as thickness for the flow rate calculation slice
@@ -78,8 +57,19 @@ function calculate_flow_rate!(system, boundary_zone, zone_id, v, u)
     # Compute volumetric flow rate: Q = A * velocity_avg, where A = volume_total / dvolume
     volume_flow = velocity_avg * volume_total / dvolume
 
-    previous_flow_rate[] = flow_rate[]
+    previous_pressure = pressure[]
+    previous_flow_rate = flow_rate[]
     flow_rate[] = volume_flow
+
+    # Calculate new pressure according to eq. 22 in Zhang et al. (2025)
+    term_1 = (1 + characteristic_resistance / peripheral_resistance) * flow_rate[]
+    term_2 = compliance * peripheral_resistance * (flow_rate[] - previous_flow_rate) / dt
+    term_3 = compliance * previous_pressure / dt
+    divisor = compliance / dt + 1 / characteristic_resistance
+
+    pressure_new = (term_1 + term_2 + term_3) / divisor
+
+    pressure[] = pressure_new
 
     return system
 end
