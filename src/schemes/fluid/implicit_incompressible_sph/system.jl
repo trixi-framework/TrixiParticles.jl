@@ -398,20 +398,10 @@ function pressure_solve!(semi, v_ode, u_ode, t)
         initialize_pressure!(system, semi)
     end
 
-    # Determine global iteration and error constraints across all iisph systems
-    min_iters = 1
-    max_iters = 10000
-    max_err = 100.0
-
-    foreach_system(semi) do system
-        if system isa ImplicitIncompressibleSPHSystem
-            (; max_error, min_iterations, max_iterations) = system
-
-            min_iters = max(min_iterations, min_iters)
-            max_iters = min(max_iterations, max_iters)
-            max_err = min(max_error, max_err)
-        end
-    end
+    # Determine global iteration and error constraints across all IISPH systems
+    min_iters = maximum(minimum_iisph_iterations, semi.systems)
+    max_iters = minimum(maximum_iisph_iterations, semi.systems)
+    max_err = minimum(maximum_iisph_error, semi.systems)
 
     # Convert relative error in percent to absolute error
     eta = max_err / 100
@@ -597,6 +587,24 @@ end
 
 @propagate_inbounds function sum_dij_pj(system::ImplicitIncompressibleSPHSystem, particle)
     return extract_svector(system.sum_d_ij_pj, system, particle)
+end
+
+@inline maximum_iisph_error(system) = convert(eltype(system), Inf)
+
+@inline function maximum_iisph_error(system::ImplicitIncompressibleSPHSystem)
+    return system.max_error
+end
+
+@inline minimum_iisph_iterations(system) = 0
+
+@inline function minimum_iisph_iterations(system::ImplicitIncompressibleSPHSystem)
+    return system.min_iterations
+end
+
+@inline maximum_iisph_iterations(system) = typemax(Int)
+
+@inline function maximum_iisph_iterations(system::ImplicitIncompressibleSPHSystem)
+    return system.max_iterations
 end
 
 # Calculates a summand for the calculation of the d_ii values
