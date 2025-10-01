@@ -253,6 +253,12 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySystem)
             summary_line(io, "density diffusion", density_diffusion(system))
             summary_line(io, "shifting technique", shifting_technique(system))
         end
+        if !isnothing(system.pressure_model_values)
+            summary_line(io, "pressure model",
+                         type2string(first(system.boundary_zones).pressure_model) *
+                         " (in boundary zones: " *
+                         "$(findall(zone -> zone.pressure_model.is_prescribed, system.boundary_zones)))")
+        end
         summary_footer(io)
     end
 end
