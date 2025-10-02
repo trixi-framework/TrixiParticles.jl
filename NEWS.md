@@ -4,6 +4,13 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.4.2
+
+### Features
+
+- Added `OscillatingMotion2D` to create an oscillating `PrescribedMotion` combining
+  translation and rotation (#915).
+
 ## Version 0.4.1
 
 ### Features
