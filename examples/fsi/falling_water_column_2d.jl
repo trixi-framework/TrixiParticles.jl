@@ -19,7 +19,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_be
               sol=nothing) # Don't run simulation, only include the setup part
 
 # Fluid resolution
-fluid_particle_spacing = 3particle_spacing
+fluid_particle_spacing = 3 * particle_spacing
 
 # ==========================================================================================
 # ==== Experiment Setup
