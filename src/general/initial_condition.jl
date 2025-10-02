@@ -239,6 +239,11 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
     particle_spacing = initial_condition.particle_spacing
     ic = first(initial_conditions)
 
+    if initial_condition.particle_spacing isa Vector || ic.particle_spacing isa Vector
+        throw(ArgumentError("`union` operation does not support non-uniform particle spacings. " *
+                            "Please ensure all `InitialCondition`s use a scalar particle spacing."))
+    end
+
     if ndims(ic) != ndims(initial_condition)
         throw(ArgumentError("all passed initial conditions must have the same dimensionality"))
     end
@@ -272,6 +277,11 @@ Base.union(initial_condition::InitialCondition) = initial_condition
 function Base.setdiff(initial_condition::InitialCondition, initial_conditions...)
     ic = first(initial_conditions)
 
+    if initial_condition.particle_spacing isa Vector || ic.particle_spacing isa Vector
+        throw(ArgumentError("`setdiff` operation does not support non-uniform particle spacings. " *
+                            "Please ensure all `InitialCondition`s use a scalar particle spacing."))
+    end
+
     if ndims(ic) != ndims(initial_condition)
         throw(ArgumentError("all passed initial conditions must have the same dimensionality"))
     end
@@ -301,6 +311,11 @@ Base.setdiff(initial_condition::InitialCondition) = initial_condition
 
 function Base.intersect(initial_condition::InitialCondition, initial_conditions...)
     ic = first(initial_conditions)
+
+    if initial_condition.particle_spacing isa Vector || ic.particle_spacing isa Vector
+        throw(ArgumentError("`intersect` operation does not support non-uniform particle spacings. " *
+                            "Please ensure all `InitialCondition`s use a scalar particle spacing."))
+    end
 
     if ndims(ic) != ndims(initial_condition)
         throw(ArgumentError("all passed initial conditions must have the same dimensionality"))

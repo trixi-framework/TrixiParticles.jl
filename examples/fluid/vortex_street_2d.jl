@@ -1,6 +1,10 @@
+# ==========================================================================================
+# 2D Vortex Street
+#
 # Flow past a circular cylinder (vortex street), Tafuni et al. (2018).
 # Other literature using this validation:
 # Vacandio et al. (2013), Marrone et al. (2013), Calhoun (2002), Liu et al. (1998)
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -54,10 +58,7 @@ fluid = setdiff(pipe.fluid, cylinder)
 
 # ==========================================================================================
 # ==== Fluid
-wcsph = true
-
-h_factor = 1.5
-smoothing_length = h_factor * particle_spacing
+smoothing_length = 1.5 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -65,15 +66,17 @@ fluid_density_calculator = ContinuityDensity()
 kinematic_viscosity = prescribed_velocity * cylinder_diameter / reynolds_number
 
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7)
+                                   exponent=1)
 viscosity = ViscosityAdami(nu=kinematic_viscosity)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+shifting_technique = TransportVelocityAdami(backgound_pressure=10 * fluid_density * v_max^2)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            density_diffusion=density_diffusion,
                                            smoothing_length, viscosity=viscosity,
                                            pressure_acceleration=tensile_instability_control,
+                                           shifting_technique=shifting_technique,
                                            buffer_size=n_buffer_particles)
 
 # ==========================================================================================
@@ -84,11 +87,9 @@ end
 
 open_boundary_model = BoundaryModelTafuni()
 
-boundary_type_in = InFlow()
 plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
 inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_boundary_layers,
-                      density=fluid_density, particle_spacing,
-                      boundary_type=boundary_type_in)
+                      density=fluid_density, particle_spacing)
 
 reference_velocity_in = velocity_function2d
 # At the inlet, neither pressure nor density are prescribed; instead,

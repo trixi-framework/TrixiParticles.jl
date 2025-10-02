@@ -17,7 +17,13 @@ reynolds_number = 100.0
 density_calculators = [ContinuityDensity(), SummationDensity()]
 perturb_coordinates = [false, true]
 
-function compute_l1v_error(system, v_ode, u_ode, semi, t)
+# Define `average_pressure` for WCSPH, so that we can use the same code below for WCSPH
+@inline function TrixiParticles.average_pressure(system::WeaklyCompressibleSPHSystem,
+                                                 particle)
+    return zero(eltype(system))
+end
+
+function compute_l1v_error(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v_analytical_avg = 0.0
     v_avg = 0.0
 
@@ -40,7 +46,7 @@ function compute_l1v_error(system, v_ode, u_ode, semi, t)
     return v_avg /= v_analytical_avg
 end
 
-function compute_l1p_error(system, v_ode, u_ode, semi, t)
+function compute_l1p_error(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     p_max_exact = 0.0
 
     L1p = 0.0
@@ -68,8 +74,8 @@ end
 
 # The pressure plotted in the paper is the difference of the local pressure minus
 # the average of the pressure of all particles.
-function diff_p_loc_p_avg(system, v, u, semi, t)
-    p_avg_tot = avg_pressure(system, v, u, semi, t)
+function diff_p_loc_p_avg(system, dv_ode, du_ode, v, u, semi, t)
+    p_avg_tot = avg_pressure(system, dv_ode, du_ode, v, u, semi, t)
 
     return v[end, :] .- p_avg_tot
 end

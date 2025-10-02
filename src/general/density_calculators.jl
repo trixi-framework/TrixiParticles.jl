@@ -24,7 +24,7 @@ difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of parti
 struct ContinuityDensity end
 
 function summation_density!(system, semi, u, u_ode, density;
-                            particles=each_moving_particle(system))
+                            particles=each_integrated_particle(system))
     set_zero!(density)
 
     # Use all other systems for the density summation
@@ -43,3 +43,5 @@ function summation_density!(system, semi, u, u_ode, density;
         end
     end
 end
+
+@inline density_calculator(system) = system.density_calculator

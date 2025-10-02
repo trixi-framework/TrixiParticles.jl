@@ -1,9 +1,16 @@
-# 2D dam break simulation based on
+# ==========================================================================================
+# 2D Dam Break Simulation (δ-SPH Model)
 #
-# S. Marrone, M. Antuono, A. Colagrossi, G. Colicchio, D. le Touzé, G. Graziani.
-# "δ-SPH model for simulating violent impact flows".
-# In: Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011), pages 1526–1542.
-# https://doi.org/10.1016/J.CMA.2010.12.016
+# Based on:
+#   S. Marrone, M. Antuono, A. Colagrossi, G. Colicchio, D. le Touzé, G. Graziani.
+#   "δ-SPH model for simulating violent impact flows".
+#   Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011),
+#   pages 1526–1542.
+#   https://doi.org/10.1016/J.CMA.2010.12.016
+#
+# This example sets up a 2D dam break simulation using a weakly compressible SPH scheme
+# with a δ-SPH formulation for density calculation.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -90,7 +97,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              reference_particle_spacing=0,
                                              viscosity=viscosity_wall)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
+                                     adhesion_coefficient=0.0)
 
 # ==========================================================================================
 # ==== Simulation
@@ -125,6 +133,7 @@ stepsize_callback = StepsizeCallback(cfl=0.9)
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
                         density_reinit_cb, saving_paper)
 
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
+sol = solve(ode, time_integration_scheme,
             dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks);

@@ -1,12 +1,16 @@
+# ==========================================================================================
+# === 3D Collapsing Sand Pile Simulation
+#
+# This example simulates the collapse of a cylindrical pile of sand under gravity
+# within a confined container using the Discrete Element Method (DEM).
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
 # Physical parameters
 gravity = -9.81
 acceleration = (0.0, 0.0, gravity)
-
-# ==========================================================================================
-# ==== Collapsing Sand Pile Simulation
 
 # Resolution
 particle_spacing = 0.1
@@ -51,7 +55,8 @@ min_coords_floor = (min_boundary[1] - boundary_thickness,
 floor_particles = RectangularShape(particle_spacing,
                                    (n_particles_floor_x, n_particles_floor_y,
                                     n_particles_floor_z),
-                                   min_coords_floor; density=boundary_density, tlsph=true)
+                                   min_coords_floor; density=boundary_density,
+                                   place_on_shell=true)
 boundary_particles = floor_particles
 
 # ==========================================================================================
