@@ -1,9 +1,9 @@
-# This file runs a validation based on the dam break setup described in
+# This file computes the pressure sensor data of the dam break setup described in
 #
-# S. Marrone, M. Antuono, A. Colagrossi, G. Colicchio, D. le Touzé, G. Graziani.
-# "δ-SPH model for simulating violent impact flows".
-# In: Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011), pages 1526–1542.
-# https://doi.org/10.1016/J.CMA.2010.12.016
+# J. J. De Courcy, T. C. S. Rendall, L. Constantin, B. Titurus, J. E. Cooper.
+# "Incompressible δ-SPH via artificial compressibility".
+# In: Computer Methods in Applied Mechanics and Engineering, Volume 420 (2024),
+# https://doi.org/10.1016/j.cma.2023.116700
 
 include("../validation_util.jl")
 
@@ -12,7 +12,7 @@ using TrixiParticles.JSON
 
 # `resolution` in this case is set relative to `H`, the initial height of the fluid.
 # Use 40, 80 or 400 for validation.
-# Note: 400 takes a few hours!
+# Note: 400 takes about 30 minutes on a large data center CPU (much longer with serial update)
 resolution = 40
 
 # Use `SerialUpdate()` to obtain consistent results across different numbers of threads
@@ -25,7 +25,9 @@ trixi_include(@__MODULE__,
               joinpath(validation_dir(), "dam_break_2d",
                        "setup_marrone_2011.jl"),
               use_edac=false, update_strategy=update_strategy,
-              particles_per_height=resolution)
+              particles_per_height=resolution,
+              sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
+              alpha=0.01) # This is used by De Courcy et al. (2024)
 
 reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",
                                      "validation_reference_wcsph_$formatted_string.json")
@@ -51,7 +53,9 @@ trixi_include(@__MODULE__,
               joinpath(validation_dir(), "dam_break_2d",
                        "setup_marrone_2011.jl"),
               use_edac=true, update_strategy=update_strategy,
-              particles_per_height=resolution)
+              particles_per_height=resolution,
+              sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
+              alpha=0.01) # This is used by De Courcy et al. (2024)
 
 reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
                                     "validation_reference_edac_$formatted_string.json")

@@ -40,7 +40,7 @@ fluid_density = 1000.0
 # Marrone et al. (2011) used a sound speed of 40 * sqrt(g * H) for WCSPH,
 # but found that 20 * sqrt(g * H) yielded similar results at lower cost.
 # De Courcy et al. (2024) used a sound speed of 50 * sqrt(g * H) for WCSPH.
-sound_speed = 40 * sqrt(gravity * H)
+sound_speed = 20 * sqrt(gravity * H)
 
 # Sensor positions used by De Courcy et al. (2024)
 sensor_size = 0.0084
@@ -81,11 +81,9 @@ if use_edac
                                 n_layers=boundary_layers, spacing_ratio=spacing_ratio,
                                 acceleration=(0.0, -gravity), state_equation=nothing)
 
-    alpha = 0.02
-    viscosity_edac = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
     fluid_system = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kernel,
                                                smoothing_length,
-                                               sound_speed, viscosity=viscosity_edac,
+                                               sound_speed, viscosity=viscosity,
                                                density_calculator=ContinuityDensity(),
                                                pressure_acceleration=nothing,
                                                acceleration=(0.0, -gravity))
@@ -118,7 +116,7 @@ saving_paper = SolutionSavingCallback(save_times=[0.0, 1.5, 2.36, 3.0, 5.7, 6.45
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
               boundary_density_calculator=boundary_density_calculator,
-              state_equation=state_equation,
+              alpha=alpha, state_equation=state_equation,
               solution_prefix="validation_" * method * "_" * formatted_string,
               tspan=tspan, fluid_system=fluid_system,
               update_strategy=nothing,
