@@ -220,8 +220,8 @@ function extract_pressure_models(boundary_zones)
 
         # Store values that are updated during the simulation.
         # These must be kept separately to ensure type stability of the boundary zone.
-        pressure_model_values = ntuple(_ -> (pressure=Ref(zero_), flow_rate=Ref(zero_)),
-                                       length(boundary_zones))
+        pressure_model_values = map(bz -> (pressure=Ref(bz.rest_pressure),
+                                           flow_rate=Ref(zero_)), boundary_zones)
     end
 
     return pressure_models, pressure_model_values
