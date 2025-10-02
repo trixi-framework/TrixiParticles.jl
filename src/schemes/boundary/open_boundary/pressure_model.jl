@@ -62,10 +62,14 @@ function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone
     flow_rate[] = current_flow_rate
 
     # Calculate new pressure according to eq. 22 in Zhang et al. (2025)
-    term_1 = (1 + characteristic_resistance / peripheral_resistance) * flow_rate[]
-    term_2 = compliance * peripheral_resistance * (flow_rate[] - previous_flow_rate) / dt
-    term_3 = compliance * previous_pressure / dt
-    divisor = compliance / dt + 1 / characteristic_resistance
+    R1 = peripheral_resistance
+    R2 = characteristic_resistance
+    C = compliance
+
+    term_1 = (1 + R1 / R2) * flow_rate[]
+    term_2 = C * R1 * (flow_rate[] - previous_flow_rate) / dt
+    term_3 = C * previous_pressure / dt
+    divisor = C / dt + 1 / R2
 
     pressure_new = (term_1 + term_2 + term_3) / divisor
 
