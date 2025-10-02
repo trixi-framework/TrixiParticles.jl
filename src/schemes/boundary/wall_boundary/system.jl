@@ -9,7 +9,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `initial_condition`: Initial condition (see [`InitialCondition`](@ref))
 - `boundary_model`: Boundary model (see [Boundary Models](@ref boundary_models))
 
-# Keyword Arguments
+# Keywords
 - `prescribed_motion`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
