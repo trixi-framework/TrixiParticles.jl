@@ -5,7 +5,7 @@ end
 function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system, semi) end
 
 function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t,
-                               system::TrixiParticles.FluidSystem, semi)
+                               system::TrixiParticles.AbstractFluidSystem, semi)
     n_interpolation_points = 10
     interpolated_values = interpolate_line(coord_top, coord_bottom,
                                            n_interpolation_points, semi, system, v_ode,

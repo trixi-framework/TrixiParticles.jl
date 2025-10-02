@@ -30,11 +30,9 @@ edac_sim_files = include_sim_results ?
 merged_files = vcat(edac_reference_files, edac_sim_files)
 edac_files = sort(merged_files, by=extract_number_from_filename)
 
-wcsph_reference_files = []#glob("validation_reference_wcsph*.json",
-                            #  case_dir)
+wcsph_reference_files = glob("validation_reference_wcsph*.json", case_dir)
 wcsph_sim_files = include_sim_results ?
-                  glob("validation_result_dam_break_wcsph*.json",
-                       "out/") : []
+                  glob("validation_result_dam_break_wcsph*.json", "out/") : []
 
 merged_files = vcat(wcsph_reference_files, wcsph_sim_files)
 wcsph_files = sort(merged_files, by=extract_number_from_filename)
@@ -173,12 +171,6 @@ for (i, ax) in enumerate(axs_wcsph)
            nbanks=3)
 end
 
-if save_figures
-    save("dam_break_pressure.svg", fig_sensors)
-else
-    display(fig_sensors)
-end
-
 # ------------------------------------------------------------
 # 2) Surge-front figure
 # ------------------------------------------------------------
@@ -194,6 +186,8 @@ Legend(fig_surge[2, 2], ax_surge_wcsph; orientation=:horizontal, valign=:top, nb
 
 if save_figures
     save("dam_break_surge_front.svg", fig_surge)
+    save("dam_break_pressure.svg", fig_sensors)
 else
     display(fig_surge)
+    display(fig_sensors)
 end
