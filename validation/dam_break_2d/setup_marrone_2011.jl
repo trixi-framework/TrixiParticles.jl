@@ -18,21 +18,22 @@ using TrixiParticles.JSON
 # Include custom quantity functions for sensor interpolation
 include("sensors.jl")
 
-# Import variables from the example file
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              sol=nothing, ode=nothing)
-
-use_edac = false # Set to false to use WCSPH
-
-tspan = (0.0, 7 / sqrt(gravity / H))
-
 # `particle_spacing` in this case is set relative to `H`, the initial height of the fluid.
 # Use `particles_per_height = 80` or `320` for validation.
 # Marrone et al. (2011) used `particles_per_height = 320` for the images of the wave front.
 # De Courcy et al. (2024) used `particles_per_height = 400` for the pressure sensor plots.
 # Note: `particles_per_height >= 320` takes a few hours!
 particles_per_height = 40
+H = 0.6
 particle_spacing = H / particles_per_height
+
+# Import variables from the example file
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              sol=nothing, ode=nothing, fluid_particle_spacing=particle_spacing)
+
+use_edac = false # Set to false to use WCSPH
+
+tspan = (0.0, 7 / sqrt(gravity / H))
 
 fluid_density = 1000.0
 

@@ -12,7 +12,8 @@ using Printf
 
 # Set to save figures as SVG
 save_figures = false
-include_sim_results = true
+# Set to true to include simulation results in the `out` folder (if available)
+include_sim_results = false
 
 # Initial width of the fluid
 H = 0.6
@@ -48,7 +49,7 @@ decourcy_P4 = CSV.read(joinpath(case_dir, "decourcy_pressure_sensor_P4.csv"), Da
 function plot_sensor_results(axs, files)
     for ax in axs
         ax.xlabel = "t(g / H)^0.5"
-        ax.ylabel = "P/(ρ g H)"
+        ax.ylabel = "P/(ρgH)"
         xlims!(ax, 2, 7)
     end
 
@@ -70,16 +71,16 @@ function plot_sensor_results(axs, files)
                       normalization_factor_pressure
         pressure_P4 = json_data["pressure_P4_fluid_1"]["values"] /
                       normalization_factor_pressure
-        label_prefix = occursin("reference", json_file) ? "Ref. " : ""
-        res = extract_resolution_from_filename(json_file)
+        label_prefix = occursin("reference", json_file) ? "TrixiParticles " : ""
+        res = extract_number_from_filename(json_file)
 
-        lines!(axs[1], t, pressure_P1; label="$label_prefix dp=$res",
+        lines!(axs[1], t, pressure_P1; label="$label_prefix H/$res",
                color=idx, colormap=:tab10, colorrange=(1, 10))
-        lines!(axs[2], t, pressure_P2; label="$label_prefix dp=$res",
+        lines!(axs[2], t, pressure_P2; label="$label_prefix H/$res",
                color=idx, colormap=:tab10, colorrange=(1, 10))
-        lines!(axs[3], t, pressure_P3; label="$label_prefix dp=$res",
+        lines!(axs[3], t, pressure_P3; label="$label_prefix H/$res",
                color=idx, colormap=:tab10, colorrange=(1, 10))
-        lines!(axs[4], t, pressure_P4; label="$label_prefix dp=$res",
+        lines!(axs[4], t, pressure_P4; label="$label_prefix H/$res",
                color=idx, colormap=:tab10, colorrange=(1, 10))
     end
 end
@@ -92,11 +93,11 @@ function plot_surge_results(ax, files)
 
     for (idx, json_file) in enumerate(files)
         json_data = JSON.parsefile(json_file)
-        label_prefix = occursin("reference", json_file) ? "Ref. " : ""
+        label_prefix = occursin("reference", json_file) ? "TrixiParticles " : ""
         val = json_data["max_x_coord_fluid_1"]
         lines!(ax, val["time"] .* sqrt(9.81),
                Float64.(val["values"]) ./ W;
-               label="$label_prefix dp=$(extract_resolution_from_filename(json_file))",
+               label="$label_prefix H/$(extract_number_from_filename(json_file))",
                color=idx, colormap=:tab10, colorrange=(1, 10))
     end
 
@@ -106,9 +107,8 @@ function plot_surge_results(ax, files)
              label="Martin & Moyce 1952 (exp)")
 end
 
-# ------------------------------------------------------------
-# 1) Pressure-sensor figure
-# ------------------------------------------------------------
+# ==========================================================================================
+# ====  Pressure-sensor figure
 n_sensors = 4
 fig_sensors = Figure(size=(2400, 1000))
 axs_edac = [Axis(fig_sensors[1, i], title="Sensor P$i (EDAC)")
@@ -116,50 +116,27 @@ axs_edac = [Axis(fig_sensors[1, i], title="Sensor P$i (EDAC)")
 axs_wcsph = [Axis(fig_sensors[3, i], title="Sensor P$i (WCSPH)")
              for i in 1:n_sensors]
 
-# Plot reference values
-function plot_experiment(ax, time, data, label, color=:black, marker=:utriangle,
-                         markersize=6)
-    scatter!(ax, time, data; color, marker, markersize, label)
-end
-
-function plot_simulation(ax, time, data, label, color=:red, linestyle=:solid, linewidth=3)
+function plot_reference(ax, time, data, label, color=:red, linestyle=:solid, linewidth=3)
     lines!(ax, time, data; color, linestyle, linewidth, label)
 end
 
-# Plot for Pressure Sensor P1
-# plot_experiment(axs_edac[1], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[1], decourcy_P1.time, decourcy_P1.P1,
-                "De Courcy 2024 (sim)")
-# plot_experiment(axs_wcsph[1], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
-plot_simulation(axs_wcsph[1], decourcy_P1.time, decourcy_P1.P1,
-                "De Courcy 2024 (sim)")
-# plot_experiment(axs_edac[3], decourcy_P1.time, decourcy_P1.P1, "Buchner 2002 (exp)")
+# Plot for pressure sensor P1
+plot_reference(axs_edac[1], decourcy_P1.time, decourcy_P1.P1, "De Courcy 2024 (sim)")
+plot_reference(axs_wcsph[1], decourcy_P1.time, decourcy_P1.P1, "De Courcy 2024 (sim)")
 
-# Plot for Pressure Sensor P2
-# plot_experiment(axs_edac[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[2], decourcy_P2.time, decourcy_P2.P2,
-                "De Courcy 2024 (sim)")
-# plot_experiment(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2,
-                "De Courcy 2024 (sim)")
+# Plot for pressure sensor P2
+plot_reference(axs_edac[2], decourcy_P2.time, decourcy_P2.P2, "De Courcy 2024 (sim)")
+plot_reference(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2, "De Courcy 2024 (sim)")
 
-# Plot for Pressure Sensor P3
-# plot_experiment(axs_edac[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[3], decourcy_P3.time, decourcy_P3.P3,
-                "De Courcy 2024 (sim)")
-# plot_experiment(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_wcsph[3], decourcy_P3.time, decourcy_P3.P3,
-                "De Courcy 2024 (sim)")
+# Plot for pressure sensor P3
+plot_reference(axs_edac[3], decourcy_P3.time, decourcy_P3.P3, "De Courcy 2024 (sim)")
+plot_reference(axs_wcsph[3], decourcy_P3.time, decourcy_P3.P3, "De Courcy 2024 (sim)")
 
-# Plot for Pressure Sensor P4
-# plot_experiment(axs_edac[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_edac[4], decourcy_P4.time, decourcy_P4.P4,
-                "De Courcy 2024 (sim)")
-# plot_experiment(axs_wcsph[2], decourcy_P2.time, decourcy_P2.P2, "Buchner 2002 (exp)")
-plot_simulation(axs_wcsph[4], decourcy_P4.time, decourcy_P4.P4,
-                "De Courcy 2024 (sim)")
+# Plot for pressure sensor P4
+plot_reference(axs_edac[4], decourcy_P4.time, decourcy_P4.P4, "De Courcy 2024 (sim)")
+plot_reference(axs_wcsph[4], decourcy_P4.time, decourcy_P4.P4, "De Courcy 2024 (sim)")
 
-# plot_sensor_results(axs_edac, edac_files)
+plot_sensor_results(axs_edac, edac_files)
 plot_sensor_results(axs_wcsph, wcsph_files)
 
 for (i, ax) in enumerate(axs_edac)
@@ -171,9 +148,8 @@ for (i, ax) in enumerate(axs_wcsph)
            nbanks=3)
 end
 
-# ------------------------------------------------------------
-# 2) Surge-front figure
-# ------------------------------------------------------------
+# ==========================================================================================
+# ==== Surge-front figure
 fig_surge = Figure(size=(1200, 400))
 ax_surge_edac = Axis(fig_surge[1, 1], title="Surge Front – EDAC")
 ax_surge_wcsph = Axis(fig_surge[1, 2], title="Surge Front – WCSPH")

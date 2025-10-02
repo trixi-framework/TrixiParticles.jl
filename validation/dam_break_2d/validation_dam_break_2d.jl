@@ -8,7 +8,7 @@
 include("../validation_util.jl")
 
 using TrixiParticles
-using JSON
+using TrixiParticles.JSON
 
 # `resolution` in this case is set relative to `H`, the initial height of the fluid.
 # Use 40, 80 or 400 for validation.
@@ -17,7 +17,7 @@ resolution = 40
 
 # Use `SerialUpdate()` to obtain consistent results across different numbers of threads
 update_strategy = nothing
-update_strategy = SerialUpdate()
+# update_strategy = SerialUpdate()
 
 # ==========================================================================================
 # ==== WCSPH simulation
