@@ -22,5 +22,4 @@ pp_callback = PostprocessCallback(; dt=0.01, output_directory=output_directory,
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "pulsatile_channel_flow_3d.jl"),
               saving_callback=nothing, tspan=(0.0, 12.6), extra_callback=pp_callback,
-              particle_spacing_factor=particle_spacing_factor,
-              parallelization_backend=PolyesterBackend())
+              particle_spacing_factor=particle_spacing_factor)
