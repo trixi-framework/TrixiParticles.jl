@@ -2,8 +2,12 @@ using TrixiParticles
 
 # ==========================================================================================
 # ==== Resolution
-# particle_spacings = [0.02, 0.01, 0.005]
-particle_spacings = [0.02]
+# P. Ramachandran, K. Puri
+# "Entropically damped artiﬁcial compressibility for SPH".
+# In: Computers and Fluids, Volume 179 (2019), pages 579-594.
+# https://doi.org/10.1016/j.compfluid.2018.11.023
+# The paper provides reference data for particle spacings particle_spacings = [0.02, 0.01, 0.005]
+particle_spacing = 0.02
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -13,7 +17,14 @@ reynolds_number = 100.0
 density_calculators = [ContinuityDensity(), SummationDensity()]
 perturb_coordinates = [false, true]
 
-function compute_l1v_error(system, v_ode, u_ode, semi, t)
+
+# Define `average_pressure` for WCSPH, so that we can use the same code below for WCSPH
+@inline function TrixiParticles.average_pressure(system::WeaklyCompressibleSPHSystem,
+                                                 particle)
+    return zero(eltype(system))
+end
+
+function compute_l1v_error(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v_analytical_avg = 0.0
     v_avg = 0.0
 
@@ -36,7 +47,8 @@ function compute_l1v_error(system, v_ode, u_ode, semi, t)
     return v_avg /= v_analytical_avg
 end
 
-function compute_l1p_error(system, v_ode, u_ode, semi, t)
+
+function compute_l1p_error(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     p_max_exact = 0.0
 
     L1p = 0.0
@@ -64,14 +76,15 @@ end
 
 # The pressure plotted in the paper is the difference of the local pressure minus
 # the average of the pressure of all particles.
-function diff_p_loc_p_avg(system, v, u, semi, t)
-    p_avg_tot = avg_pressure(system, v, u, semi, t)
+
+function diff_p_loc_p_avg(system, dv_ode, du_ode, v, u, semi, t)
+    p_avg_tot = avg_pressure(system, dv_ode, du_ode, v, u, semi, t)
 
     return v[end, :] .- p_avg_tot
 end
 
 for density_calculator in density_calculators, perturbation in perturb_coordinates,
-    particle_spacing in particle_spacings, wcsph in [false, true]
+    wcsph in [false, true]
     n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     name_density_calculator = density_calculator isa SummationDensity ?

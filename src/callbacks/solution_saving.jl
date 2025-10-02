@@ -2,8 +2,7 @@
     SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Array{Float64, 1}([]),
                            save_initial_solution=true, save_final_solution=true,
                            output_directory="out", append_timestamp=false, prefix="",
-                           verbose=false, write_meta_data=true, max_coordinates=2^15,
-                           custom_quantities...)
+                           verbose=false, max_coordinates=2^15, custom_quantities...)
 
 
 Callback to save the current numerical solution in VTK format in regular intervals.
@@ -26,9 +25,8 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `save_final_solution=true`:   Save the final solution.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
-- 'prefix=""':                  Prefix added to the filename.
+- `prefix=""`:                  Prefix added to the filename.
 - `custom_quantities...`:       Additional user-defined quantities.
-- `write_meta_data=true`:       Write meta data.
 - `verbose=false`:              Print to standard IO when a file is written.
 - `max_coordinates=2^15`:       The coordinates of particles will be clipped if their
                                 absolute values exceed this threshold.
@@ -70,7 +68,6 @@ mutable struct SolutionSavingCallback{I, CQ}
     save_times            :: Vector{Float64}
     save_initial_solution :: Bool
     save_final_solution   :: Bool
-    write_meta_data       :: Bool
     verbose               :: Bool
     output_directory      :: String
     prefix                :: String
@@ -84,8 +81,9 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_times=Float64[],
                                 save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
-                                prefix="", verbose=false, write_meta_data=true,
-                                max_coordinates=Float64(2^15), custom_quantities...)
+                                prefix="", verbose=false,
+                                max_coordinates=Float64(2^15),
+                                custom_quantities...)
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
         throw(ArgumentError("Setting multiple save times for the same solution " *
                             "callback is not possible. Use either `dt`, `interval` or `save_times`."))
@@ -101,8 +99,8 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
 
     solution_callback = SolutionSavingCallback(interval, Float64.(save_times),
                                                save_initial_solution, save_final_solution,
-                                               write_meta_data, verbose, output_directory,
-                                               prefix, max_coordinates, custom_quantities,
+                                               verbose, output_directory, prefix,
+                                               max_coordinates, custom_quantities,
                                                -1, Ref("UnknownVersion"))
 
     if length(save_times) > 0
@@ -133,9 +131,11 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
     solution_callback.latest_saved_iter = -1
     solution_callback.git_hash[] = compute_git_hash()
 
+    write_meta_data(solution_callback, integrator)
+
     # Save initial solution
     if solution_callback.save_initial_solution
-        solution_callback(integrator)
+        solution_callback(integrator; from_initialize=true)
     end
 
     return nothing
@@ -150,11 +150,21 @@ function (solution_callback::SolutionSavingCallback)(u, t, integrator)
 end
 
 # `affect!`
-function (solution_callback::SolutionSavingCallback)(integrator)
-    (; interval, output_directory, custom_quantities, write_meta_data, git_hash,
-     verbose, prefix, latest_saved_iter, max_coordinates) = solution_callback
+function (solution_callback::SolutionSavingCallback)(integrator; from_initialize=false)
+    (; interval, output_directory, custom_quantities, git_hash, verbose,
+     prefix, latest_saved_iter, max_coordinates) = solution_callback
 
     vu_ode = integrator.u
+    if from_initialize
+        # Avoid calling `get_du` here, since it will call the RHS function
+        # if it is called before the first time step.
+        # This would cause problems with `semi.update_callback_used`,
+        # which might not yet be set to `true` at this point if the `UpdateCallback`
+        # comes AFTER the `SolutionSavingCallback` in the `CallbackSet`.
+        dvdu_ode = zero(vu_ode)
+    else
+        dvdu_ode = get_du(integrator)
+    end
     semi = integrator.p
     iter = get_iter(interval, integrator)
 
@@ -173,10 +183,10 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         println("Writing solution to $output_directory at t = $(integrator.t)")
     end
 
-    @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t;
+    @trixi_timeit timer() "save solution" trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
                                                     iter, output_directory, prefix,
-                                                    write_meta_data, git_hash=git_hash[],
-                                                    max_coordinates, custom_quantities...)
+                                                    git_hash=git_hash[], max_coordinates,
+                                                    custom_quantities...)
 
     # Tell OrdinaryDiffEq that `u` has not been modified
     u_modified!(integrator, false)

@@ -110,7 +110,7 @@
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length)
 
-        boundary_system = BoundarySPHSystem(bnd, boundary_model)
+        boundary_system = WallBoundarySystem(bnd, boundary_model)
 
         # Overwrite `system.pressure` because we skip the update step
         fluid_system.pressure .= fluid.pressure
@@ -412,7 +412,7 @@
                 if cut_off_bnd
                     @test isapprox(distance_bottom_outside, 0, atol=1e-12)
                 else
-                    @test isapprox(distance_bottom_outside, 0.11817145975510357, atol=1e-14)
+                    @test isapprox(distance_bottom_outside, 0.11817392366574496, atol=1e-14)
                 end
 
                 result_bottom_outside = interpolation_walldistance(-0.5 *
@@ -624,7 +624,7 @@
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length)
 
-        boundary_system = BoundarySPHSystem(bnd, boundary_model)
+        boundary_system = WallBoundarySystem(bnd, boundary_model)
 
         # Overwrite `system.pressure` because we skip the update step
         fluid_system.pressure .= fluid.pressure
@@ -664,7 +664,7 @@
                                                              (ny + 2) * particle_spacing,
                                                              interpolation_walldistance,
                                                              tolerance=1e-8)
-                @test isapprox(distance_top_outside, 0.09390581846237112, atol=1e-14)
+                @test isapprox(distance_top_outside, 0.09390704035758901, atol=1e-14)
 
                 result_zero = interpolation_walldistance(ny * particle_spacing +
                                                          distance_top_outside)
@@ -705,7 +705,7 @@
                 distance_bottom_outside = binary_search_outside(0.0, -2 * particle_spacing,
                                                                 interpolation_walldistance,
                                                                 tolerance=1e-12)
-                @test isapprox(distance_bottom_outside, 0.09390581390689477, atol=1e-14)
+                @test isapprox(distance_bottom_outside, 0.0939070362292114, atol=1e-14)
 
                 exp_res = (density=[666.0],
                            neighbor_count=[4],
@@ -805,7 +805,7 @@
                 if cut_off_bnd
                     @test isapprox(distance_bottom_outside, 0, atol=1e-12)
                 else
-                    @test isapprox(distance_bottom_outside, 0.09390581390689477, atol=1e-14)
+                    @test isapprox(distance_bottom_outside, 0.0939070362292114, atol=1e-14)
                 end
 
                 result_bottom_outside = interpolation_walldistance(-0.5 *

@@ -1,8 +1,8 @@
 # [Fluid Models](@id fluid_models)
 
 Currently available fluid methods are the [weakly compressible SPH method](@ref wcsph) and the
-[entropically damped artificial compressibility for SPH](@ref edac).  
-This page lists models and techniques that apply to both of these methods.  
+[entropically damped artificial compressibility for SPH](@ref edac).
+This page lists models and techniques that apply to both of these methods.
 
 ## [Viscosity](@id viscosity_sph)
 
@@ -55,24 +55,22 @@ by Balsara ([Balsara1995](@cite)) or Morris ([Morris1997](@cite)).
 
 ##### Mathematical Formulation
 
-The force exerted by particle `b` on particle `a` due to artificial viscosity is given by:
+The force exerted by particle ``b`` on particle ``a`` due to artificial viscosity is given by:
 
 ```math
-\mathbf{F}_{ab}^{\text{AV}} = - m_a m_b \Pi_{ab} \nabla W_{ab}
+F_{ab}^{\text{AV}} = - m_a m_b \Pi_{ab} \nabla W_{ab}
 ```
 
 where:
 
-- `\Pi_{ab}` is the artificial viscosity term defined as:
-
-    ```math
-    \Pi_{ab} =
-    \begin{cases}
-        -\frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{if } \mathbf{v}_{ab} \cdot \mathbf{r}_{ab} < 0, \\
-        0 & \text{otherwise}
-    \end{cases}
-    ```
-
+- ``\Pi_{ab}`` is the artificial viscosity term defined as:
+  ```math
+  \Pi_{ab} =
+  \begin{cases}
+      -\frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{if } \mathbf{v}_{ab} \cdot \mathbf{r}_{ab} < 0, \\
+      0 & \text{otherwise}
+  \end{cases}
+  ```
 - ``\alpha`` and ``\beta`` are viscosity parameters,
 - ``c`` is the local speed of sound,
 - ``\bar{\rho}_{ab}`` is the arithmetic mean of the densities of particles ``a`` and ``b``.
@@ -361,7 +359,7 @@ with:
 This divergence can be computed numerically in the SPH framework as
 
 ```math
-\sum_b \frac{m_b}{\rho_a \rho_b} (S_a + S_b) \nabla W_{ab} 
+\sum_b \frac{m_b}{\rho_a \rho_b} (S_a + S_b) \nabla W_{ab}
 ```
 
 #### Advantages and limitations

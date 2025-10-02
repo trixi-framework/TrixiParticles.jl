@@ -1,8 +1,9 @@
-using Documenter, DocumenterCitations
+using Documenter, DocumenterCitations, DocumenterMermaid
 using TrixiParticles
 using TrixiParticles.TrixiBase
 using TrixiParticles.PointNeighbors
 using Asciicast: Asciicast
+using Literate: Literate
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
@@ -83,6 +84,9 @@ replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_dam_break.m
 replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_beam.md"))
 replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_falling.md"))
 
+Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
+                  joinpath("docs", "src", "tutorials"))
+
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
 copy_file("CONTRIBUTING.md",
@@ -145,7 +149,9 @@ makedocs(sitename="TrixiParticles.jl",
                          "Weakly Compressible SPH (Fluid)" => joinpath("systems",
                                                                        "weakly_compressible_sph.md"),
                          "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
-                                                                                                      "entropically_damped_sph.md")
+                                                                                                      "entropically_damped_sph.md"),
+                         "Implicit Incompressible SPH (Fluid)" => joinpath("systems",
+                                                                           "implicit_incompressible_sph.md")
                      ],
                      "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",

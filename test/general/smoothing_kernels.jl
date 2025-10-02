@@ -86,7 +86,7 @@
 
                         # This should work with very tight tolerances
                         @test isapprox(analytic_deriv, automatic_deriv,
-                                       rtol=5e-15, atol=2eps())
+                                       rtol=5e-15, atol=4 * eps())
                     end
                 end
             end

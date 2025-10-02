@@ -1,3 +1,12 @@
+# ==========================================================================================
+# 3D Falling Water Spheres Simulation (With and Without Surface Tension)
+#
+# This example extends `falling_water_spheres_2d.jl` to three dimensions.
+# It simulates two spherical volumes of water falling under gravity.
+# One sphere includes a surface tension model, while the other does not,
+# demonstrating the effect of surface tension in 3D.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -27,7 +36,7 @@ fluid_smoothing_length = 1.0 * fluid_particle_spacing
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl"),
               fluid_particle_spacing=fluid_particle_spacing, tspan=(0.0, 0.1),
-              initial_fluid_size=(0.0, 0.0, 0.0),
+              initial_fluid_size=(0.0, 0.0, 0.0), interval=100,
               tank_size=(2.0, 1.0, 0.1), sound_speed=sound_speed,
               faces=(true, true, true, true, true, false),
               acceleration=(0.0, 0.0, -gravity), sphere1=sphere1, sphere2=sphere2,

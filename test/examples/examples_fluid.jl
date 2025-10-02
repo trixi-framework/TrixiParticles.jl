@@ -25,18 +25,18 @@
                                               clip_negative_pressure=true),
             "WCSPH with ViscosityAdami" => (
                                             # from 0.02*10.0*1.2*0.05/8
-                                            viscosity=ViscosityAdami(nu=0.0015),),
+                                            viscosity_fluid=ViscosityAdami(nu=0.0015),),
             "WCSPH with ViscosityMorris" => (
                                              # from 0.02*10.0*1.2*0.05/8
-                                             viscosity=ViscosityMorris(nu=0.0015),),
+                                             viscosity_fluid=ViscosityMorris(nu=0.0015),),
             "WCSPH with ViscosityAdami and SummationDensity" => (
                                                                  # from 0.02*10.0*1.2*0.05/8
-                                                                 viscosity=ViscosityAdami(nu=0.0015),
+                                                                 viscosity_fluid=ViscosityAdami(nu=0.0015),
                                                                  fluid_density_calculator=SummationDensity(),
                                                                  clip_negative_pressure=true),
             "WCSPH with ViscosityMorris and SummationDensity" => (
                                                                   # from 0.02*10.0*1.2*0.05/8
-                                                                  viscosity=ViscosityMorris(nu=0.0015),
+                                                                  viscosity_fluid=ViscosityMorris(nu=0.0015),
                                                                   fluid_density_calculator=SummationDensity(),
                                                                   clip_negative_pressure=true),
             "WCSPH with smoothing_length=1.3" => (smoothing_length=1.3,),
@@ -55,7 +55,7 @@
                                                                                          smoothing_kernel,
                                                                                          smoothing_length,
                                                                                          sound_speed,
-                                                                                         viscosity=viscosity,
+                                                                                         viscosity=viscosity_fluid,
                                                                                          density_calculator=ContinuityDensity(),
                                                                                          acceleration=(0.0,
                                                                                                        -gravity))),
@@ -63,7 +63,7 @@
                                                                                       smoothing_kernel,
                                                                                       smoothing_length,
                                                                                       sound_speed,
-                                                                                      viscosity=viscosity,
+                                                                                      viscosity=viscosity_fluid,
                                                                                       density_calculator=SummationDensity(),
                                                                                       acceleration=(0.0,
                                                                                                     -gravity)),),
@@ -204,6 +204,31 @@
         end
     end
 
+    @trixi_testset "fluid/dam_break_2d_iisph.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1)) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureMirroring" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1),
+                                         boundary_density_calculator=PressureMirroring()) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
     @trixi_testset "fluid/dam_break_2d_gpu.jl" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
@@ -268,75 +293,98 @@
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (WCSPH)" begin
-        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+    @trixi_testset "fluid/periodic_channel_2d.jl with PST" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
-                                                  "pipe_flow_2d.jl"),
-                                         wcsph=true)
+                                                  "periodic_channel_2d.jl"),
+                                         tspan=(0.0, 0.2),
+                                         shifting_technique=ParticleShiftingTechniqueSun2017(),
+                                         extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (EDAC)" begin
+    @trixi_testset "fluid/periodic_channel_2d.jl with TVF" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "periodic_channel_2d.jl"),
+                                         tspan=(0.0, 0.2),
+                                         shifting_technique=TransportVelocityAdami(background_pressure=50_000.0),
+                                         extra_callback=UpdateCallback())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/periodic_channel_2d.jl with PST and TIC" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "periodic_channel_2d.jl"),
+                                         tspan=(0.0, 0.2),
+                                         shifting_technique=ParticleShiftingTechniqueSun2017(),
+                                         pressure_acceleration=tensile_instability_control,
+                                         extra_callback=UpdateCallback())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/periodic_channel_2d.jl with consistent PST and TIC" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "periodic_channel_2d.jl"),
+                                         tspan=(0.0, 0.2),
+                                         shifting_technique=ConsistentShiftingSun2019(),
+                                         pressure_acceleration=tensile_instability_control,
+                                         extra_callback=UpdateCallback())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (EDAC)" begin
-        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (EDAC)" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=false,
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          joinpath(examples_dir(), "fluid",
-                                                  "pipe_flow_2d.jl"),
-                                         open_boundary_model=BoundaryModelTafuni(),
-                                         boundary_type_in=BidirectionalFlow(),
-                                         boundary_type_out=BidirectionalFlow(),
-                                         reference_density_in=nothing,
-                                         reference_pressure_in=nothing,
-                                         reference_density_out=nothing,
-                                         reference_velocity_out=nothing)
+                                                  "pipe_flow_2d.jl"))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (WCSPH)" begin
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (EDAC)" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=false,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "pipe_flow_2d.jl"),
+                                         boundary_type_in=BidirectionalFlow(),
+                                         boundary_type_out=BidirectionalFlow())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
-                                         wcsph=true, sound_speed=20.0, pressure=0.0,
-                                         open_boundary_model=BoundaryModelTafuni(),
                                          boundary_type_in=BidirectionalFlow(),
-                                         boundary_type_out=BidirectionalFlow(),
-                                         reference_density_in=nothing,
-                                         reference_pressure_in=nothing,
-                                         reference_density_out=nothing,
-                                         reference_velocity_out=nothing)
+                                         boundary_type_out=BidirectionalFlow())
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=10)
+        steady_state_reached = SteadyStateReachedCallback(; dt=0.002, interval_size=5,
+                                                          reltol=1e-3)
 
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
-                                         extra_callback=steady_state_reached,
-                                         tspan=(0.0, 1.5), viscosity_boundary=nothing)
-
-        # Make sure that the simulation is terminated after a reasonable amount of time
-        @test 0.1 < sol.t[end] < 1.0
-        @test sol.retcode == ReturnCode.Terminated
-    end
-
-    @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`interval`)" begin
-        steady_state_reached = SteadyStateReachedCallback(; interval=1,
-                                                          interval_size=10,
-                                                          abstol=1.0e-5, reltol=1.0e-4)
-        @trixi_test_nowarn trixi_include(@__MODULE__,
-                                         joinpath(examples_dir(), "fluid",
-                                                  "pipe_flow_2d.jl"),
+                                         open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                          extra_callback=steady_state_reached,
                                          tspan=(0.0, 1.5), viscosity_boundary=nothing)
 
@@ -346,9 +394,29 @@
     end
 
     @trixi_testset "fluid/pipe_flow_3d.jl" begin
-        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+        @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_3d.jl"))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/poiseuille_flow_2d.jl (WCSPH)" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "poiseuille_flow_2d.jl"),
+                                         tspan=(0.0, 0.1))
+        @test fluid_system isa WeaklyCompressibleSPHSystem
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/poiseuille_flow_2d.jl (EDAC)" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "poiseuille_flow_2d.jl"),
+                                         tspan=(0.0, 0.1), wcsph=false)
+        @test fluid_system isa EntropicallyDampedSPHSystem
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
