@@ -1,3 +1,27 @@
+"""
+    RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
+
+The `RCRWindkessel` model is a biomechanical lumped-parameter representation
+that captures the relationship between pressure and flow in pulsatile systems, e.g., vascular systems.
+It is derived from an electrical circuit analogy and consists of three elements:
+
+- characteristic restistance (``R_1``): Represents the proximal resistance at the vessel entrance.
+  It models the immediate pressure drop that arises at the entrance of a vessel segment,
+  due either to a geometric narrowing or to a mismatch in characteristic impedance between adjacent segments.
+  A larger ``R_1`` produces a sharper initial pressure rise at the onset of flow.
+- peripheral restistance (``R_2``): Represents the distal resistance,
+  which controls the sustained outflow into the peripheral circulation and thereby determines the level of the mean pressure.
+  A high ``R_2`` maintains a higher pressure (reduced outflow), whereas a low ``R_2`` allows a faster pressure decay.
+- compliance (``C``): Connected in parallel with ``R_2`` and represents the capacity of elastic walls
+  to store and release volume; in other words, it models the "stretchiness" of walls.
+  Analogous to a capacitor in an electrical circuit, it absorbs blood when pressure rises and releases it during diastole.
+  The presence of ``C`` smooths pulsatile flow and produces a more uniform outflow profile.
+
+# Keywords
+- `characteristic_resistance`: characteristic restistance (``R_1``)
+- `peripheral_resistance`: peripheral restistance (``R_2``)
+- `compliance`: compliance (``C``)
+"""
 struct RCRWindkesselModel{ELTYPE <: Real}
     characteristic_resistance :: ELTYPE
     peripheral_resistance     :: ELTYPE
@@ -6,9 +30,6 @@ struct RCRWindkesselModel{ELTYPE <: Real}
 end
 
 function RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
-
-    # Compliance is analogous to a capacitor in an electric circuit.
-    # In biomechanics, this models the "stretchiness" of vessels.
     return RCRWindkesselModel(characteristic_resistance, peripheral_resistance, compliance,
                               true)
 end
