@@ -10,10 +10,16 @@ include("../validation_util.jl")
 using TrixiParticles
 using TrixiParticles.JSON
 
+# When using data center CPUs with large numbers of cores, especially on multi-socket
+# systems with multiple NUMA nodes, pinning threads to cores can significantly
+# improve performance, even for low resolutions.
+# using ThreadPinning
+# pinthreads(:numa)
+
 # `resolution` in this case is set relative to `H`, the initial height of the fluid.
 # Use 40, 80 or 400 for validation.
 # Note: 400 takes about 30 minutes on a large data center CPU (much longer with serial update)
-resolution = 40
+resolution = 400
 
 # Use `SerialUpdate()` to obtain consistent results across different numbers of threads
 update_strategy = nothing
