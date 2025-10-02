@@ -7,7 +7,7 @@ particle_spacing_factor = 30
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
               particle_spacing_factor=particle_spacing_factor, sol=nothing)
 
-# Analytical velocity evolution given in eq. 18
+# Analytical velocity evolution given in eq. 18 (Zhang et al., 2025)
 function womersley_velocity_profile(r, t)
     omega = 1 # ω = 2π/T
     kinematic_viscosity = dynamic_viscosity / fluid_density
@@ -18,7 +18,7 @@ function womersley_velocity_profile(r, t)
 
     v_x = 0.0
 
-    for n in 1
+    for n in [1]
         amp = im * pressure_gradient / (fluid_density * n * omega)
 
         term_1 = besselj0(alpha * sqrt(n) * im^(3 / 2) * r / pipe_radius)
@@ -52,10 +52,10 @@ for i in eachindex(velocity_grid)
     v_x_vector[:, i] .+= velocity_grid[i]
 end
 
-x_analytic = [velocities_analytic[:, j] for j in 1:size(velocities_analytic, 2)]
+x_analytic = [velocities_analytic[:, j] for j in axes(velocities_analytic, 2)]
 y_analytic = fill(1:size(velocities_analytic, 1), size(velocities_analytic, 2))
 
-x_run = [v_x_vector[1:3:100, j] for j in 1:size(v_x_vector, 2)]
+x_run = [v_x_vector[1:3:100, j] for j in axes(v_x_vector, 2)]
 y_run = fill(1:3:size(v_x_vector, 1), size(v_x_vector, 2))
 
 xticks = (range(0, length(times_ref) * 5e-3, length=3), ["2π" "3π" "4π"])
@@ -71,4 +71,5 @@ plot!(p, x_analytic, y_analytic, legend=false, xlabel="time (s)",
 
 plot!(p, left_margin=5Plots.mm, bottom_margin=5Plots.mm)
 plot!(p, legend_position=:outerright)
-p
+
+display(p)
