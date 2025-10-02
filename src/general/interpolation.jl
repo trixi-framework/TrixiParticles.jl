@@ -563,6 +563,10 @@ end
                 interpolate_system!(cache, v, neighbor_system,
                                     point, neighbor, volume_b, W_ab, clip_negative_pressure)
             else
+                # TODO: this is currently not correct implemented and only valid for velocity interpolation
+                interpolate_wall_velocity!(cache, v, neighbor_system, point, neighbor,
+                                           shepard_coefficient, volume_b, W_ab)
+
                 other_density[point] += m_b * W_ab
             end
 
@@ -667,6 +671,23 @@ end
     sigma = cauchy_stress(system)
     for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)
         cache.cauchy_stress[i, j, point] += sigma[i, j, neighbor] * volume_b * W_ab
+    end
+
+    return cache
+end
+
+function interpolate_wall_velocity!(cache, v, neighbor_system, point, neighbor,
+                                    shepard_coefficient, volume_b, W_ab)
+    return cache
+end
+
+function interpolate_wall_velocity!(cache, v, neighbor_system::AbstractBoundarySystem,
+                                    point, neighbor, shepard_coefficient, volume_b, W_ab)
+    shepard_coefficient[point] += volume_b * W_ab
+
+    velocity = viscous_velocity(v, neighbor_system, neighbor)
+    for i in axes(cache.velocity, 1)
+        cache.velocity[i, point] += velocity[i] * volume_b * W_ab
     end
 
     return cache
