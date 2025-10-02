@@ -8,8 +8,9 @@
     BoundaryDEMSystem
 ```
 
-```@docs
-    PrescribedMotion
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "prescribed_motion.jl")]
 ```
 
 
