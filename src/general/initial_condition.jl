@@ -416,8 +416,12 @@ function find_too_close_particles(coords, min_distance)
     return result
 end
 
-function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move)
+function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move::Vector)
+    invalid_id = findfirst(i -> i <= 0 || i > nparticles(ic), particle_ids_to_move)
+    isnothing(invalid_id) || throw(BoundsError(ic, invalid_id))
+
     sort_key = [i in particle_ids_to_move ? 1 : 0 for i in eachparticle(ic)]
+    # determine a permutation that sorts 'sort_key' in ascending order
     permutation = sortperm(sort_key)
 
     ic.coordinates .= ic.coordinates[:, permutation]
