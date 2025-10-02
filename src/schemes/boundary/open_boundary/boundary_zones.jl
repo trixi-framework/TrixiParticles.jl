@@ -504,7 +504,11 @@ function reference_pressure(boundary_zone, v, system, particle, pos, t)
         # `pressure_reference_values[zone_id](pos, t)`, but in a type-stable way
         return apply_ith_function(pressure_reference_values, zone_id, pos, t)
     else
-        return current_pressure(v, system, particle)
+        pressure = current_pressure(v, system, particle)
+
+        # Return either the current pressure or a pressure computed by a pressure model
+        return imposed_pressure(system, system.pressure_model_values, boundary_zone,
+                                pressure, particle)
     end
 end
 
