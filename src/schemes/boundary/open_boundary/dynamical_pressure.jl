@@ -66,7 +66,7 @@ end
     state_equation = system_state_equation(system.fluid_system)
     density = current_density(v, system)
 
-    # Density of recycled buffer particles is obtained following the EoS (Eq. 15, Zhang et al. 2025)
+    # Density of recycled buffer particles is obtained following the EoS (Zhang et al. 2025)
     inverse_state_equation!(density, density_rest, state_equation, pressure_boundary,
                             particle)
 end

@@ -16,8 +16,8 @@ Open boundary system for in- and outflow particles.
                            when using [`BoundaryModelDynamicalPressureZhang`](@ref).
                            Defaults to the formulation from `fluid_system` if applicable; otherwise, `nothing`.
 - `shifting_technique`: [Shifting technique](@ref shifting) or [transport velocity formulation](@ref transport_velocity_formulation)
-                        for this system. Defaults to the technique from `fluid_system`.
-                        Supported only for [`BoundaryModelDynamicalPressureZhang`](@ref), yet.
+                        for this system. Defaults to the technique used by `fluid_system`.
+                        As of now, only supported for [`BoundaryModelDynamicalPressureZhang`](@ref).
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
@@ -552,6 +552,8 @@ function available_data(::OpenBoundarySystem)
     return (:coordinates, :velocity, :density, :pressure)
 end
 
+# One face of the boundary zone is the transition to the fluid domain.
+# The face opposite to this transition face is a free surface.
 @inline function modify_shifting_at_free_surfaces!(system::OpenBoundarySystem, u, semi)
     (; fluid_system, cache) = system
 
@@ -567,8 +569,8 @@ end
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)
             # Disable shifting for this particle.
-            # Note that Sun et al. 2017 proposes a more sophisticated approach with a transition phase
-            # where only the component orthogonal to the free surface is kept and the tangential
+            # Note that Sun et al. 2017 propose a more sophisticated approach with a transition phase
+            # where only the component orthogonal to the surface normal is kept and the tangential
             # component is set to zero. However, we assume laminar flow in the boundary zone,
             # so we simply disable shifting completely.
             for dim in 1:ndims(system)
