@@ -27,7 +27,7 @@ open_boundary_layers = 8
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 20.0)
+tspan = (0.0, 5.0)
 
 # Boundary geometry and initial fluid particle positions
 domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
@@ -69,7 +69,8 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=1)
 viscosity = ViscosityAdami(nu=kinematic_viscosity)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-shifting_technique = TransportVelocityAdami(backgound_pressure=10 * fluid_density * v_max^2)
+shifting_technique = TransportVelocityAdami(background_pressure=fluid_density *
+                                                                sound_speed^2)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -81,44 +82,28 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
 
 # ==========================================================================================
 # ==== Open Boundary
-function velocity_function2d(pos, t)
-    return SVector(prescribed_velocity, 0.0)
-end
+open_boundary_model = BoundaryModelMirroringTafuni()
 
-open_boundary_model = BoundaryModelTafuni()
-
-plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
-inflow = BoundaryZone(; plane=plane_in, plane_normal=flow_direction, open_boundary_layers,
+inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, domain_size[2]]),
+                      face_normal=flow_direction, open_boundary_layers,
+                      reference_velocity=(pos, t) -> SVector(prescribed_velocity, 0.0),
                       density=fluid_density, particle_spacing)
 
-reference_velocity_in = velocity_function2d
-# At the inlet, neither pressure nor density are prescribed; instead,
-# these values are extrapolated from the fluid domain
-reference_pressure_in = nothing
-reference_density_in = nothing
-open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
-                                         boundary_model=open_boundary_model,
-                                         buffer_size=n_buffer_particles,
-                                         reference_density=reference_density_in,
-                                         reference_pressure=reference_pressure_in,
-                                         reference_velocity=reference_velocity_in)
+outflow = BoundaryZone(;
+                       boundary_face=([pipe.fluid_size[1], 0.0],
+                                      [pipe.fluid_size[1], pipe.fluid_size[2]]),
+                       face_normal=(-flow_direction), particle_spacing,
+                       density=fluid_density, open_boundary_layers)
 
-boundary_type_out = OutFlow()
-plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
-outflow = BoundaryZone(; plane=plane_out, plane_normal=(-flow_direction),
-                       open_boundary_layers, density=fluid_density, particle_spacing,
-                       boundary_type=boundary_type_out)
+# Although the outlet velocity is not prescribed,
+# initializing it in the x-direction helps to prevent pressure waves.
+outflow.initial_condition.velocity[1, :] .= prescribed_velocity
 
-# At the outlet, we allow the flow to exit freely without imposing any boundary conditions
-reference_velocity_out = nothing
-reference_pressure_out = nothing
-reference_density_out = nothing
-open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
-                                          boundary_model=open_boundary_model,
-                                          buffer_size=n_buffer_particles,
-                                          reference_density=reference_density_out,
-                                          reference_pressure=reference_pressure_out,
-                                          reference_velocity=reference_velocity_out)
+open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
+                                   boundary_model=open_boundary_model,
+                                   pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
+                                   buffer_size=n_buffer_particles)
+
 # ==========================================================================================
 # ==== Boundary
 boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundary.mass,
@@ -126,7 +111,7 @@ boundary_model = BoundaryModelDummyParticles(pipe.boundary.density, pipe.boundar
                                              state_equation=state_equation,
                                              smoothing_kernel, smoothing_length)
 
-boundary_system_wall = BoundarySPHSystem(pipe.boundary, boundary_model)
+boundary_system_wall = WallBoundarySystem(pipe.boundary, boundary_model)
 
 boundary_model_cylinder = BoundaryModelDummyParticles(cylinder.density, cylinder.mass,
                                                       AdamiPressureExtrapolation(),
@@ -134,55 +119,7 @@ boundary_model_cylinder = BoundaryModelDummyParticles(cylinder.density, cylinder
                                                       viscosity=viscosity,
                                                       smoothing_kernel, smoothing_length)
 
-boundary_system_cylinder = BoundarySPHSystem(cylinder, boundary_model_cylinder)
-
-# ==========================================================================================
-# ==== Postprocessing
-circle = SphereShape(particle_spacing, (cylinder_diameter + particle_spacing) / 2,
-                     cylinder_center, fluid_density, n_layers=1,
-                     sphere_type=RoundSphere())
-
-# Points for pressure interpolation, located at the wall interface
-const data_points = copy(circle.coordinates)
-const center = SVector(cylinder_center)
-
-calculate_lift_force(system, v_ode, u_ode, semi, t) = nothing
-function calculate_lift_force(system::TrixiParticles.FluidSystem, v_ode, u_ode, semi, t)
-    force = zero(SVector{ndims(system), eltype(system)})
-
-    values = interpolate_points(data_points, semi, system, v_ode, u_ode; cut_off_bnd=false,
-                                clip_negative_pressure=false)
-    pressure = Array(values.pressure)
-
-    for i in axes(data_points, 2)
-        point = TrixiParticles.current_coords(data_points, system, i)
-
-        # F = ∑ -p_i * A_i * n_i
-        force -= pressure[i] * particle_spacing .*
-                 TrixiParticles.normalize(point - center)
-    end
-
-    return 2 * force[2] / (fluid_density * prescribed_velocity^2 * cylinder_diameter)
-end
-
-calculate_drag_force(system, v_ode, u_ode, semi, t) = nothing
-function calculate_drag_force(system::TrixiParticles.FluidSystem, v_ode, u_ode, semi, t)
-    force = zero(SVector{ndims(system), eltype(system)})
-
-    values = interpolate_points(data_points, semi, system, v_ode, u_ode; cut_off_bnd=false,
-                                clip_negative_pressure=false)
-    pressure = Array(values.pressure)
-
-    for i in axes(data_points, 2)
-        point = TrixiParticles.current_coords(data_points, system, i)
-
-        # F = ∑ -p_i * A_i * n_i
-        force -= pressure[i] * particle_spacing .*
-                 TrixiParticles.normalize(point - center)
-    end
-
-    return 2 * force[1] / (fluid_density * prescribed_velocity^2 * cylinder_diameter)
-end
+boundary_system_cylinder = WallBoundarySystem(cylinder, boundary_model_cylinder)
 
 # ==========================================================================================
 # ==== Simulation
@@ -193,29 +130,19 @@ cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
                                                 update_strategy=ParallelUpdate())
 
-semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
-                          boundary_system_wall, boundary_system_cylinder;
-                          neighborhood_search=neighborhood_search,
+semi = Semidiscretization(fluid_system, open_boundary, boundary_system_wall,
+                          boundary_system_cylinder; neighborhood_search=neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-output_directory = "out"
-
-saving_callback = SolutionSavingCallback(; dt=0.02, prefix="", output_directory)
-
-pp_callback = PostprocessCallback(; dt=0.02,
-                                  f_l=calculate_lift_force, f_d=calculate_drag_force,
-                                  output_directory, filename="resulting_force",
-                                  write_csv=true, write_file_interval=10)
+saving_callback = SolutionSavingCallback(; dt=0.02, prefix="", output_directory="out")
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, UpdateCallback(), saving_callback,
-                        ParticleShiftingCallback(), # To obtain a near-uniform particle distribution in the wake
-                        pp_callback, extra_callback)
+callbacks = CallbackSet(info_callback, UpdateCallback(), saving_callback, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
