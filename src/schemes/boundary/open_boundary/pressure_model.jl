@@ -13,6 +13,22 @@ function RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, 
                               true)
 end
 
+function Base.show(io::IO, ::MIME"text/plain", pressure_model::RCRWindkesselModel)
+    @nospecialize pressure_model # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, pressure_model)
+    else
+        summary_header(io, "RCRWindkesselModel")
+        summary_line(io, "characteristic_resistance",
+                     pressure_model.characteristic_resistance)
+        summary_line(io, "peripheral_resistance",
+                     pressure_model.peripheral_resistance)
+        summary_line(io, "compliance", pressure_model.compliance)
+        summary_footer(io)
+    end
+end
+
 function update_pressure_model!(system::OpenBoundarySystem, v, u, semi, dt)
     isnothing(system.pressure_model_values) && return system
 
