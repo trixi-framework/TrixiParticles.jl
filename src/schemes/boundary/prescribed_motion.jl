@@ -10,8 +10,10 @@
                        are moving or not. Its boolean return value determines
                        if the neighborhood search will be updated.
 
-# Keywords
-- `moving_particles`: Indices of moving particles. Default is each particle in the system.
+# Keyword Arguments
+- `moving_particles`: Indices of moving particles. Default is each particle in the system
+                      for the [`WallBoundarySystem`](@ref) and all clamped particles
+                      for the [`TotalLagrangianSPHSystem`](@ref).
 
 # Examples
 ```jldoctest; output = false
@@ -48,7 +50,9 @@ function PrescribedMotion(movement_function, is_moving; moving_particles=nothing
     return PrescribedMotion(movement_function, is_moving, moving_particles)
 end
 
-function initialize!(prescribed_motion::PrescribedMotion, initial_condition)
+function initialize_prescribed_motion!(prescribed_motion::PrescribedMotion,
+                                       initial_condition,
+                                       n_clamped_particles=nparticles(initial_condition))
     # Test `movement_function` return type
     pos = extract_svector(initial_condition.coordinates,
                           Val(size(initial_condition.coordinates, 1)), 1)
@@ -57,23 +61,34 @@ function initialize!(prescribed_motion::PrescribedMotion, initial_condition)
               "Returning regular `Vector`s causes allocations and significant performance overhead."
     end
 
-    # Empty `moving_particles` means all particles are moving
+    # Empty `moving_particles` means all clamped particles are moving.
+    # For boundaries, all particles are considered clamped.
     if isempty(prescribed_motion.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
         # instantiating `PrescribedMotion`.
-        resize!(prescribed_motion.moving_particles, nparticles(initial_condition))
-        prescribed_motion.moving_particles .= collect(1:nparticles(initial_condition))
+        resize!(prescribed_motion.moving_particles, n_clamped_particles)
+
+        # Clamped particles for TLSPH are the last `n_clamped_particles` in the system
+        first_particle = nparticles(initial_condition) - n_clamped_particles + 1
+        clamped_particles = first_particle:nparticles(initial_condition)
+        prescribed_motion.moving_particles .= collect(clamped_particles)
     end
+
+    return prescribed_motion
 end
 
-function (prescribed_motion::PrescribedMotion)(system, t, semi)
-    (; coordinates, cache) = system
+function initialize_prescribed_motion!(::Nothing, initial_condition,
+                                       n_clamped_particles=nparticles(initial_condition))
+    return nothing
+end
+
+function (prescribed_motion::PrescribedMotion)(coordinates, velocity, acceleration,
+                                               ismoving, system, semi, t)
     (; movement_function, is_moving, moving_particles) = prescribed_motion
-    (; acceleration, velocity) = cache
 
-    system.ismoving[] = is_moving(t)
+    ismoving[] = is_moving(t)
 
-    is_moving(t) || return system
+    is_moving(t) || return nothing
 
     @threaded semi for particle in moving_particles
         pos_original = initial_coords(system, particle)
@@ -90,13 +105,7 @@ function (prescribed_motion::PrescribedMotion)(system, t, semi)
         end
     end
 
-    return system
-end
-
-function (prescribed_motion::Nothing)(system::AbstractSystem, t, semi)
-    system.ismoving[] = false
-
-    return system
+    return nothing
 end
 
 """

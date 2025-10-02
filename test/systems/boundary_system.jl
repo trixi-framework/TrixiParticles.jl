@@ -48,10 +48,11 @@
             bm = PrescribedMotion(movement_function, is_moving)
             system = WallBoundarySystem(initial_condition, model, prescribed_motion=bm)
 
-            # Moving
+            # Particles are moving at `t = 0.6`
             t = 0.6
-            # semi is only passed to `@threaded`
-            system.prescribed_motion(system, t, SerialBackend())
+            # `semi` is only passed to `@threaded`
+            TrixiParticles.apply_prescribed_motion!(system, system.prescribed_motion,
+                                                    SerialBackend(), t)
             if NDIMS == 2
                 new_coordinates = coordinates .+ [0.5 * t, 0.3 * t^2]
                 new_velocity = [0.5, 0.6 * t] .* ones(size(new_coordinates))
@@ -66,9 +67,11 @@
             @test isapprox(new_velocity, system.cache.velocity)
             @test isapprox(new_acceleration, system.cache.acceleration)
 
-            # Stop moving
+            # Not moving anymore, so the coordinates should not change
             t = 1.0
-            system.prescribed_motion(system, t, false)
+            # `semi` is only passed to `@threaded`
+            TrixiParticles.apply_prescribed_motion!(system, system.prescribed_motion,
+                                                    SerialBackend(), t)
 
             @test isapprox(new_coordinates, system.coordinates)
 
@@ -83,8 +86,9 @@
             system = WallBoundarySystem(initial_condition, model, prescribed_motion=bm)
 
             t = 0.1
-            # semi is only passed to `@threaded`
-            system.prescribed_motion(system, t, SerialBackend())
+            # `semi` is only passed to `@threaded`
+            TrixiParticles.apply_prescribed_motion!(system, system.prescribed_motion,
+                                                    SerialBackend(), t)
 
             if NDIMS == 2
                 new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2]
