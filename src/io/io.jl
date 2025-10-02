@@ -192,6 +192,11 @@ function add_system_data!(system_data, boundary_model::BoundaryModelCharacterist
     system_data["boundary_model"]["extrapolate_reference_values"] = boundary_model.extrapolate_reference_values
 end
 
+function add_system_data!(system_data, boundary_model::BoundaryModelDynamicalPressureZhang)
+    system_data["boundary_model"] = Dict{String, Any}()
+    system_data["boundary_model"]["model"] = type2string(boundary_model)
+end
+
 function add_system_data!(system_data, contact_model::HertzContactModel)
     system_data["contact_model"] = Dict{String, Any}()
     system_data["contact_model"]["model"] = type2string(contact_model)
