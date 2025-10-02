@@ -95,8 +95,8 @@ function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone
 end
 
 function imposed_pressure(system, pressure_model_values, boundary_zone,
-                          rest_pressure, particle)
-    boundary_zone.pressure_model.is_prescribed || return rest_pressure
+                          pressure, particle)
+    boundary_zone.pressure_model.is_prescribed || return pressure
 
     zone_id = system.boundary_zone_indices[particle]
     return pressure_model_values[zone_id].pressure[]
