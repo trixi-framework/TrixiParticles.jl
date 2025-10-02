@@ -77,7 +77,7 @@
                                                   "plot_pressure_sensors.jl")) [
             r"WARNING: Method definition linear_interpolation.*\n",
             r"WARNING: Method definition interpolated_mse.*\n",
-            r"WARNING: Method definition extract_number_from_filename.*\n",
+            r"WARNING: Method definition extract_number_from_filename.*\n"
         ]
         # Verify number of plots
         @test length(axs_edac[1].scene.plots) >= 2
@@ -89,7 +89,7 @@
                                                   "plot_surge_front.jl")) [
             r"WARNING: Method definition linear_interpolation.*\n",
             r"WARNING: Method definition interpolated_mse.*\n",
-            r"WARNING: Method definition extract_number_from_filename.*\n",
+            r"WARNING: Method definition extract_number_from_filename.*\n"
         ]
         # Verify number of plots
         @test length(axs_edac[1].scene.plots) >= 2
