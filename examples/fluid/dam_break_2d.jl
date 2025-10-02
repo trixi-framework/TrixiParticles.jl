@@ -13,7 +13,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # Size parameters
 H = 0.6
@@ -54,20 +54,9 @@ smoothing_length = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
+
 alpha = 0.02
 viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-# A typical formula to convert Artificial viscosity to a
-# kinematic viscosity is provided by Monaghan as
-# nu = alpha * smoothing_length * sound_speed/8
-
-# Alternatively a kinematic viscosity for water can be set
-# nu = 1.0e-6
-
-# This allows the use of a physical viscosity model like:
-# viscosity_fluid = ViscosityAdami(nu=nu)
-# or with additional dissipation through a Smagorinsky model
-# viscosity_fluid = ViscosityAdamiSGS(nu=nu)
-# For more details see the documentation "Viscosity model overview".
 
 # The density diffusion model by Molteni and Colagrossi shows unphysical effects at the
 # free surface in long-running simulations, but is significantly faster than the model
@@ -87,9 +76,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 viscosity_wall = nothing
-# For a no-slip condition the corresponding wall viscosity without SGS can be set
-# viscosity_wall = ViscosityAdami(nu=nu)
-# viscosity_wall = ViscosityMorris(nu=nu)
+# For a no-slip boundary condition, define a wall viscosity:
+# viscosity_wall = ViscosityAdami(nu=1e-6)
+# viscosity_wall = ViscosityMorris(nu=1e-6)
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
