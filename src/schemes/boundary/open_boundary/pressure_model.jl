@@ -39,12 +39,11 @@ function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone
     (; flow_rate, pressure) = system.pressure_model_values[zone_id]
     (; face_normal, zone_origin) = boundary_zone
 
-    # Use kernel support radius as thickness for the flow rate calculation slice
-    # TODO: Check thinner slice, e.g. `1 * particle_spacing`
-    dvolume = compact_support(system, system)
+    # Use a thin slice for the flow rate calculation
+    slice = system.initial_condition.particle_spacing * 110 / 100
 
     # Find particles within a thin slice near the boundary face for flow rate computation
-    candidates = findall(x -> dot(x - zone_origin, -face_normal) <= dvolume,
+    candidates = findall(x -> dot(x - zone_origin, -face_normal) <= slice,
                          reinterpret(reshape, SVector{ndims(system), eltype(u)}, u))
 
     # Division inside the `sum` closure to maintain GPU compatibility
@@ -57,8 +56,8 @@ function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone
         return hydrodynamic_mass(system, particle) / current_density(v, system, particle)
     end
 
-    # Compute volumetric flow rate: Q = A * velocity_avg, where A = volume_total / dvolume
-    volume_flow = velocity_avg * volume_total / dvolume
+    # Compute volumetric flow rate: Q = A * velocity_avg, where A = volume_total / slice
+    volume_flow = velocity_avg * volume_total / slice
 
     previous_pressure = pressure[]
     previous_flow_rate = flow_rate[]
