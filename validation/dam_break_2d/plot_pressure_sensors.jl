@@ -45,8 +45,6 @@ merged_files = vcat(wcsph_reference_files, wcsph_sim_files)
 wcsph_files = sort(merged_files, by=extract_number_from_filename)
 
 # Read in external reference data
-surge_front = CSV.read(joinpath(case_dir, "exp_surge_front.csv"), DataFrame)
-
 decourcy_P1 = CSV.read(joinpath(case_dir, "decourcy_pressure_sensor_P1.csv"), DataFrame)
 decourcy_P2 = CSV.read(joinpath(case_dir, "decourcy_pressure_sensor_P2.csv"), DataFrame)
 decourcy_P3 = CSV.read(joinpath(case_dir, "decourcy_pressure_sensor_P3.csv"), DataFrame)
@@ -91,30 +89,6 @@ function plot_sensor_results(axs, files)
     end
 end
 
-function plot_surge_results(ax, files)
-    ax.xlabel = "Time [s]"
-    ax.ylabel = "x / W"
-    xlims!(ax, 0, 3)
-    ylims!(ax, 1, 3)
-
-    for (idx, json_file) in enumerate(files)
-        json_data = JSON.parsefile(json_file)
-        label_prefix = occursin("reference", json_file) ? "TrixiParticles " : ""
-        val = json_data["max_x_coord_fluid_1"]
-        lines!(ax, val["time"] .* sqrt(9.81),
-               Float64.(val["values"]) ./ W;
-               label="$label_prefix H/$(extract_number_from_filename(json_file))",
-               color=idx, colormap=:tab10, colorrange=(1, 10))
-    end
-
-    # Experimental reference
-    scatter!(ax, surge_front.time, surge_front.surge_front;
-             color=:black, marker=:utriangle, markersize=6,
-             label="Martin & Moyce 1952 (exp)")
-end
-
-# ==========================================================================================
-# ====  Pressure-sensor figure
 n_sensors = 4
 fig_sensors = Figure(size=(2400, 1000))
 axs_edac = [Axis(fig_sensors[1, i], title="Sensor P$i (EDAC)")
@@ -154,22 +128,8 @@ for (i, ax) in enumerate(axs_wcsph)
            nbanks=3)
 end
 
-# ==========================================================================================
-# ==== Surge-front figure
-fig_surge = Figure(size=(1200, 400))
-ax_surge_edac = Axis(fig_surge[1, 1], title="Surge Front – EDAC")
-ax_surge_wcsph = Axis(fig_surge[1, 2], title="Surge Front – WCSPH")
-
-plot_surge_results(ax_surge_edac, edac_files)
-plot_surge_results(ax_surge_wcsph, wcsph_files)
-
-Legend(fig_surge[2, 1], ax_surge_edac; orientation=:horizontal, valign=:top, nbanks=3)
-Legend(fig_surge[2, 2], ax_surge_wcsph; orientation=:horizontal, valign=:top, nbanks=3)
-
 if save_figures
-    save("dam_break_surge_front.svg", fig_surge)
     save("dam_break_pressure.svg", fig_sensors)
 else
-    display(fig_surge)
     display(fig_sensors)
 end
