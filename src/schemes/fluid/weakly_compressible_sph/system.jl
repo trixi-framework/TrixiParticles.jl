@@ -291,6 +291,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system
 
+    # Update speed of sound when an adaptive state equation is used
     update_speed_of_sound!(system, v, system.state_equation)
     compute_density!(system, u, u_ode, semi, density_calculator)
 
@@ -298,6 +299,27 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                                                              system, semi)
 
     return system
+end
+
+@inline function update_speed_of_sound!(system, v, state_equation) end
+
+@inline function update_speed_of_sound!(system::WeaklyCompressibleSPHSystem, v,
+                                        state_equation::StateEquationAdaptiveCole)
+    max_velocity = zero(eltype(v))
+
+    for particle in each_integrated_particle(system)
+        tmp = dot(current_velocity(v, system, particle),
+                  current_velocity(v, system, particle))
+        if max_velocity < tmp
+            max_velocity = tmp
+        end
+    end
+    max_velocity = sqrt(max_velocity)
+
+    state_equation.sound_speed_ref[] = min(state_equation.max_sound_speed,
+                                           max(state_equation.average_velocity,
+                                               max_velocity) / state_equation.mach_number)
+    return state_equation.sound_speed
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)

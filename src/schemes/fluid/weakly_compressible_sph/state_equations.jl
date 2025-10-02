@@ -1,13 +1,18 @@
 @doc raw"""
-StateEquationAdaptiveCole(; machnumber=0.1, average_velocity=1.0,
-reference_density, max_sound_speed=100.0, exponent, background_pressure=0.0,
-clip_negative_pressure=false)
+StateEquationAdaptiveCole(; mach_number=0.1, average_velocity=1.0,
+                            reference_density, max_sound_speed=100.0, exponent,
+                            background_pressure=0.0, clip_negative_pressure=false)
 
-This variant is adaptive, allowing the speed of sound to be updated during a simulation.
-The speed of sound is initialized as average_velocity / machnumber.
+This variant of [`StateEquationCole`](@ref) is adaptive, allowing the speed of sound to be
+updated during a simulation.
+While a constant higher speed of sound more effectively reduces compressibility effects,
+the runtime also scales with the speed of sound.
+This state equation aims to reduce runtime compared to a constant higher speed of sound,
+while maintaining the advantages of a higher speed of sound.
+The speed of sound is initialized as average_velocity / mach_number.
 
 # Keywords
-- `machnumber=0.1`: The Mach number of the fluid flow, used to initialize the speed of sound.
+- `mach_number=0.1`: The Mach number of the fluid flow, used to initialize the speed of sound.
 - `average_velocity=1.0`: The estimated average velocity of the fluid.
 - `reference_density`: Reference density of the fluid.
 - `max_sound_speed=100.0`: The maximum permissible speed of sound.
@@ -17,41 +22,31 @@ The speed of sound is initialized as average_velocity / machnumber.
 """
 struct StateEquationAdaptiveCole{ELTYPE, CLIP} # Boolean to clip negative pressure
     sound_speed_ref     :: Base.RefValue{ELTYPE}
-    machnumber          :: ELTYPE
+    mach_number         :: ELTYPE
     average_velocity    :: ELTYPE
     max_sound_speed     :: ELTYPE
     exponent            :: ELTYPE
     reference_density   :: ELTYPE
     background_pressure :: ELTYPE
 
-    function StateEquationAdaptiveCole(; machnumber=0.1, average_velocity=1,
+    function StateEquationAdaptiveCole(; mach_number=0.1, average_velocity=1,
                                        reference_density, max_sound_speed=100, exponent,
                                        background_pressure=0.0,
                                        clip_negative_pressure=false)
-        sound_speed = average_velocity / machnumber
-        new{typeof(machnumber),
-            clip_negative_pressure}(Ref(sound_speed), machnumber, average_velocity,
+        sound_speed = average_velocity / mach_number
+        new{typeof(mach_number),
+            clip_negative_pressure}(Ref(sound_speed), mach_number, average_velocity,
                                     max_sound_speed, exponent, reference_density,
                                     background_pressure)
     end
 end
 
-# unwrap sound_speed on read
+# Unwrap ref value `sound_speed` on read to maintain compatibility with existing code
 function Base.getproperty(se::StateEquationAdaptiveCole, name::Symbol)
     if name === :sound_speed
         return se.sound_speed_ref[]  # expose as plain value
     else
         return getfield(se, name)
-    end
-end
-
-# allow assignment to .sound_speed to mutate the underlying Ref
-function Base.setproperty!(se::StateEquationAdaptiveCole, name::Symbol, val)
-    if name === :sound_speed
-        se.sound_speed_ref[] = val
-    else
-        # fall back to default, will error if struct is immutable for other fields
-        Base.setfield!(se, name, val)
     end
 end
 
