@@ -26,7 +26,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `smoothing_length`:   Smoothing length to be used for this system.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
-# Keyword Arguments
+# Keywords
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
