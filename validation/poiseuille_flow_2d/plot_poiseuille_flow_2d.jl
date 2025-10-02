@@ -5,7 +5,7 @@ using Plots
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
               sol=nothing)
 
-# Analytical velocity evolution given in eq. 16
+# Analytical velocity evolution given in eq. 16 (Zhang et al., 2025)
 function poiseuille_velocity(y, t)
 
     # Base profile (stationary part)
@@ -45,7 +45,7 @@ data_range = 2:98
 data_indices = findall(t -> t in times_ref, times)
 v_x_vector = [eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]][data_indices]
 
-# Calculate RMSEP error (eq. 17, Zhang et al.)
+# Calculate RMSEP error (eq. 17, Zhang et al., 2025)
 rmsep_run = Float64[]
 for (i, t) in enumerate(times_ref)
     N = length(data_range)
@@ -65,7 +65,7 @@ for (i, t) in enumerate(times_ref)
     push!(rmsep_run, sqrt(res) * 100)
 end
 
-# RMSEP error (%) from Zhang et al. (2025)
+# RMSEP error (%) received by Zhang et al. (2025)
 rmsep_reference = [1.81, 0.95, 0.67, 0.86, 1.22]
 
 p_rmsep = scatter(times_ref, rmsep_run, markersize=5, label="TrixiP")
@@ -78,7 +78,7 @@ plot!(left_margin=5Plots.mm)
 plot!(right_margin=5Plots.mm)
 plot!(bottom_margin=5Plots.mm)
 
-@show p_rmsep
+display(p_rmsep)
 
 plot_range = range(0, wall_distance, length=50)
 v_x_plot = view(stack(v_x_vector), 1:2:100, :)
@@ -88,9 +88,9 @@ line_colors = cgrad(:coolwarm, length(times_ref), categorical=true)
 p = scatter(plot_range, v_x_plot, label=label_, linewidth=3, markersize=5, opacity=0.6,
             palette=line_colors.colors, legend_position=:outerright, size=(750, 400))
 for t in times_ref
-    label_ = t == 2.0 ? "analytical" : nothing
+    label__ = t == 2.0 ? "analytical" : nothing
     plot!(p, (y) -> -poiseuille_velocity(y, t), xlims=(0, wall_distance),
-          ylims=(-0.002, 0.014), label=label_, linewidth=3, linestyle=:dash, color=:black)
+          ylims=(-0.002, 0.014), label=label__, linewidth=3, linestyle=:dash, color=:black)
 end
 
 yaxis!(p, ylabel="x velocity (m/s)")
@@ -98,4 +98,4 @@ xaxis!(p, xlabel="y position (m)")
 plot!(left_margin=5Plots.mm)
 plot!(bottom_margin=5Plots.mm)
 
-@show p
+display(p)
