@@ -1,4 +1,4 @@
-using Documenter, DocumenterCitations
+using Documenter, DocumenterCitations, DocumenterMermaid
 using TrixiParticles
 using TrixiParticles.TrixiBase
 using TrixiParticles.PointNeighbors

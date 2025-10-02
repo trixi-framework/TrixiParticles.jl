@@ -2,6 +2,8 @@
 # interactions between the different system types.
 include("fluid/fluid.jl")
 include("boundary/boundary.jl")
+# Density diffusion requires `OpenBoundarySystem`
+include("fluid/weakly_compressible_sph/density_diffusion.jl")
 include("structure/total_lagrangian_sph/total_lagrangian_sph.jl")
 include("structure/discrete_element_method/discrete_element_method.jl")
 # Monaghan-Kajtar repulsive boundary particles require the `WallBoundarySystem`
