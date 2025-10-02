@@ -71,7 +71,7 @@ export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
-       WendlandC6Kernel, SpikyKernel, Poly6Kernel
+       WendlandC6Kernel, SpikyKernel, Poly6Kernel, MarroneMLSKernel
 export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS
@@ -80,7 +80,7 @@ export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerr
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelLastiwka, BoundaryModelTafuni,
-       BernoulliPressureExtrapolation
+       BernoulliPressureExtrapolation, MarronePressureExtrapolation
 export HertzContactModel, LinearContactModel
 export BoundaryMovement
 export examples_dir, validation_dir

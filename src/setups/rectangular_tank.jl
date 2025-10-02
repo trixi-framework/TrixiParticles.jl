@@ -222,7 +222,7 @@ function _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
         end
     end
 
-    #### Bottomg boundary
+    #### Bottom boundary
     if faces[3]
         bottom_boundary = maximum(boundary_coordinates[2, face_indices[3]]) + offset
         for idx in face_indices[3]
@@ -261,8 +261,8 @@ function _compute_normals(boundary, fluid, face_indices, faces, ::Val{3})
 
     #### -x boundary
     if faces[2]
+        x_pos_boundary = minimum(coordinates[1, face_indices[2]]) - offset
         for idx in face_indices[2]
-            x_pos_boundary = minimum(coordinates[1, face_indices[2]]) - offset
             normals[1, idx] = -abs(coordinates[1, idx] - x_pos_boundary)
         end
     end
@@ -303,31 +303,6 @@ function _compute_normals(boundary, fluid, face_indices, faces, ::Val{3})
 
     return normals
 end
-
-# Copy to REPL and run
-# function plot_coords(fluid::Matrix{T}, boundary::Matrix{T}, normals=nothing) where {T}
-#     if size(fluid, 1) == 2
-#         x_f, y_f = eachrow(fluid)
-#         x_b, y_b = eachrow(boundary)
-
-#         plt = plot(x_f, y_f, seriestype=:scatter, color=:red, label="Fluid")
-#         scatter!(plt, x_b, y_b, color=:blue, label="Boundary")
-
-#         if normals !== nothing
-#             u, v = eachrow(normals)
-#             quiver!(plt, x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
-#         end
-
-#     elseif size(fluid, 1) == 3
-#         x_f, y_f, z_f = eachrow(fluid)
-#         x_b, y_b, z_b = eachrow(boundary)
-
-#         plt = plot(x_f, y_f, z_f, seriestype=:scatter, color=:red, label="Fluid")
-#         scatter!(plt, x_b, y_b, z_b, color=:blue, label="Boundary")
-#     end
-
-#     return plt
-# end
 
 function round_n_particles(size, spacing, type)
     n_particles = round(Int, size / spacing)
@@ -894,8 +869,8 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
 
                 # Set position
                 boundary.coordinates[dim,
-                particle] = positions[face] + layer_shift +
-                                                      0.5particle_spacing
+                                     particle] = positions[face] + layer_shift +
+                                                 0.5particle_spacing
             end
         end
     end
