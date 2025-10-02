@@ -24,14 +24,20 @@ normalization_factor_pressure = 1000 * 9.81 * H
 
 case_dir = joinpath(validation_dir(), "dam_break_2d")
 
-edac_reference_files = glob("validation_reference_edac*.json", case_dir)
+edac_reference_files = joinpath.(case_dir, [
+    "validation_reference_edac_40.json",
+    "validation_reference_edac_80.json",
+])
 edac_sim_files = include_sim_results ?
                  glob("validation_result_dam_break_edac*.json", "out/") : []
 
 merged_files = vcat(edac_reference_files, edac_sim_files)
 edac_files = sort(merged_files, by=extract_number_from_filename)
 
-wcsph_reference_files = glob("validation_reference_wcsph*.json", case_dir)
+wcsph_reference_files = joinpath.(case_dir, [
+    "validation_reference_wcsph_40.json",
+    "validation_reference_wcsph_80.json",
+])
 wcsph_sim_files = include_sim_results ?
                   glob("validation_result_dam_break_wcsph*.json", "out/") : []
 
