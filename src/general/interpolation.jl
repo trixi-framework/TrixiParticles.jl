@@ -191,9 +191,10 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     x_range = range(min_corner[1], max_corner[1], length=n_points_per_dimension[1])
     y_range = range(min_corner[2], max_corner[2], length=n_points_per_dimension[2])
 
-    # Generate points within the plane. Use `tlsph=true` to generate points on the boundary
+    # Generate points within the plane. Use `place_on_shell=true` to generate points
+    # on the shell of the geometry.
     point_coords = rectangular_shape_coords(resolution, n_points_per_dimension, min_corner,
-                                            tlsph=true)
+                                            place_on_shell=true)
 
     results = interpolate_points(point_coords, semi, ref_system, v_ode, u_ode,
                                  smoothing_length=smoothing_length,
@@ -593,7 +594,7 @@ end
             neighbor_count=neighbor_count, cache...)
 end
 
-@inline function create_cache_interpolation(ref_system::FluidSystem, n_points, semi)
+@inline function create_cache_interpolation(ref_system::AbstractFluidSystem, n_points, semi)
     (; parallelization_backend) = semi
 
     velocity = allocate(parallelization_backend, eltype(ref_system),
@@ -608,7 +609,8 @@ end
     return (; velocity, pressure, density)
 end
 
-@inline function create_cache_interpolation(ref_system::SolidSystem, n_points, semi)
+@inline function create_cache_interpolation(ref_system::AbstractStructureSystem,
+                                            n_points, semi)
     (; parallelization_backend) = semi
 
     velocity = allocate(parallelization_backend, eltype(ref_system),
@@ -626,7 +628,12 @@ end
     return (; velocity, jacobian, von_mises_stress, cauchy_stress)
 end
 
-@inline function interpolate_system!(cache, v, system::FluidSystem,
+function interpolate_system!(cache, v, neighbor_system,
+                             point, neighbor, volume_b, W_ab, clip_negative_pressure)
+    return cache
+end
+
+@inline function interpolate_system!(cache, v, system::AbstractFluidSystem,
                                      point, neighbor, volume_b, W_ab,
                                      clip_negative_pressure)
     velocity = current_velocity(v, system, neighbor)
@@ -646,7 +653,7 @@ end
     return cache
 end
 
-@inline function interpolate_system!(cache, v, system::SolidSystem,
+@inline function interpolate_system!(cache, v, system::AbstractStructureSystem,
                                      point, neighbor, volume_b, W_ab,
                                      clip_negative_pressure)
     velocity = current_velocity(v, system, neighbor)
@@ -655,7 +662,7 @@ end
     end
 
     cache.jacobian[point] += det(deformation_gradient(system, neighbor)) * volume_b * W_ab
-    cache.von_mises_stress[point] += von_mises_stress(system) * volume_b * W_ab
+    cache.von_mises_stress[point] += von_mises_stress(system, neighbor) * volume_b * W_ab
 
     sigma = cauchy_stress(system)
     for j in axes(cache.cauchy_stress, 2), i in axes(cache.cauchy_stress, 1)

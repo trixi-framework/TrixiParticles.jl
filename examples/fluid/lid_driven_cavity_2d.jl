@@ -65,7 +65,7 @@ if wcsph
                                                state_equation, smoothing_kernel,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
                                                smoothing_length, viscosity=viscosity,
-                                               transport_velocity=TransportVelocityAdami(pressure))
+                                               shifting_technique=TransportVelocityAdami(background_pressure=pressure))
 else
     state_equation = nothing
     density_calculator = ContinuityDensity()
@@ -73,17 +73,17 @@ else
                                                smoothing_length,
                                                density_calculator=density_calculator,
                                                sound_speed, viscosity=viscosity,
-                                               transport_velocity=TransportVelocityAdami(pressure))
+                                               shifting_technique=TransportVelocityAdami(background_pressure=pressure))
 end
 
 # ==========================================================================================
 # ==== Boundary
 
-lid_movement_function(t) = SVector(VELOCITY_LID * t, 0.0)
+lid_movement_function(x, t) = x + SVector(VELOCITY_LID * t, 0.0)
 
 is_moving(t) = true
 
-lid_movement = BoundaryMovement(lid_movement_function, is_moving)
+lid_movement = PrescribedMotion(lid_movement_function, is_moving)
 
 boundary_model_cavity = BoundaryModelDummyParticles(cavity.boundary.density,
                                                     cavity.boundary.mass,
@@ -98,9 +98,10 @@ boundary_model_lid = BoundaryModelDummyParticles(lid.density, lid.mass,
                                                  state_equation=state_equation,
                                                  smoothing_kernel, smoothing_length)
 
-boundary_system_cavity = BoundarySPHSystem(cavity.boundary, boundary_model_cavity)
+boundary_system_cavity = WallBoundarySystem(cavity.boundary, boundary_model_cavity)
 
-boundary_system_lid = BoundarySPHSystem(lid, boundary_model_lid, movement=lid_movement)
+boundary_system_lid = WallBoundarySystem(lid, boundary_model_lid,
+                                         prescribed_motion=lid_movement)
 
 # ==========================================================================================
 # ==== Simulation

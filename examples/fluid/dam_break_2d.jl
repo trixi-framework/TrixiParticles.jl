@@ -98,7 +98,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              reference_particle_spacing=0,
                                              viscosity=viscosity_wall)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
+                                     adhesion_coefficient=0.0)
 
 # ==========================================================================================
 # ==== Simulation
@@ -128,6 +129,7 @@ callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra
                         extra_callback2,
                         density_reinit_cb)
 
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
+sol = solve(ode, time_integration_scheme,
             dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks);

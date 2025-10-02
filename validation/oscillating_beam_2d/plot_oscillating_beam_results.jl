@@ -24,8 +24,8 @@ merged_files = vcat(reference_files, simulation_files)
 input_files = sort(merged_files, by=extract_number_from_filename)
 
 # Regular expressions for matching keys
-key_pattern_x = r"deflection_x_solid_\d+"
-key_pattern_y = r"deflection_y_solid_\d+"
+key_pattern_x = r"deflection_x_structure_\d+"
+key_pattern_y = r"deflection_y_structure_\d+"
 
 # Setup for Makie plotting
 fig = Figure(size=(1200, 800))

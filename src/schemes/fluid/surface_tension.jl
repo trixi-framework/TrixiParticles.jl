@@ -1,5 +1,5 @@
-abstract type SurfaceTension end
-abstract type AkinciTypeSurfaceTension <: SurfaceTension end
+abstract type AbstractSurfaceTension end
+abstract type AkinciTypeSurfaceTension <: AbstractSurfaceTension end
 
 @doc raw"""
     CohesionForceAkinci(surface_tension_coefficient=1.0)
@@ -58,7 +58,7 @@ See [`surface_tension`](@ref) for more details.
 - `surface_tension_coefficient=1.0`: Adjusts the magnitude of the surface tension
    forces, enabling tuning of fluid surface behaviors in simulations.
 """
-struct SurfaceTensionMorris{ELTYPE} <: SurfaceTension
+struct SurfaceTensionMorris{ELTYPE} <: AbstractSurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function SurfaceTensionMorris(; surface_tension_coefficient=1.0)
@@ -90,7 +90,7 @@ See [`surface_tension`](@ref) for more details.
 - `surface_tension_coefficient=1.0`: A parameter to adjust the strength of surface tension
    forces, allowing fine-tuning to replicate physical behavior.
 """
-struct SurfaceTensionMomentumMorris{ELTYPE} <: SurfaceTension
+struct SurfaceTensionMomentumMorris{ELTYPE} <: AbstractSurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
@@ -106,7 +106,7 @@ function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, ND
     return (; stress_tensor, delta_s)
 end
 
-@inline function stress_tensor(particle_system::FluidSystem, particle)
+@inline function stress_tensor(particle_system::AbstractFluidSystem, particle)
     return extract_smatrix(particle_system.cache.stress_tensor, particle_system, particle)
 end
 
@@ -170,11 +170,12 @@ end
 
 @inline function surface_tension_force(surface_tension_a::CohesionForceAkinci,
                                        surface_tension_b::CohesionForceAkinci,
-                                       particle_system::FluidSystem,
-                                       neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
-    # No cohesion with oneself
-    distance < sqrt(eps()) && return zero(pos_diff)
+                                       particle_system::AbstractFluidSystem,
+                                       neighbor_system::AbstractFluidSystem,
+                                       particle, neighbor, pos_diff, distance,
+                                       rho_a, rho_b, grad_kernel)
+    # No cohesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return zero(pos_diff)
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     support_radius = compact_support(smoothing_kernel,
@@ -185,15 +186,16 @@ end
 
 @inline function surface_tension_force(surface_tension_a::SurfaceTensionAkinci,
                                        surface_tension_b::SurfaceTensionAkinci,
-                                       particle_system::FluidSystem,
-                                       neighbor_system::FluidSystem, particle, neighbor,
+                                       particle_system::AbstractFluidSystem,
+                                       neighbor_system::AbstractFluidSystem, particle,
+                                       neighbor,
                                        pos_diff, distance, rho_a, rho_b, grad_kernel)
     (; smoothing_kernel) = particle_system
     (; surface_tension_coefficient) = surface_tension_a
 
     smoothing_length_ = smoothing_length(particle_system, particle)
-    # No surface tension with oneself
-    distance < sqrt(eps()) && return zero(pos_diff)
+    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return zero(pos_diff)
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     n_a = surface_normal(particle_system, particle)
@@ -207,13 +209,14 @@ end
 
 @inline function surface_tension_force(surface_tension_a::SurfaceTensionMorris,
                                        surface_tension_b::SurfaceTensionMorris,
-                                       particle_system::FluidSystem,
-                                       neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+                                       particle_system::AbstractFluidSystem,
+                                       neighbor_system::AbstractFluidSystem,
+                                       particle, neighbor, pos_diff, distance,
+                                       rho_a, rho_b, grad_kernel)
     (; surface_tension_coefficient) = surface_tension_a
 
-    # No surface tension with oneself
-    distance < sqrt(eps()) && return zero(pos_diff)
+    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return zero(pos_diff)
 
     n_a = surface_normal(particle_system, particle)
     curvature_a = curvature(particle_system, particle)
@@ -226,7 +229,8 @@ function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, se
 end
 
 # Section 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMorris,
+function compute_stress_tensors!(system::AbstractFluidSystem,
+                                 ::SurfaceTensionMomentumMorris,
                                  v, u, v_ode, u_ode, semi, t)
     (; cache) = system
     (; delta_s, stress_tensor) = cache
@@ -238,7 +242,7 @@ function compute_stress_tensors!(system::FluidSystem, ::SurfaceTensionMomentumMo
     NDIMS = ndims(system)
 
     @trixi_timeit timer() "compute surface stress tensor" begin
-        @threaded semi for particle in each_moving_particle(system)
+        @threaded semi for particle in each_integrated_particle(system)
             normal = surface_normal(system, particle)
             delta_s_particle = delta_s[particle]
             if delta_s_particle > eps()
@@ -267,7 +271,7 @@ function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris,
 
     set_zero!(delta_s)
 
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         delta_s[particle] = norm(surface_normal(system, particle))
     end
     return system
@@ -275,13 +279,14 @@ end
 
 @inline function surface_tension_force(surface_tension_a::SurfaceTensionMomentumMorris,
                                        surface_tension_b::SurfaceTensionMomentumMorris,
-                                       particle_system::FluidSystem,
-                                       neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel)
+                                       particle_system::AbstractFluidSystem,
+                                       neighbor_system::AbstractFluidSystem,
+                                       particle, neighbor, pos_diff, distance,
+                                       rho_a, rho_b, grad_kernel)
     (; surface_tension_coefficient) = surface_tension_a
 
-    # No surface tension with oneself
-    distance < sqrt(eps()) && return zero(pos_diff)
+    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return zero(pos_diff)
 
     S_a = stress_tensor(particle_system, particle)
     S_b = stress_tensor(neighbor_system, neighbor)
@@ -292,13 +297,13 @@ end
 end
 
 @inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,
-                                particle_system::FluidSystem,
-                                neighbor_system::BoundarySystem, particle, neighbor,
+                                particle_system::AbstractFluidSystem,
+                                neighbor_system::AbstractBoundarySystem, particle, neighbor,
                                 pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
-    # No adhesion with oneself
-    distance < sqrt(eps()) && return zero(pos_diff)
+    # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return zero(pos_diff)
 
     # No reason to calculate the adhesion force if adhesion coefficient is near zero
     abs(adhesion_coefficient) < eps() && return zero(pos_diff)

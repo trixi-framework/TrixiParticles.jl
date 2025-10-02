@@ -22,7 +22,7 @@
         continuous_callbacks = (:cb1, :cb2)
         discrete_callbacks = (callback, (; (affect!)=:cb3))
 
-        semi = (; systems=(:system1, :system2))
+        semi = (; systems=(:system1, :system2), parallelization_backend=PolyesterBackend())
 
         integrator = (; p=semi,
                       opts=(;
@@ -42,7 +42,7 @@
            ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝╚══════╝╚══════╝╚══════╝
 
 
-        (systems = (:system1, :system2),)
+        (systems = (:system1, :system2), parallelization_backend = PolyesterBackend())
 
         :system1
 
@@ -68,6 +68,8 @@
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ Environment information                                                                          │
         │ ═══════════════════════                                                                          │
+        │ Julia version: ………………………………………… $(@sprintf("%-29s", VERSION))                                    │
+        │ parallelization backend: ……………… PolyesterBackend                                                 │
         │ #threads: ……………………………………………………… $(@sprintf("%-40d", Threads.nthreads()))                         │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 

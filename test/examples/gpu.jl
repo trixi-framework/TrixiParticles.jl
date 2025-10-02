@@ -87,6 +87,23 @@ end
             end
         end
 
+        @trixi_testset "fluid/dam_break_2d_gpu.jl Float32 with ContinuityDensity boundary density" begin
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "dam_break_2d_gpu.jl");
+                                                             tspan=(0.0f0, 0.1f0),
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             boundary_density_calculator=ContinuityDensity()) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n"
+            ]
+            @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
+
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float32 BoundaryModelMonaghanKajtar" begin
             # Import variables into scope
             trixi_include_changeprecision(Float32, @__MODULE__,
@@ -288,7 +305,7 @@ end
         end
 
         # Test open boundaries and steady-state callback
-        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (WCSPH)" begin
+        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (WCSPH)" begin
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              tspan=(0.0f0, 0.5f0),
                                                              joinpath(examples_dir(),
@@ -301,7 +318,7 @@ end
             @test backend == Main.parallelization_backend
         end
 
-        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelLastiwka (EDAC)" begin
+        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (EDAC)" begin
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              tspan=(0.0f0, 0.5f0),
                                                              joinpath(examples_dir(),
@@ -313,13 +330,13 @@ end
             @test backend == Main.parallelization_backend
         end
 
-        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (EDAC)" begin
+        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (EDAC)" begin
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              tspan=(0.0f0, 0.5f0),
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
-                                                             open_boundary_model=BoundaryModelTafuni(),
+                                                             open_boundary_model=BoundaryModelMirroringTafuni(),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
                                                              reference_density_in=nothing,
@@ -332,15 +349,15 @@ end
             @test backend == Main.parallelization_backend
         end
 
-        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelTafuni (WCSPH)" begin
+        @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (WCSPH)" begin
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              tspan=(0.0f0, 0.5f0),
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
                                                              wcsph=true, sound_speed=20.0f0,
-                                                             pressure=0.0f0,
-                                                             open_boundary_model=BoundaryModelTafuni(),
+                                                             open_boundary_model=BoundaryModelMirroringTafuni(;
+                                                                                                              mirror_method=ZerothOrderMirroring()),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
                                                              reference_density_in=nothing,
@@ -353,30 +370,49 @@ end
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
+
+        @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
+            steady_state_reached = SteadyStateReachedCallback(; dt=0.002f0, interval_size=5,
+                                                              reltol=1.0f-3)
+
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "pipe_flow_2d.jl"),
+                                                             open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
+                                                             extra_callback=steady_state_reached,
+                                                             tspan=(0.0f0, 1.5f0),
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             viscosity_boundary=nothing)
+
+            # Make sure that the simulation is terminated after a reasonable amount of time
+            @test 0.1 < sol.t[end] < 1.0
+            @test sol.retcode == ReturnCode.Terminated
+        end
     end
 
-    @testset verbose=true "Solid" begin
+    @testset verbose=true "Structure" begin
         # TODO after https://github.com/trixi-framework/PointNeighbors.jl/pull/10
         # is merged, there should be no need to use the `FullGridCellList`.
-        @trixi_testset "solid/oscillating_beam_2d.jl" begin
+        @trixi_testset "structure/oscillating_beam_2d.jl" begin
             # Import variables into scope
             trixi_include_changeprecision(Float32, @__MODULE__,
-                                          joinpath(examples_dir(), "solid",
+                                          joinpath(examples_dir(), "structure",
                                                    "oscillating_beam_2d.jl"),
                                           sol=nothing, ode=nothing)
 
             # Neighborhood search with `FullGridCellList` for GPU compatibility
-            min_corner = minimum(solid.coordinates, dims=2)
-            max_corner = maximum(solid.coordinates, dims=2)
+            min_corner = minimum(structure.coordinates, dims=2)
+            max_corner = maximum(structure.coordinates, dims=2)
             cell_list = FullGridCellList(; min_corner, max_corner)
-            semi_fullgrid = Semidiscretization(solid_system,
+            semi_fullgrid = Semidiscretization(structure_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
 
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
-                                                                      "solid",
+                                                                      "structure",
                                                                       "oscillating_beam_2d.jl"),
                                                              tspan=(0.0f0, 0.1f0),
                                                              semi=semi_fullgrid)
@@ -397,12 +433,12 @@ end
             # Neighborhood search with `FullGridCellList` for GPU compatibility
             min_corner = minimum(tank.boundary.coordinates, dims=2)
             max_corner = maximum(tank.boundary.coordinates, dims=2)
-            max_corner[2] = gate_height + movement_function(0.1)[2]
+            max_corner[2] = gate_height + movement_function([0, 0], 0.1f0)[2]
             # We need a very high `max_points_per_cell` because the plate resolution
             # is much finer than the fluid resolution.
             cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system_tank,
-                                               boundary_system_gate, solid_system,
+                                               boundary_system_gate, structure_system,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)

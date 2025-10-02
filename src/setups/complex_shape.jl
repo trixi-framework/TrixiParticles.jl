@@ -78,8 +78,8 @@ function ComplexShape(geometry; particle_spacing, density,
 end
 
 """
-    sample_boundary(signed_distance_field::SignedDistanceField;
-                    boundary_thickness::Real, tlsph=true)
+    sample_boundary(signed_distance_field;
+                    boundary_density, boundary_thickness, place_on_shell=true)
 
 Sample boundary particles of a complex geometry by using the [`SignedDistanceField`](@ref)
 of the geometry.
@@ -89,9 +89,10 @@ of the geometry.
 
 # Keywords
 - `boundary_thickness`: Thickness of the boundary
-- `tlsph`             : When `tlsph=true`, boundary particles will be placed
+- `boundary_density`: Density of each boundary particle.
+- `place_on_shell`:     When `place_on_shell=true`, boundary particles will be placed
                         one particle spacing from the surface of the geometry.
-                        Otherwise when `tlsph=true` (simulating fluid particles),
+                        Otherwise when `place_on_shell=true` (simulating fluid particles),
                         boundary particles will be placed half particle spacing away from the surface.
 
 
@@ -117,7 +118,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 ```
 """
 function sample_boundary(signed_distance_field;
-                         boundary_density, boundary_thickness, tlsph=true)
+                         boundary_density, boundary_thickness, place_on_shell=true)
     (; max_signed_distance, boundary_packing,
      positions, distances, particle_spacing) = signed_distance_field
 
@@ -157,6 +158,6 @@ function particle_grid(geometry, particle_spacing;
     end
 
     grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                    min_corner; tlsph=true)
+                                    min_corner; place_on_shell=true)
     return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
 end
