@@ -109,6 +109,11 @@ The motion is a combination of a translation and a rotation around a center poin
 with the same frequency. Note that a phase offset can be specified for a rotation
 that is out of sync with the translation.
 
+Create a [`PrescribedMotion`](@ref) for 2D oscillatory particle motion
+that combines a translation and a rotation about a specified center.
+Both use the same frequency; an optional phase offset allows the rotation
+to be out of phase with the translation.
+
 # Keywords
 - `frequency`:          Frequency of the oscillation in Hz.
 - `translation_vector`: Vector specifying the amplitude and direction of the translation.
