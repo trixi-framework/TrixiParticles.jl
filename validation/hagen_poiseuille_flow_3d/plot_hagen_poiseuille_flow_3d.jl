@@ -74,7 +74,7 @@ for (i, t) in enumerate(times_ref)
     push!(rmsep_run, sqrt(res) * 100)
 end
 
-# RMSEP error (%) recieved by Zhang et al. (2025)
+# RMSEP error (%) received by Zhang et al. (2025)
 rmsep_reference = [2.97, 1.88, 1.61, 1.5, 0.74, 0.89]
 
 p_rmsep = scatter(collect(times_ref), rmsep_run, markersize=5, label="TrixiP")
