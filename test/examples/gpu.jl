@@ -304,6 +304,32 @@ end
             @test backend == Main.parallelization_backend
         end
 
+        @trixi_testset "fluid/poiseuille_flow_2d.jl - BoundaryModelDynamicalPressureZhang (WCSPH)" begin
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             tspan=(0.0f0, 0.04f0),
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "poiseuille_flow_2d.jl"),
+                                                             wcsph=true,
+                                                             parallelization_backend=Main.parallelization_backend)
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
+
+        @trixi_testset "fluid/poiseuille_flow_2d.jl - BoundaryModelDynamicalPressureZhang (EDAC)" begin
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             tspan=(0.0f0, 0.04f0),
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "poiseuille_flow_2d.jl"),
+                                                             wcsph=false,
+                                                             parallelization_backend=Main.parallelization_backend)
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
+
         # Test open boundaries and steady-state callback
         @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (WCSPH)" begin
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
