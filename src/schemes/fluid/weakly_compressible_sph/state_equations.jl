@@ -1,5 +1,5 @@
 @doc raw"""
-StateEquationAdaptiveCole(; mach_number=0.1, average_velocity=1.0,
+StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
                             reference_density, max_sound_speed=100.0, exponent,
                             background_pressure=0.0, clip_negative_pressure=false)
 
@@ -9,12 +9,19 @@ While a constant higher speed of sound more effectively reduces compressibility 
 the runtime also scales with the speed of sound.
 This state equation aims to reduce runtime compared to a constant higher speed of sound,
 while maintaining the advantages of a higher speed of sound.
-The speed of sound is initialized as average_velocity / mach_number.
+The speed of sound is initialized as 'min_sound_speed'.
 
 # Keywords
-- `mach_number=0.1`: The Mach number of the fluid flow, used to initialize the speed of sound.
-- `average_velocity=1.0`: The estimated average velocity of the fluid.
+- `mach_number_limit=0.1`: Target Mach number for the simulation.
+   The adaptive scheme estimates the maximum particle velocity and adjusts the reference sound speed so that the ratio
+   ```math
+   \mathrm{Ma} = \frac{U_\text{max}}{c}
+   ```
+   stays close to the specified value.
+   A smaller mach_number_limit enforces a higher sound speed (reducing compressibility effects
+   but increasing computational cost), while a larger value allows stronger compressibility at lower runtime cost.
 - `reference_density`: Reference density of the fluid.
+- `min_sound_speed=10.0`: The minimum permissible speed of sound.
 - `max_sound_speed=100.0`: The maximum permissible speed of sound.
 - `exponent`: An exponent, typically 7 for water simulations.
 - `background_pressure=0.0`: A constant background pressure.
@@ -22,20 +29,20 @@ The speed of sound is initialized as average_velocity / mach_number.
 """
 struct StateEquationAdaptiveCole{ELTYPE, CLIP} # Boolean to clip negative pressure
     sound_speed_ref     :: Base.RefValue{ELTYPE}
-    mach_number         :: ELTYPE
-    average_velocity    :: ELTYPE
+    mach_number_limit   :: ELTYPE
+    min_sound_speed     :: ELTYPE
     max_sound_speed     :: ELTYPE
     exponent            :: ELTYPE
     reference_density   :: ELTYPE
     background_pressure :: ELTYPE
 
-    function StateEquationAdaptiveCole(; mach_number=0.1, average_velocity=1,
-                                       reference_density, max_sound_speed=100, exponent,
+    function StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
+                                       reference_density, max_sound_speed=100.0, exponent,
                                        background_pressure=0.0,
                                        clip_negative_pressure=false)
-        sound_speed = average_velocity / mach_number
-        new{typeof(mach_number),
-            clip_negative_pressure}(Ref(sound_speed), mach_number, average_velocity,
+        sound_speed = min_sound_speed
+        new{typeof(mach_number_limit),
+            clip_negative_pressure}(Ref(sound_speed), mach_number_limit, min_sound_speed,
                                     max_sound_speed, exponent, reference_density,
                                     background_pressure)
     end

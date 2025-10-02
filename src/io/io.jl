@@ -219,8 +219,8 @@ function add_system_data!(system_data, state_equation::StateEquationAdaptiveCole
     system_data["state_equation"]["reference_density"] = state_equation.reference_density
     system_data["state_equation"]["background_pressure"] = state_equation.background_pressure
     system_data["state_equation"]["exponent"] = state_equation.exponent
-    system_data["state_equation"]["mach_number"] = state_equation.mach_number
-    system_data["state_equation"]["average_velocity"] = state_equation.average_velocity
+    system_data["state_equation"]["mach_number_limit"] = state_equation.mach_number_limit
+    system_data["state_equation"]["min_sound_speed"] = state_equation.min_sound_speed
     system_data["state_equation"]["max_sound_speed"] = state_equation.max_sound_speed
 end
 

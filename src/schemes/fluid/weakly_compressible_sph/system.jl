@@ -317,8 +317,8 @@ end
     max_velocity = sqrt(max_velocity)
 
     state_equation.sound_speed_ref[] = min(state_equation.max_sound_speed,
-                                           max(state_equation.average_velocity,
-                                               max_velocity) / state_equation.mach_number)
+                                           max(state_equation.min_sound_speed,
+                                               max_velocity / state_equation.mach_number_limit))
     return state_equation.sound_speed
 end
 
