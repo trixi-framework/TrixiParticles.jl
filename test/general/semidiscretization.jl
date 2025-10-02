@@ -1,8 +1,8 @@
 # Use `@trixi_testset` to isolate the mock functions in a separate namespace
 @trixi_testset "Semidiscretization" begin
     # Mock systems
-    struct System1 <: TrixiParticles.System{3} end
-    struct System2 <: TrixiParticles.System{3} end
+    struct System1 <: TrixiParticles.AbstractSystem{3} end
+    struct System2 <: TrixiParticles.AbstractSystem{3} end
 
     system1 = System1()
     system2 = System2()
@@ -13,8 +13,8 @@
     TrixiParticles.v_nvariables(::System2) = 2
     TrixiParticles.nparticles(::System1) = 2
     TrixiParticles.nparticles(::System2) = 3
-    TrixiParticles.n_moving_particles(::System1) = 2
-    TrixiParticles.n_moving_particles(::System2) = 3
+    TrixiParticles.n_integrated_particles(::System1) = 2
+    TrixiParticles.n_integrated_particles(::System2) = 3
 
     TrixiParticles.compact_support(::System1, neighbor) = 0.2
     TrixiParticles.compact_support(::System2, neighbor) = 0.2
@@ -38,12 +38,12 @@
     end
 
     @testset verbose=true "Check Configuration" begin
-        @testset verbose=true "Solid-Fluid Interaction" begin
+        @testset verbose=true "Structure-Fluid Interaction" begin
             # Mock boundary model
             struct BoundaryModelMock end
 
             # Mock fluid system
-            struct FluidSystemMock <: TrixiParticles.FluidSystem{2}
+            struct FluidSystemMock <: TrixiParticles.AbstractFluidSystem{2}
                 surface_tension::Nothing
                 FluidSystemMock() = new(nothing)
             end
@@ -60,28 +60,29 @@
                                                   1.0)
 
             # FSI without boundary model.
-            solid_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
+            structure_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
 
             error_str = "a boundary model for `TotalLagrangianSPHSystem` must be " *
                         "specified when simulating a fluid-structure interaction."
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
-                                                                     solid_system1,
+                                                                     structure_system1,
                                                                      neighborhood_search=nothing)
 
             # FSI with boundary model
-            solid_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
-                                                     boundary_model=model_a)
+            structure_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+                                                         boundary_model=model_a)
 
-            @test_nowarn TrixiParticles.check_configuration((solid_system2, fluid_system),
+            @test_nowarn TrixiParticles.check_configuration((structure_system2,
+                                                             fluid_system),
                                                             nothing)
 
             # FSI with wrong boundary model
-            solid_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
-                                                     boundary_model=model_b)
+            structure_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+                                                         boundary_model=model_b)
 
             error_str = "`BoundaryModelDummyParticles` with density calculator " *
                         "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
-            @test_throws ArgumentError(error_str) Semidiscretization(solid_system3,
+            @test_throws ArgumentError(error_str) Semidiscretization(structure_system3,
                                                                      fluid_system,
                                                                      neighborhood_search=nothing)
         end
@@ -93,7 +94,7 @@
 
             boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                          SummationDensity(), kernel, 1.0)
-            boundary_system = BoundarySPHSystem(ic, boundary_model)
+            boundary_system = WallBoundarySystem(ic, boundary_model)
             fluid_system = WeaklyCompressibleSPHSystem(ic, SummationDensity(), nothing,
                                                        kernel, 1.0)
 
@@ -138,9 +139,6 @@
               5.0 6.0]
         v2 = zeros(4 * 3)
         v_ode = vcat(vec(v1), v2)
-
-        # Avoid `SystemBuffer` barrier
-        TrixiParticles.each_moving_particle(system::Union{System1, System2}) = TrixiParticles.eachparticle(system)
 
         TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi, 0.0)
 

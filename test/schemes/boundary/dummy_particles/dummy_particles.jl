@@ -66,8 +66,8 @@
                                                                viscosity=viscosity)
 
         boundary_systems = [
-            BoundarySPHSystem(boundary, boundary_model_adami),
-            BoundarySPHSystem(boundary, boundary_model_bernoulli),
+            WallBoundarySystem(boundary, boundary_model_adami),
+            WallBoundarySystem(boundary, boundary_model_bernoulli),
             TotalLagrangianSPHSystem(boundary, smoothing_kernel,
                                      smoothing_length, 1e6, 0.3;
                                      boundary_model=boundary_model_adami),
@@ -220,7 +220,7 @@
         density = 257
 
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-        smoothing_length = 3 * particle_spacing
+        smoothing_length = 1.5 * particle_spacing
         state_equation = StateEquationCole(sound_speed=10, reference_density=257,
                                            exponent=7)
 
@@ -234,7 +234,7 @@
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length)
 
-        boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
+        boundary_system = WallBoundarySystem(tank1.boundary, boundary_model)
         viscosity = boundary_system.boundary_model.viscosity
 
         semi = DummySemidiscretization()

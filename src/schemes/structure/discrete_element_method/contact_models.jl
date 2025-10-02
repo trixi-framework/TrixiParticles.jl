@@ -1,5 +1,5 @@
 # Define an abstract type for contact models.
-abstract type ContactModel end
+abstract type AbstractContactModel end
 
 @doc raw"""
     HertzContactModel(; elastic_modulus, poissons_ratio)
@@ -49,7 +49,7 @@ The total normal force is ``F_n = F_{\text{elastic}} + F_{\text{damping}}``.
 - `elastic_modulus::Float64`: Material Young's modulus ``E``.
 - `poissons_ratio::Float64`: Material Poisson's ratio ``\nu``.
 """
-struct HertzContactModel{ELTYPE <: Real} <: ContactModel
+struct HertzContactModel{ELTYPE <: Real} <: AbstractContactModel
     elastic_modulus::ELTYPE  # Material elastic modulus
     poissons_ratio::ELTYPE   # Material Poisson's ratio
 end
@@ -141,7 +141,7 @@ contacting objects.
 # Fields
 - `normal_stiffness::Real`: Constant spring stiffness ``k_n`` for the normal direction.
 """
-struct LinearContactModel{ELTYPE <: Real} <: ContactModel
+struct LinearContactModel{ELTYPE <: Real} <: AbstractContactModel
     normal_stiffness::ELTYPE
 end
 

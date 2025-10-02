@@ -1,4 +1,4 @@
-using Documenter, DocumenterCitations
+using Documenter, DocumenterCitations, DocumenterMermaid
 using TrixiParticles
 using TrixiParticles.TrixiBase
 using TrixiParticles.PointNeighbors
@@ -149,7 +149,9 @@ makedocs(sitename="TrixiParticles.jl",
                          "Weakly Compressible SPH (Fluid)" => joinpath("systems",
                                                                        "weakly_compressible_sph.md"),
                          "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
-                                                                                                      "entropically_damped_sph.md")
+                                                                                                      "entropically_damped_sph.md"),
+                         "Implicit Incompressible SPH (Fluid)" => joinpath("systems",
+                                                                           "implicit_incompressible_sph.md")
                      ],
                      "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
