@@ -83,7 +83,7 @@ if use_edac
 
     fluid_system = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kernel,
                                                smoothing_length,
-                                               sound_speed, viscosity=viscosity,
+                                               sound_speed, viscosity=viscosity_fluid,
                                                density_calculator=ContinuityDensity(),
                                                pressure_acceleration=nothing,
                                                acceleration=(0.0, -gravity))
