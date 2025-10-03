@@ -407,7 +407,6 @@ function pressure_solve!(semi, v_ode, u_ode, t)
     max_iters = minimum(maximum_iisph_iterations, semi.systems)
     max_err_percent = minimum(maximum_iisph_error, semi.systems)
 
-    # Convert relative error in percent to absolute error
     max_error = max_err_percent / 100
     terminate = false
     l = 1
@@ -473,8 +472,8 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
 end
 
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
-                                neighbor_system::ImplicitIncompressibleSPHSystem, u, u_ode,
-                                semi)
+                                neighbor_system::ImplicitIncompressibleSPHSystem,
+                                u, u_ode, semi)
     (; time_step) = system
     (; pressure) = neighbor_system
 
