@@ -66,11 +66,11 @@
             @test isapprox(error_wcsph_P2, 0, atol=eps(1e5))
         else
             # Reference values are computed with 1.11 on x86
-            @test isapprox(error_edac_P1, 0, atol=eps())
-            @test isapprox(error_edac_P2, 0, atol=eps())
+            @test isapprox(error_wcsph_P1, 0, atol=eps())
+            @test isapprox(error_wcsph_P2, 0, atol=eps())
             # Why are these errors not zero?
-            @test isapprox(error_wcsph_P1, 0, atol=eps(1e5))
-            @test isapprox(error_wcsph_P2, 0, atol=eps(1e5))
+            @test isapprox(error_edac_P1, 0, atol=eps(1e5))
+            @test isapprox(error_edac_P2, 0, atol=eps(1e5))
         end
 
         # Ignore method redefinitions from duplicate `include("../validation_util.jl")`
