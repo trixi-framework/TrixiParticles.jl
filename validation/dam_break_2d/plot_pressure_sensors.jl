@@ -38,7 +38,8 @@ edac_files = sort(merged_files, by=extract_number_from_filename)
 wcsph_reference_files = joinpath.(case_dir,
                                   [
                                       "validation_reference_wcsph_40.json",
-                                      "validation_reference_wcsph_80.json"
+                                      "validation_reference_wcsph_80.json",
+                                      "validation_reference_wcsph_400.json"
                                   ])
 wcsph_sim_files = include_sim_results ?
                   glob("validation_result_dam_break_wcsph*.json", "out/") : []
