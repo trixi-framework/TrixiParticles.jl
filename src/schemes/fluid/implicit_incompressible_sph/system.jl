@@ -323,8 +323,7 @@ function calculate_diagonal_elements_and_predicted_density!(system::ImplicitInco
     foreach_system(semi) do neighbor_system
         calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
                                                           neighbor_system, v, u, v_ode,
-                                                          u_ode,
-                                                          semi, time_step)
+                                                          u_ode, semi, time_step)
     end
 end
 
@@ -367,7 +366,7 @@ function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_densi
     end
 end
 
-# Calculation of the contribution of the Abstractboundary particles to the diagonal elements
+# Calculation of the contribution of the boundary particles to the diagonal elements
 # (a_ii-values) and the predcited density (\rho_adv) according to eq. 12 and 4 in
 # Ihmsen et al. (2013).
 function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
@@ -409,17 +408,17 @@ function pressure_solve!(semi, v_ode, u_ode, t)
     # Determine global iteration and error constraints across all IISPH systems
     min_iters = maximum(minimum_iisph_iterations, semi.systems)
     max_iters = minimum(maximum_iisph_iterations, semi.systems)
-    max_err = minimum(maximum_iisph_error, semi.systems)
+    max_err_percent = minimum(maximum_iisph_error, semi.systems)
 
     # Convert relative error in percent to absolute error
-    eta = max_err / 100
+    max_error = max_err_percent / 100
     terminate = false
-    l=1
+    l = 1
     while (!terminate)
         @trixi_timeit timer() "pressure solver iteration" begin
             avg_density_error = pressure_solve_iteration(semi, u_ode)
             # Update termination condition
-            terminate = (avg_density_error[] <= eta && l >= min_iters) ||
+            terminate = (avg_density_error <= max_error && l >= min_iters) ||
                         l >= max_iters
             l += 1
         end
@@ -452,6 +451,7 @@ function pressure_solve_iteration(semi, u_ode)
         calculate_sum_term_values!(system, u, u_ode, semi)
     end
 
+    # Wrap with `Ref` to allow modification inside the anonymous function below (without implicit boxing)
     avg_density_error = Ref(0.0)
     foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
@@ -550,7 +550,7 @@ function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi
     (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
 
     # Update the pressure values
-    avg_density_error = zero(eltype(system))
+    relative_density_error = zero(eltype(system))
 
     @threaded semi for particle in eachparticle(system)
         # Removing instabilities by avoiding to divide by very low values of `a_ii`.
@@ -571,9 +571,9 @@ function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi
             density_error[particle] = (new_density - reference_density)
         end
     end
-    avg_density_error = sum(density_error) / (nparticles(system) * reference_density)
+    relative_density_error = sum(density_error) / (nparticles(system) * reference_density)
 
-    return avg_density_error
+    return relative_density_error
 end
 
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
