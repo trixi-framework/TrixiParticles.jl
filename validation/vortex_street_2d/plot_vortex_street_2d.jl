@@ -65,7 +65,8 @@ integral_total = sum(spectrum_half)
 integral_peak = sum(spectrum_half[frequency_band])
 
 @info "Strouhal number" strouhal_number
-@info "Fraction of the dominant frequency band in the total spectrum" integral_peak / integral_total
+@info "Fraction of the dominant frequency band in the total spectrum" integral_peak /
+                                                                      integral_total
 @info "C_L_max for the unsteady state" maximum(f_lift)
 
 dp = round(Int, 1 / resolution_factor)
