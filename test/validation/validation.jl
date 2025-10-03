@@ -48,7 +48,7 @@
             r"┌ Info: The desired tank length in y-direction.*\n",
             r"└ New tank length in y-direction is set to.*\n",
             r"WARNING: Method definition max_x_coord.*\n",
-            r"WARNING: Method definition interpolated_pressure.*\n",
+            r"WARNING: Method definition interpolated_pressure.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
