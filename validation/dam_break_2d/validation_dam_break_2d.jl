@@ -34,7 +34,7 @@ trixi_include(@__MODULE__,
               particles_per_height=resolution,
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
               alpha=0.01, # This is used by De Courcy et al. (2024)
-              tspan = (0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
+              tspan=(0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
 
 reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",
                                      "validation_reference_wcsph_$formatted_string.json")
@@ -63,7 +63,7 @@ trixi_include(@__MODULE__,
               particles_per_height=resolution,
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
               alpha=0.01, # This is used by De Courcy et al. (2024)
-              tspan = (0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
+              tspan=(0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
 
 reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
                                     "validation_reference_edac_$formatted_string.json")
