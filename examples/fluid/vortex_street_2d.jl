@@ -36,7 +36,9 @@ flow_direction = [1.0, 0.0]
 reynolds_number = 200
 const prescribed_velocity = 1.0
 const fluid_density = 1000.0
-sound_speed = 10 * prescribed_velocity
+# Maximum velocity observed in the vortex street is typically around 1.5
+v_max = 1.5
+sound_speed = 10 * v_max
 
 boundary_size = (domain_size[1] + 2 * particle_spacing * open_boundary_layers,
                  domain_size[2])
@@ -69,8 +71,11 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=1)
 viscosity = ViscosityAdami(nu=kinematic_viscosity)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-shifting_technique = TransportVelocityAdami(background_pressure=fluid_density *
-                                                                sound_speed^2)
+
+# shifting_technique = TransportVelocityAdami(background_pressure=5 * fluid_density *
+#                                                                 sound_speed^2)
+
+shifting_technique = ParticleShiftingTechnique(; sound_speed_factor=0.1, v_max_factor=0)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -83,6 +88,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Open Boundary
 open_boundary_model = BoundaryModelMirroringTafuni()
+# open_boundary_model = BoundaryModelDynamicalPressureZhang()
 
 inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, domain_size[2]]),
                       face_normal=flow_direction, open_boundary_layers,
@@ -95,8 +101,8 @@ outflow = BoundaryZone(;
                        face_normal=(-flow_direction), particle_spacing,
                        density=fluid_density, open_boundary_layers)
 
-# Although the outlet velocity is not prescribed,
-# initializing it in the x-direction helps to prevent pressure waves.
+# While the outlet velocity is not explicitly prescribed,
+# initializing it in the x-direction helps to suppress initial pressure waves.
 outflow.initial_condition.velocity[1, :] .= prescribed_velocity
 
 open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
