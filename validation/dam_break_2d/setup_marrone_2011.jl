@@ -34,7 +34,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
 
 use_edac = false # Set to false to use WCSPH
 
-tspan = (0.0, 7 / sqrt(gravity / H))
+tspan = (0.0, 6.45 / sqrt(gravity / H))
 
 fluid_density = 1000.0
 

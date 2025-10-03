@@ -38,10 +38,13 @@
     end
 
     @trixi_testset "dam_break_2d" begin
+        # Use `SerialUpdate()` to obtain consistent results across different numbers
+        # of threads and a shorter tspan to speed up CI tests.
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "dam_break_2d",
                                                   "validation_dam_break_2d.jl"),
-                                         update_strategy=SerialUpdate()) [
+                                         update_strategy=SerialUpdate(),
+                                         tspan=(0.0, 4 / sqrt(9.81 / 0.6))) [
             r"┌ Info: The desired tank length in y-direction.*\n",
             r"└ New tank length in y-direction is set to.*\n"
         ]
