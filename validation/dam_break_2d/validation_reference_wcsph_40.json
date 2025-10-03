@@ -1413,9 +1413,9 @@
     },
     "meta": {
         "simulation_info": {
-            "julia_version": "1.11.4",
+            "julia_version": "1.11.7",
             "technical_setup": {
-                "number_of_threads": 36,
+                "number_of_threads": 192,
                 "parallelization_backend": "PolyesterBackend"
             },
             "time_integrator": {
@@ -1426,7 +1426,7 @@
                 "dt_max": 0.0005564467876831852,
                 "dt": 0.00024730968341413195
             },
-            "solver_version": "v0.3.1-48-g6187320a9",
+            "solver_version": "v0.3.1-49-g969b60aae-dirty",
             "solver_name": "TrixiParticles.jl"
         },
         "system_data": {
