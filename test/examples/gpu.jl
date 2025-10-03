@@ -489,6 +489,7 @@ end
                                           joinpath(examples_dir(), "fluid",
                                                    "dam_break_2d_gpu.jl");
                                           fluid_particle_spacing=0.05f0,
+                                          smoothing_length=1.75f0 * 0.05f0,
                                           tspan=(0.0f0, 0.01f0),
                                           parallelization_backend=Main.parallelization_backend)
 
