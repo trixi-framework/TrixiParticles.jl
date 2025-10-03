@@ -13,7 +13,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEqLowStorageRK
+using OrdinaryDiffEq
 
 # Size parameters
 H = 0.6
