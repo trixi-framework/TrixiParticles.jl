@@ -19,7 +19,7 @@ using TrixiParticles.JSON
 # `resolution` in this case is set relative to `H`, the initial height of the fluid.
 # Use 40, 80 or 400 for validation.
 # Note: 400 takes about 30 minutes on a large data center CPU (much longer with serial update)
-resolution = 400
+resolution = 40
 
 # Use `SerialUpdate()` to obtain consistent results across different numbers of threads
 update_strategy = nothing
