@@ -25,3 +25,8 @@ The following files are provided here:
 4. `plot_surge_front.jl`: Script to plot the surge front position and compare with
    Martin et al. (1952). This script can plot both the reference data included
    in this folder and simulation results from the `out` folder (if available).
+
+Note that the reference files for resolutions 40 and 80 were obtained with `SerialUpdate()`
+and `--check-bounds=yes` on an x86 CPU.
+The reference file for resolution 400 was obtained with `update_strategy=nothing`
+and `--check-bounds=auto`, also on an x86 CPU.
