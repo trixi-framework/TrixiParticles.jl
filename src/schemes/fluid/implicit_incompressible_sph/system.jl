@@ -211,6 +211,9 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
     # Compute density by kernel summation
     summation_density!(system, semi, u, u_ode, density)
+
+    @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
+                                                                 semi, t)
 end
 
 function update_implicit_sph!(semi, v_ode, u_ode, t)
@@ -219,27 +222,21 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
         return semi
     end
 
-    @trixi_timeit timer() "predict advection" predict_advection!(semi, v_ode, u_ode, t)
-
     @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode, t)
 
     return semi
 end
 
-function predict_advection!(semi, v_ode, u_ode, t)
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-        calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
-    end
+function predict_advection!(system::ImplicitIncompressibleSPHSystem, v, u,
+                            v_ode, u_ode, semi, t)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
 
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-        calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
-    end
+    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
 
-    return semi
+    calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
+
+    return system
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
