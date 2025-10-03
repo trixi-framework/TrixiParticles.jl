@@ -38,8 +38,8 @@
     end
 
     @trixi_testset "dam_break_2d" begin
-        # Use `SerialUpdate()` to obtain consistent results across different numbers
-        # of threads and a shorter tspan to speed up CI tests.
+        # Use `SerialUpdate()` to obtain consistent results when using multiple
+        # threads and a shorter tspan to speed up CI tests.
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "dam_break_2d",
                                                   "validation_dam_break_2d.jl"),

@@ -21,7 +21,7 @@ using TrixiParticles.JSON
 # Note: 400 takes about 30 minutes on a large data center CPU (much longer with serial update)
 resolution = 40
 
-# Use `SerialUpdate()` to obtain consistent results across different numbers of threads
+# Use `SerialUpdate()` to obtain consistent results when using multiple threads
 update_strategy = nothing
 # update_strategy = SerialUpdate()
 
