@@ -40,7 +40,8 @@
     @trixi_testset "dam_break_2d" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "dam_break_2d",
-                                                  "validation_dam_break_2d.jl")) [
+                                                  "validation_dam_break_2d.jl"),
+                                         update_strategy=SerialUpdate()) [
             r"┌ Info: The desired tank length in y-direction.*\n",
             r"└ New tank length in y-direction is set to.*\n"
         ]
