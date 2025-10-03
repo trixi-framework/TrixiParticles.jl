@@ -1426,7 +1426,7 @@
                 "dt_max": 0.00011128935753663704,
                 "dt": 2.4730968342767667e-5
             },
-            "solver_version": "v0.3.1-49-g969b60aae-dirty",
+            "solver_version": "v0.4.1-51-g8d099b7ff",
             "solver_name": "TrixiParticles.jl"
         },
         "system_data": {
