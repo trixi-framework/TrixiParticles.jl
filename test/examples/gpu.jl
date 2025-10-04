@@ -489,7 +489,6 @@ end
                                           joinpath(examples_dir(), "fluid",
                                                    "dam_break_2d_gpu.jl");
                                           fluid_particle_spacing=0.05f0,
-                                          smoothing_length=1.75f0 * 0.05f0,
                                           tspan=(0.0f0, 0.01f0),
                                           parallelization_backend=Main.parallelization_backend)
 
@@ -506,19 +505,19 @@ end
                                           cut_off_bnd=false)
 
                 @test isapprox(Array(result.computed_density),
-                               Float32[500.33255, 893.09766, 997.7032, 1001.14355, 1001.234,
-                                       1001.0098, 1000.4352, 999.7572, 999.1139, 989.6319])
+                               Float32[500.96387, 859.06744, 989.0479, 1001.3735,
+                                       1001.30927, 1001.0831, 1000.7325, 1000.3575,
+                                       999.8011, 975.98553])
 
                 @test isapprox(Array(result.density),
-                               Float32[1002.3152, 1002.19653, 1001.99915, 1001.7685,
-                                       1001.5382,
-                                       1001.3093, 1001.0836, 1000.8649, 1000.635,
-                                       1000.4053])
+                               Float32[1002.1891, 1002.0748, 1001.8913, 1001.67126,
+                                       1001.4529, 1001.2382, 1001.0298, 1000.81964,
+                                       1000.594, 1000.3878])
 
                 @test isapprox(Array(result.pressure),
-                               Float32[5450.902, 5171.2856, 4706.551, 4163.9185, 3621.5042,
-                                       3082.6948, 2551.5725, 2036.1208, 1494.8608,
-                                       954.14355])
+                               Float32[5154.1177, 4885.1, 4452.6533, 3934.9075, 3420.5737,
+                                       2915.0933, 2424.0908, 1929.7888, 1398.8309,
+                                       913.2089])
             end
 
             @testset verbose=true "Plane" begin
@@ -528,22 +527,19 @@ end
 
                 result = interpolate_plane_2d(interpolation_start, interpolation_end,
                                               resolution, semi_new, semi_new.systems[1],
-                                              sol;
-                                              cut_off_bnd=false)
+                                              sol; cut_off_bnd=false)
 
                 @test isapprox(Array(result.computed_density),
-                               Float32[250.18625, 500.34482, 499.77225, 254.3632, 499.58026,
-                                       999.1413, 998.6351, 503.0122])
+                               Float32[250.47523, 500.98248, 500.49924, 253.77109,
+                                       500.0491, 1000.0818, 999.6527, 503.08704])
 
                 @test isapprox(Array(result.density),
-                               Float32[1002.34467, 1002.3365, 1001.5021, 999.7109,
-                                       1000.84863,
-                                       1000.8373, 1000.3423, 1000.20734])
+                               Float32[1002.2373, 1002.22516, 1001.4339, 999.3567,
+                                       1000.8318, 1000.80237, 1000.3408, 999.92017])
 
                 @test isapprox(Array(result.pressure),
-                               Float32[5520.0513, 5501.1846, 3536.2256, -680.5194,
-                                       1997.7814,
-                                       1971.0717, 805.8584, 488.4068])
+                               Float32[5267.867, 5239.2466, 3376.045, -1514.4237,
+                                       1958.2637, 1888.739, 802.3146, -187.81871])
             end
         end
     end
