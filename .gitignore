@@ -12,7 +12,6 @@ docs/src/news.md
 docs/src/tutorials
 *_replaced.md
 run
-*.json
 !.zenodo.json
 *.png
 *.jpg
