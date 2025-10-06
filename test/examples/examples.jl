@@ -41,6 +41,42 @@
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
+
+        @trixi_testset "structure/oscillating_beam_2d.jl with EnergyCalculatorCallback" begin
+            # Load variables
+            trixi_include(@__MODULE__,
+                          joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
+                          ode=nothing, sol=nothing)
+
+            # We simply clamp all particles, move them up against gravity, and verify that
+            # the energy calculated is just the potential energy difference.
+            movement_function(x, t) = x + SVector(0.0, t)
+            is_moving(t) = true
+            prescribed_motion = PrescribedMotion(movement_function, is_moving)
+
+            structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel,
+                                                        smoothing_length,
+                                                        material.E, material.nu,
+                                                        n_clamped_particles=nparticles(structure),
+                                                        acceleration=(0.0, -gravity),
+                                                        clamped_particles_motion=prescribed_motion,
+                                                        use_with_energy_calculator_callback=true)
+
+            semi = Semidiscretization(structure_system)
+            ode = semidiscretize(semi, (0.0, 1.0))
+
+            energy_calculator = EnergyCalculatorCallback{Float64}(; interval=1)
+
+            @trixi_test_nowarn sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false,
+                                           callback=energy_calculator)
+
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+
+            # Potential energy difference should be m * g * h
+            @test isapprox(energy_calculator.affect!.energy[],
+                           sum(structure_system.mass) * gravity * 1)
+        end
     end
 
     @testset verbose=true "FSI" begin
