@@ -1,4 +1,3 @@
-
 """
     EnergyCalculatorCallback{ELTYPE}(; interval=1)
 
@@ -10,6 +9,8 @@ This callback computes the work done by clamped particles that are moving accord
 The energy is calculated by integrating the instantaneous power, which is the dot product
 of the force exerted by the clamped particle and its prescribed velocity.
 The callback uses a simple explicit Euler time integration for the energy calculation.
+
+The accumulated energy can be retrieved using [`calculated_energy`](@ref).
 
 !!! info "TLSPH System Configuration"
     The [`TotalLagrangianSPHSystem`](@ref) must be created with
@@ -42,17 +43,16 @@ system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothing_length,
 # Create an energy calculator that runs every 2 time steps
 energy_cb = EnergyCalculatorCallback{eltype(system)}(; interval=2)
 
+# After the simulation, retrieve the calculated energy
+total_energy = calculated_energy(energy_cb)
+
 # output
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ EnergyCalculatorCallback{Float64}                                                                │
-│ ═════════════════════════════════                                                                │
-│ interval: ……………………………………………………… 2                                                                │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+0.0
 ```
 """
 struct EnergyCalculatorCallback{T}
     interval :: Int
-    t        :: T
+    t        :: T # Time of last call
     energy   :: T
 end
 
@@ -61,6 +61,30 @@ function EnergyCalculatorCallback{ELTYPE}(; interval=1) where {ELTYPE <: Real}
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(cb, cb, save_positions=(false, false))
+end
+
+"""
+    calculated_energy(cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
+
+Get the current calculated energy from an [`EnergyCalculatorCallback`](@ref).
+
+# Arguments
+- `cb`: The `DiscreteCallback` returned by [`EnergyCalculatorCallback`](@ref).
+
+# Examples
+```jldoctest; output = false
+# Before the simulation: create the callback
+energy_cb = EnergyCalculatorCallback{Float64}()
+
+# After the simulation: get the calculated energy
+total_energy = calculated_energy(energy_cb)
+
+# output
+0.0
+```
+"""
+function calculated_energy(cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
+    return cb.affect!.energy[]
 end
 
 # `condition`
@@ -83,7 +107,9 @@ function (callback::EnergyCalculatorCallback)(integrator)
     v_ode, u_ode = integrator.u.x
     energy = callback.energy
 
-    update_energy_calculator!(energy, v_ode, u_ode, semi.systems[1], semi, t, dt)
+    foreach_system(semi) do system
+        update_energy_calculator!(energy, v_ode, u_ode, system, semi, t, dt)
+    end
 
     # Tell OrdinaryDiffEq that `u` has not been modified
     u_modified!(integrator, false)
