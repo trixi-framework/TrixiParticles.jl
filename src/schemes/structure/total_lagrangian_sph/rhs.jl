@@ -87,8 +87,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           semi; points=eachparticle) do particle, neighbor,
-                                                         pos_diff, distance
+                           semi;
+                           points=eachparticle) do particle, neighbor,
+                                                   pos_diff, distance
         # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
         distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
 
