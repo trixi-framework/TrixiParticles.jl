@@ -74,7 +74,7 @@
             @test count_rhs_allocations(sol, semi) == 0
 
             # Potential energy difference should be m * g * h
-            @test isapprox(energy_calculator.affect!.energy[],
+            @test isapprox(calculated_energy(energy_calculator),
                            sum(structure_system.mass) * gravity * 1)
         end
     end
