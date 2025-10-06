@@ -5,6 +5,7 @@
         @test callback.affect!.interval == 1
         @test callback.affect!.t[] == 0.0
         @test callback.affect!.energy[] == 0.0
+        @test calculated_energy(callback) == 0.0
 
         # Test constructor with interval
         callback = EnergyCalculatorCallback{Float64}(; interval=5)
