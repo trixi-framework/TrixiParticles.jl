@@ -204,7 +204,7 @@ function _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
                           face_indices, faces, ::Val{2})
     normals = zeros(size(boundary_coordinates))
     face_indices = Tuple(vec(x) for x in face_indices)
-    offset = (boundary_spacing + fluid_spacing) / 2
+    offset = (boundary_spacing + fluid_spacing) / 4
 
     #### Left boundary
     if faces[1]

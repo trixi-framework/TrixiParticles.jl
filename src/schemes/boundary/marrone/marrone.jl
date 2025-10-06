@@ -102,9 +102,9 @@ end
     (; normals) = system.initial_condition
     interpolation_coords = system_coords + (2 * normals) # Need only be computed once -> put into cache 
 
-    compute_basis_marrone(smoothing_kernel, system, neighbor_system, system_coords,
+    compute_basis_marrone(smoothing_kernel, system, neighbor_system, interpolation_coords,
                           neighbor_coords, semi)
-    compute_momentum_marrone(smoothing_kernel, system, neighbor_system, system_coords,
+    compute_momentum_marrone(smoothing_kernel, system, neighbor_system, interpolation_coords,
                              neighbor_coords, v_neighbor_system, semi,
                              smoothing_length)
 
