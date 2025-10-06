@@ -134,8 +134,12 @@ function update_energy_calculator!(energy, v_ode, u_ode,
         dv_clamped = system.cache.dv_clamped
         set_zero!(dv_clamped)
 
-        dv = zero(wrap_v(v_ode, system, semi))
-        dv_combined = CombinedMatrix(dv, dv_clamped)
+        # Create a view of `dv_clamped` that can be indexed as
+        # `(n_integrated_particles(system) + 1):nparticles(system)`.
+        # We pass this to `interact!` below so that it can compute
+        # the forces on the clamped particles without having to allocate
+        # a large matrix for all particles.
+        dv_offset = OffsetMatrix(dv_clamped, n_integrated_particles(system))
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
         eachparticle = (n_integrated_particles(system) + 1):nparticles(system)
@@ -144,23 +148,21 @@ function update_energy_calculator!(energy, v_ode, u_ode,
             v_neighbor = wrap_v(v_ode, neighbor_system, semi)
             u_neighbor = wrap_u(u_ode, neighbor_system, semi)
 
-            interact!(dv_combined, v, u, v_neighbor, u_neighbor,
+            interact!(dv_offset, v, u, v_neighbor, u_neighbor,
                       system, neighbor_system, semi,
                       integrate_tlsph=true, # Required when using split integration
                       eachparticle=eachparticle)
         end
 
         @threaded semi for particle in eachparticle
-            add_acceleration!(dv_combined, particle, system)
-            add_source_terms_inner!(dv_combined, v, u, particle, system,
+            add_acceleration!(dv_offset, particle, system)
+            add_source_terms_inner!(dv_offset, v, u, particle, system,
                                     source_terms(system), t)
         end
 
-        n_clamped_particles = nparticles(system) - n_integrated_particles(system)
-        for clamped_particle in 1:n_clamped_particles
-            particle = clamped_particle + n_integrated_particles(system)
+        for particle in (n_integrated_particles(system) + 1):nparticles(system)
             velocity = current_velocity(nothing, system, particle)
-            dv_particle = extract_svector(dv_clamped, system, clamped_particle)
+            dv_particle = extract_svector(dv_offset, system, particle)
 
             # The force on the clamped particle is mass times acceleration
             F_particle = system.mass[particle] * dv_particle
@@ -196,43 +198,35 @@ function Base.show(io::IO, ::MIME"text/plain",
     end
 end
 
-# Data type that combines two matrices to behave like a single matrix.
-# This is used above to combine the `dv` for integrated particles and the `dv_clamped`
-# for clamped particles into a single matrix that can be passed to `interact!`.
-struct CombinedMatrix{T, M1, M2} <: AbstractMatrix{T}
-    matrix1::M1
-    matrix2::M2
+# Data type that represents a matrix with an offset in the second dimension.
+# For example, `om = OffsetMatrix(A, offset)` starts at `om[:, offset + 1]`, which is
+# the same as `A[:, 1]` and it ends at `om[:, offset + size(A, 2)]`, which is
+# the same as `A[:, end]`.
+# This is used above to compute the acceleration only for clamped particles (which are the
+# last particles in the system) without having to pass a large matrix for all particles.
+struct OffsetMatrix{T, M} <: AbstractMatrix{T}
+    matrix::M
+    offset::Int
 
-    function CombinedMatrix(matrix1, matrix2)
-        @assert size(matrix1, 1) == size(matrix2, 1)
-        @assert eltype(matrix1) == eltype(matrix2)
-
-        new{eltype(matrix1), typeof(matrix1), typeof(matrix2)}(matrix1, matrix2)
+    function OffsetMatrix(matrix, offset)
+        new{eltype(matrix), typeof(matrix)}(matrix, offset)
     end
 end
 
-@inline function Base.size(cm::CombinedMatrix)
-    return (size(cm.matrix1, 1), size(cm.matrix1, 2) + size(cm.matrix2, 2))
+@inline function Base.size(om::OffsetMatrix)
+    return (size(om.matrix, 1), size(om.matrix, 2) + om.offset)
 end
 
-@inline function Base.getindex(cm::CombinedMatrix, i, j)
-    @boundscheck checkbounds(cm, i, j)
+@inline function Base.getindex(om::OffsetMatrix, i, j)
+    @boundscheck checkbounds(om, i, j)
+    @boundscheck j > om.offset
 
-    length1 = size(cm.matrix1, 2)
-    if j <= length1
-        return @inbounds cm.matrix1[i, j]
-    else
-        return @inbounds cm.matrix2[i, j - length1]
-    end
+    return @inbounds om.matrix[i, j - om.offset]
 end
 
-@inline function Base.setindex!(cm::CombinedMatrix, value, i, j)
-    @boundscheck checkbounds(cm, i, j)
+@inline function Base.setindex!(om::OffsetMatrix, value, i, j)
+    @boundscheck checkbounds(om, i, j)
+    @boundscheck j > om.offset
 
-    length1 = size(cm.matrix1, 2)
-    if j <= length1
-        return @inbounds cm.matrix1[i, j] = value
-    else
-        return @inbounds cm.matrix2[i, j - length1] = value
-    end
+    return @inbounds om.matrix[i, j - om.offset] = value
 end
