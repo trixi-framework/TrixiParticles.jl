@@ -716,3 +716,70 @@ function divide_by_shepard_coefficient!(field::AbstractArray{T, 3}, shepard_coef
 
     return field
 end
+
+@inline function interpolate_viscous_velocity(point_coords_, semi, ref_system, v_ode, u_ode;
+                                              smoothing_length=initial_smoothing_length(ref_system),
+                                              neighborhood_searches=process_neighborhood_searches(semi,
+                                                                                                  u_ode,
+                                                                                                  ref_system,
+                                                                                                  smoothing_length,
+                                                                                                  point_coords_))
+    (; parallelization_backend) = semi
+
+    if semi.parallelization_backend isa KernelAbstractions.Backend
+        point_coords = Adapt.adapt(semi.parallelization_backend, point_coords_)
+    else
+        point_coords = point_coords_
+    end
+
+    ELTYPE = eltype(point_coords)
+    n_points = size(point_coords, 2)
+    shepard_coefficient = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
+
+    set_zero!(shepard_coefficient)
+    set_zero!(neighbor_count)
+
+    velocity = allocate(parallelization_backend, eltype(ref_system),
+                        (ndims(ref_system), n_points))
+    set_zero!(velocity)
+
+    foreach_system(semi) do neighbor_system
+        system_id = system_indices(neighbor_system, semi)
+        nhs = neighborhood_searches[system_id]
+
+        v = wrap_v(v_ode, neighbor_system, semi)
+        u = wrap_u(u_ode, neighbor_system, semi)
+
+        neighbor_coords = current_coordinates(u, neighbor_system)
+
+        foreach_point_neighbor(point_coords, neighbor_coords, nhs;
+                               parallelization_backend) do point, neighbor, pos_diff,
+                                                           distance
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
+            volume_b = m_b / current_density(v, neighbor_system, neighbor)
+            W_ab = kernel(ref_system.smoothing_kernel, distance, smoothing_length)
+
+            shepard_coefficient[point] += volume_b * W_ab
+
+            # According to:
+            # u(r_a) = (∑_b u(r_b) ⋅ V_b ⋅ W(r_a-r_b)) / (∑_b V_b ⋅ W(r_a-r_b)),
+            # where V_b = m_b / ρ_b.
+            velocity_neighbor = viscous_velocity(v, neighbor_system, neighbor)
+            for i in axes(velocity_neighbor, 1)
+                velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
+            end
+
+            neighbor_count[point] += 1
+        end
+    end
+
+    @threaded parallelization_backend for point in axes(point_coords, 2)
+        if neighbor_count[point] > 0
+            # Normalize by the shepard coefficient.
+            divide_by_shepard_coefficient!(velocity, shepard_coefficient, point)
+        end
+    end
+
+    return velocity
+end
