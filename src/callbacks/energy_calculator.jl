@@ -117,6 +117,10 @@ function (callback::EnergyCalculatorCallback)(integrator)
     return integrator
 end
 
+function update_energy_calculator!(energy, v_ode, u_ode, system, semi, t, dt)
+    return energy
+end
+
 function update_energy_calculator!(energy, v_ode, u_ode,
                                    system::AbstractStructureSystem, semi, t, dt)
     @trixi_timeit timer() "calculate energy" begin
@@ -142,6 +146,7 @@ function update_energy_calculator!(energy, v_ode, u_ode,
 
             interact!(dv_combined, v, u, v_neighbor, u_neighbor,
                       system, neighbor_system, semi,
+                      integrate_tlsph=true, # Required when using split integration
                       eachparticle=eachparticle)
         end
 
