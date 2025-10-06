@@ -1,3 +1,55 @@
+
+"""
+    EnergyCalculatorCallback{ELTYPE}(; interval=1)
+
+Callback to calculate the energy contribution from clamped particles in
+[`TotalLagrangianSPHSystem`](@ref)s.
+
+This callback computes the work done by clamped particles that are moving according to a
+[`PrescribedMotion`](@ref).
+The energy is calculated by integrating the instantaneous power, which is the dot product
+of the force exerted by the clamped particle and its prescribed velocity.
+The callback uses a simple explicit Euler time integration for the energy calculation.
+
+!!! info "TLSPH System Configuration"
+    The [`TotalLagrangianSPHSystem`](@ref) must be created with
+    `use_with_energy_calculator_callback=true` to prepare the system for energy
+    calculation by allocating the necessary cache for clamped particles.
+
+!!! warning "Experimental implementation"
+    This is an experimental feature and may change in future releases.
+
+# Arguments
+- `ELTYPE`: The floating point type used for time and energy calculations.
+            This should match the floating point type used in the
+            [`TotalLagrangianSPHSystem`](@ref), which can be obtained via `eltype(system)`.
+
+# Keywords
+- `interval=1`: Interval (in number of time steps) at which to compute the energy.
+                It is recommended to set this either to `1` (every time step) or to a small
+                integer (e.g., `2` or `5`) to reduce time integration errors
+                in the energy calculation.
+
+# Examples
+```jldoctest; output = false, setup = :(structure = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel = WendlandC2Kernel{2}(); smoothing_length = 1.0; young_modulus = 1e6; poisson_ratio = 0.3; n_clamped_particles = 0; clamped_particles_motion = nothing)
+# Create TLSPH system with `use_with_energy_calculator_callback=true`
+system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothing_length,
+                                  young_modulus, poisson_ratio,
+                                  n_clamped_particles=n_clamped_particles,
+                                  clamped_particles_motion=clamped_particles_motion,
+                                  use_with_energy_calculator_callback=true) # Important!
+
+# Create an energy calculator that runs every 2 time steps
+energy_cb = EnergyCalculatorCallback{eltype(system)}(; interval=2)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ EnergyCalculatorCallback{Float64}                                                                │
+│ ═════════════════════════════════                                                                │
+│ interval: ……………………………………………………… 2                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+"""
 struct EnergyCalculatorCallback{T}
     interval :: Int
     t        :: T
@@ -68,7 +120,6 @@ function update_energy_calculator!(energy, v_ode, u_ode,
         end
 
         @threaded semi for particle in eachparticle
-            # Dispatch by system type to exclude boundary systems
             add_acceleration!(dv_combined, particle, system)
             add_source_terms_inner!(dv_combined, v, u, particle, system,
                                     source_terms(system), t)
