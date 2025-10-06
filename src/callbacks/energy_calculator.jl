@@ -91,11 +91,32 @@ function update_energy_calculator!(energy, v_ode, u_ode,
     end
 end
 
-# Data type that combined two matrices and behaves like a single matrix.
-# This is used in `TotalLagrangianSPHSystem` to combine the `dv` for moving
-# particles and the `dv_fixed` for fixed particles into a single matrix that
-# can be passed to `interact!`.
-# This is required when `compute_forces_for_fixed_particles=true` is used.
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
+    @nospecialize cb # reduce precompilation time
+
+    ELTYPE = eltype(cb.affect!.energy)
+    print(io, "EnergyCalculatorCallback{$ELTYPE}(interval=", cb.affect!.interval, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any, EnergyCalculatorCallback{T}}) where {T}
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        update_cb = cb.affect!
+        ELTYPE = eltype(update_cb.energy)
+        setup = [
+            "interval" => update_cb.interval
+        ]
+        summary_box(io, "EnergyCalculatorCallback{$ELTYPE}", setup)
+    end
+end
+
+# Data type that combines two matrices to behave like a single matrix.
+# This is used above to combine the `dv` for integrated particles and the `dv_clamped`
+# for clamped particles into a single matrix that can be passed to `interact!`.
 struct CombinedMatrix{T, M1, M2} <: AbstractMatrix{T}
     matrix1::M1
     matrix2::M2
@@ -131,28 +152,5 @@ end
         return @inbounds cm.matrix1[i, j] = value
     else
         return @inbounds cm.matrix2[i, j - length1] = value
-    end
-end
-
-function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
-    @nospecialize cb # reduce precompilation time
-
-    ELTYPE = eltype(cb.affect!.energy)
-    print(io, "EnergyCalculatorCallback{$ELTYPE}(interval=", cb.affect!.interval, ")")
-end
-
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, EnergyCalculatorCallback{T}}) where {T}
-    @nospecialize cb # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, cb)
-    else
-        update_cb = cb.affect!
-        ELTYPE = eltype(update_cb.energy)
-        setup = [
-            "interval" => update_cb.interval
-        ]
-        summary_box(io, "EnergyCalculatorCallback{$ELTYPE}", setup)
     end
 end
