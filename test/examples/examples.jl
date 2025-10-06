@@ -67,7 +67,7 @@
 
             energy_calculator = EnergyCalculatorCallback{Float64}(; interval=1)
 
-            @trixi_test_nowarn sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false,
+            sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
                                            callback=energy_calculator)
 
             @test sol.retcode == ReturnCode.Success
