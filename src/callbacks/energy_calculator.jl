@@ -173,6 +173,8 @@ function update_energy_calculator!(energy, v_ode, u_ode,
             energy[] -= dot(F_particle, velocity) * dt
         end
     end
+
+    return energy
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
