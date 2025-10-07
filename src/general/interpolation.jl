@@ -52,7 +52,7 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 ```
 """
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
-                              sol::ODESolution;
+                              sol::ODESolution; include_wall_velocity=true,
                               smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     # Filter out particles without neighbors
@@ -63,13 +63,13 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     _ = interpolate_plane_2d(min_corner, max_corner, resolution,
                              semi, ref_system, v_ode, u_ode,
                              filter_no_neighbors, smoothing_length, cut_off_bnd,
-                             clip_negative_pressure)
+                             clip_negative_pressure, include_wall_velocity)
 
     return results
 end
 
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
-                              v_ode, u_ode;
+                              v_ode, u_ode; include_wall_velocity=true,
                               smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     # Filter out particles without neighbors
@@ -79,7 +79,7 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     _ = interpolate_plane_2d(min_corner, max_corner, resolution,
                              semi, ref_system, v_ode, u_ode,
                              filter_no_neighbors, smoothing_length, cut_off_bnd,
-                             clip_negative_pressure)
+                             clip_negative_pressure, include_wall_velocity)
 
     return results
 end
@@ -135,17 +135,17 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
                                   sol::ODESolution; clip_negative_pressure=false,
                                   smoothing_length=initial_smoothing_length(ref_system),
-                                  cut_off_bnd=true,
+                                  cut_off_bnd=true, include_wall_velocity=true,
                                   output_directory="out", filename="plane")
     v_ode, u_ode = sol.u[end].x
 
     interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
-                             v_ode, u_ode; clip_negative_pressure,
+                             v_ode, u_ode; clip_negative_pressure, include_wall_velocity,
                              smoothing_length, cut_off_bnd, output_directory, filename)
 end
 
 function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
-                                  v_ode, u_ode;
+                                  v_ode, u_ode; include_wall_velocity=true,
                                   smoothing_length=initial_smoothing_length(ref_system),
                                   cut_off_bnd=true, clip_negative_pressure=false,
                                   output_directory="out", filename="plane")
@@ -157,7 +157,7 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                        semi, ref_system, v_ode, u_ode,
                                        filter_no_neighbors,
                                        smoothing_length, cut_off_bnd,
-                                       clip_negative_pressure)
+                                       clip_negative_pressure, include_wall_velocity)
     end
 
     density = reshape(results.density, length(x_range), length(y_range))
@@ -175,7 +175,7 @@ end
 
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
                               v_ode, u_ode, filter_no_neighbors, smoothing_length,
-                              cut_off_bnd, clip_negative_pressure)
+                              cut_off_bnd, clip_negative_pressure, include_wall_velocity)
     dims = length(min_corner)
     if dims != 2 || length(max_corner) != 2
         throw(ArgumentError("function is intended for 2D coordinates only"))
@@ -196,10 +196,9 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     point_coords = rectangular_shape_coords(resolution, n_points_per_dimension, min_corner,
                                             place_on_shell=true)
 
-    results = interpolate_points(point_coords, semi, ref_system, v_ode, u_ode,
-                                 smoothing_length=smoothing_length,
-                                 cut_off_bnd=cut_off_bnd,
-                                 clip_negative_pressure=clip_negative_pressure)
+    results = interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
+                                 smoothing_length, cut_off_bnd, include_wall_velocity,
+                                 clip_negative_pressure)
 
     if filter_no_neighbors
         # Find indices where neighbor_count > 0
@@ -272,18 +271,18 @@ results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]
 ```
 """
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
-                              sol::ODESolution;
+                              sol::ODESolution; include_wall_velocity=true,
                               smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     v_ode, u_ode = sol.u[end].x
 
     interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
-                         v_ode, u_ode; smoothing_length, cut_off_bnd,
+                         v_ode, u_ode; smoothing_length, cut_off_bnd, include_wall_velocity,
                          clip_negative_pressure)
 end
 
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
-                              v_ode, u_ode;
+                              v_ode, u_ode; include_wall_velocity=true,
                               smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     if ndims(ref_system) != 3
@@ -298,10 +297,9 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
     end
 
     # Interpolate using the generated points
-    results = interpolate_points(points_coords, semi, ref_system, v_ode, u_ode,
-                                 smoothing_length=smoothing_length,
-                                 cut_off_bnd=cut_off_bnd,
-                                 clip_negative_pressure=clip_negative_pressure)
+    results = interpolate_points(points_coords, semi, ref_system, v_ode, u_ode;
+                                 smoothing_length, cut_off_bnd, include_wall_velocity,
+                                 clip_negative_pressure)
 
     # Filter results
     indices = findall(x -> x > 0, results.neighbor_count)
@@ -370,17 +368,18 @@ results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 ```
 """
 function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolution;
-                          endpoint=true,
+                          endpoint=true, include_wall_velocity=true,
                           smoothing_length=initial_smoothing_length(ref_system),
                           cut_off_bnd=true, clip_negative_pressure=false)
     v_ode, u_ode = sol.u[end].x
 
-    interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
-                     endpoint, smoothing_length, cut_off_bnd, clip_negative_pressure)
+    interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode; endpoint,
+                     smoothing_length, cut_off_bnd, clip_negative_pressure,
+                     include_wall_velocity)
 end
 
 function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
-                          endpoint=true,
+                          endpoint=true, include_wall_velocity=true,
                           smoothing_length=initial_smoothing_length(ref_system),
                           cut_off_bnd=true, clip_negative_pressure=false)
     start_svector = SVector{ndims(ref_system)}(start)
@@ -395,7 +394,7 @@ function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
     points_coords_ = collect(reinterpret(reshape, eltype(start_svector), points_coords))
 
     return interpolate_points(points_coords_, semi, ref_system, v_ode, u_ode;
-                              smoothing_length=smoothing_length,
+                              smoothing_length=smoothing_length, include_wall_velocity,
                               cut_off_bnd=cut_off_bnd, clip_negative_pressure)
 end
 
@@ -453,22 +452,24 @@ results = interpolate_points(points, semi, ref_system, sol)
 """
 @inline function interpolate_points(point_coords, semi, ref_system, sol::ODESolution;
                                     smoothing_length=initial_smoothing_length(ref_system),
-                                    cut_off_bnd=true, clip_negative_pressure=false)
+                                    cut_off_bnd=true, clip_negative_pressure=false,
+                                    include_wall_velocity=true)
     v_ode, u_ode = sol.u[end].x
 
-    interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
+    interpolate_points(point_coords, semi, ref_system, v_ode, u_ode; include_wall_velocity,
                        smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
 # Create neighborhood searches and then interpolate points
 function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                             smoothing_length=initial_smoothing_length(ref_system),
-                            cut_off_bnd=true, clip_negative_pressure=false)
+                            cut_off_bnd=true, clip_negative_pressure=false,
+                            include_wall_velocity=true)
     neighborhood_searches = process_neighborhood_searches(semi, u_ode, ref_system,
                                                           smoothing_length, point_coords)
 
     return interpolate_points(point_coords, semi, ref_system,
-                              v_ode, u_ode, neighborhood_searches;
+                              v_ode, u_ode, neighborhood_searches; include_wall_velocity,
                               smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
@@ -506,7 +507,7 @@ end
 
 # Interpolate points with given neighborhood searches
 @inline function interpolate_points(point_coords_, semi, ref_system, v_ode, u_ode,
-                                    neighborhood_searches;
+                                    neighborhood_searches; include_wall_velocity=true,
                                     smoothing_length=initial_smoothing_length(ref_system),
                                     cut_off_bnd=true, clip_negative_pressure=false)
     (; parallelization_backend) = semi
@@ -588,6 +589,18 @@ end
                 divide_by_shepard_coefficient!(field, shepard_coefficient, point)
             end
         end
+    end
+
+    if include_wall_velocity
+        viscous_velocity = interpolate_viscous_velocity(point_coords_, semi, ref_system,
+                                                        v_ode, u_ode;
+                                                        smoothing_length,
+                                                        neighborhood_searches)
+
+        cache_ = merge(cache, (velocity=viscous_velocity,))
+
+        return (; computed_density=computed_density, point_coords=point_coords,
+                neighbor_count=neighbor_count, viscous_velocity=viscous_velocity, cache_...)
     end
 
     return (; computed_density=computed_density, point_coords=point_coords,
@@ -740,9 +753,9 @@ end
     set_zero!(shepard_coefficient)
     set_zero!(neighbor_count)
 
-    velocity = allocate(parallelization_backend, eltype(ref_system),
-                        (ndims(ref_system), n_points))
-    set_zero!(velocity)
+    viscous_velocity = allocate(parallelization_backend, eltype(ref_system),
+                                (ndims(ref_system), n_points))
+    set_zero!(viscous_velocity)
 
     foreach_system(semi) do neighbor_system
         system_id = system_indices(neighbor_system, semi)
@@ -767,7 +780,7 @@ end
             # where V_b = m_b / ρ_b.
             velocity_neighbor = viscous_velocity(v, neighbor_system, neighbor)
             for i in axes(velocity_neighbor, 1)
-                velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
+                viscous_velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
             end
 
             neighbor_count[point] += 1
@@ -777,9 +790,9 @@ end
     @threaded parallelization_backend for point in axes(point_coords, 2)
         if neighbor_count[point] > 0
             # Normalize by the shepard coefficient.
-            divide_by_shepard_coefficient!(velocity, shepard_coefficient, point)
+            divide_by_shepard_coefficient!(viscous_velocity, shepard_coefficient, point)
         end
     end
 
-    return velocity
+    return viscous_velocity
 end
