@@ -122,8 +122,8 @@ function oriented_bounding_box(point_cloud)
 
     aligned_coords = eigen_vectors' * centered_data
 
-    min_corner = minimum(aligned_coords, dims=2)
-    max_corner = maximum(aligned_coords, dims=2)
+    min_corner = minimum(aligned_coords, dims=2) .- eps()
+    max_corner = maximum(aligned_coords, dims=2) .+ eps()
 
     if length(min_corner) == 2
         rect_coords = hcat(min_corner, max_corner, [min_corner[1], max_corner[2]])
@@ -138,21 +138,26 @@ function oriented_bounding_box(point_cloud)
 end
 
 """
-    OrientedBoundingBox(; box_origin, orientation_vector, edge_lengths::Tuple)
-    OrientedBoundingBox(geometry; local_axis_scale::Tuple)
+    OrientedBoundingBox(; box_origin, orientation_matrix, edge_lengths, local_axis_scale::Tuple))
+    OrientedBoundingBox(point_cloud::AbstractMatrix; local_axis_scale::Tuple)
+    OrientedBoundingBox(geometry::Union{Polygon, TriangleMesh}; local_axis_scale::Tuple)
 
 Creates an oriented bounding box (rectangle in 2D or cuboid in 3D) that can be
 rotated and positioned arbitrarily in space.
 
 The box is defined either by explicit parameters
-or by automatically fitting it around an existing geometry with optional scaling.
+or by automatically fitting it around an existing geometry or a point cloud with optional scaling.
 
 # Arguments
+- `point_cloud`: An array where the ``i``-th column holds the coordinates of a point ``i``.
 - `geometry`: Geometry returned by [`load_geometry`](@ref).
 
 # Keywords
 - `box_origin`: The corner point from which the box is constructed.
-- `orientation_vector`: A vector describing the main direction of the box.
+- `orientation_matrix`: A matrix defining the orientation of the box in space.
+    Each column of the matrix represents one of the local axes of the box (e.g., x, y, z in 3D).
+    The matrix must be orthogonal, ensuring that the local axes are perpendicular to each other
+    and normalized.
 - `edge_lengths`: The lengths of the edges of the box:
     - In 2D: `(width, height)`
     - In 3D: `(width, height, depth)`
@@ -170,13 +175,26 @@ or by automatically fitting it around an existing geometry with optional scaling
 
 # Examples
 ```jldoctest; output=false
-# 2D
-OrientedBoundingBox(box_origin=[0.0, 0.0], orientation_vector=[1.0, 1.0],
-                    edge_lengths=(2.0, 1.0))
+# 2D axis aligned
+OrientedBoundingBox(box_origin=[0.0, 0.0], orientation_matrix=I(2), edge_lengths=[2.0, 1.0])
 
-# 3D
-OrientedBoundingBox(box_origin=[0.5, -0.2, 0.0], orientation_vector=[0.0, 0.0, 1.0],
-                    edge_lengths=(1.0, 2.0, 3.0))
+# 2D rotated
+orientation_matrix = [cos(π/4)  -sin(π/4);
+                      sin(π/4)   cos(π/4)]
+OrientedBoundingBox(; box_origin=[0.0, 0.0], orientation_matrix, edge_lengths=[2.0, 1.0])
+
+# 2D point cloud
+# Create a point cloud from a spherical shape (quarter circle sector)
+shape = SphereShape(0.1, 1.5, (0.2, 0.4), 1.0, n_layers=4,
+                    sphere_type=RoundSphere(; start_angle=0, end_angle=π/4))
+OrientedBoundingBox(shape.coordinates)
+
+# 3D rotated
+orientation_matrix = [cos(π/4)  -sin(π/4)  0.0;  # x-axis after rotation
+                      sin(π/4)   cos(π/4)  0.0;  # y-axis after rotation
+                      0.0        0.0       1.0]  # z-axis remains unchanged
+OrientedBoundingBox(; box_origin=[0.5, -0.2, 0.0], orientation_matrix,
+                    edge_lengths=[1.0, 2.0, 3.0])
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -192,83 +210,43 @@ struct OrientedBoundingBox{NDIMS, ELTYPE <: Real, SV}
     spanning_vectors :: SV
 end
 
-# Constructor with orientation vector (from box_origin to opposite corner)
-function OrientedBoundingBox(; box_origin, orientation_vector, edge_lengths::Tuple)
-    NDIMS = length(box_origin)
+function OrientedBoundingBox(; box_origin, orientation_matrix, edge_lengths,
+                             local_axis_scale::Tuple=ntuple(_ -> 0, length(box_origin)))
+    box_origin_ = SVector(box_origin...)
+    NDIMS = length(box_origin_)
 
-    @assert length(orientation_vector) == NDIMS
+    @assert size(orientation_matrix) == (NDIMS, NDIMS)
     @assert length(edge_lengths) == NDIMS
+    @assert length(local_axis_scale) == NDIMS
 
-    # Normalize the orientation vector to get the primary direction
-    primary_direction = normalize(orientation_vector)
+    spanning_vectors = ntuple(i -> SVector{NDIMS}(orientation_matrix[:, i] *
+                                                  edge_lengths[i]), NDIMS)
 
-    # Create orthogonal basis vectors
-    R = orientation_matrix(primary_direction, edge_lengths)
+    prod(local_axis_scale) > 0 || return OrientedBoundingBox(box_origin_, spanning_vectors)
 
-    spanning_vectors = ntuple(i -> SVector{NDIMS}(R[:, i] * edge_lengths[i]),
-                              length(edge_lengths))
-
-    return OrientedBoundingBox(SVector{NDIMS}(box_origin), spanning_vectors)
+    return scaled_bbox(SVector(local_axis_scale), box_origin_, spanning_vectors)
 end
 
-function OrientedBoundingBox(geometry::TriangleMesh; local_axis_scale::Tuple=(0, 0, 0))
-    point_cloud = stack(geometry.vertices)
+function OrientedBoundingBox(point_cloud::AbstractMatrix;
+                             local_axis_scale::Tuple=ntuple(_ -> 0, size(point_cloud, 1)))
+    NDIMS = size(point_cloud, 1)
     vertices, eigen_vectors, (min_corner, max_corner) = oriented_bounding_box(point_cloud)
 
     # Use the first vertex as box origin (bottom-left-front corner)
-    box_origin = SVector{3}(vertices[:, 1])
+    box_origin = SVector{NDIMS}(vertices[:, 1])
 
     # Calculate edge lengths from min/max corners
     edge_lengths = max_corner - min_corner
 
-    # Create spanning vectors using the eigen vectors scaled by edge lengths
-    spanning_vectors = ntuple(i -> SVector{3}(eigen_vectors[:, i] * edge_lengths[i]), 3)
-
-    prod(local_axis_scale) > 0 || return OrientedBoundingBox(box_origin, spanning_vectors)
-
-    # Uniform scaling about the center, center remains unchanged
-    v1, v2, v3 = spanning_vectors
-    center = box_origin + (v1 + v2 + v3) / 2
-
-    # Scaling factor per oriented axis
-    s1, s2, s3 = local_axis_scale
-
-    # New spanning vectors
-    v1p, v2p, v3p = s1 * v1, s2 * v2, s3 * v3
-
-    new_origin = center - (v1p + v2p + v3p) / 2
-
-    return OrientedBoundingBox(new_origin, (v1p, v2p, v3p))
+    return OrientedBoundingBox(; box_origin, orientation_matrix=eigen_vectors, edge_lengths,
+                               local_axis_scale)
 end
 
-function OrientedBoundingBox(geometry::Polygon; local_axis_scale::Tuple=(0, 0))
+function OrientedBoundingBox(geometry::Union{Polygon, TriangleMesh};
+                             local_axis_scale::Tuple=ntuple(_ -> 0, ndims(geometry)))
     point_cloud = stack(geometry.vertices)
-    vertices, eigen_vectors, (min_corner, max_corner) = oriented_bounding_box(point_cloud)
 
-    # Use the first vertex as box origin (bottom-left-front corner)
-    box_origin = SVector{2}(vertices[:, 1])
-
-    # Calculate edge lengths from min/max corners
-    edge_lengths = max_corner - min_corner
-
-    # Create spanning vectors using the eigen vectors scaled by edge lengths
-    spanning_vectors = ntuple(i -> SVector{2}(eigen_vectors[:, i] * edge_lengths[i]), 2)
-
-    prod(local_axis_scale) > 0 || return OrientedBoundingBox(box_origin, spanning_vectors)
-
-    # Uniform scaling about the center, center remains unchanged
-    v1, v2 = spanning_vectors
-    center = box_origin + (v1 + v2) / 2
-
-    # Scaling factor per oriented axis
-    s1, s2 = local_axis_scale
-
-    # New spanning vectors
-    v1p, v2p = s1 * v1, s2 * v2
-
-    new_origin = center - (v1p + v2p) / 2
-
-    return OrientedBoundingBox(new_origin, (v1p, v2p))
+    return OrientedBoundingBox(point_cloud; local_axis_scale)
 end
 
 @inline Base.ndims(::OrientedBoundingBox{NDIMS}) where {NDIMS} = NDIMS
@@ -286,22 +264,36 @@ function Base.show(io::IO, ::MIME"text/plain", box::OrientedBoundingBox)
     end
 end
 
-function orientation_matrix(primary_direction, ::NTuple{2})
-    perpendicular = [-primary_direction[2], primary_direction[1]]
-    return hcat(primary_direction, perpendicular)
+function scaled_bbox(local_axis_scale::SVector{2}, box_origin, spanning_vectors)
+    # Uniform scaling about the center, center remains unchanged
+    v1, v2 = spanning_vectors
+    center = box_origin + (v1 + v2) / 2
+
+    # Scaling factor per oriented axis
+    s1, s2 = local_axis_scale
+
+    # New spanning vectors
+    v1p, v2p = s1 * v1, s2 * v2
+
+    new_origin = center - (v1p + v2p) / 2
+
+    return OrientedBoundingBox(new_origin, (v1p, v2p))
 end
 
-function orientation_matrix(primary_direction, ::NTuple{3})
-    # Find two orthogonal vectors to the primary direction
-    # Choose a vector that's not parallel to primary_direction
-    temp = abs(primary_direction[1]) < 0.9 ? [1.0, 0.0, 0.0] : [0.0, 1.0, 0.0]
+function scaled_bbox(local_axis_scale::SVector{3}, box_origin, spanning_vectors)
+    # Uniform scaling about the center, center remains unchanged
+    v1, v2, v3 = spanning_vectors
+    center = box_origin + (v1 + v2 + v3) / 2
 
-    # Gram-Schmidt orthogonalization
-    v2 = temp - dot(temp, primary_direction) * primary_direction
-    v2 = normalize(v2)
-    v3 = cross(primary_direction, v2)
+    # Scaling factor per oriented axis
+    s1, s2, s3 = local_axis_scale
 
-    return hcat(primary_direction, v2, v3)
+    # New spanning vectors
+    v1p, v2p, v3p = s1 * v1, s2 * v2, s3 * v3
+
+    new_origin = center - (v1p + v2p + v3p) / 2
+
+    return OrientedBoundingBox(new_origin, (v1p, v2p, v3p))
 end
 
 function is_in_oriented_box(coordinates::AbstractArray, box)

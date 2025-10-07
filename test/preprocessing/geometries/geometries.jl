@@ -195,11 +195,13 @@
         @testset verbose=true "2D" begin
             @testset verbose=true "Manual Construction" begin
                 # Create a 2D oriented bounding box and test its spanning vectors
-                box_2d = OrientedBoundingBox(box_origin=[0.1, -2.0],
-                                             orientation_vector=[2.0, 1.0],
+                orientation_matrix = [cos(pi / 4) -sin(pi / 4);
+                                      sin(pi / 4) cos(pi / 4)]
+                box_2d = OrientedBoundingBox(; box_origin=[0.1, -2.0],
+                                             orientation_matrix,
                                              edge_lengths=(2.0, 1.0))
-                expected = [1.8888543819998318 -0.3472135954999579;
-                            -1.1055728090000843 -1.1055728090000843]
+                expected = [0.1+sqrt(2) 0.1-sqrt(2) / 2;
+                            -2.0+sqrt(2) -2.0+sqrt(2) / 2]
                 @test isapprox(stack(box_2d.spanning_vectors) .+ box_2d.box_origin,
                                expected)
             end
@@ -225,15 +227,32 @@
                             -1.8545287410598816 0.9710115446180893]
                 @test isapprox(stack(box_3.spanning_vectors) .+ box_3.box_origin, expected)
             end
+
+            @testset verbose=true "From Point-Cloud" begin
+                # Create a point cloud from a spherical shape (quarter circle sector)
+                shape = SphereShape(0.1, 1.5, (0.2, 0.4), 1.0, n_layers=4,
+                                    sphere_type=RoundSphere(; start_angle=0,
+                                                            end_angle=pi / 4))
+
+                box = OrientedBoundingBox(shape.coordinates)
+                expected = [1.3939339828220176 1.3264241636171004;
+                            0.29393398282201755 1.4671898309959612]
+                @test isapprox(stack(box.spanning_vectors) .+ box.box_origin, expected)
+            end
         end
 
         @testset verbose=true "3D" begin
             @testset verbose=true "Manual Construction" begin
                 # Create a 3D oriented bounding box and test its spanning vectors
-                box_3d = OrientedBoundingBox(box_origin=[0.5, -0.2, 0.0],
-                                             orientation_vector=[0.0, 0.0, 1.0],
+                orientation_matrix = [1/sqrt(2) -1/sqrt(2) 0.0;
+                                      1/sqrt(2) 1/sqrt(2) 0.0;
+                                      0.0 0.0 1.0]
+                box_3d = OrientedBoundingBox(; box_origin=[0.5, -0.2, 0.0],
+                                             orientation_matrix,
                                              edge_lengths=(1.0, 2.0, 3.0))
-                expected = [0.5 2.5 0.5; -0.2 -0.2 2.8; 1.0 0.0 0.0]
+                expected = [0.5+1 / sqrt(2) 0.5-2 / sqrt(2) 0.5;
+                            -0.2+1 / sqrt(2) -0.2+2 / sqrt(2) -0.2;
+                            0.0 0.0 3.0]
                 @test isapprox(stack(box_3d.spanning_vectors) .+ box_3d.box_origin,
                                expected)
             end
@@ -260,8 +279,10 @@
         @testset verbose=true "`is_in_oriented_box`" begin
             @testset verbose=true "Manual Construction 2D" begin
                 # Simple axis-aligned box
-                box_2d = OrientedBoundingBox(box_origin=[0.0, 0.0],
-                                             orientation_vector=[1.0, 0.0],
+                orientation_matrix = [1.0 0.0;
+                                      0.0 1.0]
+                box_2d = OrientedBoundingBox(; box_origin=[0.0, 0.0],
+                                             orientation_matrix,
                                              edge_lengths=(2.0, 1.0))
                 # Test points
                 query_points = Dict(
@@ -282,8 +303,10 @@
 
             @testset verbose=true "Rotated Box 2D" begin
                 # 45° rotated box
-                box_rotated = OrientedBoundingBox(box_origin=[0.0, 0.0],
-                                                  orientation_vector=[1.0, 1.0],
+                orientation_matrix = [1/sqrt(2) -1/sqrt(2);
+                                      1/sqrt(2) 1/sqrt(2)]
+                box_rotated = OrientedBoundingBox(; box_origin=[0.0, 0.0],
+                                                  orientation_matrix,
                                                   edge_lengths=(sqrt(2), 1.0))
                 v1_normalized = [1 / sqrt(2), 1 / sqrt(2)]  # First edge direction
                 v2_normalized = [-1 / sqrt(2), 1 / sqrt(2)] # Second edge direction (perpendicular)
@@ -315,8 +338,8 @@
 
             @testset verbose=true "Manual Construction 3D" begin
                 # Simple axis-aligned box
-                box_3d = OrientedBoundingBox(box_origin=[0.0, 0.0, 0.0],
-                                             orientation_vector=[1.0, 0.0, 0.0],
+                box_3d = OrientedBoundingBox(; box_origin=[0.0, 0.0, 0.0],
+                                             orientation_matrix=I(3),
                                              edge_lengths=(2.0, 1.0, 0.5))
 
                 # Test points
@@ -342,18 +365,27 @@
 
             @testset verbose=true "Rotated Box 3D" begin
                 # Box oriented along space diagonal
-                orientation_vector = [1.0, 1.0, 1.0]
+                orientation_matrix = [1/sqrt(3) -1/sqrt(2) -1/sqrt(6);
+                                      1/sqrt(3) 1/sqrt(2) -1/sqrt(6);
+                                      1/sqrt(3) 0.0 2/sqrt(6)]
                 box_rotated = OrientedBoundingBox(; box_origin=[0.0, 0.0, 0.0],
-                                                  orientation_vector,
-                                                  edge_lengths=(sqrt(3), 1.0, 0.5))
+                                                  orientation_matrix,
+                                                  edge_lengths=(2.0, 1.0, 0.5))
 
                 # Test points
                 query_points = Dict(
                     "Origin" => ([0.0, 0.0, 0.0], [1]),
-                    "Inside diagonal center" => ([0.5, 0.5, 0.25], [1]),
-                    "Just outside along diagonal" => ([sqrt(3), 1.0, 0.5] .+ eps(), []),
-                    "Just inside along diagonal" => ([1.0, 1.0, 0.5], [1]),
-                    "Far outside diagonal" => ([2.0, 2.0, 2.0], [])
+                    "Inside diagonal center" => ([0.0, 0.0, 0.0] +
+                                                 orientation_matrix * [1.0, 0.5, 0.25],
+                                                 [1]),
+                    "Just outside along diagonal" => ([0.0, 0.0, 0.0] +
+                                                      orientation_matrix *
+                                                      ([2.0, 1.0, 0.5] .+ eps()), []),
+                    "Just inside along diagonal" => ([0.0, 0.0, 0.0] +
+                                                     orientation_matrix * [2.0, 1.0, 0.5],
+                                                     [1]),
+                    "Far outside diagonal" => ([0.0, 0.0, 0.0] +
+                                               orientation_matrix * [3.0, 2.0, 2.0], [])
                 )
 
                 @testset "$k" for k in keys(query_points)
@@ -365,10 +397,10 @@
             @testset verbose=true "Set Operations" begin
                 shape = RectangularShape(0.1, (10, 10), (0.0, 0.0), density=1.0)
                 box_1 = OrientedBoundingBox(box_origin=[0.0, 0.0],
-                                            orientation_vector=[1.0, 0.0],
+                                            orientation_matrix=I(2),
                                             edge_lengths=(1.0, 1.0))
                 box_2 = OrientedBoundingBox(box_origin=[0.0, 0.0],
-                                            orientation_vector=[1.0, 0.0],
+                                            orientation_matrix=I(2),
                                             edge_lengths=(1.0, 0.5))
 
                 @test nparticles(intersect(shape, box_1)) == 100
@@ -380,7 +412,7 @@
 
         @testset verbose=true "show" begin
             box_2d = OrientedBoundingBox(box_origin=[0.1, -2.0],
-                                         orientation_vector=[0.0, 1.0],
+                                         orientation_matrix=I(2),
                                          edge_lengths=(2.0, 1.0))
             show_box = """
                 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -392,7 +424,7 @@
             @test repr("text/plain", box_2d) == show_box
 
             box_3d = OrientedBoundingBox(box_origin=[0.5, -0.2, 0.0],
-                                         orientation_vector=[0.0, 0.0, 1.0],
+                                         orientation_matrix=I(3),
                                          edge_lengths=(1.0, 2.0, 3.0))
             show_box = """
                 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
