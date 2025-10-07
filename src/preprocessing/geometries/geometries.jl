@@ -174,7 +174,7 @@ or by automatically fitting it around an existing geometry or a point cloud with
     as this would break the orthogonality of the spanning vectors.
 
 # Examples
-```jldoctest; output=false
+```jldoctest; output=false, setup = :(using LinearAlgebra: I)
 # 2D axis aligned
 OrientedBoundingBox(box_origin=[0.0, 0.0], orientation_matrix=I(2), edge_lengths=[2.0, 1.0])
 
