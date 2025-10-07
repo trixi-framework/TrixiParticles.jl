@@ -138,7 +138,7 @@ function compute_git_hash()
     end
 
     try
-        git_cmd = Cmd(`git describe --tags --always --first-parent --dirty`,
+        git_cmd = Cmd(`git describe --tags --always --dirty`,
                       dir=pkg_directory)
         return string(readchomp(git_cmd))
     catch e

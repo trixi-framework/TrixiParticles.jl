@@ -89,7 +89,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        BernoulliPressureExtrapolation
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
-export PrescribedMotion
+export PrescribedMotion, OscillatingMotion2D
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
