@@ -562,7 +562,7 @@
             points_coords = collect(reinterpret(reshape, eltype(start_svector),
                                                 points_coords_))
 
-            # Lienar velocity field for fluid and boundary
+            # Linear velocity field for fluid and boundary
             v_fluid = InitialCondition(;
                                        coordinates=fluid_system.initial_condition.coordinates,
                                        density=1000.0, particle_spacing,
@@ -930,7 +930,7 @@
             points_coords = collect(reinterpret(reshape, eltype(start_svector),
                                                 points_coords_))
 
-            # Lienar velocity field for fluid and boundary
+            # Linear velocity field for fluid and boundary
             v_fluid = InitialCondition(;
                                        coordinates=fluid_system.initial_condition.coordinates,
                                        density=1000.0, particle_spacing,
