@@ -1,9 +1,7 @@
-using LinearAlgebra
-
 @doc raw"""
     interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
                          smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
-                         clip_negative_pressure=false)
+                         clip_negative_pressure=false, include_wall_velocity=false)
 
 Interpolates properties along a plane in a TrixiParticles simulation.
 The region for interpolation is defined by its lower left and top right corners,
@@ -33,6 +31,10 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
+- `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
+                                 in the interpolation. This is particularly useful for simulations
+                                 with no-slip boundary conditions, where there is a smoothed
+                                 velocity field at the boundary.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -52,7 +54,7 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 ```
 """
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
-                              sol::ODESolution; include_wall_velocity=true,
+                              sol::ODESolution; include_wall_velocity=false,
                               smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     # Filter out particles without neighbors
@@ -69,7 +71,7 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
 end
 
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
-                              v_ode, u_ode; include_wall_velocity=true,
+                              v_ode, u_ode; include_wall_velocity=false,
                               smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     # Filter out particles without neighbors
@@ -87,7 +89,8 @@ end
 @doc raw"""
     interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, sol;
                              smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
-                             clip_negative_pressure=false, output_directory="out", filename="plane")
+                             clip_negative_pressure=false, output_directory="out", filename="plane",
+                             include_wall_velocity=false)
 
 Interpolates properties along a plane in a TrixiParticles simulation and exports the result
 as a VTI file.
@@ -120,6 +123,10 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
+- `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
+                                 in the interpolation. This is particularly useful for simulations
+                                 with no-slip boundary conditions, where there is a smoothed
+                                 velocity field at the boundary.
 
 !!! note
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
@@ -135,7 +142,7 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
                                   sol::ODESolution; clip_negative_pressure=false,
                                   smoothing_length=initial_smoothing_length(ref_system),
-                                  cut_off_bnd=true, include_wall_velocity=true,
+                                  cut_off_bnd=true, include_wall_velocity=false,
                                   output_directory="out", filename="plane")
     v_ode, u_ode = sol.u[end].x
 
@@ -145,7 +152,7 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
 end
 
 function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
-                                  v_ode, u_ode; include_wall_velocity=true,
+                                  v_ode, u_ode; include_wall_velocity=false,
                                   smoothing_length=initial_smoothing_length(ref_system),
                                   cut_off_bnd=true, clip_negative_pressure=false,
                                   output_directory="out", filename="plane")
@@ -220,7 +227,7 @@ end
 @doc raw"""
     interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
                          smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
-                         clip_negative_pressure=false)
+                         clip_negative_pressure=false, include_wall_velocity=false)
 
 Interpolates properties along a plane in a 3D space in a TrixiParticles simulation.
 The plane for interpolation is defined by three points in 3D space,
@@ -251,6 +258,10 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
+- `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
+                                 in the interpolation. This is particularly useful for simulations
+                                 with no-slip boundary conditions, where there is a smoothed
+                                 velocity field at the boundary.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -271,7 +282,7 @@ results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]
 ```
 """
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
-                              sol::ODESolution; include_wall_velocity=true,
+                              sol::ODESolution; include_wall_velocity=false,
                               smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     v_ode, u_ode = sol.u[end].x
@@ -282,7 +293,7 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
 end
 
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
-                              v_ode, u_ode; include_wall_velocity=true,
+                              v_ode, u_ode; include_wall_velocity=false,
                               smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
     if ndims(ref_system) != 3
@@ -317,7 +328,8 @@ end
 @doc raw"""
     interpolate_line(start, end_, n_points, semi, ref_system, sol; endpoint=true,
                      smoothing_length=initial_smoothing_length(ref_system), cut_off_bnd=true,
-                     clip_negative_pressure=false)
+                     clip_negative_pressure=false, include_wall_velocity=false)
+
 
 Interpolates properties along a line in a TrixiParticles simulation.
 The line interpolation is accomplished by generating a series of
@@ -347,6 +359,10 @@ See also: [`interpolate_points`](@ref), [`interpolate_plane_2d`](@ref),
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
+- `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
+                                 in the interpolation. This is particularly useful for simulations
+                                 with no-slip boundary conditions, where there is a smoothed
+                                 velocity field at the boundary.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point along the line.
@@ -368,7 +384,7 @@ results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 ```
 """
 function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolution;
-                          endpoint=true, include_wall_velocity=true,
+                          endpoint=true, include_wall_velocity=false,
                           smoothing_length=initial_smoothing_length(ref_system),
                           cut_off_bnd=true, clip_negative_pressure=false)
     v_ode, u_ode = sol.u[end].x
@@ -379,7 +395,7 @@ function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolut
 end
 
 function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
-                          endpoint=true, include_wall_velocity=true,
+                          endpoint=true, include_wall_velocity=false,
                           smoothing_length=initial_smoothing_length(ref_system),
                           cut_off_bnd=true, clip_negative_pressure=false)
     start_svector = SVector{ndims(ref_system)}(start)
@@ -401,7 +417,8 @@ end
 @doc raw"""
     interpolate_points(point_coords::AbstractMatrix, semi, ref_system, sol;
                        smoothing_length=initial_smoothing_length(ref_system),
-                       cut_off_bnd=true, clip_negative_pressure=false)
+                       cut_off_bnd=true, clip_negative_pressure=false,
+                       include_wall_velocity=false)
 
 Performs interpolation of properties at specified points in a TrixiParticles simulation.
 The interpolation utilizes the same kernel function of the SPH simulation to weigh
@@ -427,6 +444,10 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
+- `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
+                                 in the interpolation. This is particularly useful for simulations
+                                 with no-slip boundary conditions, where there is a smoothed
+                                 velocity field at the boundary.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point.
@@ -453,7 +474,7 @@ results = interpolate_points(points, semi, ref_system, sol)
 @inline function interpolate_points(point_coords, semi, ref_system, sol::ODESolution;
                                     smoothing_length=initial_smoothing_length(ref_system),
                                     cut_off_bnd=true, clip_negative_pressure=false,
-                                    include_wall_velocity=true)
+                                    include_wall_velocity=false)
     v_ode, u_ode = sol.u[end].x
 
     interpolate_points(point_coords, semi, ref_system, v_ode, u_ode; include_wall_velocity,
@@ -464,7 +485,7 @@ end
 function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                             smoothing_length=initial_smoothing_length(ref_system),
                             cut_off_bnd=true, clip_negative_pressure=false,
-                            include_wall_velocity=true)
+                            include_wall_velocity=false)
     neighborhood_searches = process_neighborhood_searches(semi, u_ode, ref_system,
                                                           smoothing_length, point_coords)
 
@@ -507,13 +528,13 @@ end
 
 # Interpolate points with given neighborhood searches
 @inline function interpolate_points(point_coords_, semi, ref_system, v_ode, u_ode,
-                                    neighborhood_searches; include_wall_velocity=true,
+                                    neighborhood_searches; include_wall_velocity=false,
                                     smoothing_length=initial_smoothing_length(ref_system),
                                     cut_off_bnd=true, clip_negative_pressure=false)
     (; parallelization_backend) = semi
 
-    if semi.parallelization_backend isa KernelAbstractions.Backend
-        point_coords = Adapt.adapt(semi.parallelization_backend, point_coords_)
+    if parallelization_backend isa KernelAbstractions.Backend
+        point_coords = Adapt.adapt(parallelization_backend, point_coords_)
     else
         point_coords = point_coords_
     end
@@ -737,8 +758,6 @@ end
                                                                                                   ref_system,
                                                                                                   smoothing_length,
                                                                                                   point_coords_))
-    (; parallelization_backend) = semi
-
     if semi.parallelization_backend isa KernelAbstractions.Backend
         point_coords = Adapt.adapt(semi.parallelization_backend, point_coords_)
     else
@@ -753,9 +772,8 @@ end
     set_zero!(shepard_coefficient)
     set_zero!(neighbor_count)
 
-    viscous_velocity = allocate(parallelization_backend, eltype(ref_system),
-                                (ndims(ref_system), n_points))
-    set_zero!(viscous_velocity)
+    velocity = allocate(semi.parallelization_backend, ELTYPE, (ndims(ref_system), n_points))
+    set_zero!(velocity)
 
     foreach_system(semi) do neighbor_system
         system_id = system_indices(neighbor_system, semi)
@@ -767,8 +785,8 @@ end
         neighbor_coords = current_coordinates(u, neighbor_system)
 
         foreach_point_neighbor(point_coords, neighbor_coords, nhs;
-                               parallelization_backend) do point, neighbor, pos_diff,
-                                                           distance
+                               semi.parallelization_backend) do point, neighbor, pos_diff,
+                                                                distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume_b = m_b / current_density(v, neighbor_system, neighbor)
             W_ab = kernel(ref_system.smoothing_kernel, distance, smoothing_length)
@@ -780,19 +798,19 @@ end
             # where V_b = m_b / ρ_b.
             velocity_neighbor = viscous_velocity(v, neighbor_system, neighbor)
             for i in axes(velocity_neighbor, 1)
-                viscous_velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
+                velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
             end
 
             neighbor_count[point] += 1
         end
     end
 
-    @threaded parallelization_backend for point in axes(point_coords, 2)
+    @threaded semi.parallelization_backend for point in axes(point_coords, 2)
         if neighbor_count[point] > 0
             # Normalize by the shepard coefficient.
-            divide_by_shepard_coefficient!(viscous_velocity, shepard_coefficient, point)
+            divide_by_shepard_coefficient!(velocity, shepard_coefficient, point)
         end
     end
 
-    return viscous_velocity
+    return velocity
 end
