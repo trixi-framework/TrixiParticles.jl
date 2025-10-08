@@ -85,11 +85,11 @@ export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffus
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
-       BoundaryModelMirroringTafuni,
+       BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,
        BernoulliPressureExtrapolation
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
-export PrescribedMotion
+export PrescribedMotion, OscillatingMotion2D
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
