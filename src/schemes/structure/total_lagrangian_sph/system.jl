@@ -91,6 +91,7 @@ end
 function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
                                   n_clamped_particles=0, clamped_particles_motion=nothing,
+                                  use_with_energy_calculator_callback=false,
                                   boundary_model=nothing,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
@@ -128,7 +129,9 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
     initialize_prescribed_motion!(clamped_particles_motion, initial_condition,
                                   n_clamped_particles)
 
-    cache = create_cache_tlsph(clamped_particles_motion, initial_condition)
+    cache = (; create_cache_tlsph(clamped_particles_motion, initial_condition)...,
+             create_cache_tlsph(Val(use_with_energy_calculator_callback),
+                                initial_condition, n_clamped_particles)...)
 
     return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -147,6 +150,15 @@ function create_cache_tlsph(::PrescribedMotion, initial_condition)
     acceleration = zero(initial_condition.velocity)
 
     return (; velocity, acceleration)
+end
+
+create_cache_tlsph(::Val{false}, initial_condition, n_clamped_particles) = (;)
+
+function create_cache_tlsph(::Val{true}, initial_condition, n_clamped_particles)
+    dv_clamped = Array{eltype(initial_condition)}(undef, ndims(initial_condition),
+                                                  n_clamped_particles)
+
+    return (; dv_clamped)
 end
 
 @inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
@@ -336,11 +348,15 @@ end
     # Reset deformation gradient
     set_zero!(deformation_grad)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
-                           semi) do particle, neighbor, initial_pos_diff, initial_distance
-        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+                           semi,
+                           parallelization_backend=SerialBackend()) do particle, neighbor,
+                                                                       initial_pos_diff,
+                                                                       initial_distance
+        # Only consider particles with a distance > 0.
+        # See `src/general/smoothing_kernels.jl` for more details.
         initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
 
         volume = mass[neighbor] / material_density[neighbor]
