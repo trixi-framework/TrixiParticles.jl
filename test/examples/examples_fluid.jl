@@ -589,7 +589,7 @@
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fluid",
                                                       "dam_break_2d.jl"),
-                                             tspan=(0, 0.1), sol=nothing) [
+                                             tspan=(0, 0.3), sol=nothing) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
                 r"└ New tank length in y-direction.*\n"]
 
@@ -607,7 +607,7 @@
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fluid",
                                                       "dam_break_2d.jl"),
-                                             tspan=(0, 0.1), sol=nothing,
+                                             tspan=(0, 0.3), sol=nothing,
                                              cfl=0.25) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
                 r"└ New tank length in y-direction.*\n"]
