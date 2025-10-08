@@ -34,7 +34,7 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==== Experiment Setup
 gravity = 9.81
 
-tspan = (0.0, 5.7 / sqrt(gravity))
+tspan = (0.0, 5.7 / sqrt(gravity / H))
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (W, H)
@@ -51,29 +51,19 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.75 * fluid_particle_spacing
+smoothing_length = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
+
 alpha = 0.02
 viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-# A typical formula to convert Artificial viscosity to a
-# kinematic viscosity is provided by Monaghan as
-# nu = alpha * smoothing_length * sound_speed/8
 
-# Alternatively a kinematic viscosity for water can be set
-# nu = 1.0e-6
-
-# This allows the use of a physical viscosity model like:
-# viscosity_fluid = ViscosityAdami(nu=nu)
-# or with additional dissipation through a Smagorinsky model
-# viscosity_fluid = ViscosityAdamiSGS(nu=nu)
-# For more details see the documentation &quot;Viscosity model overview&quot;.
-
-# Alternatively the density diffusion model by Molteni &amp; Colagrossi can be used,
-# which will run faster.
-# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+# The density diffusion model by Molteni and Colagrossi shows unphysical effects at the
+# free surface in long-running simulations, but is significantly faster than the model
+# by Antuono. This simulation is short enough to use the faster model.
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -87,9 +77,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 viscosity_wall = nothing
-# For a no-slip condition the corresponding wall viscosity without SGS can be set
-# viscosity_wall = ViscosityAdami(nu=nu)
-# viscosity_wall = ViscosityMorris(nu=nu)
+# For a no-slip boundary condition, define a wall viscosity:
+# viscosity_wall = viscosity_fluid
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
@@ -115,15 +104,9 @@ info_callback = InfoCallback(interval=100)
 solution_prefix = &quot;&quot;
 saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
 
-# Save at certain timepoints which allows comparison to the results of Marrone et al.,
-# i.e. (1.5, 2.36, 3.0, 5.7, 6.45).
-# Please note that the images in Marrone et al. are obtained at a particle_spacing = H/320,
-# which takes between 2 and 4 hours.
-saving_paper = SolutionSavingCallback(save_times=[0.0, 0.371, 0.584, 0.743, 1.411, 1.597],
-                                      prefix=&quot;marrone_times&quot;)
-
 # This can be overwritten with `trixi_include`
 extra_callback = nothing
+extra_callback2 = nothing
 
 use_reinit = false
 density_reinit_cb = use_reinit ?
@@ -132,7 +115,7 @@ density_reinit_cb = use_reinit ?
 stepsize_callback = StepsizeCallback(cfl=0.9)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
-                        density_reinit_cb, saving_paper)
+                        extra_callback2, density_reinit_cb)
 
 time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
 sol = solve(ode, time_integration_scheme,
@@ -144,4 +127,4 @@ mermaid.initialize({
     startOnLoad: true,
     theme: "neutral"
 });
-</script></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 8 October 2025 14:09">Wednesday 8 October 2025</span>. Using Julia version 1.12.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</script></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 8 October 2025 17:03">Wednesday 8 October 2025</span>. Using Julia version 1.12.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
