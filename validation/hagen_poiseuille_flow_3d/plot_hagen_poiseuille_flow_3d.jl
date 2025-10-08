@@ -2,7 +2,7 @@ using TrixiParticles
 using Plots
 using Bessels
 
-particle_spacing_factor = 40
+particle_spacing_factor = 30
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
               particle_spacing_factor=particle_spacing_factor, sol=nothing)
@@ -11,7 +11,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_f
 # required for the analytical solution of the transient velocity profile in axisymmetric pipe flow.
 const roots_J_0 = [2.4048255577, 5.5200781103, 8.6537279129, 11.7915344391, 14.9309177086]
 
-# Analytical velocity evolution given in eq. 18
+# Analytical velocity evolution given in eq. 18 (Zhang et al., 2025)
 function hagen_poiseuille_velocity(r, t)
     # Base profile (stationary part)
     base_profile = (pressure_drop / (4 * dynamic_viscosity * flow_length)) *
@@ -54,7 +54,7 @@ data_range = 10:90
 data_indices = findall(t -> t in times_ref, times)
 v_x_vector = [eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]][data_indices]
 
-# Calculate RMSEP error (eq. 17, Zhang et al.)
+# Calculate RMSEP error (eq. 17, Zhang et al., 2025)
 rmsep_run = Float64[]
 for (i, t) in enumerate(times_ref)
     N = length(data_range)
@@ -74,7 +74,7 @@ for (i, t) in enumerate(times_ref)
     push!(rmsep_run, sqrt(res) * 100)
 end
 
-# RMSEP error (%) from Zhang et al. (2025)
+# RMSEP error (%) received by Zhang et al. (2025)
 rmsep_reference = [2.97, 1.88, 1.61, 1.5, 0.74, 0.89]
 
 p_rmsep = scatter(collect(times_ref), rmsep_run, markersize=5, label="TrixiP")
@@ -87,7 +87,7 @@ plot!(left_margin=5Plots.mm)
 plot!(right_margin=5Plots.mm)
 plot!(bottom_margin=5Plots.mm)
 
-@show p_rmsep
+display(p_rmsep)
 
 plot_range = range(-pipe_radius, pipe_radius, length=50)
 v_x_plot = view(stack(v_x_vector), 1:2:100, :)
@@ -97,9 +97,9 @@ line_colors = cgrad(:coolwarm, length(times_ref), categorical=true)
 p = scatter(plot_range, v_x_plot, label=label_, linewidth=3, markersize=5, opacity=0.6,
             palette=line_colors.colors, legend_position=:outerright, size=(750, 400))
 for t in times_ref
-    label_ = t == 1.0 ? "analytical" : nothing
+    label__ = t == 1.0 ? "analytical" : nothing
     plot!(p, (y) -> hagen_poiseuille_velocity(y, t), xlims=(-pipe_radius, pipe_radius),
-          ylims=(-0.001, 0.005), label=label_, linewidth=3, linestyle=:dash, color=:black)
+          ylims=(-0.001, 0.005), label=label__, linewidth=3, linestyle=:dash, color=:black)
 end
 
 yaxis!(p, ylabel="x velocity (m/s)")
@@ -107,4 +107,4 @@ xaxis!(p, xlabel="y position (m)")
 plot!(left_margin=5Plots.mm)
 plot!(bottom_margin=5Plots.mm)
 
-@show p
+display(p)

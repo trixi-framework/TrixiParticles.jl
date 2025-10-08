@@ -8,8 +8,9 @@
     BoundaryDEMSystem
 ```
 
-```@docs
-    PrescribedMotion
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "prescribed_motion.jl")]
 ```
 
 
@@ -335,9 +336,15 @@ To address this issue, [Zhang et al. (2025)](@cite Zhang2025) introduce an addit
 where ``p_b`` is the prescribed dynamical boundary pressure.
 Note the positive sign, which compensates for the missing contribution due to the truncated support domain.
 This term vanishes for particles with full kernel support.
-Thus, it can be applied to all particles within the [`BoundaryZone`](@ref BoundaryZone)
+Thus, it can be applied to all particles within the [`BoundaryZone`](@ref)
 without the need to specifically identify those near the free surface.
 
 To further handle incomplete kernel support, for example in the viscous term of the momentum equation,
 the updated velocity of particles within the [`BoundaryZone`](@ref) is projected onto the face normal,
 so that only the component in flow direction is kept.
+
+# Pressure Models
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "pressure_model.jl")]
+```

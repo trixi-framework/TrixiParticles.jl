@@ -76,8 +76,11 @@ There are three ways to specify the actual shape of the boundary zone:
                         and time to its pressure, or a scalar for a constant pressure over all particles.
 - `reference_density`: Reference density is either a function mapping each particle's coordinates
                        and time to its density, or a scalar for a constant density over all particles.
-- `rest_pressure=0.0`: For `BoundaryModelDynamicalPressureZhang`, a rest pressure is required when the pressure is not prescribed (default is zero).
-                       This is analogous to the pressure provided to the `FluidSystem` via its `InitialCondition`.
+- `rest_pressure=0.0`: For `BoundaryModelDynamicalPressureZhang`, a rest pressure is required when the pressure is not prescribed.
+                       This should match the rest pressure of the fluid system.
+                       Per default it is set to zero (assuming a gauge pressure system).
+                       - For `EntropicallyDampedSPHSystem`: Use the initial pressure from the `InitialCondition`
+                       - For `WeaklyCompressibleSPHSystem`: Use the background pressure from the equation of state
 
 !!! note "Note"
     The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
@@ -144,7 +147,7 @@ bidirectional_flow = BoundaryZone(; boundary_face=face_vertices, face_normal,
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R}
+struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R, PM}
     initial_condition :: IC
     spanning_set      :: S
     zone_origin       :: ZO
@@ -153,6 +156,7 @@ struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R}
     face_normal       :: FN
     rest_pressure     :: ELTYPE # Only required for `BoundaryModelDynamicalPressureZhang`
     reference_values  :: R
+    pressure_model    :: PM
     # Note that the following can't be static type parameters, as all boundary zones in a system
     # must have the same type, so that we can loop over them in a type-stable way.
     average_inflow_velocity :: Bool
@@ -165,6 +169,7 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, average_inflow_velocity=true,
                       boundary_type=BidirectionalFlow(),
+                      pressure_model=nothing,
                       rest_pressure=zero(eltype(density)),
                       reference_density=nothing, reference_pressure=nothing,
                       reference_velocity=nothing)
@@ -243,7 +248,11 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE}, ic.coordinates)
 
     if prescribed_pressure
-        ic.pressure .= pressure_ref.(coordinates_svector, 0)
+        if isnothing(pressure_model)
+            ic.pressure .= pressure_ref.(coordinates_svector, 0)
+        else
+            throw(ArgumentError("Setting prescribed pressure together with a pressure model is not supported."))
+        end
     end
     if prescribed_density
         ic.density .= density_ref.(coordinates_svector, 0)
@@ -255,8 +264,8 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
 
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, face_normal_, rest_pressure, reference_values,
-                        average_inflow_velocity, prescribed_density, prescribed_pressure,
-                        prescribed_velocity)
+                        pressure_model, average_inflow_velocity, prescribed_density,
+                        prescribed_pressure, prescribed_velocity)
 end
 
 function boundary_type_name(boundary_zone::BoundaryZone)
@@ -288,6 +297,10 @@ function Base.show(io::IO, ::MIME"text/plain", boundary_zone::BoundaryZone)
         summary_line(io, "boundary type", boundary_type_name(boundary_zone))
         summary_line(io, "#particles", nparticles(boundary_zone.initial_condition))
         summary_line(io, "width", round(boundary_zone.zone_width, digits=6))
+        if !isnothing(boundary_zone.pressure_model) &&
+           boundary_zone.pressure_model.is_prescribed
+            summary_line(io, "pressure model", type2string(boundary_zone.pressure_model))
+        end
         summary_footer(io)
     end
 end
@@ -332,7 +345,7 @@ function set_up_boundary_zone(boundary_face, face_normal, density, particle_spac
     # First vector of `spanning_vectors` is normal to the boundary face.
     dot_face_normal = dot(normalize(spanning_set[:, 1]), face_normal)
 
-    if !isapprox(abs(dot_face_normal), 1, rtol=1e-5)
+    if !isapprox(abs(dot_face_normal), 1)
         throw(ArgumentError("`face_normal` is not normal to the boundary face"))
     end
 
@@ -431,6 +444,12 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
                 system.boundary_zone_indices[particle] = zone_id
             end
         end
+
+        # This only occurs if `face_normal` is not exactly normal to the `boundary_face`.
+        # In such cases, particles that are actually outside the simulation domain (outflow particles)
+        # may be incorrectly kept active as inflow particles and therefore cannot be assigned to any boundary zone.
+        # This issue should not occur and has been fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/926 .
+        @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found for active buffer particle"
     end
 
     return system
@@ -485,7 +504,11 @@ function reference_pressure(boundary_zone, v, system, particle, pos, t)
         # `pressure_reference_values[zone_id](pos, t)`, but in a type-stable way
         return apply_ith_function(pressure_reference_values, zone_id, pos, t)
     else
-        return current_pressure(v, system, particle)
+        pressure = current_pressure(v, system, particle)
+
+        # Return either the current pressure or a pressure computed by a pressure model
+        return imposed_pressure(system, system.pressure_model_values, boundary_zone,
+                                pressure, particle)
     end
 end
 

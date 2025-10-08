@@ -17,8 +17,65 @@ During a single time step or an intermediate step of the time integration scheme
 `drift!` and `kick!` are invoked, followed by the functions depicted in this diagram
 (with key parts highlighted in orange/yellow).
 
-![Main Program Flow](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/d7c6eedd-7173-4879-b62e-3e6d4bc5091f)
+```mermaid
+%% Make arrows bend at right angles
+%%{ init : { "flowchart" : { "curve" : "stepAfter" }}}%%
 
+%% TD means vertical layout
+flowchart TD
+    %% --- Define color palette and styles ---
+    classDef start_node fill:#d9ead3,stroke:#333,color:#333
+    classDef time_integration fill:#d9d2e9,stroke:#333,color:#333
+    classDef primary_stage fill:#cfe2f3,stroke:#333,color:#333
+    classDef update fill:#eeeeee,stroke:#333,color:#333
+    classDef updates fill:#fff2cc,stroke:#333,color:#333
+    classDef physics fill:#fce5cd,stroke:#333,color:#333
+
+    A(simulation) --> B[time integration];
+
+    %% Add hidden dummy node to branch the arrow nicely
+    B --- dummy[ ];
+    style dummy width:0;
+    dummy --> C["drift!<br/>(update du/dt)"];
+
+    subgraph kick["<div style='padding: 10px; font-weight: bold;'>kick! (update dv/dt)</div>"]
+        %% Horizontal layout within this subgraph
+        direction LR;
+
+        subgraph updates["<div style='padding: 10px; font-weight: bold;'>update_systems_and_nhs</div>"]
+            %% Vertical layout within this subgraph
+            direction TB;
+
+            H["update_positions!<br/>(moving boundaries and structures)"];
+            I["update_nhs!<br/>(update neighborhood search)"];
+            J["update_quantities!<br/>(recalculate density etc.)"];
+            K["update_pressure!<br/>(recalculate pressure etc.)"];
+            L["update_boundary_interpolation!<br/>(interpolate boundary pressure)"];
+            M["update_final!<br/>(update shifting)"];
+
+            H --> I --> J --> K --> L --> M;
+        end
+
+        F["system_interaction!<br/>(e.g. momentum/continuity equation)"];
+        G["add_source_terms!<br/>(gravity and source terms)"];
+
+        updates --> F --> G;
+    end
+
+    dummy --> kick;
+
+    %% Color the sub-tasks by their function
+    class A start_node;
+    class B time_integration;
+    class C primary_stage;
+    class kick primary_stage;
+    class updates update;
+    class H,I,J,K,L,M updates;
+    class F,G physics;
+
+    %% Style the arrows
+    linkStyle default stroke-width:2px,stroke:#555
+```
 
 ## Structure
 What we refer to as schemes are various models such as Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH)
