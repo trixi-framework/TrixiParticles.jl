@@ -115,8 +115,7 @@ density_reinit_cb = use_reinit ?
 stepsize_callback = StepsizeCallback(cfl=0.9)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
-                        extra_callback2,
-                        density_reinit_cb)
+                        extra_callback2, density_reinit_cb)
 
 time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
 sol = solve(ode, time_integration_scheme,
