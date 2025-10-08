@@ -213,7 +213,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     summation_density!(system, semi, u, u_ode, density)
 
     @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
-                                                                 semi, t)
+                                                                 semi)
 end
 
 function update_implicit_sph!(semi, v_ode, u_ode, t)
@@ -222,29 +222,29 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
         return semi
     end
 
-    @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode, t)
+    @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
 
     return semi
 end
 
 function predict_advection!(system::ImplicitIncompressibleSPHSystem, v, u,
-                            v_ode, u_ode, semi, t)
+                            v_ode, u_ode, semi)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
+    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
 
     calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
 
-    return semi
+    return system
 end
 
-function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
+function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
     return system
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompressibleSPHSystem,
-                                                       v, u, v_ode, u_ode, semi, t)
+                                                       v, u, v_ode, u_ode, semi)
     (; advection_velocity, time_step) = system
     d_ii_array = system.d_ii
 
@@ -397,10 +397,22 @@ function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_densi
 end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
-function pressure_solve!(semi, v_ode, u_ode, t)
+function pressure_solve!(semi, v_ode, u_ode)
+    iisph_boundary_particles = 0
+    iisph_fluid_particles = 0
+
     foreach_system(semi) do system
         initialize_pressure!(system, semi)
+        if system isa ImplicitIncompressibleSPHSystem
+            iisph_fluid_particles += nparticles(system)
+        elseif system isa AbstractBoundarySystem
+            if system.boundary_model.density_calculator isa PressureBoundaries
+                iisph_boundary_particles += nparticles(system)
+            end
+        end
     end
+
+    num_particles = iisph_fluid_particles + iisph_boundary_particles
 
     # Determine global iteration and error constraints across all IISPH systems
     min_iters = maximum(minimum_iisph_iterations, semi.systems)
@@ -448,12 +460,12 @@ function pressure_solve_iteration(semi, u_ode, num_particles)
     end
 
     # Wrap with `Ref` to allow modification inside the anonymous function below (without implicit boxing)
-    avg_density_error = Ref(0.0)
+    total_density_error = Ref(0.0)
     foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
-        avg_density_error[] += pressure_update(system, u, u_ode, semi)
+        total_density_error[] += pressure_update(system, u, u_ode, semi)
     end
-    avg_density_error = total_density_error / num_particles
+    avg_density_error = total_density_error[] / float(num_particles)
 
     return avg_density_error[]
 end
@@ -597,7 +609,7 @@ function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi
             density_error[particle] = (new_density - reference_density)
         end
     end
-    relative_density_error = sum(density_error) / (nparticles(system) * reference_density)
+    relative_density_error = sum(density_error) / reference_density
 
     return relative_density_error
 end

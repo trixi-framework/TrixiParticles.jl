@@ -3,7 +3,7 @@ using TrixiParticles
 
 # Load setup from dam break example
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              joinpath(examples_dir(), "fluid", "dam_break_2d_iisph.jl"),
               sol=nothing, ode=nothing)
 
 # Change smoothing kernel and length

@@ -387,12 +387,23 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                         v_ode, u_ode, semi, correction, smoothing_kernel)
 end
 
-function compute_density!(boundary_model, ::Union{SummationDensity, PressureBoundaries}, system, v, u, v_ode, u_ode,
+function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode,
                           semi)
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for SummationDensity
 
     summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
+end
+
+
+function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_ode, u_ode,
+                          semi)
+    (; cache) = boundary_model
+    (; density) = cache # Density is in the cache for SummationDensity
+
+    summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
+
+    predict_advection!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -675,11 +686,57 @@ end
 
 # PressureBoundaries Functions
 
+function predict_advection!(system::AbstractBoundarySystem, v, u,
+                            v_ode, u_ode, semi)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+
+    calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
+
+    return system
+end
 function calculate_predicted_velocity_and_d_ii_values(system::AbstractBoundarySystem, v, u,
-    v_ode, u_ode, semi, t)
+    v_ode, u_ode, semi)
     return system
 end
 
+function calculate_diagonal_elements_and_predicted_density!(system::AbstractBoundarySystem, v, u,
+    v_ode, u_ode, semi)
+    (; boundary_model) = system
+    (; a_ii, predicted_density, density, time_step) = boundary_model.cache
+
+    set_zero!(a_ii)
+
+    # Calculation the diagonal elements (a_ii-values) according to eq. 12 in Ihmsen et al. (2013)
+    foreach_system(semi) do neighbor_system
+        calculate_diagonal_elements!(a_ii, system, boundary_model, density_calculator, neighbor_system, v, u, v_ode, u_ode, semi, time_step)
+    end
+
+    predicted_density .= density
+
+    foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        system_coords = current_coordinates(u, system)
+        neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+        foreach_point_neighbor(system, neighbor_system, system_coords,
+                                neighbor_system_coords, semi,
+                                points=eachparticle(system)) do particle, neighbor,
+                                                                        pos_diff, distance
+            # Calculate the predicted velocity differences
+            advection_velocity_diff = predicted_velocity(system, particle) -
+                                        predicted_velocity(neighbor_system, neighbor)
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+            # Compute \rho_adv in eq. 4 in Ihmsen et al. (2013)
+            predicted_density[particle] += time_step * m_b *
+                                            dot(advection_velocity_diff, grad_kernel)
+        end
+    end
+end
+#=
 function calculate_diagonal_elements(system::AbstractBoundarySystem, v, u,
     v_ode, u_ode, semi, t)
     (; boundary_model) = system
@@ -703,6 +760,7 @@ function calculate_diagonal_elements(system, boundary_model, density_calculator:
         calculate_diagonal_elements!(a_ii, system, boundary_model, density_calculator, neighbor_system, v, u, v_ode, u_ode, semi, time_step)
     end
 end
+=#
 
 function calculate_diagonal_elements!(a_ii, system, boundary_model, density_calculator, neighbor_system::AbstractBoundarySystem, v, u, v_ode, u_ode, semi, time_step)
     return system
@@ -736,7 +794,7 @@ function calculate_diagonal_elements!(a_ii, system, boundary_model, density_calc
     end
 end
 
-
+#=
 # Calculate the predicted density (with the continuity equation and predicted velocities)
 function calculate_predicted_density(system::AbstractBoundarySystem, v, u,
     v_ode, u_ode, semi, t)
@@ -776,6 +834,7 @@ function calculate_predicted_density(system, boundary_model, ::PressureBoundarie
         end
     end
 end
+=#
 
 function initialize_pressure(system::AbstractBoundarySystem, semi)
     (; boundary_model) = system
@@ -865,7 +924,7 @@ function pressure_update(system, boundary_model, ::PressureBoundaries, u, u_ode,
         if abs(a_ii[particle]) > 1.0e-9
             pressure[particle] = max((1-omega) * pressure[particle] +
                                      omega / a_ii[particle] *
-                                     (calculate_source_term(system, particle) -
+                                     (iisph_source_term(system, particle) -
                                       sum_term[particle]), 0)
         else
             pressure[particle] = zero(pressure[particle])
@@ -873,7 +932,7 @@ function pressure_update(system, boundary_model, ::PressureBoundaries, u, u_ode,
         # Calculate the average density error for the termination condition
         if (pressure[particle] != 0.0)
             new_density = a_ii[particle]*pressure[particle] + sum_term[particle] -
-                          calculate_source_term(system, particle) +
+                          iisph_source_term(system, particle) +
                           reference_density
              density_error[particle] = (new_density - reference_density)
         end
