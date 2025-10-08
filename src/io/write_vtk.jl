@@ -381,6 +381,9 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
                            initial_coords(system, particle)
                            for particle in eachparticle(system)]
 
+    vtk["is_clamped"] = vcat(fill(0, system.n_integrated_particles),
+                             fill(1, nparticles(system) - system.n_integrated_particles))
+
     vtk["lame_lambda"] = system.lame_lambda
     vtk["lame_mu"] = system.lame_mu
     vtk["young_modulus"] = system.young_modulus

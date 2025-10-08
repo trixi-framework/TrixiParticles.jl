@@ -4,13 +4,28 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.4.2
+
+### Features
+
+- Added `OscillatingMotion2D` to create an oscillating `PrescribedMotion` combining
+  translation and rotation (#915).
+
 ## Version 0.4.1
 
 ### Features
 
 - Added an incompressible SPH solver `ImplicitIncompressibleSPHSystem` (#751).
+- Added `SplitIntegrationCallback` to integrate the `TotalLagrangianSPHSystem`s
+  in a `Semidiscretization` separately from the other systems (#794).
 
+### Important Bugfixes
 
+- Fixed `kernel_grad` threshold with single precision and small particle spacing (#913).
+- Fixed error with `UpdateCallback` when `SaveSolutionCallback` comes first in the
+  `CallbackSet` (#924).
+- Fixed error when using shifting techniques without `UpdateCallback` (#925).
+- Updated program flow diagram (#917).
 
 ## Version 0.4
 
