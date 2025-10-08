@@ -15,6 +15,7 @@ based on the following references:
 The following files are provided here:
 
 1. `setup_marrone_2011.jl`: Setup file for the dam break simulation based on Marrone et al. (2011).
+   This can be used to reproduce the images of the breaking wave in Marrone et al. (2011).
 2. `validation_dam_break_2d.jl`: Script to run the dam break simulation
    based on De Courcy et al. (2024) and extract pressure sensor data.
    **Note**: This paper used particle shifting, which is not yet implemented
