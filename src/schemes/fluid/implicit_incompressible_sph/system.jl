@@ -207,62 +207,44 @@ end
 # Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
-                                                                 semi, t)
-
-    @trixi_timeit timer() "pressure solver" pressure_solve!(system, v, u, v_ode, u_ode,
-                                                            semi, t)
-
-    return system
-end
-
-function predict_advection!(system, v, u, v_ode, u_ode, semi, t)
     (; density) = system
 
     # Compute density by kernel summation
     summation_density!(system, semi, u, u_ode, density)
 
-    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
-
-    # Calculation the diagonal elements (a_ii-values)
-    calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
-
-    calculate_predicted_density!(system, v, u, v_ode, u_ode, semi, t)
-
-    return system
+    @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
+                                                                 semi, t)
 end
 
-function calculate_predicted_density!(system, v, u, v_ode, u_ode, semi, t)
-    (; density, predicted_density, time_step) = system
-
-    predicted_density .= density
-    # Calculate the predicted density (with the continuity equation and predicted velocities)
-    foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        system_coords = current_coordinates(u, system)
-        neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        foreach_point_neighbor(system, neighbor_system, system_coords,
-                               neighbor_system_coords, semi,
-                               points=each_integrated_particle(system)) do particle,
-                                                                           neighbor,
-                                                                           pos_diff,
-                                                                           distance
-            # Calculate the predicted velocity differences
-            advection_velocity_diff = predicted_velocity(system, particle) -
-                                      predicted_velocity(neighbor_system, neighbor)
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-            # Compute \rho_adv in eq. 4 in Ihmsen et al. (2013)
-            predicted_density[particle] += time_step * m_b *
-                                           dot(advection_velocity_diff, grad_kernel)
-        end
+function update_implicit_sph!(semi, v_ode, u_ode, t)
+    # This check is performed statically by the compiler and has no overhead
+    if !any(system -> system isa ImplicitIncompressibleSPHSystem, semi.systems)
+        return semi
     end
+
+    @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode, t)
+
+    return semi
+end
+
+function predict_advection!(system::ImplicitIncompressibleSPHSystem, v, u,
+                            v_ode, u_ode, semi, t)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
+
+    calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
 
     return system
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompressibleSPHSystem,
+                                                       v, u, v_ode, u_ode, semi, t)
     (; advection_velocity, time_step) = system
     d_ii_array = system.d_ii
 
@@ -322,32 +304,33 @@ function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_od
     return system
 end
 
-function initialize_pressure!(system, semi)
-    (; pressure) = system
-
-    # Set initial pressure (p_0) to a half of the current pressure value
-    @threaded semi for particle in each_integrated_particle(system)
-        pressure[particle] = pressure[particle] / 2
-    end
-
+function calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode,
+                                                            semi)
     return system
 end
 
-function calculate_diagonal_elements!(system, v, u, v_ode, u_ode, semi)
-    (; a_ii, time_step) = system
+function calculate_diagonal_elements_and_predicted_density!(system::ImplicitIncompressibleSPHSystem,
+                                                            v, u, v_ode,
+                                                            u_ode, semi)
+    (; a_ii, density, predicted_density, time_step) = system
 
     set_zero!(a_ii)
+    predicted_density .= density
 
     foreach_system(semi) do neighbor_system
-        calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode, u_ode,
-                                     semi, time_step)
+        calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
+                                                          neighbor_system, v, u, v_ode,
+                                                          u_ode, semi, time_step)
     end
 end
 
-# Calculation of the contribution of the fluid particles to the diagonal elements (a_ii-values)
-# according to eq. 12 in Ihmsen et al. (2013).
-function calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode, u_ode,
-                                      semi, time_step)
+# Calculation of the contribution of the fluid particles to the diagonal elements
+# (a_ii-values) and the predcited density (\rho_adv) according to eq. 12 and 4 in
+# Ihmsen et al. (2013).
+function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
+                                                           neighbor_system::ImplicitIncompressibleSPHSystem,
+                                                           v, u, v_ode, u_ode,
+                                                           semi, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -369,14 +352,24 @@ function calculate_diagonal_elements!(a_ii, system, neighbor_system, v, u, v_ode
 
         # According to eq. 12 in Ihmsen et al. (2013)
         a_ii[particle] += m_b * dot((d_ii_ - d_ji_), grad_kernel)
+
+        # Calculate the predicted velocity differences
+        advection_velocity_diff = predicted_velocity(system, particle) -
+                                  predicted_velocity(neighbor_system, neighbor)
+
+        # Compute \rho_adv in eq. 4 in Ihmsen et al. (2013)
+        predicted_density[particle] += time_step * m_b *
+                                       dot(advection_velocity_diff, grad_kernel)
     end
 end
 
-# Calculation of the contribution of the Abstractboundary particles the diagonal elements (a_ii-values)
-# according to Ihmsen et al. (2013)
-function calculate_diagonal_elements!(a_ii, system, neighbor_system::AbstractBoundarySystem,
-                                      v, u,
-                                      v_ode, u_ode, semi, time_step)
+# Calculation of the contribution of the boundary particles to the diagonal elements
+# (a_ii-values) and the predcited density (\rho_adv) according to eq. 12 and 4 in
+# Ihmsen et al. (2013).
+function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
+                                                           neighbor_system::AbstractBoundarySystem,
+                                                           v, u, v_ode, u_ode, semi,
+                                                           time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -392,51 +385,102 @@ function calculate_diagonal_elements!(a_ii, system, neighbor_system::AbstractBou
 
         # Contribution to the diagonal elements without d_ji value (see eq. 16 in Ihmsen et al. (2013))
         a_ii[particle] += m_b * dot(d_ii_, grad_kernel)
+
+        # Calculate the predicted velocity differences
+        advection_velocity_diff = predicted_velocity(system, particle) -
+                                  predicted_velocity(neighbor_system, neighbor)
+
+        # Compute \rho_adv in eq. 4 in Ihmsen et al. (2013)
+        predicted_density[particle] += time_step * m_b *
+                                       dot(advection_velocity_diff, grad_kernel)
     end
 end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
-function pressure_solve!(system, v, u, v_ode, u_ode, semi, t)
-    (; reference_density, max_error, min_iterations, max_iterations, time_step) = system
+function pressure_solve!(semi, v_ode, u_ode, t)
+    foreach_system(semi) do system
+        initialize_pressure!(system, semi)
+    end
 
-    initialize_pressure!(system, semi)
-    l = 1
+    # Determine global iteration and error constraints across all IISPH systems
+    min_iters = maximum(minimum_iisph_iterations, semi.systems)
+    max_iters = minimum(maximum_iisph_iterations, semi.systems)
+    max_err_percent = minimum(maximum_iisph_error, semi.systems)
+
+    max_error = max_err_percent / 100
     terminate = false
-    # Convert relative error in percent to absolute error
-    eta = max_error * reference_density / 100
+    l = 1
     while (!terminate)
         @trixi_timeit timer() "pressure solver iteration" begin
-            avg_density_error = pressure_solve_iteration(system, u,
-                                                         u_ode, semi, time_step)
+            avg_density_error = pressure_solve_iteration(semi, u_ode)
             # Update termination condition
-            terminate = (avg_density_error <= eta && l >= min_iterations) ||
-                        l >= max_iterations
+            terminate = (avg_density_error <= max_error && l >= min_iters) ||
+                        l >= max_iters
             l += 1
         end
     end
 
+    return semi
+end
+
+function initialize_pressure!(system, semi)
     return system
 end
 
-function pressure_solve_iteration(system, u, u_ode, semi, time_step)
-    calculate_sum_d_ij_pj!(system, u, u_ode, semi, time_step)
+function initialize_pressure!(system::ImplicitIncompressibleSPHSystem, semi)
+    (; pressure) = system
 
-    calculate_sum_term_values!(system, u, u_ode, semi, time_step)
-
-    # Update the pressure values
-    avg_density_error = pressure_update(system, u, u_ode, semi, time_step)
-
-    return avg_density_error
+    # Set initial pressure (p_0) to a half of the current pressure value
+    @threaded semi for particle in each_integrated_particle(system)
+        pressure[particle] = pressure[particle] / 2
+    end
 end
 
-function calculate_sum_d_ij_pj!(system, u, u_ode, semi, time_step)
-    (; sum_d_ij_pj, pressure) = system
+function pressure_solve_iteration(semi, u_ode)
+    foreach_system(semi) do system
+        u = wrap_u(u_ode, system, semi)
+        calculate_sum_d_ij_pj!(system, u, u_ode, semi)
+    end
+
+    foreach_system(semi) do system
+        u = wrap_u(u_ode, system, semi)
+        calculate_sum_term_values!(system, u, u_ode, semi)
+    end
+
+    # Wrap with `Ref` to allow modification inside the anonymous function below (without implicit boxing)
+    avg_density_error = Ref(0.0)
+    foreach_system(semi) do system
+        u = wrap_u(u_ode, system, semi)
+        avg_density_error[] += pressure_update(system, u, u_ode, semi)
+    end
+
+    return avg_density_error[]
+end
+
+function calculate_sum_d_ij_pj!(system, u, u_ode, semi)
+    return system
+end
+
+function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi)
+    (; sum_d_ij_pj) = system
 
     set_zero!(sum_d_ij_pj)
 
-    system_coords = current_coordinates(u, system)
+    foreach_system(semi) do neighbor_system
+        calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, u, u_ode, semi)
+    end
+end
 
-    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
+function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
+                                neighbor_system::ImplicitIncompressibleSPHSystem,
+                                u, u_ode, semi)
+    (; time_step) = system
+    (; pressure) = neighbor_system
+
+    system_coords = current_coordinates(u, system)
+    neighbor_coords = current_coordinates(u, neighbor_system)
+
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
         # Calculate the sum d_ij * p_j over all neighbors j for each particle i
@@ -451,12 +495,21 @@ function calculate_sum_d_ij_pj!(system, u, u_ode, semi, time_step)
         end
     end
 
+    return sum_d_ij_pj
+end
+
+function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
+                                neighbor_system::AbstractBoundarySystem, u, u_ode, semi)
+    return sum_d_ij_pj
+end
+
+function calculate_sum_term_values!(system, u, u_ode, semi)
     return system
 end
 
 # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
-function calculate_sum_term_values!(system, u, u_ode, semi, time_step)
-    (; sum_term, pressure) = system
+function calculate_sum_term_values!(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi)
+    (; sum_term, pressure, time_step) = system
 
     set_zero!(sum_term)
 
@@ -464,37 +517,6 @@ function calculate_sum_term_values!(system, u, u_ode, semi, time_step)
         calculate_sum_term!(sum_term, system, neighbor_system,
                             pressure, u, u_ode, semi, time_step)
     end
-
-    return system
-end
-
-function pressure_update(system, u, u_ode, semi, time_step)
-    (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
-
-    avg_density_error = zero(eltype(system))
-
-    @threaded semi for particle in eachparticle(system)
-        # Removing instabilities by avoiding to divide by very low values of `a_ii`.
-        # This is not mentioned in the paper but done in SPlisHSPlasH as well.
-        if abs(a_ii[particle]) > 1.0e-9
-            pressure[particle] = max((1 - omega) * pressure[particle] +
-                                     omega / a_ii[particle] *
-                                     (iisph_source_term(system, particle) -
-                                      sum_term[particle]), 0)
-        else
-            pressure[particle] = zero(pressure[particle])
-        end
-        # Calculate the average density error for the termination condition
-        if (pressure[particle] != 0.0)
-            new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
-                          iisph_source_term(system, particle) +
-                          reference_density
-            density_error[particle] = (new_density - reference_density)
-        end
-    end
-    avg_density_error = sum(density_error) / nparticles(system)
-
-    return avg_density_error
 end
 
 # Function barrier for type stability
@@ -516,6 +538,40 @@ function calculate_sum_term!(sum_term, system, neighbor_system,
     return sum_term
 end
 
+function pressure_update(system, u, u_ode, semi)
+    return 0.0
+end
+
+function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi)
+    (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
+
+    # Update the pressure values
+    relative_density_error = zero(eltype(system))
+
+    @threaded semi for particle in eachparticle(system)
+        # Removing instabilities by avoiding to divide by very low values of `a_ii`.
+        # This is not mentioned in the paper but done in SPlisHSPlasH as well.
+        if abs(a_ii[particle]) > 1.0e-9
+            pressure[particle] = max((1 - omega) * pressure[particle] +
+                                     omega / a_ii[particle] *
+                                     (iisph_source_term(system, particle) -
+                                      sum_term[particle]), 0)
+        else
+            pressure[particle] = zero(pressure[particle])
+        end
+        # Calculate the average density error for the termination condition
+        if (pressure[particle] != 0.0)
+            new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
+                          iisph_source_term(system, particle) +
+                          reference_density
+            density_error[particle] = (new_density - reference_density)
+        end
+    end
+    relative_density_error = sum(density_error) / (nparticles(system) * reference_density)
+
+    return relative_density_error
+end
+
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
                                                 particle)
     return extract_svector(system.advection_velocity, system, particle)
@@ -535,6 +591,24 @@ end
 
 @propagate_inbounds function sum_dij_pj(system::ImplicitIncompressibleSPHSystem, particle)
     return extract_svector(system.sum_d_ij_pj, system, particle)
+end
+
+@inline maximum_iisph_error(system) = convert(eltype(system), Inf)
+
+@inline function maximum_iisph_error(system::ImplicitIncompressibleSPHSystem)
+    return system.max_error
+end
+
+@inline minimum_iisph_iterations(system) = 0
+
+@inline function minimum_iisph_iterations(system::ImplicitIncompressibleSPHSystem)
+    return system.min_iterations
+end
+
+@inline maximum_iisph_iterations(system) = typemax(Int)
+
+@inline function maximum_iisph_iterations(system::ImplicitIncompressibleSPHSystem)
+    return system.max_iterations
 end
 
 # Calculates a summand for the calculation of the d_ii values
@@ -613,5 +687,6 @@ end
 
 function iisph_source_term(system::ImplicitIncompressibleSPHSystem, particle)
     (; reference_density, predicted_density) = system
+
     return reference_density - predicted_density[particle]
 end
