@@ -11,11 +11,11 @@ boundary_layers = 4
 
 # Make sure that the kernel support of fluid particles at an open boundary is always
 # fully sampled.
-open_boundary_layers = 10
+open_boundary_layers = 4
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 0.01)
+tspan = (0.0, 0.008)
 
 flow_length = 0.1
 vessel_diameter = 0.02
@@ -23,7 +23,7 @@ vessel_radius = vessel_diameter / 2
 vessel_thickness = 0.002
 
 wave_speed = 9.0
-sound_speed_factor = 10
+sound_speed_factor = 40
 sound_speed = sound_speed_factor * wave_speed
 
 vessel_density = 1000.0 # corresponds to 1 g/cm^3
@@ -38,7 +38,7 @@ flow_direction = (1.0, 0.0, 0.0)
 
 n_particles_wall = ceil(Int, vessel_thickness / particle_spacing)
 n_particles_length = ceil(Int, flow_length / particle_spacing)
-offset_outlet = [(n_particles_length - open_boundary_layers) * particle_spacing, 0, 0]
+offset_outlet = [n_particles_length * particle_spacing, 0, 0]
 
 wall_2d = SphereShape(particle_spacing, vessel_radius, (0.0, 0.0),
                       vessel_density, n_layers=n_particles_wall, layer_outwards=true,
@@ -51,9 +51,9 @@ vessel_wall = extrude_geometry(wall_2d_coordinates; particle_spacing,
                                direction=collect(flow_direction), density=vessel_density,
                                n_extrude=n_particles_length)
 vessel_clamped_in = extrude_geometry(wall_2d_coordinates; particle_spacing,
-                                     direction=collect(flow_direction),
+                                     direction=-collect(flow_direction),
                                      density=vessel_density, n_extrude=open_boundary_layers)
-vessel_clamped_out = extrude_geometry(wall_2d_coordinates .+ offset_outlet;
+vessel_clamped_out = extrude_geometry(wall_2d_coordinates .+ [flow_length, 0, 0];
                                       particle_spacing, direction=collect(flow_direction),
                                       n_extrude=open_boundary_layers,
                                       density=vessel_density)
@@ -66,24 +66,18 @@ circle = SphereShape(particle_spacing, vessel_radius, (0.0, 0.0), fluid_density,
 # Extend 2d coordinates to 3d by adding x-coordinates
 circle_coordinates = hcat(particle_spacing / 2 * ones(nparticles(circle)),
                           circle.coordinates')'
+fluid = extrude_geometry(circle_coordinates; particle_spacing,
+                         direction=collect(flow_direction), density=fluid_density,
+                         n_extrude=n_particles_length)
 
 inlet = extrude_geometry(circle_coordinates; particle_spacing,
-                         direction=collect(flow_direction), density=fluid_density,
-                         n_extrude=open_boundary_layers)
-offset_fluid = [open_boundary_layers * particle_spacing, 0, 0]
-fluid = extrude_geometry(circle_coordinates .+ offset_fluid; particle_spacing,
-                         direction=collect(flow_direction), density=fluid_density,
-                         n_extrude=(n_particles_length - 2 * open_boundary_layers))
-
-outlet = extrude_geometry(circle_coordinates .+ offset_outlet;
-                          particle_spacing, direction=collect(flow_direction),
-                          n_extrude=open_boundary_layers, density=fluid_density)
-
+                         direction=-collect(flow_direction), density=fluid_density,
+                         n_extrude=open_boundary_layers + 1)
 n_buffer_particles = 10 * nparticles(circle)
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 2 * particle_spacing
+smoothing_length = 1.5 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{3}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -107,24 +101,23 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Open Boundary
 open_boundary_model = BoundaryModelDynamicalPressureZhang()
+# open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
 
-face_in = ([open_boundary_layers * particle_spacing, -vessel_radius, -vessel_radius],
-           [open_boundary_layers * particle_spacing, -vessel_radius, vessel_radius],
-           [open_boundary_layers * particle_spacing, vessel_radius, vessel_radius])
-reference_pressure_in = 5000.0
+face_in = ([0.0, -vessel_radius, -vessel_radius],
+           [0.0, -vessel_radius, vessel_radius],
+           [0.0, vessel_radius, vessel_radius])
 inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
                       open_boundary_layers, density=fluid_density, particle_spacing,
-                      reference_pressure=reference_pressure_in,
-                      initial_condition=inlet, boundary_type=BidirectionalFlow())
+                      reference_pressure=5000.0,
+                      initial_condition=inlet)
 
 face_out = ([offset_outlet[1], -vessel_radius, -vessel_radius],
             [offset_outlet[1], -vessel_radius, vessel_radius],
             [offset_outlet[1], vessel_radius, vessel_radius])
-reference_pressure_out = 0.0
 outflow = BoundaryZone(; boundary_face=face_out, face_normal=(.-(flow_direction)),
                        open_boundary_layers, density=fluid_density, particle_spacing,
-                       reference_pressure=reference_pressure_out,
-                       initial_condition=outlet, boundary_type=BidirectionalFlow())
+                       reference_pressure=0.0,
+                       extrude_geometry=circle_coordinates .+ offset_outlet)
 
 open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
                                    boundary_model=open_boundary_model,
@@ -142,11 +135,12 @@ boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites, hydrodynamic
                                              viscosity=viscosity,
                                              smoothing_kernel, smoothing_length)
 
-penalty_force = PenaltyForceGanzenmueller(alpha=0.1)
+penalty_force = PenaltyForceGanzenmueller(alpha=0.01)
 vessel_system = TotalLagrangianSPHSystem(vessel, smoothing_kernel, smoothing_length,
                                          youngs_modulus, vessel_nu,
                                          boundary_model=boundary_model,
                                          penalty_force=penalty_force,
+                                         viscosity=ArtificialViscosityMonaghan(alpha=0.01),
                                          n_clamped_particles=nparticles(vessel_clamped_in) +
                                                              nparticles(vessel_clamped_out))
 
@@ -220,7 +214,7 @@ semi = Semidiscretization(fluid_system, open_boundary, vessel_system,
 
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=50)
+info_callback = InfoCallback(interval=10)
 
 output_directory = "out"
 saving_callback = SolutionSavingCallback(dt=2e-4,
@@ -237,7 +231,7 @@ callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
                         postprocess_callback, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            abstol=1e-7, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
