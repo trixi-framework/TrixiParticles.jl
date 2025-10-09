@@ -73,7 +73,7 @@ fluid = extrude_geometry(circle_coordinates; particle_spacing,
 inlet = extrude_geometry(circle_coordinates; particle_spacing,
                          direction=-collect(flow_direction), density=fluid_density,
                          n_extrude=open_boundary_layers + 1)
-n_buffer_particles = 10 * nparticles(circle)
+n_buffer_particles = 20 * nparticles(circle)
 
 # ==========================================================================================
 # ==== Fluid
