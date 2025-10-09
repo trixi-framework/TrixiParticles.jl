@@ -290,7 +290,7 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
 end
 
 # Set the initial pressure to zero for visualization
-function initial_boundary_pressure(initial_density,density_calculator, _)
+function initial_boundary_pressure(initial_density, density_calculator, _)
     return similar(initial_density)
 end
 

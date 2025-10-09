@@ -227,7 +227,8 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
     return semi
 end
 
-function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem, WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
+function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem,
+                                          WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
                             v, u, v_ode, u_ode, semi)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
@@ -503,7 +504,9 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
 end
 
 # For PressureBoundaries the boundary particles have an own pressure values that contributes to the sum_j d_ij*p_j
-function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, u, u_ode, semi)
+function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
+                                neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
+                                u, u_ode, semi)
     (; time_step) = system
     (; pressure) = neighbor_system.boundary_model
 
@@ -533,8 +536,6 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system, u, u_ode, semi)
     return sum_d_ij_pj
 end
-
-
 
 function calculate_sum_term_values!(system, u, u_ode, semi)
     return system
@@ -616,10 +617,10 @@ end
 
 @inline number_iisph_particles(system) = 0
 
-@inline function number_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
+@inline function number_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,
+                                                      WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
     return nparticles(system)
 end
-
 
 @inline maximum_iisph_error(system) = convert(eltype(system), Inf)
 

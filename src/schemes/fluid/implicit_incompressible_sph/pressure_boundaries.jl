@@ -9,21 +9,26 @@ function calculate_diagonal_elements_and_predicted_density!(system::WallBoundary
 
     # Calculation the diagonal elements (a_ii-values) according to eq. 12 in Ihmsen et al. (2013)
     foreach_system(semi) do neighbor_system
-        calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system, density_calculator,
-                                     neighbor_system, v, u, v_ode, u_ode, semi, time_step)
+        calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
+                                                          density_calculator,
+                                                          neighbor_system, v, u, v_ode,
+                                                          u_ode, semi, time_step)
     end
 end
 
-function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system, ::PressureBoundaries,
-                                                            neighbor_system::AbstractFluidSystem, v, u, v_ode,
-                                                            u_ode, semi, time_step)
+function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
+                                                           ::PressureBoundaries,
+                                                           neighbor_system::AbstractFluidSystem,
+                                                           v, u, v_ode,
+                                                           u_ode, semi, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_system_coords,
-                           semi; points=eachparticle(system)) do particle, neighbor,
-                                                                pos_diff, distance
+                           semi;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
         # Compute d_ji
@@ -38,39 +43,42 @@ function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_densi
 
         # Calculate the predicted velocity differences
         advection_velocity_diff = predicted_velocity(system, particle) -
-                                    predicted_velocity(neighbor_system, neighbor)
+                                  predicted_velocity(neighbor_system, neighbor)
 
         # Compute \rho_adv in eq. 4 in Ihmsen et al. (2013)
         predicted_density[particle] += time_step * m_b *
-                                        dot(advection_velocity_diff, grad_kernel)
+                                       dot(advection_velocity_diff, grad_kernel)
     end
 end
 
-function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system, ::PressureBoundaries,
-                                                        neighbor_system::AbstractBoundarySystem, v, u, v_ode,
-                                                        u_ode, semi, time_step)
+function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
+                                                           ::PressureBoundaries,
+                                                           neighbor_system::AbstractBoundarySystem,
+                                                           v, u, v_ode,
+                                                           u_ode, semi, time_step)
     # Calculation of the predicted density
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(system, neighbor_system, system_coords,
-                            neighbor_system_coords, semi,
-                            points=eachparticle(system)) do particle, neighbor,
-                                                            pos_diff, distance
+                           neighbor_system_coords, semi,
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         # Calculate the predicted velocity differences
         advection_velocity_diff = predicted_velocity(system, particle) -
-                                    predicted_velocity(neighbor_system, neighbor)
+                                  predicted_velocity(neighbor_system, neighbor)
 
         # Compute \rho_adv in eq. 4 in Ihmsen et al. (2013)
         predicted_density[particle] += time_step * m_b *
-                                        dot(advection_velocity_diff, grad_kernel)
+                                       dot(advection_velocity_diff, grad_kernel)
     end
 end
 
-function initialize_pressure(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, semi)
+function initialize_pressure(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
+                             semi)
     (; boundary_model) = system
 
     @threaded semi for particle in eachparticle(system)
@@ -78,7 +86,8 @@ function initialize_pressure(system::WallBoundarySystem{<:BoundaryModelDummyPart
     end
 end
 
-function calculate_sum_term_values(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, u, u_ode, semi)
+function calculate_sum_term_values(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
+                                   u, u_ode, semi)
     (; boundary_model) = system
     (; sum_term, time_step) = boundary_model.cache
 
@@ -90,7 +99,8 @@ function calculate_sum_term_values(system::WallBoundarySystem{<:BoundaryModelDum
     end
 end
 
-function pressure_update(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, u, u_ode, semi)
+function pressure_update(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
+                         u, u_ode, semi)
     (; boundary_model) = system
     (; reference_density, a_ii, sum_term, omega, density_error) = boundary_model.cache
     (; pressure) = boundary_model
@@ -156,7 +166,8 @@ function calculate_sum_term(system::WallBoundarySystem{<:BoundaryModelDummyParti
     return 0.0
 end
 
-function iisph_source_term(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, particle)
+function iisph_source_term(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
+                           particle)
     (; boundary_model) = system
     (; reference_density, predicted_density) = boundary_model.cache
     return reference_density - predicted_density[particle]
