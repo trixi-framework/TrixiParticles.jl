@@ -70,44 +70,16 @@ function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_densi
     end
 end
 
-function initialize_pressure(system::AbstractBoundarySystem, semi)
+function initialize_pressure(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, semi)
     (; boundary_model) = system
-    (; density_calculator) = boundary_model
 
-    return initialize_pressure(system, boundary_model, density_calculator, semi)
-end
-
-function initialize_pressure(system, boundary_model, density_calculator, semi)
-    return system
-end
-
-function initialize_pressure(system, boundary_model, ::PressureBoundaries, semi)
-    (; pressure) = boundary_model
-
-    # Set initial pressure (p_0) to a half of the current pressure value
     @threaded semi for particle in eachparticle(system)
         pressure[particle] = pressure[particle] / 2
     end
 end
 
-function calculate_sum_d_ij_pj(system::AbstractBoundarySystem, u, u_ode, semi)
-    return system
-end
-
-function calculate_sum_term_values(system::AbstractBoundarySystem, u, u_ode, semi)
+function calculate_sum_term_values(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, u, u_ode, semi)
     (; boundary_model) = system
-    (; density_calculator) = boundary_model
-    return calculate_sum_term_values(system, boundary_model, density_calculator, u, u_ode,
-                                     semi)
-end
-
-function calculate_sum_term_values(system, boundary_model, density_calculator, u, u_ode,
-                                   semi)
-    return system
-end
-
-function calculate_sum_term_values(system, boundary_model, ::PressureBoundaries, u, u_ode,
-                                   semi)
     (; sum_term, time_step) = boundary_model.cache
 
     # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
@@ -118,17 +90,8 @@ function calculate_sum_term_values(system, boundary_model, ::PressureBoundaries,
     end
 end
 
-function pressure_update(system::AbstractBoundarySystem, u, u_ode, semi)
+function pressure_update(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, u, u_ode, semi)
     (; boundary_model) = system
-    (; density_calculator) = boundary_model
-    return pressure_update(system, boundary_model, density_calculator, u, u_ode, semi)
-end
-
-function pressure_update(system, boundary_model, density_calculator, u, u_ode, semi)
-    return 0.0
-end
-
-function pressure_update(system, boundary_model, ::PressureBoundaries, u, u_ode, semi)
     (; reference_density, a_ii, sum_term, omega, density_error) = boundary_model.cache
     (; pressure) = boundary_model
 
@@ -167,30 +130,11 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-function calculate_d_ji(system::AbstractBoundarySystem, neighbor_system, particle_i,
-                        grad_kernel, time_step)
-    (; boundary_model) = system
-    return -time_step^2 * hydrodynamic_mass(system, particle_i) /
-           boundary_model.cache.density[particle_i]^2 * grad_kernel
-end
-
-function calculate_sum_term(system::AbstractBoundarySystem, neighbor_system,
-                            particle, neighbor, grad_kernel, time_step)
-    (; boundary_model) = system
-    (; density_calculator) = boundary_model
-    return calculate_sum_term(system, boundary_model, density_calculator, neighbor_system,
-                              particle, neighbor, grad_kernel, time_step)
-end
-
-function calculate_sum_term(system, boundary_model, density_calculator, neighbor_system,
-                            particle, neighbor, grad_kernel, time_step)
-    return system
-end
-
 # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
-function calculate_sum_term(system, boundary_model, ::PressureBoundaries,
+function calculate_sum_term(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
                             neighbor_system::AbstractFluidSystem,
                             particle, neighbor, grad_kernel, time_step)
+    (; boundary_model) = system
     pressure_system = boundary_model.pressure
     pressure_neighbor = neighbor_system.pressure
 
@@ -206,23 +150,14 @@ function calculate_sum_term(system, boundary_model, ::PressureBoundaries,
     return m_j * dot(- d_jj * p_j - (sum_djk_pk - d_ji * p_i), grad_kernel)
 end
 
-function calculate_sum_term(system, boundary_model, ::PressureBoundaries,
+function calculate_sum_term(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
                             neighbor_system::AbstractBoundarySystem,
                             particle, neighbor, grad_kernel, time_step)
     return 0.0
 end
 
-function iisph_source_term(system::AbstractBoundarySystem, particle)
+function iisph_source_term(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, particle)
     (; boundary_model) = system
-    (; density_calculator) = boundary_model
-    return iisph_source_term(system, boundary_model, density_calculator, particle)
-end
-
-function iisph_source_term(system, boundary_model, density_calculator, particle)
-    return system
-end
-
-function iisph_source_term(system, boundary_model, ::PressureBoundaries, particle)
     (; reference_density, predicted_density) = boundary_model.cache
     return reference_density - predicted_density[particle]
 end

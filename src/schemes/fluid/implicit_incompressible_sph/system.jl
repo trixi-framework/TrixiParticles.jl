@@ -403,7 +403,7 @@ function pressure_solve!(semi, v_ode, u_ode)
     end
 
     # Determine global number of particles included in the PPE solver
-    n_iisph_particles = sum(num_iisph_particles, semi.systems)
+    n_iisph_particles = sum(number_iisph_particles, semi.systems)
 
     # Determine global iteration and error constraints across all IISPH systems
     min_iters = maximum(minimum_iisph_iterations, semi.systems)
@@ -614,9 +614,9 @@ end
     return extract_svector(system.sum_d_ij_pj, system, particle)
 end
 
-@inline num_iisph_particles(system) = 0
+@inline number_iisph_particles(system) = 0
 
-@inline function num_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
+@inline function number_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
     return nparticles(system)
 end
 
@@ -708,7 +708,7 @@ end
 function calculate_d_ji(system, neighbor_system,
                         particle_i, grad_kernel, time_step)
     return -time_step^2 * hydrodynamic_mass(system, particle_i) /
-           system.density[particle_i]^2 * grad_kernel
+           current_density(0, system)[particle_i]^2 * grad_kernel
 end
 
 # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
@@ -731,9 +731,8 @@ function calculate_sum_term(system::ImplicitIncompressibleSPHSystem,
 end
 
 function calculate_sum_term(system::ImplicitIncompressibleSPHSystem,
-                            neighbor_system::AbstractBoundarySystem, particle,
-                            neighbor,
-                            grad_kernel, time_step)
+                            neighbor_system::AbstractBoundarySystem,
+                            particle, neighbor, grad_kernel, time_step)
     sum_dik_pk = sum_dij_pj(system, particle)
     m_j = hydrodynamic_mass(neighbor_system, neighbor)
 
