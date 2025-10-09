@@ -5,7 +5,7 @@ using Test
 
 # Results in [90k particles, 340k particles, 1.2M particles, 5M particles]
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
-resolution_factor = 0.04 # [0.08, 0.04, 0.02, 0.01]
+resolution_factor = 0.08 # [0.08, 0.04, 0.02, 0.01]
 
 reynolds_number = 200
 
@@ -23,13 +23,15 @@ trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
               open_boundary_model=open_boundary_model,
               output_directory=output_directory, factor_d=resolution_factor, sol=nothing)
 
-circle = SphereShape(particle_spacing, (cylinder_diameter + particle_spacing) / 2,
+circle = SphereShape(0.001, cylinder_diameter / 2,
                      cylinder_center, fluid_density, n_layers=1,
                      sphere_type=RoundSphere())
 
 # Points for pressure interpolation, located at the wall interface
 const data_points = copy(circle.coordinates)
 const center = SVector(cylinder_center)
+# Arc length per surface point
+const ds = pi * cylinder_diameter / nparticles(circle)
 
 calculate_lift_force(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
 function calculate_lift_force(system::TrixiParticles.AbstractFluidSystem, dv_ode, du_ode,
@@ -44,8 +46,7 @@ function calculate_lift_force(system::TrixiParticles.AbstractFluidSystem, dv_ode
         point = TrixiParticles.current_coords(data_points, system, i)
 
         # F = ∑ -p_i * A_i * n_i
-        force -= pressure[i] * particle_spacing .*
-                 TrixiParticles.normalize(point - center)
+        force -= pressure[i] * ds * TrixiParticles.normalize(point - center)
     end
 
     return 2 * force[2] / (fluid_density * prescribed_velocity^2 * cylinder_diameter)
@@ -65,8 +66,7 @@ function calculate_drag_force(system::TrixiParticles.AbstractFluidSystem, dv_ode
         point = TrixiParticles.current_coords(data_points, system, i)
 
         # F = ∑ -p_i * A_i * n_i
-        force -= pressure[i] * particle_spacing .*
-                 TrixiParticles.normalize(point - center)
+        force -= pressure[i] * ds * TrixiParticles.normalize(point - center)
     end
 
     return 2 * force[1] / (fluid_density * prescribed_velocity^2 * cylinder_diameter)
