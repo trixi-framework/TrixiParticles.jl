@@ -365,7 +365,7 @@ The off-diagonal term ``\sum_{j \neq i} a_{ij} p_j`` in the relaxed jacobi itera
 particles takes the following form
 
 ```math
-\sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( d_{ff} - \sum_{f_j} d_{ff_j}p_{f_j}\right) \nabla W{if}
+\sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( d_{ff} - \sum_{f_j} d_{ff_j}p_{f_j}\right) \nabla W_{if}
 ```
 
 But not only the addition of the boundary particles to the linear system changes when using

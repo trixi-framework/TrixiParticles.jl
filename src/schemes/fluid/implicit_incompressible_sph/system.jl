@@ -116,7 +116,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
 
     pressure_acceleration = pressure_acceleration_summation_density
 
-    density = similar(initial_condition.density)
+    density = copy(initial_condition.density)
     predicted_density = zeros(ELTYPE, n_particles)
     a_ii = zeros(ELTYPE, n_particles)
     d_ii = zeros(ELTYPE, NDIMS, n_particles)
@@ -398,34 +398,24 @@ end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
 function pressure_solve!(semi, v_ode, u_ode)
-    iisph_boundary_particles = 0
-    iisph_fluid_particles = 0
-
     foreach_system(semi) do system
         initialize_pressure!(system, semi)
-        if system isa ImplicitIncompressibleSPHSystem
-            iisph_fluid_particles += nparticles(system)
-        elseif system isa AbstractBoundarySystem
-            if system.boundary_model.density_calculator isa PressureBoundaries
-                iisph_boundary_particles += nparticles(system)
-            end
-        end
     end
 
-    num_particles = iisph_fluid_particles + iisph_boundary_particles
+    # Determine global number of particles included in the PPE solver
+    n_iisph_particles = sum(num_iisph_particles, semi.systems)
 
     # Determine global iteration and error constraints across all IISPH systems
     min_iters = maximum(minimum_iisph_iterations, semi.systems)
     max_iters = minimum(maximum_iisph_iterations, semi.systems)
     max_err_percent = minimum(maximum_iisph_error, semi.systems)
 
-    # Convert relative error in percent to absolute error
     max_error = max_err_percent / 100
     terminate = false
     l = 1
     while (!terminate)
         @trixi_timeit timer() "pressure solver iteration" begin
-            avg_density_error = pressure_solve_iteration(semi, u_ode, num_particles)
+            avg_density_error = pressure_solve_iteration(semi, u_ode, n_iisph_particles)
             # Update termination condition
             terminate = (avg_density_error <= max_error && l >= min_iters) ||
                         l >= max_iters
@@ -449,8 +439,8 @@ function initialize_pressure!(system::ImplicitIncompressibleSPHSystem, semi)
     end
 end
 
-function pressure_solve_iteration(semi, u_ode, num_particles)
-    foreach_system(semi) do system #can be removed, only calculated once for fluid particles
+function pressure_solve_iteration(semi, u_ode, n_particles)
+    foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
         calculate_sum_d_ij_pj!(system, u, u_ode, semi)
     end
@@ -465,9 +455,9 @@ function pressure_solve_iteration(semi, u_ode, num_particles)
         u = wrap_u(u_ode, system, semi)
         total_density_error[] += pressure_update(system, u, u_ode, semi)
     end
-    avg_density_error = total_density_error[] / float(num_particles)
+    avg_density_error = total_density_error[] / float(n_particles)
 
-    return avg_density_error[]
+    return avg_density_error
 end
 
 function calculate_sum_d_ij_pj!(system, u, u_ode, semi)
@@ -629,6 +619,13 @@ end
 @propagate_inbounds function sum_dij_pj(system::ImplicitIncompressibleSPHSystem, particle)
     return extract_svector(system.sum_d_ij_pj, system, particle)
 end
+
+@inline num_iisph_particles(system) = 0
+
+@inline function num_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,WallBoundarySystem{<:BoundaryModelDummyParticles{PressureBoundaries}}})
+    return nparticles(system)
+end
+
 
 @inline maximum_iisph_error(system) = convert(eltype(system), Inf)
 

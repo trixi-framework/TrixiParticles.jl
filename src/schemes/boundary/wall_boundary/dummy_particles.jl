@@ -182,19 +182,19 @@ struct PressureMirroring end
 struct PressureZeroing end
 
 @doc raw"""
-    PressureBoundaries()
+    PressureBoundaries(; time_step, omega=0.4)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 !!! note
-    This boundary model can only be used in combination with IISPH.
+    This boundary model can only be used in combination with the [`ImplicitIncompressibleSPHSystem`](@ref).
 """
 
 struct PressureBoundaries{ELTYPE}
     time_step::ELTYPE
     omega::ELTYPE
 
-    function PressureBoundaries(time_step; omega=0.4)
+    function PressureBoundaries(; time_step, omega=0.4)
         return new{eltype(time_step)}(time_step, omega)
     end
 end
@@ -232,7 +232,7 @@ end
 function create_cache_model(initial_density,
                             density_calculator::PressureBoundaries, NDIMS, ELTYPE,
                             n_particles)
-    reference_density = initial_density[1] #TODO
+    reference_density = initial_density[1] #TODO: I haven't found a more elegant way to get the reference density.
     density = copy(initial_density)
     a_ii = zeros(ELTYPE, n_particles)
     predicted_density = zeros(ELTYPE, n_particles)
@@ -289,12 +289,8 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-# For most density calculators, the pressure is updated in every step
-initial_boundary_pressure(initial_density, density_calculator, _) = similar(initial_density)
-# Pressure mirroring does not use the pressure, so we set it to zero for the visualization
-function initial_boundary_pressure(initial_density,
-                                   ::Union{PressureMirroring, PressureBoundaries}, _)
-    zero(initial_density)
+# Set the initial pressure to zero for visualization
+function initial_boundary_pressure(initial_density, _)
 end
 
 # For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
@@ -407,7 +403,7 @@ end
 function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_ode, u_ode,
                           semi)
     (; cache) = boundary_model
-    (; density) = cache # Density is in the cache for SummationDensity
+    (; density) = cache # Density is in the cache for `SummationDensity`
 
     summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
 
@@ -512,7 +508,7 @@ function compute_pressure!(boundary_model,
                            ::Union{PressureMirroring, PressureZeroing, PressureBoundaries},
                            system, v, u, v_ode, u_ode, semi)
     # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
-    # Pressure update for PressureBoundaries is be done by the PPE solver in IISPH
+    # Pressure update for `PressureBoundaries`` is be done by the PPE solver in IISPH
     return boundary_model
 end
 
