@@ -1,4 +1,4 @@
-function calculate_diagonal_elements_and_predicted_density!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{PressureBoundaries}},
+function calculate_diagonal_elements_and_predicted_density!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
                                                             v, u, v_ode, u_ode, semi)
     (; boundary_model) = system
     (; density_calculator) = boundary_model
