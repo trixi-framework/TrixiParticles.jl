@@ -515,16 +515,19 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system::AbstractBoundarySystem, u, u_ode, semi)
     (; boundary_model) = neighbor_system
     (; density_calculator) = boundary_model
-    return calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_model, density_calculator, u, u_ode, semi)
+    return calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_model,
+                                  density_calculator, u, u_ode, semi)
 end
 
 # There is no contribution of the boundary particles to the sum_j d_ij*p_j when PressureBoundaries is not used
-function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_model, density_calculator, u, u_ode, semi)
+function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_model,
+                                density_calculator, u, u_ode, semi)
     return sum_d_ij_pj
 end
 
 # For PressureBoundaries the boundary particles have an own pressure values that contributes to the sum_j d_ij*p_j
-function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_model, ::PressureBoundaries, u, u_ode, semi)
+function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_model,
+                                ::PressureBoundaries, u, u_ode, semi)
     (; time_step) = system
     (; pressure) = boundary_model
 
@@ -532,9 +535,9 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_m
     neighbor_coords = current_coordinates(u, neighbor_system)
 
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                            semi;
-                            points=each_integrated_particle(system)) do particle, neighbor,
-                                                                        pos_diff, distance
+                           semi;
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
         # Calculate the sum d_ij * p_j over all neighbors j for each particle i (Ihmsen et al. 2013, eq. 13)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         p_b = pressure[neighbor]
@@ -646,32 +649,37 @@ end
 end
 
 # Calculates a summand for the calculation of the d_ii values
-function calculate_d_ii(neighbor_system::ImplicitIncompressibleSPHSystem, m_b, rho_a, grad_kernel, time_step)
+function calculate_d_ii(neighbor_system::ImplicitIncompressibleSPHSystem, m_b, rho_a,
+                        grad_kernel, time_step)
     return -time_step^2 * m_b / rho_a^2 * grad_kernel
 end
 
 # Calculates a summand for the calculation of the d_ii values
-function calculate_d_ii(neighbor_system::AbstractBoundarySystem, m_b, rho_a, grad_kernel, time_step)
+function calculate_d_ii(neighbor_system::AbstractBoundarySystem, m_b, rho_a, grad_kernel,
+                        time_step)
     return calculate_d_ii(neighbor_system, neighbor_system.boundary_model, m_b, rho_a,
                           grad_kernel, time_step)
 end
 
 # Calculates a summand for the calculation of the d_ii values
-function calculate_d_ii(neighbor_system, boundary_model::BoundaryModelDummyParticles, m_b, rho_a,
+function calculate_d_ii(neighbor_system, boundary_model::BoundaryModelDummyParticles, m_b,
+                        rho_a,
                         grad_kernel, time_step)
-    return calculate_d_ii(neighbor_system, boundary_model, boundary_model.density_calculator, m_b,
+    return calculate_d_ii(neighbor_system, boundary_model,
+                          boundary_model.density_calculator, m_b,
                           rho_a, grad_kernel, time_step)
 end
 
 # Calculates a summand for the calculation of the d_ii values (pressure zeroing, pressure
 # extrapolation and pressure boundaries)
 function calculate_d_ii(neighbor_system, boundary_model, density_calculator, m_b,
-    rho_a, grad_kernel, time_step)
-return -time_step^2 * m_b / rho_a^2 * grad_kernel
+                        rho_a, grad_kernel, time_step)
+    return -time_step^2 * m_b / rho_a^2 * grad_kernel
 end
 
 # Calculates a summand for the calculation of the d_ii values (pressure mirroring)
-function calculate_d_ii(neighbor_system, boundary_model, density_calculator::PressureMirroring, m_b,
+function calculate_d_ii(neighbor_system, boundary_model,
+                        density_calculator::PressureMirroring, m_b,
                         rho_a, grad_kernel, time_step)
     # The linear system to solve originates from the pressure acceleration:
     #     ∑ m_j (p_i/ρ_i + p_b/ρ_b) ∇W_ij.
@@ -685,32 +693,36 @@ function calculate_d_ii(neighbor_system, boundary_model, density_calculator::Pre
 end
 
 # Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in 'IHMSEN et al'
-function calculate_d_ij(system::ImplicitIncompressibleSPHSystem, neighbor_system::ImplicitIncompressibleSPHSystem, particle_j, grad_kernel, time_step)
+function calculate_d_ij(system::ImplicitIncompressibleSPHSystem,
+                        neighbor_system::ImplicitIncompressibleSPHSystem, particle_j,
+                        grad_kernel, time_step)
     # (delta t)^2 * m_i / rho_i ^2 * gradW_ij
     return -time_step^2 * hydrodynamic_mass(neighbor_system, particle_j) /
            neighbor_system.density[particle_j]^2 * grad_kernel
 end
 
 # Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in 'IHMSEN et al'
-function calculate_d_ij(system::ImplicitIncompressibleSPHSystem, neighbor_system::AbstractBoundarySystem,
-        particle_j, grad_kernel,
-        time_step)
-        (; boundary_model) = neighbor_system
-        (; cache) = boundary_model
+function calculate_d_ij(system::ImplicitIncompressibleSPHSystem,
+                        neighbor_system::AbstractBoundarySystem,
+                        particle_j, grad_kernel,
+                        time_step)
+    (; boundary_model) = neighbor_system
+    (; cache) = boundary_model
     # (delta t)^2 * m_i / rho_i ^2 * gradW_ij
     return -time_step^2 * hydrodynamic_mass(neighbor_system, particle_j) /
            cache.density[particle_j]^2 * grad_kernel
 end
 
 function calculate_d_ji(system, neighbor_system,
-    particle_i, grad_kernel,
-    time_step)
+                        particle_i, grad_kernel,
+                        time_step)
     return -time_step^2 * hydrodynamic_mass(system, particle_i) /
-    system.density[particle_i]^2 * grad_kernel
+           system.density[particle_i]^2 * grad_kernel
 end
 
 # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
-function calculate_sum_term(system::ImplicitIncompressibleSPHSystem, neighbor_system::ImplicitIncompressibleSPHSystem,
+function calculate_sum_term(system::ImplicitIncompressibleSPHSystem,
+                            neighbor_system::ImplicitIncompressibleSPHSystem,
                             particle, neighbor, grad_kernel, time_step)
     pressure_system = system.pressure
     pressure_neighbor = neighbor_system.pressure
@@ -727,7 +739,8 @@ function calculate_sum_term(system::ImplicitIncompressibleSPHSystem, neighbor_sy
     return m_j * dot(sum_dik_pk - d_jj * p_j - (sum_djk_pk - d_ji * p_i), grad_kernel)
 end
 
-function calculate_sum_term(system::ImplicitIncompressibleSPHSystem, neighbor_system::AbstractBoundarySystem, particle,
+function calculate_sum_term(system::ImplicitIncompressibleSPHSystem,
+                            neighbor_system::AbstractBoundarySystem, particle,
                             neighbor,
                             grad_kernel, time_step)
     sum_dik_pk = sum_dij_pj(system, particle)
