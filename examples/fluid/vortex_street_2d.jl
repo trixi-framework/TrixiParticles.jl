@@ -50,7 +50,7 @@ pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_densi
 # Shift pipe walls in negative x-direction for the inflow
 pipe.boundary.coordinates[1, :] .-= particle_spacing * open_boundary_layers
 
-n_buffer_particles = 10 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
+n_buffer_particles = 20 * pipe.n_particles_per_dimension[2]^(ndims(pipe.fluid) - 1)
 
 cylinder_center = (5 * cylinder_diameter, domain_size[2] / 2)
 cylinder = SphereShape(particle_spacing, cylinder_diameter / 2,
