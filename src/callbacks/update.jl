@@ -84,7 +84,7 @@ function (update_callback!::UpdateCallback)(integrator)
 
         # Update open boundaries first, since particles might be activated or deactivated
         @trixi_timeit timer() "update open boundary" foreach_system(semi) do system
-            update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
+            update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator.dt)
         end
 
         @trixi_timeit timer() "update particle packing" foreach_system(semi) do system
