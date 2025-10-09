@@ -6,7 +6,7 @@ using Adapt: Adapt
 using Base: @propagate_inbounds
 using CSV: CSV
 using Dates
-using DataFrames: DataFrame
+using DataFrames: DataFrames, DataFrame
 using DelimitedFiles: DelimitedFiles
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
