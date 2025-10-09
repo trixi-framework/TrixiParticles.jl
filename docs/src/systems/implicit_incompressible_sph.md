@@ -209,7 +209,7 @@ as only isolated or almost isolated particles are affected.
 ## Boundary Handling
 
 The previously introduced formulation did not distinguish between fluid and boundary
-particles. To account boundary interactions corretly, a few modifications to the previous
+particles. To account boundary interactions correctly, a few modifications to the previous
 equations are required.
 
 First, the discretized form of the continuity equation must be adapted for the case in which
@@ -345,7 +345,7 @@ in this case ``i`` and ``b`` are both boundary particles, the PPE simplifies to
 ```math
 \Delta t^2 \sum_f m_f - \frac{\bm{F}_f^p(t)}{m_f} \nabla W_{if} = \rho_0 - \rho_i^{\text{adv}}.
 ```
-If we substitute the definition of the pressure force fron above, we obtain
+If we substitute the definition of the pressure force from above, we obtain
 
 ```math
 \Delta t^2 \sum_f m_f \left(  \sum_k m_k \left( \frac{p_f(t)}{\rho_j^2(t)} + \frac{p_k(t)}{\rho_k^2(t)} \right) \nabla W_{fk}\right) \nabla W_{if} = \rho_0 - \rho_i^{\text{adv}}.
