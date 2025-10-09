@@ -545,6 +545,14 @@ end
     other_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
     shepard_coefficient = allocate(semi.parallelization_backend, ELTYPE, n_points)
     neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
+    # The wall velocity considers more neighbors, so we need to use
+    # a different Shepard coefficient.
+    if include_wall_velocity
+        shepard_coefficient_wall = allocate(semi.parallelization_backend, ELTYPE, n_points)
+        set_zero!(shepard_coefficient_wall)
+    else
+        shepard_coefficient_wall = allocate(semi.parallelization_backend, ELTYPE, 0)
+    end
 
     set_zero!(computed_density)
     set_zero!(other_density)
@@ -575,6 +583,12 @@ end
             volume_b = m_b / current_density(v, neighbor_system, neighbor)
             W_ab = kernel(ref_smoothing_kernel, distance, smoothing_length)
 
+            if include_wall_velocity
+                # The wall velocity considers more neighbors, so we need to use
+                # a different Shepard coefficient.
+                shepard_coefficient_wall[point] += volume_b * W_ab
+            end
+
             if system_id == ref_id
                 computed_density[point] += m_b * W_ab
                 shepard_coefficient[point] += volume_b * W_ab
@@ -586,6 +600,13 @@ end
                                     point, neighbor, volume_b, W_ab, clip_negative_pressure)
             else
                 other_density[point] += m_b * W_ab
+
+                if include_wall_velocity
+                    velocity_neighbor = viscous_velocity(v, neighbor_system, neighbor)
+                    for i in axes(velocity_neighbor, 1)
+                        cache.velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
+                    end
+                end
             end
 
             neighbor_count[point] += 1
@@ -609,19 +630,18 @@ end
             foreach(Tuple(cache)) do field
                 divide_by_shepard_coefficient!(field, shepard_coefficient, point)
             end
+            if include_wall_velocity
+                # The wall velocity considers more neighbors, so we need to use
+                # a different Shepard coefficient.
+                # The coefficient `shepard_coefficient_wall / shepard_coefficient`
+                # reverts the incorrect division above for this field.
+                new_coefficient = shepard_coefficient_wall[point] /
+                                  shepard_coefficient[point]
+                for dim in axes(cache.velocity, 1)
+                    cache.velocity[dim, point] /= new_coefficient
+                end
+            end
         end
-    end
-
-    if include_wall_velocity
-        viscous_velocity = interpolate_viscous_velocity(point_coords_, semi, ref_system,
-                                                        v_ode, u_ode;
-                                                        smoothing_length,
-                                                        neighborhood_searches)
-
-        cache_ = merge(cache, (velocity=viscous_velocity,))
-
-        return (; computed_density=computed_density, point_coords=point_coords,
-                neighbor_count=neighbor_count, viscous_velocity=viscous_velocity, cache_...)
     end
 
     return (; computed_density=computed_density, point_coords=point_coords,
@@ -749,68 +769,4 @@ function divide_by_shepard_coefficient!(field::AbstractArray{T, 3}, shepard_coef
     end
 
     return field
-end
-
-@inline function interpolate_viscous_velocity(point_coords_, semi, ref_system, v_ode, u_ode;
-                                              smoothing_length=initial_smoothing_length(ref_system),
-                                              neighborhood_searches=process_neighborhood_searches(semi,
-                                                                                                  u_ode,
-                                                                                                  ref_system,
-                                                                                                  smoothing_length,
-                                                                                                  point_coords_))
-    if semi.parallelization_backend isa KernelAbstractions.Backend
-        point_coords = Adapt.adapt(semi.parallelization_backend, point_coords_)
-    else
-        point_coords = point_coords_
-    end
-
-    ELTYPE = eltype(point_coords)
-    n_points = size(point_coords, 2)
-    shepard_coefficient = allocate(semi.parallelization_backend, ELTYPE, n_points)
-    neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
-
-    set_zero!(shepard_coefficient)
-    set_zero!(neighbor_count)
-
-    velocity = allocate(semi.parallelization_backend, ELTYPE, (ndims(ref_system), n_points))
-    set_zero!(velocity)
-
-    foreach_system(semi) do neighbor_system
-        system_id = system_indices(neighbor_system, semi)
-        nhs = neighborhood_searches[system_id]
-
-        v = wrap_v(v_ode, neighbor_system, semi)
-        u = wrap_u(u_ode, neighbor_system, semi)
-
-        neighbor_coords = current_coordinates(u, neighbor_system)
-
-        foreach_point_neighbor(point_coords, neighbor_coords, nhs;
-                               semi.parallelization_backend) do point, neighbor, pos_diff,
-                                                                distance
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            volume_b = m_b / current_density(v, neighbor_system, neighbor)
-            W_ab = kernel(ref_system.smoothing_kernel, distance, smoothing_length)
-
-            shepard_coefficient[point] += volume_b * W_ab
-
-            # According to:
-            # u(r_a) = (∑_b u(r_b) ⋅ V_b ⋅ W(r_a-r_b)) / (∑_b V_b ⋅ W(r_a-r_b)),
-            # where V_b = m_b / ρ_b.
-            velocity_neighbor = viscous_velocity(v, neighbor_system, neighbor)
-            for i in axes(velocity_neighbor, 1)
-                velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
-            end
-
-            neighbor_count[point] += 1
-        end
-    end
-
-    @threaded semi.parallelization_backend for point in axes(point_coords, 2)
-        if neighbor_count[point] > 0
-            # Normalize by the shepard coefficient.
-            divide_by_shepard_coefficient!(velocity, shepard_coefficient, point)
-        end
-    end
-
-    return velocity
 end
