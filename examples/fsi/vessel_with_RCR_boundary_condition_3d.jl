@@ -1,9 +1,10 @@
 using TrixiParticles
 using OrdinaryDiffEq
+using ThreadPinning; pinthreads(:numa)
 
 # ==========================================================================================
 # ==== Resolution
-particle_spacing = 2e-3
+particle_spacing = 1.5e-3
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
