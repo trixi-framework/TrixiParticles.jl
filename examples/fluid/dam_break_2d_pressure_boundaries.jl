@@ -7,7 +7,7 @@ trixi_include(@__MODULE__,
               sol=nothing, ode=nothing)
 
 # Change smoothing kernel and length
-smoothing_length = 1.0 * fluid_particle_spacing
+smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Calculate kinematic viscosity for the viscosity model
@@ -35,7 +35,7 @@ trixi_include(@__MODULE__,
               smoothing_kernel=smoothing_kernel,
               smoothing_length=smoothing_length,
               fluid_system=iisph_system,
-              boundary_density_calculator=PressureBoundaries(time_step, omega=omega),
+              boundary_density_calculator=PressureBoundaries(time_step=time_step, omega=omega),
               tspan=tspan,
               state_equation=nothing,
               callbacks=CallbackSet(info_callback, saving_callback),

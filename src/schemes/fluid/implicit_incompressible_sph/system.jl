@@ -227,8 +227,8 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
     return semi
 end
 
-function predict_advection!(system::ImplicitIncompressibleSPHSystem, v, u,
-                            v_ode, u_ode, semi)
+function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem, WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
+                            v, u, v_ode, u_ode, semi)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
@@ -474,6 +474,7 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
     end
 end
 
+# Maybe we can merge this function and the next one with a current_pressure function???
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system::ImplicitIncompressibleSPHSystem,
                                 u, u_ode, semi)
@@ -501,25 +502,10 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
     return sum_d_ij_pj
 end
 
-function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
-                                neighbor_system::AbstractBoundarySystem, u, u_ode, semi)
-    (; boundary_model) = neighbor_system
-    (; density_calculator) = boundary_model
-    return calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_model,
-                                  density_calculator, u, u_ode, semi)
-end
-
-# There is no contribution of the boundary particles to the sum_j d_ij*p_j when PressureBoundaries is not used
-function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_model,
-                                density_calculator, u, u_ode, semi)
-    return sum_d_ij_pj
-end
-
 # For PressureBoundaries the boundary particles have an own pressure values that contributes to the sum_j d_ij*p_j
-function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_model,
-                                ::PressureBoundaries, u, u_ode, semi)
+function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}, u, u_ode, semi)
     (; time_step) = system
-    (; pressure) = boundary_model
+    (; pressure) = neighbor_system.boundary_model
 
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u, neighbor_system)
@@ -541,6 +527,14 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, boundary_m
 
     return sum_d_ij_pj
 end
+
+# There is no contribution of the boundary particles to the sum_j d_ij*p_j when PressureBoundaries is not used
+function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
+                                neighbor_system, u, u_ode, semi)
+    return sum_d_ij_pj
+end
+
+
 
 function calculate_sum_term_values!(system, u, u_ode, semi)
     return system
@@ -622,7 +616,7 @@ end
 
 @inline num_iisph_particles(system) = 0
 
-@inline function num_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,WallBoundarySystem{<:BoundaryModelDummyParticles{PressureBoundaries}}})
+@inline function num_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
     return nparticles(system)
 end
 
@@ -689,7 +683,8 @@ function calculate_d_ii(neighbor_system, boundary_model,
     return -time_step^2 * 2 * m_b / rho_a^2 * grad_kernel
 end
 
-# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in 'IHMSEN et al'
+# Calculates the d_ij value for a particle `i` and its neighbor `j` from eq. 9 in Ihmsen et al. (2013).
+# Note that `i` is only implicitly included in the kernel gradient.
 function calculate_d_ij(system::ImplicitIncompressibleSPHSystem,
                         neighbor_system::ImplicitIncompressibleSPHSystem, particle_j,
                         grad_kernel, time_step)
@@ -698,21 +693,20 @@ function calculate_d_ij(system::ImplicitIncompressibleSPHSystem,
            neighbor_system.density[particle_j]^2 * grad_kernel
 end
 
-# Calculates the d_ij value for a particle i and his neighbor j from the equation 9 in 'IHMSEN et al'
+# Calculates the d_ij value for a particle `i` and its neighbor `j` from eq. 9 in Ihmsen et al. (2013).
+# Note that `i` is only implicitly included in the kernel gradient.
 function calculate_d_ij(system::ImplicitIncompressibleSPHSystem,
                         neighbor_system::AbstractBoundarySystem,
-                        particle_j, grad_kernel,
-                        time_step)
-    (; boundary_model) = neighbor_system
-    (; cache) = boundary_model
+                        particle_j, grad_kernel, time_step)
     # (delta t)^2 * m_i / rho_i ^2 * gradW_ij
     return -time_step^2 * hydrodynamic_mass(neighbor_system, particle_j) /
-           cache.density[particle_j]^2 * grad_kernel
+           current_density(0, neighbor_system)[particle_j]^2 * grad_kernel
 end
 
+# Calculates the d_ji value for a particle `i` and its neighbor `j` from eq. 9 in Ihmsen et al. (2013).
+# Note that `i` is only implicitly included in the kernel gradient.
 function calculate_d_ji(system, neighbor_system,
-                        particle_i, grad_kernel,
-                        time_step)
+                        particle_i, grad_kernel, time_step)
     return -time_step^2 * hydrodynamic_mass(system, particle_i) /
            system.density[particle_i]^2 * grad_kernel
 end

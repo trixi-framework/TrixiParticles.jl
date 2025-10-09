@@ -1,24 +1,7 @@
-
-function predict_advection!(system::AbstractBoundarySystem, v, u,
-                            v_ode, u_ode, semi)
-    v = wrap_v(v_ode, system, semi)
-    u = wrap_u(u_ode, system, semi)
-
-    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
-
-    calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
-
-    return system
-end
-
-function calculate_predicted_velocity_and_d_ii_values(system::AbstractBoundarySystem,
-                                                      v, u, v_ode, u_ode, semi)
-    return system
-end
-
-function calculate_diagonal_elements_and_predicted_density!(system::AbstractBoundarySystem,
+function calculate_diagonal_elements_and_predicted_density!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{PressureBoundaries}},
                                                             v, u, v_ode, u_ode, semi)
     (; boundary_model) = system
+    (; density_calculator) = boundary_model
     (; a_ii, predicted_density, density, time_step) = boundary_model.cache
 
     set_zero!(a_ii)
@@ -26,54 +9,21 @@ function calculate_diagonal_elements_and_predicted_density!(system::AbstractBoun
 
     # Calculation the diagonal elements (a_ii-values) according to eq. 12 in Ihmsen et al. (2013)
     foreach_system(semi) do neighbor_system
-        calculate_diagonal_elements!(a_ii, system, boundary_model, density_calculator,
+        calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system, density_calculator,
                                      neighbor_system, v, u, v_ode, u_ode, semi, time_step)
     end
-
-    # Calculation of the predcited density
-    foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        system_coords = current_coordinates(u, system)
-        neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        foreach_point_neighbor(system, neighbor_system, system_coords,
-                               neighbor_system_coords, semi,
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
-            # Calculate the predicted velocity differences
-            advection_velocity_diff = predicted_velocity(system, particle) -
-                                      predicted_velocity(neighbor_system, neighbor)
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-            # Compute \rho_adv in eq. 4 in Ihmsen et al. (2013)
-            predicted_density[particle] += time_step * m_b *
-                                           dot(advection_velocity_diff, grad_kernel)
-        end
-    end
 end
 
-function calculate_diagonal_elements!(a_ii, system, boundary_model, density_calculator,
-                                      neighbor_system::AbstractBoundarySystem, v, u, v_ode,
-                                      u_ode, semi, time_step)
-    return system
-end
-
-function calculate_diagonal_elements!(a_ii, system, boundary_model, density_calculator,
-                                      neighbor_system::AbstractFluidSystem, v, u, v_ode,
-                                      u_ode, semi, time_step)
-    # Get neighbor system u and v values
+function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system, ::PressureBoundaries,
+                                                            neighbor_system::AbstractFluidSystem, v, u, v_ode,
+                                                            u_ode, semi, time_step)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-    # Get coordinates
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    foreach_point_neighbor(system, neighbor_system,
-                           system_coords, neighbor_system_coords,
-                           semi;
-                           points=eachparticle(system)) do particle,
-                                                           neighbor,
-                                                           pos_diff,
-                                                           distance
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_system_coords,
+                           semi; points=eachparticle(system)) do particle, neighbor,
+                                                                pos_diff, distance
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
         # Compute d_ji
@@ -85,6 +35,38 @@ function calculate_diagonal_elements!(a_ii, system, boundary_model, density_calc
 
         # According to eq. 12 in Ihmsen et al. (2013)
         a_ii[particle] -= m_b * dot(d_ji_, grad_kernel)
+
+        # Calculate the predicted velocity differences
+        advection_velocity_diff = predicted_velocity(system, particle) -
+                                    predicted_velocity(neighbor_system, neighbor)
+
+        # Compute \rho_adv in eq. 4 in Ihmsen et al. (2013)
+        predicted_density[particle] += time_step * m_b *
+                                        dot(advection_velocity_diff, grad_kernel)
+    end
+end
+
+function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system, ::PressureBoundaries,
+                                                        neighbor_system::AbstractBoundarySystem, v, u, v_ode,
+                                                        u_ode, semi, time_step)
+    # Calculation of the predicted density
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    system_coords = current_coordinates(u, system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    foreach_point_neighbor(system, neighbor_system, system_coords,
+                            neighbor_system_coords, semi,
+                            points=eachparticle(system)) do particle, neighbor,
+                                                            pos_diff, distance
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+        # Calculate the predicted velocity differences
+        advection_velocity_diff = predicted_velocity(system, particle) -
+                                    predicted_velocity(neighbor_system, neighbor)
+
+        # Compute \rho_adv in eq. 4 in Ihmsen et al. (2013)
+        predicted_density[particle] += time_step * m_b *
+                                        dot(advection_velocity_diff, grad_kernel)
     end
 end
 
