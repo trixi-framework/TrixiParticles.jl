@@ -4,7 +4,7 @@ using ThreadPinning; pinthreads(:numa)
 
 # ==========================================================================================
 # ==== Resolution
-particle_spacing = 1.5e-3
+particle_spacing = 8e-4
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
@@ -29,9 +29,9 @@ tspan = (0.0, 10.0)
 flow_length = 0.3
 vessel_diameter = 0.04
 vessel_radius = vessel_diameter / 2
-vessel_thickness = 0.028
+vessel_thickness = 0.0028
 
-wave_speed = 2 * pulsatile_flow_rate(0.5)
+wave_speed = pulsatile_flow_rate(0.5)
 sound_speed_factor = 10
 sound_speed = sound_speed_factor * wave_speed
 
@@ -101,7 +101,8 @@ kinematic_viscosity = dynamic_viscosity / fluid_density
 viscosity = ViscosityAdami(nu=kinematic_viscosity)
 
 background_pressure = 7 * sound_speed_factor / 10 * fluid_density * wave_speed^2
-shifting_technique = TransportVelocityAdami(; background_pressure)
+# shifting_technique = TransportVelocityAdami(; background_pressure)
+shifting_technique = ParticleShiftingTechnique(; sound_speed_factor=0.1, v_max_factor=0)
 
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
