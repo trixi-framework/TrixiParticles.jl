@@ -547,12 +547,8 @@ end
     neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
     # The wall velocity considers more neighbors, so we need to use
     # a different Shepard coefficient.
-    if include_wall_velocity
-        shepard_coefficient_wall = allocate(semi.parallelization_backend, ELTYPE, n_points)
-        set_zero!(shepard_coefficient_wall)
-    else
-        shepard_coefficient_wall = allocate(semi.parallelization_backend, ELTYPE, 0)
-    end
+    shepard_coefficient_wall = allocate(semi.parallelization_backend, ELTYPE, n_points)
+    set_zero!(shepard_coefficient_wall)
 
     set_zero!(computed_density)
     set_zero!(other_density)
