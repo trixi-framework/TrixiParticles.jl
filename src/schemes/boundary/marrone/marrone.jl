@@ -100,11 +100,12 @@ end
     (; pressure, cache, viscosity, density_calculator, smoothing_kernel,
      smoothing_length) = boundary_model
     (; normals) = system.initial_condition
-    interpolation_coords = system_coords + (2 * normals) # Need only be computed once -> put into cache 
+    interpolation_coords = system_coords + (2 * -normals) # Should only be computed once -> put into cache 
 
     compute_basis_marrone(smoothing_kernel, system, neighbor_system, interpolation_coords,
                           neighbor_coords, semi)
-    compute_momentum_marrone(smoothing_kernel, system, neighbor_system, interpolation_coords,
+    compute_momentum_marrone(smoothing_kernel, system, neighbor_system,
+                             interpolation_coords,
                              neighbor_coords, v_neighbor_system, semi,
                              smoothing_length)
 
@@ -121,13 +122,12 @@ end
     for particle in eachparticle(system)
         f = neighbor_system.acceleration
         particle_density = isnan(current_density(v, system, particle)) ? 0 :
-                           current_density(v, system, particle) # This can return NaN 
+                           current_density(v, system, particle)
         particle_boundary_distance = norm(normals[:, particle]) # distance from boundary particle to the boundary
         particle_normal = particle_boundary_distance != 0 ?
                           normals[:, particle] / particle_boundary_distance :
                           zeros(size(normals[:, particle])) # normal unit vector to the boundary
 
-        # Checked everything here for NaN's except the dot()
         pressure[particle] += 2 * particle_boundary_distance * particle_density *
                               dot(f, particle_normal)
     end
