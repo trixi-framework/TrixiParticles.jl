@@ -110,6 +110,8 @@ inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
                       open_boundary_layers, density=fluid_density, particle_spacing,
                       reference_pressure=5000.0,
                       initial_condition=inlet)
+# Set an initial velocity to improve the start-up phase
+inflow.initial_condition.velocity[1, :] .= 0.2
 
 face_out = ([offset_outlet[1], -vessel_radius, -vessel_radius],
             [offset_outlet[1], -vessel_radius, vessel_radius],
