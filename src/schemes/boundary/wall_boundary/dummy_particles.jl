@@ -246,7 +246,8 @@ function create_cache_model(initial_density,
             omega, time_step, density_error)
 end
 
-@inline create_cache_model(initial_density, ::ContinuityDensity, NDIMS, ELTYPE, n_particles) = (; initial_density)
+@inline create_cache_model(initial_density, ::ContinuityDensity, NDIMS, ELTYPE,
+                           n_particles) = (; initial_density)
 
 function create_cache_model(initial_density,
                             ::Union{AdamiPressureExtrapolation,
