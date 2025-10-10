@@ -280,7 +280,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "dam_break_2d_iisph.jl"),
                                          tspan=(0.0, 0.1),
-                                         boundary_density_calculator=PressureBoundaries(time_step=time_step)) [
+                                         boundary_density_calculator=PressureBoundaries(; time_step=time_step)) [
             r"┌ Info: The desired tank length in y-direction .*\n",
             r"└ New tank length in y-direction.*\n"
         ]
