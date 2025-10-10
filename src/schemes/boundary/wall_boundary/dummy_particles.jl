@@ -295,6 +295,12 @@ function initial_boundary_pressure(initial_density, density_calculator, _)
     return similar(initial_density)
 end
 
+# Pressure mirroring does not use the pressure, so we set it to zero for the visualization
+function initial_boundary_pressure(initial_density,
+                                   ::Union{PressureMirroring, PressureBoundaries}, _)
+    zero(initial_density)
+end
+
 # For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
 function initial_boundary_pressure(initial_density, ::PressureZeroing, state_equation)
     return state_equation.(initial_density)
