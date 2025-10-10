@@ -141,7 +141,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
 
         # The type of the particle spacing determines the eltype of the coordinates
         boundary_coordinates,
-        face_indices = initialize_boundaries(convert.(coordinates_eltype, boundary_spacing),
+        face_indices,
+        corner_indices = initialize_boundaries(convert.(coordinates_eltype, boundary_spacing),
                                              tank_size_, n_boundaries_per_dim,
                                              n_layers, faces)
 
@@ -155,8 +156,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
                                          particle_spacing, n_particles_per_dim)
 
         normals = normal == false ? nothing :
-                  compute_normals(boundary_coordinates, boundary_spacing, particle_spacing,
-                                  face_indices, faces)
+                  compute_normals(boundary_coordinates, boundary_spacing,
+                                  face_indices, corner_indices, faces)
 
         boundary = InitialCondition(coordinates=boundary_coordinates,
                                     velocity=boundary_velocities,
@@ -197,25 +198,25 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
     end
 end
 
-function compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
-                         face_indices, faces)
-    _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing, face_indices,
+function compute_normals(boundary_coordinates, boundary_spacing,
+                         face_indices, corner_indices, faces)
+    _compute_normals(boundary_coordinates, boundary_spacing, face_indices, corner_indices,
                      faces,
                      Val(size(boundary_coordinates, 1)))
 end
 
 # 2D
-function _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
-                          face_indices, faces, ::Val{2})
+function _compute_normals(boundary_coordinates, boundary_spacing,
+                          face_indices, corner_indices, faces, ::Val{2})
     normals = zeros(size(boundary_coordinates))
     face_indices = Tuple(vec(x) for x in face_indices)
-    offset = (boundary_spacing + fluid_spacing) / 4
+    offset = boundary_spacing / 2
 
     #### Left boundary
     if faces[1]
         left_boundary = maximum(boundary_coordinates[1, face_indices[1]]) + offset
         for idx in face_indices[1]
-            normals[1, idx] = abs(boundary_coordinates[1, idx] - left_boundary)
+            normals[1, idx] = -abs(boundary_coordinates[1, idx] - left_boundary)
         end
     end
 
@@ -223,7 +224,7 @@ function _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
     if faces[2]
         right_boundary = minimum(boundary_coordinates[1, face_indices[2]]) - offset
         for idx in face_indices[2]
-            normals[1, idx] = -abs(boundary_coordinates[1, idx] - right_boundary)
+            normals[1, idx] = abs(boundary_coordinates[1, idx] - right_boundary)
         end
     end
 
@@ -231,7 +232,7 @@ function _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
     if faces[3]
         bottom_boundary = maximum(boundary_coordinates[2, face_indices[3]]) + offset
         for idx in face_indices[3]
-            normals[2, idx] = abs(boundary_coordinates[2, idx] - bottom_boundary)
+            normals[2, idx] = -abs(boundary_coordinates[2, idx] - bottom_boundary)
         end
     end
 
@@ -239,18 +240,56 @@ function _compute_normals(boundary_coordinates, boundary_spacing, fluid_spacing,
     if faces[4]
         top_boundary = minimum(boundary_coordinates[2, face_indices[4]]) - offset
         for idx in face_indices[4]
-            normals[2, idx] = -abs(boundary_coordinates[2, idx] - top_boundary)
+            normals[2, idx] = abs(boundary_coordinates[2, idx] - top_boundary)
         end
     end
 
-    # TODO: edges
+    # Bottom left corner
+    if faces[1] && faces[3]
+        boundary_corner_point = [maximum(boundary_coordinates[1, corner_indices[1]])
+                                 maximum(boundary_coordinates[2, corner_indices[1]])]
+        corner_point = boundary_corner_point + [offset; offset]
+        for idx in corner_indices[1]
+            normals[:, idx] = boundary_coordinates[:, idx] - corner_point
+        end
+    end
+
+    # Top left corner
+    if faces[1] && faces[4]
+        boundary_corner_point = [maximum(boundary_coordinates[1, corner_indices[2]])
+                                 minimum(boundary_coordinates[2, corner_indices[2]])]
+        corner_point = boundary_corner_point + [offset; -offset]
+        for idx in corner_indices[2]
+            normals[:, idx] = boundary_coordinates[:, idx] - corner_point
+        end
+    end
+
+    # Bottom right corner
+    if faces[2] && faces[3]
+        boundary_corner_point = [minimum(boundary_coordinates[1, corner_indices[3]])
+                                 maximum(boundary_coordinates[2, corner_indices[3]])]
+        corner_point = boundary_corner_point + [-offset; offset]
+        for idx in corner_indices[3]
+            normals[:, idx] = boundary_coordinates[:, idx] - corner_point
+        end
+    end
+
+    # Top right corner
+    if faces[2] && faces[4]
+        boundary_corner_point = [minimum(boundary_coordinates[1, corner_indices[4]])
+                                 minimum(boundary_coordinates[2, corner_indices[4]])]
+        corner_point = boundary_corner_point + [-offset; -offset]
+        for idx in corner_indices[4]
+            normals[:, idx] = boundary_coordinates[:, idx] - corner_point
+        end
+    end
 
     return normals
 end
 
 # 3D
 # Note: havent properly tested this yet
-function _compute_normals(boundary, fluid, face_indices, faces, ::Val{3})
+function _compute_normals(boundary, fluid, face_indices, corner_indices, faces, ::Val{3})
     (; coordinates) = boundary
     normals = zeros(size(coordinates))
     face_indices = Tuple(vec(x) for x in face_indices)
@@ -467,6 +506,10 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     face_indices_2 = Array{Int, 2}(undef, n_layers, n_particles_y)
     face_indices_3 = Array{Int, 2}(undef, n_layers, n_particles_x)
     face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x)
+    corner_indices_1 = Array{Int, 2}(undef, n_layers, n_layers)
+    corner_indices_2 = Array{Int, 2}(undef, n_layers, n_layers)
+    corner_indices_3 = Array{Int, 2}(undef, n_layers, n_layers)
+    corner_indices_4 = Array{Int, 2}(undef, n_layers, n_layers)
 
     # Create empty array to extend later depending on faces and corners to build
     boundary_coordinates = Array{typeof(particle_spacing), 2}(undef, 2, 0)
@@ -556,6 +599,13 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                       (n_layers, n_layers),
                                                       (layer_offset, layer_offset))
         boundary_coordinates = hcat(boundary_coordinates, bottom_left_corner)
+
+        # store the indices of each particle
+        particles_per_layer = n_layers
+        for i in 1:n_layers
+            corner_indices_1[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
     # Top left
@@ -564,6 +614,13 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                    (n_layers, n_layers),
                                                    (layer_offset, tank_size[2]))
         boundary_coordinates = hcat(boundary_coordinates, top_left_corner)
+
+        # store the indices of each particle
+        particles_per_layer = n_layers
+        for i in 1:n_layers
+            corner_indices_2[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
     # Bottom right
@@ -572,6 +629,13 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                        (n_layers, n_layers),
                                                        (tank_size[1], layer_offset))
         boundary_coordinates = hcat(boundary_coordinates, bottom_right_corner)
+
+        # store the indices of each particle
+        particles_per_layer = n_layers
+        for i in 1:n_layers
+            corner_indices_3[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
     # Top right
@@ -580,10 +644,18 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                     (n_layers, n_layers),
                                                     (tank_size[1], tank_size[2]))
         boundary_coordinates = hcat(boundary_coordinates, top_right_corner)
+
+        # store the indices of each particle
+        particles_per_layer = n_layers
+        for i in 1:n_layers
+            corner_indices_4[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
     return boundary_coordinates,
-           (face_indices_1, face_indices_2, face_indices_3, face_indices_4)
+           (face_indices_1, face_indices_2, face_indices_3, face_indices_4),
+           (corner_indices_1, corner_indices_2, corner_indices_3, corner_indices_4)
 end
 
 # 3D
