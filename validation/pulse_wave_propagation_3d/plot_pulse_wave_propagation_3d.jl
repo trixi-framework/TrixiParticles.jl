@@ -1,7 +1,8 @@
 using TrixiParticles
 using CSV, DataFrames, Plots
 
-output_directory = "out"
+output_directory = joinpath(validation_dir(), "pulse_wave_propagation_3d",
+                            "out_pulse_wave_dp_0.0004_c_40vmax")
 
 # ======================================================================================
 # ==== Read results
