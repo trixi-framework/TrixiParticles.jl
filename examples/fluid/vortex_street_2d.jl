@@ -75,7 +75,7 @@ density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 # shifting_technique = TransportVelocityAdami(background_pressure=5 * fluid_density *
 #                                                                 sound_speed^2)
 
-shifting_technique = ParticleShiftingTechnique(; sound_speed_factor=0.1, v_max_factor=0)
+shifting_technique = ParticleShiftingTechnique(; sound_speed_factor=0.2, v_max_factor=0)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,

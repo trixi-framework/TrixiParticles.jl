@@ -13,20 +13,24 @@ reynolds_number = 200
 open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
 # open_boundary_model = BoundaryModelDynamicalPressureZhang()
 
+trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
+              reynolds_number=reynolds_number, saving_callback=nothing,
+              open_boundary_model=open_boundary_model, factor_d=resolution_factor,
+              sol=nothing)
+
+shifting_technique = TransportVelocityAdami(background_pressure=5 * fluid_density *
+                                                                sound_speed^2)
+# shifting_technique = ParticleShiftingTechnique(; sound_speed_factor=0.2, v_max_factor=0)
+
 model = nameof(typeof(open_boundary_model))
-output_directory = joinpath(validation_dir(), "vortex_street_2d", "tvf",
+output_directory = joinpath(validation_dir(), "vortex_street_2d",
+                            shifting_technique isa TransportVelocityAdami ? "tvf" : "pst",
                             "$(model)_dp_$(resolution_factor)D_Re_$reynolds_number")
 
 # ==========================================================================================
 # ==== Postprocessing
-trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
-              reynolds_number=reynolds_number, saving_callback=nothing,
-              open_boundary_model=open_boundary_model,
-              output_directory=output_directory, factor_d=resolution_factor, sol=nothing)
-
-circle = SphereShape(0.001, cylinder_diameter / 2,
-                     cylinder_center, fluid_density, n_layers=1,
-                     sphere_type=RoundSphere())
+circle = SphereShape(0.002, cylinder_diameter / 2, cylinder_center, fluid_density,
+                     n_layers=1, sphere_type=RoundSphere())
 
 # Points for pressure interpolation, located at the wall interface
 const data_points = copy(circle.coordinates)
@@ -77,9 +81,6 @@ pp_callback = PostprocessCallback(; dt=0.02,
                                   f_l=calculate_lift_force, f_d=calculate_drag_force,
                                   output_directory, filename="resulting_force",
                                   write_csv=true, write_file_interval=10)
-
-shifting_technique = TransportVelocityAdami(background_pressure=5 * fluid_density *
-                                                                sound_speed^2)
 
 # ======================================================================================
 # ==== Run the simulation
