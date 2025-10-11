@@ -65,7 +65,8 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     n_particles = length(initial_density)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
-             create_cache_model(initial_density, density_calculator)...,
+             create_cache_model(initial_density, density_calculator, NDIMS, ELTYPE,
+                                n_particles)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -180,6 +181,23 @@ struct PressureMirroring end
 """
 struct PressureZeroing end
 
+@doc raw"""
+    PressureBoundaries(; time_step, omega=0.4)
+
+`density_calculator` for `BoundaryModelDummyParticles`.
+
+!!! note
+    This boundary model can only be used in combination with the [`ImplicitIncompressibleSPHSystem`](@ref).
+"""
+
+struct PressureBoundaries{ELTYPE}
+    time_step::ELTYPE
+    omega::ELTYPE
+
+    function PressureBoundaries(; time_step, omega=0.4)
+        return new{eltype(time_step)}(time_step, omega)
+    end
+end
 @inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
 function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
@@ -204,17 +222,37 @@ function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_p
 end
 
 function create_cache_model(initial_density,
-                            ::Union{SummationDensity, PressureMirroring, PressureZeroing})
+                            ::Union{SummationDensity, PressureMirroring, PressureZeroing},
+                            NDIMS, ELTYPE, n_particles)
     density = copy(initial_density)
 
     return (; density)
 end
 
-@inline create_cache_model(initial_density, ::ContinuityDensity) = (; initial_density)
+function create_cache_model(initial_density,
+                            density_calculator::PressureBoundaries, NDIMS, ELTYPE,
+                            n_particles)
+    reference_density = initial_density[1] #TODO: I haven't found a more elegant way to get the reference density.
+    density = copy(initial_density)
+    a_ii = zeros(ELTYPE, n_particles)
+    predicted_density = zeros(ELTYPE, n_particles)
+    time_step = density_calculator.time_step
+    omega = density_calculator.omega
+    sum_d_ij_pj = zeros(ELTYPE, NDIMS, n_particles)
+    sum_term = zeros(ELTYPE, n_particles)
+    density_error = zeros(ELTYPE, n_particles)
+
+    return (; reference_density, density, a_ii, predicted_density, sum_d_ij_pj, sum_term,
+            omega, time_step, density_error)
+end
+
+@inline create_cache_model(initial_density, ::ContinuityDensity, NDIMS, ELTYPE,
+                           n_particles) = (; initial_density)
 
 function create_cache_model(initial_density,
                             ::Union{AdamiPressureExtrapolation,
-                                    BernoulliPressureExtrapolation})
+                                    BernoulliPressureExtrapolation}, NDIMS, ELTYPE,
+                            n_particles)
     density = copy(initial_density)
     volume = similar(initial_density)
 
@@ -252,10 +290,16 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-# For most density calculators, the pressure is updated in every step
-initial_boundary_pressure(initial_density, density_calculator, _) = similar(initial_density)
+# Set the initial pressure to zero for visualization
+function initial_boundary_pressure(initial_density, density_calculator, _)
+    return similar(initial_density)
+end
+
 # Pressure mirroring does not use the pressure, so we set it to zero for the visualization
-initial_boundary_pressure(initial_density, ::PressureMirroring, _) = zero(initial_density)
+function initial_boundary_pressure(initial_density,
+                                   ::Union{PressureMirroring, PressureBoundaries}, _)
+    zero(initial_density)
+end
 
 # For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
 function initial_boundary_pressure(initial_density, ::PressureZeroing, state_equation)
@@ -274,7 +318,8 @@ end
 @inline function current_density(v,
                                  ::Union{SummationDensity, AdamiPressureExtrapolation,
                                          PressureMirroring, PressureZeroing,
-                                         BernoulliPressureExtrapolation},
+                                         BernoulliPressureExtrapolation,
+                                         PressureBoundaries},
                                  model::BoundaryModelDummyParticles)
     # When using `SummationDensity`, the density is stored in the cache
     return model.cache.density
@@ -361,6 +406,16 @@ function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_od
     (; density) = cache # Density is in the cache for SummationDensity
 
     summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
+end
+
+function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_ode, u_ode,
+                          semi)
+    (; cache) = boundary_model
+    (; density) = cache # Density is in the cache for `SummationDensity`
+
+    summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
+
+    predict_advection!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -457,9 +512,11 @@ function compute_adami_density!(boundary_model, system, v, particle)
     inverse_state_equation!(density, state_equation, pressure, particle)
 end
 
-function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZeroing},
+function compute_pressure!(boundary_model,
+                           ::Union{PressureMirroring, PressureZeroing, PressureBoundaries},
                            system, v, u, v_ode, u_ode, semi)
     # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
+    # Pressure update for `PressureBoundaries`` is be done by the PPE solver in IISPH
     return boundary_model
 end
 
