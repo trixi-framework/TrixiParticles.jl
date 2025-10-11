@@ -11,6 +11,17 @@ end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
+# Returns `functions[index](args...)`, but in a type-stable way for a heterogeneous tuple `functions`
+@inline function apply_ith_function(functions, index, args...)
+    if index == 1
+        # Found the function to apply, apply it and return
+        return first(functions)(args...)
+    end
+
+    # Process remaining functions
+    apply_ith_function(Base.tail(functions), index - 1, args...)
+end
+
 # Print informative message at startup
 function print_startup_message()
     s = """
@@ -127,10 +138,126 @@ function compute_git_hash()
     end
 
     try
-        git_cmd = Cmd(`git describe --tags --always --first-parent --dirty`,
+        git_cmd = Cmd(`git describe --tags --always --dirty`,
                       dir=pkg_directory)
         return string(readchomp(git_cmd))
     catch e
         return "UnknownVersion"
     end
+end
+
+# This data type wraps regular arrays and redefines broadcasting and common operations
+# like `fill!` and `copyto!` to use multithreading with `@threaded`.
+# See https://github.com/trixi-framework/TrixiParticles.jl/pull/722 for more details
+# and benchmarks.
+struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}, P} <: AbstractArray{T, N}
+    array::A
+    parallelization_backend::P
+
+    function ThreadedBroadcastArray(array::AbstractArray{T, N};
+                                    parallelization_backend=default_backend(array)) where {T,
+                                                                                           N}
+        new{T, N, typeof(array), typeof(parallelization_backend)}(array,
+                                                                  parallelization_backend)
+    end
+end
+
+Base.parent(A::ThreadedBroadcastArray) = A.array
+Base.pointer(A::ThreadedBroadcastArray) = pointer(parent(A))
+Base.size(A::ThreadedBroadcastArray) = size(parent(A))
+Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
+
+function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
+    return ThreadedBroadcastArray(similar(A.array, T);
+                                  parallelization_backend=A.parallelization_backend)
+end
+
+Base.@propagate_inbounds function Base.getindex(A::ThreadedBroadcastArray, i...)
+    return getindex(A.array, i...)
+end
+
+Base.@propagate_inbounds function Base.setindex!(A::ThreadedBroadcastArray, x, i...)
+    setindex!(A.array, x, i...)
+    return A
+end
+
+# For things like `A .= 0` where `A` is a `ThreadedBroadcastArray`
+function Base.fill!(A::ThreadedBroadcastArray{T}, x) where {T}
+    xT = x isa T ? x : convert(T, x)::T
+    @threaded A.parallelization_backend for i in eachindex(A.array)
+        @inbounds A.array[i] = xT
+    end
+
+    return A
+end
+
+# Based on
+# copyto_unaliased!(deststyle::IndexStyle, dest::AbstractArray, srcstyle::IndexStyle, src::AbstractArray)
+# defined in base/abstractarray.jl.
+function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
+    if eachindex(dest) == eachindex(src)
+        # Shared-iterator implementation
+        @threaded dest.parallelization_backend for I in eachindex(dest)
+            @inbounds dest.array[I] = src[I]
+        end
+    else
+        # Dual-iterator implementation
+        @threaded dest.parallelization_backend for (Idest, Isrc) in zip(eachindex(dest),
+                                                       eachindex(src))
+            @inbounds dest.array[Idest] = src[Isrc]
+        end
+    end
+
+    return dest
+end
+
+# Broadcasting style for `ThreadedBroadcastArray`.
+struct ThreadedBroadcastStyle{P} <: Broadcast.AbstractArrayStyle{1} end
+
+function Broadcast.BroadcastStyle(::Type{ThreadedBroadcastArray{T, N, A, P}}) where {T, N,
+                                                                                     A, P}
+    return ThreadedBroadcastStyle{P}()
+end
+
+# The threaded broadcast style wins over any other array style.
+# For things like `A .+ B` where `A` is a `ThreadedBroadcastArray` and `B` is a
+# `RecursiveArrayTools.ArrayPartition`.
+#
+# https://docs.julialang.org/en/v1/manual/interfaces/
+# "It is worth noting that you do not need to (and should not) define both argument orders
+# of this call;
+# defining one is sufficient no matter what order the user supplies the arguments in."
+function Broadcast.BroadcastStyle(s1::ThreadedBroadcastStyle,
+                                  ::Broadcast.AbstractArrayStyle)
+    return s1
+end
+
+# To avoid ambiguity with the function above
+function Broadcast.BroadcastStyle(s1::ThreadedBroadcastStyle,
+                                  ::Broadcast.DefaultArrayStyle)
+    return s1
+end
+
+# Based on copyto!(dest::AbstractArray, bc::Broadcasted{Nothing})
+# defined in base/broadcast.jl.
+# For things like `A .= B .+ C` where `A` is a `ThreadedBroadcastArray`.
+function Broadcast.copyto!(dest::ThreadedBroadcastArray,
+                           bc::Broadcast.Broadcasted{Nothing})
+    # Check bounds
+    axes(dest.array) == axes(bc) || Broadcast.throwdm(axes(dest.array), axes(bc))
+
+    bc_ = Base.Broadcast.preprocess(dest.array, bc)
+
+    @threaded dest.parallelization_backend for i in eachindex(bc_)
+        @inbounds dest.array[i] = bc_[i]
+    end
+    return dest
+end
+
+# For things like `C = A .+ B` where `A` or `B` is a `ThreadedBroadcastArray`.
+# `C` will be allocated with this function.
+function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{P}},
+                      ::Type{T}, dims) where {T, P}
+    # TODO we only have the type `P` here and just assume that we can do `P()`
+    return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
 end

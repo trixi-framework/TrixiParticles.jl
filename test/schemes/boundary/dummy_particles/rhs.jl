@@ -47,8 +47,8 @@
                                                                  PressureZeroing(),
                                                                  smoothing_kernel,
                                                                  smoothing_length)
-            boundary_system_zeroing = BoundarySPHSystem(initial_condition,
-                                                        boundary_model_zeroing)
+            boundary_system_zeroing = WallBoundarySystem(initial_condition,
+                                                         boundary_model_zeroing)
             boundary_model_continuity = BoundaryModelDummyParticles(initial_condition.density,
                                                                     initial_condition.mass,
                                                                     ContinuityDensity(),
@@ -56,8 +56,8 @@
                                                                     smoothing_length)
             # Overwrite `boundary_model_continuity.pressure` because we skip the update step
             boundary_model_continuity.pressure .= initial_condition.pressure
-            boundary_system_continuity = BoundarySPHSystem(initial_condition,
-                                                           boundary_model_continuity)
+            boundary_system_continuity = WallBoundarySystem(initial_condition,
+                                                            boundary_model_continuity)
 
             boundary_model_summation = BoundaryModelDummyParticles(initial_condition.density,
                                                                    initial_condition.mass,
@@ -68,8 +68,8 @@
             boundary_model_summation.pressure .= initial_condition.pressure
             # Density is stored in the cache
             boundary_model_summation.cache.density .= initial_condition.density
-            boundary_system_summation = BoundarySPHSystem(initial_condition,
-                                                          boundary_model_summation)
+            boundary_system_summation = WallBoundarySystem(initial_condition,
+                                                           boundary_model_summation)
 
             u_boundary = zeros(0, TrixiParticles.nparticles(initial_condition))
             v_boundary = zeros(0, TrixiParticles.nparticles(initial_condition))
@@ -77,20 +77,20 @@
             v_boundary_continuity = copy(initial_condition.density')
 
             # TLSPH system
-            solid_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                                    smoothing_length, 0.0, 0.0,
-                                                    boundary_model=boundary_model_continuity)
+            structure_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+                                                        smoothing_length, 0.0, 0.0,
+                                                        boundary_model=boundary_model_continuity)
 
-            # Positions of the solid particles are not used here
-            u_solid = zeros(0, TrixiParticles.nparticles(solid_system))
-            v_solid = vcat(initial_condition.velocity,
-                           initial_condition.density')
+            # Positions of the structure particles are not used here
+            u_structure = zeros(0, TrixiParticles.nparticles(structure_system))
+            v_structure = vcat(initial_condition.velocity,
+                               initial_condition.density')
 
             systems = Dict(
                 "Fluid-Fluid" => second_fluid_system,
                 "Fluid-BoundaryDummyPressureZeroing" => boundary_system_zeroing,
                 "Fluid-BoundaryDummyContinuityDensity" => boundary_system_continuity,
-                "Fluid-TLSPH" => solid_system
+                "Fluid-TLSPH" => structure_system
             )
 
             if density_calculator isa SummationDensity
@@ -105,7 +105,7 @@
                 "Fluid-BoundaryDummyContinuityDensity" => (v_boundary_continuity,
                                                            u_boundary),
                 "Fluid-BoundaryDummySummationDensity" => (v_boundary, u_boundary),
-                "Fluid-TLSPH" => (v_solid, u_solid)
+                "Fluid-TLSPH" => (v_structure, u_structure)
             )
 
             return systems, vu
@@ -120,7 +120,8 @@
         smoothing_length = 1.2particle_spacing
         search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
-        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
+        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
+                                                               density_calculators
             # Run three times with different seed for the random initial condition
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
@@ -166,42 +167,39 @@
                 end
 
                 # Create several neighbor systems to test fluid-neighbor interaction
-                systems, vu = second_systems(boundary, density_calculator,
-                                             state_equation,
-                                             smoothing_kernel, smoothing_length)
-
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                                  eachpoint=TrixiParticles.eachparticle(fluid_system))
+                systems,
+                vu = second_systems(boundary, density_calculator,
+                                    state_equation,
+                                    smoothing_kernel, smoothing_length)
 
                 @testset "$key" for key in keys(systems)
                     neighbor_system = systems[key]
                     v_neighbor, u_neighbor = vu[key]
 
-                    nhs2 = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
-                                                                       eachpoint=TrixiParticles.eachparticle(neighbor_system))
+                    semi = DummySemidiscretization()
 
                     # Compute interactions
                     dv = zero(v)
 
                     # Fluid-fluid interact
-                    TrixiParticles.interact!(dv, v, u, v, u, nhs,
-                                             fluid_system, fluid_system)
+                    TrixiParticles.interact!(dv, v, u, v, u,
+                                             fluid_system, fluid_system, semi)
 
                     # Fluid-neighbor interact
-                    TrixiParticles.interact!(dv, v, u, v_neighbor, u_neighbor, nhs2,
-                                             fluid_system, neighbor_system)
+                    TrixiParticles.interact!(dv, v, u, v_neighbor, u_neighbor,
+                                             fluid_system, neighbor_system, semi)
 
                     # Neighbor-fluid interact
                     dv_neighbor = zero(v_neighbor)
                     TrixiParticles.interact!(dv_neighbor, v_neighbor, u_neighbor, v, u,
-                                             nhs, neighbor_system, fluid_system)
+                                             neighbor_system, fluid_system, semi)
 
                     if neighbor_system isa WeaklyCompressibleSPHSystem
                         # If both are fluids, neighbor-neighbor interaction is necessary
                         # for energy preservation.
                         TrixiParticles.interact!(dv_neighbor, v_neighbor, u_neighbor,
                                                  v_neighbor, u_neighbor,
-                                                 nhs2, neighbor_system, neighbor_system)
+                                                 neighbor_system, neighbor_system, semi)
                     end
 
                     # Quantities needed to test energy conservation
@@ -254,7 +252,8 @@
 
                         grad_kernel = TrixiParticles.smoothing_kernel_grad(fluid_system,
                                                                            pos_diff,
-                                                                           distance)
+                                                                           distance,
+                                                                           particle)
 
                         return m_b * dot(v_diff, grad_kernel)
                     end
@@ -264,8 +263,8 @@
                     function deriv_energy(dv, v, u, v_neighbor, u_neighbor,
                                           system, neighbor_system, particle)
                         m_a = TrixiParticles.hydrodynamic_mass(system, particle)
-                        p_a = TrixiParticles.particle_pressure(v, system, particle)
-                        rho_a = TrixiParticles.particle_density(v, system, particle)
+                        p_a = TrixiParticles.current_pressure(v, system, particle)
+                        rho_a = TrixiParticles.current_density(v, system, particle)
 
                         if system isa WeaklyCompressibleSPHSystem
                             dc = system.density_calculator

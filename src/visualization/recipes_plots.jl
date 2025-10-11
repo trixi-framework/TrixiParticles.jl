@@ -4,20 +4,41 @@ const TrixiParticlesODESolution = ODESolution{<:Any, <:Any, <:Any, <:Any, <:Any,
                                               <:ODEProblem{<:Any, <:Any, <:Any,
                                                            <:Semidiscretization}}
 
+# This is the main recipe
 RecipesBase.@recipe function f(sol::TrixiParticlesODESolution)
-    # Redirect everything to the recipe
+    # Redirect everything to the next recipe
     return sol.u[end].x..., sol.prob.p
 end
 
+# GPU version
+RecipesBase.@recipe function f(v_ode::AbstractGPUArray, u_ode, semi::Semidiscretization)
+    # Move GPU data to the CPU
+    v_ode_ = Array(v_ode)
+    u_ode_ = Array(u_ode)
+    semi_ = Adapt.adapt(Array, semi)
+
+    # Redirect everything to the next recipe
+    return v_ode_, u_ode_, semi_
+end
+
 RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
-                               size=(600, 400)) # Default size
-    systems_data = map(semi.systems) do system
+                               particle_spacings=TrixiParticles.particle_spacings(semi),
+                               size=(600, 400), # Default size
+                               xlims=(-Inf, Inf), ylims=(-Inf, Inf))
+    # We need to split this in two recipes in order to find the minimum and maximum
+    # coordinates across all systems.
+    # In this first recipe, we collect the data for each system,
+    # and then pass it to the next recipe.
+    systems_data = map(enumerate(semi.systems)) do (i, system)
         u = wrap_u(u_ode, system, semi)
-        coordinates = active_coordinates(u, system)
+        periodic_box = get_neighborhood_search(system, semi).periodic_box
+        coordinates = PointNeighbors.periodic_coords(active_coordinates(u, system),
+                                                     periodic_box)
+
         x = collect(coordinates[1, :])
         y = collect(coordinates[2, :])
 
-        particle_spacing = system.initial_condition.particle_spacing
+        particle_spacing = particle_spacings[i]
         if particle_spacing < 0
             particle_spacing = 0.0
         end
@@ -29,10 +50,16 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
                 label=timer_name(system))
     end
 
+    # Pass the semidiscretization and the collected data to the next recipe
     return (semi, systems_data...)
 end
 
-RecipesBase.@recipe function f((initial_conditions::InitialCondition)...)
+function particle_spacings(semi::Semidiscretization)
+    return [system.initial_condition.particle_spacing for system in semi.systems]
+end
+
+RecipesBase.@recipe function f(initial_conditions::InitialCondition...)
+    # This recipe is similar to the one above for the semidiscretization
     idx = 0
     ics = map(initial_conditions) do ic
         x = collect(ic.coordinates[1, :])
@@ -52,15 +79,31 @@ RecipesBase.@recipe function f((initial_conditions::InitialCondition)...)
                 label="initial condition " * "$idx")
     end
 
+    # Pass the first initial condition and the collected data to the next recipe
     return (first(initial_conditions), ics...)
 end
 
 RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
-                               data...; zcolor=nothing, size=(600, 400), colorbar_title="")
+                               data...; size=(600, 400), xlims=(Inf, Inf), ylims=(Inf, Inf))
+    # `data` is a tuple of named tuples, passed from the recipe above.
+    # Each named tuple contains coordinates and metadata for a system or initial condition.
+    #
+    # First find the minimum and maximum coordinates across all systems.
     x_min = minimum(obj.x_min for obj in data)
     x_max = maximum(obj.x_max for obj in data)
+
     y_min = minimum(obj.y_min for obj in data)
     y_max = maximum(obj.y_max for obj in data)
+
+    # `x_min`, `x_max`, etc. are used to automatically set the marker size.
+    # So they need to be the minimum and maximum coordinates of the plot area.
+    # When `xlims` or `ylims` are passed explicitly, we have to update these
+    # to get the correct marker size.
+    isfinite(first(xlims)) && (x_min = xlims[1])
+    isfinite(last(xlims)) && (x_max = xlims[2])
+
+    isfinite(first(ylims)) && (y_min = ylims[1])
+    isfinite(last(ylims)) && (y_max = ylims[2])
 
     # Note that this assumes the plot area to be ~10% smaller than `size`,
     # which is the case when showing a single plot with the legend inside.
@@ -70,14 +113,21 @@ RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
 
     xlims --> (x_min, x_max)
     ylims --> (y_min, y_max)
-    aspect_ratio --> :equal
 
+    # Just having the kwargs `xlims` and `ylims` (without setting them)
+    # is enough to make `widen = :auto`  fall back to no widening.
+    # When no explicit limits are passed, we overwrite this.
+    if all(!isfinite, xlims) && all(!isfinite, ylims)
+        widen --> true
+    end
+
+    aspect_ratio --> :equal
     seriestype --> :scatter
+    # No border around the markers
     markerstrokewidth --> 0
     grid --> false
-    colorbar_title --> colorbar_title
-    zcolor --> zcolor
 
+    # Now plot all systems or initial conditions
     for obj in data
         @series begin
             if obj.particle_spacing < eps()
@@ -95,5 +145,28 @@ RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
             # Return data for plotting
             obj.x, obj.y
         end
+    end
+end
+
+RecipesBase.@recipe function f(geometry::Polygon)
+    x = stack(geometry.vertices)[1, :]
+    y = stack(geometry.vertices)[2, :]
+
+    aspect_ratio --> :equal
+    grid --> false
+
+    # First plot the vertices as a scatter plot
+    @series begin
+        seriestype --> :scatter
+        return (x, y)
+    end
+
+    # Now plot the edges as a line plot
+    @series begin
+        # Ignore series in legend and color cycling. Note that `:=` forces the attribute,
+        # whereas `-->` would only set it if it is not already set.
+        primary := false
+
+        return (x, y)
     end
 end

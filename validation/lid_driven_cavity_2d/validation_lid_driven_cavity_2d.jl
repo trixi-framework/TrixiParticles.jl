@@ -2,27 +2,32 @@ using TrixiParticles
 
 # ==========================================================================================
 # ==== Resolution
-particle_spacings = [0.02, 0.01, 0.005]
+# The paper provides reference data for particle spacings particle_spacings = [0.02, 0.01, 0.005]
+particle_spacing = 0.02
 
 # ==========================================================================================
 # ==== Experiment Setup
 tspan = (0.0, 25.0)
 reynolds_numbers = [100.0, 1000.0, 10_000.0]
 
-interpolated_velocity(v, u, t, system) = nothing
+const SENSOR_CAPTURE_TIME = 24.8
+const CAPTURE_STARTED = Ref(false)
 
-function interpolated_velocity(v, u, t, system::TrixiParticles.FluidSystem)
-    if t < 24.8
+interpolated_velocity(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
+
+function interpolated_velocity(system::TrixiParticles.AbstractFluidSystem,
+                               dv_ode, du_ode, v_ode, u_ode, semi, t)
+    if t < SENSOR_CAPTURE_TIME
         return nothing
     end
 
     n_particles_xy = round(Int, 1.0 / system.initial_condition.particle_spacing)
 
     values_y = interpolate_line([0.5, 0.0], [0.5, 1.0], n_particles_xy, semi, system,
-                                v, u; endpoint=true, cut_off_bnd=true)
+                                v_ode, u_ode; endpoint=true, cut_off_bnd=true)
 
     values_x = interpolate_line([0.0, 0.5], [1.0, 0.5], n_particles_xy, semi, system,
-                                v, u; endpoint=true, cut_off_bnd=true)
+                                v_ode, u_ode; endpoint=true, cut_off_bnd=true)
 
     vy_y = stack(values_y.velocity)[2, :]
     vy_x = stack(values_y.velocity)[1, :]
@@ -32,7 +37,7 @@ function interpolated_velocity(v, u, t, system::TrixiParticles.FluidSystem)
 
     file = joinpath(output_directory, "interpolated_velocities.csv")
 
-    if isfile(file)
+    if CAPTURE_STARTED[]
         data = TrixiParticles.CSV.read(file, TrixiParticles.DataFrame)
         vy_y_ = (data.vy_y .+ vy_y)
         vy_x_ = (data.vy_x .+ vy_x)
@@ -50,21 +55,28 @@ function interpolated_velocity(v, u, t, system::TrixiParticles.FluidSystem)
                                       counter=1, vy_y=vy_y, vy_x=vy_x, vx_y=vx_y, vx_x=vx_x)
 
         TrixiParticles.CSV.write(output_directory * "/interpolated_velocities.csv", df)
+        CAPTURE_STARTED[] = true
     end
 
     return nothing
 end
 
-for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers
+for reynolds_number in reynolds_numbers,
+    density_calculator in [SummationDensity(), ContinuityDensity()], wcsph in [false, true]
     n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     Re = Int(reynolds_number)
 
-    global output_directory = joinpath("out_ldc",
+    name_density_calculator = density_calculator isa SummationDensity ?
+                              "summation_density" : "continuity_density"
+
+    global output_directory = joinpath("out_ldc", wcsph ? "wcsph" : "edac",
+                                       name_density_calculator,
                                        "validation_run_lid_driven_cavity_2d_nparticles_$(n_particles_xy)x$(n_particles_xy)_Re_$Re")
 
-    saving_callback = SolutionSavingCallback(dt=0.1, output_directory=output_directory)
+    saving_callback = SolutionSavingCallback(dt=0.02, output_directory=output_directory)
 
+    CAPTURE_STARTED[] = false
     pp_callback = PostprocessCallback(; dt=0.02,
                                       interpolated_velocity=interpolated_velocity,
                                       filename="interpolated_velocities",
@@ -73,6 +85,7 @@ for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers
     # Import variables into scope
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fluid", "lid_driven_cavity_2d.jl"),
+                  wcsph=wcsph, density_calculator=density_calculator,
                   saving_callback=saving_callback, tspan=tspan, pp_callback=pp_callback,
                   particle_spacing=particle_spacing, reynolds_number=reynolds_number)
 
@@ -83,10 +96,10 @@ for particle_spacing in particle_spacings, reynolds_number in reynolds_numbers
     n_evaluations = first(data.counter)
 
     df = TrixiParticles.DataFrame(pos=data.pos,
-                                  avg_vx_x=data.vx_x ./ n_evaluations,
-                                  avg_vx_y=data.vx_y ./ n_evaluations,
-                                  avg_vy_x=data.vy_x ./ n_evaluations,
-                                  avg_vy_y=data.vy_y ./ n_evaluations,
+                                  avg_vx_x=(data.vx_x ./ n_evaluations),
+                                  avg_vx_y=(data.vx_y ./ n_evaluations),
+                                  avg_vy_x=(data.vy_x ./ n_evaluations),
+                                  avg_vy_y=(data.vy_y ./ n_evaluations),
                                   counter=n_evaluations)
 
     TrixiParticles.CSV.write(output_directory * "/interpolated_velocities.csv", df)

@@ -3,16 +3,18 @@
     @testset verbose=false "Integral" begin
         # All smoothing kernels should integrate to something close to 1
         function integrate_kernel_2d(smk)
-            integral_2d_radial, _ = quadgk(r -> r * TrixiParticles.kernel(smk, r, 1.0), 0,
-                                           TrixiParticles.compact_support(smk, 1.0),
-                                           rtol=1e-15)
+            integral_2d_radial,
+            _ = quadgk(r -> r * TrixiParticles.kernel(smk, r, 1.0), 0,
+                       TrixiParticles.compact_support(smk, 1.0),
+                       rtol=1e-15)
             return 2 * pi * integral_2d_radial
         end
 
         function integrate_kernel_3d(smk)
-            integral_3d_radial, _ = quadgk(r -> r^2 * TrixiParticles.kernel(smk, r, 1.0), 0,
-                                           TrixiParticles.compact_support(smk, 1.0),
-                                           rtol=1e-15)
+            integral_3d_radial,
+            _ = quadgk(r -> r^2 * TrixiParticles.kernel(smk, r, 1.0), 0,
+                       TrixiParticles.compact_support(smk, 1.0),
+                       rtol=1e-15)
             return 4 * pi * integral_3d_radial
         end
 
@@ -84,10 +86,43 @@
 
                         # This should work with very tight tolerances
                         @test isapprox(analytic_deriv, automatic_deriv,
-                                       rtol=5e-15, atol=2eps())
+                                       rtol=5e-15, atol=4 * eps())
                     end
                 end
             end
         end
     end
-end
+
+    @testset verbose=false "Return Type" begin
+        # Test that the return type of the kernel and kernel derivative preserve
+        # the input type. We don't want to return `Float64` when working with `Float32`.
+        kernels = [
+            GaussianKernel,
+            SchoenbergCubicSplineKernel,
+            SchoenbergQuarticSplineKernel,
+            SchoenbergQuinticSplineKernel,
+            WendlandC2Kernel,
+            WendlandC4Kernel,
+            WendlandC6Kernel,
+            SpikyKernel,
+            Poly6Kernel
+        ]
+
+        # Test different smoothing length types
+        smoothing_lengths = (0.5, 0.5f0)
+
+        @testset "$kernel_type" for kernel_type in kernels
+            for ndims in 2:3
+                kernel_ = kernel_type{ndims}()
+
+                for h in smoothing_lengths
+                    result = TrixiParticles.kernel(kernel_, h / 2, h)
+                    @test typeof(result) == typeof(h)
+
+                    result = TrixiParticles.kernel_deriv(kernel_, h / 2, h)
+                    @test typeof(result) == typeof(h)
+                end
+            end
+        end
+    end
+end;

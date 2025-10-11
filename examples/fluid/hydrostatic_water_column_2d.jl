@@ -1,3 +1,10 @@
+# ==========================================================================================
+# 2D Hydrostatic Water Column Simulation
+#
+# This example simulates a column of water at rest in a tank under gravity.
+# It is a basic test case to verify hydrostatic pressure distribution and stability.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -32,7 +39,7 @@ smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 alpha = 0.02
-viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
 fluid_density_calculator = ContinuityDensity()
 
@@ -40,7 +47,7 @@ fluid_density_calculator = ContinuityDensity()
 system_acceleration = (0.0, -gravity)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
+                                           smoothing_length, viscosity=viscosity_fluid,
                                            acceleration=system_acceleration,
                                            source_terms=nothing)
 
@@ -57,11 +64,13 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              viscosity=viscosity_wall)
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, movement=nothing)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
+                                     prescribed_motion=nothing)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system)
+semi = Semidiscretization(fluid_system, boundary_system,
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)

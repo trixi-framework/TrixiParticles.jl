@@ -14,13 +14,13 @@ a fixed interval of simulation time (`dt`).
 
 # Keywords
 - `funcs...`:   Functions to be executed at specified intervals during the simulation.
-                Each function must have the arguments `(v, u, t, system)`,
-                and will be called for every system, where `v` and `u` are the
-                wrapped solution arrays for the corresponding system and `t` is
-                the current simulation time. Note that working with these `v`
-                and `u` arrays requires undocumented internal functions of
-                TrixiParticles. See [Custom Quantities](@ref custom_quantities)
-                for a list of pre-defined functions that can be used here.
+                Each function must have the arguments `(system, data, t)`,
+                which will be called for every system, where `data` is a named
+                tuple with fields depending on the system type, and `t` is the
+                current simulation time. Check the available data for each
+                system with `available_data(system)`.
+                See [Custom Quantities](@ref custom_quantities)
+                for a list of pre-defined custom quantities that can be used here.
 - `interval=0`: Specifies the number of time steps between each invocation of the callback.
                 If set to `0`, the callback will not be triggered based on time steps.
                 Either `interval` or `dt` must be set to something larger than 0.
@@ -100,13 +100,13 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(post_callback, dt,
-                                initialize=initialize_postprocess_callback!,
+                                initialize=(initialize_postprocess_callback!),
                                 save_positions=(false, false), final_affect=true)
     else
         # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(post_callback, post_callback,
                                 save_positions=(false, false),
-                                initialize=initialize_postprocess_callback!)
+                                initialize=(initialize_postprocess_callback!))
     end
 end
 
@@ -214,7 +214,7 @@ function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integra
     cb.git_hash[] = compute_git_hash()
 
     # Apply the callback
-    cb(integrator)
+    cb(integrator; from_initialize=true)
 
     return cb
 end
@@ -227,46 +227,66 @@ function (pp::PostprocessCallback)(u, t, integrator)
 end
 
 # `affect!`
-function (pp::PostprocessCallback)(integrator)
-    vu_ode = integrator.u
-    v_ode, u_ode = vu_ode.x
-    semi = integrator.p
-    t = integrator.t
-    filenames = system_names(semi.systems)
-    new_data = false
-
-    # Update systems to compute quantities like density and pressure
-    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
-
-    foreach_system(semi) do system
-        if system isa BoundarySystem && pp.exclude_boundary
-            return
-        end
-
-        system_index = system_indices(system, semi)
-
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-        for (key, f) in pp.func
-            result = f(v, u, t, system)
-            if result !== nothing
-                add_entry!(pp, string(key), t, result, filenames[system_index])
-                new_data = true
+function (pp::PostprocessCallback)(integrator; from_initialize=false)
+    @trixi_timeit timer() "apply postprocess cb" begin
+        vu_ode = integrator.u
+        if from_initialize
+            # Avoid calling `get_du` here, since it will call the RHS function
+            # if it is called before the first time step.
+            # This would cause problems with `semi.update_callback_used`,
+            # which might not yet be set to `true` at this point if the `UpdateCallback`
+            # comes AFTER the `PostprocessCallback` in the `CallbackSet`.
+            dv_ode, du_ode = zero(vu_ode).x
+        else
+            # Depending on the time integration scheme, this might call the RHS function
+            @trixi_timeit timer() "update du" begin
+                # Don't create sub-timers here to avoid cluttering the timer output
+                @notimeit timer() dv_ode, du_ode = get_du(integrator).x
             end
         end
-    end
+        v_ode, u_ode = vu_ode.x
+        semi = integrator.p
+        t = integrator.t
+        filenames = system_names(semi.systems)
+        new_data = false
 
-    if new_data
-        push!(pp.times, t)
-    end
+        # Update quantities that are stored in the systems. These quantities (e.g. pressure)
+        # still have the values from the last stage of the previous step if not updated here.
+        @trixi_timeit timer() "update systems and nhs" begin
+            # Don't create sub-timers here to avoid cluttering the timer output
+            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
+        end
 
-    if isfinished(integrator) ||
-       (pp.write_file_interval > 0 && backup_condition(pp, integrator))
-        write_postprocess_callback(pp)
-    end
+        foreach_system(semi) do system
+            if system isa AbstractBoundarySystem && pp.exclude_boundary
+                return
+            end
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
-    u_modified!(integrator, false)
+            system_index = system_indices(system, semi)
+
+            for (key, f) in pp.func
+                result_ = custom_quantity(f, system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+                if result_ !== nothing
+                    # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
+                    result = transfer2cpu(result_)
+                    add_entry!(pp, string(key), t, result, filenames[system_index])
+                    new_data = true
+                end
+            end
+        end
+
+        if new_data
+            push!(pp.times, t)
+        end
+
+        if isfinished(integrator) ||
+           (pp.write_file_interval > 0 && backup_condition(pp, integrator))
+            write_postprocess_callback(pp, integrator)
+        end
+
+        # Tell OrdinaryDiffEq that `u` has not been modified
+        u_modified!(integrator, false)
+    end
 end
 
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
@@ -280,13 +300,14 @@ end
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
-function write_postprocess_callback(pp::PostprocessCallback)
+function write_postprocess_callback(pp::PostprocessCallback, integrator)
     isempty(pp.data) && return
 
     mkpath(pp.output_directory)
 
     data = Dict{String, Any}()
-    write_meta_data!(data, pp.git_hash[])
+    data["meta"] = create_meta_data_dict(pp, integrator)
+
     prepare_series_data!(data, pp)
 
     time_stamp = ""
@@ -334,15 +355,6 @@ function create_series_dict(values, times, system_name="")
                 "system_name" => system_name,
                 "values" => values,
                 "time" => times)
-end
-
-function write_meta_data!(data, git_hash)
-    meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => git_hash,
-                     "julia_version" => string(VERSION))
-
-    data["meta"] = meta_data
-    return data
 end
 
 function write_csv(abs_file_path, data)

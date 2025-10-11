@@ -9,6 +9,11 @@
 [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](https://opensource.org/licenses/MIT)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10797541.svg)](https://zenodo.org/doi/10.5281/zenodo.10797541)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.07044/status.svg)](https://doi.org/10.21105/joss.07044)
+
+<p align="center">
+  <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/479ff0c6-3c65-44fe-b3e0-2ed653e7e3a5" alt="TrixiP_logo" width="40%"/>
+</p>
 
 **TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods, focused on the simulation of complex multiphysics problems, and written in [Julia](https://julialang.org).
 
@@ -17,13 +22,15 @@ TrixiParticles.jl focuses on the following use cases:
 - Development of new particle-based methods and models.
 - Easy setup of accessible simulations for educational purposes, including student projects, coursework, and thesis work.
 
-It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU-support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl). 
+It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU-support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
 
 [![YouTube](https://github.com/user-attachments/assets/dc2be627-a799-4bfd-9226-2077f737c4b0)](https://www.youtube.com/watch?v=V7FWl4YumcA&t=4667s)
 
 ## Features
 - Incompressible Navier-Stokes
-  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC)
+  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH),
+    Entropically Damped Artificial Compressibility (EDAC),
+    Implicit Incompressible SPH (IISPH)
   - Models: Surface Tension, Open Boundaries
 - Solid-body mechanics
   - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
@@ -31,6 +38,7 @@ It offers intuitive configuration, robust pre- and post-processing, and vendor-a
 - Particle sampling of complex geometries from `.stl` and `.asc` files.
 - Output formats:
   - VTK
+- Support for GPUs by Nvidia, AMD and Apple (experimental)
 
 ## Examples
 We provide several example simulation setups in the `examples` folder (which can be accessed from Julia via `examples_dir()`).
@@ -62,7 +70,7 @@ We provide several example simulation setups in the `examples` folder (which can
 ## Installation
 If you have not yet installed Julia, please [follow the instructions for your
 operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl works
-with Julia v1.9 and newer. We recommend using the latest stable release of Julia.
+with Julia v1.10 and newer. We recommend using the latest stable release of Julia.
 
 ### For users
 TrixiParticles.jl is a registered Julia package.
@@ -131,6 +139,22 @@ with the help of TrixiParticles.jl, please cite it as
   year={2024},
   howpublished={\url{https://github.com/trixi-framework/TrixiParticles.jl}},
   doi={10.5281/zenodo.10797541}
+}
+```
+and
+```bibtex
+@article{neher2025trixiparticles,
+  author       = {Niklas S. Neher and Erik Faulhaber and Sven Berger and Gregor J. Gassner and Michael Schlottke-Lakemper},
+  title        = {TrixiParticles.jl: Particle-based multiphysics simulation in Julia},
+  journal      = {Journal of Open Source Software},
+  volume       = {10},
+  number       = {105},
+  pages        = {7044},
+  year         = {2025},
+  publisher    = {Open Journals},
+  doi          = {10.21105/joss.07044},
+  url          = {https://joss.theoj.org/papers/10.21105/joss.07044},
+  issn         = {2475-9066}
 }
 ```
 

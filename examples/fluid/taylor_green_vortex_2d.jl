@@ -1,9 +1,15 @@
-# Taylor Green vortex
+# ==========================================================================================
+# 2D Taylor-Green Vortex Simulation
 #
-# P. Ramachandran, K. Puri
-# "Entropically damped artiﬁcial compressibility for SPH".
-# In: Computers and Fluids, Volume 179 (2019), pages 579-594.
-# https://doi.org/10.1016/j.compﬂuid.2018.11.023
+# Based on:
+#   P. Ramachandran, K. Puri.
+#   "Entropically damped artiﬁcial compressibility for SPH".
+#   Computers and Fluids, Volume 179 (2019), pages 579-594.
+#   https://doi.org/10.1016/j.compfluid.2018.11.023
+#
+# This example simulates the Taylor-Green vortex, a classic benchmark case for
+# incompressible viscous flow, characterized by an array of decaying vortices.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -51,6 +57,8 @@ n_particles_xy = round(Int, box_length / particle_spacing)
 
 # ==========================================================================================
 # ==== Fluid
+wcsph = false
+
 nu = U * box_length / reynolds_number
 
 background_pressure = sound_speed^2 * fluid_density
@@ -58,15 +66,37 @@ background_pressure = sound_speed^2 * fluid_density
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
+# To be set via `trixi_include`
+perturb_coordinates = true
 fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.0, 0.0),
-                         coordinates_perturbation=0.2, # To avoid stagnant streamlines when not using TVF.
+                         # Perturb particle coordinates to avoid stagnant streamlines without TVF
+                         coordinates_perturbation=perturb_coordinates ? 0.2 : nothing, # To avoid stagnant streamlines when not using TVF.
                          density=fluid_density, pressure=initial_pressure_function,
                          velocity=initial_velocity_function)
-
-fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
-                                           sound_speed,
-                                           transport_velocity=TransportVelocityAdami(background_pressure),
-                                           viscosity=ViscosityAdami(; nu))
+if wcsph
+    # Using `SummationDensity()` with `perturb_coordinates = true` introduces noise in the simulation
+    # due to bad density estimates resulting from perturbed particle positions.
+    # Adami et al. 2013 use the final particle distribution from an relaxation step for the initial condition
+    # and impose the analytical velocity profile.
+    density_calculator = ContinuityDensity()
+    state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                       exponent=1)
+    fluid_system = WeaklyCompressibleSPHSystem(fluid, density_calculator,
+                                               state_equation, smoothing_kernel,
+                                               pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
+                                               smoothing_length,
+                                               viscosity=ViscosityAdami(; nu),
+                                               shifting_technique=TransportVelocityAdami(;
+                                                                                         background_pressure))
+else
+    density_calculator = SummationDensity()
+    fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
+                                               sound_speed,
+                                               density_calculator=density_calculator,
+                                               shifting_technique=TransportVelocityAdami(;
+                                                                                         background_pressure),
+                                               viscosity=ViscosityAdami(; nu))
+end
 
 # ==========================================================================================
 # ==== Simulation

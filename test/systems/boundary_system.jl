@@ -1,4 +1,4 @@
-@testset verbose=true "BoundarySystem" begin
+@testset verbose=true "WallBoundarySystem" begin
     coordinates_ = [
         [1.0 2.0
          1.0 2.0],
@@ -16,14 +16,14 @@
             initial_condition = InitialCondition(; coordinates, mass, density)
             model = Val(:boundary_model)
 
-            system = BoundarySPHSystem(initial_condition, model)
+            system = WallBoundarySystem(initial_condition, model)
             TrixiParticles.update_positions!(system, 0, 0, 0, 0, 0, 0.0)
 
-            @test system isa BoundarySPHSystem
+            @test system isa WallBoundarySystem
             @test ndims(system) == NDIMS
             @test system.coordinates == coordinates
             @test system.boundary_model == model
-            @test system.movement === nothing
+            @test system.prescribed_motion === nothing
             @test system.ismoving[] == false
         end
     end
@@ -36,21 +36,23 @@
             initial_condition = InitialCondition(; coordinates, mass, density)
             model = (; hydrodynamic_mass=3)
 
-            function movement_function(t)
+            function movement_function(x, t)
                 if NDIMS == 2
-                    return SVector(0.5 * t, 0.3 * t^2)
+                    return x + SVector(0.5 * t, 0.3 * t^2)
                 end
 
-                return SVector(0.5 * t, 0.3 * t^2, 0.1 * t^3)
+                return x + SVector(0.5 * t, 0.3 * t^2, 0.1 * t^3)
             end
 
             is_moving(t) = t < 1.0
-            bm = BoundaryMovement(movement_function, is_moving)
-            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+            bm = PrescribedMotion(movement_function, is_moving)
+            system = WallBoundarySystem(initial_condition, model, prescribed_motion=bm)
 
-            # Moving
+            # Particles are moving at `t = 0.6`
             t = 0.6
-            system.movement(system, t)
+            # `semi` is only passed to `@threaded`
+            TrixiParticles.apply_prescribed_motion!(system, system.prescribed_motion,
+                                                    SerialBackend(), t)
             if NDIMS == 2
                 new_coordinates = coordinates .+ [0.5 * t, 0.3 * t^2]
                 new_velocity = [0.5, 0.6 * t] .* ones(size(new_coordinates))
@@ -65,9 +67,11 @@
             @test isapprox(new_velocity, system.cache.velocity)
             @test isapprox(new_acceleration, system.cache.acceleration)
 
-            # Stop moving
+            # Not moving anymore, so the coordinates should not change
             t = 1.0
-            system.movement(system, t)
+            # `semi` is only passed to `@threaded`
+            TrixiParticles.apply_prescribed_motion!(system, system.prescribed_motion,
+                                                    SerialBackend(), t)
 
             @test isapprox(new_coordinates, system.coordinates)
 
@@ -78,11 +82,13 @@
 
             initial_condition = InitialCondition(; coordinates, mass, density)
 
-            bm = BoundaryMovement(movement_function, is_moving, moving_particles=[2])
-            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+            bm = PrescribedMotion(movement_function, is_moving, moving_particles=[2])
+            system = WallBoundarySystem(initial_condition, model, prescribed_motion=bm)
 
             t = 0.1
-            system.movement(system, t)
+            # `semi` is only passed to `@threaded`
+            TrixiParticles.apply_prescribed_motion!(system, system.prescribed_motion,
+                                                    SerialBackend(), t)
 
             if NDIMS == 2
                 new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2]
@@ -109,19 +115,20 @@
         initial_condition = InitialCondition(; coordinates, mass, density)
         model = (; hydrodynamic_mass=3)
 
-        system = BoundarySPHSystem(initial_condition, model)
+        system = WallBoundarySystem(initial_condition, model)
 
-        show_compact = "BoundarySPHSystem{2}((hydrodynamic_mass = 3,), nothing, 0.0) with 2 particles"
+        show_compact = "WallBoundarySystem{2}((hydrodynamic_mass = 3,), nothing, 0.0, 0) with 2 particles"
         @test repr(system) == show_compact
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ BoundarySPHSystem{2}                                                                             │
-        │ ════════════════════                                                                             │
+        │ WallBoundarySystem{2}                                                                            │
+        │ ═════════════════════                                                                            │
         │ #particles: ………………………………………………… 2                                                                │
         │ boundary model: ……………………………………… (hydrodynamic_mass = 3,)                                         │
         │ movement function: ……………………………… nothing                                                          │
         │ adhesion coefficient: ……………………… 0.0                                                              │
+        │ color: ……………………………………………………………… 0                                                                │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end

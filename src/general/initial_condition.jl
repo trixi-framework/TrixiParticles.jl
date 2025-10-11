@@ -13,6 +13,8 @@ The following setups return `InitialCondition`s for commonly used setups:
 
 `InitialCondition`s support the set operations `union`, `setdiff` and `intersect` in order
 to build more complex geometries.
+`InitialCondition`s also support the set operations `setdiff` and `intersect` together
+with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`load_geometry`](@ref).
 
 # Arguments
 - `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
@@ -58,6 +60,14 @@ shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0)
 shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 initial_condition = intersect(shape1, shape2)
 
+# Set operations with geometries loaded from files
+shape = RectangularShape(0.05, (20, 20), (0.0, 0.0), density=1.0)
+file =  pkgdir(TrixiParticles, "examples", "preprocessing", "data", "circle.asc")
+geometry = load_geometry(file)
+
+initial_condition_1 = intersect(shape, geometry)
+initial_condition_2 = setdiff(shape, geometry)
+
 # Build `InitialCondition` manually
 coordinates = [0.0 1.0 1.0
                0.0 0.0 1.0]
@@ -70,106 +80,134 @@ initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, density=1000.0)
 
 # output
-InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0])
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition{Float64}                                                                        │
+│ ═════════════════════════                                                                        │
+│ #dimensions: ……………………………………………… 2                                                                │
+│ #particles: ………………………………………………… 3                                                                │
+│ particle spacing: ………………………………… -1.0                                                             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct InitialCondition{ELTYPE}
+struct InitialCondition{ELTYPE, MATRIX, VECTOR}
     particle_spacing :: ELTYPE
-    coordinates      :: Array{ELTYPE, 2}
-    velocity         :: Array{ELTYPE, 2}
-    mass             :: Array{ELTYPE, 1}
-    density          :: Array{ELTYPE, 1}
-    pressure         :: Array{ELTYPE, 1}
+    coordinates      :: MATRIX # Array{ELTYPE, 2}
+    velocity         :: MATRIX # Array{ELTYPE, 2}
+    mass             :: VECTOR # Array{ELTYPE, 1}
+    density          :: VECTOR # Array{ELTYPE, 1}
+    pressure         :: VECTOR # Array{ELTYPE, 1}
+end
 
-    function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
-                              mass=nothing, pressure=0.0, particle_spacing=-1.0)
-        NDIMS = size(coordinates, 1)
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
+                          mass=nothing, pressure=0.0, particle_spacing=-1.0)
+    NDIMS = size(coordinates, 1)
 
-        return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                       pressure, particle_spacing)
+    return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+                                   pressure, particle_spacing)
+end
+
+# Function barrier to make `NDIMS` static and therefore SVectors type-stable
+function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+                                 pressure, particle_spacing) where {NDIMS}
+    ELTYPE = eltype(coordinates)
+    n_particles = size(coordinates, 2)
+
+    if n_particles == 0
+        return InitialCondition(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
+                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
     end
 
-    # Function barrier to make `NDIMS` static and therefore SVectors type-stable
-    function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                     pressure, particle_spacing) where {NDIMS}
-        ELTYPE = eltype(coordinates)
-        n_particles = size(coordinates, 2)
+    # SVector of coordinates to pass to functions.
+    # This will return a vector of SVectors in 2D and 3D, but an 1×n matrix in 1D.
+    coordinates_svector_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+    # In 1D, this will reshape the 1×n matrix to a vector, in 2D/3D it will do nothing
+    coordinates_svector = reshape(coordinates_svector_, length(coordinates_svector_))
 
-        if n_particles == 0
-            return new{ELTYPE}(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
-                               zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
+    if velocity isa AbstractMatrix
+        velocities = velocity
+    else
+        # Assuming `velocity` is a scalar or a function
+        velocity_fun = wrap_function(velocity, Val(NDIMS))
+        if length(velocity_fun(coordinates_svector[1])) != NDIMS
+            throw(ArgumentError("`velocity` must be $NDIMS-dimensional " *
+                                "for $NDIMS-dimensional `coordinates`"))
         end
+        velocities_svector = velocity_fun.(coordinates_svector)
+        velocities = stack(velocities_svector)
+    end
+    if size(coordinates) != size(velocities)
+        throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
+    end
 
-        # SVector of coordinates to pass to functions.
-        # This will return a vector of SVectors in 2D and 3D, but an 1×n matrix in 1D.
-        coordinates_svector_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
-        # In 1D, this will reshape the 1×n matrix to a vector, in 2D/3D it will do nothing
-        coordinates_svector = reshape(coordinates_svector_, length(coordinates_svector_))
-
-        if velocity isa AbstractMatrix
-            velocities = velocity
-        else
-            # Assuming `velocity` is a scalar or a function
-            velocity_fun = wrap_function(velocity, Val(NDIMS))
-            if length(velocity_fun(coordinates_svector[1])) != NDIMS
-                throw(ArgumentError("`velocity` must be $NDIMS-dimensional " *
-                                    "for $NDIMS-dimensional `coordinates`"))
-            end
-            velocities_svector = velocity_fun.(coordinates_svector)
-            velocities = stack(velocities_svector)
+    if density isa AbstractVector
+        if length(density) != n_particles
+            throw(ArgumentError("Expected: length(density) == size(coordinates, 2)\n" *
+                                "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
+                                "length(density) = $(length(density))"))
         end
-        if size(coordinates) != size(velocities)
-            throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
-        end
+        densities = density
+    else
+        density_fun = wrap_function(density, Val(NDIMS))
+        densities = density_fun.(coordinates_svector)
+    end
 
-        if density isa AbstractVector
-            if length(density) != n_particles
-                throw(ArgumentError("Expected: length(density) == size(coordinates, 2)\n" *
-                                    "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
-                                    "length(density) = $(length(density))"))
-            end
-            densities = density
-        else
-            density_fun = wrap_function(density, Val(NDIMS))
-            densities = density_fun.(coordinates_svector)
-        end
+    if any(densities .< eps())
+        throw(ArgumentError("density must be positive and larger than `eps()`"))
+    end
 
-        if any(densities .< eps())
-            throw(ArgumentError("density must be positive and larger than `eps()`"))
+    if pressure isa AbstractVector
+        if length(pressure) != n_particles
+            throw(ArgumentError("Expected: length(pressure) == size(coordinates, 2)\n" *
+                                "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
+                                "length(pressure) = $(length(pressure))"))
         end
+        pressures = pressure
+    else
+        pressure_fun = wrap_function(pressure, Val(NDIMS))
+        pressures = pressure_fun.(coordinates_svector)
+    end
 
-        if pressure isa AbstractVector
-            if length(pressure) != n_particles
-                throw(ArgumentError("Expected: length(pressure) == size(coordinates, 2)\n" *
-                                    "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
-                                    "length(pressure) = $(length(pressure))"))
-            end
-            pressures = pressure
-        else
-            pressure_fun = wrap_function(pressure, Val(NDIMS))
-            pressures = pressure_fun.(coordinates_svector)
+    if mass isa AbstractVector
+        if length(mass) != n_particles
+            throw(ArgumentError("Expected: length(mass) == size(coordinates, 2)\n" *
+                                "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
+                                "length(mass) = $(length(mass))"))
         end
-
-        if mass isa AbstractVector
-            if length(mass) != n_particles
-                throw(ArgumentError("Expected: length(mass) == size(coordinates, 2)\n" *
-                                    "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
-                                    "length(mass) = $(length(mass))"))
-            end
-            masses = mass
-        elseif mass === nothing
-            if particle_spacing < 0
-                throw(ArgumentError("`mass` must be specified when not using `particle_spacing`"))
-            end
-            particle_volume = particle_spacing^NDIMS
-            masses = particle_volume * densities
-        else
-            mass_fun = wrap_function(mass, Val(NDIMS))
-            masses = mass_fun.(coordinates_svector)
+        masses = mass
+    elseif mass === nothing
+        if particle_spacing < 0
+            throw(ArgumentError("`mass` must be specified when not using `particle_spacing`"))
         end
+        particle_volume = particle_spacing^NDIMS
+        masses = particle_volume * densities
+    else
+        mass_fun = wrap_function(mass, Val(NDIMS))
+        masses = mass_fun.(coordinates_svector)
+    end
 
-        return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
-                           densities, pressures)
+    return InitialCondition(particle_spacing, coordinates, ELTYPE.(velocities),
+                            ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures))
+end
+
+function Base.show(io::IO, ic::InitialCondition)
+    @nospecialize ic # reduce precompilation time
+
+    print(io, "InitialCondition{$(eltype(ic))}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
+    @nospecialize ic # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "InitialCondition{$(eltype(ic))}")
+        summary_line(io, "#dimensions", "$(ndims(ic))")
+        summary_line(io, "#particles", "$(nparticles(ic))")
+        summary_line(io, "particle spacing", "$(first(ic.particle_spacing))")
+        summary_footer(io)
     end
 end
 
@@ -200,6 +238,11 @@ end
 function Base.union(initial_condition::InitialCondition, initial_conditions...)
     particle_spacing = initial_condition.particle_spacing
     ic = first(initial_conditions)
+
+    if initial_condition.particle_spacing isa Vector || ic.particle_spacing isa Vector
+        throw(ArgumentError("`union` operation does not support non-uniform particle spacings. " *
+                            "Please ensure all `InitialCondition`s use a scalar particle spacing."))
+    end
 
     if ndims(ic) != ndims(initial_condition)
         throw(ArgumentError("all passed initial conditions must have the same dimensionality"))
@@ -234,6 +277,11 @@ Base.union(initial_condition::InitialCondition) = initial_condition
 function Base.setdiff(initial_condition::InitialCondition, initial_conditions...)
     ic = first(initial_conditions)
 
+    if initial_condition.particle_spacing isa Vector || ic.particle_spacing isa Vector
+        throw(ArgumentError("`setdiff` operation does not support non-uniform particle spacings. " *
+                            "Please ensure all `InitialCondition`s use a scalar particle spacing."))
+    end
+
     if ndims(ic) != ndims(initial_condition)
         throw(ArgumentError("all passed initial conditions must have the same dimensionality"))
     end
@@ -264,6 +312,11 @@ Base.setdiff(initial_condition::InitialCondition) = initial_condition
 function Base.intersect(initial_condition::InitialCondition, initial_conditions...)
     ic = first(initial_conditions)
 
+    if initial_condition.particle_spacing isa Vector || ic.particle_spacing isa Vector
+        throw(ArgumentError("`intersect` operation does not support non-uniform particle spacings. " *
+                            "Please ensure all `InitialCondition`s use a scalar particle spacing."))
+    end
+
     if ndims(ic) != ndims(initial_condition)
         throw(ArgumentError("all passed initial conditions must have the same dimensionality"))
     end
@@ -290,6 +343,37 @@ end
 
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
+function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
+                          min_particle_distance=(system.initial_condition.particle_spacing /
+                                                 4))
+    ic = system.initial_condition
+
+    v_ode, u_ode = sol.u[end].x
+
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_u(v_ode, system, semi)
+
+    # Check if particles come too close especially when the surface exhibits large curvature
+    too_close = find_too_close_particles(u, min_particle_distance)
+
+    velocity_ = use_final_velocity ? view(v, 1:ndims(system), :) : ic.velocity
+
+    not_too_close = setdiff(eachparticle(system), too_close)
+
+    coordinates = u[:, not_too_close]
+    velocity = velocity_[:, not_too_close]
+    mass = ic.mass[not_too_close]
+    density = ic.density[not_too_close]
+    pressure = ic.pressure[not_too_close]
+
+    if length(too_close) > 0
+        @info "Removed $(length(too_close)) particles that are too close together"
+    end
+
+    return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
+                                       ic.particle_spacing)
+end
+
 # Find particles in `coords1` that are closer than `max_distance` to any particle in `coords2`
 function find_too_close_particles(coords1, coords2, max_distance)
     NDIMS = size(coords1, 1)
@@ -300,9 +384,32 @@ function find_too_close_particles(coords1, coords2, max_distance)
     PointNeighbors.initialize!(nhs, coords1, coords2)
 
     # We are modifying the vector `result`, so this cannot be parallel
-    foreach_point_neighbor(coords1, coords2, nhs, parallel=false) do particle, _, _, _
+    foreach_point_neighbor(coords1, coords2, nhs;
+                           parallelization_backend=SerialBackend()) do particle, _, _, _
         if !(particle in result)
-            append!(result, particle)
+            push!(result, particle)
+        end
+    end
+
+    return result
+end
+
+# Find particles in `coords` that are closer than `min_distance` to any other particle in `coords`
+function find_too_close_particles(coords, min_distance)
+    NDIMS = size(coords, 1)
+    result = Int[]
+
+    nhs = GridNeighborhoodSearch{NDIMS}(search_radius=min_distance,
+                                        n_points=size(coords, 2))
+    TrixiParticles.initialize!(nhs, coords)
+
+    # We are modifying the vector `result`, so this cannot be parallel
+    foreach_point_neighbor(coords, coords, nhs;
+                           parallelization_backend=SerialBackend()) do particle, neighbor,
+                                                                       _, _
+        # Only consider particles with neighbors that are not to be removed
+        if particle != neighbor && !(particle in result) && !(neighbor in result)
+            push!(result, particle)
         end
     end
 

@@ -1,4 +1,4 @@
-# Sampling of Geometries
+# [Sampling of Geometries](@id sampling_of_geometries)
 
 Generating the initial configuration of a simulation requires filling volumes (3D) or surfaces (2D) of complex geometries with particles.
 The algorithm to sample a complex geometry should be robust and fast,
@@ -250,8 +250,111 @@ Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_hormann.jl")
 Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_jacobson.jl")]
 ```
+# [Read geometries from file](@id read_geometries_from_file)
+Geometries can be imported using the [`load_geometry`](@ref) function.
+- For 3D geometries, we support the binary (`.stl`) format.
+- For 2D geometries, the recommended format is DXF (`.dxf`), with optional support for a simple ASCII (`.asc`) format.
+
+## ASCII Format (.asc)
+An .asc file contains a list of 2D coordinates, space-delimited, one point per line,
+where the first column are the x values and the second the y values.
+For example:
+```plaintext
+# ASCII
+0.0 0.0
+1.0 0.0
+1.0 1.0
+0.0 1.0
+```
+It is the user’s responsibility to ensure the points are ordered correctly.
+This format is easy to generate and inspect manually.
+
+## DXF Format (.dxf) – recommended
+The DXF (Drawing Exchange Format) is a widely-used CAD format for 2D and 3D data.
+We recommend this format for defining 2D polygonal.
+Only DXF entities of type `LINE` or `POLYLINE` are supported.
+To create DXF files from scratch, we recommend using the open-source tool [FreeCAD](https://www.freecad.org/).
+For a less technical approach, we recommend using [Inkscape](https://inkscape.org/) to create SVG files and then export them as DXF.
+
+### Creating DXF Files with FreeCAD
+
+- Open FreeCAD and create a new document.
+- Switch to the Sketcher workbench and create a new sketch.
+- Choose the XY-plane orientation and draw your geometry.
+- Select the object to be exported.
+- Go to "File > Export..." and choose "AutoDesk DXF (*.dxf)" as the format.
+- Ensure the following Import-Export options are enabled:
+    - "Use legacy Python exporter".
+    - "Project exported objects along current view direction".
+
+### Creating DXF Files with Inkscape
+SVG vector graphics can also be used as a basis for geometry.
+Use Inkscape to open or create the SVG.
+You can simply draw a Bezier curve by pressing "B" on your keyboard.
+We reommend the mode "Create spiro paths" for a smooth curve.
+Select the relevant path and export it as DXF:
+- Go to "File > Save As...".
+- Choose "Desktop Cutting Plotter (AutoCAD DXF R12)(*.dxf)" format.
 
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "geometries", "io.jl")]
+```
+
+# [Particle Packing](@id particle_packing)
+To obtain a body-fitted and isotropic particle distribution, an initial configuration (see [Sampling of Geometries](@ref sampling_of_geometries)) is first generated. This configuration is then packed using a [`ParticlePackingSystem`](@ref) following the steps introduced in [Neher2025](@cite).
+For a hands-on tutorial with complete examples, see the particle packing tutorial.
+The preprocessing pipeline consists of the following steps:
+
+- Load geometry: Fig. 1, [`load_geometry`](@ref).
+- Compute the signed distance field (SDF): Fig. 2, [`SignedDistanceField`](@ref).
+- Generate boundary particles: Fig. 3, [`sample_boundary`](@ref).
+- Initial sampling of the interior particles with inside-outside segmentation: Fig. 4, [`ComplexShape`](@ref).
+- Pack the initial configuration of interior and boundary particles (Fig. 5): Fig. 6, [`ParticlePackingSystem`](@ref).
+
+The input data can either be a 3D triangulated surface mesh represented in STL format or a 2D polygonal traversal of the geometry (see [`load_geometry`](@ref)).
+The second step involves generating the SDF (see [`SignedDistanceField`](@ref)), which is necessary for the final packing step as it requires a surface detection.
+The SDF is illustrated in Fig. 2, where the distances to the surface of the geometry are visualized as a color map.
+As shown, the SDF is computed only within a narrow band around the geometry’s surface, enabling  a face-based neighborhood search (NHS) to be used exclusively during this step.
+In the third step, the initial configuration of the boundary particles is generated (orange particles in Fig. 3).
+Boundary particles are created by copying the positions of SDF points located outside the geometry but within a predefined boundary thickness (see [`sample_boundary`](@ref)).
+In the fourth step, the initial configuration of the interior particles (green particles in Fig. 4) is generated using the hierarchical winding number approach (see [Hierarchical Winding](@ref hierarchical_winding)).
+After steps **1** through **4**, the initial configuration of both interior and boundary particles is obtained, as illustrated in Fig. 5.
+The interface of the geometry surface is not well resolved with the initial particle configuration.
+Thus, in the final step, a packing algorithm by Zhu et al. [Zhu2021](@cite) is applied utilizing the SDF to simultaneously optimize the positions of both interior and boundary particles,
+yielding an isotropic distribution while accurately preserving the geometry surface, as illustrated in Fig. 6.
+
+```@raw html
+<div style="display: flex; gap: 16px; flex-wrap: wrap;">
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/7fe9d1f1-1633-4377-8b97-a4d1778aee07" alt="geometry" style="max-width: 200px;">
+    <figcaption>(1) Geometry representation</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/2b79188c-3148-49f1-8337-718721851bf5" alt="sdf" style="max-width: 200px;">
+    <figcaption>(2) Signed distances to the surface</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/1501718f-d1f5-4f14-b1bc-2a2e581db476" alt="boundary" style="max-width: 200px;">
+    <figcaption>(3) Boundary particles</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/f7376b15-324a-4da1-bb59-db01c7bd6620" alt="interior" style="max-width: 200px;">
+    <figcaption>(4) Interior particles</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/4be889d6-e70a-4c5e-bef2-0071ea4d898c" alt="initial_config" style="max-width: 200px;">
+    <figcaption>(5) Initial configuration</figcaption>
+  </figure>
+  <figure style="margin: 0; text-align: center;">
+    <img src="https://github.com/user-attachments/assets/0f7aba29-3cf7-4ec1-8c95-841e72fe620d" alt="packed_config" style="max-width: 200px;">
+    <figcaption>(6) Packed configuration</figcaption>
+  </figure>
+</div>
+```
+
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = map(file -> joinpath("preprocessing", "particle_packing", file), readdir(joinpath("..", "src", "preprocessing", "particle_packing")))
 ```

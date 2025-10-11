@@ -1,7 +1,7 @@
 """
     SphereShape(particle_spacing, radius, center_position, density;
                 sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
-                cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
+                cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
                 velocity=zeros(length(center_position)), mass=nothing, pressure=0.0)
 
 Generate a sphere that is either completely filled (by default)
@@ -35,18 +35,19 @@ coordinate directions as `cutout_min` and `cutout_max`.
                     cut out of the sphere.
 - `cutout_max`:     Corner in positive coordinate directions of a cuboid that is to be
                     cut out of the sphere.
-- `tlsph`:          With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
-                    on the boundary of the shape and not one particle radius away, as for fluids.
-                    When `tlsph=true`, particles will be placed on the boundary of the shape.
-- `velocity`:   Either a function mapping each particle's coordinates to its velocity,
-                or, for a constant fluid velocity, a vector holding this velocity.
-                Velocity is constant zero by default.
-- `mass`:       Either `nothing` (default) to automatically compute particle mass from particle
-                density and spacing, or a function mapping each particle's coordinates to its mass,
-                or a scalar for a constant mass over all particles.
-- `pressure`:   Either a function mapping each particle's coordinates to its pressure,
-                or a scalar for a constant pressure over all particles. This is optional and
-                only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
+- `place_on_shell`: If `place_on_shell=true`, particles will be placed on the shell of the shape.
+                    For example, the [`TotalLagrangianSPHSystem`](@ref) requires particles
+                    to be placed on the shell of the shape and not half a particle spacing away,
+                    as for fluids.
+- `velocity`:       Either a function mapping each particle's coordinates to its velocity,
+                    or, for a constant fluid velocity, a vector holding this velocity.
+                    Velocity is constant zero by default.
+- `mass`:           Either `nothing` (default) to automatically compute particle mass from particle
+                    density and spacing, or a function mapping each particle's coordinates to its mass,
+                    or a scalar for a constant mass over all particles.
+- `pressure`:       Either a function mapping each particle's coordinates to its pressure,
+                    or a scalar for a constant pressure over all particles. This is optional and
+                    only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
 
 # Examples
 ```jldoctest; output = false
@@ -78,13 +79,19 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0)
 SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 
 # output
-InitialCondition{Float64}(0.1, [0.25 0.17500000000000002 … 0.269548322038589 0.2; 0.4 0.44330127018922194 … 0.3127891626126164 0.4; 0.3 0.3 … -0.13595561786013038 -0.15000000000000002], [0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0], [1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002  …  1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002], [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0  …  1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition{Float64}                                                                        │
+│ ═════════════════════════                                                                        │
+│ #dimensions: ……………………………………………… 3                                                                │
+│ #particles: ………………………………………………… 518                                                              │
+│ particle spacing: ………………………………… 0.1                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
-                     cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
-                     velocity=zeros(length(center_position)), mass=nothing, pressure=0.0)
+                     cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
+                     velocity=zeros(length(center_position)), mass=nothing, pressure=0)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -93,7 +100,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
 
     coordinates = sphere_shape_coords(sphere_type, particle_spacing, radius,
                                       SVector{NDIMS}(center_position),
-                                      n_layers, layer_outwards, tlsph)
+                                      n_layers, layer_outwards, place_on_shell)
 
     # Convert tuples to vectors
     cutout_min_ = collect(cutout_min)
@@ -163,34 +170,34 @@ struct RoundSphere{AR}
 end
 
 function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_position,
-                             n_layers, layer_outwards, tlsph)
+                             n_layers, layer_outwards, place_on_shell)
     if n_layers > 0
         if layer_outwards
             inner_radius = radius
             outer_radius = radius + n_layers * particle_spacing
 
-            if !tlsph
+            if !place_on_shell
                 # Put first layer of particles half a particle spacing outside of `radius`
-                inner_radius += 0.5particle_spacing
-                outer_radius += 0.5particle_spacing
+                inner_radius += particle_spacing / 2
+                outer_radius += particle_spacing / 2
             end
         else
             inner_radius = radius - n_layers * particle_spacing
             outer_radius = radius
 
-            if !tlsph
+            if !place_on_shell
                 # Put first layer of particles half a particle spacing inside of `radius`
-                inner_radius -= 0.5particle_spacing
-                outer_radius -= 0.5particle_spacing
+                inner_radius -= particle_spacing / 2
+                outer_radius -= particle_spacing / 2
             end
         end
     else
         outer_radius = radius
-        inner_radius = -1.0
+        inner_radius = -1
 
-        if !tlsph
+        if !place_on_shell
             # Put first layer of particles half a particle spacing inside of `radius`
-            outer_radius -= 0.5particle_spacing
+            outer_radius -= particle_spacing / 2
         end
     end
 
@@ -219,7 +226,7 @@ function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_pos
 end
 
 function sphere_shape_coords(sphere::RoundSphere, particle_spacing, radius, center,
-                             n_layers, layer_outwards, tlsph)
+                             n_layers, layer_outwards, place_on_shell)
     if n_layers > 0
         if layer_outwards
             inner_radius = radius
@@ -227,14 +234,14 @@ function sphere_shape_coords(sphere::RoundSphere, particle_spacing, radius, cent
             inner_radius = radius - n_layers * particle_spacing
         end
 
-        if !tlsph
+        if !place_on_shell
             # Put first layer of particles half a particle spacing outside of inner radius
-            inner_radius += 0.5particle_spacing
+            inner_radius += particle_spacing / 2
         end
     else
-        if tlsph
+        if place_on_shell
             # Just create a sphere that is 0.5 particle spacing larger
-            radius += 0.5particle_spacing
+            radius += particle_spacing / 2
         end
 
         # Each layer has thickness `particle_spacing`
@@ -246,15 +253,15 @@ function sphere_shape_coords(sphere::RoundSphere, particle_spacing, radius, cent
         end
 
         # Same as above, which puts the inner radius between 0 and `particle_spacing`
-        inner_radius = max(0.0, radius - n_layers * particle_spacing + 0.5particle_spacing)
+        inner_radius = max(0, radius - n_layers * particle_spacing + particle_spacing / 2)
     end
 
-    coords = zeros(length(center), 0)
+    coords = zeros(eltype(particle_spacing), length(center), 0)
 
     for layer in 0:(n_layers - 1)
         sphere_coords = round_sphere(sphere, particle_spacing,
                                      inner_radius + layer * particle_spacing, center)
-        coords = hcat(coords, sphere_coords)
+        coords = hcat(coords, convert(Array{eltype(coords)}, sphere_coords))
     end
 
     return coords
@@ -315,7 +322,7 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
         elseif n_particles == 3
             # Return 2D triangle
             y = sin(2pi / 3)
-            return [1 -0.5 -0.5;
+            return [1 -1/2 -1/2;
                     0 y -y;
                     0 0 0] * radius .+ center
         elseif n_particles == 2

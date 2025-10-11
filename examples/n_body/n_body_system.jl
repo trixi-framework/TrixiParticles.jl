@@ -1,10 +1,8 @@
 using TrixiParticles
 using LinearAlgebra
 
-# The second type parameter of `System` can't be `Nothing`, or TrixiParticles will launch
-# GPU kernel for `foreach_point_neighbor` loops.
-struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS, 0}
-    initial_condition :: InitialCondition{ELTYPE}
+struct NBodySystem{NDIMS, ELTYPE <: Real, IC} <: TrixiParticles.AbstractSystem{NDIMS}
+    initial_condition :: IC
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE
     buffer            :: Nothing
@@ -13,13 +11,13 @@ struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS, 0}
         mass = copy(initial_condition.mass)
 
         new{size(initial_condition.coordinates, 1),
-            eltype(mass)}(initial_condition, mass, G, nothing)
+            eltype(mass), typeof(initial_condition)}(initial_condition, mass, G, nothing)
     end
 end
 
 TrixiParticles.timer_name(::NBodySystem) = "nbody"
 
-@inline Base.eltype(system::NBodySystem) = eltype(system.initial_condition.coordinates)
+@inline Base.eltype(system::NBodySystem{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
 function TrixiParticles.write_u0!(u0, system::NBodySystem)
     u0 .= system.initial_condition.coordinates
@@ -36,7 +34,7 @@ end
 # NHS update
 function TrixiParticles.update_nhs!(neighborhood_search,
                                     system::NBodySystem, neighbor::NBodySystem,
-                                    u_system, u_neighbor)
+                                    u_system, u_neighbor, semi)
     TrixiParticles.PointNeighbors.update!(neighborhood_search,
                                           u_system, u_neighbor,
                                           points_moving=(true, true))
@@ -50,9 +48,8 @@ end
 
 function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                   v_neighbor_system, u_neighbor_system,
-                                  neighborhood_search,
                                   particle_system::NBodySystem,
-                                  neighbor_system::NBodySystem)
+                                  neighbor_system::NBodySystem, semi)
     (; mass, G) = neighbor_system
 
     system_coords = TrixiParticles.current_coordinates(u_particle_system, particle_system)
@@ -61,10 +58,9 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     TrixiParticles.foreach_point_neighbor(particle_system, neighbor_system,
                                           system_coords, neighbor_coords,
-                                          neighborhood_search) do particle, neighbor,
-                                                                  pos_diff, distance
-        # Only consider particles with a distance > 0.
-        distance < sqrt(eps()) && return
+                                          semi) do particle, neighbor, pos_diff, distance
+        # No interaction of a particle with itself
+        particle_system === neighbor_system && particle === neighbor && return
 
         # Original version
         # dv = -G * mass[neighbor] * pos_diff / norm(pos_diff)^3
@@ -109,13 +105,17 @@ end
 
 TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem; write_meta_data=true)
+function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
     (; mass) = system
 
     vtk["velocity"] = v
     vtk["mass"] = mass
 
     return vtk
+end
+
+function TrixiParticles.add_system_data!(system_data, system::NBodySystem)
+    return system_data
 end
 
 function Base.show(io::IO, system::NBodySystem)

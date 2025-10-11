@@ -1,8 +1,9 @@
-#
+# ==========================================================================================
 # An n-body benchmark from "The Computer Language Benchmarks Game" translated to TrixiParticles.
 # This example does not benefit from using multiple threads.
 # Multithreading is disabled below.
-#
+# ==========================================================================================
+
 using TrixiParticles
 using Printf
 using Polyester
@@ -17,7 +18,7 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                   neighbor_system::NBodySystem)
     (; mass, G) = neighbor_system
 
-    for particle in TrixiParticles.each_moving_particle(particle_system)
+    for particle in TrixiParticles.each_integrated_particle(particle_system)
         particle_coords = TrixiParticles.current_coords(u_particle_system,
                                                         particle_system, particle)
 
