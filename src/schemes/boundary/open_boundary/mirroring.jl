@@ -57,9 +57,9 @@ into the fluid along a direction that is normal to the open boundary.
 Fluid properties are then interpolated at these ghost node positions using surrounding fluid particles.
 The values are then mirrored back to the boundary particles.
 We provide three different mirroring methods:
-    - [`ZerothOrderMirroring`](@ref): Uses a Shepard interpolation to interpolate the values.
-    - [`FirstOrderMirroring`](@ref): Uses a first order correction based on the gradient of the interpolated values .
-    - [`SimpleMirroring`](@ref): Similar to the first order mirroring, but does not use the gradient of the interpolated values.
+- [`ZerothOrderMirroring`](@ref): Uses a Shepard interpolation to interpolate the values.
+- [`FirstOrderMirroring`](@ref): Uses a first order correction based on the gradient of the interpolated values .
+- [`SimpleMirroring`](@ref): Similar to the first order mirroring, but does not use the gradient of the interpolated values.
 """
 struct BoundaryModelMirroringTafuni{MM}
     mirror_method::MM
@@ -71,7 +71,8 @@ end
 
 function update_boundary_quantities!(system, boundary_model::BoundaryModelMirroringTafuni,
                                      v, u, v_ode, u_ode, semi, t)
-    (; boundary_zones, pressure, density, fluid_system, cache) = system
+    (; boundary_zones, fluid_system, cache) = system
+    (; pressure, density) = cache
 
     @trixi_timeit timer() "extrapolate and correct values" begin
         v_fluid = wrap_v(v_ode, fluid_system, semi)
@@ -127,7 +128,8 @@ end
 function extrapolate_values!(system,
                              mirror_method::Union{FirstOrderMirroring, SimpleMirroring},
                              v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi)
-    (; pressure, density, fluid_system) = system
+    (; cache, fluid_system, boundary_model) = system
+    (; pressure, density) = cache
 
     # Static indices to avoid allocations
     two_to_end = SVector{ndims(system)}(2:(ndims(system) + 1))
@@ -226,7 +228,7 @@ function extrapolate_values!(system,
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
                 project_velocity_on_face_normal!(v_open_boundary, system, particle,
-                                                 boundary_zone)
+                                                 boundary_zone, boundary_model)
             end
 
             # No else: `correction_matrix[][1, 1] <= eps()` means no fluid neighbors
@@ -267,7 +269,7 @@ function extrapolate_values!(system,
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
                 project_velocity_on_face_normal!(v_open_boundary, system, particle,
-                                                 boundary_zone)
+                                                 boundary_zone, boundary_model)
             end
         end
     end
@@ -277,7 +279,8 @@ end
 
 function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
                              v_open_boundary, v_fluid, u_open_boundary, u_fluid, semi)
-    (; pressure, density, fluid_system) = system
+    (; cache, fluid_system, boundary_model) = system
+    (; pressure, density) = cache
 
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
     nhs = get_neighborhood_search(fluid_system, fluid_system, semi)
@@ -354,7 +357,7 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
                 # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
                 # only this component of interpolated velocity is kept [...]"
                 project_velocity_on_face_normal!(v_open_boundary, system, particle,
-                                                 boundary_zone)
+                                                 boundary_zone, boundary_model)
             end
         end
     end
@@ -521,7 +524,8 @@ function average_velocity!(v, u, system, boundary_zone, semi)
 end
 
 # Only for inflow boundary zones
-function project_velocity_on_face_normal!(v, system, particle, boundary_zone)
+function project_velocity_on_face_normal!(v, system, particle, boundary_zone,
+                                          boundary_model)
     (; face_normal, flow_direction) = boundary_zone
 
     # Bidirectional flow
@@ -530,7 +534,7 @@ function project_velocity_on_face_normal!(v, system, particle, boundary_zone)
     # Outflow
     signbit(dot(flow_direction, face_normal)) && return v
 
-    # Project `vel` on the normal direction of the boundary zone
+    # Project the velocity on the normal direction of the boundary zone
     # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
     # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
     # only this component of interpolated velocity is kept [...]"

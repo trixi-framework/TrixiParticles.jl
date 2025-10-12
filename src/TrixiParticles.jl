@@ -6,7 +6,7 @@ using Adapt: Adapt
 using Base: @propagate_inbounds
 using CSV: CSV
 using Dates
-using DataFrames: DataFrame
+using DataFrames: DataFrames, DataFrame
 using DelimitedFiles: DelimitedFiles
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
@@ -85,11 +85,11 @@ export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffus
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
-       BoundaryModelMirroringTafuni,
+       BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,
        BernoulliPressureExtrapolation
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
-export PrescribedMotion
+export PrescribedMotion, OscillatingMotion2D
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape

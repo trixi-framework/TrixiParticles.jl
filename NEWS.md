@@ -9,6 +9,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Features
 
 - Added 'StateEquationAdaptiveCole' an adaptive sound speed version of the Cole state equation (#875)
+- Added `OscillatingMotion2D` to create an oscillating `PrescribedMotion` combining
+  translation and rotation (#915).
 
 ## Version 0.4.1
 
