@@ -230,7 +230,6 @@ end
 function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem,
                                           WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
                             v, u, v_ode, u_ode, semi)
-
     calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
 
     calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
