@@ -394,7 +394,9 @@ function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
     # Convert to coordinate matrix
     points_coords_ = collect(reinterpret(reshape, eltype(start_svector), points_coords))
 
-    return interpolate_points(points_coords_, semi, ref_system, v_ode, u_ode;
+    points_coords__ = Adapt.adapt(semi.parallelization_backend, points_coords_)
+
+    return interpolate_points(points_coords__, semi, ref_system, v_ode, u_ode;
                               smoothing_length=smoothing_length,
                               cut_off_bnd=cut_off_bnd, clip_negative_pressure)
 end
@@ -496,9 +498,15 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
         old_nhs = get_neighborhood_search(ref_system, system, semi)
         nhs = PointNeighbors.copy_neighborhood_search(old_nhs, search_radius,
                                                       nparticles(system))
-        PointNeighbors.initialize!(nhs, point_coords, system_coords)
 
-        return nhs
+        # In case of GPU backends, we need to move the internal data structures
+        # of the neighborhood search to the GPU as well.
+        # On the CPU, this is a no-op.
+        nhs_ = Adapt.adapt(semi.parallelization_backend, nhs)
+
+        PointNeighbors.initialize!(nhs_, point_coords, system_coords)
+
+        return nhs_
     end
 
     return neighborhood_searches
