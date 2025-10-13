@@ -111,8 +111,7 @@ boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=fal
 # i.e. t(g/H)^(1/2) = (1.5, 2.36, 3.0, 5.7, 6.45).
 # Note that the images in Marrone et al. are obtained with `particles_per_height = 320`.
 saving_paper = SolutionSavingCallback(save_times=[0.0, 1.5, 2.36, 3.0, 5.7, 6.45] ./
-                                                 sqrt(gravity / H),
-                                      prefix="marrone_times")
+                                                 sqrt(gravity / H), prefix="marrone_times")
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
@@ -122,4 +121,6 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               tspan=tspan, fluid_system=fluid_system,
               update_strategy=nothing,
               extra_callback=postprocessing_cb,
-              extra_callback2=saving_paper)
+              extra_callback2=saving_paper,
+              parallelization_backend=PolyesterBackend(),
+              neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))

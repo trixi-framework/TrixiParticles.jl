@@ -19,10 +19,10 @@ using TrixiParticles.JSON
 # `resolution` in this case is set relative to `H`, the initial height of the fluid.
 # Use 40, 80 or 400 for validation.
 # Note: 400 takes about 30 minutes on a large data center CPU (much longer with serial update)
-resolution = 40
+resolution = 600
 
 # Use `SerialUpdate()` to obtain consistent results when using multiple threads
-update_strategy = nothing
+update_strategy = ParallelUpdate()
 # update_strategy = SerialUpdate()
 
 # ==========================================================================================
@@ -30,11 +30,13 @@ update_strategy = nothing
 trixi_include(@__MODULE__,
               joinpath(validation_dir(), "dam_break_2d",
                        "setup_marrone_2011.jl"),
-              use_edac=false, update_strategy=update_strategy,
+              use_edac=false,
               particles_per_height=resolution,
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
-              alpha=0.01, # This is used by De Courcy et al. (2024)
-              tspan=(0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
+              alpha=0.005, # This is used by De Courcy et al. (2024)
+              tspan=(0.0, 7 / sqrt(9.81 / 0.6)), # This is used by De Courcy et al. (2024)
+              parallelization_backend=PolyesterBackend(),
+              neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=update_strategy))
 
 reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",
                                      "validation_reference_wcsph_$formatted_string.json")
@@ -63,7 +65,9 @@ trixi_include(@__MODULE__,
               particles_per_height=resolution,
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
               alpha=0.01, # This is used by De Courcy et al. (2024)
-              tspan=(0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
+              tspan=(0.0, 7 / sqrt(9.81 / 0.6)),  # This is used by De Courcy et al. (2024)
+              parallelization_backend=PolyesterBackend(),
+              neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=update_strategy))
 
 reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
                                     "validation_reference_edac_$formatted_string.json")
@@ -83,5 +87,6 @@ error_edac_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
                                  run_data["pressure_P2_fluid_1"]["time"],
                                  run_data["pressure_P2_fluid_1"]["values"])
 
-print(error_edac_P1, " ", error_edac_P2, " ",
-      error_wcsph_P1, " ", error_wcsph_P2, "\n")
+print("Error of EDAC and WCSPH for dam break 2D with resolution $resolution:\n")
+print("EDAC P1 ", error_edac_P1, " P2 ", error_edac_P2, "\n")
+print("WCSPH P1 ", error_wcsph_P1, " P2 ", error_wcsph_P2, "\n")
