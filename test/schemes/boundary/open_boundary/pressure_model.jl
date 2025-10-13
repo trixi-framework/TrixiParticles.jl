@@ -68,6 +68,7 @@
             system = OpenBoundarySystem(boundary_zone; buffer_size=0,
                                         boundary_model=nothing,
                                         fluid_system=FluidSystemMockRCR(nothing, nothing))
+            system.boundary_zone_indices .= 1
 
             u = system.initial_condition.coordinates
             v = system.initial_condition.velocity

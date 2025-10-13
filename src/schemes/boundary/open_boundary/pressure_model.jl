@@ -87,6 +87,12 @@ function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone
     candidates = findall(x -> dot(x - zone_origin, -face_normal) <= slice,
                          reinterpret(reshape, SVector{ndims(system), eltype(u)}, u))
 
+    particles_in_zone = findall(particle -> boundary_zone ==
+                                            current_boundary_zone(system, particle),
+                                each_integrated_particle(system))
+
+    intersect!(candidates, particles_in_zone)
+
     cross_sectional_area = length(candidates) * particle_spacing^(ndims(system) - 1)
 
     # Division inside the `sum` closure to maintain GPU compatibility
