@@ -3,6 +3,7 @@ using FFTW
 using CSV, DataFrames
 using Test
 # using ThreadPinning; pinthreads(:numa)
+# using AMDGPU
 
 # Results in [90k particles, 340k particles, 1.2M particles, 5M particles]
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
@@ -59,8 +60,7 @@ end
 
 calculate_drag_force(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
 function calculate_drag_force(system::TrixiParticles.AbstractFluidSystem, dv_ode, du_ode,
-                              v_ode,
-                              u_ode, semi, t)
+                              v_ode, u_ode, semi, t)
     force = zero(SVector{ndims(system), eltype(system)})
 
     values = interpolate_points(data_points, semi, system, v_ode, u_ode; cut_off_bnd=false,
