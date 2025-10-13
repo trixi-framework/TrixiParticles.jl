@@ -57,11 +57,6 @@ See [Tensile Instability Control](@ref tic) for more information on this techniq
     return -m_b * (abs(p_a) + p_b) / (rho_a * rho_b) * W_a
 end
 
-# Fallback when `p_a` is not a scalar but a field, as it is the case in `dv_shifting`
-@inline function tensile_instability_control(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
-    return inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
-end
-
 # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
 # They argued that the formulation is more flexible because of the possibility to formulate
 # different inter-particle averages or to assume different inter-particle distributions.
