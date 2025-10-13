@@ -61,7 +61,7 @@
             # so velocity directly corresponds to flow rate.
             reference_velocity(pos, t) = SVector(func(t), 0.0)
             boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
-                                         particle_spacing=0.1, face_normal=(1.0, 0.0),
+                                         particle_spacing=0.1, face_normal=(-1.0, 0.0),
                                          density=1000.0, reference_velocity, pressure_model,
                                          open_boundary_layers=1, rest_pressure=p_0)
 
