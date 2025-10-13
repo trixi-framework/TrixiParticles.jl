@@ -33,8 +33,8 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
                                   interpolation thus only impacting the local interpolated value.
 - `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
                                  in the interpolation. This is particularly useful for simulations
-                                 with no-slip boundary conditions, where there is a smoothed
-                                 velocity field at the boundary.
+                                 with no-slip boundary conditions, where it is necessary
+                                 to obtain a correct boundary layer in the interpolation.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -125,8 +125,8 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
                                   interpolation thus only impacting the local interpolated value.
 - `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
                                  in the interpolation. This is particularly useful for simulations
-                                 with no-slip boundary conditions, where there is a smoothed
-                                 velocity field at the boundary.
+                                 with no-slip boundary conditions, where it is necessary
+                                 to obtain a correct boundary layer in the interpolation.
 
 !!! note
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
@@ -260,8 +260,8 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
                                   interpolation thus only impacting the local interpolated value.
 - `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
                                  in the interpolation. This is particularly useful for simulations
-                                 with no-slip boundary conditions, where there is a smoothed
-                                 velocity field at the boundary.
+                                 with no-slip boundary conditions, where it is necessary
+                                 to obtain a correct boundary layer in the interpolation.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -361,8 +361,8 @@ See also: [`interpolate_points`](@ref), [`interpolate_plane_2d`](@ref),
                                   interpolation thus only impacting the local interpolated value.
 - `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
                                  in the interpolation. This is particularly useful for simulations
-                                 with no-slip boundary conditions, where there is a smoothed
-                                 velocity field at the boundary.
+                                 with no-slip boundary conditions, where it is necessary
+                                 to obtain a correct boundary layer in the interpolation.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point along the line.
@@ -446,8 +446,8 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
                                   interpolation thus only impacting the local interpolated value.
 - `include_wall_velocity=false`: If set to `true`, the wall velocity at the boundary is included
                                  in the interpolation. This is particularly useful for simulations
-                                 with no-slip boundary conditions, where there is a smoothed
-                                 velocity field at the boundary.
+                                 with no-slip boundary conditions, where it is necessary
+                                 to obtain a correct boundary layer in the interpolation.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point.
