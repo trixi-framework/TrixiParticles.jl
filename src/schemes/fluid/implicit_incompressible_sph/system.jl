@@ -475,7 +475,7 @@ end
 # Maybe we can merge this function and the next one with a current_pressure function???
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system::Union{ImplicitIncompressibleSPHSystem,
-                                                      WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
+                                                       WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
                                 u, u_ode, semi)
     (; time_step) = system
 
@@ -587,7 +587,7 @@ end
 @inline number_iisph_particles(system) = 0
 
 @inline function n_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,
-                                                      WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
+                                                 WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
     return nparticles(system)
 end
 
@@ -671,7 +671,7 @@ function calculate_d_ij(system::ImplicitIncompressibleSPHSystem,
     # (delta t)^2 * m_i / rho_i ^2 * gradW_ij
     # TODO This doesn't work for the boundary density calculator `ContinuityDensity`
     return -time_step^2 * hydrodynamic_mass(neighbor_system, particle_j) /
-            current_density(nothing, neighbor_system, particle_j)^2 * grad_kernel
+           current_density(nothing, neighbor_system, particle_j)^2 * grad_kernel
 end
 
 # Calculates the d_ji value for a particle `i` and its neighbor `j` from eq. 9 in Ihmsen et al. (2013).

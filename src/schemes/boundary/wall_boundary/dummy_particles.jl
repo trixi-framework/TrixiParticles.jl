@@ -247,7 +247,8 @@ function create_cache_model(initial_density,
             omega, time_step, density_error)
 end
 
-function create_cache_model(initial_density, ::ContinuityDensity, NDIMS, ELTYPE, n_particles)
+function create_cache_model(initial_density, ::ContinuityDensity, NDIMS, ELTYPE,
+                            n_particles)
     return (; initial_density)
 end
 
