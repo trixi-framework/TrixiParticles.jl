@@ -166,7 +166,7 @@ function update_boundary_quantities!(system,
 
     @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
-        (; prescribed_density, prescribed_velocity, impose_full_velocity) = boundary_zone
+        (; prescribed_density, prescribed_velocity) = boundary_zone
 
         particle_coords = current_coords(u, system, particle)
 
