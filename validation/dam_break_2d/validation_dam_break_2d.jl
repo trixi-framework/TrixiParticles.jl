@@ -33,7 +33,7 @@ trixi_include(@__MODULE__,
               use_edac=false,
               particles_per_height=resolution,
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
-              alpha=0.005, # This is used by De Courcy et al. (2024)
+              alpha=0.01, # This is used by De Courcy et al. (2024)
               tspan=(0.0, 7 / sqrt(9.81 / 0.6)), # This is used by De Courcy et al. (2024)
               parallelization_backend=PolyesterBackend(),
               neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=update_strategy))
