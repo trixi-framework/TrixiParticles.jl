@@ -1,18 +1,12 @@
 using TrixiParticles
-using FFTW
-using CSV, DataFrames
-using Test
-# using ThreadPinning; pinthreads(:numa)
-# using AMDGPU
 
 # Results in [90k particles, 340k particles, 1.2M particles, 5M particles]
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
-resolution_factor = 0.02 # [0.08, 0.04, 0.02, 0.01]
+resolution_factor = 0.02
 
 reynolds_number = 200
 
 open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
-# open_boundary_model = BoundaryModelDynamicalPressureZhang()
 
 trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
               reynolds_number=reynolds_number, saving_callback=nothing,
@@ -21,12 +15,8 @@ trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
 
 shifting_technique = TransportVelocityAdami(background_pressure=5 * fluid_density *
                                                                 sound_speed^2)
-# shifting_technique = ParticleShiftingTechnique(; sound_speed_factor=0.2, v_max_factor=0)
 
-model = nameof(typeof(open_boundary_model))
-output_directory = joinpath(validation_dir(), "vortex_street_2d",
-                            shifting_technique isa TransportVelocityAdami ? "tvf" : "pst",
-                            "$(model)_dp_$(resolution_factor)D_Re_$reynolds_number")
+output_directory = joinpath(validation_dir(), "vortex_street_2d")
 
 # ==========================================================================================
 # ==== Postprocessing
@@ -86,7 +76,7 @@ pp_callback = PostprocessCallback(; dt=0.02,
 # ==== Run the simulation
 trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
               parallelization_backend=PolyesterBackend(), reynolds_number=reynolds_number,
-              saving_callback=nothing, output_directory=output_directory,
+              output_directory=output_directory,
               open_boundary_model=open_boundary_model,
               shifting_technique=shifting_technique,
               factor_d=resolution_factor, tspan=(0.0, 20.0), extra_callback=pp_callback)

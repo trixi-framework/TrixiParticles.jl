@@ -4,19 +4,13 @@ using FFTW
 
 # Results in [90k particles, 340k particles, 1.2M particles, 5M particles]
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
-resolution_factor = 0.04 # [0.08, 0.04, 0.02, 0.01]
-
+resolution_factor = 0.02
 cylinder_diameter = 0.1
 prescribed_velocity = 1.0
 
 reynolds_number = 200
 
-# open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
-open_boundary_model = BoundaryModelDynamicalPressureZhang()
-
-model = nameof(typeof(open_boundary_model))
-output_directory = joinpath(validation_dir(), "vortex_street_2d",
-                            "$(model)_dp_$(resolution_factor)D_Re_$reynolds_number")
+output_directory = joinpath(validation_dir(), "vortex_street_2d")
 
 # ======================================================================================
 # ==== Read results
@@ -65,12 +59,11 @@ integral_total = sum(spectrum_half)
 integral_peak = sum(spectrum_half[frequency_band])
 
 @info "Strouhal number" strouhal_number
-@info "Fraction of the dominant frequency band in the total spectrum" integral_peak /
-                                                                      integral_total
+@info "Fraction of the dominant frequency band in the total spectrum" integral_peak/integral_total
 @info "C_L_max for the unsteady state" maximum(f_lift)
 
 dp = round(Int, 1 / resolution_factor)
-plot_title = "$(model), Δx = d/$(dp), St = $(round(strouhal_number, digits=4))"
+plot_title = "Δx = d/$(dp), St = $(round(strouhal_number, digits=4))"
 pC = plot(times, f_lift, ylims=(-1, 3), xlims=(0, 20), label="C_L", color=:red, linewidth=2)
 plot!(pC, times, f_drag, ylims=(-1, 3), xlims=(0, 20), label="C_D", color=:blue,
       linewidth=2, title=plot_title, xlabel="t (s)")
