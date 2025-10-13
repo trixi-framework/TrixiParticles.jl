@@ -91,7 +91,7 @@ function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone
 
     # Division inside the `sum` closure to maintain GPU compatibility
     velocity_avg = sum(candidates) do particle
-        return dot(current_velocity(v, system, particle), face_normal) / length(candidates)
+        return dot(current_velocity(v, system, particle), -face_normal) / length(candidates)
     end
 
     # Compute volumetric flow rate: Q = v * A
