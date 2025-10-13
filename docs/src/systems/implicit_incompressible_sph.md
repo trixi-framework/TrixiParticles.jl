@@ -38,8 +38,8 @@ is achieved:
 \frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j \bm{v}_{ij}(t+\Delta t) \nabla W_{ij}.
 ```
 
-Note that the linear system gets only solved for fluid particles, so ``i``always represents
-a fluid particle, and ``j``represents all neighboring particles of ``i``.
+Note that the linear system is only solved for fluid particles, so ``i`` always represents
+a fluid particle, and ``j`` represents all neighboring particles of ``i``.
 
 The right-hand side contains the unknown velocities ``\bm{v}_{ij}(t + \Delta t)`` at the
 next time step, making it an implicit formulation.
@@ -172,8 +172,8 @@ the smoothing length, each particle's pressure ``p_i`` depends only on its own v
 nearby particles.
 Consequently, the matrix ``A`` is sparse (most entries are zero).
 
-Note that this expression is not completely correct yet, since ``j``represents all neighboring
-particles from ``i``and some values like ``d_{jj}`` are not defined for boundary particles.
+Note that this expression is not completely correct yet, since ``j`` represents all neighboring
+particles of ``i`` and some values like ``d_{jj}`` are not defined for boundary particles.
 The boundary handling is being explained in more detail later.
 
 The diagonal elements ``a_{ii}`` get computed and stored at the beginning of the simulation step
@@ -215,7 +215,7 @@ equations are required.
 First, the discretized form of the continuity equation must be adapted for the case in which
 a neighboring particle is a boundary particle. From now on, we distinguish between
 neighboring fluid particles (indexed by ``f``) and neighboring boundary particles (indexed by
-``b``). We continue to use the index ``j`` if we want to express all neighboring particles.
+``b``). We continue to use the index ``j`` if we want to refer to all neighboring particles.
 
 The updated discretized continuity equation becomes:
 
@@ -303,23 +303,22 @@ p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i
 ```
 
 ### Pressure Extrapolation
-In this section the usage of the AdamiPressureExtrapolation and the BernoulliPressureExtrapolation
-density calculator are being explained. Both density calculators can be used with IISPH.
+The density calculators [`AdamiPressureExtrapolation`](@ref) and [`BernoulliPressureExtrapolation`](@ref)
+can also be used with IISPH.
 When using one of these pressure extrapolation methods the calculation of the PPE is exactly
 the same as when using pressure zeroing.
 So within the linear systems the pressure values are equal to zero (``p_b=0``) and therefore
-not considered in the calculations. Only when updating the velocities of the particles in the
-time integration the pressure values that are used for the boundary particles are being extapolated
-by using one of these methods. For further explanations to these two methods look at the
-docs for the [boundary system](@ref boundary_models).
+not considered in the calculations. Only in the pressure acceleration, the extrapolated
+pressure values are used for the boundary particles. For more information on these two methods,
+refer to the docs for the [boundary models](@ref boundary_models).
 
 ### PressureBoundaries
-The PressureBoundaries density calculator was introduced specifically for
+The [`PressureBoundaries`](@ref) density calculator was introduced specifically for
 the IISPH fluid system and can therefore only be used with IISPH.
 In the standard IISPH method the PPE is solved only for the fluid particles. The
 pressure values for the boundary particles are then approximated, for example by using
 pressure mirroing.
-With the pressure boundaries density calculator, however, the linear system is extended to
+With pressure boundaries, however, the linear system is extended to
 include the boundary particles as well. This means that the pressure values of both the fluid
 and the boundary particles are computed directly by solving the PPE.
 The main advantage of this method is that boundary pressures emerge naturally from the
@@ -328,7 +327,7 @@ domains. This avoids artificial constraints such as forcing ``p_{b}=0`` or ``p_{
 and results in more accurate handling of fluid-boundary interactions.
 
 The key difference is that the pressure values of the boundary particles now have their own
-PPE within the linear system. In other words, the boundary particle pressure ``p_b`` are
+PPE within the linear system. In other words, the boundary particle pressure ``p_b`` is
 also solved as part of the linear system.
 This leads to the following condition for the boundary particles ``b``:
 
@@ -351,21 +350,21 @@ If we substitute the definition of the pressure force from above, we obtain
 \Delta t^2 \sum_f m_f \left(  \sum_k m_k \left( \frac{p_f(t)}{\rho_j^2(t)} + \frac{p_k(t)}{\rho_k^2(t)} \right) \nabla W_{fk}\right) \nabla W_{if} = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
-where ``k``represents all neighboring particles (fluid and boundary) from fluid particle ``f``.
+where ``k`` represents all neighboring particles (fluid and boundary) of fluid particle ``f``.
 
 Because the boundary particles do not directly contribute to their own pressure force (only
 indirectly as neighbors of fluid particles), their ``d_{ii}`` values are zero. Therefore the
 diagonal elements simplify to
 
 ```math
-a_{ii} = \sum_f \left( -d_{fi}\right) \nabla W_{if}
+a_{ii} = \sum_f \left( -d_{fi}\right) \nabla W_{if}.
 ```
 
-The off-diagonal term ``\sum_{j \neq i} a_{ij} p_j`` in the relaxed jacobi iteration for boundary
+The off-diagonal term ``\sum_{j \neq i} a_{ij} p_j`` in the relaxed Jacobi iteration for boundary
 particles takes the following form
 
 ```math
-\sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( d_{ff} - \sum_{f_j} d_{ff_j}p_{f_j}\right) \nabla W_{if}
+\sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( d_{ff} - \sum_{f_j} d_{ff_j}p_{f_j}\right) \nabla W_{if}.
 ```
 
 But not only the addition of the boundary particles to the linear system changes when using
@@ -377,13 +376,13 @@ replaced by the fluid particle's pressure (as in pressure mirroring with ``p_b=p
 Instead, ``p_b``remains part of the PPE.
 
 This has no effect on the digaonal elements ``a_{ii}``, which are identical to those of the
-other density calculators The ``d_{ii}``values are also computed in the same way as for
+other density calculators. The ``d_{ii}`` values are also computed in the same way as for
 pressure zeroing or pressure extrapolation.
-However,  the off-diagonal term ``\sum_{j \neq i} a_{ij} p_j`` in the relaxed jacobi iteration
+However,  the off-diagonal term ``\sum_{j \neq i} a_{ij} p_j`` in the relaxed Jacobi iteration
 changes slightly.
 For pressure boundaries it takes the form
 ```math
  \sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( \sum_k d_{ik} p_k - d_{ff} p_f - \sum_{k \neq f} d_{fk} p_k \right) \nabla W_{if} \\
- + \sum_b m_b \left( \sum_k d_{ik} p_k  \right) \nabla W_{ib}
+ + \sum_b m_b \left( \sum_k d_{ik} p_k  \right) \nabla W_{ib},
 ```
 where ``k``represents all neighboring particles of ``i`` (both fluid and boundary).

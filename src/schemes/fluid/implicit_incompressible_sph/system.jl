@@ -401,7 +401,7 @@ function pressure_solve!(semi, v_ode, u_ode)
     end
 
     # Determine global number of particles included in the PPE solver
-    n_iisph_particles = sum(number_iisph_particles, semi.systems)
+    n_iisph_particles_ = sum(n_iisph_particles, semi.systems)
 
     # Determine global iteration and error constraints across all IISPH systems
     min_iters = maximum(minimum_iisph_iterations, semi.systems)
@@ -413,7 +413,7 @@ function pressure_solve!(semi, v_ode, u_ode)
     l = 1
     while (!terminate)
         @trixi_timeit timer() "pressure solver iteration" begin
-            avg_density_error = pressure_solve_iteration(semi, u_ode, n_iisph_particles)
+            avg_density_error = pressure_solve_iteration(semi, u_ode, n_iisph_particles_)
             # Update termination condition
             terminate = (avg_density_error <= max_error && l >= min_iters) ||
                         l >= max_iters
@@ -453,7 +453,7 @@ function pressure_solve_iteration(semi, u_ode, n_particles)
         u = wrap_u(u_ode, system, semi)
         total_density_error[] += pressure_update(system, u, u_ode, semi)
     end
-    avg_density_error = total_density_error[] / float(n_particles)
+    avg_density_error = total_density_error[] / n_particles
 
     return avg_density_error
 end
@@ -474,10 +474,10 @@ end
 
 # Maybe we can merge this function and the next one with a current_pressure function???
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
-                                neighbor_system::ImplicitIncompressibleSPHSystem,
+                                neighbor_system::Union{ImplicitIncompressibleSPHSystem,
+                                                      WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
                                 u, u_ode, semi)
     (; time_step) = system
-    (; pressure) = neighbor_system
 
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u, neighbor_system)
@@ -488,7 +488,7 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
         # Calculate the sum d_ij * p_j over all neighbors j for each particle i
         # (Ihmsen et al. 2013, eq. 13)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-        p_b = pressure[neighbor]
+        p_b = current_pressure(nothing, neighbor_system, neighbor)
         d_ab = calculate_d_ij(system, neighbor_system, neighbor, grad_kernel, time_step)
         sum_dij_pj_ = d_ab * p_b
 
@@ -500,35 +500,7 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
     return sum_d_ij_pj
 end
 
-# For PressureBoundaries the boundary particles have an own pressure values that contributes to the sum_j d_ij*p_j
-function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
-                                neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
-                                u, u_ode, semi)
-    (; time_step) = system
-    (; pressure) = neighbor_system.boundary_model
-
-    system_coords = current_coordinates(u, system)
-    neighbor_coords = current_coordinates(u, neighbor_system)
-
-    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                           semi;
-                           points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
-        # Calculate the sum d_ij * p_j over all neighbors j for each particle i (Ihmsen et al. 2013, eq. 13)
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-        p_b = pressure[neighbor]
-        d_ab = calculate_d_ij(system, neighbor_system, neighbor, grad_kernel, time_step)
-        sum_dij_pj_ = d_ab * p_b
-
-        for i in 1:ndims(system)
-            sum_d_ij_pj[i, particle] += sum_dij_pj_[i]
-        end
-    end
-
-    return sum_d_ij_pj
-end
-
-# There is no contribution of the boundary particles to the sum_j d_ij*p_j when PressureBoundaries is not used
+# For everything but IISPH system and `PressureBoundaries`, there is no contribution to sum_j d_ij*p_j
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system, u, u_ode, semi)
     return sum_d_ij_pj
@@ -614,7 +586,7 @@ end
 
 @inline number_iisph_particles(system) = 0
 
-@inline function number_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,
+@inline function n_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,
                                                       WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
     return nparticles(system)
 end
@@ -697,16 +669,18 @@ function calculate_d_ij(system::ImplicitIncompressibleSPHSystem,
                         neighbor_system::AbstractBoundarySystem,
                         particle_j, grad_kernel, time_step)
     # (delta t)^2 * m_i / rho_i ^2 * gradW_ij
+    # TODO This doesn't work for the boundary density calculator `ContinuityDensity`
     return -time_step^2 * hydrodynamic_mass(neighbor_system, particle_j) /
-           current_density(0, neighbor_system)[particle_j]^2 * grad_kernel
+            current_density(nothing, neighbor_system, particle_j)^2 * grad_kernel
 end
 
 # Calculates the d_ji value for a particle `i` and its neighbor `j` from eq. 9 in Ihmsen et al. (2013).
 # Note that `i` is only implicitly included in the kernel gradient.
 function calculate_d_ji(system, neighbor_system,
                         particle_i, grad_kernel, time_step)
+    # TODO This doesn't work for the boundary density calculator `ContinuityDensity`
     return -time_step^2 * hydrodynamic_mass(system, particle_i) /
-           current_density(0, system)[particle_i]^2 * grad_kernel
+           current_density(nothing, system)[particle_i]^2 * grad_kernel
 end
 
 # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)

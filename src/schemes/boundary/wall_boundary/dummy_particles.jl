@@ -232,7 +232,8 @@ end
 function create_cache_model(initial_density,
                             density_calculator::PressureBoundaries, NDIMS, ELTYPE,
                             n_particles)
-    reference_density = initial_density[1] #TODO: I haven't found a more elegant way to get the reference density.
+    # TODO: Find a more elegant way to get the reference density
+    reference_density = initial_density[1]
     density = copy(initial_density)
     a_ii = zeros(ELTYPE, n_particles)
     predicted_density = zeros(ELTYPE, n_particles)
@@ -246,8 +247,9 @@ function create_cache_model(initial_density,
             omega, time_step, density_error)
 end
 
-@inline create_cache_model(initial_density, ::ContinuityDensity, NDIMS, ELTYPE,
-                           n_particles) = (; initial_density)
+function create_cache_model(initial_density, ::ContinuityDensity, NDIMS, ELTYPE, n_particles)
+    return (; initial_density)
+end
 
 function create_cache_model(initial_density,
                             ::Union{AdamiPressureExtrapolation,
@@ -298,7 +300,7 @@ end
 # Pressure mirroring does not use the pressure, so we set it to zero for the visualization
 function initial_boundary_pressure(initial_density,
                                    ::Union{PressureMirroring, PressureBoundaries}, _)
-    zero(initial_density)
+    return zero(initial_density)
 end
 
 # For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
