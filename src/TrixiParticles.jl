@@ -6,7 +6,7 @@ using Adapt: Adapt
 using Base: @propagate_inbounds
 using CSV: CSV
 using Dates
-using DataFrames: DataFrame
+using DataFrames: DataFrames, DataFrame
 using DelimitedFiles: DelimitedFiles
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
@@ -15,7 +15,7 @@ using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
-using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
+using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
