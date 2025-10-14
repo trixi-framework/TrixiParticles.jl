@@ -136,6 +136,8 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         end
         n_clamped_particles = length(clamped_particles)
         move_particles_to_end!(initial_condition, clamped_particles)
+        move_particles_to_end!(young_modulus, clamped_particles)
+        move_particles_to_end!(poisson_ratio, clamped_particles)
     end
 
     initial_coordinates = copy(initial_condition.coordinates)
