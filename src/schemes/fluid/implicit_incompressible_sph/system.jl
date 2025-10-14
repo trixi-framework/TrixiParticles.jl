@@ -472,7 +472,7 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
     end
 end
 
-# Maybe we can merge this function and the next one with a current_pressure function???
+# With`PressureBoundaries`, the boundary particles have their own pressure values that contribute to the sum_j d_ij*p_j
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system::Union{ImplicitIncompressibleSPHSystem,
                                                        WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
@@ -584,7 +584,7 @@ end
     return extract_svector(system.sum_d_ij_pj, system, particle)
 end
 
-@inline number_iisph_particles(system) = 0
+@inline n_iisph_particles(system) = 0
 
 @inline function n_iisph_particles(system::Union{ImplicitIncompressibleSPHSystem,
                                                  WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
