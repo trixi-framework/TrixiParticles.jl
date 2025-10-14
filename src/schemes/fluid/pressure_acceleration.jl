@@ -51,7 +51,7 @@ See [Tensile Instability Control](@ref tic) for more information on this techniq
     and therefore requires a free surface detection method. This is not yet implemented.
     **This technique cannot be used in a free surface simulation.**
 """
-@inline function tensile_instability_control(m_a, m_b, rho_a, rho_b, p_a::Real, p_b, W_a)
+@inline function tensile_instability_control(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
     # Same as `pressure_acceleration_continuity_density`, but using the minus formulation
     # when pressures are negative to avoid tensile instability.
     return -m_b * (abs(p_a) + p_b) / (rho_a * rho_b) * W_a
