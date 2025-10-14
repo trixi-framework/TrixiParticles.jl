@@ -134,6 +134,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         if n_clamped_particles > 0 && n_clamped_particles != length(clamped_particles)
             throw(ArgumentError("`n_clamped_particles` must equal length of `clamped_particles` when both are specified"))
         end
+        unique!(clamped_particles)
         n_clamped_particles = length(clamped_particles)
         move_particles_to_end!(initial_condition, clamped_particles)
         move_particles_to_end!(young_modulus, clamped_particles)
