@@ -65,7 +65,8 @@
             semi = Semidiscretization(structure_system)
             ode = semidiscretize(semi, (0.0, 1.0))
 
-            energy_calculator = EnergyCalculatorCallback{Float64}(; interval=1)
+            energy_calculator = EnergyCalculatorCallback{Float64}(structure_system, semi;
+                                                                  interval=1)
 
             sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
                                            callback=energy_calculator)
