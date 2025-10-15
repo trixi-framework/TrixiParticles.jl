@@ -14,10 +14,10 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
-struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
+struct WallBoundarySystem{BM, ELTYPE <: Real, NDIMS, IC, CO, M, IM,
                           CA} <: AbstractBoundarySystem{NDIMS}
     initial_condition    :: IC
-    coordinates          :: CO # Array{ELTYPE, 2}
+    coordinates          :: CO # Array{coordinates_eltype, 2}
     boundary_model       :: BM
     prescribed_motion    :: M
     ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
@@ -28,9 +28,9 @@ struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
     # See the comments in general/gpu.jl for more details.
     function WallBoundarySystem(initial_condition, coordinates, boundary_model,
                                 prescribed_motion, ismoving, adhesion_coefficient, cache)
-        ELTYPE = eltype(coordinates)
+        ELTYPE = eltype(initial_condition)
 
-        new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
+        new{typeof(boundary_model), ELTYPE, size(coordinates, 1), typeof(initial_condition),
             typeof(coordinates), typeof(prescribed_motion), typeof(ismoving),
             typeof(cache)}(initial_condition, coordinates, boundary_model,
                            prescribed_motion, ismoving, adhesion_coefficient, cache)
@@ -61,9 +61,7 @@ function create_cache_boundary(prescribed_motion::PrescribedMotion, initial_cond
     return (; velocity, acceleration, initial_coordinates)
 end
 
-@inline function Base.eltype(system::WallBoundarySystem)
-    eltype(system.coordinates)
-end
+@inline Base.eltype(::WallBoundarySystem{<:Any, ELTYPE}) where {ELTYPE} = ELTYPE
 
 @inline function nparticles(system::WallBoundarySystem)
     size(system.coordinates, 2)
