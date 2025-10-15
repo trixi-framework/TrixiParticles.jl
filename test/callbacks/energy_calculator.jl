@@ -1,24 +1,40 @@
 @testset verbose=true "EnergyCalculatorCallback" begin
+    # Mock system
+    struct MockSystem <: TrixiParticles.AbstractSystem{2} end
+    TrixiParticles.nparticles(::MockSystem) = 4
+
+    function TrixiParticles.create_neighborhood_search(neighborhood_search,
+                                                       system::MockSystem, neighbor)
+        return nothing
+    end
+
+    system = MockSystem()
+    semi = Semidiscretization(system)
+
     @testset "Constructor and Basic Properties" begin
         # Test default constructor
-        callback = EnergyCalculatorCallback{Float64}()
+        callback = EnergyCalculatorCallback{Float64}(system, semi)
+        @test callback.affect!.system_index == 1
         @test callback.affect!.interval == 1
         @test callback.affect!.t[] == 0.0
         @test callback.affect!.energy[] == 0.0
+        @test callback.affect!.dv isa Array{Float64, 2}
+        @test size(callback.affect!.dv) == (2, 4)
+        @test callback.affect!.eachparticle == 1:4
         @test calculated_energy(callback) == 0.0
 
         # Test constructor with interval
-        callback = EnergyCalculatorCallback{Float64}(; interval=5)
+        callback = EnergyCalculatorCallback{Float64}(system, semi; interval=5)
         @test callback.affect!.interval == 5
 
         # Test with specific element type
-        callback = EnergyCalculatorCallback{Float32}(; interval=2)
+        callback = EnergyCalculatorCallback{Float32}(system, semi; interval=2)
         @test eltype(callback.affect!.energy) == Float32
         @test eltype(callback.affect!.t) == Float32
     end
 
     @testset "show" begin
-        callback = EnergyCalculatorCallback{Float64}(; interval=10)
+        callback = EnergyCalculatorCallback{Float64}(system, semi; interval=10)
 
         # Test compact representation
         show_compact = "EnergyCalculatorCallback{Float64}(interval=10)"
@@ -96,10 +112,13 @@
             energy2 = Ref(1.0)
             dt2 = 0.05
 
-            TrixiParticles.update_energy_calculator!(energy1, v_ode, u_ode, system, semi,
-                                                     0.0, dt1)
-            TrixiParticles.update_energy_calculator!(energy2, v_ode, u_ode, system, semi,
-                                                     0.0, dt2)
+            eachparticle = (TrixiParticles.n_integrated_particles(system) + 1):nparticles(system)
+            dv = zeros(2, nparticles(system))
+
+            TrixiParticles.update_energy_calculator!(energy1, system, eachparticle, dv,
+                                                     v_ode, u_ode, semi, 0.0, dt1)
+            TrixiParticles.update_energy_calculator!(energy2, system, eachparticle, dv,
+                                                     v_ode, u_ode, semi, 0.0, dt2)
 
             if i == 1
                 @test isapprox(energy1[], 0.8)
