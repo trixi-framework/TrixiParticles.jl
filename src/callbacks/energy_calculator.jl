@@ -50,14 +50,24 @@ total_energy = calculated_energy(energy_cb)
 0.0
 ```
 """
-struct EnergyCalculatorCallback{T}
-    interval :: Int
-    t        :: T # Time of last call
-    energy   :: T
+struct EnergyCalculatorCallback{T, DV, EP}
+    interval     :: Int
+    t            :: T # Time of last call
+    energy       :: T
+    system_index :: Int
+    dv           :: DV
+    eachparticle :: EP
 end
 
-function EnergyCalculatorCallback{ELTYPE}(; interval=1) where {ELTYPE <: Real}
-    cb = EnergyCalculatorCallback(interval, Ref(zero(ELTYPE)), Ref(zero(ELTYPE)))
+function EnergyCalculatorCallback{ELTYPE}(system, semi; interval=1,
+                                          eachparticle=eachparticle(system)) where {ELTYPE <: Real}
+    system_index = system_indices(system, semi)
+
+    # Allocate buffer to write accelerations for all particles (including clamped ones)
+    dv = allocate(semi.parallelization_backend, ELTYPE, (ndims(system), nparticles(system)))
+
+    cb = EnergyCalculatorCallback(interval, Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
+                                  system_index, dv, eachparticle)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(cb, cb, save_positions=(false, false))
@@ -107,9 +117,9 @@ function (callback::EnergyCalculatorCallback)(integrator)
     v_ode, u_ode = integrator.u.x
     energy = callback.energy
 
-    foreach_system(semi) do system
-        update_energy_calculator!(energy, v_ode, u_ode, system, semi, t, dt)
-    end
+    system = semi.systems[callback.system_index]
+    update_energy_calculator!(energy, system, callback.eachparticle, callback.dv,
+                              v_ode, u_ode, semi, t, dt)
 
     # Tell OrdinaryDiffEq that `u` has not been modified
     u_modified!(integrator, false)
@@ -117,12 +127,8 @@ function (callback::EnergyCalculatorCallback)(integrator)
     return integrator
 end
 
-function update_energy_calculator!(energy, v_ode, u_ode, system, semi, t, dt)
-    return energy
-end
-
-function update_energy_calculator!(energy, v_ode, u_ode,
-                                   system::AbstractStructureSystem, semi, t, dt)
+function update_energy_calculator!(energy, system, eachparticle, dv,
+                                   v_ode, u_ode, semi, t, dt)
     @trixi_timeit timer() "calculate energy" begin
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
@@ -131,46 +137,37 @@ function update_energy_calculator!(energy, v_ode, u_ode,
             @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
         end
 
-        dv_clamped = system.cache.dv_clamped
-        set_zero!(dv_clamped)
+        set_zero!(dv)
 
-        # Create a view of `dv_clamped` that can be indexed as
-        # `(n_integrated_particles(system) + 1):nparticles(system)`.
-        # We pass this to `interact!` below so that it can compute
-        # the forces on the clamped particles without having to allocate
-        # a large matrix for all particles.
-        dv_offset = OffsetMatrix(dv_clamped, n_integrated_particles(system))
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        eachparticle = (n_integrated_particles(system) + 1):nparticles(system)
 
         foreach_system(semi) do neighbor_system
             v_neighbor = wrap_v(v_ode, neighbor_system, semi)
             u_neighbor = wrap_u(u_ode, neighbor_system, semi)
 
-            interact!(dv_offset, v, u, v_neighbor, u_neighbor,
+            interact!(dv, v, u, v_neighbor, u_neighbor,
                       system, neighbor_system, semi,
                       integrate_tlsph=true, # Required when using split integration
                       eachparticle=eachparticle)
         end
 
         @threaded semi for particle in eachparticle
-            add_acceleration!(dv_offset, particle, system)
-            add_source_terms_inner!(dv_offset, v, u, particle, system,
-                                    source_terms(system), t)
+            add_acceleration!(dv, particle, system)
+            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
         end
 
-        for particle in (n_integrated_particles(system) + 1):nparticles(system)
-            velocity = current_velocity(nothing, system, particle)
-            dv_particle = extract_svector(dv_offset, system, particle)
+        for particle in eachparticle
+            velocity = current_velocity(v, system, particle)
+            dv_particle = extract_svector(dv, system, particle)
 
             # The force on the clamped particle is mass times acceleration
             F_particle = system.mass[particle] * dv_particle
 
             # To obtain energy, we need to integrate the instantaneous power.
-            # Instantaneous power is force done BY the particle times prescribed velocity.
-            # The work done BY the particle is the negative of the work done ON it.
-            energy[] -= dot(F_particle, velocity) * dt
+            # Instantaneous power is force applied BY the particle times its velocity.
+            # The force applied BY the particle is the negative of the force applied ON it.
+            energy[] += dot(-F_particle, velocity) * dt
         end
     end
 
@@ -185,7 +182,7 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallbac
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, EnergyCalculatorCallback{T}}) where {T}
+                   cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
@@ -198,37 +195,4 @@ function Base.show(io::IO, ::MIME"text/plain",
         ]
         summary_box(io, "EnergyCalculatorCallback{$ELTYPE}", setup)
     end
-end
-
-# Data type that represents a matrix with an offset in the second dimension.
-# For example, `om = OffsetMatrix(A, offset)` starts at `om[:, offset + 1]`, which is
-# the same as `A[:, 1]` and it ends at `om[:, offset + size(A, 2)]`, which is
-# the same as `A[:, end]`.
-# This is used above to compute the acceleration only for clamped particles (which are the
-# last particles in the system) without having to pass a large matrix for all particles.
-struct OffsetMatrix{T, M} <: AbstractMatrix{T}
-    matrix::M
-    offset::Int
-
-    function OffsetMatrix(matrix, offset)
-        new{eltype(matrix), typeof(matrix)}(matrix, offset)
-    end
-end
-
-@inline function Base.size(om::OffsetMatrix)
-    return (size(om.matrix, 1), size(om.matrix, 2) + om.offset)
-end
-
-@inline function Base.getindex(om::OffsetMatrix, i, j)
-    @boundscheck checkbounds(om, i, j)
-    @boundscheck j > om.offset
-
-    return @inbounds om.matrix[i, j - om.offset]
-end
-
-@inline function Base.setindex!(om::OffsetMatrix, value, i, j)
-    @boundscheck checkbounds(om, i, j)
-    @boundscheck j > om.offset
-
-    return @inbounds om.matrix[i, j - om.offset] = value
 end
