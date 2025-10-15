@@ -1,47 +1,52 @@
 """
-    EnergyCalculatorCallback{ELTYPE}(; interval=1)
+    EnergyCalculatorCallback(system, semi; interval=1,
+                             eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
+                             only_compute_force_on_fluid=false)
 
-Callback to calculate the energy contribution from clamped particles in
-[`TotalLagrangianSPHSystem`](@ref)s.
+Callback to integrate the work done by particles in a
+[`TotalLagrangianSPHSystem`](@ref).
 
-This callback computes the work done by clamped particles that are moving according to a
-[`PrescribedMotion`](@ref).
-The energy is calculated by integrating the instantaneous power, which is the dot product
-of the force exerted by the clamped particle and its prescribed velocity.
-The callback uses a simple explicit Euler time integration for the energy calculation.
+With the default arguments it tracks the energy contribution of the clamped particles
+that follow a [`PrescribedMotion`](@ref). By selecting different particles it can also be
+used to measure the work done by the structure on the surrounding fluid.
 
-The accumulated energy can be retrieved using [`calculated_energy`](@ref).
+- **Prescribed/clamped motion energy** (default) -- monitor only the clamped particles by
+    leaving `eachparticle` at its default range
+    `(n_integrated_particles(system) + 1):nparticles(system)`.
+- **Fluid load measurement** -- set `eachparticle=eachparticle(system)` together with
+    `only_compute_force_on_fluid=true` to accumulate the work that the entire structure
+    exerts on the surrounding fluid (useful for drag or lift estimates).
 
-!!! info "TLSPH System Configuration"
-    The [`TotalLagrangianSPHSystem`](@ref) must be created with
-    `use_with_energy_calculator_callback=true` to prepare the system for energy
-    calculation by allocating the necessary cache for clamped particles.
+Internally the callback integrates the instantaneous power, i.e. the dot product between
+the force exerted by the particle and its prescribed velocity, using an explicit Euler
+time integration scheme.
+
+The accumulated value can be retrieved via [`calculated_energy`](@ref).
 
 !!! warning "Experimental implementation"
     This is an experimental feature and may change in future releases.
 
 # Arguments
-- `ELTYPE`: The floating point type used for time and energy calculations.
-            This should match the floating point type used in the
-            [`TotalLagrangianSPHSystem`](@ref), which can be obtained via `eltype(system)`.
+- `system`: The [`TotalLagrangianSPHSystem`](@ref) whose particles should be monitored.
+- `semi`: The [`Semidiscretization`](@ref) that contains `system`.
 
 # Keywords
 - `interval=1`: Interval (in number of time steps) at which to compute the energy.
-                It is recommended to set this either to `1` (every time step) or to a small
-                integer (e.g., `2` or `5`) to reduce time integration errors
-                in the energy calculation.
+                It is recommended to keep this at `1` (every time step) or small (≤ 5)
+                to limit time integration errors in the energy integral.
+- `eachparticle=(n_integrated_particles(system) + 1):nparticles(system)`: Iterator
+                selecting which particles contribute. The default includes all clamped
+                particles in the system; pass `eachparticle(system)` to include every particle.
+- `only_compute_force_on_fluid=false`: When `true`, only interactions with
+                fluid systems are accounted for. Combined with
+                `eachparticle=eachparticle(system)`, this accumulates the work that the
+                entire structure exerts on the fluid, which is useful for drag or lift
+                estimates.
 
 # Examples
-```jldoctest; output = false, setup = :(structure = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel = WendlandC2Kernel{2}(); smoothing_length = 1.0; young_modulus = 1e6; poisson_ratio = 0.3; n_clamped_particles = 0; clamped_particles_motion = nothing)
-# Create TLSPH system with `use_with_energy_calculator_callback=true`
-system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothing_length,
-                                  young_modulus, poisson_ratio,
-                                  n_clamped_particles=n_clamped_particles,
-                                  clamped_particles_motion=clamped_particles_motion,
-                                  use_with_energy_calculator_callback=true) # Important!
-
-# Create an energy calculator that runs every 2 time steps
-energy_cb = EnergyCalculatorCallback{eltype(system)}(; interval=2)
+```jldoctest; output = false, setup = :(system = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+# Create an energy calculator callback that is called every 2 time steps
+energy_cb = EnergyCalculatorCallback(system, semi; interval=2)
 
 # After the simulation, retrieve the calculated energy
 total_energy = calculated_energy(energy_cb)
@@ -60,9 +65,10 @@ struct EnergyCalculatorCallback{T, DV, EP}
     only_compute_force_on_fluid   :: Bool
 end
 
-function EnergyCalculatorCallback{ELTYPE}(system, semi; interval=1,
-                                          eachparticle=eachparticle(system),
-                                          only_compute_force_on_fluid=false) where {ELTYPE <: Real}
+function EnergyCalculatorCallback(system, semi; interval=1,
+                                  eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
+                                  only_compute_force_on_fluid=false)
+    ELTYPE = eltype(system)
     system_index = system_indices(system, semi)
 
     # Allocate buffer to write accelerations for all particles (including clamped ones)
@@ -85,11 +91,11 @@ Get the current calculated energy from an [`EnergyCalculatorCallback`](@ref).
 - `cb`: The `DiscreteCallback` returned by [`EnergyCalculatorCallback`](@ref).
 
 # Examples
-```jldoctest; output = false
-# Before the simulation: create the callback
-energy_cb = EnergyCalculatorCallback{Float64}()
+```jldoctest; output = false, setup = :(system = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+# Create an energy calculator callback
+energy_cb = EnergyCalculatorCallback(system, semi)
 
-# After the simulation: get the calculated energy
+# After the simulation, retrieve the calculated energy
 total_energy = calculated_energy(energy_cb)
 
 # output
