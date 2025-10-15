@@ -112,13 +112,19 @@
             energy2 = Ref(1.0)
             dt2 = 0.05
 
+            # Test `only_compute_force_on_fluid`
+            energy3 = Ref(0.0)
+            dt3 = 0.1
+
             eachparticle = (TrixiParticles.n_integrated_particles(system) + 1):nparticles(system)
             dv = zeros(2, nparticles(system))
 
-            TrixiParticles.update_energy_calculator!(energy1, system, eachparticle, dv,
-                                                     v_ode, u_ode, semi, 0.0, dt1)
-            TrixiParticles.update_energy_calculator!(energy2, system, eachparticle, dv,
-                                                     v_ode, u_ode, semi, 0.0, dt2)
+            TrixiParticles.update_energy_calculator!(energy1, system, eachparticle, false,
+                                                     dv, v_ode, u_ode, semi, 0.0, dt1)
+            TrixiParticles.update_energy_calculator!(energy2, system, eachparticle, false,
+                                                     dv, v_ode, u_ode, semi, 0.0, dt2)
+            TrixiParticles.update_energy_calculator!(energy3, system, eachparticle, true,
+                                                     dv, v_ode, u_ode, semi, 0.0, dt3)
 
             if i == 1
                 @test isapprox(energy1[], 0.8)
@@ -139,6 +145,8 @@
                 @test isapprox(energy1[], 80357.5428571428)
                 @test isapprox(energy2[], 1.0 + 0.5 * 80357.5428571428)
             end
+
+            @test isapprox(energy3[], 0.0)
         end
     end
 end
