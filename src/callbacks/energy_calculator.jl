@@ -51,23 +51,26 @@ total_energy = calculated_energy(energy_cb)
 ```
 """
 struct EnergyCalculatorCallback{T, DV, EP}
-    interval     :: Int
-    t            :: T # Time of last call
-    energy       :: T
-    system_index :: Int
-    dv           :: DV
-    eachparticle :: EP
+    interval                      :: Int
+    t                             :: T # Time of last call
+    energy                        :: T
+    system_index                  :: Int
+    dv                            :: DV
+    eachparticle                  :: EP
+    only_compute_force_on_fluid   :: Bool
 end
 
 function EnergyCalculatorCallback{ELTYPE}(system, semi; interval=1,
-                                          eachparticle=eachparticle(system)) where {ELTYPE <: Real}
+                                          eachparticle=eachparticle(system),
+                                          only_compute_force_on_fluid=false) where {ELTYPE <: Real}
     system_index = system_indices(system, semi)
 
     # Allocate buffer to write accelerations for all particles (including clamped ones)
     dv = allocate(semi.parallelization_backend, ELTYPE, (ndims(system), nparticles(system)))
 
     cb = EnergyCalculatorCallback(interval, Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
-                                  system_index, dv, eachparticle)
+                                  system_index, dv, eachparticle,
+                                  only_compute_force_on_fluid)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(cb, cb, save_positions=(false, false))
@@ -118,7 +121,8 @@ function (callback::EnergyCalculatorCallback)(integrator)
     energy = callback.energy
 
     system = semi.systems[callback.system_index]
-    update_energy_calculator!(energy, system, callback.eachparticle, callback.dv,
+    update_energy_calculator!(energy, system, callback.eachparticle,
+                              callback.only_compute_force_on_fluid, callback.dv,
                               v_ode, u_ode, semi, t, dt)
 
     # Tell OrdinaryDiffEq that `u` has not been modified
@@ -127,7 +131,8 @@ function (callback::EnergyCalculatorCallback)(integrator)
     return integrator
 end
 
-function update_energy_calculator!(energy, system, eachparticle, dv,
+function update_energy_calculator!(energy, system, eachparticle,
+                                   only_compute_force_on_fluid, dv,
                                    v_ode, u_ode, semi, t, dt)
     @trixi_timeit timer() "calculate energy" begin
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
@@ -143,6 +148,11 @@ function update_energy_calculator!(energy, system, eachparticle, dv,
         u = wrap_u(u_ode, system, semi)
 
         foreach_system(semi) do neighbor_system
+            if only_compute_force_on_fluid && !(neighbor_system isa AbstractFluidSystem)
+                # Not a fluid system, ignore this system
+                return
+            end
+
             v_neighbor = wrap_v(v_ode, neighbor_system, semi)
             u_neighbor = wrap_u(u_ode, neighbor_system, semi)
 
@@ -152,9 +162,11 @@ function update_energy_calculator!(energy, system, eachparticle, dv,
                       eachparticle=eachparticle)
         end
 
-        @threaded semi for particle in eachparticle
-            add_acceleration!(dv, particle, system)
-            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
+        if !only_compute_force_on_fluid
+            @threaded semi for particle in eachparticle
+                add_acceleration!(dv, particle, system)
+                add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
+            end
         end
 
         for particle in eachparticle
