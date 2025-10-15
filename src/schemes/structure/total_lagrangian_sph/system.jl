@@ -274,15 +274,6 @@ function create_cache_tlsph(::PrescribedMotion, initial_condition)
     return (; velocity, acceleration)
 end
 
-create_cache_tlsph(::Val{false}, initial_condition, n_clamped_particles) = (;)
-
-function create_cache_tlsph(::Val{true}, initial_condition, n_clamped_particles)
-    dv_clamped = Array{eltype(initial_condition)}(undef, ndims(initial_condition),
-                                                  n_clamped_particles)
-
-    return (; dv_clamped)
-end
-
 @inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
