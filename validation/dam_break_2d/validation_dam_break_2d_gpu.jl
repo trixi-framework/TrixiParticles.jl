@@ -6,8 +6,8 @@ min_corner = (-1.5, -1.5)
 max_corner = (6.5, 5.0)
 cell_list = FullGridCellList(; min_corner, max_corner)
 
-# neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
-neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
+neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
+# neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
 
 trixi_include_changeprecision(Float32, @__MODULE__,
                                 joinpath(validation_dir(),
