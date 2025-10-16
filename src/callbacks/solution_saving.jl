@@ -155,16 +155,17 @@ function (solution_callback::SolutionSavingCallback)(integrator; from_initialize
      prefix, latest_saved_iter, max_coordinates) = solution_callback
 
     vu_ode = integrator.u
-    if from_initialize
+    # TODO doesn't work when `v_ode` and `u_ode` have different eltypes
+    # if from_initialize
         # Avoid calling `get_du` here, since it will call the RHS function
         # if it is called before the first time step.
         # This would cause problems with `semi.update_callback_used`,
         # which might not yet be set to `true` at this point if the `UpdateCallback`
         # comes AFTER the `SolutionSavingCallback` in the `CallbackSet`.
         dvdu_ode = zero(vu_ode)
-    else
-        dvdu_ode = get_du(integrator)
-    end
+    # else
+    #     dvdu_ode = get_du(integrator)
+    # end
     semi = integrator.p
     iter = get_iter(interval, integrator)
 
