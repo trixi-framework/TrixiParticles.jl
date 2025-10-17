@@ -16,12 +16,12 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 # Size parameters
-H = 0.6
-W = 2 * H
+H = 2.0
+W = 1.0
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = H / 40
+fluid_particle_spacing = 0.003
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 4
@@ -33,16 +33,16 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==== Experiment Setup
 gravity = 9.81
 
-tspan = (0.0, 5.7 / sqrt(gravity / H))
+tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (W, H)
-tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
+tank_size = (floor(4.0 / boundary_particle_spacing) * boundary_particle_spacing, 3.0)
 
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * H)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=1, clip_negative_pressure=false)
+                                   exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -50,7 +50,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 2 * fluid_particle_spacing
+smoothing_length = 2.0 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -101,22 +101,13 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 
 solution_prefix = ""
-saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
+saving_callback = nothing #SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
+stepsize_callback = StepsizeCallback(cfl=0.135)
 
-# This can be overwritten with `trixi_include`
-extra_callback = nothing
-extra_callback2 = nothing
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
-use_reinit = false
-density_reinit_cb = use_reinit ?
-                    DensityReinitializationCallback(semi.systems[1], interval=10) :
-                    nothing
-stepsize_callback = StepsizeCallback(cfl=0.9)
-
-callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
-                        extra_callback2, density_reinit_cb)
-
-time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
+# time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
+time_integration_scheme = SymplecticPositionVerlet()
 sol = solve(ode, time_integration_scheme,
             dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks);
