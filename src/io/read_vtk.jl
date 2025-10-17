@@ -1,7 +1,7 @@
 """
 	vtk2trixi(file::String)
 
-Load VTK file and convert data to an [`InitialCondition`](@ref).
+Load VTK file and convert data to an NamedTuple.
 
 # Arguments
 - `file`: Name of the VTK file to be loaded.
@@ -18,17 +18,11 @@ rectangular = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0
 # Write the `InitialCondition` to a vtk file
 trixi2vtk(rectangular; filename="rectangular", output_directory="out")
 
-# Read the vtk file and convert it to `InitialCondition`
-ic = vtk2trixi(joinpath("out", "rectangular.vtu"))
+# Read the vtk file and convert the data to an `NamedTuple`
+data = vtk2trixi(joinpath("out", "rectangular.vtu"))
 
 # output
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64}                                                                        │
-│ ═════════════════════════                                                                        │
-│ #dimensions: ……………………………………………… 2                                                                │
-│ #particles: ………………………………………………… 100                                                              │
-│ particle spacing: ………………………………… 0.1                                                              │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+NamedTuple{data...}
 """
 function vtk2trixi(file)
     vtk_file = ReadVTK.VTKFile(file)
@@ -39,6 +33,8 @@ function vtk2trixi(file)
 
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))
+    time = "time" in keys(field_data) ? first(ReadVTK.get_data(field_data["time"])) : 0.0
+
     coordinates = ReadVTK.get_points(vtk_file)[1:ndims, :]
 
     fields = ["velocity", "density", "pressure", "mass", "particle_spacing"]
@@ -62,9 +58,10 @@ function vtk2trixi(file)
                        first(results["particle_spacing"]) :
                        results["particle_spacing"]
 
-    return InitialCondition(; coordinates, particle_spacing=particle_spacing,
-                            velocity=results["velocity"],
-                            mass=results["mass"],
-                            density=results["density"],
-                            pressure=results["pressure"])
+
+    return (time, coordinates, particle_spacing,
+            velocity=results["velocity"],
+            mass=results["mass"],
+            density=results["density"],
+            pressure=results["pressure"])
 end
