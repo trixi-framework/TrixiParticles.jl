@@ -100,34 +100,13 @@ function calculate_sum_term_values(system::WallBoundarySystem{<:BoundaryModelDum
 end
 
 function pressure_update(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
-                         u, u_ode, semi)
+                         semi)
     (; boundary_model) = system
     (; reference_density, a_ii, sum_term, omega, density_error) = boundary_model.cache
     (; pressure) = boundary_model
 
     # Update the pressure values
-    relative_density_error = zero(eltype(system))
-
-    @threaded semi for particle in eachparticle(system)
-        # Removing instabilities by avoiding to divide by very low values of `a_ii`.
-        # This is not mentioned in the paper but done in SPlisHSPlasH as well.
-        if abs(a_ii[particle]) > 1.0e-9
-            pressure[particle] = max((1-omega) * pressure[particle] +
-                                     omega / a_ii[particle] *
-                                     (iisph_source_term(system, particle) -
-                                      sum_term[particle]), 0)
-        else
-            pressure[particle] = zero(pressure[particle])
-        end
-        # Calculate the average density error for the termination condition
-        if (pressure[particle] != 0.0)
-            new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
-                          iisph_source_term(system, particle) +
-                          reference_density
-            density_error[particle] = (new_density - reference_density)
-        end
-    end
-    relative_density_error = sum(density_error) / reference_density
+    relative_density_error = pressure_update(system, pressure, reference_density, a_ii, sum_term, omega, density_error, semi)
 
     return relative_density_error
 end

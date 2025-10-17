@@ -451,7 +451,7 @@ function pressure_solve_iteration(semi, u_ode, n_particles)
     total_density_error = Ref(0.0)
     foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
-        total_density_error[] += pressure_update(system, u, u_ode, semi)
+        total_density_error[] += pressure_update(system, semi)
     end
     avg_density_error = total_density_error[] / n_particles
 
@@ -537,15 +537,21 @@ function calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, 
     end
 end
 
-function pressure_update(system, u, u_ode, semi)
+function pressure_update(system, semi)
     return 0.0
 end
 
-function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi)
+function pressure_update(system::ImplicitIncompressibleSPHSystem, semi)
     (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
 
     # Update the pressure values
-    relative_density_error = zero(eltype(system))
+    relative_density_error = pressure_update(system, pressure, reference_density, a_ii, sum_term, omega, density_error, semi)
+
+    return relative_density_error
+end
+
+function pressure_update(system, pressure, reference_density, a_ii, sum_term, omega, density_error, semi)
+        relative_density_error = zero(eltype(system))
 
     @threaded semi for particle in eachparticle(system)
         # Removing instabilities by avoiding to divide by very low values of `a_ii`.
@@ -570,7 +576,6 @@ function pressure_update(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi
 
     return relative_density_error
 end
-
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
                                                 particle)
     return extract_svector(system.advection_velocity, system, particle)
