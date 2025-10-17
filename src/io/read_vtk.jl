@@ -24,44 +24,44 @@ data = vtk2trixi(joinpath("out", "rectangular.vtu"))
 # output
 NamedTuple{data...}
 """
-function vtk2trixi(file)
+function vtk2trixi(file; custom_fields...)
     vtk_file = ReadVTK.VTKFile(file)
 
     # Retrieve data fields (e.g., pressure, velocity, ...)
     point_data = ReadVTK.get_point_data(vtk_file)
     field_data = ReadVTK.get_field_data(vtk_file)
 
+    results = Dict{Symbol, Any}()
+
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))
-    time = "time" in keys(field_data) ? first(ReadVTK.get_data(field_data["time"])) : 0.0
-
     coordinates = ReadVTK.get_points(vtk_file)[1:ndims, :]
 
-    fields = ["velocity", "density", "pressure", "mass", "particle_spacing"]
-    results = Dict{String, Array{Float64}}()
-
+    fields = [:velocity, :density, :pressure, :mass, :particle_spacing]
     for field in fields
         # Look for any key that contains the field name
         all_keys = keys(point_data)
-        idx = findfirst(k -> occursin(field, k), all_keys)
+        idx = findfirst(k -> occursin(string(field), k), all_keys)
         if idx !== nothing
             results[field] = ReadVTK.get_data(point_data[all_keys[idx]])
         else
             # Use zeros as default values when a field is missing
-            results[field] = field in ["mass"] ?
-                             zeros(size(coordinates, 2)) : zero(coordinates)
+            results[field] = string(field) in ["mass"] ?
+                                    zeros(size(coordinates, 2)) : zero(coordinates)
             @info "No '$field' field found in VTK file. Will be set to zero."
         end
     end
 
-    particle_spacing = allequal(results["particle_spacing"]) ?
-                       first(results["particle_spacing"]) :
-                       results["particle_spacing"]
+    results[:particle_spacing] = allequal(results[:particle_spacing]) ?
+                                          first(results[:particle_spacing]) :
+                                          results[:particle_spacing]
+    results[:coordinates] = coordinates
+    results[:time] = "time" in keys(field_data) ?
+                                    first(ReadVTK.get_data(field_data["time"])) : 0.0
 
+    for (key, field) in custom_fields
+        results[key] = first(ReadVTK.get_data(field_data[field]))
+    end
 
-    return (time, coordinates, particle_spacing,
-            velocity=results["velocity"],
-            mass=results["mass"],
-            density=results["density"],
-            pressure=results["pressure"])
+    return NamedTuple(results)
 end
