@@ -106,7 +106,8 @@ function pressure_update(system::WallBoundarySystem{<:BoundaryModelDummyParticle
     (; pressure) = boundary_model
 
     # Update the pressure values
-    relative_density_error = pressure_update(system, pressure, reference_density, a_ii, sum_term, omega, density_error, semi)
+    relative_density_error = pressure_update(system, pressure, reference_density, a_ii,
+                                             sum_term, omega, density_error, semi)
 
     return relative_density_error
 end

@@ -545,13 +545,15 @@ function pressure_update(system::ImplicitIncompressibleSPHSystem, semi)
     (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
 
     # Update the pressure values
-    relative_density_error = pressure_update(system, pressure, reference_density, a_ii, sum_term, omega, density_error, semi)
+    relative_density_error = pressure_update(system, pressure, reference_density, a_ii,
+                                             sum_term, omega, density_error, semi)
 
     return relative_density_error
 end
 
-function pressure_update(system, pressure, reference_density, a_ii, sum_term, omega, density_error, semi)
-        relative_density_error = zero(eltype(system))
+function pressure_update(system, pressure, reference_density, a_ii, sum_term, omega,
+                         density_error, semi)
+    relative_density_error = zero(eltype(system))
 
     @threaded semi for particle in eachparticle(system)
         # Removing instabilities by avoiding to divide by very low values of `a_ii`.
