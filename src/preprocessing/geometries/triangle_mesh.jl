@@ -382,3 +382,25 @@ function extrude_planar_geometry(geometry_bottom::TriangleMesh{NDIMS, ELTYPE},
 
     return TriangleMesh(face_vertices_new, normals_new, vertices_new)
 end
+
+function Base.union(geometry::TriangleMesh, geometries::TriangleMesh...)
+    other_geometry = first(geometries)
+
+    vertices_other = copy(other_geometry.vertices)
+    face_vertices_other = copy(other_geometry.face_vertices)
+    normals_other = copy(other_geometry.face_normals)
+
+    vertices = copy(geometry.vertices)
+    face_vertices = copy(geometry.face_vertices)
+    normals = copy(geometry.face_normals)
+
+    vertices_new = vcat(vertices, vertices_other)
+    face_vertices_new = vcat(face_vertices, face_vertices_other)
+    normals_new = vcat(normals, normals_other)
+
+    result = TriangleMesh(face_vertices_new, normals_new, vertices_new)
+
+    return union(result, Base.tail(geometries)...)
+end
+
+Base.union(geometry::TriangleMesh) = geometry
