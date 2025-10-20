@@ -256,27 +256,29 @@ function volume(mesh::TriangleMesh)
 end
 
 function extrude_planar_geometry(geometry_bottom::TriangleMesh{NDIMS, ELTYPE},
-                                 extrude_length::Real;
-                                 omit_top_face=false, omit_bottom_face=false,
-                                 invert_direction=true) where {NDIMS, ELTYPE}
-    face_normal_ = normalize(sum(geometry_bottom.face_normals) / nfaces(geometry_bottom))
-    face_normal = invert_direction ? face_normal_ : -face_normal_
+                                 extrude_length::Real; omit_top_face=false,
+                                 omit_bottom_face=false) where {NDIMS, ELTYPE}
+    face_normal = normalize(sum(geometry_bottom.face_normals) / nfaces(geometry_bottom))
 
     shift = face_normal * extrude_length
 
     # Bottom (original) geometry data
     vertices_bottom = copy(geometry_bottom.vertices)
-    face_vertices_bottom = copy(geometry_bottom.face_vertices)
-    normals_bottom = copy(geometry_bottom.face_normals)
+    # Flip the winding of the bottom faces so that after extrusion the bottom faces'
+    # normals point outward from the resulting solid (consistent with the top faces).
+    # We reverse the triangle vertex order (v2 <-> v3) and negate the face normals to
+    # reflect that orientation change.
+    flipped_faces = copy(geometry_bottom.face_vertices)
+    face_vertices_bottom = [(v1, v3, v2) for (v1, v2, v3) in flipped_faces]
+    normals_bottom = .-copy(geometry_bottom.face_normals)
 
     # Top (shifted) geometry data.
     # Shift every bottom vertex by the same vector to create the top vertices.
     vertices_top = [v .+ shift for v in vertices_bottom]
-    # Invert face normals for the top faces (they should point opposite to bottom)
-    normals_top = .-copy(geometry_bottom.face_normals)
+    normals_top = copy(geometry_bottom.face_normals)
     # Shift each face-tuple component-wise to create top face tuples
     face_vertices_top = [(v1 .+ shift, v2 .+ shift, v3 .+ shift)
-                         for (v1, v2, v3) in face_vertices_bottom]
+                         for (v1, v2, v3) in flipped_faces]
 
     # Build a temporary `TriangleMesh` for the top layer to reuse its indexing helpers
     geometry_top = TriangleMesh(face_vertices_top, normals_top, vertices_top)
