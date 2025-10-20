@@ -255,9 +255,9 @@ function volume(mesh::TriangleMesh)
     return volume
 end
 
-function extrude_planar_geometry(geometry_bottom::TriangleMesh{NDIMS, ELTYPE},
-                                 extrude_length::Real; omit_top_face=false,
-                                 omit_bottom_face=false) where {NDIMS, ELTYPE}
+function extrude_geometry(geometry_bottom::TriangleMesh{NDIMS, ELTYPE},
+                          extrude_length::Real; omit_top_face=false,
+                          omit_bottom_face=false) where {NDIMS, ELTYPE}
     face_normal = normalize(sum(geometry_bottom.face_normals) / nfaces(geometry_bottom))
 
     shift = face_normal * extrude_length
