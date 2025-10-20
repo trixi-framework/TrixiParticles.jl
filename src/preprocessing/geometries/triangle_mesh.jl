@@ -254,3 +254,131 @@ function volume(mesh::TriangleMesh)
 
     return volume
 end
+
+function extrude_planar_geometry(geometry_bottom::TriangleMesh{NDIMS, ELTYPE},
+                                 extrude_length::Real;
+                                 omit_top_face=false, omit_bottom_face=false,
+                                 invert_direction=true) where {NDIMS, ELTYPE}
+    face_normal_ = normalize(sum(geometry_bottom.face_normals) / nfaces(geometry_bottom))
+    face_normal = invert_direction ? face_normal_ : -face_normal_
+
+    shift = face_normal * extrude_length
+
+    # Bottom (original) geometry data
+    vertices_bottom = copy(geometry_bottom.vertices)
+    face_vertices_bottom = copy(geometry_bottom.face_vertices)
+    normals_bottom = copy(geometry_bottom.face_normals)
+
+    # Top (shifted) geometry data.
+    # Shift every bottom vertex by the same vector to create the top vertices.
+    vertices_top = [v .+ shift for v in vertices_bottom]
+    # Invert face normals for the top faces (they should point opposite to bottom)
+    normals_top = .-copy(geometry_bottom.face_normals)
+    # Shift each face-tuple component-wise to create top face tuples
+    face_vertices_top = [(v1 .+ shift, v2 .+ shift, v3 .+ shift)
+                         for (v1, v2, v3) in face_vertices_bottom]
+
+    # Build a temporary `TriangleMesh` for the top layer to reuse its indexing helpers
+    geometry_top = TriangleMesh(face_vertices_top, normals_top, vertices_top)
+
+    # Find boundary edges on bottom to generate side faces only for exterior edges.
+    directed_edges = zeros(Int, length(geometry_bottom.edge_normals))
+    for face in eachindex(geometry_bottom.face_vertices)
+        v1 = geometry_bottom.face_vertices_ids[face][1]
+        v2 = geometry_bottom.face_vertices_ids[face][2]
+        v3 = geometry_bottom.face_vertices_ids[face][3]
+
+        edge1 = geometry_bottom.face_edges_ids[face][1]
+        edge2 = geometry_bottom.face_edges_ids[face][2]
+        edge3 = geometry_bottom.face_edges_ids[face][3]
+
+        if geometry_bottom.edge_vertices_ids[edge1] == (v1, v2)
+            directed_edges[edge1] += 1
+        else
+            directed_edges[edge1] -= 1
+        end
+        if geometry_bottom.edge_vertices_ids[edge2] == (v2, v3)
+            directed_edges[edge2] += 1
+        else
+            directed_edges[edge2] -= 1
+        end
+        if geometry_bottom.edge_vertices_ids[edge3] == (v3, v1)
+            directed_edges[edge3] += 1
+        else
+            directed_edges[edge3] -= 1
+        end
+    end
+
+    boundary_edges = findall(!iszero, directed_edges)
+
+    @inline function triangle_normal(v1, v2, v3)
+        n = cross(v2 - v1, v3 - v1)
+        norm(n) > 0 && return normalize(n)
+
+        # Return zero for degenerate triangles
+        return zero(n)
+    end
+
+    # Compute approximate geometric center (used to ensure face winding produces outward normals)
+    center = (reduce(+, vertices_bottom) / length(vertices_bottom)) .+ (shift / 2)
+
+    faces_vertices_closing = Tuple{SVector{3, ELTYPE}, SVector{3, ELTYPE},
+                                   SVector{3, ELTYPE}}[]
+    normals_closing = SVector{3, ELTYPE}[]
+    for edge in boundary_edges
+        # Bottom edge endpoints (in the bottom mesh vertex list)
+        v1b = geometry_bottom.vertices[geometry_bottom.edge_vertices_ids[edge][1]]
+        v2b = geometry_bottom.vertices[geometry_bottom.edge_vertices_ids[edge][2]]
+
+        # Corresponding top edge endpoints (in the top mesh vertex list)
+        v1t = geometry_top.vertices[geometry_top.edge_vertices_ids[edge][1]]
+        v2t = geometry_top.vertices[geometry_top.edge_vertices_ids[edge][2]]
+
+        # Split the quad (v1b, v2b, v2t, v1t) into two triangles
+        face_1 = (v1b, v2b, v2t)
+        face_2 = (v1b, v2t, v1t)
+
+        n1 = triangle_normal(face_1[1], face_1[2], face_1[3])
+        n2 = triangle_normal(face_2[1], face_2[2], face_2[3])
+
+        # Compute correct winding so normals point away from the body center
+        c1 = (face_1[1] + face_1[2] + face_1[3]) / 3
+        if dot(n1, c1 - center) < 0
+            face_1 = (face_1[1], face_1[3], face_1[2])
+            n1 = -n1
+        end
+
+        c2 = (face_2[1] + face_2[2] + face_2[3]) / 3
+        if dot(n2, c2 - center) < 0
+            face_2 = (face_2[1], face_2[3], face_2[2])
+            n2 = -n2
+        end
+
+        push!(faces_vertices_closing, face_1)
+        push!(normals_closing, n1)
+        push!(faces_vertices_closing, face_2)
+        push!(normals_closing, n2)
+    end
+
+    vertices_new = vcat(vertices_bottom, vertices_top)
+    if omit_bottom_face && omit_top_face
+        # Only sides
+        face_vertices_new = vcat(faces_vertices_closing)
+        normals_new = vcat(normals_closing)
+    elseif omit_bottom_face
+        # top + sides
+        face_vertices_new = vcat(face_vertices_top, faces_vertices_closing)
+        normals_new = vcat(normals_top, normals_closing)
+    elseif omit_top_face
+        # bottom + sides
+        face_vertices_new = vcat(face_vertices_bottom, faces_vertices_closing)
+        normals_new = vcat(normals_bottom, normals_closing)
+    else
+        # bottom + top + sides (default)
+        face_vertices_new = vcat(face_vertices_bottom, face_vertices_top,
+                                 faces_vertices_closing)
+        normals_new = vcat(normals_bottom, normals_top, normals_closing)
+    end
+
+    return TriangleMesh(face_vertices_new, normals_new, vertices_new)
+end
