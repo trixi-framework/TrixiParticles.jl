@@ -127,6 +127,34 @@
                 @test isapprox(TrixiParticles.volume(geometry), volumes[i])
             end
         end
+
+        @testset verbose=true "3D - Multiple Patches" begin
+            file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+            geometries = load_geometry(joinpath(file, "cuboid.stl"))
+
+            @test isa(geometries, Vector{TrixiParticles.TriangleMesh})
+            @test length(geometries) == 6  # six solids in the file
+            total_faces = sum(TrixiParticles.nfaces(m) for m in geometries)
+            @test total_faces == 12
+
+            expected_normals = [
+                SVector(0.0, 0.0, 1.0),   # front
+                SVector(0.0, 0.0, -1.0),  # back
+                SVector(-1.0, 0.0, 0.0),  # left
+                SVector(1.0, 0.0, 0.0),   # right
+                SVector(0.0, 1.0, 0.0),   # top
+                SVector(0.0, -1.0, 0.0)   # bottom
+            ]
+
+            # Each patch should contain exactly two triangles and their normals should
+            # match the facet normals.
+            @testset "patch $i" for i in eachindex(geometries)
+                mesh = geometries[i]
+                @test TrixiParticles.nfaces(mesh) == 2
+                @test all(isapprox.(mesh.face_normals, Ref(expected_normals[i]);
+                                    atol=1e-12))
+            end
+        end
     end
 
     @testset verbose=true "Boundary Face" begin
