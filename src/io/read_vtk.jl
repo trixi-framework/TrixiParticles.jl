@@ -1,7 +1,7 @@
 """
 	vtk2trixi(file::String; custom_quantities...)
 
-Load VTK file and convert data to an NamedTuple.
+Load VTK file and convert data to a NamedTuple.
 
 # Arguments
 - `file`:                 Name of the VTK file to be loaded.
