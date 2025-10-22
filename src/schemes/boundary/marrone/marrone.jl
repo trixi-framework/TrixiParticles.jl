@@ -84,19 +84,11 @@ function kernel(kernel::DefaultKernel, r::Real, h)
 end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true},
-                                                  boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation,
-                                                                                              ELTYPE,
-                                                                                              VECTOR,
-                                                                                              SE,
-                                                                                              K,
-                                                                                              V,
-                                                                                              COR,
-                                                                                              C},
+                                                  boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation},
                                                   system, neighbor_system::FluidSystem,
                                                   system_coords, neighbor_coords, v,
                                                   v_neighbor_system,
-                                                  semi) where {ELTYPE, VECTOR, SE, K, V,
-                                                               COR, C}
+                                                  semi)
     (; pressure, cache, viscosity, density_calculator, smoothing_kernel,
      smoothing_length) = boundary_model
     (; normals) = system.initial_condition
@@ -121,10 +113,10 @@ end
     # Loop over all boundary particle
     for particle in eachparticle(system)
         f = neighbor_system.acceleration
-        particle_density = isnan(current_density(v, system, particle)) ? 0 :
+        particle_density = isnan(current_density(v, system, particle)) ? 0.0 :
                            current_density(v, system, particle)
         particle_boundary_distance = norm(normals[:, particle]) # distance from boundary particle to the boundary
-        particle_normal = particle_boundary_distance != 0 ?
+        particle_normal = particle_boundary_distance != 0.0 ?
                           normals[:, particle] / particle_boundary_distance :
                           zeros(size(normals[:, particle])) # normal unit vector to the boundary
 

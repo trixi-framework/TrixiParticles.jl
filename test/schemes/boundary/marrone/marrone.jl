@@ -279,6 +279,38 @@
             # In this test, we initialize a fluid with a hydrostatic pressure gradient
             # and check that this gradient is extrapolated correctly.
             @testset "Hydrostatic Pressure Gradient" begin
+                particle_spacing = 0.1
+                n_particles = 10
+                n_layers = 2
+                width = particle_spacing * n_particles
+                height = particle_spacing * n_particles
+                density = 257
+
+                smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+                smoothing_length = 2 * particle_spacing
+                state_equation = StateEquationCole(sound_speed=10, reference_density=257,
+                                                   exponent=7)
+
+                tank1 = RectangularTank(particle_spacing, (width, height), (width, height),
+                                        density, n_layers=n_layers,
+                                        faces=(true, true, true, false), normal=true)
+                n_boundary_particles = size(tank1.boundary.coordinates, 2)
+                n_fluid_particles = size(tank1.fluid.coordinates, 2)
+
+                mls_kernel = MarroneMLSKernel(smoothing_kernel, n_boundary_particles,
+                                              n_fluid_particles)
+
+                boundary_model = BoundaryModelDummyParticles(tank1.boundary.density,
+                                                             tank1.boundary.mass,
+                                                             state_equation=state_equation,
+                                                             MarronePressureExtrapolation(),
+                                                             mls_kernel, smoothing_length)
+
+                boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
+                viscosity = boundary_system.boundary_model.viscosity
+
+                semi = DummySemidiscretization()
+
                 tank3 = RectangularTank(particle_spacing, (width, height), (width, height),
                                         density, acceleration=[0.0, -9.81],
                                         state_equation=state_equation, n_layers=n_layers,
@@ -357,6 +389,81 @@
 
                 # Test failing, needs debugging.
                 # @test all(isapprox.(pressure, pressure_reference, atol=4.0))
+            end
+            @testset "Zero-th and First Order Consistency" begin
+                mls_kernel = MarroneMLSKernel(smoothing_kernel, n_fluid_particles,
+                                              n_fluid_particles)
+                fluid_coords = tank1.fluid.coordinates
+                fluid_system1 = WeaklyCompressibleSPHSystem(tank1.fluid, SummationDensity(),
+                                                            state_equation,
+                                                            smoothing_kernel,
+                                                            smoothing_length)
+                fluid_system1.cache.density .= tank1.fluid.density
+
+                TrixiParticles.compute_basis_marrone(mls_kernel, fluid_system1,
+                                                     fluid_system1, fluid_coords,
+                                                     fluid_coords, semi)
+                TrixiParticles.compute_momentum_marrone(mls_kernel, fluid_system1,
+                                                        fluid_system1,
+                                                        fluid_coords,
+                                                        fluid_coords, v_fluid, semi,
+                                                        smoothing_length)
+
+                # Test Zero-th Order
+                zero_order_approx = zeros(n_fluid_particles)
+                constant = 3.0
+                TrixiParticles.foreach_point_neighbor(fluid_system1, fluid_system1,
+                                                      fluid_coords, fluid_coords,
+                                                      semi) do particle, neighbor,
+                                                               pos_diff, distance
+                    neighbor_density = TrixiParticles.current_density(v_fluid,
+                                                                      fluid_system1,
+                                                                      neighbor)
+                    neighbor_volume = neighbor_density != 0 ?
+                                      TrixiParticles.hydrodynamic_mass(fluid_system1,
+                                                                       neighbor) /
+                                      neighbor_density : 0
+
+                    zero_order_approx[particle] += TrixiParticles.boundary_kernel_marrone(mls_kernel,
+                                                                                          particle,
+                                                                                          neighbor,
+                                                                                          distance,
+                                                                                          smoothing_length) *
+                                                   constant *
+                                                   neighbor_volume
+                end
+                @test all(isapprox.(zero_order_approx, constant, atol=1.0e-10))
+
+                # Test First Order
+                first_order_approx = zeros(n_fluid_particles)
+                a = [1, 2]
+                b = 3
+                f(x) = dot(a, x) + b
+
+                linear_mapping = [f(fluid_coords[:, particle])
+                                  for particle in 1:n_fluid_particles]
+                TrixiParticles.foreach_point_neighbor(fluid_system1, fluid_system1,
+                                                      fluid_coords, fluid_coords,
+                                                      semi) do particle, neighbor,
+                                                               pos_diff, distance
+                    neighbor_density = TrixiParticles.current_density(v_fluid,
+                                                                      fluid_system1,
+                                                                      neighbor)
+                    neighbor_volume = neighbor_density != 0 ?
+                                      TrixiParticles.hydrodynamic_mass(fluid_system1,
+                                                                       neighbor) /
+                                      neighbor_density : 0
+                    neighbor_val = f(fluid_coords[:, neighbor])
+
+                    first_order_approx[particle] += TrixiParticles.boundary_kernel_marrone(mls_kernel,
+                                                                                           particle,
+                                                                                           neighbor,
+                                                                                           distance,
+                                                                                           smoothing_length) *
+                                                    neighbor_val *
+                                                    neighbor_volume
+                end
+                @test all(isapprox.(first_order_approx, linear_mapping, atol=1.0e-10))
             end
         end
     end
