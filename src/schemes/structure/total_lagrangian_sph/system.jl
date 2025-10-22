@@ -1,7 +1,6 @@
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio;
-                             n_clamped_particles=0,
                              clamped_particles::Vector{Int}=Int[],
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
@@ -25,11 +24,6 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
-- `n_clamped_particles`(deprecated): Number of clamped particles which are fixed and not integrated
-                         to clamp the structure. Note that the clamped particles must be the **last**
-                         particles in the `InitialCondition`. See the info box below.
-                         This keyword is deprecated and will be removed in a future release.
-                         Prefer passing `clamped_particles` with the explicit particle indices to be clamped.
 - `clamped_particles`: A vector of indices specifying the clamped particles which are fixed
                        and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
@@ -47,24 +41,6 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     (which are the quantities of a single particle), returning a `Tuple`
                     or `SVector` that is to be added to the acceleration of that particle.
                     See, for example, [`SourceTermDamping`](@ref).
-
-!!! note
-    If specifying the clamped particles manually (via `n_clamped_particles`),
-    the clamped particles must be the **last** particles in the `InitialCondition`.
-    To do so, e.g. use the `union` function:
-    ```jldoctest; output = false, setup = :(clamped_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
-    structure = union(beam, clamped_particles)
-
-    # output
-    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-    │ InitialCondition{Float64}                                                                        │
-    │ ═════════════════════════                                                                        │
-    │ #dimensions: ……………………………………………… 2                                                                │
-    │ #particles: ………………………………………………… 16                                                               │
-    │ particle spacing: ………………………………… 0.1                                                              │
-    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
-    ```
-    where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 YM, PR, LL, LM, K, PF, V, ST, M, IM,
@@ -97,7 +73,6 @@ end
 
 function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_clamped_particles=0,
                                   clamped_particles::Vector{Int}=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> 0.0,
@@ -116,18 +91,6 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
     acceleration_ = SVector(acceleration...)
     if length(acceleration_) != NDIMS
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
-    end
-
-    # Backwards compatibility: `n_clamped_particles` is deprecated.
-    # Emit a deprecation warning and (if the user didn't supply explicit indices)
-    # convert the old `n_clamped_particles` convention to `clamped_particles`.
-    if n_clamped_particles != 0
-        Base.depwarn("keyword `n_clamped_particles` is deprecated and will be removed in a future release; " *
-                     "pass `clamped_particles` (Vector{Int} of indices) instead.",
-                     :n_clamped_particles)
-        if isempty(clamped_particles)
-            clamped_particles = collect((n_particles - n_clamped_particles + 1):n_particles)
-        end
     end
 
     # Handle clamped particles
