@@ -15,16 +15,6 @@ all relevant quantities and operators are measured with respect to the
 initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
 See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 
-There are two approaches to specify clamped particles in the system:
-
-1. **Manual ordering**: Provide the number of clamped particles via `n_clamped_particles`,
-   ensuring that these particles are the last entries in the `InitialCondition`
-   (see the info box below for details).
-
-2. **Automatic ordering**: Pass the indices of the particles to be clamped via `clamped_particles`.
-   In this case, the specified particles will be internally reordered so that they become
-   the last particles in the `InitialCondition`.
-
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
 - `young_modulus`:      Young's modulus.
@@ -35,9 +25,11 @@ There are two approaches to specify clamped particles in the system:
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
-- `n_clamped_particles`: Number of clamped particles which are fixed and not integrated
+- `n_clamped_particles`(deprecated): Number of clamped particles which are fixed and not integrated
                          to clamp the structure. Note that the clamped particles must be the **last**
                          particles in the `InitialCondition`. See the info box below.
+                         This keyword is deprecated and will be removed in a future release.
+                         Prefer passing `clamped_particles` with the explicit particle indices to be clamped.
 - `clamped_particles`: A vector of indices specifying the clamped particles which are fixed
                        and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
@@ -126,14 +118,20 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    # Handle clamped particles:
-    # If only n_clamped_particles > 0: assume manual ordering (do nothing).
-    # If both are 0/empty: no clamped particles (do nothing).
-    if !isempty(clamped_particles)
-        # Check consistency if both methods are used
-        if n_clamped_particles > 0 && n_clamped_particles != length(clamped_particles)
-            throw(ArgumentError("`n_clamped_particles` must equal length of `clamped_particles` when both are specified"))
+    # Backwards compatibility: `n_clamped_particles` is deprecated.
+    # Emit a deprecation warning and (if the user didn't supply explicit indices)
+    # convert the old `n_clamped_particles` convention to `clamped_particles`.
+    if n_clamped_particles != 0
+        Base.depwarn("keyword `n_clamped_particles` is deprecated and will be removed in a future release; " *
+                     "pass `clamped_particles` (Vector{Int} of indices) instead.",
+                     :n_clamped_particles)
+        if isempty(clamped_particles)
+            clamped_particles = collect((n_particles - n_clamped_particles + 1):n_particles)
         end
+    end
+
+    # Handle clamped particles
+    if !isempty(clamped_particles)
         unique!(clamped_particles)
         n_clamped_particles = length(clamped_particles)
         move_particles_to_end!(initial_condition, clamped_particles)
