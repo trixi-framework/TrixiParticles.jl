@@ -255,6 +255,26 @@ function volume(mesh::TriangleMesh)
     return volume
 end
 
+"""
+    extrude_geometry(geometry_bottom::TriangleMesh,
+                     extrude_length::Real; omit_top_face=false,
+                     omit_bottom_face=false)
+
+Extruding a 3D geometry returned by [`load_geometry`](@ref) along its averaged face normal.
+
+!!! note
+    The extrusion direction is the normalized average of `geometry_bottom.face_normals`.
+    If `geometry_bottom` is not planar the averaged normal is still used; callers should
+    verify planarity if strict behavior is required.
+
+Arguments
+- `geometry_bottom`: Geometry returned by [`load_geometry`](@ref) representing the base (bottom) surface.
+- `extrude_length`: distance to extrude along the averaged face normal.
+
+Keywords
+- `omit_top_face=false`: if `true`, the top horizontal faces is not included.
+- `omit_bottom_face=false`: if `true`, the bottom horizontal faces is not included.
+"""
 function extrude_geometry(geometry_bottom::TriangleMesh{NDIMS, ELTYPE},
                           extrude_length::Real; omit_top_face=false,
                           omit_bottom_face=false) where {NDIMS, ELTYPE}

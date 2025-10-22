@@ -6,6 +6,13 @@ Supported file formats are `.stl`, `.asc` and `dxf`.
 For comprehensive information about the supported file formats, refer to the documentation at
 [Read geometries from file](@ref read_geometries_from_file).
 
+!!! note
+    ASCII STL files may contain multiple `solid ... endsolid` patches. In that case
+    the function returns a `Vector{TriangleMesh}` with one `TriangleMesh` per patch.
+    For single-patch files the function returns a single `TriangleMesh`.
+    If you prefer a single combined geometry instead of multiple patches, call
+    `union(geometries...)` on the returned vector to merge all patches into one `TriangleMesh`.
+
 # Arguments
 - `filename`: Name of the file to be loaded.
 
