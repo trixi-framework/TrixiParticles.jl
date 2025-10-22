@@ -1,6 +1,6 @@
 {
   "simulation_info": {
-    "julia_version": "1.12.0",
+    "julia_version": "1.12.1",
     "technical_setup": {
       "number_of_threads": 1,
       "parallelization_backend": "PolyesterBackend"
@@ -14,7 +14,7 @@
       "controller": "PIDController",
       "abstol": 1.0e-6
     },
-    "solver_version": "5ad3e6e-dirty",
+    "solver_version": "305bf62-dirty",
     "solver_name": "TrixiParticles.jl"
   },
   "system_data": {
