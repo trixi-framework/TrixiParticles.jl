@@ -104,7 +104,7 @@ end
 # By default, try to extract it from `v`.
 @inline current_velocity(v, system) = v
 
-@inline function current_density(v, system::AbstractSystem, particle)
+@propagate_inbounds function current_density(v, system::AbstractSystem, particle)
     return current_density(v, system)[particle]
 end
 
