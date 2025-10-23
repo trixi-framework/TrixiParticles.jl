@@ -1056,8 +1056,9 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
         end
     end
 
-    if boundary_model isa BoundaryModelDummyParticles&&
-       boundary_model.density_calculator isa ContinuityDensity
+    if boundary_model isa
+       BoundaryModelDummyParticles&&
+    boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
     end
@@ -1072,12 +1073,12 @@ function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, n
         end
         if neighbor isa WallBoundarySystem
             if neighbor.boundary_model isa BoundaryModelDummyParticles &&
-                neighbor.boundary_model.density_calculator isa PressureBoundaries
+               neighbor.boundary_model.density_calculator isa PressureBoundaries
                 time_step_boundary = neighbor.boundary_model.density_calculator.time_step
                 omega_step_boundary = neighbor.boundary_model.density_calculator.omega
                 if !(time_step==time_step_boundary && omega==omega_step_boundary)
-                throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
-                `ImplicitIncompressibleSPHSystem` parameters"))
+                    throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
+                    `ImplicitIncompressibleSPHSystem` parameters"))
                 end
             end
         end
