@@ -1056,7 +1056,8 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
         end
     end
 
-    if boundary_model isa BoundaryModelDummyParticles&&
+    if boundary_model isa BoundaryModelDummyParticles &&
+       boundary_model.density_calculator isa ContinuityDensity
         boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
