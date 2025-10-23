@@ -5,13 +5,12 @@
 # Other literature using this validation:
 # Vacandio et al. (2013), Marrone et al. (2013), Calhoun (2002), Liu et al. (1998)
 # ==========================================================================================
-
 using TrixiParticles
 using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-factor_d = 0.08 # Resolution in the paper is `0.01` (5M particles)
+factor_d = 0.1 # Resolution in the paper is `0.01` (5M particles)
 
 const cylinder_diameter = 0.1
 particle_spacing = factor_d * cylinder_diameter

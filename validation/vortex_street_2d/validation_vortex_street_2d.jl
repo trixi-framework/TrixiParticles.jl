@@ -1,6 +1,6 @@
 using TrixiParticles
 
-# Results in [90k particles, 340k particles, 1.2M particles, 5M particles]
+# Results in 1.2M particles.
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
 resolution_factor = 0.02
 
