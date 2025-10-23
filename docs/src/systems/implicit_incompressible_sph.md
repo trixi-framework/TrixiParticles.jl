@@ -308,14 +308,14 @@ can also be used with IISPH.
 When using one of these pressure extrapolation methods the calculation of the PPE is exactly
 the same as when using pressure zeroing.
 So within the linear systems the pressure values are equal to zero (``p_b=0``) and therefore
-not considered in the calculations. Only in the pressure acceleration, the extrapolated
+are not considered in the calculations. Only in the pressure acceleration, the extrapolated
 pressure values are used for the boundary particles. For more information on these two methods,
 refer to the docs for the [boundary models](@ref boundary_models).
 
 ### PressureBoundaries
 The [`PressureBoundaries`](@ref) density calculator was introduced specifically for
-the IISPH fluid system and can therefore only be used with IISPH.
-In the standard IISPH method the PPE is solved only for the fluid particles. The
+IISPH fluid systems and can therefore only be used with IISPH.
+In the standard IISPH method the PPE is solved only for fluid particles. The
 pressure values for the boundary particles are then approximated, for example by using
 pressure mirroing.
 With pressure boundaries, however, the linear system is extended to
@@ -375,7 +375,7 @@ eliminated (as in pressure zeroing or pressure extrapolation  with ``p_b=0``) no
 replaced by the fluid particle's pressure (as in pressure mirroring with ``p_b=p_i``).
 Instead, ``p_b``remains part of the PPE.
 
-This has no effect on the digaonal elements ``a_{ii}``, which are identical to those of the
+This has no effect on the diagonal elements ``a_{ii}``, which are identical to those of the
 other density calculators. The ``d_{ii}`` values are also computed in the same way as for
 pressure zeroing or pressure extrapolation.
 However,  the off-diagonal term ``\sum_{j \neq i} a_{ij} p_j`` in the relaxed Jacobi iteration
