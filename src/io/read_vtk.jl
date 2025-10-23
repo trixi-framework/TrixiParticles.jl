@@ -20,11 +20,11 @@ Load VTK file and convert data to a NamedTuple.
 rectangular = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0, -2.0),
                                pressure=1000.0)
 
-# Write the `InitialCondition` with custom quantity to a vtk file
+# Write the `InitialCondition` with custom quantity to a VTK file
 trixi2vtk(rectangular; filename="rectangular", output_directory="out",
           my_custom_quantity=3.0)
 
-# Read the vtk file and convert the data to an `NamedTuple`
+# Read the VTK file and convert the data to a `NamedTuple`
 data = vtk2trixi(joinpath("out", "rectangular.vtu");
                  my_custom_quantity="my_custom_quantity")
 
