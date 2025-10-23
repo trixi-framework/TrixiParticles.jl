@@ -70,7 +70,9 @@ plot!(pC, times, f_drag, ylims=(-1, 3), xlims=(0, 20), label="C_D", color=:blue,
 plot!(pC, top_margin=2Plots.mm)
 
 pS = plot(frequencies[1:div(N, 2)], spectrum_half, xlabel="Frequency (Hz)", size=(400, 200),
-          ylabel="Amplitude", title="Frequency Spectrum (St = $(round(strouhal_number, digits=4)))", label=nothing, linewidth=2)
+          ylabel="Amplitude",
+          title="Frequency Spectrum (St = $(round(strouhal_number, digits=4)))",
+          label=nothing, linewidth=2)
 plot!(pC, top_margin=2Plots.mm)
 
 p = plot(pC, pS, layout=@layout([a; b{0.3h}]), size=(800, 800))
