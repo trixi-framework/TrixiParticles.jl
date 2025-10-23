@@ -188,7 +188,7 @@ struct PressureZeroing end
 
 # Keywords
 - `time_step`: Time step size used for the simulation (has to be the same as for the IISPH fluid system)
-- `omega`: Relaxation parameter for the relaxed jacobi scheme (has to be the same as for the IISPH fluid system)
+- `omega`: Relaxation parameter for the relaxed Jacobi scheme (has to be the same as for the IISPH fluid system)
 
 !!! note
     This boundary model can only be used in combination with the [`ImplicitIncompressibleSPHSystem`](@ref).

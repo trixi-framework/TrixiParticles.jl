@@ -26,10 +26,10 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `viscosity`:                  Currently, only [`ViscosityMorris`](@ref)
                                 and [`ViscosityAdami`](@ref) are supported.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
-- `omega = 0.5`:                Relaxation parameter for the relaxed jacobi scheme
-- `max_error = 0.1`:            Maximum error (in %) for the termination condition in the relaxed jacobi scheme
-- `min_iterations = 2`:         Minimum number of iterations in the relaxed jacobi scheme, independent from the termination condition
-- `max_iterations = 20`:        Maximum number of iterations in the relaxed jacobi scheme, independent from the termination condition
+- `omega = 0.5`:                Relaxation parameter for the relaxed Jacobi scheme
+- `max_error = 0.1`:            Maximum error (in %) for the termination condition in the relaxed Jacobi scheme
+- `min_iterations = 2`:         Minimum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
+- `max_iterations = 20`:        Maximum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `time_step`:                  Time step size used for the simulation
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
