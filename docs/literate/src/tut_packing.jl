@@ -140,7 +140,7 @@ background_pressure = 1.0
 
 # For particle interaction, we select a [smoothing kernel](@ref smoothing_kernel)
 # with a suitable smoothing length. Empirically, a factor of `0.8` times the
-# particle spacing gives good results [Neher2025](@cite).
+# particle spacing gives good results [Neher2026](@cite).
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 smoothing_length = 0.8 * particle_spacing
 
@@ -203,7 +203,7 @@ plot(packed_ic)
 plot!(geometry, seriestype=:path, color=:black, label=nothing, linewidth=2)
 
 # We can see that the particles now stay inside the geometry,
-# but their distribution near the surface can still be improved by adding boundary particles [Neher2025](@cite).
+# but their distribution near the surface can still be improved by adding boundary particles [Neher2026](@cite).
 # Therefore, we set up a dedicated boundary packing system
 # by setting `is_boundary = true`.
 # For convex geometries, it is useful to slightly compress the
