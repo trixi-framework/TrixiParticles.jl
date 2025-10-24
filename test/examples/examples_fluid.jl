@@ -278,13 +278,8 @@
     @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureBoundaries" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
-                                                  "dam_break_2d_iisph.jl"),
-                                         tspan=(0.0, 0.1),
-                                         omega=0.4,
-                                         time_step=1e-3,
-                                         boundary_density_calculator=PressureBoundaries(;
-                                                                                        time_step=time_step,
-                                                                                        omega=omega)) [
+                                                  "dam_break_2d_iisph_pressure_boundaries.jl"),
+                                         tspan=(0.0, 0.1)) [
             r"┌ Info: The desired tank length in y-direction .*\n",
             r"└ New tank length in y-direction.*\n"
         ]
