@@ -263,8 +263,9 @@ end
 Extruding a 3D geometry returned by [`load_geometry`](@ref) along its averaged face normal.
 
 !!! note
-    The extrusion direction is the normalized average of `geometry_bottom.face_normals`.
-    If `geometry_bottom` is not planar the averaged normal is still used; callers should
+    The extrusion direction is computed as the normalized average of `geometry_bottom.face_normals`,
+    assuming the input is planar. The function does not check planarity.
+    For non-planar inputs the averaged normal may point in an arbitrary direction;
     verify planarity if strict behavior is required.
 
 Arguments
@@ -306,29 +307,11 @@ function extrude_geometry(geometry_bottom::TriangleMesh{NDIMS, ELTYPE},
     # Find boundary edges on bottom to generate side faces only for exterior edges.
     directed_edges = zeros(Int, length(geometry_bottom.edge_normals))
     for face in eachindex(geometry_bottom.face_vertices)
-        v1 = geometry_bottom.face_vertices_ids[face][1]
-        v2 = geometry_bottom.face_vertices_ids[face][2]
-        v3 = geometry_bottom.face_vertices_ids[face][3]
-
-        edge1 = geometry_bottom.face_edges_ids[face][1]
-        edge2 = geometry_bottom.face_edges_ids[face][2]
-        edge3 = geometry_bottom.face_edges_ids[face][3]
-
-        if geometry_bottom.edge_vertices_ids[edge1] == (v1, v2)
-            directed_edges[edge1] += 1
-        else
-            directed_edges[edge1] -= 1
-        end
-        if geometry_bottom.edge_vertices_ids[edge2] == (v2, v3)
-            directed_edges[edge2] += 1
-        else
-            directed_edges[edge2] -= 1
-        end
-        if geometry_bottom.edge_vertices_ids[edge3] == (v3, v1)
-            directed_edges[edge3] += 1
-        else
-            directed_edges[edge3] -= 1
-        end
+        (v1, v2, v3) = geometry_bottom.face_vertices_ids[face]
+        (e1, e2, e3) = geometry_bottom.face_edges_ids[face]
+        directed_edges[e1] += (geometry_bottom.edge_vertices_ids[e1] == (v1, v2) ? 1 : -1)
+        directed_edges[e2] += (geometry_bottom.edge_vertices_ids[e2] == (v2, v3) ? 1 : -1)
+        directed_edges[e3] += (geometry_bottom.edge_vertices_ids[e3] == (v3, v1) ? 1 : -1)
     end
 
     boundary_edges = findall(!iszero, directed_edges)

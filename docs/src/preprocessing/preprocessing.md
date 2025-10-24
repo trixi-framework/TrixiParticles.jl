@@ -252,8 +252,10 @@ Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_jacobson.jl"
 ```
 # [Read geometries from file](@id read_geometries_from_file)
 Geometries can be imported using the [`load_geometry`](@ref) function.
-- For 3D geometries, we support the binary (`.stl`) format.
+- For 3D geometries, we support the binary and ASCII (`.stl`) format.
 - For 2D geometries, the recommended format is DXF (`.dxf`), with optional support for a simple ASCII (`.asc`) format.
+
+For 3D geometries, a convenience function [`extrude_geometry`](@ref) is provided to create a 3D triangulated surface by extruding a planar mesh.
 
 ## ASCII Format (.asc)
 An .asc file contains a list of 2D coordinates, space-delimited, one point per line,
