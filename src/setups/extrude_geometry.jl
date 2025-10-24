@@ -64,10 +64,12 @@ direction = [0.0, 0.0, 1.0]
 shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, density=1000.0)
 
 # output
-┌ Info: The desired size is not a multiple of the particle spacing 0.1.
-└ New particle spacing is set to 0.09387239731236392.
-┌ Info: The desired size is not a multiple of the particle spacing 0.1.
-└ New particle spacing is set to 0.09198039027185569.
+┌ Info: The desired line length 1.314213562373095 is not a multiple of the particle spacing 0.1.
+└ New line length is set to 1.3.
+┌ Info: The desired edge 1 length 1.0180339887498948 is not a multiple of the particle spacing 0.1.
+└ New edge 1 length is set to 1.0.
+┌ Info: The desired edge 2 length 0.9198039027185568 is not a multiple of the particle spacing 0.1.
+└ New edge 2 length is set to 0.9.
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ InitialCondition{Float64}                                                                        │
 │ ═════════════════════════                                                                        │
