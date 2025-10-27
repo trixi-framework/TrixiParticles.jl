@@ -41,6 +41,13 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
                            adhesion_coefficient=0.0, color_value=0)
     coordinates = copy(initial_condition.coordinates)
 
+    # Compute the normal vectors for the boundary model
+    if !isnothing(initial_condition.normals)
+        (; coordinates, normals) = initial_condition
+        interpolation_coords = coordinates - (2 * normals) # The normals point out from the fluid to the boundary
+        model.cache.interpolation_coords .= interpolation_coords
+    end
+
     ismoving = Ref(!isnothing(movement))
 
     cache = create_cache_boundary(movement, initial_condition)

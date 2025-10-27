@@ -5,9 +5,9 @@ The Moving Least-Squares Kernel by Marrone et al. is used to compute the pressur
 """
 
 struct MarroneMLSKernel{NDIMS} <: SmoothingKernel{NDIMS}
-    inner_kernel :: SmoothingKernel
-    basis        :: Array{Float64, 3}
-    momentum     :: Array{Float64, 3}
+    inner_kernel  :: SmoothingKernel
+    basis         :: Array{Float64, 3}
+    momentum      :: Array{Float64, 3}
 end
 
 function MarroneMLSKernel(inner_kernel::SmoothingKernel{NDIMS},
@@ -83,7 +83,7 @@ function kernel(kernel::DefaultKernel, r::Real, h)
     return 1
 end
 
-@inline function boundary_pressure_extrapolation!(parallel::Val{true},
+@inline function boundary_pressure_extrapolation!(parallel::Val{false},
                                                   boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation},
                                                   system, neighbor_system::FluidSystem,
                                                   system_coords, neighbor_coords, v,
@@ -91,8 +91,7 @@ end
                                                   semi)
     (; pressure, cache, viscosity, density_calculator, smoothing_kernel,
      smoothing_length) = boundary_model
-    (; normals) = system.initial_condition
-    interpolation_coords = system_coords + (2 * -normals) # Should only be computed once -> put into cache 
+    (; interpolation_coords, _pressure) = cache
 
     compute_basis_marrone(smoothing_kernel, system, neighbor_system, interpolation_coords,
                           neighbor_coords, semi)
@@ -107,22 +106,11 @@ end
                                     pos_diff, distance
         boundary_pressure_inner!(boundary_model, density_calculator, system,
                                  neighbor_system, v, v_neighbor_system, particle, neighbor,
-                                 pos_diff, distance, viscosity, cache, pressure)
+                                 pos_diff, distance, viscosity, cache, _pressure)
     end
 
-    # Loop over all boundary particle
-    for particle in eachparticle(system)
-        f = neighbor_system.acceleration
-        particle_density = isnan(current_density(v, system, particle)) ? 0.0 :
-                           current_density(v, system, particle)
-        particle_boundary_distance = norm(normals[:, particle]) # distance from boundary particle to the boundary
-        particle_normal = particle_boundary_distance != 0.0 ?
-                          normals[:, particle] / particle_boundary_distance :
-                          zeros(size(normals[:, particle])) # normal unit vector to the boundary
-
-        pressure[particle] += 2 * particle_boundary_distance * particle_density *
-                              dot(f, particle_normal)
-    end
+    # Copy the updated pressure values from the buffer
+    pressure .= _pressure
 end
 
 @inline function boundary_pressure_inner!(boundary_model,
@@ -131,12 +119,57 @@ end
                                           v_neighbor_system, particle, neighbor, pos_diff,
                                           distance, viscosity, cache, pressure)
     (; smoothing_kernel, smoothing_length) = boundary_model
-    neighbor_pressure = current_pressure(v_neighbor_system, neighbor_system, neighbor)
     kernel_weight = boundary_kernel_marrone(smoothing_kernel, particle, neighbor, distance,
                                             smoothing_length)
+    # Update the pressure
+    neighbor_pressure = current_pressure(v_neighbor_system, neighbor_system, neighbor)
     neighbor_density = current_density(v_neighbor_system, neighbor_system, neighbor)
     neighbor_volume = neighbor_density != 0 ?
                       hydrodynamic_mass(neighbor_system, neighbor) / neighbor_density : 0
 
     pressure[particle] += neighbor_pressure * kernel_weight * neighbor_volume
+
+    # Update the boundary particle velocity
+    # TODO: This method takes an additional parameter `neighbor_volume`, maybe unify all methods of this function 
+    # to accept the same arguments
+    compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+                               kernel_weight, particle, neighbor, neighbor_volume)
 end
+
+# Change the dispatched type of `viscosity` so that it also accepts Marrone
+function compute_smoothed_velocity!(cache, viscosity, neighbor_system,
+                                    v_neighbor_system, kernel_weight, particle, neighbor,
+                                    neighbor_volume)
+    neighbor_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    
+    # CHECK: is the neighbor_volume term necessary?
+    for dim in eachindex(neighbor_velocity)
+        @inbounds cache.wall_velocity[dim, particle] += neighbor_velocity[dim] * kernel_weight * neighbor_volume
+    end
+
+    return cache
+end
+
+# For more, see `dummy_particles.jl`
+function compute_boundary_density!(boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation}, system, system_coords, particle)
+    (; pressure, state_equation, cache, viscosity) = boundary_model
+    (; volume, density) = cache
+
+    # The summation is only over fluid particles, thus the volume stays zero when a boundary
+    # particle isn't surrounded by fluid particles.
+    # Check the volume to avoid NaNs in pressure and velocity.
+    particle_volume = volume[particle]
+    if @inbounds particle_volume > eps()
+        # To impose no-slip condition
+        compute_wall_velocity!(viscosity, system, system_coords, particle, particle_volume)
+    end
+
+    # Limit pressure to be non-negative to avoid attractive forces between fluid and
+    # boundary particles at free surfaces (sticking artifacts).
+    @inbounds pressure[particle] = max(pressure[particle], 0)
+
+    # Apply inverse state equation to compute density (not used with EDAC)
+    # CHECK: this computes the density based on the updated pressure, is this correct?
+    inverse_state_equation!(density, state_equation, pressure, particle)
+end
+
