@@ -28,9 +28,14 @@ H = 0.6
 particle_spacing = H / particles_per_height
 
 # Import variables from the example file
+alpha = 0.02
+viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               alpha=0.02, # This is used by Marrone et al. (2011)
-              sol=nothing, ode=nothing, fluid_particle_spacing=particle_spacing)
+              sol=nothing,
+              ode=nothing,
+              viscosity_fluid=viscosity_fluid,
+              fluid_particle_spacing=particle_spacing)
 
 use_edac = false # Set to false to use WCSPH
 
@@ -93,7 +98,9 @@ else
     method = "wcsph"
 end
 
-formatted_string = string(particles_per_height)
+
+extra_string = ""
+formatted_string = string(particles_per_height) * extra_string
 
 postprocessing_cb = PostprocessCallback(; dt=0.01 / sqrt(gravity / H),
                                         output_directory="out",
@@ -117,6 +124,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
               boundary_density_calculator=boundary_density_calculator,
               state_equation=state_equation,
+              viscosity_fluid=viscosity_fluid,
               solution_prefix="validation_" * method * "_" * formatted_string,
               tspan=tspan, fluid_system=fluid_system,
               update_strategy=nothing,

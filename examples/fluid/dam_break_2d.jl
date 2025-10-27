@@ -21,7 +21,7 @@ W = 2 * H
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = H / 300
+fluid_particle_spacing = H / 40
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 4
@@ -101,7 +101,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 
 solution_prefix = ""
-saving_callback = nothing #SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
 
 # This can be overwritten with `trixi_include`
 extra_callback = nothing
