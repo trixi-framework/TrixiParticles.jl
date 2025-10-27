@@ -525,11 +525,12 @@ end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
-@inline function viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system)
+@inline function viscosity_model(system::TotalLagrangianSPHSystem,
+                                 neighbor_system::AbstractFluidSystem)
     return neighbor_system.viscosity
 end
 
-@inline function viscosity_model(system::AbstractFluidSystem,
+@inline function viscosity_model(system::Union{AbstractFluidSystem, OpenBoundarySystem},
                                  neighbor_system::TotalLagrangianSPHSystem)
     return neighbor_system.boundary_model.viscosity
 end
