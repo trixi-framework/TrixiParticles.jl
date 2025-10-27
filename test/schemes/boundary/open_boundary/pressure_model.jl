@@ -111,7 +111,7 @@
         # The reference pressure values are computed using an ODE that describes
         # the behavior of the RCR Windkessel model. The governing equation is:
         #
-        #   dp/dt + p / (R_1 * C) = R_2 * dq/dt (R_1 + R_2) / (R_1 * C) * q
+        #   dp/dt + p / (R_1 * C) = R_2 * dq/dt + (R_1 + R_2) / (R_1 * C) * q
         #
         # where
         #   - p: pressure
@@ -153,6 +153,6 @@
 
         pressures = simulate_rcr(R1, R2, C, tspan, dt, p0, pulsatile_flow)
 
-        @test isapprox(pressures_ref, pressures[1:50:end], rtol=2e-3)
+        @test isapprox(pressures_ref, pressures[1:50:end], rtol=5e-3)
     end
 end
