@@ -826,6 +826,26 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                     neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor, semi)
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::TotalLagrangianSPHSystem,
+                     neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                     u_system, u_neighbor, semi)
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
                      system::OpenBoundarySystem, neighbor::TotalLagrangianSPHSystem,
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
