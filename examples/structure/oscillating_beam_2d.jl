@@ -61,7 +61,7 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothing_length,
                                             material.E, material.nu,
-                                            n_clamped_particles=nparticles(clamped_particles),
+                                            clamped_particles=collect((nparticles(beam) + 1):nparticles(structure)),
                                             acceleration=(0.0, -gravity),
                                             penalty_force=nothing, viscosity=nothing,
                                             clamped_particles_motion=nothing)

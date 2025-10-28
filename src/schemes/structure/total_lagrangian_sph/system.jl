@@ -25,11 +25,11 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
-- `n_clamped_particles`(deprecated): Number of clamped particles which are fixed and not integrated
+- `n_clamped_particles` (deprecated): Number of clamped particles which are fixed and not integrated
                          to clamp the structure. Note that the clamped particles must be the **last**
                          particles in the `InitialCondition`. See the info box below.
                          This keyword is deprecated and will be removed in a future release.
-                         Prefer passing `clamped_particles` with the explicit particle indices to be clamped.
+                         Instead pass `clamped_particles` with the explicit particle indices to be clamped.
 - `clamped_particles`: A vector of indices specifying the clamped particles which are fixed
                        and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
@@ -98,7 +98,7 @@ end
 function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
                                   n_clamped_particles=0,
-                                  clamped_particles::Vector{Int}=Int[],
+                                  clamped_particles::Union{Vector{Int}, AbstractUnitRange}=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
@@ -127,16 +127,20 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                      :n_clamped_particles)
         if isempty(clamped_particles)
             clamped_particles = collect((n_particles - n_clamped_particles + 1):n_particles)
+        else
+            throw(ArgumentError("Either `n_clamped_particles` or `clamped_particles` can be specified, not both."))
         end
     end
 
     # Handle clamped particles
     if !isempty(clamped_particles)
-        unique!(clamped_particles)
+
+        @assert allunique(clamped_particles) "`clamped_particles` contains duplicate particle indices."
+
         n_clamped_particles = length(clamped_particles)
-        move_particles_to_end!(initial_condition, clamped_particles)
-        move_particles_to_end!(young_modulus, clamped_particles)
-        move_particles_to_end!(poisson_ratio, clamped_particles)
+        move_particles_to_end!(initial_condition, collect(clamped_particles))
+        move_particles_to_end!(young_modulus, collect(clamped_particles))
+        move_particles_to_end!(poisson_ratio, collect(clamped_particles))
     end
 
     initial_coordinates = copy(initial_condition.coordinates)

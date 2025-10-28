@@ -8,11 +8,7 @@
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "structure",
                                                       "oscillating_beam_2d.jl"),
-                                             tspan=(0.0, 0.1)) [
-                r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
-                r"│\s+caller = .*\n",        # allow the caller line inside the boxed warning
-                r"└ @ Core.*\n"
-            ]
+                                             tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
