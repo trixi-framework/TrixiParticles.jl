@@ -192,7 +192,6 @@ struct PressureZeroing end
 !!! note
     This boundary model can only be used in combination with the [`ImplicitIncompressibleSPHSystem`](@ref).
 """
-
 struct PressureBoundaries{ELTYPE}
     time_step::ELTYPE
     omega::ELTYPE
@@ -234,10 +233,10 @@ end
 
 function create_cache_model(initial_density,
                             density_calculator::PressureBoundaries, NDIMS)
-    # TODO: Find a more elegant way to get the reference density
     ELTYPE = eltype(initial_density)
-    n_particles = length(initial_density)
-    reference_density = initial_density[1]
+    n_particles = size(initial_density)
+    reference_density = first(initial_density)
+    @assert all(rho -> isapprox(rho, reference_density))
     density = copy(initial_density)
     a_ii = zeros(ELTYPE, n_particles)
     predicted_density = zeros(ELTYPE, n_particles)
