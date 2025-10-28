@@ -314,7 +314,7 @@ refer to the docs for the [boundary models](@ref boundary_models).
 
 ### Pressure Boundaries
 The [`PressureBoundaries`](@ref) density calculator was introduced by
-[Band et al. (2008)](@cite Band2018) specifically for IISPH fluid systems and can therefore
+[Band et al. (2008)](@cite Band2018b) specifically for IISPH fluid systems and can therefore
 only be used with IISPH.
 In the standard IISPH method the PPE is solved only for fluid particles. The
 pressure values for the boundary particles are then approximated, for example by using
