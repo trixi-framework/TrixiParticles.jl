@@ -65,8 +65,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     n_particles = length(initial_density)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
-             create_cache_model(initial_density, density_calculator, NDIMS, ELTYPE,
-                                n_particles)...,
+             create_cache_model(initial_density, density_calculator, NDIMS)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -227,16 +226,17 @@ end
 
 function create_cache_model(initial_density,
                             ::Union{SummationDensity, PressureMirroring, PressureZeroing},
-                            NDIMS, ELTYPE, n_particles)
+                            NDIMS)
     density = copy(initial_density)
 
     return (; density)
 end
 
 function create_cache_model(initial_density,
-                            density_calculator::PressureBoundaries, NDIMS, ELTYPE,
-                            n_particles)
+                            density_calculator::PressureBoundaries, NDIMS)
     # TODO: Find a more elegant way to get the reference density
+    ELTYPE = eltype(initial_density)
+    n_particles = length(initial_density)
     reference_density = initial_density[1]
     density = copy(initial_density)
     a_ii = zeros(ELTYPE, n_particles)
@@ -251,15 +251,13 @@ function create_cache_model(initial_density,
             omega, time_step, density_error)
 end
 
-function create_cache_model(initial_density, ::ContinuityDensity, NDIMS, ELTYPE,
-                            n_particles)
+function create_cache_model(initial_density, ::ContinuityDensity, NDIMS)
     return (; initial_density)
 end
 
 function create_cache_model(initial_density,
                             ::Union{AdamiPressureExtrapolation,
-                                    BernoulliPressureExtrapolation}, NDIMS, ELTYPE,
-                            n_particles)
+                                    BernoulliPressureExtrapolation}, NDIMS)
     density = copy(initial_density)
     volume = similar(initial_density)
 
@@ -299,12 +297,6 @@ end
 
 # Set the initial pressure to zero for visualization
 function initial_boundary_pressure(initial_density, density_calculator, _)
-    return similar(initial_density)
-end
-
-# Pressure mirroring does not use the pressure, so we set it to zero for the visualization
-function initial_boundary_pressure(initial_density,
-                                   ::Union{PressureMirroring, PressureBoundaries}, _)
     return zero(initial_density)
 end
 
@@ -523,7 +515,7 @@ function compute_pressure!(boundary_model,
                            ::Union{PressureMirroring, PressureZeroing, PressureBoundaries},
                            system, v, u, v_ode, u_ode, semi)
     # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
-    # Pressure update for `PressureBoundaries`` is be done by the PPE solver in IISPH
+    # Pressure update for `PressureBoundaries` is be done by the PPE solver in IISPH
     return boundary_model
 end
 

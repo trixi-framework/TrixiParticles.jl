@@ -428,12 +428,14 @@ function initialize_pressure!(system, semi)
     return system
 end
 
-function initialize_pressure!(system::ImplicitIncompressibleSPHSystem, semi)
-    (; pressure) = system
+function initialize_pressure!(system::Union{ImplicitIncompressibleSPHSystem,
+                                            WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
+                              semi)
 
     # Set initial pressure (p_0) to a half of the current pressure value
-    @threaded semi for particle in each_integrated_particle(system)
-        pressure[particle] = pressure[particle] / 2
+    @threaded semi for particle in eachparticle(system)
+        current_pressure(nothing, system)[particle] = current_pressure(nothing, system)[particle] /
+                                                      2
     end
 end
 
@@ -472,7 +474,7 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
     end
 end
 
-# With`PressureBoundaries`, the boundary particles have their own pressure values that contribute to the sum_j d_ij*p_j
+# With `PressureBoundaries`, the boundary particles have their own pressure values that contribute to the sum_j d_ij*p_j
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system::Union{ImplicitIncompressibleSPHSystem,
                                                        WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},

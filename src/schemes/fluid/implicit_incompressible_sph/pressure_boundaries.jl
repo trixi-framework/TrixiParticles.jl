@@ -7,7 +7,7 @@ function calculate_diagonal_elements_and_predicted_density!(system::WallBoundary
     set_zero!(a_ii)
     predicted_density .= density
 
-    # Calculation the diagonal elements (a_ii-values) according to eq. 12 in Ihmsen et al. (2013)
+    # Calculate the diagonal elements (a_ii-values) according to eq. 12 in Ihmsen et al. (2013)
     foreach_system(semi) do neighbor_system
         calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
                                                           density_calculator,
@@ -77,17 +77,8 @@ function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_densi
     end
 end
 
-function initialize_pressure(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
-                             semi)
-    (; boundary_model) = system
-
-    @threaded semi for particle in eachparticle(system)
-        pressure[particle] = pressure[particle] / 2
-    end
-end
-
-function calculate_sum_term_values(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
-                                   u, u_ode, semi)
+function calculate_sum_term_values!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
+                                    u, u_ode, semi)
     (; boundary_model) = system
     (; sum_term, time_step) = boundary_model.cache
 
@@ -143,7 +134,7 @@ end
 function calculate_sum_term(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
                             neighbor_system::AbstractBoundarySystem,
                             particle, neighbor, grad_kernel, time_step)
-    return 0.0
+    return zero(time_step)
 end
 
 function iisph_source_term(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
