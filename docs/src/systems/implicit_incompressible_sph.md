@@ -312,9 +312,10 @@ are not considered in the calculations. Only in the pressure acceleration, the e
 pressure values are used for the boundary particles. For more information on these two methods,
 refer to the docs for the [boundary models](@ref boundary_models).
 
-### Pressure Boundaries(@id pressureboundaries)
-The [`PressureBoundaries`](@ref) density calculator was introduced specifically for
-IISPH fluid systems and can therefore only be used with IISPH.
+### Pressure Boundaries
+The [`PressureBoundaries`](@ref) density calculator was introduced by
+[Band et al. (2008)](@cite Band2018) specifically for IISPH fluid systems and can therefore
+only be used with IISPH.
 In the standard IISPH method the PPE is solved only for fluid particles. The
 pressure values for the boundary particles are then approximated, for example by using
 pressure mirroing.
