@@ -134,7 +134,6 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
 
     # Handle clamped particles
     if !isempty(clamped_particles)
-
         @assert allunique(clamped_particles) "`clamped_particles` contains duplicate particle indices."
 
         n_clamped_particles = length(clamped_particles)
