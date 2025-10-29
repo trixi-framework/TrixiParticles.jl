@@ -234,16 +234,19 @@ end
 function create_cache_model(initial_density,
                             density_calculator::PressureBoundaries, NDIMS)
     ELTYPE = eltype(initial_density)
-    n_particles = size(initial_density)
+    n_particles = size(initial_density, 1)
+
     reference_density = first(initial_density)
-    @assert all(rho -> isapprox(rho, reference_density))
+    @assert all(rho -> isapprox(rho, reference_density), initial_density)
     density = copy(initial_density)
+
     a_ii = zeros(ELTYPE, n_particles)
     predicted_density = zeros(ELTYPE, n_particles)
-    time_step = density_calculator.time_step
-    omega = density_calculator.omega
     sum_d_ij_pj = zeros(ELTYPE, NDIMS, n_particles)
     sum_term = zeros(ELTYPE, n_particles)
+
+    omega = density_calculator.omega
+    time_step = density_calculator.time_step
     density_error = zeros(ELTYPE, n_particles)
 
     return (; reference_density, density, a_ii, predicted_density, sum_d_ij_pj, sum_term,
