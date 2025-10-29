@@ -76,7 +76,8 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
                           coordinates_perturbation=nothing,
                           mass=nothing, density=nothing, pressure=0.0,
                           acceleration=nothing, state_equation=nothing,
-                          place_on_shell=false, loop_order=nothing)
+                          place_on_shell=false, loop_order=nothing,
+                          coordinates_eltype=Float64)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -92,10 +93,11 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
     end
 
     ELTYPE = eltype(particle_spacing)
-
     n_particles = prod(n_particles_per_dimension)
 
-    coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
+    # The type of the particle spacing determines the eltype of the coordinates
+    coordinates = rectangular_shape_coords(convert(coordinates_eltype, particle_spacing),
+                                           n_particles_per_dimension,
                                            min_coordinates, place_on_shell=place_on_shell,
                                            loop_order=loop_order)
 
