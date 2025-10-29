@@ -92,7 +92,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                   young_modulus, poisson_ratio;
                                   n_clamped_particles=0, clamped_particles_motion=nothing,
                                   boundary_model=nothing,
-                                  acceleration=ntuple(_ -> 0.0,
+                                  acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
                                   source_terms=nothing)
