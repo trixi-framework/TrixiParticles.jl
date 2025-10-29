@@ -38,8 +38,9 @@ end
         m_a = @inbounds system.mass[particle]
         m_b = @inbounds system.mass[neighbor]
 
-        current_pos_diff = @inbounds current_coords(system, particle) -
-                                     current_coords(system, neighbor)
+        current_pos_diff_ = @inbounds current_coords(system, particle) -
+                                      current_coords(system, neighbor)
+        current_pos_diff = convert.(eltype(system), current_pos_diff_)
         current_distance = norm(current_pos_diff)
 
         dv_stress = m_b *
