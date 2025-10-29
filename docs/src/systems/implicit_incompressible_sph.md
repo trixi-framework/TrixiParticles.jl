@@ -387,7 +387,6 @@ For pressure boundaries it takes the form
  + \sum_b m_b \left( \sum_k d_{ik} p_k  \right) \nabla W_{ib},
 ```
 where ``k``represents all neighboring particles of ``i`` (both fluid and boundary).
-
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "implicit_incompressible_sph", "pressure_boundaries.jl")]
