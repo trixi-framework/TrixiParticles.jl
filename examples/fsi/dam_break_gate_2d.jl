@@ -147,7 +147,7 @@ structure_system = TotalLagrangianSPHSystem(structure,
                                             structure_smoothing_kernel,
                                             structure_smoothing_length,
                                             E, nu, boundary_model=boundary_model_structure,
-                                            n_clamped_particles=n_particles_x,
+                                            clamped_particles=(nparticles(plate) + 1):nparticles(structure),
                                             acceleration=(0.0, -gravity))
 
 # ==========================================================================================
