@@ -426,9 +426,9 @@ function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move::Vect
 
     ic.coordinates .= ic.coordinates[:, permutation]
     ic.velocity .= ic.velocity[:, permutation]
-    move_particles_to_end!(ic.mass, particle_ids_to_move)
-    move_particles_to_end!(ic.density, particle_ids_to_move)
-    move_particles_to_end!(ic.pressure, particle_ids_to_move)
+    ic.mass .= ic.mass[permutation]
+    ic.density .= ic.density[permutation]
+    ic.pressure .= ic.pressure[permutation]
 
     return ic
 end
