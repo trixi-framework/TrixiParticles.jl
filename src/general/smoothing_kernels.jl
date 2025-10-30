@@ -398,16 +398,11 @@ struct WendlandC2Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
     return result
 end
 
-@fastpow @muladd @inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
+@fastpow @inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    q1_3 = (1 - q / 2)^3
-    q1_4 = (1 - q / 2)^4
-
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    result = -2 * q1_3 * (2q + 1)
-    result = result + q1_4 * 2
+    result = -5 * (1 - q / 2)^3 * q
 
     # Zero out result if q >= 2
     result = ifelse(q < 2,

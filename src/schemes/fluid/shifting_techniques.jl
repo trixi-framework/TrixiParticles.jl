@@ -417,11 +417,13 @@ end
 # means `compute_v_max=true`
 function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, true},
                v, system)
-    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # This has similar performance as `maximum(..., eachparticle(system))`,
     # but is GPU-compatible.
-    v_max = maximum(x -> sqrt(dot(x, x)),
+    v_max2 = maximum(x -> dot(x, x),
                     reinterpret(reshape, SVector{ndims(system), eltype(v)},
                                 current_velocity(v, system)))
+    v_max = sqrt(v_max2)
+
     return shifting.v_factor * v_max
 end
 
