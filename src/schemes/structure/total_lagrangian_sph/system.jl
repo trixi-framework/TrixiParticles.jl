@@ -98,7 +98,7 @@ end
 function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
                                   n_clamped_particles=0,
-                                  clamped_particles::Union{Vector{Int}, AbstractUnitRange}=Int[],
+                                  clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> 0.0,
                                                       ndims(smoothing_kernel)),
