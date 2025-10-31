@@ -416,7 +416,7 @@ function find_too_close_particles(coords, min_distance)
     return result
 end
 
-function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move::Vector)
+function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move)
     invalid_id = findfirst(i -> i <= 0 || i > nparticles(ic), particle_ids_to_move)
     isnothing(invalid_id) || throw(BoundsError(ic, invalid_id))
 
@@ -433,7 +433,7 @@ function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move::Vect
     return ic
 end
 
-function move_particles_to_end!(a::AbstractVector, particle_ids_to_move::Vector)
+function move_particles_to_end!(a::AbstractVector, particle_ids_to_move)
     invalid_id = findfirst(i -> i <= 0 || i > length(a), particle_ids_to_move)
     isnothing(invalid_id) || throw(BoundsError(a, invalid_id))
 
@@ -446,4 +446,4 @@ function move_particles_to_end!(a::AbstractVector, particle_ids_to_move::Vector)
     return a
 end
 
-move_particles_to_end!(a::Real, particle_ids_to_move::Vector) = a
+move_particles_to_end!(a::Real, particle_ids_to_move) = a

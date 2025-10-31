@@ -137,40 +137,44 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         @assert allunique(clamped_particles) "`clamped_particles` contains duplicate particle indices"
 
         n_clamped_particles = length(clamped_particles)
-        ic_sorted_indices = deepcopy(initial_condition)
-        young_modulus_sorted_indices = copy(young_modulus)
-        poisson_ratio_sorted_indices = copy(poisson_ratio)
-        move_particles_to_end!(ic_sorted_indices, collect(clamped_particles))
-        move_particles_to_end!(young_modulus_sorted_indices, collect(clamped_particles))
-        move_particles_to_end!(poisson_ratio_sorted_indices, collect(clamped_particles))
+        initial_condition_sorted = deepcopy(initial_condition)
+        young_modulus_sorted = copy(young_modulus)
+        poisson_ratio_sorted = copy(poisson_ratio)
+        move_particles_to_end!(initial_condition_sorted, clamped_particles)
+        move_particles_to_end!(young_modulus_sorted, clamped_particles)
+        move_particles_to_end!(poisson_ratio_sorted, clamped_particles)
+    else
+        initial_condition_sorted = initial_condition
+        young_modulus_sorted = young_modulus
+        poisson_ratio_sorted = poisson_ratio
     end
 
-    initial_coordinates = copy(ic_sorted_indices.coordinates)
-    current_coordinates = copy(ic_sorted_indices.coordinates)
-    mass = copy(ic_sorted_indices.mass)
-    material_density = copy(ic_sorted_indices.density)
+    initial_coordinates = copy(initial_condition_sorted.coordinates)
+    current_coordinates = copy(initial_condition_sorted.coordinates)
+    mass = copy(initial_condition_sorted.mass)
+    material_density = copy(initial_condition_sorted.density)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
 
     n_integrated_particles = n_particles - n_clamped_particles
 
-    lame_lambda = @. young_modulus_sorted_indices * poisson_ratio_sorted_indices /
-                     ((1 + poisson_ratio_sorted_indices) *
-                      (1 - 2 * poisson_ratio_sorted_indices))
-    lame_mu = @. (young_modulus_sorted_indices / 2) / (1 + poisson_ratio_sorted_indices)
+    lame_lambda = @. young_modulus_sorted * poisson_ratio_sorted /
+                     ((1 + poisson_ratio_sorted) *
+                      (1 - 2 * poisson_ratio_sorted))
+    lame_mu = @. (young_modulus_sorted / 2) / (1 + poisson_ratio_sorted)
 
     ismoving = Ref(!isnothing(clamped_particles_motion))
-    initialize_prescribed_motion!(clamped_particles_motion, ic_sorted_indices,
+    initialize_prescribed_motion!(clamped_particles_motion, initial_condition_sorted,
                                   n_clamped_particles)
 
-    cache = create_cache_tlsph(clamped_particles_motion, ic_sorted_indices)
+    cache = create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)
 
-    return TotalLagrangianSPHSystem(ic_sorted_indices, initial_coordinates,
+    return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
                                     pk1_corrected, deformation_grad, material_density,
-                                    n_integrated_particles, young_modulus_sorted_indices,
-                                    poisson_ratio_sorted_indices,
+                                    n_integrated_particles, young_modulus_sorted,
+                                    poisson_ratio_sorted,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
