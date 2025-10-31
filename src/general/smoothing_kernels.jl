@@ -450,7 +450,7 @@ struct WendlandC4Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q / 2)^6 * (35 // 12 * q^2 + 3 * q + 1)
+    result = (1 - q / 2)^6 * (35 * q^2 / 12 + 3 * q + 1)
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
