@@ -68,7 +68,7 @@ structure_system = TotalLagrangianSPHSystem(structure,
                                             smoothing_kernel, smoothing_length,
                                             material.E, material.nu,
                                             boundary_model=boundary_model,
-                                            clamped_particles=(nparticles(beam) + 1):nparticles(structure),
+                                            clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity))
 
 # ==========================================================================================
