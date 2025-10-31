@@ -2,7 +2,7 @@
     TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio;
                              n_clamped_particles=0,
-                             clamped_particles::Vector{Int}=Int[],
+                             clamped_particles=Int[],
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, viscosity=nothing,
@@ -25,12 +25,12 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
-- `n_clamped_particles` (deprecated): Number of clamped particles which are fixed and not integrated
+- `n_clamped_particles` (deprecated): Number of clamped particles that are fixed and not integrated
                          to clamp the structure. Note that the clamped particles must be the **last**
                          particles in the `InitialCondition`. See the info box below.
                          This keyword is deprecated and will be removed in a future release.
                          Instead pass `clamped_particles` with the explicit particle indices to be clamped.
-- `clamped_particles`: A vector of indices specifying the clamped particles which are fixed
+- `clamped_particles`: Indices specifying the clamped particles that are fixed
                        and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
                     If `nothing` (default), the clamped particles are fixed.
@@ -137,35 +137,40 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         @assert allunique(clamped_particles) "`clamped_particles` contains duplicate particle indices"
 
         n_clamped_particles = length(clamped_particles)
-        move_particles_to_end!(initial_condition, collect(clamped_particles))
-        move_particles_to_end!(young_modulus, collect(clamped_particles))
-        move_particles_to_end!(poisson_ratio, collect(clamped_particles))
+        ic_sorted_indices = deepcopy(initial_condition)
+        young_modulus_sorted_indices = copy(young_modulus)
+        poisson_ratio_sorted_indices = copy(poisson_ratio)
+        move_particles_to_end!(ic_sorted_indices, collect(clamped_particles))
+        move_particles_to_end!(young_modulus_sorted_indices, collect(clamped_particles))
+        move_particles_to_end!(poisson_ratio_sorted_indices, collect(clamped_particles))
     end
 
-    initial_coordinates = copy(initial_condition.coordinates)
-    current_coordinates = copy(initial_condition.coordinates)
-    mass = copy(initial_condition.mass)
-    material_density = copy(initial_condition.density)
+    initial_coordinates = copy(ic_sorted_indices.coordinates)
+    current_coordinates = copy(ic_sorted_indices.coordinates)
+    mass = copy(ic_sorted_indices.mass)
+    material_density = copy(ic_sorted_indices.density)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
 
     n_integrated_particles = n_particles - n_clamped_particles
 
-    lame_lambda = @. young_modulus * poisson_ratio /
-                     ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
-    lame_mu = @. (young_modulus / 2) / (1 + poisson_ratio)
+    lame_lambda = @. young_modulus_sorted_indices * poisson_ratio_sorted_indices /
+                     ((1 + poisson_ratio_sorted_indices) *
+                      (1 - 2 * poisson_ratio_sorted_indices))
+    lame_mu = @. (young_modulus_sorted_indices / 2) / (1 + poisson_ratio_sorted_indices)
 
     ismoving = Ref(!isnothing(clamped_particles_motion))
-    initialize_prescribed_motion!(clamped_particles_motion, initial_condition,
+    initialize_prescribed_motion!(clamped_particles_motion, ic_sorted_indices,
                                   n_clamped_particles)
 
-    cache = create_cache_tlsph(clamped_particles_motion, initial_condition)
+    cache = create_cache_tlsph(clamped_particles_motion, ic_sorted_indices)
 
-    return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
+    return TotalLagrangianSPHSystem(ic_sorted_indices, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
                                     pk1_corrected, deformation_grad, material_density,
-                                    n_integrated_particles, young_modulus, poisson_ratio,
+                                    n_integrated_particles, young_modulus_sorted_indices,
+                                    poisson_ratio_sorted_indices,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
