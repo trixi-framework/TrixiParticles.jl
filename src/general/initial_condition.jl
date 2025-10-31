@@ -421,14 +421,14 @@ function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move::Vect
     isnothing(invalid_id) || throw(BoundsError(ic, invalid_id))
 
     sort_key = [i in particle_ids_to_move ? 1 : 0 for i in eachparticle(ic)]
-    # determine a permutation that sorts 'sort_key' in ascending order
+    # Determine a permutation that sorts 'sort_key' in ascending order
     permutation = sortperm(sort_key)
 
     ic.coordinates .= ic.coordinates[:, permutation]
     ic.velocity .= ic.velocity[:, permutation]
-    move_particles_to_end!(ic.mass, particle_ids_to_move)
-    move_particles_to_end!(ic.density, particle_ids_to_move)
-    move_particles_to_end!(ic.pressure, particle_ids_to_move)
+    ic.mass .= ic.mass[permutation]
+    ic.density .= ic.density[permutation]
+    ic.pressure .= ic.pressure[permutation]
 
     return ic
 end
