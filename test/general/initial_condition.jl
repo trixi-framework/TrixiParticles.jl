@@ -333,4 +333,102 @@
             @test initial_condition.coordinates ≈ expected_coords
         end
     end
+    @testset verbose=true "Move Particles to End" begin
+        @testset verbose=true "InitialCondition Variant" begin
+            @testset verbose=true "Valid Particle Movement" begin
+                # Create a simple initial condition with known particle arrangement
+                coordinates = [1.0 2.0 3.0 4.0 5.0;
+                               1.0 2.0 3.0 4.0 5.0]
+                velocity = [0.1 0.2 0.3 0.4 0.5;
+                            0.1 0.2 0.3 0.4 0.5]
+                mass = [1.1, 2.2, 3.3, 4.4, 5.5]
+                density = [10.0, 20.0, 30.0, 40.0, 50.0]
+                pressure = [100.0, 200.0, 300.0, 400.0, 500.0]
+
+                ic = InitialCondition(coordinates=coordinates, velocity=velocity,
+                                      mass=mass, density=density, pressure=pressure)
+
+                # Move particles 2 and 4 to the end
+                particle_ids_to_move = [2, 4]
+                TrixiParticles.move_particles_to_end!(ic, particle_ids_to_move)
+
+                # Expected order after moving: [1, 3, 5, 2, 4]
+                expected_coordinates = [1.0 3.0 5.0 2.0 4.0;
+                                        1.0 3.0 5.0 2.0 4.0]
+                expected_velocity = [0.1 0.3 0.5 0.2 0.4;
+                                     0.1 0.3 0.5 0.2 0.4]
+                expected_mass = [1.1, 3.3, 5.5, 2.2, 4.4]
+                expected_density = [10.0, 30.0, 50.0, 20.0, 40.0]
+                expected_pressure = [100.0, 300.0, 500.0, 200.0, 400.0]
+
+                @test ic.coordinates == expected_coordinates
+                @test ic.velocity == expected_velocity
+                @test ic.mass == expected_mass
+                @test ic.density == expected_density
+                @test ic.pressure == expected_pressure
+            end
+
+            @testset verbose=true "Duplicate Particle IDs" begin
+                coordinates = [1.0 2.0 3.0 4.0; 1.0 2.0 3.0 4.0]
+                velocity = [0.1 0.2 0.3 0.4; 0.1 0.2 0.3 0.4]
+                mass = [1.1, 2.2, 3.3, 4.4]
+                density = [10.0, 20.0, 30.0, 40.0]
+
+                ic = InitialCondition(coordinates=coordinates, velocity=velocity,
+                                      mass=mass, density=density)
+
+                # Move particle 2 multiple times (should only move once)
+                TrixiParticles.move_particles_to_end!(ic, [2, 2, 3])
+
+                # Expected order: [1, 4, 2, 3] (2 and 3 moved to end)
+                expected_coordinates = [1.0 4.0 2.0 3.0; 1.0 4.0 2.0 3.0]
+                expected_mass = [1.1, 4.4, 2.2, 3.3]
+
+                @test ic.coordinates == expected_coordinates
+                @test ic.mass == expected_mass
+            end
+
+            @testset verbose=true "Out of Bounds Particle IDs" begin
+                ic = rectangular_patch(0.1, (2, 4))
+
+                # Test with invalid particle ID
+                @test_throws BoundsError TrixiParticles.move_particles_to_end!(ic, [9])
+                @test_throws BoundsError TrixiParticles.move_particles_to_end!(ic, [0])
+                @test_throws BoundsError TrixiParticles.move_particles_to_end!(ic, [-1])
+            end
+        end
+
+        @testset verbose=true "Vector Variant" begin
+            @testset verbose=true "Valid Particle Movement" begin
+                a = [1.0, 2.0, 3.0, 4.0, 5.0]
+                returned = TrixiParticles.move_particles_to_end!(a, [2, 4])
+
+                expected = [1.0, 3.0, 5.0, 2.0, 4.0]
+                @test a == expected
+                @test returned == expected
+            end
+
+            @testset verbose=true "Duplicate Particle IDs" begin
+                a = [1, 2, 3, 4]
+                TrixiParticles.move_particles_to_end!(a, [2, 2, 3])
+
+                expected = [1, 4, 2, 3]
+                @test a == expected
+            end
+
+            @testset verbose=true "Out of Bounds Particle IDs" begin
+                a = collect(1:8)
+
+                @test_throws BoundsError TrixiParticles.move_particles_to_end!(a, [9])
+                @test_throws BoundsError TrixiParticles.move_particles_to_end!(a, [0])
+                @test_throws BoundsError TrixiParticles.move_particles_to_end!(a, [-1])
+            end
+
+            @testset verbose=true "Empty IDs" begin
+                a = [10, 20, 30]
+                TrixiParticles.move_particles_to_end!(a, Int[])
+                @test a == [10, 20, 30]
+            end
+        end
+    end
 end
