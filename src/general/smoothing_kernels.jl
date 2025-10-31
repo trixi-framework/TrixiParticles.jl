@@ -172,8 +172,8 @@ end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
 
-@inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / 3h
-# `7 * pi` is always `Float64`. `pi * h^2 * 7` preserves the type of `h`.
+# Note that `2 // 3 / h` saves one instruction but is significantly slower on GPUs (for now)
+@inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / (3 * h)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 10 / (pi * h^2 * 7)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{3}, h) = 1 / (pi * h^3)
 
@@ -262,10 +262,9 @@ end
     return result
 end
 
-@inline compact_support(::SchoenbergQuarticSplineKernel, h) = 5 // 2 * h
+@inline compact_support(::SchoenbergQuarticSplineKernel, h) = 5 * h / 2
 
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / 24h
-# `1199 * pi` is always `Float64`. `pi * h^2 * 1199` preserves the type of `h`.
+@inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / (24 * h)
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (pi * h^2 * 1199)
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 1 / (pi * h^3 * 20)
 
@@ -343,15 +342,14 @@ end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
 
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / 120h
-# `478 * pi` is always `Float64`. `pi * h^2 * 478` preserves the type of `h`.
+@inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / (120 * h)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (pi * h^2 * 478)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (pi * h^3 * 120)
 
 abstract type AbstractWendlandKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 # Compact support for all Wendland kernels
-@inline compact_support(::AbstractWendlandKernel, h) = 2h
+@inline compact_support(::AbstractWendlandKernel, h) = 2 * h
 
 @doc raw"""
     WendlandC2Kernel{NDIMS}()
@@ -390,7 +388,7 @@ struct WendlandC2Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC2Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q / 2)^4 * (2q + 1)
+    result = (1 - q / 2)^4 * (2 * q + 1)
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
@@ -411,9 +409,9 @@ end
     return result
 end
 
-@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2) / 4
-# `2 * pi` is always `Float64`. `pi * h^3 * 2` preserves the type of `h`.
-@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 2) / 8
+# Note that `7 // 4` saves one instruction but is significantly slower on GPUs (for now)
+@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2 * 4)
+@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 16)
 
 @doc raw"""
     WendlandC4Kernel{NDIMS}()
@@ -452,7 +450,7 @@ struct WendlandC4Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q / 2)^6 * (35q^2 / 12 + 3q + 1)
+    result = (1 - q / 2)^6 * (35 // 12 * q^2 + 3 * q + 1)
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
@@ -460,13 +458,10 @@ struct WendlandC4Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
     return result
 end
 
-@fastpow @muladd @inline function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
+@fastpow @inline function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
 
-    # Use `//` to preserve the type of `q`
-    term1 = (1 - q / 2)^6 * (3 + 35 // 6 * q)
-    term2 = 3 * (1 - q / 2)^5 * (1 + 3q + 35 // 12 * q^2)
-    derivative = term1 - term2
+    derivative = -7 * q / 3 * (2 + 5 * q) * (1 - q / 2)^5
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * derivative / h,
@@ -475,9 +470,8 @@ end
     return result
 end
 
-@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2) / 4
-# `32 * pi` is always `Float64`. `pi * h^2 * 32` preserves the type of `h`.
-@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 32) / 8
+@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2 * 4)
+@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 256)
 
 @doc raw"""
     WendlandC6Kernel{NDIMS}()
@@ -516,7 +510,7 @@ struct WendlandC6Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q / 2)^8 * (4q^3 + 25q^2 / 4 + 4q + 1)
+    result = (1 - q / 2)^8 * (4 * q^3 + 25 * q^2 / 4 + 4 * q + 1)
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
@@ -526,9 +520,8 @@ end
 
 @fastpow @muladd @inline function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
-    term1 = -4 * (1 - q / 2)^7 * (4q^3 + 25q^2 / 4 + 4q + 1)
-    term2 = (1 - q / 2)^8 * (12q^2 + 50q / 4 + 4)
-    derivative = term1 + term2
+
+    derivative = -11 * q / 4 * (8 * q^2 + 7 * q + 2) * (1 - q / 2)^7
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * derivative / h,
@@ -537,9 +530,8 @@ end
     return result
 end
 
-# `7 * pi` is always `Float64`. `pi * h^2 * 7` preserves the type of `h`.
-@inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (pi * h^2 * 7) / 4
-@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 64) / 8
+@inline normalization_factor(::WendlandC6Kernel{2}, h) = 39 / (pi * h^2 * 14)
+@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 512)
 
 @doc raw"""
     Poly6Kernel{NDIMS}()
@@ -604,8 +596,8 @@ end
 
 @inline compact_support(::Poly6Kernel, h) = h
 
+# Note that `315 // 64` saves one instruction but is significantly slower on GPUs (for now)
 @inline normalization_factor(::Poly6Kernel{2}, h) = 4 / (pi * h^2)
-# `64 * pi` is always `Float64`. `pi * h^3 * 64` preserves the type of `h`.
 @inline normalization_factor(::Poly6Kernel{3}, h) = 315 / (pi * h^3 * 64)
 
 @doc raw"""
