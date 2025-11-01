@@ -93,6 +93,8 @@ end
 # This can be dispatched by system type
 @inline initial_coordinates(system) = system.initial_condition.coordinates
 
+@inline coordinates_eltype(system::AbstractSystem) = eltype(initial_coordinates(system))
+
 @propagate_inbounds function current_velocity(v, system, particle)
     return extract_svector(current_velocity(v, system), system, particle)
 end
@@ -102,7 +104,7 @@ end
 # By default, try to extract it from `v`.
 @inline current_velocity(v, system) = v
 
-@inline function current_density(v, system::AbstractSystem, particle)
+@propagate_inbounds function current_density(v, system::AbstractSystem, particle)
     return current_density(v, system)[particle]
 end
 

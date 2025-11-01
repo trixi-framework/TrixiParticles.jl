@@ -81,9 +81,9 @@ RectangularTank{3, 6, Float64}(...) *the rest of this line is ignored by filter*
 
 See also: [`reset_wall!`](@ref).
 """
-struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
-    fluid                     :: InitialCondition{ELTYPE}
-    boundary                  :: InitialCondition{ELTYPE}
+struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
+    fluid                     :: F
+    boundary                  :: B
     fluid_size                :: NTuple{NDIMS, ELTYPE}
     tank_size                 :: NTuple{NDIMS, ELTYPE}
     faces_                    :: NTuple{NDIMSt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
@@ -95,16 +95,16 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
     function RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
                              velocity=zeros(length(fluid_size)), fluid_mass=nothing,
-                             pressure=0,
-                             acceleration=nothing, state_equation=nothing,
+                             pressure=0, acceleration=nothing, state_equation=nothing,
                              boundary_density=fluid_density,
                              n_layers=1, spacing_ratio=1,
                              min_coordinates=zeros(length(fluid_size)),
-                             faces=Tuple(trues(2 * length(fluid_size))))
+                             faces=Tuple(trues(2 * length(fluid_size))),
+                             coordinates_eltype=Float64)
         NDIMS = length(fluid_size)
         ELTYPE = eltype(particle_spacing)
-        fluid_size_ = Tuple(ELTYPE.(fluid_size))
-        tank_size_ = Tuple(ELTYPE.(tank_size))
+        fluid_size_ = Tuple(convert.(ELTYPE, fluid_size))
+        tank_size_ = Tuple(convert.(ELTYPE, tank_size))
 
         if particle_spacing < eps()
             throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())."))
@@ -135,10 +135,11 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                       spacing_ratio)
 
         boundary_spacing = particle_spacing / spacing_ratio
+
+        # The type of the particle spacing determines the eltype of the coordinates
         boundary_coordinates,
-        face_indices = initialize_boundaries(boundary_spacing,
-                                             tank_size_,
-                                             n_boundaries_per_dim,
+        face_indices = initialize_boundaries(convert.(coordinates_eltype, boundary_spacing),
+                                             tank_size_, n_boundaries_per_dim,
                                              n_layers, faces)
 
         boundary_masses = boundary_density * boundary_spacing^NDIMS *
@@ -148,8 +149,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         n_particles_per_dim,
         fluid_size_ = check_tank_overlap(fluid_size_, tank_size_,
-                                         particle_spacing,
-                                         n_particles_per_dim)
+                                         particle_spacing, n_particles_per_dim)
 
         boundary = InitialCondition(coordinates=boundary_coordinates,
                                     velocity=boundary_velocities,
@@ -166,24 +166,27 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                 fluid = RectangularShape(particle_spacing, n_particles_per_dim,
                                          zeros(NDIMS);
                                          velocity, pressure, acceleration, state_equation,
-                                         mass=fluid_mass)
+                                         mass=fluid_mass, coordinates_eltype)
             else
                 fluid = RectangularShape(particle_spacing, n_particles_per_dim,
                                          zeros(NDIMS);
                                          density=fluid_density, velocity, pressure,
-                                         acceleration, state_equation, mass=fluid_mass)
+                                         acceleration, state_equation, mass=fluid_mass,
+                                         coordinates_eltype)
             end
             # Move the tank corner in the negative coordinate directions to the desired position
             fluid.coordinates .+= min_coordinates
         else
             # Fluid is empty
-            fluid = InitialCondition(coordinates=zeros(ELTYPE, NDIMS, 0), density=1.0)
+            fluid = InitialCondition(coordinates=zeros(coordinates_eltype, NDIMS, 0),
+                                     density=1.0,
+                                     particle_spacing=convert(ELTYPE, particle_spacing))
         end
 
-        return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
-                                             faces, face_indices,
-                                             particle_spacing, spacing_ratio, n_layers,
-                                             n_particles_per_dim)
+        return new{NDIMS, 2 * NDIMS, ELTYPE, typeof(fluid),
+                   typeof(boundary)}(fluid, boundary, fluid_size_, tank_size_,
+                                    faces, face_indices, particle_spacing, spacing_ratio,
+                                    n_layers, n_particles_per_dim)
     end
 end
 

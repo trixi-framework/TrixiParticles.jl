@@ -287,8 +287,14 @@ u0: ([...], [...]) *this line is ignored by filter*
 function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
 
+    # Check that all systems have the same eltype
     @assert all(system -> eltype(system) === eltype(systems[1]), systems)
     ELTYPE = eltype(systems[1])
+
+    # Check that all systems have the same coordinates eltype
+    @assert all(system -> coordinates_eltype(system) === coordinates_eltype(systems[1]),
+                systems)
+    cELTYPE = coordinates_eltype(systems[1])
 
     # Optionally reset Polyester.jl threads. See
     # https://github.com/trixi-framework/Trixi.jl/issues/1583
@@ -302,7 +308,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
 
     # Use either the specified backend, e.g., `CUDABackend` or `MetalBackend` or
     # use CPU vectors for all CPU backends.
-    u0_ode_ = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_u))
+    u0_ode_ = allocate(semi.parallelization_backend, cELTYPE, sum(sizes_u))
     v0_ode_ = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_v))
 
     if semi.parallelization_backend isa KernelAbstractions.Backend
