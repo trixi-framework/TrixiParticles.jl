@@ -53,26 +53,30 @@ end
 initialize!(system, semi) = system
 
 # This should not be dispatched by system type. We always expect to get a column of `A`.
-@propagate_inbounds function extract_svector(A, system, i)
-    extract_svector(A, Val(ndims(system)), i)
+@propagate_inbounds function extract_svector(A, system, i...)
+    extract_svector(A, Val(ndims(system)), i...)
 end
 
 # Return the `i`-th column of the array `A` as an `SVector`.
-@inline function extract_svector(A, ::Val{NDIMS}, i) where {NDIMS}
+@inline function extract_svector(A, ::Val{NDIMS}, i...) where {NDIMS}
     # Explicit bounds check, which can be removed by calling this function with `@inbounds`
-    @boundscheck checkbounds(A, NDIMS, i)
+    @boundscheck checkbounds(A, NDIMS, i...)
 
     # Assume inbounds access now
-    return SVector(ntuple(@inline(dim->@inbounds A[dim, i]), NDIMS))
+    return SVector(ntuple(@inline(dim->@inbounds A[dim, i...]), NDIMS))
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
 @inline function extract_smatrix(A, system, particle)
+    @boundscheck checkbounds(A, ndims(system), ndims(system), particle)
+
     # Extract the matrix elements for this particle as a tuple to pass to SMatrix
     return SMatrix{ndims(system),
-                   ndims(system)}(ntuple(@inline(i->A[mod(i - 1, ndims(system)) + 1,
-                                                      div(i - 1, ndims(system)) + 1,
-                                                      particle]),
+                   ndims(system)}(ntuple(@inline(i->@inbounds A[mod(i - 1,
+                                                                    ndims(system)) + 1,
+                                                                div(i - 1,
+                                                                    ndims(system)) + 1,
+                                                                particle]),
                                          Val(ndims(system)^2)))
 end
 
@@ -86,7 +90,7 @@ end
 @inline current_coordinates(u, system) = u
 
 # Specifically get the initial coordinates of a particle for all system types
-@inline function initial_coords(system, particle)
+@propagate_inbounds function initial_coords(system, particle)
     return extract_svector(initial_coordinates(system), system, particle)
 end
 
@@ -102,7 +106,7 @@ end
 # By default, try to extract it from `v`.
 @inline current_velocity(v, system) = v
 
-@inline function current_density(v, system::AbstractSystem, particle)
+@propagate_inbounds function current_density(v, system::AbstractSystem, particle)
     return current_density(v, system)[particle]
 end
 

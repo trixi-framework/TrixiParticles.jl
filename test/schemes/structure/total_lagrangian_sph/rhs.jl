@@ -41,12 +41,17 @@
             initial_coordinates[:, neighbor[i]] = initial_coordinates_neighbor[i]
             current_coordinates = zeros(2, 10)
             v_system = zeros(2, 10)
-            pk1_corrected = 2000 * ones(2, 2, 10) # Just something that's not zero to catch errors
-            pk1_corrected[:, :, particle[i]] = pk1_particle_corrected[i]
-            pk1_corrected[:, :, neighbor[i]] = pk1_neighbor_corrected[i]
 
             # Density equals the ID of the particle
             material_density = 1:10
+
+            pk1_rho2 = 2000 * ones(2, 2, 10) # Just something that's not zero to catch errors
+            pk1_rho2[:, :,
+                     particle[i]] = pk1_particle_corrected[i] /
+                                    material_density[particle[i]]^2
+            pk1_rho2[:, :,
+                     neighbor[i]] = pk1_neighbor_corrected[i] /
+                                    material_density[neighbor[i]]^2
 
             # Use the same setup as in the unit test above for calc_dv!
             mass = ones(Float64, 10)
@@ -67,8 +72,8 @@
                     return current_coordinates
                 elseif f === :material_density
                     return material_density
-                elseif f === :pk1_corrected
-                    return pk1_corrected
+                elseif f === :pk1_rho2
+                    return pk1_rho2
                 elseif f === :mass
                     return mass
                 elseif f === :penalty_force
