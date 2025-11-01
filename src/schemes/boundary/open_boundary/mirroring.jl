@@ -95,14 +95,14 @@ function update_boundary_quantities!(system, boundary_model::BoundaryModelMirror
 
     @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)
-        (; prescribed_density, prescribed_pressure, prescribed_velocity) = boundary_zone
+        (; prescribed_density, prescribed_velocity) = boundary_zone
 
         particle_coords = current_coords(u, system, particle)
 
-        if prescribed_pressure
-            pressure[particle] = reference_pressure(boundary_zone, v, system, particle,
-                                                    particle_coords, t)
-        end
+        # The pressure can be prescribed, left unprescribed (in which case the current
+        # pressure is returned), or determined by a boundary model.
+        pressure[particle] = reference_pressure(boundary_zone, v, system, particle,
+                                                particle_coords, t)
 
         if prescribed_density
             density[particle] = reference_density(boundary_zone, v, system, particle,
