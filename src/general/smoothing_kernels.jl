@@ -351,7 +351,7 @@ end
 abstract type AbstractWendlandKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 # Compact support for all Wendland kernels
-@inline compact_support(::AbstractWendlandKernel, h) = 2h
+@inline compact_support(::AbstractWendlandKernel, h) = 2 * h
 
 @doc raw"""
     WendlandC2Kernel{NDIMS}()
@@ -676,3 +676,71 @@ end
 
 @inline normalization_factor(::SpikyKernel{2}, h) = 10 / (pi * h^2)
 @inline normalization_factor(::SpikyKernel{3}, h) = 15 / (pi * h^3)
+
+@doc raw"""
+    LaguerreGaussKernel{NDIMS}()
+
+Truncated Laguerre–Gauss kernel (fourth-order smoothing) as defined in
+[Wang2024](@cite). Its radial form uses
+`s = r/h` and is truncated at `s = 2` (compact support `2h`):
+
+```math
+W(r,h) = \frac{1}{h^d} \, w(s), \quad s=\frac{r}{h}, \quad
+w(s) = \alpha_d \left(1 - \frac{s^2}{2} + \frac{s^4}{6}\right) e^{-s^2},
+\quad 0 \le s \le 2,
+with normalization constants
+α₁ = 8/(5√π), α₂ = 3/π, α₃ = 8/π^{3/2}.
+
+Recommended practical choice from the paper: use h ≈ 1.3Δx and the same
+cut-off as Wendland (2h) for comparable cost. Negative lobes enforce the
+vanishing second moment (4th-order smoothing) while remaining stable in
+Eulerian / total Lagrangian SPH with relaxed particles.
+
+For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
+"""
+struct LaguerreGaussKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
+
+@fastpow @muladd @inline function kernel(kernel::LaguerreGaussKernel, r::Real, h)
+    s = r / h
+    # polynomial part: 1 - s^2/2 + s^4/6
+    poly = 1 - s^2 / 2 + s^4 / 6
+    val = normalization_factor(kernel, h) * poly * exp(-s^2)
+    # zero out for s ≥ 2
+    return ifelse(s < 2, val, zero(val))
+end
+
+@muladd @inline function kernel_deriv(kernel::LaguerreGaussKernel, r::Real, h)
+    invh = 1 / h
+    s = r * invh
+    if s >= 2
+        return zero(s)
+    end
+    # dg/ds = (s/3)*(-s^4 + 5s^2 - 9) * exp(-s^2)
+    poly = ((-s^2 + 5) * s^2 - 9) * (s / 3)
+    return normalization_factor(kernel, h) * exp(-s^2) * poly * invh
+end
+
+@inline compact_support(::LaguerreGaussKernel, h) = 2 * h
+# Original normalization factors as in Wang2024
+# @inline normalization_factor(::LaguerreGaussKernel{1}, h) = (8 / (5 * sqrt(pi))) / h
+# @inline normalization_factor(::LaguerreGaussKernel{2}, h) = (3 / (pi)) / (h^2)
+# @inline normalization_factor(::LaguerreGaussKernel{3}, h) = (8 / (pi^(3 // 2))) / (h^3)
+
+# Renormalized to the truncated integral over [0,2h]
+@inline function normalization_factor(::LaguerreGaussKernel{1}, h)
+    # C' = 1 / (2 * h * integral)
+    # integral = (7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4)
+    return (1 / (2 * ((7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4)))) / h
+end
+
+@inline function normalization_factor(::LaguerreGaussKernel{2}, h)
+    # C' = 1 / (2 * pi * h^2 * integral)
+    # integral = (5 - 17 * exp(-4)) / 12
+    return (6 / (pi * (5 - 17 * exp(-4)))) / h^2
+end
+
+@inline function normalization_factor(::LaguerreGaussKernel{3}, h)
+    # C' = 1 / (4 * pi * h^3 * integral)
+    # integral = (7 * sqrt(pi) / 32) * erf(2) - (77 / 24) * exp(-4)
+    return (1 / (4 * pi * ((7 * sqrt(pi) / 32) * erf(2) - (77 / 24) * exp(-4)))) / h^3
+end
