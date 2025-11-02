@@ -388,7 +388,6 @@ For pressure boundaries it takes the form
 ```
 where ``k``represents all neighboring particles of ``i`` (both fluid and boundary).
 
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "boundary", "wall_boundary", "dummy_particles.jl")]
+```@docs
+    PressureBoundaries
 ```
