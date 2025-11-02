@@ -1,6 +1,6 @@
 mutable struct SplitIntegrationCallback
     # Type-stability does not matter here, and it is impossible to implement because
-    # the integration will be created during the initialization.
+    # the integrator will be created during the initialization.
     integrator :: Any
     alg        :: Any
     kwargs     :: Any
@@ -71,9 +71,10 @@ function initialize_split_integration!(cb, u, t, integrator)
     # Create split integrator with TLSPH systems only
     systems = filter(i -> i isa TotalLagrangianSPHSystem, semi.systems)
 
-    # These neighborhood searches are never used
+    # This neighborhood search is never used
+    neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}()
     semi_split = Semidiscretization(systems...,
-                                    neighborhood_search=TrivialNeighborhoodSearch{ndims(first(systems))}(),
+                                    neighborhood_search=neighborhood_search,
                                     parallelization_backend=semi.parallelization_backend)
 
     # Verify that a NHS implementation is used that does not require updates
