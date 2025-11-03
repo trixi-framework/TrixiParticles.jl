@@ -26,7 +26,8 @@ end
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        initial_pos_diff,
                                                                        initial_distance
-        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+        # Only consider particles with a distance > 0.
+        # See `src/general/smoothing_kernels.jl` for more details.
         initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
 
         rho_a = @inbounds system.material_density[particle]
@@ -38,22 +39,24 @@ end
         m_a = @inbounds system.mass[particle]
         m_b = @inbounds system.mass[neighbor]
 
+        # PK1 / rho^2
+        pk1_rho2_a = @inbounds pk1_rho2(system, particle)
+        pk1_rho2_b = @inbounds pk1_rho2(system, neighbor)
+
         current_pos_diff = @inbounds current_coords(system, particle) -
                                      current_coords(system, neighbor)
-        current_distance = norm(current_pos_diff)
+        current_distance = sqrt(dot(current_pos_diff, current_pos_diff))
 
-        dv_stress = m_b *
-                    (pk1_corrected(system, particle) / rho_a^2 +
-                     pk1_corrected(system, neighbor) / rho_b^2) * grad_kernel
+        dv_stress = m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
 
-        dv_penalty_force_ = dv_penalty_force(penalty_force, particle, neighbor,
-                                             initial_pos_diff, initial_distance,
-                                             current_pos_diff, current_distance,
-                                             system, m_a, m_b, rho_a, rho_b)
+        dv_penalty_force_ = @inbounds dv_penalty_force(penalty_force, particle, neighbor,
+                                                       initial_pos_diff, initial_distance,
+                                                       current_pos_diff, current_distance,
+                                                       system, m_a, m_b, rho_a, rho_b)
 
-        dv_viscosity = dv_viscosity_tlsph(system, v_system, particle, neighbor,
-                                          current_pos_diff, current_distance,
-                                          m_a, m_b, rho_a, rho_b, grad_kernel)
+        dv_viscosity = @inbounds dv_viscosity_tlsph(system, v_system, particle, neighbor,
+                                                    current_pos_diff, current_distance,
+                                                    m_a, m_b, rho_a, rho_b, grad_kernel)
 
         dv_particle = dv_stress + dv_penalty_force_ + dv_viscosity
 
