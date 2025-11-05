@@ -295,14 +295,16 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
                                         semi, t, integrator)
     (; boundary_model) = system
 
-    u = wrap_u(u_ode, system, semi)
-    v = wrap_v(v_ode, system, semi)
+    @trixi_timeit timer() "update open boundary" begin
+        u = wrap_u(u_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
 
-    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
+        @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-    # Update density, pressure and velocity based on the specific boundary model
-    @trixi_timeit timer() "update boundary quantities" begin
-        update_boundary_quantities!(system, boundary_model, v, u, v_ode, u_ode, semi, t)
+        # Update density, pressure and velocity based on the specific boundary model
+        @trixi_timeit timer() "update boundary quantities" begin
+            update_boundary_quantities!(system, boundary_model, v, u, v_ode, u_ode, semi, t)
+        end
     end
 
     # Tell OrdinaryDiffEq that `integrator.u` has been modified
