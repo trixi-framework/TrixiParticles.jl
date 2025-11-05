@@ -270,6 +270,9 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
     u = wrap_u(u_ode, system, semi)
 
     update_position!(u, system, semi)
+
+    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    u_modified!(integrator, true)
 end
 
 function update_position!(u, system::ParticlePackingSystem, semi)
@@ -359,12 +362,9 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
     return u
 end
 
-# Skip for fixed systems
-@inline update_transport_velocity!(system::ParticlePackingSystem{<:Any, true}, v_ode,
-                                   semi) = system
-
-# Update from `UpdateCallback` (between time steps)
-@inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
+# Update from `UpdateCallback` between time steps (skip for fixed systems)
+@inline function update_transport_velocity!(system::ParticlePackingSystem{<:Any, false},
+                                            v_ode, semi, integrator)
     v = wrap_v(v_ode, system, semi)
     @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
@@ -376,10 +376,14 @@ end
         end
     end
 
+    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    u_modified!(integrator, true)
+
     return system
 end
 
-@inline function update_transport_velocity!(system, v_ode, semi)
+# Skip for fixed systems and non-packing systems
+@inline function update_transport_velocity!(system, v_ode, semi, integrator)
     return system
 end
 
