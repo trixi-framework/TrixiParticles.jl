@@ -145,7 +145,7 @@ struct SchoenbergCubicSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl.
     # Use `//` to preserve the type of `q`.
-    result = 1 // 4 * (2 - q)^3
+    result = 1 * (2 - q)^3 / 4
     result = result - (q < 1) * (1 - q)^3
 
     # Zero out result if q >= 2
@@ -160,7 +160,7 @@ end
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
     # Use `//` to preserve the type of `q`.
-    result = -3 // 4 * (2 - q)^2
+    result = -3 * (2 - q)^2 / 4
     result = result + 3 * (q < 1) * (1 - q)^2
 
     # Zero out result if q >= 2
