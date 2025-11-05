@@ -58,9 +58,12 @@ strouhal_number = f_dominant * cylinder_diameter / prescribed_velocity
 integral_total = sum(spectrum_half)
 integral_peak = sum(spectrum_half[frequency_band])
 
-@info "Strouhal number" strouhal_number
-@info "Fraction of the dominant frequency band in the total spectrum" integral_peak/integral_total
-@info "C_L_max for the unsteady state" maximum(f_lift)
+@info "Strouhal number" round(strouhal_number, digits=3)
+@info "Fraction of the dominant frequency band in the total spectrum" round(integral_peak /
+                                                                            integral_total,
+                                                                            digits=3)
+@info "C_L_max for the periodic shedding" round(maximum(f_lift_cut), digits=3)
+@info "C_D_max for the periodic shedding" round(maximum(f_drag[start_index:end]), digits=3)
 
 dp = round(Int, 1 / resolution_factor)
 plot_title = "Drag and lift force coefficients (Δx = d/$(dp))"

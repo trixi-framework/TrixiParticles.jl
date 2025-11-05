@@ -86,7 +86,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
 
 # ==========================================================================================
 # ==== Open Boundary
-open_boundary_model = BoundaryModelMirroringTafuni()
+open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
 # open_boundary_model = BoundaryModelDynamicalPressureZhang()
 
 inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, domain_size[2]]),
@@ -141,7 +141,7 @@ semi = Semidiscretization(fluid_system, open_boundary, boundary_system_wall,
 
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
+info_callback = InfoCallback(interval=50)
 
 saving_callback = SolutionSavingCallback(; dt=0.02, prefix="", output_directory="out")
 

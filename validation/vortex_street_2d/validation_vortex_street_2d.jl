@@ -1,5 +1,7 @@
 using TrixiParticles
 
+tspan = (0.0, 20.0)
+
 # Results in 1.2M particles.
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
 resolution_factor = 0.02
@@ -79,4 +81,4 @@ trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
               output_directory=output_directory,
               open_boundary_model=open_boundary_model,
               shifting_technique=shifting_technique,
-              factor_d=resolution_factor, tspan=(0.0, 20.0), extra_callback=pp_callback)
+              factor_d=resolution_factor, tspan=tspan, extra_callback=pp_callback)
