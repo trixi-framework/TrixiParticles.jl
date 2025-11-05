@@ -19,13 +19,16 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added `PrescribedMotion` to clamped particles in `TotalLagrangianSPHSystem` (#896).
 - Added new boundary density calculator `PressureBoundaries` specifically for
   `ImplicitIncompressibleSPHSystem` (#946).
+- Included wall velocity in interpolation (#941).
 - 2D dam break validation now compares against the results from De Courcy et al. (#934).
+- Improved performance of `TotalLagrangianSPHSystem` on GPUs (#968).
 
-### Bugfixes
+### Important Bugfixes
 
 - Fixed transport velocity formulation with tensile instability control (#948).
 - Fixed `TotalLagrangianSPHSystem` close to open boundaries (#954).
 - `extrude_geometry` now doesn't adjust the particle spacing (#965).
+- Reduced overhead of `UpdateCallback` when no update operations are performed (#973).
 
 ## Version 0.4.1
 
