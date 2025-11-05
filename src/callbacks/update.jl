@@ -101,7 +101,7 @@ function (update_callback!::UpdateCallback)(integrator)
             update_transport_velocity!(system, v_ode, semi, integrator)
         end
 
-        @trixi_timeit timer() "particle shifting" foreach_system(semi) do system
+        foreach_system(semi) do system
             particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
                                              v_ode, semi, integrator)
         end
