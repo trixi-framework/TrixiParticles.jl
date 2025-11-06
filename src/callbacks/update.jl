@@ -74,6 +74,11 @@ function (update_callback!::UpdateCallback)(integrator)
     semi = integrator.p
     v_ode, u_ode = integrator.u.x
 
+    # Tell OrdinaryDiffEq that `integrator.u` has NOT been modified.
+    # This will be set to `true` in any of the update functions below that modify
+    # either `v_ode` or `u_ode`.
+    u_modified!(integrator, false)
+
     @trixi_timeit timer() "update callback" begin
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
@@ -84,7 +89,7 @@ function (update_callback!::UpdateCallback)(integrator)
 
         # Update open boundaries first, since particles might be activated or deactivated
         @trixi_timeit timer() "update open boundary" foreach_system(semi) do system
-            update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator.dt)
+            update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator)
         end
 
         @trixi_timeit timer() "update particle packing" foreach_system(semi) do system
@@ -93,17 +98,14 @@ function (update_callback!::UpdateCallback)(integrator)
 
         # This is only used by the particle packing system and should be removed in the future
         @trixi_timeit timer() "update TVF" foreach_system(semi) do system
-            update_transport_velocity!(system, v_ode, semi)
+            update_transport_velocity!(system, v_ode, semi, integrator)
         end
 
         @trixi_timeit timer() "particle shifting" foreach_system(semi) do system
             particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
-                                             v_ode, semi, integrator.dt)
+                                             v_ode, semi, integrator)
         end
     end
-
-    # Tell OrdinaryDiffEq that `u` has been modified
-    u_modified!(integrator, true)
 
     return integrator
 end

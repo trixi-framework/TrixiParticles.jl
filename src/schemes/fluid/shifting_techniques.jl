@@ -10,7 +10,7 @@ requires_update_callback(::Nothing) = false
 requires_update_callback(::AbstractShiftingTechnique) = false
 
 # This is called from the `UpdateCallback`
-particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, dt) = u_ode
+particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, integrator) = u_ode
 
 create_cache_shifting(initial_condition, ::Nothing) = (;)
 
@@ -505,14 +505,19 @@ end
 # (`integrate_shifting_velocity=false`), but this also requires `update_everystage=false`.
 function particle_shifting_from_callback!(u_ode,
                                           shifting::ParticleShiftingTechnique{<:Any, false},
-                                          system, v_ode, semi, dt)
+                                          system, v_ode, semi, integrator)
     @trixi_timeit timer() "particle shifting" begin
         # Update the shifting velocity
         update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi)
 
         # Update the particle positions with the shifting velocity
-        apply_particle_shifting!(u_ode, shifting, system, semi, dt)
+        apply_particle_shifting!(u_ode, shifting, system, semi, integrator.dt)
     end
+
+    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    u_modified!(integrator, true)
+
+    return u_ode
 end
 
 # `ParticleShiftingTechnique{false}` means `integrate_shifting_velocity=false`.
