@@ -333,7 +333,7 @@ end
 
 # This function is called by the `UpdateCallback`, as the integrator array might be modified
 function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode,
-                                        semi, t, dt)
+                                        semi, t, integrator)
     (; boundary_model) = system
 
     u = wrap_u(u_ode, system, semi)
@@ -341,17 +341,20 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-    update_pressure_model!(system, v, u, semi, dt)
+    update_pressure_model!(system, v, u, semi, integrator.dt)
 
     # Update density, pressure and velocity based on the specific boundary model
     @trixi_timeit timer() "update boundary quantities" begin
         update_boundary_quantities!(system, boundary_model, v, u, v_ode, u_ode, semi, t)
     end
 
+    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    u_modified!(integrator, true)
+
     return system
 end
 
-update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, dt) = system
+update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator) = system
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
     (; boundary_zones, boundary_candidates, fluid_candidates, fluid_system) = system

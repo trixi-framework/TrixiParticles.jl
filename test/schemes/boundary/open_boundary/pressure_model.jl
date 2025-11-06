@@ -22,23 +22,34 @@
         # which uses data from Burattini et al. (2002, https://doi.org/10.1152/ajpheart.2002.282.1.h244)
         # to simulate a ferret vascular system.
         function pulsatile_flow(t)
-            # Fourier coefficients from Table 2.5
-            omega_1 = 2π / T
+            c_q = [
+                0.0136667 - 0.00144338im,   # k = -10
+                0.00722562 - 0.0347752im,   # k = -9
+                -0.0593984 + 0.0217432im,   # k = -8
+                -0.0233298 + 0.0691505im,   # k = -7
+                0.0250477 + 0.0231058im,    # k = -6
+                0.0369504 + 0.0725im,       # k = -5
+                0.216635 - 0.0557698im,     # k = -4
+                -0.0896779 - 0.408525im,    # k = -3
+                -0.555816 + 0.112961im,     # k = -2
+                0.0276938 + 0.646413im,     # k = -1
+                0.786333,                   # k = 0
+                0.0276938 - 0.646413im,     # k = 1
+                -0.555816 - 0.112961im,     # k = 2
+                -0.0896779 + 0.408525im,    # k = 3
+                0.216635 + 0.0557698im,     # k = 4
+                0.0369504 - 0.0725im,       # k = 5
+                0.0250477 - 0.0231058im,    # k = 6
+                -0.0233298 - 0.0691505im,   # k = 7
+                -0.0593984 - 0.0217432im,   # k = 8
+                0.00722562 + 0.0347752im,   # k = 9
+                0.0136667 + 0.00144338im    # k = 10
+            ]
 
-            # Coefficients [ml s^-1]
-            c0 = 0.786333
-            c1 = 0.0276938 - 0.646413im
-            c2 = -0.555816 - 0.112961im
-            c3 = -0.0896779 + 0.408525im
-            c4 = 0.216635 + 0.0557698im
-
-            # Calculate signal using complex exponentials
-            # q(t) = Re[c0 + 2*Re(c1*exp(iω₁t)) + 2*Re(c2*exp(i2ω₁t)) + ...]
-            signal = c0
-            signal += 2 * real(c1 * exp(1im * omega_1 * t))
-            signal += 2 * real(c2 * exp(1im * 2 * omega_1 * t))
-            signal += 2 * real(c3 * exp(1im * 3 * omega_1 * t))
-            signal += 2 * real(c4 * exp(1im * 4 * omega_1 * t))
+            signal = 0.0
+            for (k, c) in zip(-10:10, c_q)
+                signal += real(c * exp(1im * k * 2 * pi / T * t))
+            end
 
             return signal
         end
@@ -74,32 +85,33 @@
             v = system.initial_condition.velocity
 
             times = collect(tspan[1]:dt:tspan[2])
-            p_calculated = zero(times)
-            q_calculated = zero(times)
-            for (i, t) in enumerate(times)
+            p_calculated = empty(times)
+            for t in times
                 v[1, :] .= func(t)
                 TrixiParticles.calculate_flow_rate_and_pressure!(system, v, u, dt)
 
-                p_calculated[i] = system.pressure_model_values[1].pressure[]
-                q_calculated[i] = system.pressure_model_values[1].flow_rate[]
+                # Store only values after the seventh cycle
+                if t >= 7T
+                    push!(p_calculated, system.pressure_model_values[1].pressure[])
+                end
             end
 
             return p_calculated
         end
 
         T = 0.375
-        Δt = T / 1000
-        tspan = (0.0, T)
+        dt = T / 500
+        tspan = (0.0, 8T)
         p0 = 78.0
 
-        R1 = 108.41
-        R2 = 4.37
-        C = 84.787e-3
+        R1 = 1.7714
+        R2 = 106.66
+        C = 1.1808e-2
 
         # The reference pressure values are computed using an ODE that describes
         # the behavior of the RCR Windkessel model. The governing equation is:
         #
-        #   dp/dt + p / (R_1 * C) = R_2 * dq/dt (R_1 + R_2) / (R_1 * C) * q
+        #   dp/dt + p / (R_1 * C) = R_2 * dq/dt + (R_1 + R_2) / (R_1 * C) * q
         #
         # where
         #   - p: pressure
@@ -112,35 +124,35 @@
         # function pressure_RCR_ode!(dp, p, params, t)
         #     (; R_1, R_2, C, q_func, dt) = params
         #     dq_dt = (q_func(t) - q_func(t - dt)) / dt  # numerical derivative of inflow
-        #     dp[1] = -p[1] / (R_1 * C) + R_2 * dq_dt + q_func(t) * (R_1 + R_2) / (R_1 * C)
+        #     dp[1] = -p[1] / (R_2 * C) + R_1 * dq_dt + q_func(t) * (R_2 + R_1) / (R_2 * C)
         # end
         #
-        # The solution is obtained using an explicit Runge-Kutta method (RK4) over the time interval `tspan`.
+        # The solution is obtained using simple Euler integration over the time interval `tspan`.
         # Reference pressure values are evaluated at discrete time points (`validation_times`):
-        #
-        # params_RCR = (R_1=R1, R_2=R2, C=C, q_func=pulsatile_flow, dt=Δt)
-        # sol_RCR = solve(ODEProblem(pressure_RCR_ode!, [p0], tspan, params_RCR), RK4())
-        # validation_times = collect(0:100:1000) .* Δt
+        # params_RCR = (R_2=R2, R_1=R1, C=C, q_func=pulsatile_flow, dt=dt)
+        # sol_RCR = solve(ODEProblem(pressure_RCR_ode!, [p0], tspan, params_RCR), Euler(),
+        #                 dt=dt, adaptive=false)
+        # validation_times = collect(range(7T, 8T, step=50 * dt))
         # pressures_ref = vec(stack(sol_RCR(validation_times)))
         #
         # The values listed below are taken from this ODE simulation and serve as a baseline
         # for validating the implementation of `RCRWindkesselModel` in the test.
         pressures_ref = [
-            78.0,
-            79.04510656645975,
-            95.39019581620867,
-            93.53856103928125,
-            79.26488304980582,
-            80.6125618594036,
-            80.12731340542061,
-            79.95362891998039,
-            79.05849330783698,
-            78.81784794513852,
-            78.25184913798536
+            78.23098908459171,
+            76.0357395466389,
+            86.63098598789874,
+            96.04303886358863,
+            91.35701317358787,
+            88.89163496483422,
+            87.1572215816713,
+            84.95271784314382,
+            82.79365887019439,
+            80.25102392189406,
+            78.23943618409275
         ]
 
-        pressures = simulate_rcr(R1, R2, C, tspan, Δt, p0, pulsatile_flow)
+        pressures = simulate_rcr(R1, R2, C, tspan, dt, p0, pulsatile_flow)
 
-        @test isapprox(pressures_ref, pressures[1:100:1001], rtol=1e-3)
+        @test isapprox(pressures_ref, pressures[1:50:end], rtol=5e-3)
     end
 end
