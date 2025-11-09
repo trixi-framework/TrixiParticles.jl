@@ -33,7 +33,7 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `time_step`:                  Time step size used for the simulation
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
-                                       IC, K, V, PF, C} <: AbstractFluidSystem{NDIMS}
+                                       IC, K, V, PF, ST, C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: ARRAY1D # Array{ELTYPE, 1}
     pressure                          :: ARRAY1D
@@ -43,6 +43,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     pressure_acceleration_formulation :: PF
+    shifting_technique                :: ST
     surface_normal_method             :: Nothing # TODO
     surface_tension                   :: Nothing # TODO
     particle_refinement               :: Nothing # TODO
@@ -68,7 +69,7 @@ end
 function ImplicitIncompressibleSPHSystem(initial_condition,
                                          smoothing_kernel, smoothing_length,
                                          reference_density;
-                                         viscosity=nothing,
+                                         viscosity=nothing, shifting_technique=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          omega=0.5, max_error=0.1, min_iterations=2,
@@ -127,12 +128,14 @@ function ImplicitIncompressibleSPHSystem(initial_condition,
 
     cache = (;
              create_cache_refinement(initial_condition, particle_refinement,
-                                     smoothing_length)...,)
+                                     smoothing_length)...,
+             create_cache_shifting(initial_condition, shifting_technique)...,)
 
     return ImplicitIncompressibleSPHSystem(initial_condition, mass, pressure,
                                            smoothing_kernel, smoothing_length,
                                            reference_density, acceleration_, viscosity,
-                                           pressure_acceleration, nothing, surface_tension,
+                                           pressure_acceleration, shifting_technique,
+                                           nothing, surface_tension,
                                            particle_refinement, density, predicted_density,
                                            advection_velocity, d_ii, a_ii, sum_d_ij_pj,
                                            sum_term, density_error, omega, max_error,
@@ -182,6 +185,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::ImplicitIncompressibleSPH
         summary_footer(io)
     end
 end
+
+@inline shifting_technique(system::ImplicitIncompressibleSPHSystem) = system.shifting_technique
 
 @inline source_terms(system::ImplicitIncompressibleSPHSystem) = nothing
 
