@@ -72,7 +72,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     neighborhood_search            :: N
     signed_distances               :: SD # Only for visualization
     particle_refinement            :: PR
-    buffer                         :: Nothing
+    max_l_inf_error                :: ELTYPE
     cache                          :: C
 
     # This constructor is necessary for Adapt.jl to work with this struct.
@@ -82,7 +82,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                                    background_pressure, place_on_shell,
                                    signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
-                                   signed_distances, particle_refinement, buffer,
+                                   signed_distances, particle_refinement, max_l_inf_error,
                                    fixed_system, cache, advection_velocity)
         return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
                    eltype(density), typeof(particle_refinement), typeof(cache),
@@ -96,7 +96,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                                              signed_distance_field, is_boundary,
                                              shift_length, neighborhood_search,
                                              signed_distances, particle_refinement,
-                                             buffer, cache)
+                                             max_l_inf_error, cache)
     end
 end
 
@@ -108,7 +108,7 @@ function ParticlePackingSystem(shape::InitialCondition;
                                is_boundary=false, boundary_compress_factor=1,
                                neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
                                background_pressure, place_on_shell=false,
-                               fixed_system=false)
+                               fixed_system=false, max_l_inf_error=0.0)
     NDIMS = ndims(shape)
     ELTYPE = eltype(shape)
     mass = copy(shape.mass)
@@ -164,7 +164,7 @@ function ParticlePackingSystem(shape::InitialCondition;
                                  background_pressure, place_on_shell, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
-                                 nothing, fixed_system, cache, advection_velocity)
+                                 max_l_inf_error, fixed_system, cache, advection_velocity)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
@@ -270,6 +270,8 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
     u = wrap_u(u_ode, system, semi)
 
     update_position!(u, system, semi)
+
+    packing_converged(system, semi, u_ode, integrator) && terminate!(integrator)
 
     # Tell OrdinaryDiffEq that `integrator.u` has been modified
     u_modified!(integrator, true)
@@ -400,4 +402,31 @@ end
     end
 
     return du
+end
+
+function packing_converged(system::ParticlePackingSystem{<:Any, false}, semi, u_ode,
+                           integrator)
+    # Skip boundary system
+    system.is_boundary && return false
+
+    # Pack for at least 100 iterations
+    integrator.stats.naccept < 100 && return false
+
+    system.max_l_inf_error <= 0 && return false
+
+    u = wrap_u(u_ode, system, semi)
+    summation_density!(system, semi, u, u_ode, system.density)
+
+    # Calculate l_inf errir
+    l_inf = maximum(abs.(system.density - system.initial_condition.density))
+
+    if l_inf <= system.max_l_inf_error
+        return true
+    end
+
+    return false
+end
+
+# Skip for fixed systems and non-packing systems
+function packing_converged(system, semi, u_ode, integrator)
 end
