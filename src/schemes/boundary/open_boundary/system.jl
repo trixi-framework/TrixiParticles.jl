@@ -105,6 +105,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     # Create new `BoundaryZone`s with `reference_values` set to `nothing` for type stability.
     # `reference_values` are only used as API feature to temporarily store the reference values
     # in the `BoundaryZone`, but they are not used in the actual simulation.
+    # The reference values are extracted above in the "create cache" function
+    # and then stored in `system.cache` as a `Tuple`.
     boundary_zones_new = (map((zone,
                                pressure_model) -> BoundaryZone(zone.initial_condition,
                                                                zone.spanning_set,
@@ -256,7 +258,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySystem)
             summary_line(io, "pressure model",
                          type2string(first(system.boundary_zones).pressure_model) *
                          " (in boundary zones: " *
-                         "$(findall(zone -> zone.pressure_model.is_prescribed, system.boundary_zones)))")
+                         "$(findall(zone -> zone.pressure_model.is_active, system.boundary_zones)))")
         end
         summary_footer(io)
     end

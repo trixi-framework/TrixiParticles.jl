@@ -2,7 +2,8 @@
     RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
 
 The `RCRWindkessel` model is a biomechanical lumped-parameter representation
-that captures the relationship between pressure and flow in pulsatile systems, e.g., vascular systems.
+that captures the relationship between pressure and flow in pulsatile systems, e.g., vascular systems
+and is used to compute the pressure in a [`BoundaryZone`](@ref).
 It is derived from an electrical circuit analogy and consists of three elements:
 
 - characteristic resistance (``R_1``): Represents the proximal resistance at the vessel entrance.
@@ -29,7 +30,10 @@ struct RCRWindkesselModel{ELTYPE <: Real}
     characteristic_resistance :: ELTYPE
     peripheral_resistance     :: ELTYPE
     compliance                :: ELTYPE
-    is_prescribed             :: Bool
+    # If any zone requires the model, entries are allocated for all zones.
+    # Thus, we need a flag to indicate whether the `RCRWindkesselModel` is active for a given zone or not.
+    # See comments in `extract_pressure_models` for more details.
+    is_active::Bool
 end
 
 function RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
@@ -54,6 +58,9 @@ function Base.show(io::IO, ::MIME"text/plain", pressure_model::RCRWindkesselMode
 end
 
 function update_pressure_model!(system::OpenBoundarySystem, v, u, semi, dt)
+    # Skip update for the first time step
+    dt < sqrt(eps()) && return system
+
     isnothing(system.pressure_model_values) && return system
 
     calculate_flow_rate_and_pressure!(system, v, u, dt)
@@ -63,7 +70,7 @@ end
 
 function calculate_flow_rate_and_pressure!(system, v, u, dt)
     for (zone_id, boundary_zone) in enumerate(system.boundary_zones)
-        if boundary_zone.pressure_model.is_prescribed
+        if boundary_zone.pressure_model.is_active
             calculate_flow_rate_and_pressure!(boundary_zone.pressure_model, system,
                                               boundary_zone, zone_id, v, u, dt)
         end
@@ -74,13 +81,13 @@ end
 
 function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone,
                                            zone_id, v, u, dt)
-    dt < sqrt(eps()) && return pressure_model
     (; particle_spacing) = system.initial_condition
     (; characteristic_resistance, peripheral_resistance, compliance) = pressure_model
     (; flow_rate, pressure) = system.pressure_model_values[zone_id]
     (; face_normal, zone_origin) = boundary_zone
 
-    # Use a thin slice for the flow rate calculation
+    # Use a thin slice for the flow rate calculation.
+    # Slightly larger than 1 particle spacing to make sure we capture enough particles.
     slice = particle_spacing * 125 / 100
 
     # Find particles within a thin slice near the boundary face for flow rate computation
@@ -126,7 +133,7 @@ end
 
 function imposed_pressure(system, pressure_model_values, boundary_zone,
                           pressure, particle)
-    boundary_zone.pressure_model.is_prescribed || return pressure
+    boundary_zone.pressure_model.is_active || return pressure
 
     zone_id = system.boundary_zone_indices[particle]
     return pressure_model_values[zone_id].pressure[]
