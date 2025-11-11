@@ -129,6 +129,123 @@
         end
     end
 
+    @testset verbose=true "Multiple Patches" begin
+        file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+        geometries = load_geometry(joinpath(file, "cuboid.stl"))
+
+        @test isa(geometries, Vector{TrixiParticles.TriangleMesh})
+        @test length(geometries) == 6  # six solids in the file
+        total_faces = sum(TrixiParticles.nfaces(m) for m in geometries)
+        @test total_faces == 12
+
+        expected_normals = [
+            SVector(0.0, 0.0, 1.0),   # front
+            SVector(0.0, 0.0, -1.0),  # back
+            SVector(-1.0, 0.0, 0.0),  # left
+            SVector(1.0, 0.0, 0.0),   # right
+            SVector(0.0, 1.0, 0.0),   # top
+            SVector(0.0, -1.0, 0.0)   # bottom
+        ]
+
+        # Each patch should contain exactly two triangles and their normals should
+        # match the facet normals.
+        @testset "patch $i" for i in eachindex(geometries)
+            mesh = geometries[i]
+            @test TrixiParticles.nfaces(mesh) == 2
+            @test all(isapprox.(mesh.face_normals, Ref(expected_normals[i]);
+                                atol=1e-12))
+        end
+    end
+
+    @testset verbose=true "Union" begin
+        # Build a single geometry by uniting multiple STL patches (cuboid.stl contains separate solids).
+        # The union should produce a closed volume.
+        file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+        geometries = load_geometry(joinpath(file, "cuboid.stl"))
+        geometry_union = union(geometries...)
+
+        # Employing `winding_number_factor = sqrt(eps())` serves as
+        # a quantitative criterion for geometric watertightness.
+        # Thus, we can check the resulting particle count with validated reference values.
+        winding_number_factor = sqrt(eps())
+        ic = ComplexShape(geometry_union; particle_spacing=0.05, density=1.0,
+                          point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                            geometry=geometry_union,
+                                                                            winding_number_factor))
+
+        @test nparticles(ic) == 9261
+    end
+
+    @testset verbose=true "Extrude Geometry" begin
+        file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+        geometry = load_geometry(joinpath(file, "inflow_geometry.stl"))
+
+        @testset verbose=true "Watertightness" begin
+            geometry_extruded = extrude_geometry(geometry, 0.8)
+
+            # Employing `winding_number_factor = sqrt(eps())` serves as
+            # a quantitative criterion for geometric watertightness.
+            # Thus, we can check the resulting particle count with validated reference values.
+            winding_number_factor = sqrt(eps())
+            ic = ComplexShape(geometry_extruded; particle_spacing=0.03, density=1.0,
+                              point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                                geometry=geometry_extruded,
+                                                                                winding_number_factor))
+
+            @test nparticles(ic) == 2692
+        end
+
+        @testset verbose=true "Omitting Top/Bottom Face" begin
+            geometry_extruded_1 = extrude_geometry(geometry, 0.8; omit_top_face=true)
+            geometry_extruded_2 = extrude_geometry(geometry, 0.8; omit_bottom_face=true)
+            geometry_extruded_3 = extrude_geometry(geometry, 0.8; omit_top_face=true,
+                                                   omit_bottom_face=true)
+
+            winding_number_factor = 0.2
+            @testset verbose=true "Omit Top Face" begin
+                expected_min_corner = [-0.036399998962879196; 0.24624998748302457; -0.5233639197487431;;]
+                expected_max_corner = [0.38360000103712083; 1.1462499874830245; -0.07336391974874301;;]
+
+                ic_1 = ComplexShape(geometry_extruded_1; particle_spacing=0.03, density=1.0,
+                                    point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                                      geometry=geometry_extruded_1,
+                                                                                      winding_number_factor))
+
+                @test nparticles(ic_1) == 2994
+                @test isapprox(maximum(ic_1.coordinates, dims=2), expected_max_corner)
+                @test isapprox(minimum(ic_1.coordinates, dims=2), expected_min_corner)
+            end
+
+            @testset verbose=true "Omit Bottom Face" begin
+                expected_min_corner = [-0.0663999989628792; 0.1562499874830246; -0.49336391974874305;;]
+                expected_max_corner = [0.38360000103712083; 1.0562499874830245; -0.07336391974874301;;]
+
+                ic_2 = ComplexShape(geometry_extruded_2; particle_spacing=0.03, density=1.0,
+                                    point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                                      geometry=geometry_extruded_2,
+                                                                                      winding_number_factor))
+
+                @test nparticles(ic_2) == 2988
+                @test isapprox(maximum(ic_2.coordinates, dims=2), expected_max_corner)
+                @test isapprox(minimum(ic_2.coordinates, dims=2), expected_min_corner)
+            end
+
+            @testset verbose=true "Omit Both" begin
+                expected_min_corner = [-0.0663999989628792; 0.1562499874830246; -0.5233639197487431;;]
+                expected_max_corner = [0.38360000103712083; 1.1462499874830245; -0.07336391974874301;;]
+
+                ic_3 = ComplexShape(geometry_extruded_3; particle_spacing=0.03, density=1.0,
+                                    point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                                      geometry=geometry_extruded_3,
+                                                                                      winding_number_factor))
+
+                @test nparticles(ic_3) == 3258
+                @test isapprox(maximum(ic_3.coordinates, dims=2), expected_max_corner)
+                @test isapprox(minimum(ic_3.coordinates, dims=2), expected_min_corner)
+            end
+        end
+    end
+
     @testset verbose=true "Boundary Face" begin
         file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
         planar_geometry = load_geometry(joinpath(file, "inflow_geometry.stl"))
@@ -189,5 +306,251 @@
         end
 
         @test TrixiParticles.unique_sorted(copy(x)) == sort(unique(x))
+    end
+
+    @testset verbose=true "OrientedBoundingBox" begin
+        @testset verbose=true "2D" begin
+            @testset verbose=true "Manual Construction" begin
+                # Create a 2D oriented bounding box and test its spanning vectors
+                orientation_matrix = [cos(pi / 4) -sin(pi / 4);
+                                      sin(pi / 4) cos(pi / 4)]
+                box_2d = OrientedBoundingBox(; box_origin=[0.1, -2.0],
+                                             orientation_matrix,
+                                             edge_lengths=(2.0, 1.0))
+                expected = [0.1+sqrt(2) 0.1-sqrt(2) / 2;
+                            -2.0+sqrt(2) -2.0+sqrt(2) / 2]
+                @test isapprox(stack(box_2d.spanning_vectors) .+ box_2d.box_origin,
+                               expected)
+            end
+
+            @testset verbose=true "From Geometry" begin
+                # Load 2D geometry from file and test oriented bounding box calculation
+                data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
+                geometry = load_geometry(joinpath(data_dir, "potato.asc"))
+
+                box_1 = OrientedBoundingBox(geometry)
+                expected = [1.925952836831006 0.07595980222547905;
+                            -1.026422999553135 0.14290580311134243]
+                @test isapprox(stack(box_1.spanning_vectors) .+ box_1.box_origin, expected)
+
+                # Test oriented bounding box with custom local axis scale
+                box_2 = OrientedBoundingBox(geometry, local_axis_scale=(1.5, 2))
+                expected = [2.8819385332081096 -0.8800258941516246;
+                            -1.3869998124508005 0.503482616009008]
+                @test isapprox(stack(box_2.spanning_vectors) .+ box_2.box_origin, expected)
+
+                box_3 = OrientedBoundingBox(geometry, local_axis_scale=(3, 0.5))
+                expected = [1.3085086828079229 0.6934039562485623;
+                            -1.8545287410598816 0.9710115446180893]
+                @test isapprox(stack(box_3.spanning_vectors) .+ box_3.box_origin, expected)
+            end
+
+            @testset verbose=true "From Point-Cloud" begin
+                # Create a point cloud from a spherical shape (quarter circle sector)
+                shape = SphereShape(0.1, 1.5, (0.2, 0.4), 1.0, n_layers=4,
+                                    sphere_type=RoundSphere(; start_angle=0,
+                                                            end_angle=pi / 4))
+
+                box = OrientedBoundingBox(shape.coordinates)
+                expected = [1.3939339828220176 1.3264241636171004;
+                            0.29393398282201755 1.4671898309959612]
+                @test isapprox(stack(box.spanning_vectors) .+ box.box_origin, expected)
+            end
+        end
+
+        @testset verbose=true "3D" begin
+            @testset verbose=true "Manual Construction" begin
+                # Create a 3D oriented bounding box and test its spanning vectors
+                orientation_matrix = [1/sqrt(2) -1/sqrt(2) 0.0;
+                                      1/sqrt(2) 1/sqrt(2) 0.0;
+                                      0.0 0.0 1.0]
+                box_3d = OrientedBoundingBox(; box_origin=[0.5, -0.2, 0.0],
+                                             orientation_matrix,
+                                             edge_lengths=(1.0, 2.0, 3.0))
+                expected = [0.5+1 / sqrt(2) 0.5-2 / sqrt(2) 0.5;
+                            -0.2+1 / sqrt(2) -0.2+2 / sqrt(2) -0.2;
+                            0.0 0.0 3.0]
+                @test isapprox(stack(box_3d.spanning_vectors) .+ box_3d.box_origin,
+                               expected)
+            end
+
+            @testset verbose=true "From Geometry" begin
+                # Load 3D geometry from file and test oriented bounding box calculation
+                file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+                geometry = load_geometry(joinpath(file, "inflow.stl"))
+                box_1 = OrientedBoundingBox(geometry)
+                expected = [-0.1095304728105212 -0.03438646676380468 0.2379628221247777;
+                            0.16873336880727502 0.2999997960771134 0.20335870225239414;
+                            -0.36117732916596945 -0.04334770439536223 -0.42937034485453873]
+                @test isapprox(stack(box_1.spanning_vectors) .+ box_1.box_origin, expected)
+
+                # Test oriented bounding box with custom local axis scale
+                box_2 = OrientedBoundingBox(geometry, local_axis_scale=(1.5, 1.5, 0.5))
+                expected = [-0.044939194583412626 0.06777681448666216 0.1427916288643849;
+                            0.12137652133720928 0.3182761622419668 0.23147548411531255;
+                            -0.4543422598660782 0.022402177289832625 -0.5018016853691041]
+                @test isapprox(stack(box_2.spanning_vectors) .+ box_2.box_origin, expected)
+            end
+        end
+
+        @testset verbose=true "`is_in_oriented_box`" begin
+            @testset verbose=true "Manual Construction 2D" begin
+                # Simple axis-aligned box
+                orientation_matrix = [1.0 0.0;
+                                      0.0 1.0]
+                box_2d = OrientedBoundingBox(; box_origin=[0.0, 0.0],
+                                             orientation_matrix,
+                                             edge_lengths=(2.0, 1.0))
+                # Test points
+                query_points = Dict(
+                    "Inside center" => ([1.0, 0.5], [1]),
+                    "On corner" => ([0.0, 0.0], [1]),
+                    "On edge" => ([1.0, 0.0], [1]),
+                    "Just outside left" => ([-eps(), 0.5], []),
+                    "Just outside right" => ([2.0 + eps(2.0), 0.5], []),
+                    "Just outside bottom" => ([1.0, -eps()], []),
+                    "Just outside top" => ([1.0, 1.0 + eps()], []),
+                    "Far outside" => ([-5.0, -5.0], [])
+                )
+                @testset "$k" for k in keys(query_points)
+                    (point, expected) = query_points[k]
+                    @test expected == TrixiParticles.is_in_oriented_box(point, box_2d)
+                end
+            end
+
+            @testset verbose=true "Rotated Box 2D" begin
+                # 45° rotated box
+                orientation_matrix = [1/sqrt(2) -1/sqrt(2);
+                                      1/sqrt(2) 1/sqrt(2)]
+                box_rotated = OrientedBoundingBox(; box_origin=[0.0, 0.0],
+                                                  orientation_matrix,
+                                                  edge_lengths=(sqrt(2), 1.0))
+                v1_normalized = [1 / sqrt(2), 1 / sqrt(2)]  # First edge direction
+                v2_normalized = [-1 / sqrt(2), 1 / sqrt(2)] # Second edge direction (perpendicular)
+
+                # Test points
+                query_points = Dict(
+                    "Inside center" => ([0.5, 0.5], [1]),
+                    "Origin" => ([0.0, 0.0], [1]),
+                    "Just outside along v1" => ([0.0, 0.0] +
+                                                (sqrt(2) + eps()) * v1_normalized, []),
+                    "Just outside along v2 positive" => ([0.0, 0.0] +
+                                                         (1.0 + eps()) * v2_normalized, []),
+                    "Just outside along v2 negative" => ([0.0, 0.0] -
+                                                         eps() * v2_normalized, []),
+                    "Just inside along v1" => ([0.0, 0.0] + sqrt(2) * v1_normalized, [1]),
+                    "Just inside along v1 negative" => ([0.0, 0.0] +
+                                                        eps() * v1_normalized, [1]),
+                    "Just inside along v2 positive" => ([0.0, 0.0] + v2_normalized, [1]),
+                    "Just inside along v2 negative" => ([0.0, 0.0] +
+                                                        eps() * v2_normalized, [1]),
+                    "Far outside rotated" => ([2.0, 2.0], [])
+                )
+
+                @testset "$k" for k in keys(query_points)
+                    (point, expected) = query_points[k]
+                    @test expected == TrixiParticles.is_in_oriented_box(point, box_rotated)
+                end
+            end
+
+            @testset verbose=true "Manual Construction 3D" begin
+                # Simple axis-aligned box
+                box_3d = OrientedBoundingBox(; box_origin=[0.0, 0.0, 0.0],
+                                             orientation_matrix=I(3),
+                                             edge_lengths=(2.0, 1.0, 0.5))
+
+                # Test points
+                query_points = Dict(
+                    "Inside center" => ([1.0, 0.5, 0.25], [1]),
+                    "On corner origin" => ([0.0, 0.0, 0.0], [1]),
+                    "On corner opposite" => ([2.0, 1.0, 0.5], [1]),
+                    "On face" => ([1.0, 0.0, 0.25], [1]),
+                    "Just outside x-negative" => ([-eps(), 0.5, 0.25], []),
+                    "Just outside x-positive" => ([2.0 + eps(2.0), 0.5, 0.25], []),
+                    "Just outside y-negative" => ([1.0, -eps(), 0.25], []),
+                    "Just outside y-positive" => ([1.0, 1.0 + eps(), 0.25], []),
+                    "Just outside z-negative" => ([1.0, 0.5, -eps()], []),
+                    "Just outside z-positive" => ([1.0, 0.5, 0.5 + eps()], []),
+                    "Far outside" => ([-5.0, -5.0, -5.0], [])
+                )
+
+                @testset "$k" for k in keys(query_points)
+                    (point, expected) = query_points[k]
+                    @test expected == TrixiParticles.is_in_oriented_box(point, box_3d)
+                end
+            end
+
+            @testset verbose=true "Rotated Box 3D" begin
+                # Box oriented along space diagonal
+                orientation_matrix = [1/sqrt(3) -1/sqrt(2) -1/sqrt(6);
+                                      1/sqrt(3) 1/sqrt(2) -1/sqrt(6);
+                                      1/sqrt(3) 0.0 2/sqrt(6)]
+                box_rotated = OrientedBoundingBox(; box_origin=[0.0, 0.0, 0.0],
+                                                  orientation_matrix,
+                                                  edge_lengths=(2.0, 1.0, 0.5))
+
+                # Test points
+                query_points = Dict(
+                    "Origin" => ([0.0, 0.0, 0.0], [1]),
+                    "Inside diagonal center" => ([0.0, 0.0, 0.0] +
+                                                 orientation_matrix * [1.0, 0.5, 0.25],
+                                                 [1]),
+                    "Just outside along diagonal" => ([0.0, 0.0, 0.0] +
+                                                      orientation_matrix *
+                                                      ([2.0, 1.0, 0.5] .+ eps()), []),
+                    "Just inside along diagonal" => ([0.0, 0.0, 0.0] +
+                                                     orientation_matrix * [2.0, 1.0, 0.5],
+                                                     [1]),
+                    "Far outside diagonal" => ([0.0, 0.0, 0.0] +
+                                               orientation_matrix * [3.0, 2.0, 2.0], [])
+                )
+
+                @testset "$k" for k in keys(query_points)
+                    (point, expected) = query_points[k]
+                    @test expected == TrixiParticles.is_in_oriented_box(point, box_rotated)
+                end
+            end
+
+            @testset verbose=true "Set Operations" begin
+                shape = RectangularShape(0.1, (10, 10), (0.0, 0.0), density=1.0)
+                box_1 = OrientedBoundingBox(box_origin=[0.0, 0.0],
+                                            orientation_matrix=I(2),
+                                            edge_lengths=(1.0, 1.0))
+                box_2 = OrientedBoundingBox(box_origin=[0.0, 0.0],
+                                            orientation_matrix=I(2),
+                                            edge_lengths=(1.0, 0.5))
+
+                @test nparticles(intersect(shape, box_1)) == 100
+                @test nparticles(setdiff(shape, box_1)) == 0
+                @test nparticles(intersect(shape, box_2)) == 50
+                @test nparticles(setdiff(shape, box_2)) == 50
+            end
+        end
+
+        @testset verbose=true "show" begin
+            box_2d = OrientedBoundingBox(box_origin=[0.1, -2.0],
+                                         orientation_matrix=I(2),
+                                         edge_lengths=(2.0, 1.0))
+            show_box = """
+                ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+                │ OrientedBoundingBox (2D)                                                                         │
+                │ ════════════════════════                                                                         │
+                │ box origin: ………………………………………………… [0.1, -2.0]                                                      │
+                │ edge lengths: …………………………………………… (2.0, 1.0)                                                       │
+                └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+            @test repr("text/plain", box_2d) == show_box
+
+            box_3d = OrientedBoundingBox(box_origin=[0.5, -0.2, 0.0],
+                                         orientation_matrix=I(3),
+                                         edge_lengths=(1.0, 2.0, 3.0))
+            show_box = """
+                ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+                │ OrientedBoundingBox (3D)                                                                         │
+                │ ════════════════════════                                                                         │
+                │ box origin: ………………………………………………… [0.5, -0.2, 0.0]                                                 │
+                │ edge lengths: …………………………………………… (1.0, 2.0, 3.0)                                                  │
+                └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+            @test repr("text/plain", box_3d) == show_box
+        end
     end
 end

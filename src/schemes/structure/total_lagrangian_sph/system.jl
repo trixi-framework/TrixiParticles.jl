@@ -15,6 +15,16 @@ all relevant quantities and operators are measured with respect to the
 initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
 See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 
+There are two approaches to specify clamped particles in the system:
+
+1. **Manual ordering**: Provide the number of clamped particles via `n_clamped_particles`,
+   ensuring that these particles are the last entries in the `InitialCondition`
+   (see the info box below for details).
+
+2. **Automatic ordering**: Pass the indices of the particles to be clamped via `clamped_particles`.
+   In this case, the specified particles will be internally reordered so that they become
+   the last particles in the `InitialCondition`.
+
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
 - `young_modulus`:      Young's modulus.

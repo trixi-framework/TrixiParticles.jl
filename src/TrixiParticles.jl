@@ -90,13 +90,14 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export PrescribedMotion, OscillatingMotion2D
+export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
-       sample_boundary, planar_geometry_to_face
+       sample_boundary, planar_geometry_to_face, OrientedBoundingBox, is_in_oriented_box
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
