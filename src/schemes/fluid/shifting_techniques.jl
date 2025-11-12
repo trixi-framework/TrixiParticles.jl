@@ -604,7 +604,7 @@ end
 # The function above misuses the pressure acceleration function by passing a Matrix as `p_a`.
 # This doesn't work with `tensile_instability_control`, so we disable TIC in this case.
 @inline function tensile_instability_control(m_a, m_b, rho_a, rho_b, p_a::SMatrix, p_b, W_a)
-    return pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b, p_a, A_b, W_a)
+    return pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
 end
 
 function continuity_equation_shifting!(dv, shifting::TransportVelocityAdami{true},
