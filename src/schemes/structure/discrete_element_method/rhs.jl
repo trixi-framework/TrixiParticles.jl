@@ -63,10 +63,14 @@ end
                                             overlap, normal,
                                             v_particle_system, v_neighbor_system,
                                             particle, neighbor, F_normal)
-    # Tangential force parameters
-    friction_coefficient = 0.5       # Coulomb friction coefficient [Cundall and Strack, 1979]
-    tangential_stiffness = 1e3       # Tangential spring constant
-    tangential_damping = 0.001       # Damping coefficient for tangential force
+    # Tangential force parameters. Avoid hardcoding double values.
+    ELTYPE = eltype(particle_system)
+    # Coulomb friction coefficient [Cundall and Strack, 1979]
+    friction_coefficient = convert(ELTYPE, 1) / 2
+    # Tangential spring constant
+    tangential_stiffness = convert(ELTYPE, 1) / 1000
+    # Damping coefficient for tangential force
+    tangential_damping = convert(ELTYPE, 1) / 1000
 
     # Compute relative velocity and extract the tangential component.
     v_a = current_velocity(v_particle_system, particle_system, particle)
@@ -79,7 +83,7 @@ end
 
     # Coulomb friction: limit the tangential force to μ * |F_normal|
     max_tangent = friction_coefficient * norm(F_normal)
-    if norm(F_t) > max_tangent && norm(F_t) > 0.0
+    if norm(F_t) > max_tangent && norm(F_t) > 0
         F_t = F_t * (max_tangent / norm(F_t))
     end
 
@@ -94,6 +98,6 @@ end
 @inline function position_correction!(neighbor_system::BoundaryDEMSystem,
                                       u_particle_system, overlap, normal, particle)
     for i in 1:ndims(neighbor_system)
-        u_particle_system[i, particle] -= 0.5 * overlap * normal[i]
+        u_particle_system[i, particle] -= overlap * normal[i] / 2
     end
 end
