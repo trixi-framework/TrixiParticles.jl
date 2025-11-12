@@ -484,10 +484,10 @@ end
 
     @testset verbose=true "DEM" begin
         @trixi_testset "dem/rectangular_tank_2d.jl" begin
-            @trixi_test_nowarn trixi_include(@__MODULE__,
-                                             joinpath(examples_dir(), "dem",
-                                                      "rectangular_tank_2d.jl"),
-                                             ode=nothing, sol=nothing)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(), "dem",
+                                                                      "rectangular_tank_2d.jl"),
+                                                             ode=nothing, sol=nothing)
             # Neighborhood search with `FullGridCellList` for GPU compatibility
             min_corner = minimum(tank.boundary.coordinates, dims=2)
             max_corner = maximum(tank.boundary.coordinates, dims=2)
@@ -495,12 +495,12 @@ end
             neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
                                                             update_strategy=ParallelUpdate())
 
-            @trixi_test_nowarn trixi_include(@__MODULE__,
-                                             joinpath(examples_dir(), "dem",
-                                                      "rectangular_tank_2d.jl"),
-                                             tspan=(0.0f0, 0.05f0),
-                                             neighborhood_search=neighborhood_search,
-                                             parallelization_backend=Main.parallelization_backend)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(), "dem",
+                                                                      "rectangular_tank_2d.jl"),
+                                                             tspan=(0.0f0, 0.05f0),
+                                                             neighborhood_search=neighborhood_search,
+                                                             parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
