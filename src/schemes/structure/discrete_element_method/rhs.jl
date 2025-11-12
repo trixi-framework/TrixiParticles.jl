@@ -12,7 +12,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # See `src/general/smoothing_kernels.jl` for more details.
+        # See `src/general/smoothing_kernels.jl` for more details
         distance^2 < eps(first(particle_system.radius)^2) && return
 
         # Retrieve particle properties
@@ -26,7 +26,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
             # Compute the unit normal vector (from neighbor to particle)
             normal = pos_diff / distance
 
-            # Compute Normal Force by Dispatching on the Contact Model.
+            # Compute Normal Force by Dispatching on the Contact Model
             F_normal = collision_force_normal(particle_system.contact_model,
                                               particle_system, neighbor_system,
                                               overlap, normal,
@@ -46,7 +46,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
             end
 
             # Apply a simple position correction to mitigate overlap.
-            # TODO: use update callback
+            # TODO: use update callback, changing `u` is not allowed here.
             position_correction!(neighbor_system, u_particle_system, overlap, normal,
                                  particle)
         end
