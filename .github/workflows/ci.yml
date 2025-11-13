@@ -84,14 +84,14 @@ jobs:
         env:
           TRIXIPARTICLES_TEST: unit
 
-      - name: Process coverage results
+      - name: Process unit coverage results
         # Only run coverage in one Job (Ubuntu and latest Julia version)
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
         uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,test
 
-      - name: Upload coverage report to Codecov
+      - name: Upload unit coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
         uses: codecov/codecov-action@v5
@@ -106,6 +106,25 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
-          coverage: false
+          # Only run coverage in one Job (Ubuntu and latest Julia version)
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
         env:
           TRIXIPARTICLES_TEST: examples
+
+      - name: Process total coverage results
+        # Only run coverage in one Job (Ubuntu and latest Julia version)
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
+        uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src,test
+
+      - name: Upload total coverage report to Codecov
+        # Only run coverage in one Job (Ubuntu and latest Julia version)
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
+        uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
+          flags: total
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
