@@ -80,20 +80,20 @@ jobs:
         with:
           annotate: true
           # Only run coverage in one Job (Ubuntu and latest Julia version)
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.11' }}
         env:
           TRIXIPARTICLES_TEST: unit
 
       - name: Process unit coverage results
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
         uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,test
 
       - name: Upload unit coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
         uses: codecov/codecov-action@v5
         with:
           files: lcov.info
@@ -107,20 +107,20 @@ jobs:
         with:
           annotate: true
           # Only run coverage in one Job (Ubuntu and latest Julia version)
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.11' }}
         env:
           TRIXIPARTICLES_TEST: examples
 
       - name: Process total coverage results
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
         uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,test
 
       - name: Upload total coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
         uses: codecov/codecov-action@v5
         with:
           files: lcov.info
