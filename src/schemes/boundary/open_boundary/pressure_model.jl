@@ -72,9 +72,8 @@ end
 
 function calculate_flow_rate_and_pressure!(system, v, u, dt)
     (; pressure_reference_values) = system.cache
-
-    for (zone_id, boundary_zone) in enumerate(system.boundary_zones)
-        pressure_model = pressure_reference_values[zone_id]
+    foreach_enumerate(pressure_reference_values) do (zone_id, pressure_model)
+        boundary_zone = system.boundary_zones[zone_id]
         calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone, v, u, dt)
     end
 
