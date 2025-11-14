@@ -306,9 +306,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-    @trixi_timeit timer() "update pressure model" begin
-        update_pressure_model!(system, v, u, semi, integrator.dt)
-    end
+    update_pressure_model!(system, v, u, semi, integrator.dt)
 
     # Update density, pressure and velocity based on the specific boundary model
     @trixi_timeit timer() "update boundary quantities" begin

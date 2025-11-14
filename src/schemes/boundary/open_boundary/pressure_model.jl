@@ -36,6 +36,8 @@ struct RCRWindkesselModel{ELTYPE <: Real, P, FR} <: AbstractPressureModel
     flow_rate                 :: FR
 end
 
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
 function RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
     pressure = Ref(zero(compliance))
     flow_rate = Ref(zero(compliance))
@@ -64,7 +66,9 @@ function update_pressure_model!(system, v, u, semi, dt)
     dt < sqrt(eps()) && return system
 
     if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
-        calculate_flow_rate_and_pressure!(system, v, u, dt)
+        @trixi_timeit timer() "update pressure model" begin
+            calculate_flow_rate_and_pressure!(system, v, u, dt)
+        end
     end
 
     return system
