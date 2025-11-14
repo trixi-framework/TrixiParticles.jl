@@ -1,3 +1,4 @@
+include("pressure_model.jl")
 include("boundary_zones.jl")
 include("mirroring.jl")
 include("method_of_characteristics.jl")
