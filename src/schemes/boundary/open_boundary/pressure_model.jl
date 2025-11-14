@@ -90,22 +90,16 @@ function calculate_flow_rate_and_pressure!(pressure_model::RCRWindkesselModel, s
     (; particle_spacing) = system.initial_condition
     (; characteristic_resistance, peripheral_resistance, compliance,
      flow_rate, pressure) = pressure_model
-    (; face_normal, zone_origin) = boundary_zone
+    (; face_normal) = boundary_zone
 
-    # Use a thin slice for the flow rate calculation.
-    # Slightly larger than 1 particle spacing to make sure we capture enough particles.
-    slice = particle_spacing * 125 / 100
+    # Find particles within the current boundary zone
+    candidates = findall(particle -> boundary_zone ==
+                                     current_boundary_zone(system, particle),
+                         each_integrated_particle(system))
 
-    # Find particles within a thin slice near the boundary face for flow rate computation
-    candidates = findall(x -> dot(x - zone_origin, -face_normal) <= slice,
-                         reinterpret(reshape, SVector{ndims(system), eltype(u)}, u))
-
-    particles_in_zone = findall(particle -> boundary_zone ==
-                                            current_boundary_zone(system, particle),
-                                each_integrated_particle(system))
-
-    intersect!(candidates, particles_in_zone)
-
+    # Assuming negligible transverse velocity gradients within the boundary zone,
+    # the full area of the zone is taken as the representative cross-sectional
+    # area for volumetric flow-rate estimation.
     cross_sectional_area = length(candidates) * particle_spacing^(ndims(system) - 1)
 
     # Division inside the `sum` closure to maintain GPU compatibility
