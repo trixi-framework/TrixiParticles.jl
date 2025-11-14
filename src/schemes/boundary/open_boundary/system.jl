@@ -23,7 +23,7 @@ Open boundary system for in- and outflow particles.
     This is an experimental feature and may change in any future releases.
 """
 struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZI, BZ,
-                          B, PF, ST, PMV, C} <: AbstractSystem{NDIMS}
+                          B, PF, ST, C} <: AbstractSystem{NDIMS}
     boundary_model                    :: BM
     initial_condition                 :: IC
     fluid_system                      :: FS
@@ -39,7 +39,6 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZ
     buffer                            :: B
     pressure_acceleration_formulation :: PF
     shifting_technique                :: ST
-    pressure_model_values             :: PMV
     cache                             :: C
 end
 
@@ -47,21 +46,19 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                             fluid_system_index, smoothing_kernel, smoothing_length, mass,
                             volume, boundary_candidates, fluid_candidates,
                             boundary_zone_indices, boundary_zone, buffer,
-                            pressure_acceleration, shifting_technique,
-                            pressure_model_values, cache)
+                            pressure_acceleration, shifting_technique, cache)
     OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                        typeof(initial_condition), typeof(fluid_system),
                        typeof(fluid_system_index), typeof(smoothing_kernel), typeof(mass),
                        typeof(boundary_candidates), typeof(fluid_candidates),
                        typeof(boundary_zone_indices), typeof(boundary_zone), typeof(buffer),
                        typeof(pressure_acceleration), typeof(shifting_technique),
-                       typeof(pressure_model_values),
                        typeof(cache)}(boundary_model, initial_condition, fluid_system,
                                       fluid_system_index, smoothing_kernel,
                                       smoothing_length, mass, volume, boundary_candidates,
                                       fluid_candidates, boundary_zone_indices,
                                       boundary_zone, buffer, pressure_acceleration,
-                                      shifting_technique, pressure_model_values, cache)
+                                      shifting_technique, cache)
 end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
@@ -100,34 +97,30 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
 
     boundary_zone_indices = zeros(Int, nparticles(initial_conditions))
 
-    pressure_models, pressure_model_values = extract_pressure_models(boundary_zones_)
-
     # Create new `BoundaryZone`s with `reference_values` set to `nothing` for type stability.
     # `reference_values` are only used as API feature to temporarily store the reference values
     # in the `BoundaryZone`, but they are not used in the actual simulation.
     # The reference values are extracted above in the "create cache" function
     # and then stored in `system.cache` as a `Tuple`.
-    boundary_zones_new = (map((zone,
-                               pressure_model) -> BoundaryZone(zone.initial_condition,
-                                                               zone.spanning_set,
-                                                               zone.zone_origin,
-                                                               zone.zone_width,
-                                                               zone.flow_direction,
-                                                               zone.face_normal,
-                                                               zone.rest_pressure,
-                                                               nothing, pressure_model,
-                                                               zone.average_inflow_velocity,
-                                                               zone.prescribed_density,
-                                                               zone.prescribed_pressure,
-                                                               zone.prescribed_velocity),
-                              boundary_zones_, pressure_models)...,)
+    boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
+                                                  zone.spanning_set,
+                                                  zone.zone_origin,
+                                                  zone.zone_width,
+                                                  zone.flow_direction,
+                                                  zone.face_normal,
+                                                  zone.rest_pressure,
+                                                  nothing,
+                                                  zone.average_inflow_velocity,
+                                                  zone.prescribed_density,
+                                                  zone.prescribed_pressure,
+                                                  zone.prescribed_velocity),
+                             boundary_zones_)
 
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
                               volume, boundary_candidates, fluid_candidates,
                               boundary_zone_indices, boundary_zones_new, buffer,
-                              pressure_acceleration, shifting_technique,
-                              pressure_model_values, cache)
+                              pressure_acceleration, shifting_technique, cache)
 end
 
 function initialize!(system::OpenBoundarySystem, semi)
@@ -200,34 +193,6 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
     end
 end
 
-function extract_pressure_models(boundary_zones)
-    zone_indices = findall(zone -> !isnothing(zone.pressure_model), boundary_zones)
-    if isempty(zone_indices)
-        pressure_models = fill(nothing, length(boundary_zones))
-        pressure_model_values = nothing
-
-    else
-        # Build a vector of pressure models, using a dummy instance for boundary zones
-        # that lack a pressure model to maintain type stability.
-        # This vector is then passed to the new boundary zone instances.
-        zero_ = zero(eltype(first(boundary_zones).initial_condition))
-        dummy_model = RCRWindkesselModel(zero_, zero_, zero_, false)
-        pressure_models = fill(dummy_model, length(boundary_zones))
-        pressure_models[zone_indices] .= map(zone -> RCRWindkesselModel(zone.pressure_model.characteristic_resistance,
-                                                                        zone.pressure_model.peripheral_resistance,
-                                                                        zone.pressure_model.compliance,
-                                                                        true),
-                                             boundary_zones[zone_indices])
-
-        # Store values that are updated during the simulation.
-        # These must be kept separately to ensure type stability of the boundary zone.
-        pressure_model_values = map(bz -> (pressure=Ref(bz.rest_pressure),
-                                           flow_rate=Ref(zero_)), boundary_zones)
-    end
-
-    return pressure_models, pressure_model_values
-end
-
 timer_name(::OpenBoundarySystem) = "open_boundary"
 vtkname(system::OpenBoundarySystem) = "open_boundary"
 
@@ -254,11 +219,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySystem)
             summary_line(io, "density diffusion", density_diffusion(system))
             summary_line(io, "shifting technique", shifting_technique(system))
         end
-        if !isnothing(system.pressure_model_values)
-            summary_line(io, "pressure model",
-                         type2string(first(system.boundary_zones).pressure_model) *
-                         " (in boundary zones: " *
-                         "$(findall(zone -> zone.pressure_model.is_active, system.boundary_zones)))")
+        for (i, pm) in enumerate(system.cache.pressure_reference_values)
+            !isa(pm, AbstractPressureModel) && continue
+            summary_line(io, "pressure model", type2string(pm) * " (in boundary zone $i)")
         end
         summary_footer(io)
     end
@@ -343,7 +306,9 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-    update_pressure_model!(system, v, u, semi, integrator.dt)
+    @trixi_timeit timer() "update pressure model" begin
+        update_pressure_model!(system, v, u, semi, integrator.dt)
+    end
 
     # Update density, pressure and velocity based on the specific boundary model
     @trixi_timeit timer() "update boundary quantities" begin

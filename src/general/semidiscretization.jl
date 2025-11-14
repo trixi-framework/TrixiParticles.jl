@@ -1149,6 +1149,5 @@ function set_system_links(system::OpenBoundarySystem, semi)
                               system.buffer,
                               system.pressure_acceleration_formulation,
                               system.shifting_technique,
-                              system.pressure_model_values,
                               system.cache)
 end

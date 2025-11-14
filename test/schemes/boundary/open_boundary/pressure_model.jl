@@ -73,7 +73,8 @@
             reference_velocity(pos, t) = SVector(func(t), 0.0)
             boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
                                          particle_spacing=0.1, face_normal=(-1.0, 0.0),
-                                         density=1000.0, reference_velocity, pressure_model,
+                                         density=1000.0, reference_velocity,
+                                         reference_pressure=pressure_model,
                                          open_boundary_layers=1, rest_pressure=p_0)
 
             system = OpenBoundarySystem(boundary_zone; buffer_size=0,
@@ -92,7 +93,8 @@
 
                 # Store only values after the seventh cycle
                 if t >= 7T
-                    push!(p_calculated, system.pressure_model_values[1].pressure[])
+                    p = TrixiParticles.reference_pressure(boundary_zone, v, system, 1, 0, t)
+                    push!(p_calculated, p)
                 end
             end
 

@@ -1,3 +1,5 @@
+abstract type AbstractPressureModel end
+
 """
     RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
 
@@ -26,19 +28,19 @@ It is derived from an electrical circuit analogy and consists of three elements:
 - `peripheral_resistance`: peripheral resistance (``R_2``)
 - `compliance`: compliance (``C``)
 """
-struct RCRWindkesselModel{ELTYPE <: Real}
+struct RCRWindkesselModel{ELTYPE <: Real, P, FR} <: AbstractPressureModel
     characteristic_resistance :: ELTYPE
     peripheral_resistance     :: ELTYPE
     compliance                :: ELTYPE
-    # If any zone requires the model, entries are allocated for all zones.
-    # Thus, we need a flag to indicate whether the `RCRWindkesselModel` is active for a given zone or not.
-    # See comments in `extract_pressure_models` for more details.
-    is_active::Bool
+    pressure                  :: P
+    flow_rate                 :: FR
 end
 
 function RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
+    pressure = Ref(zero(compliance))
+    flow_rate = Ref(zero(compliance))
     return RCRWindkesselModel(characteristic_resistance, peripheral_resistance, compliance,
-                              true)
+                              pressure, flow_rate)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", pressure_model::RCRWindkesselModel)
@@ -57,33 +59,37 @@ function Base.show(io::IO, ::MIME"text/plain", pressure_model::RCRWindkesselMode
     end
 end
 
-function update_pressure_model!(system::OpenBoundarySystem, v, u, semi, dt)
+function update_pressure_model!(system, v, u, semi, dt)
     # Skip update for the first time step
     dt < sqrt(eps()) && return system
 
-    isnothing(system.pressure_model_values) && return system
-
-    calculate_flow_rate_and_pressure!(system, v, u, dt)
-
-    return system
-end
-
-function calculate_flow_rate_and_pressure!(system, v, u, dt)
-    for (zone_id, boundary_zone) in enumerate(system.boundary_zones)
-        if boundary_zone.pressure_model.is_active
-            calculate_flow_rate_and_pressure!(boundary_zone.pressure_model, system,
-                                              boundary_zone, zone_id, v, u, dt)
-        end
+    if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
+        calculate_flow_rate_and_pressure!(system, v, u, dt)
     end
 
     return system
 end
 
-function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone,
-                                           zone_id, v, u, dt)
+function calculate_flow_rate_and_pressure!(system, v, u, dt)
+    (; pressure_reference_values) = system.cache
+
+    for (zone_id, boundary_zone) in enumerate(system.boundary_zones)
+        pressure_model = pressure_reference_values[zone_id]
+        calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone, v, u, dt)
+    end
+
+    return system
+end
+
+function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone, v, u, dt)
+    return pressure_model
+end
+
+function calculate_flow_rate_and_pressure!(pressure_model::RCRWindkesselModel, system,
+                                           boundary_zone, v, u, dt)
     (; particle_spacing) = system.initial_condition
-    (; characteristic_resistance, peripheral_resistance, compliance) = pressure_model
-    (; flow_rate, pressure) = system.pressure_model_values[zone_id]
+    (; characteristic_resistance, peripheral_resistance, compliance,
+     flow_rate, pressure) = pressure_model
     (; face_normal, zone_origin) = boundary_zone
 
     # Use a thin slice for the flow rate calculation.
@@ -131,15 +137,6 @@ function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone
     return system
 end
 
-function imposed_pressure(system, pressure_model_values, boundary_zone,
-                          pressure, particle)
-    boundary_zone.pressure_model.is_active || return pressure
-
-    zone_id = system.boundary_zone_indices[particle]
-    return pressure_model_values[zone_id].pressure[]
-end
-
-function imposed_pressure(system, pressure_model_values::Nothing, boundary_zone,
-                          pressure, particle)
-    return pressure
+function (pressure_model::RCRWindkesselModel)(x, t)
+    return pressure_model.pressure[]
 end
