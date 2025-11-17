@@ -62,7 +62,7 @@ function Base.show(io::IO, ::MIME"text/plain", pressure_model::RCRWindkesselMode
 end
 
 function update_pressure_model!(system, v, u, semi, dt)
-    # Skip update for the first time step
+    # Avoid division by zero: skip update
     dt < sqrt(eps()) && return system
 
     if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)

@@ -20,7 +20,7 @@ end
     element = first(collection)
     remaining_collection = Base.tail(collection)
 
-    func((index, element))
+    @inline func((index, element))
 
     # Process remaining collection
     foreach_enumerate(func, remaining_collection, index + 1)
