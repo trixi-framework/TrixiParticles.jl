@@ -70,7 +70,7 @@ clamped_particles = RectangularShape(structure_particle_spacing,
                                      (n_particles_x, 1), plate_position,
                                      density=structure_density, place_on_shell=true)
 
-structure = union(plate, clamped_particles)
+structure = union(clamped_particles, plate)
 
 # ==========================================================================================
 # ==== Fluid
@@ -127,7 +127,7 @@ structure_system = TotalLagrangianSPHSystem(structure,
                                             structure_smoothing_kernel,
                                             structure_smoothing_length,
                                             E, nu, boundary_model=boundary_model_structure,
-                                            n_clamped_particles=n_particles_x,
+                                            clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity),
                                             penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
