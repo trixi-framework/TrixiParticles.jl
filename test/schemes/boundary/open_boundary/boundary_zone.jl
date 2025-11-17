@@ -64,7 +64,7 @@
 
         error_str = "`reference_pressure` must be either a function mapping " *
                     "each particle's coordinates and time to its pressure, " *
-                    "a scalar, or an `AbstractPressureModel`"
+                    "a scalar, or a pressure model"
 
         reference_pressure = [1.0, 1.0]
 
