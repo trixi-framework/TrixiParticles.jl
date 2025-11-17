@@ -391,7 +391,9 @@ end
 # `ParticleShiftingTechnique{<:Any, true}` means `update_everystage=true`
 function update_shifting!(system, shifting::ParticleShiftingTechnique{<:Any, true},
                           v, u, v_ode, u_ode, semi)
-    update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "update shifting" begin
+        update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    end
 end
 
 # `ParticleShiftingTechnique{<:Any, false}` means `update_everystage=false`
@@ -497,10 +499,8 @@ end
 function particle_shifting_from_callback!(u_ode,
                                           shifting::ParticleShiftingTechnique{<:Any, false},
                                           system, v_ode, semi, integrator)
-    @trixi_timeit timer() "update particle shifting" begin
-        # Update the shifting velocity
-        update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi)
-    end
+    # Update the shifting velocity
+    update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi)
 
     @trixi_timeit timer() "apply particle shifting" begin
         # Update the particle positions with the shifting velocity
