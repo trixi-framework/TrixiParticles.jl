@@ -185,8 +185,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
 
         return new{NDIMS, 2 * NDIMS, ELTYPE, typeof(fluid),
                    typeof(boundary)}(fluid, boundary, fluid_size_, tank_size_,
-                                    faces, face_indices, particle_spacing, spacing_ratio,
-                                    n_layers, n_particles_per_dim)
+                                     faces, face_indices, particle_spacing, spacing_ratio,
+                                     n_layers, n_particles_per_dim)
     end
 end
 
