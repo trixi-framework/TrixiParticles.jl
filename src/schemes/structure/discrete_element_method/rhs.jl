@@ -66,11 +66,11 @@ end
     # Tangential force parameters. Avoid hardcoding double values.
     ELTYPE = eltype(particle_system)
     # Coulomb friction coefficient [Cundall and Strack, 1979]
-    friction_coefficient = convert(ELTYPE, 1) / 2
+    friction_coefficient = convert(ELTYPE, 0.5)
     # Tangential spring constant
-    tangential_stiffness = convert(ELTYPE, 1) / 1000
+    tangential_stiffness = 1000
     # Damping coefficient for tangential force
-    tangential_damping = convert(ELTYPE, 1) / 1000
+    tangential_damping = convert(ELTYPE, 0.001)
 
     # Compute relative velocity and extract the tangential component.
     v_a = current_velocity(v_particle_system, particle_system, particle)
