@@ -396,7 +396,7 @@ struct WendlandC2Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
     return result
 end
 
-@fastpow @inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
+@inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
