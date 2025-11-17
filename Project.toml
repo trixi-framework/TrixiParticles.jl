@@ -1,7 +1,8 @@
 authors = ["erik.faulhaber <44124897+efaulhaber@users.noreply.github.com>"]
 name = "TrixiParticles"
 uuid = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
-version = "0.4.2-dev"
+authors = ["erik.faulhaber <44124897+efaulhaber@users.noreply.github.com>"]
+version = "0.4.2"
 
 [compat]
 Adapt = "4"
