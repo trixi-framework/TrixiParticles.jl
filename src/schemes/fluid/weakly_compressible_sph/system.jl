@@ -85,8 +85,7 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function WeaklyCompressibleSPHSystem(initial_condition,
-                                     density_calculator, state_equation,
+function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
                                      acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                          ndims(smoothing_kernel)),
@@ -224,9 +223,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
     end
 end
 
-@inline function Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
-    return ELTYPE
-end
+@inline Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE} = ELTYPE
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem)
     return v_nvariables(system, system.density_calculator)
@@ -248,7 +245,7 @@ system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
     return current_velocity(v, system.density_calculator, system)
 end
 
-@inline function current_velocity(v, ::SummationDensity,
+@propagate_inbounds function current_velocity(v, ::SummationDensity,
                                   system::WeaklyCompressibleSPHSystem)
     # When using `SummationDensity`, `v` contains only the velocity
     return v
@@ -265,7 +262,7 @@ end
     return current_density(v, system.density_calculator, system)
 end
 
-@inline function current_density(v, ::SummationDensity,
+@propagate_inbounds function current_density(v, ::SummationDensity,
                                  system::WeaklyCompressibleSPHSystem)
     # When using `SummationDensity`, the density is stored in the cache
     return system.cache.density

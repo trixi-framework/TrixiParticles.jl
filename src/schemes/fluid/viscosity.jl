@@ -203,7 +203,7 @@ function adami_viscosity_force(smoothing_length_average, pos_diff, distance, gra
     return visc .* v_diff
 end
 
-@inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
+@propagate_inbounds function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
                                              v_particle_system, v_neighbor_system,
                                              particle, neighbor, pos_diff,
                                              distance, sound_speed, m_a, m_b,
