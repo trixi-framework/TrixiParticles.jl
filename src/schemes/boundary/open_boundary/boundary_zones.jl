@@ -206,7 +206,7 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
          reference_pressure isa AbstractPressureModel || isnothing(reference_pressure))
         throw(ArgumentError("`reference_pressure` must be either a function mapping " *
                             "each particle's coordinates and time to its pressure, " *
-                            "or a scalar"))
+                            "a scalar, or an `AbstractPressureModel`"))
     else
         if reference_pressure isa Function
             test_result = reference_pressure(zeros(NDIMS), 0.0)

@@ -20,8 +20,8 @@ It is derived from an electrical circuit analogy and consists of three elements:
   Analogous to a capacitor in an electrical circuit, it absorbs blood when pressure rises and releases it during diastole.
   The presence of ``C`` smooths pulsatile flow and produces a more uniform outflow profile.
 
- Lumped-parameter models for the vascular system are well described in the literature (e.g. [Westerhof2008](@cite)).
- A practical step-by-step procedure for identifying the corresponding model parameters is provided by [Gasser2021](@cite).
+Lumped-parameter models for the vascular system are well described in the literature (e.g. [Westerhof2008](@cite)).
+A practical step-by-step procedure for identifying the corresponding model parameters is provided by [Gasser2021](@cite).
 
 # Keywords
 - `characteristic_resistance`: characteristic resistance (``R_1``)
