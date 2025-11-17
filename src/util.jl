@@ -11,6 +11,21 @@ end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
+# Same as `foreach(enumerate(something))`, but without allocations.
+# Note that compile times may increase if this is used with big tuples.
+@inline foreach_enumerate(func, collection) = foreach_enumerate(func, collection, 1)
+@inline foreach_enumerate(func, collection::Tuple{}, index) = nothing
+
+@inline function foreach_enumerate(func, collection, index)
+    element = first(collection)
+    remaining_collection = Base.tail(collection)
+
+    @inline func((index, element))
+
+    # Process remaining collection
+    foreach_enumerate(func, remaining_collection, index + 1)
+end
+
 # Returns `functions[index](args...)`, but in a type-stable way for a heterogeneous tuple `functions`
 @inline function apply_ith_function(functions, index, args...)
     if index == 1
