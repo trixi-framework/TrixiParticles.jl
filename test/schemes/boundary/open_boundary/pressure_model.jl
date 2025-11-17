@@ -113,7 +113,7 @@
         # The reference pressure values are computed using an ODE that describes
         # the behavior of the RCR Windkessel model. The governing equation is:
         #
-        #   dp/dt + p / (R_1 * C) = R_2 * dq/dt + (R_1 + R_2) / (R_1 * C) * q
+        #   dp/dt + p / (R_2 * C) = R_1 * dq/dt + (R_2 + R_1) / (R_2 * C) * q
         #
         # where
         #   - p: pressure

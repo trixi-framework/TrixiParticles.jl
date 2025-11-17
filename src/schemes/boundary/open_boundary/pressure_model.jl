@@ -3,20 +3,20 @@ abstract type AbstractPressureModel end
 """
     RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
 
-The `RCRWindkessel` model is a biomechanical lumped-parameter representation
-that captures the relationship between pressure and flow in pulsatile systems, e.g., vascular systems
+The `RCRWindkesselModel` is a biomechanical lumped-parameter representation
+that captures the relationship between pressure and flow in pulsatile systems (e.g. in vascular systems)
 and is used to compute the pressure in a [`BoundaryZone`](@ref).
 It is derived from an electrical circuit analogy and consists of three elements:
 
 - characteristic resistance (``R_1``): Represents the proximal resistance at the vessel entrance.
   It models the immediate pressure drop that arises at the entrance of a vessel segment,
-  due either to a geometric narrowing or to a mismatch in characteristic impedance between adjacent segments.
+  either due to a geometric narrowing or to a mismatch in characteristic impedance between adjacent segments.
   A larger ``R_1`` produces a sharper initial pressure rise at the onset of flow.
 - peripheral resistance (``R_2``): Represents the distal resistance,
   which controls the sustained outflow into the peripheral circulation and thereby determines the level of the mean pressure.
   A high ``R_2`` maintains a higher pressure (reduced outflow), whereas a low ``R_2`` allows a faster pressure decay.
 - compliance (``C``): Connected in parallel with ``R_2`` and represents the capacity of elastic walls
-  to store and release volume; in other words, it models the "stretchiness" of walls.
+  to store and release volume; in other words, it models the "stretchiness" of the vessel walls.
   Analogous to a capacitor in an electrical circuit, it absorbs blood when pressure rises and releases it during diastole.
   The presence of ``C`` smooths pulsatile flow and produces a more uniform outflow profile.
 
