@@ -97,11 +97,10 @@ end
 
 function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_clamped_particles=0, clamped_particles_motion=nothing,
-                                  boundary_model=nothing,
-                                  acceleration=ntuple(_ -> zero(eltype(initial_condition)),
+                                  n_clamped_particles=0,
                                   clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
+                                  acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                   penalty_force=nothing, viscosity=nothing,
                                   source_terms=nothing, boundary_model=nothing)
     NDIMS = ndims(initial_condition)
