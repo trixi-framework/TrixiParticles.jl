@@ -604,8 +604,7 @@ end
                                                                particle_system,
                                                                neighbor_system,
                                                                particle, neighbor,
-                                                               grad_kernel, rho_a,
-                                                               rho_b, m_b)
+                                                               rho_a, rho_b)
     delta_v_diff = delta_v(particle_system, particle) -
                    delta_v(neighbor_system, neighbor)
 
