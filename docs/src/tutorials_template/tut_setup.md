@@ -165,7 +165,7 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 nothing # hide
 ```
 
-## Semidiscretization
+## [Semidiscretization](@id tut_setup_semi)
 
 The key component of every simulation is the [`Semidiscretization`](@ref),
 which couples all systems of the simulation.
