@@ -63,7 +63,7 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), den
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64}                                                                        │
+│ InitialCondition                                                                                 │
 │ ═════════════════════════                                                                        │
 │ #dimensions: ……………………………………………… 3                                                                │
 │ #particles: ………………………………………………… 140                                                              │
