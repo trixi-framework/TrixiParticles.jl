@@ -81,8 +81,8 @@ initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, 
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64, Float64}                                                               │
-│ ═════════════════════════=========                                                               │
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 2                                                                │
 │ #particles: ………………………………………………… 3                                                                │
 │ particle spacing: ………………………………… -1.0                                                             │
