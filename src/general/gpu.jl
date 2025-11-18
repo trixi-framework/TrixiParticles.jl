@@ -20,6 +20,7 @@ Adapt.@adapt_structure TotalLagrangianSPHSystem
 Adapt.@adapt_structure BoundaryZone
 Adapt.@adapt_structure SystemBuffer
 Adapt.@adapt_structure OpenBoundarySystem
+Adapt.@adapt_structure RCRWindkesselModel
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 function KernelAbstractions.get_backend(system::AbstractSystem)
