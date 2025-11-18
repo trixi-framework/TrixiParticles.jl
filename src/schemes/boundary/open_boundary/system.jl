@@ -72,9 +72,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                BoundaryModelDynamicalPressureZhang ?
                                                shifting_technique(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
-    reference_values_ = map(bz -> bz.reference_values, boundary_zones_)
 
-    initial_conditions = union((bz.initial_condition for bz in boundary_zones)...)
+    initial_conditions = union((bz.initial_condition for bz in boundary_zones_)...)
 
     buffer = SystemBuffer(nparticles(initial_conditions), buffer_size)
 
@@ -86,7 +85,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     cache = (;
              create_cache_shifting(initial_conditions, shifting_technique)...,
              create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
-                                        reference_values_)...)
+                                        boundary_zones_)...)
 
     fluid_system_index = Ref(0)
 
@@ -101,6 +100,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     # Create new `BoundaryZone`s with `reference_values` set to `nothing` for type stability.
     # `reference_values` are only used as API feature to temporarily store the reference values
     # in the `BoundaryZone`, but they are not used in the actual simulation.
+    # The reference values are extracted above in the "create cache" function
+    # and then stored in `system.cache` as a `Tuple`.
     boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
                                                   zone.spanning_set,
                                                   zone.zone_origin,
@@ -113,7 +114,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   zone.prescribed_density,
                                                   zone.prescribed_pressure,
                                                   zone.prescribed_velocity),
-                             boundary_zones)
+                             boundary_zones_)
 
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
@@ -130,8 +131,9 @@ function initialize!(system::OpenBoundarySystem, semi)
     return system
 end
 
-function create_cache_open_boundary(boundary_model, fluid_system,
-                                    initial_condition, reference_values)
+function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
+                                    boundary_zones)
+    reference_values = map(bz -> bz.reference_values, boundary_zones)
     ELTYPE = eltype(initial_condition)
 
     # Separate `reference_values` into pressure, density and velocity reference values
@@ -217,6 +219,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySystem)
             summary_line(io, "density diffusion", density_diffusion(system))
             summary_line(io, "shifting technique", shifting_technique(system))
         end
+        for (i, pm) in enumerate(system.cache.pressure_reference_values)
+            !isa(pm, AbstractPressureModel) && continue
+            summary_line(io, "pressure model", type2string(pm) * " (in boundary zone $i)")
+        end
         summary_footer(io)
     end
 end
@@ -299,6 +305,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
     v = wrap_v(v_ode, system, semi)
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
+
+    update_pressure_model!(system, v, u, semi, integrator.dt)
 
     # Update density, pressure and velocity based on the specific boundary model
     @trixi_timeit timer() "update boundary quantities" begin

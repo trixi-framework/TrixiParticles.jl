@@ -203,20 +203,25 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     end
 
     if !(reference_pressure isa Function || reference_pressure isa Real ||
-         isnothing(reference_pressure))
+         reference_pressure isa AbstractPressureModel || isnothing(reference_pressure))
         throw(ArgumentError("`reference_pressure` must be either a function mapping " *
                             "each particle's coordinates and time to its pressure, " *
-                            "or a scalar"))
+                            "a scalar, or a pressure model"))
     else
         if reference_pressure isa Function
             test_result = reference_pressure(zeros(NDIMS), 0.0)
             if length(test_result) != 1
                 throw(ArgumentError("`reference_pressure` function must be a scalar function"))
             end
+            pressure_ref = reference_pressure
+        elseif reference_pressure isa AbstractPressureModel
+            pressure_ref = reference_pressure
+            pressure_ref.pressure[] = rest_pressure
+        else
+            # We need this dummy for type stability reasons
+            pressure_dummy = convert(ELTYPE, Inf)
+            pressure_ref = wrap_reference_function(reference_pressure, pressure_dummy)
         end
-        # We need this dummy for type stability reasons
-        pressure_dummy = convert(ELTYPE, Inf)
-        pressure_ref = wrap_reference_function(reference_pressure, pressure_dummy)
     end
 
     if !(reference_density isa Function || reference_density isa Real ||
