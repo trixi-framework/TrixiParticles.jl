@@ -110,7 +110,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ InitialCondition                                                                                 │
-│ ═════════════════════════                                                                        │
+│ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 2                                                                │
 │ #particles: ………………………………………………… 889                                                              │
 │ particle spacing: ………………………………… 0.03                                                             │

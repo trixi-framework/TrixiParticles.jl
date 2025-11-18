@@ -58,7 +58,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     # output
     ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
     │ InitialCondition                                                                                 │
-    │ ═════════════════════════                                                                        │
+    │ ════════════════                                                                                 │
     │ #dimensions: ……………………………………………… 2                                                                │
     │ #particles: ………………………………………………… 16                                                               │
     │ particle spacing: ………………………………… 0.1                                                              │
