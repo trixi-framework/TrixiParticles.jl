@@ -62,6 +62,8 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     │ #dimensions: ……………………………………………… 2                                                                │
     │ #particles: ………………………………………………… 16                                                               │
     │ particle spacing: ………………………………… 0.1                                                              │
+    │ eltype: …………………………………………………………… Float64                                                          │
+    │ coordinate eltype: ……………………………… Float64                                                          │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
     where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
