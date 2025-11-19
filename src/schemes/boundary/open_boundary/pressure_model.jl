@@ -19,6 +19,7 @@ It is derived from an electrical circuit analogy and consists of three elements:
   to store and release volume; in other words, it models the "stretchiness" of the vessel walls.
   Analogous to a capacitor in an electrical circuit, it absorbs blood when pressure rises and releases it during diastole.
   The presence of ``C`` smooths pulsatile flow and produces a more uniform outflow profile.
+- `cross_sectional_area`: Representative cross-sectional area through which the volumetric flow is evaluated.
 
 Lumped-parameter models for the vascular system are well described in the literature (e.g. [Westerhof2008](@cite)).
 A practical step-by-step procedure for identifying the corresponding model parameters is provided by [Gasser2021](@cite).
@@ -32,17 +33,19 @@ struct RCRWindkesselModel{ELTYPE <: Real, P, FR} <: AbstractPressureModel
     characteristic_resistance :: ELTYPE
     peripheral_resistance     :: ELTYPE
     compliance                :: ELTYPE
+    cross_sectional_area      :: ELTYPE
     pressure                  :: P
     flow_rate                 :: FR
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance)
+function RCRWindkesselModel(; characteristic_resistance, peripheral_resistance, compliance,
+                            cross_sectional_area)
     pressure = Ref(zero(compliance))
     flow_rate = Ref(zero(compliance))
     return RCRWindkesselModel(characteristic_resistance, peripheral_resistance, compliance,
-                              pressure, flow_rate)
+                              cross_sectional_area, pressure, flow_rate)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", pressure_model::RCRWindkesselModel)
@@ -57,6 +60,7 @@ function Base.show(io::IO, ::MIME"text/plain", pressure_model::RCRWindkesselMode
         summary_line(io, "peripheral_resistance",
                      pressure_model.peripheral_resistance)
         summary_line(io, "compliance", pressure_model.compliance)
+        summary_line(io, "cross sectional area", pressure_model.cross_sectional_area)
         summary_footer(io)
     end
 end
@@ -90,9 +94,8 @@ end
 
 function calculate_flow_rate_and_pressure!(pressure_model::RCRWindkesselModel, system,
                                            boundary_zone, v, u, dt)
-    (; particle_spacing) = system.initial_condition
-    (; characteristic_resistance, peripheral_resistance, compliance,
-     flow_rate, pressure) = pressure_model
+    (; characteristic_resistance, peripheral_resistance, compliance, cross_sectional_area,
+    flow_rate, pressure) = pressure_model
     (; face_normal) = boundary_zone
 
     # Find particles within the current boundary zone
@@ -101,10 +104,7 @@ function calculate_flow_rate_and_pressure!(pressure_model::RCRWindkesselModel, s
                          each_integrated_particle(system))
 
     # Assuming negligible transverse velocity gradients within the boundary zone,
-    # the full area of the zone is taken as the representative cross-sectional
-    # area for volumetric flow-rate estimation.
-    cross_sectional_area = length(candidates) * particle_spacing^(ndims(system) - 1)
-
+    # the full area of the zone is taken to compute the velocity average.
     # Division inside the `sum` closure to maintain GPU compatibility
     velocity_avg = sum(candidates) do particle
         return dot(current_velocity(v, system, particle), -face_normal) / length(candidates)
