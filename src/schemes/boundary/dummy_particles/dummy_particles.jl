@@ -65,10 +65,10 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     n_particles = length(initial_density)
 
     # TODO: rename these methods to be self-explanatory
-    cache = (; create_cache_velocity(viscosity, n_particles, NDIMS)...,
-             create_cache_density(initial_density, density_calculator)...,
-             create_cache_correction(correction, initial_density, NDIMS, n_particles)...,
-             create_cache_interpolation(density_calculator, n_particles, NDIMS,
+    cache = (; create_cache_boundary_velocity(viscosity, n_particles, NDIMS)...,
+             create_cache_boundary_density(initial_density, density_calculator)...,
+             create_cache_boundary_correction(correction, initial_density, NDIMS, n_particles)...,
+             create_cache_boundary_interpolation(density_calculator, n_particles, NDIMS,
                                         eltype(initial_density))...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -197,41 +197,41 @@ struct MarronePressureExtrapolation
     end
 end
 
-@inline create_cache_correction(correction, density, NDIMS, nparticles) = (;)
+@inline create_cache_boundary_correction(correction, density, NDIMS, nparticles) = (;)
 
-function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
+function create_cache_boundary_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density))
 end
 
-function create_cache_correction(::KernelCorrection, density, NDIMS, n_particles)
+function create_cache_boundary_correction(::KernelCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density), dw_gamma)
 end
 
-function create_cache_correction(::Union{GradientCorrection, BlendedGradientCorrection},
+function create_cache_boundary_correction(::Union{GradientCorrection, BlendedGradientCorrection},
                                  density,
                                  NDIMS, n_particles)
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
     return (; correction_matrix)
 end
 
-function create_cache_correction(::MixedKernelGradientCorrection, density, NDIMS,
+function create_cache_boundary_correction(::MixedKernelGradientCorrection, density, NDIMS,
                                  n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
-function create_cache_density(initial_density,
+function create_cache_boundary_density(initial_density,
                               ::Union{SummationDensity, PressureMirroring, PressureZeroing})
     density = copy(initial_density)
 
     return (; density)
 end
 
-@inline create_cache_density(initial_density, ::ContinuityDensity) = (; initial_density)
+@inline create_cache_boundary_density(initial_density, ::ContinuityDensity) = (; initial_density)
 
-function create_cache_density(initial_density,
+function create_cache_boundary_density(initial_density,
                               ::Union{AdamiPressureExtrapolation,
                                       BernoulliPressureExtrapolation,
                                       MarronePressureExtrapolation})
@@ -241,9 +241,9 @@ function create_cache_density(initial_density,
     return (; density, volume)
 end
 
-@inline create_cache_velocity(viscosity::Nothing, n_particles, n_dims) = (;)
+@inline create_cache_boundary_velocity(viscosity::Nothing, n_particles, n_dims) = (;)
 
-function create_cache_velocity(viscosity, n_particles, n_dims)
+function create_cache_boundary_velocity(viscosity, n_particles, n_dims)
     ELTYPE = eltype(viscosity.epsilon)
 
     wall_velocity = zeros(ELTYPE, n_dims, n_particles)
@@ -251,9 +251,9 @@ function create_cache_velocity(viscosity, n_particles, n_dims)
     return (; wall_velocity)
 end
 
-@inline create_cache_interpolation(density_calculator, initial_condition::InitialCondition, n_particles, n_dims, ELTYPE) = (;)
+@inline create_cache_boundary_interpolation(density_calculator, n_particles, n_dims, ELTYPE) = (;)
 
-function create_cache_interpolation(density_calculator::MarronePressureExtrapolation,
+function create_cache_boundary_interpolation(density_calculator::MarronePressureExtrapolation,
                                     n_particles, n_dims, ELTYPE)
     # TODO: `wall_velocity` should be created in `create_cache_velocity`
     wall_velocity = zeros(ELTYPE, n_dims, n_particles)
@@ -427,13 +427,6 @@ end
     boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0)
 end
 
-function boundary_pressure_extrapolation!(boundary_model, system,
-                                          neighbor_system, system_coords,
-                                          neighbor_coords, v, v_neighbor_system,
-                                          semi)
-    return boundary_model
-end
-
 function compute_pressure!(boundary_model,
                            ::Union{AdamiPressureExtrapolation,
                                    BernoulliPressureExtrapolation,
@@ -480,26 +473,25 @@ function compute_pressure!(boundary_model,
 
     @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
                                                                       eachparticle(system)
-        compute_boundary_density!(boundary_model, system, system_coords, particle)
+        compute_adami_density!(boundary_model, system, system_coords, particle)
     end
 end
 
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-function compute_boundary_density!(boundary_model, system, system_coords, particle)
+function compute_adami_density!(boundary_model, system, system_coords, particle)
     (; pressure, state_equation, cache, viscosity) = boundary_model
     (; volume, density) = cache
 
     # The summation is only over fluid particles, thus the volume stays zero when a boundary
     # particle isn't surrounded by fluid particles.
     # Check the volume to avoid NaNs in pressure and velocity.
-    particle_volume = volume[particle]
-    if @inbounds particle_volume > eps()
-        @inbounds pressure[particle] /= particle_volume
+    if @inbounds volume[particle] > eps()
+        @inbounds pressure[particle] /= volume[particle]
 
         # To impose no-slip condition
-        compute_wall_velocity!(viscosity, system, system_coords, particle, particle_volume)
+        compute_wall_velocity!(viscosity, system, system_coords, particle)
     end
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
@@ -653,11 +645,10 @@ end
     return viscosity
 end
 
-@inline function compute_wall_velocity!(viscosity, system, system_coords, particle,
-                                        particle_volume)
+@inline function compute_wall_velocity!(viscosity, system, system_coords, particle)
     (; boundary_model) = system
     (; cache) = boundary_model
-    (; wall_velocity) = cache
+    (; volume, wall_velocity) = cache
 
     # Prescribed velocity of the boundary particle.
     # This velocity is zero when not using moving boundaries.
@@ -666,7 +657,7 @@ end
     for dim in eachindex(v_boundary)
         # The second term is the precalculated smoothed velocity field of the fluid
         new_velocity = @inbounds 2 * v_boundary[dim] -
-                                 wall_velocity[dim, particle] / particle_volume
+                                 wall_velocity[dim, particle] / volume[particle]
         @inbounds wall_velocity[dim, particle] = new_velocity
     end
     return viscosity

@@ -83,7 +83,7 @@ function kernel(kernel::DefaultKernel, r::Real, h)
     return 1
 end
 
-@inline function boundary_pressure_extrapolation!(parallel::Val{false},
+@inline function boundary_pressure_extrapolation!(parallel::Val{true},
                                                   boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation},
                                                   system, neighbor_system::FluidSystem,
                                                   system_coords, neighbor_coords, v,
@@ -161,7 +161,7 @@ function compute_boundary_density!(boundary_model::BoundaryModelDummyParticles{M
     particle_volume = volume[particle]
     if @inbounds particle_volume > eps()
         # To impose no-slip condition
-        compute_wall_velocity!(viscosity, system, system_coords, particle, particle_volume)
+        compute_wall_velocity!(viscosity, system, system_coords, particle)
     end
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
