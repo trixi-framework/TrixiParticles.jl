@@ -1,3 +1,17 @@
+# ==========================================================================================
+# 2D Particle Packing within a Complex Geometry
+#
+# This example demonstrates how to:
+# 1. Load a 2D geometry (e.g., a circle defined by a boundary curve).
+# 2. Generate an initial, potentially overlapping, distribution of "fluid" particles
+#    inside the geometry and "boundary" particles forming a layer around it.
+# 3. Use the `ParticlePackingSystem` to run a pseudo-SPH simulation that relaxes
+#    the particle positions, achieving a more uniform and non-overlapping distribution.
+# 4. Visualize the initial and packed particle configurations.
+#
+# This is a common preprocessing step to create stable initial conditions for SPH simulations.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq, Plots
 
@@ -6,7 +20,7 @@ file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".
 
 # ==========================================================================================
 # ==== Packing parameters
-tlsph = false
+place_on_shell = false
 
 # ==========================================================================================
 # ==== Resolution
@@ -36,7 +50,7 @@ shape_sampled = ComplexShape(geometry; particle_spacing, density,
 
 # Returns `InitialCondition`
 boundary_sampled = sample_boundary(signed_distance_field; boundary_density=density,
-                                   boundary_thickness, tlsph=tlsph)
+                                   boundary_thickness, place_on_shell=place_on_shell)
 
 trixi2vtk(shape_sampled)
 trixi2vtk(boundary_sampled, filename="boundary")
@@ -52,12 +66,13 @@ background_pressure = 1.0
 
 smoothing_length = 0.8 * particle_spacing
 packing_system = ParticlePackingSystem(shape_sampled; smoothing_length=smoothing_length,
-                                       signed_distance_field, tlsph=tlsph,
+                                       signed_distance_field, place_on_shell=place_on_shell,
                                        background_pressure)
 
 boundary_system = ParticlePackingSystem(boundary_sampled; smoothing_length=smoothing_length,
                                         is_boundary=true, signed_distance_field,
-                                        tlsph=tlsph, boundary_compress_factor=0.8,
+                                        place_on_shell=place_on_shell,
+                                        boundary_compress_factor=0.8,
                                         background_pressure)
 
 # ==========================================================================================

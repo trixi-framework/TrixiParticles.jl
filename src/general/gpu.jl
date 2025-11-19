@@ -12,19 +12,24 @@ Adapt.@adapt_structure InitialCondition
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure DensityDiffusionAntuono
 Adapt.@adapt_structure EntropicallyDampedSPHSystem
-Adapt.@adapt_structure BoundarySPHSystem
+Adapt.@adapt_structure WallBoundarySystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar
-Adapt.@adapt_structure BoundaryMovement
+Adapt.@adapt_structure PrescribedMotion
 Adapt.@adapt_structure TotalLagrangianSPHSystem
 Adapt.@adapt_structure BoundaryZone
 Adapt.@adapt_structure SystemBuffer
-Adapt.@adapt_structure OpenBoundarySPHSystem
+Adapt.@adapt_structure OpenBoundarySystem
+Adapt.@adapt_structure DEMSystem
+Adapt.@adapt_structure BoundaryDEMSystem
+Adapt.@adapt_structure RCRWindkesselModel
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
-KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
+function KernelAbstractions.get_backend(system::AbstractSystem)
+    KernelAbstractions.get_backend(system.mass)
+end
 
-function KernelAbstractions.get_backend(system::BoundarySPHSystem)
+function KernelAbstractions.get_backend(system::WallBoundarySystem)
     KernelAbstractions.get_backend(system.coordinates)
 end
 

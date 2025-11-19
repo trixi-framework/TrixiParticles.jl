@@ -4,14 +4,127 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.4.2
+
+### API Changes
+
+- Keyword argument `n_clamped_particles` of the `TotalLagrangianSPHSystem`
+  has been deprecated in favor of a new kwarg `clamped_particles`.
+
+### Features
+
+- Added `OscillatingMotion2D` to create an oscillating `PrescribedMotion` combining
+  translation and rotation (#915).
+- Added `BoundaryModelDynamicalPressureZhang` for `OpenBoundarySystem` (#900).
+- Added `PrescribedMotion` to clamped particles in `TotalLagrangianSPHSystem` (#896).
+- Added new boundary density calculator `PressureBoundaries` specifically for
+  `ImplicitIncompressibleSPHSystem` (#946).
+- Included wall velocity in interpolation (#941).
+- 2D dam break validation now compares against the results from De Courcy et al. (#934).
+- Improved performance of `TotalLagrangianSPHSystem` on GPUs (#968).
+
+### Important Bugfixes
+
+- Fixed transport velocity formulation with tensile instability control (#948).
+- Fixed `TotalLagrangianSPHSystem` close to open boundaries (#954).
+- `extrude_geometry` now doesn't adjust the particle spacing (#965).
+- Reduced overhead of `UpdateCallback` when no update operations are performed (#973).
+
+## Version 0.4.1
+
+### Features
+
+- Added an incompressible SPH solver `ImplicitIncompressibleSPHSystem` (#751).
+- Added `SplitIntegrationCallback` to integrate the `TotalLagrangianSPHSystem`s
+  in a `Semidiscretization` separately from the other systems (#794).
+
+### Important Bugfixes
+
+- Fixed `kernel_grad` threshold with single precision and small particle spacing (#913).
+- Fixed error with `UpdateCallback` when `SaveSolutionCallback` comes first in the
+  `CallbackSet` (#924).
+- Fixed error when using shifting techniques without `UpdateCallback` (#925).
+- Updated program flow diagram (#917).
+
+## Version 0.4
+
+### API Changes
+
+- Renamed `BoundarySPHSystem` to `WallBoundarySystem` and the keyword argument
+  `movement` to `prescribed_motion`.
+
+- Renamed `OpenBoundarySPHSystem` to `OpenBoundarySystem`.
+
+- Renamed `BoundaryMovement` to `PrescribedMotion`. The `movement_function` must now be
+  a function of `(x, t)` returning the *new position* instead of an offset.
+  For example, `movement_function(t) = SVector(t, 0.0)` now needs to be
+  `movement_function(x, t) = x + SVector(t, 0.0)`.
+
+- Renamed directory `solid` to `structure` in the examples file tree.
+  VTK files for the `TotalLagrangianSPHSystem` are now also called `structure_*`.
+
+- Renamed keyword argument `n_fixed_particles` of the `TotalLagrangianSPHSystem`
+  to `n_clamped_particles`.
+
+- API for `OpenBoundarySystem` and `BoundaryZone` changed.
+  It is now possible to pass multiple `BoundaryZone`s to a single `OpenBoundarySystem`.
+  Reference values are now assigned individually to each `BoundaryZone`. (#866)
+
+- Rename keyword arguments `plane` and `plane_normal` for `BoundaryZone` to `boundary_face` and `face_normal` (#597).
+
+- The argument of `TransportVelocityAdami` is now a keyword argument.
+  `TransportVelocityAdami(1000.0)` now becomes
+  `TransportVelocityAdami(background_pressure=1000.0)` (#884).
+
+- Combined transport velocity formulation (TVF) and particle shifting technique (PST) into
+  one unified framework.
+  The keyword argument `transport_velocity` now changed to `shifting_technique`.
+  The `ParticleShiftingCallback` has been removed. To use PST, use the `UpdateCallback`
+  instead, and pass `shifting_technique=ParticleShiftingTechniqueSun2017()` to the system (#884).
+
+- Renamed the keyword argument `tlsph` to `place_on_shell` for `ParticlePackingSystem`,
+  `sample_boundary`, `extrude_geometry`, `RectangularShape`, and `SphereShape` (#814).
+
+- Custom quantity functions passed to `SolutionSavingCallback` or `PostprocessCallback`
+  that were not using the documented API but were functions of
+  `(system, v_ode, u_ode, semi, t)` now need to be functions
+  of `(system, dv_ode, du_ode, v_ode, u_ode, semi, t)` (#879).
+
+- Renamed `each_moving_particle` to `each_integrated_particle`,
+  `n_moving_particles` to `n_integrated_particles`
+  and `active_particles` to `each_active_particle`.
+
+### Features
+
+- Added consistent particle shifting by Sun et al. (2019) as `ConsistentShiftingSun2019` (#888).
+
+
+## Version 0.3.2
+### Features
+
+- **Open boundaries**:
+  - Averaging of the inflow velocities has been added as an option. (#833)
+  - New mirroring methods 0th order, 1st order and simple mirroring have been added. (#855)
+
+- **TLSPH**:
+  - The option to add artificial viscosity has been added to increase stability of FSI. (#869)
+
+
+### Important Bugfixes
+
+- Fix the coordinates used for TLSPH in Adami extrapolation (#853)
+- Fix PST for small smoothing length factors (#834)
+- The TVF model has been improved to integrate correctly with time stepping (#864)
+
+
 ## Version 0.3.1
 
 ### Features
 
-- **Simplified SGS Viscosity Models**: Added ViscosityMorrisSGS and ViscosityAdamiSGS, 
+- **Simplified SGS Viscosity Models**: Added ViscosityMorrisSGS and ViscosityAdamiSGS,
   which implement a simplified Smagorinsky-type sub-grid-scale viscosity. (#753)
 
-- **Multithreaded Integration Array**: Introduced a new array type for CPU backends 
+- **Multithreaded Integration Array**: Introduced a new array type for CPU backends
   that enables multithreaded broadcasting, delivering speed-ups of up to 5× on systems
   with many threads when combined with thread pinning. (#722)
 
@@ -21,17 +134,17 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - **DXF file format support**: Import complex geometries using the DXF file format. (#821)
 
 - **Improved Plane interpolation**: Massively improved interpolation performance for planes (#763).
-  
+
 ### GPU
 
  - Make PST GPU-compatible (#813).
-   
+
  - Make open boundaries GPU-compatible (#773).
-  
+
  - Make interpolation GPU-compatible (#812).
 
 ### Important Bugfixes
- 
+
  - Fix validation setups (#801).
 
  - Calculate interpolated density instead of computed density when using interpolation (#808).

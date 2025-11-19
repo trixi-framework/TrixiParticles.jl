@@ -161,11 +161,11 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
                                              smoothing_kernel, smoothing_length)
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 nothing # hide
 ```
 
-## Semidiscretization
+## [Semidiscretization](@id tut_setup_semi)
 
 The key component of every simulation is the [`Semidiscretization`](@ref),
 which couples all systems of the simulation.
@@ -240,12 +240,12 @@ and modify them as needed.
 ### Custom smoothing kernel
 
 To implement a custom smoothing kernel, we define a struct extending
-`TrixiParticles.SmoothingKernel`.
+`TrixiParticles.AbstractSmoothingKernel`.
 This abstract struct has a type parameter for the number of dimensions,
 which we set to 2 in this case.
 
 ```@example tut_setup
-struct MyGaussianKernel <: TrixiParticles.SmoothingKernel{2} end
+struct MyGaussianKernel <: TrixiParticles.AbstractSmoothingKernel{2} end
 ```
 This kernel is going to be an implementation of the Gaussian kernel with
 a cutoff for compact support, which reads

@@ -1,5 +1,11 @@
-# In this example two circles of water drop to the floor demonstrating the difference
-# between the behavior with and without surface tension modelling.
+# ==========================================================================================
+# 2D Falling Water Spheres Simulation (With and Without Surface Tension)
+#
+# This example simulates two circular water "spheres" falling under gravity.
+# One sphere includes a surface tension model (Akinci et al.), while the other does not.
+# This demonstrates the effect of surface tension on fluid behavior.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -78,17 +84,17 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              viscosity=ViscosityAdami(nu=wall_viscosity),
                                              reference_particle_spacing=fluid_particle_spacing)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    adhesion_coefficient=1.0)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
+                                     adhesion_coefficient=1.0)
 
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(sphere_surface_tension, sphere, boundary_system)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=50)
+info_callback = InfoCallback(interval=1000)
 saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out",
-                                         prefix="", write_meta_data=true)
+                                         prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

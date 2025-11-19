@@ -38,50 +38,50 @@
     end
 
     @trixi_testset "dam_break_2d" begin
+        # Use `SerialUpdate()` to obtain consistent results when using multiple
+        # threads and a shorter tspan to speed up CI tests.
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "dam_break_2d",
-                                                  "validation_dam_break_2d.jl")) [
+                                                  "validation_dam_break_2d.jl"),
+                                         update_strategy=SerialUpdate(),
+                                         tspan=(0.0, 4 / sqrt(9.81 / 0.6))) [
             r"┌ Info: The desired tank length in y-direction.*\n",
-            r"└ New tank length in y-direction is set to.*\n"
+            r"└ New tank length in y-direction is set to.*\n",
+            r"WARNING: Method definition max_x_coord.*\n",
+            r"WARNING: Method definition interpolated_pressure.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
 
-        if Sys.ARCH === :aarch64
-            # MacOS ARM produces slightly different pressure values than x86.
-            # Note that pressure values are in the order of 1e5.
-            @test isapprox(error_edac_P1, 0, atol=5e-6)
-            @test isapprox(error_edac_P2, 0, atol=4e-11)
-            @test isapprox(error_wcsph_P1, 0, atol=400.0)
-            @test isapprox(error_wcsph_P2, 0, atol=0.03)
-        elseif VERSION < v"1.11"
-            # 1.10 produces slightly different pressure values than 1.11.
-            # This is most likely due to muladd and FMA instructions in the
-            # density diffusion update (inside the StaticArrays matrix-vector product).
-            # Note that pressure values are in the order of 1e5.
-            @test isapprox(error_edac_P1, 0, atol=eps())
-            @test isapprox(error_edac_P2, 0, atol=eps())
-            @test isapprox(error_wcsph_P1, 0, atol=8.0)
-            @test isapprox(error_wcsph_P2, 0, atol=5e-4)
-        else
-            # Reference values are computed with 1.11
-            @test isapprox(error_edac_P1, 0, atol=eps())
-            @test isapprox(error_edac_P2, 0, atol=eps())
-            @test isapprox(error_wcsph_P1, 0, atol=eps())
-            @test isapprox(error_wcsph_P2, 0, atol=eps())
-        end
+        # Note that pressure values are in the order of 1e5
+        @test isapprox(error_wcsph_P1, 0, atol=eps(1e5))
+        @test isapprox(error_wcsph_P2, 0, atol=eps(1e5))
+        @test isapprox(error_edac_P1, 0, atol=eps(1e5))
+        @test isapprox(error_edac_P2, 0, atol=eps(1e5))
 
         # Ignore method redefinitions from duplicate `include("../validation_util.jl")`
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "dam_break_2d",
-                                                  "plot_dam_break_results.jl")) [
+                                                  "plot_pressure_sensors.jl")) [
             r"WARNING: Method definition linear_interpolation.*\n",
             r"WARNING: Method definition interpolated_mse.*\n",
-            r"WARNING: Method definition extract_number_from_filename.*\n",
-            r"WARNING: Method definition extract_resolution_from_filename.*\n"
+            r"WARNING: Method definition extract_number_from_filename.*\n"
         ]
         # Verify number of plots
         @test length(axs_edac[1].scene.plots) >= 2
+        @test length(axs_wcsph[1].scene.plots) >= 2
+
+        # Ignore method redefinitions from duplicate `include("../validation_util.jl")`
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "dam_break_2d",
+                                                  "plot_surge_front.jl")) [
+            r"WARNING: Method definition linear_interpolation.*\n",
+            r"WARNING: Method definition interpolated_mse.*\n",
+            r"WARNING: Method definition extract_number_from_filename.*\n"
+        ]
+        # Verify number of plots
+        @test length(axs_edac[1].scene.plots) >= 2
+        @test length(axs_wcsph[1].scene.plots) >= 2
     end
 
     @trixi_testset "TGV_2D" begin

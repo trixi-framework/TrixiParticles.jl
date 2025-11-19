@@ -8,7 +8,7 @@ module TrixiParticlesOrdinaryDiffEqExt
 
 # We need to load the name `PointNeighbors` because `@threaded` translates
 # to `PointNeighbors.parallel_foreach`, so `PointNeighbors` must be available.
-using TrixiParticles: TrixiParticles, @threaded, each_moving_particle,
+using TrixiParticles: TrixiParticles, @threaded, each_integrated_particle,
                       WeaklyCompressibleSPHSystem, ContinuityDensity,
                       PointNeighbors
 
@@ -137,10 +137,11 @@ end
     # For WCSPH, only update the first NDIMS components of the velocity.
     # With `ContinuityDensity`, the last component is the density,
     # which is updated separately.
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
             du_system[i,
-                      particle] = duprev_system[i, particle] + dt * kdu_system[i, particle]
+                      particle] = duprev_system[i, particle] +
+                                  dt * kdu_system[i, particle]
         end
     end
 end
@@ -160,7 +161,7 @@ end
 
 @muladd function update_density!(du_system, kdu_system, duprev_system,
                                  ::ContinuityDensity, system, semi, dt)
-    @threaded semi for particle in each_moving_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         density_prev = duprev_system[end, particle]
         density_half = du_system[end, particle]
         epsilon = -kdu_system[end, particle] / density_half * dt

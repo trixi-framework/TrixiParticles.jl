@@ -1,3 +1,11 @@
+# ==========================================================================================
+# 2D Falling Water Column on an Elastic Beam (FSI)
+#
+# This example simulates a column of water falling under gravity and impacting
+# an elastic beam, which is clamped at one end (cantilever).
+# It demonstrates Fluid-Structure Interaction where the fluid deforms the structure.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -6,7 +14,7 @@ using OrdinaryDiffEq
 n_particles_y = 5
 
 # Load setup from oscillating beam example
-trixi_include(@__MODULE__, joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"),
+trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
               thickness=0.05, n_particles_y=n_particles_y,
               sol=nothing) # Don't run simulation, only include the setup part
 
@@ -45,27 +53,27 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
-# ==== Solid
+# ==== Structure
 k = gravity * initial_fluid_size[2]
 spacing_ratio = fluid_particle_spacing / particle_spacing
 
-# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-hydrodynamic_densites = fluid_density * ones(size(solid.density))
+# For the FSI we need the hydrodynamic masses and densities in the structure boundary model
+hydrodynamic_densites = fluid_density * ones(size(structure.density))
 hydrodynamic_masses = hydrodynamic_densites * particle_spacing^2
 
 boundary_model = BoundaryModelMonaghanKajtar(k, spacing_ratio, particle_spacing,
                                              hydrodynamic_masses)
 
-solid_system = TotalLagrangianSPHSystem(solid,
-                                        smoothing_kernel, smoothing_length,
-                                        material.E, material.nu,
-                                        boundary_model=boundary_model,
-                                        n_fixed_particles=nparticles(fixed_particles),
-                                        acceleration=(0.0, -gravity))
+structure_system = TotalLagrangianSPHSystem(structure,
+                                            smoothing_kernel, smoothing_length,
+                                            material.E, material.nu,
+                                            boundary_model=boundary_model,
+                                            clamped_particles=1:nparticles(clamped_particles),
+                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, solid_system)
+semi = Semidiscretization(fluid_system, structure_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)

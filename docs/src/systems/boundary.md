@@ -1,15 +1,16 @@
 # Boundary System
 
 ```@docs
-    BoundarySPHSystem
+    WallBoundarySystem
 ```
 
 ```@docs
     BoundaryDEMSystem
 ```
 
-```@docs
-    BoundaryMovement
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "prescribed_motion.jl")]
 ```
 
 
@@ -61,7 +62,7 @@ We provide six options to compute the boundary density and pressure, determined 
    This option usually yields the best results of the options listed here.
 2. (Only relevant for FSI) With [`BernoulliPressureExtrapolation`](@ref), the pressure is extrapolated from the
    pressure similar to the [`AdamiPressureExtrapolation`](@ref), but a relative velocity-dependent pressure part
-   is calculated between moving solids and fluids, which increases the boundary pressure in areas prone to
+   is calculated between moving bodies and fluids, which increases the boundary pressure in areas prone to
    penetrations.
 3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
@@ -103,7 +104,7 @@ Identical to the pressure ``p_b `` calculated via [`AdamiPressureExtrapolation`]
 p_b = \frac{\sum_f (p_f + \frac{1}{2} \, \rho_{\text{neighbor}} \left( \frac{ (\mathbf{v}_f - \mathbf{v}_{\text{body}}) \cdot (\mathbf{x}_f - \mathbf{x}_{\text{neighbor}}) }{ \left\| \mathbf{x}_f - \mathbf{x}_{\text{neighbor}} \right\| } \right)^2 \times \text{factor} +\rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)}
 ```
 where ``\mathbf{v}_f`` is the velocity of the fluid and ``\mathbf{v}_{\text{body}}`` is the velocity of the body.
-This adjustment provides a higher boundary pressure for solid bodies moving with a relative velocity to the fluid to prevent penetration.
+This adjustment provides a higher boundary pressure for bodies moving with a relative velocity to the fluid to prevent penetration.
 This modification is original and not derived from any literature source.
 
 ```@docs
@@ -137,7 +138,7 @@ The momentum equation therefore becomes
 where the first sum is over all fluid particles and the second over all boundary particles.
 
 This approach was first mentioned by [Akinci et al. (2012)](@cite Akinci2012) and written down in this form
-by [Band et al. (2018)](@cite Band2018).
+by [Band et al. (2018)](@cite Band2018a).
 ```@docs
     PressureMirroring
 ```
@@ -217,9 +218,8 @@ a no-slip condition is imposed. When omitting the viscous interaction
 !!! warning
     The no-slip conditions for `BoundaryModelMonaghanKajtar` have not been verified yet.
 
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "boundary", "monaghan_kajtar", "monaghan_kajtar.jl")]
+```@docs
+    BoundaryModelMonaghanKajtar
 ```
 
 # [Open Boundaries](@id open_boundary)
@@ -232,6 +232,11 @@ Pages = [joinpath("schemes", "boundary", "open_boundary", "system.jl")]
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "open_boundary", "boundary_zones.jl")]
+```
+
+```@autodocs
+Modules = [TrixiParticles]
+Filter = t -> typeof(t) === typeof(TrixiParticles.planar_geometry_to_face)
 ```
 
 # [Open Boundary Models](@id open_boundary_models)
@@ -309,4 +314,37 @@ With ``J_1``, ``J_2`` and ``J_3`` determined, we can easily solve for the actual
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "open_boundary", "mirroring.jl")]
+```
+
+## [Dynamical Pressure](@id dynamical_pressure)
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "dynamical_pressure.jl")]
+```
+
+Unlike the [method of characteristics](@ref method_of_characteristics) or the [mirroring](@ref mirroring) method,
+which compute the physical properties of buffer particles within the [`BoundaryZone`](@ref)
+based on information from the fluid domain, this model directly solves the momentum equation for the buffer particles.
+
+A key challenge arises from the truncated support close to the free surface within the [`BoundaryZone`](@ref).
+This truncation leads to inaccurate evaluation of the pressure gradient.
+To address this issue, [Zhang et al. (2025)](@cite Zhang2025) introduce an additional term
+(second term in eq. (13) in [Zhang2025](@cite)) in the momentum equation:
+```math
++ 2 p_b \sum_j \left( \frac{m_j}{\rho_i \rho_j} \right) \nabla W_{ij},
+```
+where ``p_b`` is the prescribed dynamical boundary pressure.
+Note the positive sign, which compensates for the missing contribution due to the truncated support domain.
+This term vanishes for particles with full kernel support.
+Thus, it can be applied to all particles within the [`BoundaryZone`](@ref)
+without the need to specifically identify those near the free surface.
+
+To further handle incomplete kernel support, for example in the viscous term of the momentum equation,
+the updated velocity of particles within the [`BoundaryZone`](@ref) is projected onto the face normal,
+so that only the component in flow direction is kept.
+
+# Pressure Models
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "pressure_model.jl")]
 ```

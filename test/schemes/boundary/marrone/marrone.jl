@@ -69,7 +69,7 @@
                                                      state_equation=state_equation,
                                                      MarronePressureExtrapolation(),
                                                      mls_kernel, smoothing_length)
-        boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
+        boundary_system = WallBoundarySystem(tank1.boundary, boundary_model)
         viscosity = boundary_system.boundary_model.viscosity
         semi = DummySemidiscretization()
         fluid_system1 = WeaklyCompressibleSPHSystem(tank1.fluid, SummationDensity(),
@@ -203,7 +203,7 @@
                                                          MarronePressureExtrapolation(),
                                                          mls_kernel, smoothing_length)
 
-            boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
+            boundary_system = WallBoundarySystem(tank1.boundary, boundary_model)
             viscosity = boundary_system.boundary_model.viscosity
 
             semi = DummySemidiscretization()
@@ -306,7 +306,7 @@
                                                              MarronePressureExtrapolation(),
                                                              mls_kernel, smoothing_length)
 
-                boundary_system = BoundarySPHSystem(tank1.boundary, boundary_model)
+                boundary_system = WallBoundarySystem(tank1.boundary, boundary_model)
                 viscosity = boundary_system.boundary_model.viscosity
 
                 semi = DummySemidiscretization()

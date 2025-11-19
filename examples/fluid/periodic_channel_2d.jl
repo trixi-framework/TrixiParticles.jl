@@ -1,3 +1,12 @@
+# ==========================================================================================
+# 2D Periodic Channel Flow Simulation
+#
+# This example simulates fluid flow in a 2D channel with periodic boundary
+# conditions in the flow direction (x-axis) and solid walls at the top and bottom.
+# The fluid is initialized with a uniform velocity.
+# This setup can be used to study Poiseuille flow or turbulent channel flow characteristics.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -19,7 +28,7 @@ initial_fluid_size = tank_size
 initial_velocity = (1.0, 0.0)
 
 fluid_density = 1000.0
-sound_speed = initial_velocity[1]
+sound_speed = 10 * initial_velocity[1]
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
@@ -39,6 +48,7 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
+                                           shifting_technique=nothing,
                                            pressure_acceleration=nothing)
 
 # ==========================================================================================
@@ -54,7 +64,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              smoothing_kernel, smoothing_length,
                                              viscosity=viscosity_wall)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

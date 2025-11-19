@@ -1,12 +1,20 @@
-# 2D dam break flow against an elastic plate based on
+# ==========================================================================================
+# 2D Dam Break Flow Against an Elastic Gate with Opening Motion
 #
-# P.N. Sun, D. Le Touzé, A.-M. Zhang.
-# "Study of a complex fluid-structure dam-breaking benchmark problem using a multi-phase SPH method with APR".
-# In: Engineering Analysis with Boundary Elements 104 (2019), pages 240-258.
-# https://doi.org/10.1016/j.enganabound.2019.03.033
+# Based on:
+#   P.N. Sun, D. Le Touzé, A.-M. Zhang.
+#   "Study of a complex fluid-structure dam-breaking benchmark problem using a multi-phase SPH method with APR".
+#   Engineering Analysis with Boundary Elements, 104 (2019), pp. 240-258.
+#   https://doi.org/10.1016/j.enganabound.2019.03.033
 #
-# Use a higher resolution and see the comments below regarding plate thickness
-# to reproduce the results from the paper.
+# This example simulates a 2D dam break where the water column collapses and flows
+# through a vertically moving gate towards a flexible elastic plate (beam) positioned
+# behind the gate.
+#
+# Note: To accurately reproduce results from the reference paper, a significantly
+# higher fluid resolution and a plate thickness closer to the paper's value (0.004m)
+# are required. This example uses a coarser resolution and thicker plate for tractability.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -52,17 +60,17 @@ gate = RectangularShape(boundary_particle_spacing,
                         (initial_fluid_size[1], 0.0), density=fluid_density)
 
 # Movement of the gate according to the paper
-movement_function(t) = SVector(0.0, -285.115t^3 + 72.305t^2 + 0.1463t)
+movement_function(x, t) = x + SVector(0.0, -285.115 * t^3 + 72.305 * t^2 + 0.1463 * t)
 is_moving(t) = t < 0.1
 
-gate_movement = BoundaryMovement(movement_function, is_moving)
+gate_movement = PrescribedMotion(movement_function, is_moving)
 
 # Elastic plate/beam.
 # The paper is using a thickness of 0.004, which only works properly when a similar fluid
 # resolution is used. Increase resolution and change to 0.004 to reproduce the results.
 length_beam = 0.09
 thickness = 0.004 * 10
-solid_density = 1161.54
+structure_density = 1161.54
 
 # Young's modulus and Poisson ratio
 E = 3.5e6 / 10
@@ -70,25 +78,25 @@ nu = 0.45
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
-solid_particle_spacing = thickness / (n_particles_x - 1)
+structure_particle_spacing = thickness / (n_particles_x - 1)
 
-n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
+n_particles_y = round(Int, length_beam / structure_particle_spacing) + 1
 
 # The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
-# first particle half a particle spacing away from the boundary, which is correct for fluids,
-# but not for solids. We therefore need to pass `tlsph=true`.
+# first particle half a particle spacing away from the shell of the shape, which is
+# correct for fluids, but not for structures. We therefore need to pass `place_on_shell=true`.
 #
 # The right end of the plate is 0.2 from the right end of the tank.
-plate_position = 0.6 - n_particles_x * solid_particle_spacing
-plate = RectangularShape(solid_particle_spacing,
+plate_position = 0.6 - n_particles_x * structure_particle_spacing
+plate = RectangularShape(structure_particle_spacing,
                          (n_particles_x, n_particles_y - 1),
-                         (plate_position, solid_particle_spacing),
-                         density=solid_density, tlsph=true)
-fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_x, 1), (plate_position, 0.0),
-                                   density=solid_density, tlsph=true)
+                         (plate_position, structure_particle_spacing),
+                         density=structure_density, place_on_shell=true)
+clamped_particles = RectangularShape(structure_particle_spacing,
+                                     (n_particles_x, 1), (plate_position, 0.0),
+                                     density=structure_density, place_on_shell=true)
 
-solid = union(plate, fixed_particles)
+structure = union(clamped_particles, plate)
 
 # ==========================================================================================
 # ==== Fluid
@@ -116,34 +124,36 @@ boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
                                                   boundary_density_calculator,
                                                   smoothing_kernel, smoothing_length)
 
-boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
-boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate, movement=gate_movement)
+boundary_system_tank = WallBoundarySystem(tank.boundary, boundary_model_tank)
+boundary_system_gate = WallBoundarySystem(gate, boundary_model_gate,
+                                          prescribed_motion=gate_movement)
 
 # ==========================================================================================
-# ==== Solid
-solid_smoothing_length = sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = WendlandC2Kernel{2}()
+# ==== Structure
+structure_smoothing_length = sqrt(2) * structure_particle_spacing
+structure_smoothing_kernel = WendlandC2Kernel{2}()
 
-# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-hydrodynamic_densites = fluid_density * ones(size(solid.density))
-hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
+# For the FSI we need the hydrodynamic masses and densities in the structure boundary model
+hydrodynamic_densites = fluid_density * ones(size(structure.density))
+hydrodynamic_masses = hydrodynamic_densites * structure_particle_spacing^2
 
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses,
-                                                   state_equation=state_equation,
-                                                   AdamiPressureExtrapolation(),
-                                                   smoothing_kernel, smoothing_length)
+boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
+                                                       hydrodynamic_masses,
+                                                       state_equation=state_equation,
+                                                       AdamiPressureExtrapolation(),
+                                                       smoothing_kernel, smoothing_length)
 
-solid_system = TotalLagrangianSPHSystem(solid,
-                                        solid_smoothing_kernel, solid_smoothing_length,
-                                        E, nu, boundary_model=boundary_model_solid,
-                                        n_fixed_particles=n_particles_x,
-                                        acceleration=(0.0, -gravity))
+structure_system = TotalLagrangianSPHSystem(structure,
+                                            structure_smoothing_kernel,
+                                            structure_smoothing_length,
+                                            E, nu, boundary_model=boundary_model_structure,
+                                            clamped_particles=1:nparticles(clamped_particles),
+                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system_tank,
-                          boundary_system_gate, solid_system,
+                          boundary_system_gate, structure_system,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 

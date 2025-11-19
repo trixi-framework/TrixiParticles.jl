@@ -1,3 +1,10 @@
+# ==========================================================================================
+# 2D Hydrostatic Water Column Simulation
+#
+# This example simulates a column of water at rest in a tank under gravity.
+# It is a basic test case to verify hydrostatic pressure distribution and stability.
+# ==========================================================================================
+
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -57,7 +64,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              viscosity=viscosity_wall)
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, movement=nothing)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
+                                     prescribed_motion=nothing)
 
 # ==========================================================================================
 # ==== Simulation

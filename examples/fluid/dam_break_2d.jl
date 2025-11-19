@@ -1,9 +1,16 @@
-# 2D dam break simulation based on
+# ==========================================================================================
+# 2D Dam Break Simulation (δ-SPH Model)
 #
-# S. Marrone, M. Antuono, A. Colagrossi, G. Colicchio, D. le Touzé, G. Graziani.
-# "δ-SPH model for simulating violent impact flows".
-# In: Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011), pages 1526–1542.
-# https://doi.org/10.1016/J.CMA.2010.12.016
+# Based on:
+#   S. Marrone, M. Antuono, A. Colagrossi, G. Colicchio, D. le Touzé, G. Graziani.
+#   "δ-SPH model for simulating violent impact flows".
+#   Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011),
+#   pages 1526–1542.
+#   https://doi.org/10.1016/J.CMA.2010.12.016
+#
+# This example sets up a 2D dam break simulation using a weakly compressible SPH scheme
+# with a δ-SPH formulation for density calculation.
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -26,7 +33,7 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==== Experiment Setup
 gravity = 9.81
 
-tspan = (0.0, 5.7 / sqrt(gravity))
+tspan = (0.0, 5.7 / sqrt(gravity / H))
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (W, H)
@@ -43,29 +50,19 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.75 * fluid_particle_spacing
+smoothing_length = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
+
 alpha = 0.02
 viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-# A typical formula to convert Artificial viscosity to a
-# kinematic viscosity is provided by Monaghan as
-# nu = alpha * smoothing_length * sound_speed/8
 
-# Alternatively a kinematic viscosity for water can be set
-# nu = 1.0e-6
-
-# This allows the use of a physical viscosity model like:
-# viscosity_fluid = ViscosityAdami(nu=nu)
-# or with additional dissipation through a Smagorinsky model
-# viscosity_fluid = ViscosityAdamiSGS(nu=nu)
-# For more details see the documentation "Viscosity model overview".
-
-# Alternatively the density diffusion model by Molteni & Colagrossi can be used,
-# which will run faster.
-# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+# The density diffusion model by Molteni and Colagrossi shows unphysical effects at the
+# free surface in long-running simulations, but is significantly faster than the model
+# by Antuono. This simulation is short enough to use the faster model.
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -79,9 +76,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 viscosity_wall = nothing
-# For a no-slip condition the corresponding wall viscosity without SGS can be set
-# viscosity_wall = ViscosityAdami(nu=nu)
-# viscosity_wall = ViscosityMorris(nu=nu)
+# For a no-slip boundary condition, define a wall viscosity:
+# viscosity_wall = viscosity_fluid
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
@@ -90,7 +86,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              reference_particle_spacing=0,
                                              viscosity=viscosity_wall)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
+                                     adhesion_coefficient=0.0)
 
 # ==========================================================================================
 # ==== Simulation
@@ -106,15 +103,9 @@ info_callback = InfoCallback(interval=100)
 solution_prefix = ""
 saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
 
-# Save at certain timepoints which allows comparison to the results of Marrone et al.,
-# i.e. (1.5, 2.36, 3.0, 5.7, 6.45).
-# Please note that the images in Marrone et al. are obtained at a particle_spacing = H/320,
-# which takes between 2 and 4 hours.
-saving_paper = SolutionSavingCallback(save_times=[0.0, 0.371, 0.584, 0.743, 1.411, 1.597],
-                                      prefix="marrone_times")
-
 # This can be overwritten with `trixi_include`
 extra_callback = nothing
+extra_callback2 = nothing
 
 use_reinit = false
 density_reinit_cb = use_reinit ?
@@ -123,8 +114,9 @@ density_reinit_cb = use_reinit ?
 stepsize_callback = StepsizeCallback(cfl=0.9)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
-                        density_reinit_cb, saving_paper)
+                        extra_callback2, density_reinit_cb)
 
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
+sol = solve(ode, time_integration_scheme,
             dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks);

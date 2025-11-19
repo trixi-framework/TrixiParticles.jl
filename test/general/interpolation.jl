@@ -107,10 +107,11 @@
 
         boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
                                                      state_equation=state_equation,
+                                                     viscosity=viscosity,
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length)
 
-        boundary_system = BoundarySPHSystem(bnd, boundary_model)
+        boundary_system = WallBoundarySystem(bnd, boundary_model)
 
         # Overwrite `system.pressure` because we skip the update step
         fluid_system.pressure .= fluid.pressure
@@ -552,6 +553,42 @@
                 end
             end
         end
+
+        @testset verbose=true "Include Wall Velocity" begin
+            # Define vertical interpolation line
+            start_svector = SVector(0.0, 0.0)
+            end_svector = SVector(0.0, 1.0)
+            points_coords_ = range(start_svector, end_svector, length=10)
+            points_coords = collect(reinterpret(reshape, eltype(start_svector),
+                                                points_coords_))
+
+            # Linear velocity field for fluid and boundary
+            v_fluid = InitialCondition(;
+                                       coordinates=fluid_system.initial_condition.coordinates,
+                                       density=1000.0, particle_spacing,
+                                       velocity=(pos) -> SVector(0.0, pos[2])).velocity
+            v_boundary = InitialCondition(; coordinates=boundary_system.coordinates,
+                                          density=1000.0, particle_spacing,
+                                          velocity=(pos) -> SVector(0.0, pos[2])).velocity
+
+            boundary_system.boundary_model.cache.wall_velocity .= v_boundary
+
+            v_ode = vcat(v_fluid, fluid.density')
+            u_ode = fluid_system.initial_condition.coordinates
+
+            v_wall_velocity = interpolate_points(points_coords, semi_boundary,
+                                                 include_wall_velocity=true,
+                                                 fluid_system, v_ode, u_ode).velocity
+
+            v_no_wall_velocity = interpolate_points(points_coords, semi_boundary,
+                                                    include_wall_velocity=false,
+                                                    fluid_system, v_ode, u_ode).velocity
+
+            @test isapprox(v_wall_velocity[2, 1], 0.0; atol=eps())
+            @test isapprox(v_no_wall_velocity[2, 1], 0.1; atol=eps())
+            @test any(isapprox.(v_wall_velocity[:, 3:end], v_no_wall_velocity[:, 3:end],
+                                atol=eps()))
+        end
     end
 
     @testset verbose=true "3D" begin
@@ -621,10 +658,11 @@
 
         boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
                                                      state_equation=state_equation,
+                                                     viscosity=viscosity,
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length)
 
-        boundary_system = BoundarySPHSystem(bnd, boundary_model)
+        boundary_system = WallBoundarySystem(bnd, boundary_model)
 
         # Overwrite `system.pressure` because we skip the update step
         fluid_system.pressure .= fluid.pressure
@@ -882,6 +920,42 @@
 
                 compare_interpolation_result(result, expected_res)
             end
+        end
+
+        @testset verbose=true "Include Wall Velocity" begin
+            # Define vertical interpolation line
+            start_svector = SVector(0.0, 0.0, 0.0)
+            end_svector = SVector(0.0, 1.0, 0.0)
+            points_coords_ = range(start_svector, end_svector, length=10)
+            points_coords = collect(reinterpret(reshape, eltype(start_svector),
+                                                points_coords_))
+
+            # Linear velocity field for fluid and boundary
+            v_fluid = InitialCondition(;
+                                       coordinates=fluid_system.initial_condition.coordinates,
+                                       density=1000.0, particle_spacing,
+                                       velocity=(pos) -> SVector(0.0, pos[2], 0.0)).velocity
+            v_boundary = InitialCondition(; coordinates=boundary_system.coordinates,
+                                          density=1000.0, particle_spacing,
+                                          velocity=(pos) -> SVector(0.0, pos[2], 0.0)).velocity
+
+            boundary_system.boundary_model.cache.wall_velocity .= v_boundary
+
+            v_ode = vcat(v_fluid, fluid.density')
+            u_ode = fluid_system.initial_condition.coordinates
+
+            v_wall_velocity = interpolate_points(points_coords, semi_boundary,
+                                                 include_wall_velocity=true,
+                                                 fluid_system, v_ode, u_ode).velocity
+
+            v_no_wall_velocity = interpolate_points(points_coords, semi_boundary,
+                                                    include_wall_velocity=false,
+                                                    fluid_system, v_ode, u_ode).velocity
+
+            @test isapprox(v_wall_velocity[2, 1], 0.0; atol=eps())
+            @test isapprox(v_no_wall_velocity[2, 1], 0.1; atol=eps())
+            @test any(isapprox.(v_wall_velocity[:, 3:end], v_no_wall_velocity[:, 3:end],
+                                atol=eps()))
         end
     end
 end;
