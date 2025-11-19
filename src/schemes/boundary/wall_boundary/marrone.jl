@@ -4,13 +4,13 @@
 The Moving Least-Squares Kernel by Marrone et al. is used to compute the pressure of dummy particles for `MarronePressureExtrapolation`.
 """
 
-struct MarroneMLSKernel{NDIMS} <: SmoothingKernel{NDIMS}
-    inner_kernel :: SmoothingKernel
+struct MarroneMLSKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS}
+    inner_kernel :: AbstractSmoothingKernel
     basis        :: Array{Float64, 3}
     momentum     :: Array{Float64, 3}
 end
 
-function MarroneMLSKernel(inner_kernel::SmoothingKernel{NDIMS},
+function MarroneMLSKernel(inner_kernel::AbstractSmoothingKernel{NDIMS},
                           n_boundary_particles, n_fluid_particles) where {NDIMS}
     basis = zeros(n_boundary_particles, n_fluid_particles, NDIMS+1) # Big sparse tensor
     momentum = zeros(n_boundary_particles, NDIMS+1, NDIMS+1)
@@ -77,15 +77,16 @@ end
 @inline compact_support(kernel::MarroneMLSKernel,
                         h) = compact_support(kernel.inner_kernel, h)
 
-struct DefaultKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+struct DummyKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-function kernel(kernel::DefaultKernel, r::Real, h)
+function kernel(kernel::DummyKernel, r::Real, h)
     return 1
 end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true},
                                                   boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation},
-                                                  system, neighbor_system::FluidSystem,
+                                                  system,
+                                                  neighbor_system::AbstractFluidSystem,
                                                   system_coords, neighbor_coords, v,
                                                   v_neighbor_system,
                                                   semi)
@@ -93,15 +94,21 @@ end
      smoothing_length) = boundary_model
     (; interpolation_coords, _pressure) = cache
 
-    compute_basis_marrone(smoothing_kernel, system, neighbor_system, interpolation_coords,
+    # Interpret Vector of SVectors as Matrix instead to work with the neighborhood search
+    interpolation_coords_view = reinterpret(reshape, eltype(eltype(interpolation_coords)),
+                                            interpolation_coords)
+
+    compute_basis_marrone(smoothing_kernel, system, neighbor_system,
+                          interpolation_coords_view,
                           neighbor_coords, semi)
     compute_momentum_marrone(smoothing_kernel, system, neighbor_system,
-                             interpolation_coords,
+                             interpolation_coords_view,
                              neighbor_coords, v_neighbor_system, semi,
                              smoothing_length)
 
     # Loop over all pairs of interpolation points and fluid particles within the kernel cutoff
-    foreach_point_neighbor(system, neighbor_system, interpolation_coords, neighbor_coords,
+    foreach_point_neighbor(system, neighbor_system, interpolation_coords_view,
+                           neighbor_coords,
                            semi) do particle, neighbor,
                                     pos_diff, distance
         boundary_pressure_inner!(boundary_model, density_calculator, system,
@@ -115,7 +122,7 @@ end
 
 @inline function boundary_pressure_inner!(boundary_model,
                                           boundary_density_calculator::MarronePressureExtrapolation,
-                                          system, neighbor_system::FluidSystem, v,
+                                          system, neighbor_system::AbstractFluidSystem, v,
                                           v_neighbor_system, particle, neighbor, pos_diff,
                                           distance, viscosity, cache, pressure)
     (; smoothing_kernel, smoothing_length) = boundary_model
@@ -152,7 +159,7 @@ function compute_smoothed_velocity!(cache, viscosity, neighbor_system,
     return cache
 end
 
-# For more, see `dummy_particles.jl`
+# See `dummy_particles.jl`
 function compute_boundary_density!(boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation},
                                    system, system_coords, particle)
     (; pressure, state_equation, cache, viscosity) = boundary_model

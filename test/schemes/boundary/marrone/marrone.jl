@@ -1,30 +1,5 @@
-@testset verbose=true "Marrone Dummy Particles" begin
-    # struct DummySemidiscretization
-    #     parallelization_backend::Any
-
-    #     function DummySemidiscretization(; parallelization_backend=SerialBackend())
-    #         new(parallelization_backend)
-    #     end
-    # end
-
-    # @inline function PointNeighbors.parallel_foreach(f, iterator, semi::DummySemidiscretization)
-    #     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
-    # end
-
-    # @inline function TrixiParticles.get_neighborhood_search(system, neighbor_system,
-    #                                                         ::DummySemidiscretization)
-    #     search_radius = TrixiParticles.compact_support(system, neighbor_system)
-    #     eachpoint = TrixiParticles.eachparticle(neighbor_system)
-    #     return TrixiParticles.TrivialNeighborhoodSearch{ndims(system)}(; search_radius,
-    #                                                                 eachpoint)
-    # end
-
-    # @inline function TrixiParticles.get_neighborhood_search(system,
-    #                                                         semi::DummySemidiscretization)
-    #     return get_neighborhood_search(system, system, semi)
-    # end
-
-    @testset "Boundary Normals" begin
+@testset verbose=true "Dummy Particles with `MarronePressureExtrapolation`" begin
+    @testset "Compute Boundary Normal Vectors" begin
         particle_spacing = 1.0
         n_particles = 2
         n_layers = 1
@@ -43,7 +18,7 @@
         @test normals == normals_reference
     end
 
-    @testset "MarroneMLSKernel" begin
+    @testset "`MarroneMLSKernel`" begin
         particle_spacing = 1.0
         n_particles = 2
         n_layers = 1
@@ -86,12 +61,6 @@
 
         boundary_coords = tank1.boundary.coordinates
         fluid_coords = tank1.fluid.coordinates
-
-        #Check which boundary particle has what neighboring fluid particles. 
-        #Each boundary particle should have exactly 1 neighboring particle with distance 1.
-        # TrixiParticles.foreach_point_neighbor(boundary_system, fluid_system1, boundary_coords, fluid_coords, semi) do particle, neighbor, pos_diff, distance
-        #    print(particle, neighbor, "\n")
-        # end 
 
         expected_basis = zeros(n_boundary_particles, n_fluid_particles, 3)
         @testset "Compute Marrone Basis" begin
@@ -175,7 +144,7 @@
             @test Matrix{Float64}(I, 3, 3) == momentum[7, :, :]
         end
 
-        @testset "Pressure Extrapolation Marrone" begin
+        @testset "Pressure Extrapolation" begin
             particle_spacing = 1.0
             n_particles = 10
             n_layers = 4
@@ -387,10 +356,12 @@
                 set_pressure!(pressure_reference, tank_reference.fluid.coordinates, 0.5,
                               tank_reference.fluid, tank_reference.fluid.pressure)
 
-                # Test failing, needs debugging.
+                # TODO: test failing, maximum difference between approximation and correct solution is
+                # maximum(abs.(pressure - pressure-reference)) -> 813.51
                 # @test all(isapprox.(pressure, pressure_reference, atol=4.0))
             end
-            @testset "Zero-th and First Order Consistency" begin
+
+            @testset "Numerical Consistency" begin
                 mls_kernel = MarroneMLSKernel(smoothing_kernel, n_fluid_particles,
                                               n_fluid_particles)
                 fluid_coords = tank1.fluid.coordinates
@@ -409,145 +380,68 @@
                                                         fluid_coords, v_fluid, semi,
                                                         smoothing_length)
 
-                # Test Zero-th Order
-                zero_order_approx = zeros(n_fluid_particles)
-                constant = 3.0
-                TrixiParticles.foreach_point_neighbor(fluid_system1, fluid_system1,
-                                                      fluid_coords, fluid_coords,
-                                                      semi) do particle, neighbor,
-                                                               pos_diff, distance
-                    neighbor_density = TrixiParticles.current_density(v_fluid,
-                                                                      fluid_system1,
-                                                                      neighbor)
-                    neighbor_volume = neighbor_density != 0 ?
-                                      TrixiParticles.hydrodynamic_mass(fluid_system1,
-                                                                       neighbor) /
-                                      neighbor_density : 0
+                # We test that the `MarroneMLSKernel` correctly computes the 
+                # first derivative of a constant function. 
+                @testset "Zeroth Order Consistency" begin
+                    zero_order_approx = zeros(n_fluid_particles)
+                    constant = 3.0
+                    TrixiParticles.foreach_point_neighbor(fluid_system1, fluid_system1,
+                                                          fluid_coords, fluid_coords,
+                                                          semi) do particle, neighbor,
+                                                                   pos_diff, distance
+                        neighbor_density = TrixiParticles.current_density(v_fluid,
+                                                                          fluid_system1,
+                                                                          neighbor)
+                        neighbor_volume = neighbor_density != 0 ?
+                                          TrixiParticles.hydrodynamic_mass(fluid_system1,
+                                                                           neighbor) /
+                                          neighbor_density : 0
 
-                    zero_order_approx[particle] += TrixiParticles.boundary_kernel_marrone(mls_kernel,
-                                                                                          particle,
-                                                                                          neighbor,
-                                                                                          distance,
-                                                                                          smoothing_length) *
-                                                   constant *
-                                                   neighbor_volume
+                        zero_order_approx[particle] += TrixiParticles.boundary_kernel_marrone(mls_kernel,
+                                                                                              particle,
+                                                                                              neighbor,
+                                                                                              distance,
+                                                                                              smoothing_length) *
+                                                       constant *
+                                                       neighbor_volume
+                    end
+                    @test all(isapprox.(zero_order_approx, constant, atol=1.0e-10))
                 end
-                @test all(isapprox.(zero_order_approx, constant, atol=1.0e-10))
 
-                # Test First Order
-                first_order_approx = zeros(n_fluid_particles)
-                a = [1, 2]
-                b = 3
-                f(x) = dot(a, x) + b
+                # We test that the `MarroneMLSKernel` correctly computes the 
+                # first derivative of a linear function. 
+                @testset "First Order Consistency" begin
+                    first_order_approx = zeros(n_fluid_particles)
+                    a = [1, 2]
+                    b = 3
+                    f(x) = dot(a, x) + b
 
-                linear_mapping = [f(fluid_coords[:, particle])
-                                  for particle in 1:n_fluid_particles]
-                TrixiParticles.foreach_point_neighbor(fluid_system1, fluid_system1,
-                                                      fluid_coords, fluid_coords,
-                                                      semi) do particle, neighbor,
-                                                               pos_diff, distance
-                    neighbor_density = TrixiParticles.current_density(v_fluid,
-                                                                      fluid_system1,
-                                                                      neighbor)
-                    neighbor_volume = neighbor_density != 0 ?
-                                      TrixiParticles.hydrodynamic_mass(fluid_system1,
-                                                                       neighbor) /
-                                      neighbor_density : 0
-                    neighbor_val = f(fluid_coords[:, neighbor])
+                    linear_mapping = [f(fluid_coords[:, particle])
+                                      for particle in 1:n_fluid_particles]
+                    TrixiParticles.foreach_point_neighbor(fluid_system1, fluid_system1,
+                                                          fluid_coords, fluid_coords,
+                                                          semi) do particle, neighbor,
+                                                                   pos_diff, distance
+                        neighbor_density = TrixiParticles.current_density(v_fluid,
+                                                                          fluid_system1,
+                                                                          neighbor)
+                        neighbor_volume = neighbor_density != 0 ?
+                                          TrixiParticles.hydrodynamic_mass(fluid_system1,
+                                                                           neighbor) /
+                                          neighbor_density : 0
+                        neighbor_val = f(fluid_coords[:, neighbor])
 
-                    first_order_approx[particle] += TrixiParticles.boundary_kernel_marrone(mls_kernel,
-                                                                                           particle,
-                                                                                           neighbor,
-                                                                                           distance,
-                                                                                           smoothing_length) *
-                                                    neighbor_val *
-                                                    neighbor_volume
+                        first_order_approx[particle] += TrixiParticles.boundary_kernel_marrone(mls_kernel,
+                                                                                               particle,
+                                                                                               neighbor,
+                                                                                               distance,
+                                                                                               smoothing_length) *
+                                                        neighbor_val *
+                                                        neighbor_volume
+                    end
+                    @test all(isapprox.(first_order_approx, linear_mapping, atol=1.0e-10))
                 end
-                @test all(isapprox.(first_order_approx, linear_mapping, atol=1.0e-10))
             end
         end
     end
 end
-
-# # Plot the tank and normal vectors
-# inds_neg = findall(x->x==0.0, boundary_system.boundary_model.pressure)
-# inds_pos = findall(x->x!=0.0, boundary_system.boundary_model.pressure)
-
-# x_f, y_f = eachrow(tank2.fluid.coordinates)
-# x_b, y_b = eachrow(tank2.boundary.coordinates)
-
-# volume_boundary = zeros(n_boundary_particles)
-# for particle in TrixiParticles.eachparticle(boundary_system)
-#     density = TrixiParticles.current_density(v_fluid, boundary_system, particle)
-#     volume_boundary[particle] = density != 0 ? TrixiParticles.hydrodynamic_mass(boundary_system, particle) / density : 0
-# end
-
-# volume_fluid = zeros(n_fluid_particles)
-# for particle in TrixiParticles.eachparticle(fluid_system2)
-#     density = TrixiParticles.current_density(v_fluid, fluid_system2, particle)
-#     volume_fluid[particle] = density != 0 ? TrixiParticles.hydrodynamic_mass(fluid_system2, particle) / density : 0
-# end
-# plot(tank1.fluid, tank2.boundary, labels=["fluid" "boundary"], xlims=[-0.25, 1.25], ylims=[-0.25, 1.125])
-# # plot(x_f, y_f, seriestype=:scatter, color=:red, label="Fluid")
-# # plot!(x_b, y_b, seriestype=:scatter, color=:blue, label="Boundary")
-
-# x_pos, y_pos = eachrow(boundary_system.coordinates[:,inds_pos])
-# scatter!(x_pos, y_pos, color=:green)
-# u_pos, v_pos = eachrow(boundary_system.initial_condition.normals[:,inds_pos])
-# quiver!(x_pos, y_pos, quiver=(u_pos, v_pos), aspect_ratio=1)
-
-# (; pressure, cache, viscosity, density_calculator, smoothing_kernel,
-# smoothing_length) = boundary_model
-# (; normals) = boundary_system.initial_condition
-# system_coords = tank2.boundary.coordinates
-# neighbor_coords = tank2.fluid.coordinates
-# neighbor_system = fluid_system2
-# system = boundary_system
-# v = v_neighbor_system = v_fluid
-
-# interpolation_coords = system_coords + (2 * normals) # Need only be computed once -> put into cache 
-
-# TrixiParticles.compute_basis_marrone(smoothing_kernel, boundary_system,
-#                                     fluid_system2, system_coords,
-#                                     neighbor_coords, semi)
-# TrixiParticles.compute_momentum_marrone(smoothing_kernel, boundary_system,
-#                                         fluid_system2, system_coords,
-#                                         neighbor_coords, v_fluid, semi,
-#                                         smoothing_length)
-
-# particle = 1
-# force = neighbor_system.acceleration
-# particle_density = isnan(TrixiParticles.current_density(v, system, particle)) ?
-#                 0 : TrixiParticles.current_density(v, system, particle) # This can return NaN 
-# particle_boundary_distance = norm(normals[:, particle]) # distance from boundary particle to the boundary
-# particle_normal = particle_boundary_distance != 0 ?
-#                 normals[:, particle] / particle_boundary_distance :
-#                 zeros(size(normals[:, particle])) # normal unit vector to the boundary
-
-# # Checked everything here for NaN's except the dot()
-# pressure[particle] += 2 * particle_boundary_distance * particle_density *
-#                     dot(force, particle_normal)
-
-# # Plot the interpolation points 
-# x_inter, y_inter = eachrow(interpolation_coords)
-# p = plot(tank1.fluid, tank1.boundary, labels=["fluid" "boundary"], xlims=[-n_layers-1, n_particles+n_layers+1], ylims=[-n_layers-1,n_particles+1])
-# scatter!(p, x_inter, y_inter, color=:red, markersize=5)
-
-# # Plot the tank and show the index of each particle 
-# p=plot(tank1.fluid, tank1.boundary, labels=["fluid" "boundary"],
-#        xlims=[-n_layers-1, n_particles+n_layers+1], ylims=[-n_layers-1, n_particles+1])
-# for i in 1:n_boundary_particles
-#     xi = boundary_coords[1, i]
-#     yi = boundary_coords[2, i]
-#     annotate!(p, xi, yi, text(string(i), :center, 10, :black))
-# end
-# for i in 1:n_fluid_particles
-#     xi = fluid_coords[1, i]
-#     yi = fluid_coords[2, i]
-#     annotate!(p, xi, yi, text(string(i), :center, 10, :black))
-# end
-# display(p)
-
-# for i in 1:n_boundary_particles
-#   print(mls_kernel.momentum[i,:,:] == I(3), "\n")
-# end

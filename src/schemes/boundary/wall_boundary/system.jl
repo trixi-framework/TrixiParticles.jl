@@ -42,9 +42,13 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
     coordinates = copy(initial_condition.coordinates)
 
     # Compute the normal vectors for the boundary model
+    # We need to do this here, because the normals are stored in `initial_condition`
     if !isnothing(initial_condition.normals)
         (; coordinates, normals) = initial_condition
-        interpolation_coords = coordinates - (2 * normals) # The normals point out from the fluid to the boundary
+        coords_s = reinterpret(reshape, SVector{ndims(model), eltype(coordinates)},
+                               coordinates)
+        norms_s = reinterpret(reshape, SVector{ndims(model), eltype(normals)}, normals)
+        interpolation_coords = coords_s .- (2 .* norms_s) # The normals point out, i.e. from the fluid to the boundary
         model.cache.interpolation_coords .= interpolation_coords
     end
 

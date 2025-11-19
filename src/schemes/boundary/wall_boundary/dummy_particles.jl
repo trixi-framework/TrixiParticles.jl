@@ -204,9 +204,6 @@ struct PressureBoundaries{ELTYPE}
     end
 end
 
-# TODO: Delete this?
-@inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
-
 @doc raw"""
     MarronePressureExtrapolation()
 
@@ -310,7 +307,7 @@ function create_cache_boundary_interpolation(density_calculator::MarronePressure
                                              n_particles, n_dims, ELTYPE)
     # TODO: `wall_velocity` should be created in `create_cache_velocity`
     wall_velocity = zeros(ELTYPE, n_dims, n_particles)
-    interpolation_coords = zeros(ELTYPE, n_dims, n_particles)
+    interpolation_coords = fill(zero(SVector{n_dims, ELTYPE}), n_particles)
     _pressure = zeros(ELTYPE, n_particles)
 
     return (; interpolation_coords, wall_velocity, _pressure)
