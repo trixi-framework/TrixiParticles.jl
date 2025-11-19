@@ -5,9 +5,9 @@ The Moving Least-Squares Kernel by Marrone et al. is used to compute the pressur
 """
 
 struct MarroneMLSKernel{NDIMS} <: SmoothingKernel{NDIMS}
-    inner_kernel  :: SmoothingKernel
-    basis         :: Array{Float64, 3}
-    momentum      :: Array{Float64, 3}
+    inner_kernel :: SmoothingKernel
+    basis        :: Array{Float64, 3}
+    momentum     :: Array{Float64, 3}
 end
 
 function MarroneMLSKernel(inner_kernel::SmoothingKernel{NDIMS},
@@ -141,17 +141,20 @@ function compute_smoothed_velocity!(cache, viscosity, neighbor_system,
                                     v_neighbor_system, kernel_weight, particle, neighbor,
                                     neighbor_volume)
     neighbor_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    
+
     # CHECK: is the neighbor_volume term necessary?
     for dim in eachindex(neighbor_velocity)
-        @inbounds cache.wall_velocity[dim, particle] += neighbor_velocity[dim] * kernel_weight * neighbor_volume
+        @inbounds cache.wall_velocity[dim,
+                                      particle] += neighbor_velocity[dim] * kernel_weight *
+                                                   neighbor_volume
     end
 
     return cache
 end
 
 # For more, see `dummy_particles.jl`
-function compute_boundary_density!(boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation}, system, system_coords, particle)
+function compute_boundary_density!(boundary_model::BoundaryModelDummyParticles{MarronePressureExtrapolation},
+                                   system, system_coords, particle)
     (; pressure, state_equation, cache, viscosity) = boundary_model
     (; volume, density) = cache
 
@@ -172,4 +175,3 @@ function compute_boundary_density!(boundary_model::BoundaryModelDummyParticles{M
     # CHECK: this computes the density based on the updated pressure, is this correct?
     inverse_state_equation!(density, state_equation, pressure, particle)
 end
-
