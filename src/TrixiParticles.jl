@@ -91,6 +91,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export PrescribedMotion, OscillatingMotion2D
+export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
 export save_config, load_ode
