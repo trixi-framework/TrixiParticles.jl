@@ -94,7 +94,7 @@ export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
-export save_config, load_ode
+export save_jld2, load_jld2
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
