@@ -1,5 +1,5 @@
 function max_x_coord(system, data, t)
-    return maximum(j -> data.coordinates[1, j], axes(data.coordinates, 2))
+    return maximum(view(data.coordinates, 1, :))
 end
 
 function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system, semi) end
