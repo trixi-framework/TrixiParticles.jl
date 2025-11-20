@@ -64,10 +64,10 @@ end
 
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
            (distance * distance_from_singularity) *
-           boundary_kernel(distance, smoothing_length(particle_system, particle))
+           boundary_kernel_monaghan(distance, smoothing_length(particle_system, particle))
 end
 
-@fastpow @inline function boundary_kernel(r, h)
+@fastpow @inline function boundary_kernel_monaghan(r, h)
     q = r / h
 
     # TODO The neighborhood search fluid->boundary should use this search distance
