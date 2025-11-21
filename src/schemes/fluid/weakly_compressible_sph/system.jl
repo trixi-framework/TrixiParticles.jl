@@ -305,20 +305,16 @@ end
 
 @inline function update_speed_of_sound!(system::WeaklyCompressibleSPHSystem, v,
                                         state_equation::StateEquationAdaptiveCole)
-    max_velocity = zero(eltype(v))
-
-    for particle in each_integrated_particle(system)
-        tmp = dot(current_velocity(v, system, particle),
-                  current_velocity(v, system, particle))
-        if max_velocity < tmp
-            max_velocity = tmp
-        end
-    end
-    max_velocity = sqrt(max_velocity)
+    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # but is GPU-compatible.
+    v_max2 = maximum(x -> dot(x, x),
+                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                                current_velocity(v, system)))
+    v_max = sqrt(v_max2)
 
     state_equation.sound_speed_ref[] = min(state_equation.max_sound_speed,
                                            max(state_equation.min_sound_speed,
-                                               max_velocity /
+                                               v_max /
                                                state_equation.mach_number_limit))
     return state_equation.sound_speed
 end

@@ -306,7 +306,7 @@ function compute_density!(boundary_model,
                           system, v, u, v_ode, u_ode, semi)
     # No density update for `ContinuityDensity`, `PressureMirroring` and `PressureZeroing`.
     # For `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation`, the density is updated in `compute_pressure!`.
-    # Only SummationDensity performs a density update.
+    # Only `SummationDensity` performs a density update.
     return boundary_model
 end
 
