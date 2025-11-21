@@ -308,8 +308,8 @@ end
     # This has similar performance to `maximum(..., eachparticle(system))`,
     # but is GPU-compatible.
     v_max2 = maximum(x -> dot(x, x),
-                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
-                                current_velocity(v, system)))
+                     reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                                 current_velocity(v, system)))
     v_max = sqrt(v_max2)
 
     state_equation.sound_speed_ref[] = min(state_equation.max_sound_speed,
