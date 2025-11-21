@@ -4,6 +4,12 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.4.3
+
+### Features
+
+- Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875)
+
 ## Version 0.4.2
 
 ### API Changes
@@ -13,7 +19,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
-- Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875)
 - Added `OscillatingMotion2D` to create an oscillating `PrescribedMotion` combining
   translation and rotation (#915).
 - Added `BoundaryModelDynamicalPressureZhang` for `OpenBoundarySystem` (#900).
