@@ -1,0 +1,64 @@
+{
+  "simulation_info": {
+    "julia_version": "1.12.1",
+    "technical_setup": {
+      "number_of_threads": 1,
+      "parallelization_backend": "PolyesterBackend"
+    },
+    "time_integrator": {
+      "start_time": 0.0,
+      "reltol": 0.001,
+      "integrator_type": "RDPK3SpFSAL35",
+      "adaptive": true,
+      "final_time": 1.0,
+      "controller": "PIDController",
+      "abstol": 1.0e-6
+    },
+    "solver_version": "cd41a23-dirty",
+    "solver_name": "TrixiParticles.jl"
+  },
+  "system_data": {
+    "boundary_1": {
+      "boundary_model": {
+        "state_equation": {
+          "model": "StateEquationCole",
+          "reference_density": 1000.0,
+          "background_pressure": 0.0,
+          "exponent": 7.0
+        },
+        "density_calculator": "AdamiPressureExtrapolation",
+        "model": "BoundaryModelDummyParticles",
+        "smoothing_length": 0.06,
+        "smoothing_kernel": "MyGaussianKernel"
+      },
+      "particle_spacing": 0.05,
+      "system_type": "WallBoundarySystem",
+      "adhesion_coefficient": 0.0
+    },
+    "fluid_1": {
+      "acceleration": [
+        0.0,
+        -9.81
+      ],
+      "pressure_acceleration_formulation": "pressure_acceleration_continuity_density",
+      "state_equation": {
+        "model": "StateEquationCole",
+        "reference_density": 1000.0,
+        "background_pressure": 0.0,
+        "exponent": 7.0
+      },
+      "density_calculator": "ContinuityDensity",
+      "particle_spacing": 0.05,
+      "viscosity_model": {
+        "model": "ArtificialViscosityMonaghan",
+        "alpha": 0.02,
+        "epsilon": 0.01,
+        "beta": 0.0
+      },
+      "system_type": "WeaklyCompressibleSPHSystem",
+      "smoothing_length": 0.06,
+      "sound_speed": 10.0,
+      "smoothing_kernel": "MyGaussianKernel"
+    }
+  }
+}
