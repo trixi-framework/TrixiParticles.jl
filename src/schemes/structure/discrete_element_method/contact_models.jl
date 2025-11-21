@@ -88,7 +88,7 @@ end
     r_star = (r_a * r_b) / (r_a + r_b)
 
     # Non-linear stiffness for Hertzian contact
-    elastic_force_per_overlap = (4 / 3) * E_star * sqrt(r_star * overlap)
+    elastic_force_per_overlap = 4 * E_star * sqrt(r_star * overlap) / 3
 
     # Compute effective mass for damping
     if neighbor_system isa DEMSystem
