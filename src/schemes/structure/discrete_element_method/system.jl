@@ -38,35 +38,35 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST,
     acceleration        :: SVector{NDIMS, ELTYPE}
     source_terms        :: ST
     contact_model       :: CM
+end
 
-    function DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
-                       acceleration=ntuple(_ -> 0.0,
-                                           ndims(initial_condition)), source_terms=nothing,
-                       radius=nothing)
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
+                   acceleration=ntuple(_ -> 0.0,
+                                       ndims(initial_condition)), source_terms=nothing,
+                   radius=nothing)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
 
-        mass = copy(initial_condition.mass)
+    mass = copy(initial_condition.mass)
 
-        if isnothing(radius)
-            radius = 0.5 * initial_condition.particle_spacing * ones(length(mass))
-        else
-            mass = (radius / (0.5 * initial_condition.particle_spacing))^3 * mass
-            radius = radius * ones(length(mass))
-        end
-
-        # Make acceleration an SVector
-        acceleration_ = SVector(acceleration...)
-        if length(acceleration_) != NDIMS
-            throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        return new{NDIMS, ELTYPE, typeof(initial_condition),
-                   typeof(mass), typeof(source_terms),
-                   typeof(contact_model)}(initial_condition, mass, radius,
-                                          damping_coefficient, acceleration_, source_terms,
-                                          contact_model)
+    if isnothing(radius)
+        radius = initial_condition.particle_spacing * ones(ELTYPE, length(mass)) / 2
+    else
+        mass = (radius / (initial_condition.particle_spacing / 2))^3 * mass
+        radius = radius * ones(ELTYPE, length(mass))
     end
+
+    # Make acceleration an SVector
+    acceleration_ = SVector(acceleration...)
+    if length(acceleration_) != NDIMS
+        throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    return DEMSystem(initial_condition, mass, radius,
+                     damping_coefficient, acceleration_, source_terms,
+                     contact_model)
 end
 
 function Base.show(io::IO, system::DEMSystem)
@@ -118,12 +118,12 @@ end
 timer_name(::DEMSystem) = "solid"
 
 function TrixiParticles.write_u0!(u0, system::DEMSystem)
-    u0 .= system.initial_condition.coordinates
+    copyto!(u0, system.initial_condition.coordinates)
     return u0
 end
 
 function TrixiParticles.write_v0!(v0, system::DEMSystem)
-    v0 .= system.initial_condition.velocity
+    copyto!(v0, system.initial_condition.velocity)
     return v0
 end
 
