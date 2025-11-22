@@ -95,7 +95,7 @@ end
 function calculate_flow_rate_and_pressure!(pressure_model::RCRWindkesselModel, system,
                                            boundary_zone, v, u, dt)
     (; characteristic_resistance, peripheral_resistance, compliance, cross_sectional_area,
-    flow_rate, pressure) = pressure_model
+     flow_rate, pressure) = pressure_model
     (; face_normal) = boundary_zone
 
     # Find particles within the current boundary zone
