@@ -146,6 +146,10 @@ end
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
+    vdiff += continuity_equation_shifting_term(shifting_technique(particle_system),
+                                               particle_system, neighbor_system,
+                                               particle, neighbor, rho_a, rho_b)
+
     dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
 
     # Artificial density diffusion should only be applied to systems representing a fluid
@@ -157,10 +161,6 @@ end
                            pos_diff, distance, m_b, rho_a, rho_b, particle_system,
                            grad_kernel)
     end
-
-    continuity_equation_shifting!(dv, shifting_technique(particle_system),
-                                  particle_system, neighbor_system,
-                                  particle, neighbor, grad_kernel, rho_a, rho_b, m_b)
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, semi)
