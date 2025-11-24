@@ -158,7 +158,6 @@ end
     q = r * inner_deriv
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    # Use `//` to preserve the type of `q`.
     result = -3 * (2 - q)^2 / 4
     result = result + 3 * (q < 1) * (1 - q)^2
 
