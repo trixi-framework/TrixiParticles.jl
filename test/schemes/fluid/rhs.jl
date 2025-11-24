@@ -121,7 +121,7 @@
         # it by using a `NamedTuple`.
         state_equation = (; sound_speed=0.0)
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-        smoothing_length = 1.2particle_spacing
+        smoothing_length = 1.2 * particle_spacing
         search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
         @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in

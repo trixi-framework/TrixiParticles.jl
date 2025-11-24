@@ -42,25 +42,3 @@ function extract_number_from_filename(filename)
     end
     return -1
 end
-
-function extract_resolution_from_filename(str)
-    str = match(r"\d+(?!.*\d)", str).match
-
-    # Remove leading zeros and count them
-    leading_zeros = length(match(r"^0*", str).match)
-    str_non_zero = replace(str, r"^0*" => "")
-
-    if isempty(str_non_zero)
-        return "0.0"
-    end
-
-    # Adjust string to have a decimal point at the correct position
-    if leading_zeros > 0
-        decimal_str = "0." * "0"^(leading_zeros - 1) * str_non_zero
-    else
-        decimal_str = str_non_zero
-    end
-
-    # Convert integer strings to float strings
-    return string(parse(Float64, decimal_str))
-end

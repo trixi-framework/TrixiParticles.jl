@@ -10,7 +10,7 @@ requires_update_callback(::Nothing) = false
 requires_update_callback(::AbstractShiftingTechnique) = false
 
 # This is called from the `UpdateCallback`
-particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, dt) = u_ode
+particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, integrator) = u_ode
 
 create_cache_shifting(initial_condition, ::Nothing) = (;)
 
@@ -49,10 +49,10 @@ end
 end
 
 # Additional term(s) in the continuity equation due to the shifting technique
-function continuity_equation_shifting!(dv, shifting,
-                                       particle_system, neighbor_system,
-                                       particle, neighbor, grad_kernel, rho_a, rho_b, m_b)
-    return dv
+@inline function continuity_equation_shifting_term(shifting, particle_system,
+                                                   neighbor_system,
+                                                   particle, neighbor, rho_a, rho_b)
+    return zero(SVector{ndims(particle_system), eltype(particle_system)})
 end
 
 @doc raw"""
@@ -324,10 +324,11 @@ See [`ParticleShiftingTechnique`](@ref).
 struct MomentumEquationTermSun2019 end
 
 # Additional term in the momentum equation due to the shifting technique
-@inline function dv_shifting(shifting::ParticleShiftingTechnique, system, neighbor_system,
-                             v_system, v_neighbor_system, particle, neighbor,
-                             m_a, m_b, rho_a, rho_b, pos_diff, distance,
-                             grad_kernel, correction)
+@propagate_inbounds function dv_shifting(shifting::ParticleShiftingTechnique, system,
+                                         neighbor_system,
+                                         v_system, v_neighbor_system, particle, neighbor,
+                                         m_a, m_b, rho_a, rho_b, pos_diff, distance,
+                                         grad_kernel, correction)
     return dv_shifting(shifting.momentum_equation_term, system, neighbor_system,
                        v_system, v_neighbor_system, particle, neighbor,
                        m_a, m_b, rho_a, rho_b, pos_diff, distance,
@@ -351,21 +352,19 @@ end
 end
 
 # `ParticleShiftingTechnique{<:Any, <:Any, true}` means `modify_continuity_equation=true`
-function continuity_equation_shifting!(dv,
-                                       shifting::ParticleShiftingTechnique{<:Any, <:Any,
-                                                                           true},
-                                       system, neighbor_system,
-                                       particle, neighbor, grad_kernel, rho_a, rho_b, m_b)
-    delta_v_diff = delta_v(system, particle) -
-                   delta_v(neighbor_system, neighbor)
+@propagate_inbounds function continuity_equation_shifting_term(shifting::ParticleShiftingTechnique{<:Any,
+                                                                                                   <:Any,
+                                                                                                   true},
+                                                               system, neighbor_system,
+                                                               particle, neighbor,
+                                                               rho_a, rho_b)
+    delta_v_a = delta_v(system, particle)
+    delta_v_b = delta_v(neighbor_system, neighbor)
+    delta_v_diff = delta_v_a - delta_v_b
 
-    dv[end, particle] += rho_a / rho_b * m_b * dot(delta_v_diff, grad_kernel)
-
-    second_continuity_equation_term!(dv, shifting.second_continuity_equation_term,
-                                     system, neighbor_system,
-                                     particle, neighbor, grad_kernel, rho_a, rho_b, m_b)
-
-    return dv
+    second_term = second_continuity_equation_term(shifting.second_continuity_equation_term,
+                                                  delta_v_a, delta_v_b, rho_a, rho_b)
+    return delta_v_diff + second_term
 end
 
 """
@@ -378,29 +377,23 @@ See [`ParticleShiftingTechnique`](@ref).
 """
 struct ContinuityEquationTermSun2019 end
 
-@inline function second_continuity_equation_term!(dv,
-                                                  ::ContinuityEquationTermSun2019,
-                                                  system, neighbor_system,
-                                                  particle, neighbor, grad_kernel,
-                                                  rho_a, rho_b, m_b)
-    rho_v = rho_a * delta_v(system, particle) + rho_b * delta_v(neighbor_system, neighbor)
-
-    dv[end, particle] += m_b / rho_b * dot(rho_v, grad_kernel)
-
-    return dv
+@propagate_inbounds function second_continuity_equation_term(::ContinuityEquationTermSun2019,
+                                                             delta_v_a, delta_v_b,
+                                                             rho_a, rho_b)
+    return delta_v_a + rho_b / rho_a * delta_v_b
 end
 
-@inline function second_continuity_equation_term!(dv, second_continuity_equation_term,
-                                                  system, neighbor_system,
-                                                  particle, neighbor, grad_kernel,
-                                                  rho_a, rho_b, m_b)
-    return dv
+@inline function second_continuity_equation_term(second_continuity_equation_term,
+                                                 delta_v_a, delta_v_b, rho_a, rho_b)
+    return zero(delta_v_a)
 end
 
 # `ParticleShiftingTechnique{<:Any, true}` means `update_everystage=true`
 function update_shifting!(system, shifting::ParticleShiftingTechnique{<:Any, true},
                           v, u, v_ode, u_ode, semi)
-    update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "update shifting" begin
+        update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    end
 end
 
 # `ParticleShiftingTechnique{<:Any, false}` means `update_everystage=false`
@@ -494,6 +487,8 @@ function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
         end
     end
 
+    modify_shifting_at_free_surfaces!(system, u, semi)
+
     return system
 end
 
@@ -503,14 +498,19 @@ end
 # (`integrate_shifting_velocity=false`), but this also requires `update_everystage=false`.
 function particle_shifting_from_callback!(u_ode,
                                           shifting::ParticleShiftingTechnique{<:Any, false},
-                                          system, v_ode, semi, dt)
-    @trixi_timeit timer() "particle shifting" begin
-        # Update the shifting velocity
-        update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi)
+                                          system, v_ode, semi, integrator)
+    # Update the shifting velocity
+    update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi)
 
+    @trixi_timeit timer() "apply particle shifting" begin
         # Update the particle positions with the shifting velocity
-        apply_particle_shifting!(u_ode, shifting, system, semi, dt)
+        apply_particle_shifting!(u_ode, shifting, system, semi, integrator.dt)
     end
+
+    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    u_modified!(integrator, true)
+
+    return u_ode
 end
 
 # `ParticleShiftingTechnique{false}` means `integrate_shifting_velocity=false`.
@@ -594,21 +594,26 @@ end
                                  distance, grad_kernel, correction)
 end
 
-function continuity_equation_shifting!(dv, shifting::TransportVelocityAdami{true},
-                                       particle_system, neighbor_system,
-                                       particle, neighbor, grad_kernel, rho_a, rho_b, m_b)
+# The function above misuses the pressure acceleration function by passing a Matrix as `p_a`.
+# This doesn't work with `tensile_instability_control`, so we disable TIC in this case.
+@inline function tensile_instability_control(m_a, m_b, rho_a, rho_b, p_a::SMatrix, p_b, W_a)
+    return pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+end
+
+@propagate_inbounds function continuity_equation_shifting_term(::TransportVelocityAdami{true},
+                                                               particle_system,
+                                                               neighbor_system,
+                                                               particle, neighbor,
+                                                               rho_a, rho_b)
     delta_v_diff = delta_v(particle_system, particle) -
                    delta_v(neighbor_system, neighbor)
 
-    dv[end, particle] += rho_a / rho_b * m_b * dot(delta_v_diff, grad_kernel)
-
-    return dv
+    return delta_v_diff
 end
 
 function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
                           u_ode, semi)
-    (; cache, correction) = system
-    (; delta_v) = cache
+    (; delta_v) = system.cache
     (; background_pressure) = shifting
 
     sound_speed = system_sound_speed(system)
@@ -676,7 +681,8 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
             delta_v_ = background_pressure / 8 * h / sound_speed *
                        pressure_acceleration(system, neighbor_system, particle, neighbor,
                                              m_a, m_b, 1, 1, rho_a, rho_b, pos_diff,
-                                             distance, grad_kernel, correction)
+                                             distance, grad_kernel,
+                                             system_correction(system))
 
             # Write into the buffer
             for i in eachindex(delta_v_)
@@ -685,5 +691,10 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
         end
     end
 
+    modify_shifting_at_free_surfaces!(system, u, semi)
+
     return system
 end
+
+# TODO: Implement free surface detection to disable shifting close to free surfaces
+@inline modify_shifting_at_free_surfaces!(system, u, semi) = system

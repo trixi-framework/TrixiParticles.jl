@@ -65,7 +65,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     n_particles = length(initial_density)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
-             create_cache_model(initial_density, density_calculator)...,
+             create_cache_model(initial_density, density_calculator, NDIMS)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -180,6 +180,26 @@ struct PressureMirroring end
 """
 struct PressureZeroing end
 
+@doc raw"""
+    PressureBoundaries(; time_step, omega=0.4)
+
+`density_calculator` for `BoundaryModelDummyParticles`.
+
+# Keywords
+- `time_step`: Time step size used for the simulation (has to be the same as for the IISPH fluid system)
+- `omega`: Relaxation parameter for the relaxed Jacobi scheme (has to be the same as for the IISPH fluid system)
+
+!!! note
+    This boundary model can only be used in combination with the [`ImplicitIncompressibleSPHSystem`](@ref).
+"""
+struct PressureBoundaries{ELTYPE}
+    time_step::ELTYPE
+    omega::ELTYPE
+
+    function PressureBoundaries(; time_step, omega=0.4)
+        return new{eltype(time_step)}(time_step, omega)
+    end
+end
 @inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
 function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
@@ -204,17 +224,42 @@ function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_p
 end
 
 function create_cache_model(initial_density,
-                            ::Union{SummationDensity, PressureMirroring, PressureZeroing})
+                            ::Union{SummationDensity, PressureMirroring, PressureZeroing},
+                            NDIMS)
     density = copy(initial_density)
 
     return (; density)
 end
 
-@inline create_cache_model(initial_density, ::ContinuityDensity) = (; initial_density)
+function create_cache_model(initial_density,
+                            density_calculator::PressureBoundaries, NDIMS)
+    ELTYPE = eltype(initial_density)
+    n_particles = size(initial_density, 1)
+
+    reference_density = first(initial_density)
+    @assert all(rho -> isapprox(rho, reference_density), initial_density)
+    density = copy(initial_density)
+
+    a_ii = zeros(ELTYPE, n_particles)
+    predicted_density = zeros(ELTYPE, n_particles)
+    sum_d_ij_pj = zeros(ELTYPE, NDIMS, n_particles)
+    sum_term = zeros(ELTYPE, n_particles)
+
+    omega = density_calculator.omega
+    time_step = density_calculator.time_step
+    density_error = zeros(ELTYPE, n_particles)
+
+    return (; reference_density, density, a_ii, predicted_density, sum_d_ij_pj, sum_term,
+            omega, time_step, density_error)
+end
+
+function create_cache_model(initial_density, ::ContinuityDensity, NDIMS)
+    return (; initial_density)
+end
 
 function create_cache_model(initial_density,
                             ::Union{AdamiPressureExtrapolation,
-                                    BernoulliPressureExtrapolation})
+                                    BernoulliPressureExtrapolation}, NDIMS)
     density = copy(initial_density)
     volume = similar(initial_density)
 
@@ -252,10 +297,10 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-# For most density calculators, the pressure is updated in every step
-initial_boundary_pressure(initial_density, density_calculator, _) = similar(initial_density)
-# Pressure mirroring does not use the pressure, so we set it to zero for the visualization
-initial_boundary_pressure(initial_density, ::PressureMirroring, _) = zero(initial_density)
+# Set the initial pressure to zero for visualization
+function initial_boundary_pressure(initial_density, density_calculator, _)
+    return zero(initial_density)
+end
 
 # For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
 function initial_boundary_pressure(initial_density, ::PressureZeroing, state_equation)
@@ -274,7 +319,8 @@ end
 @inline function current_density(v,
                                  ::Union{SummationDensity, AdamiPressureExtrapolation,
                                          PressureMirroring, PressureZeroing,
-                                         BernoulliPressureExtrapolation},
+                                         BernoulliPressureExtrapolation,
+                                         PressureBoundaries},
                                  model::BoundaryModelDummyParticles)
     # When using `SummationDensity`, the density is stored in the cache
     return model.cache.density
@@ -361,6 +407,16 @@ function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_od
     (; density) = cache # Density is in the cache for SummationDensity
 
     summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
+end
+
+function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_ode, u_ode,
+                          semi)
+    (; cache) = boundary_model
+    (; density) = cache # Density is in the cache for `SummationDensity`
+
+    summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
+
+    predict_advection!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -457,9 +513,11 @@ function compute_adami_density!(boundary_model, system, v, particle)
     inverse_state_equation!(density, state_equation, pressure, particle)
 end
 
-function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZeroing},
+function compute_pressure!(boundary_model,
+                           ::Union{PressureMirroring, PressureZeroing, PressureBoundaries},
                            system, v, u, v_ode, u_ode, semi)
     # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
+    # Pressure update for `PressureBoundaries` is be done by the PPE solver in IISPH
     return boundary_model
 end
 
@@ -472,7 +530,8 @@ end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true}, boundary_model,
                                                   system,
-                                                  neighbor_system::AbstractFluidSystem,
+                                                  neighbor_system::Union{AbstractFluidSystem,
+                                                                         OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                   system_coords, neighbor_coords, v,
                                                   v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -495,7 +554,8 @@ end
 # pressure entry from different loop iterations.
 @inline function boundary_pressure_extrapolation!(parallel::Val{false}, boundary_model,
                                                   system,
-                                                  neighbor_system::AbstractFluidSystem,
+                                                  neighbor_system::Union{AbstractFluidSystem,
+                                                                         OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                   system_coords, neighbor_coords,
                                                   v, v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
@@ -516,9 +576,11 @@ end
 end
 
 @inline function boundary_pressure_inner!(boundary_model, boundary_density_calculator,
-                                          system, neighbor_system::AbstractFluidSystem, v,
-                                          v_neighbor_system, particle, neighbor, pos_diff,
-                                          distance, viscosity, cache, pressure,
+                                          system,
+                                          neighbor_system::Union{AbstractFluidSystem,
+                                                                 OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
+                                          v, v_neighbor_system, particle, neighbor,
+                                          pos_diff, distance, viscosity, cache, pressure,
                                           pressure_offset)
     density_neighbor = @inbounds current_density(v_neighbor_system, neighbor_system,
                                                  neighbor)
@@ -528,8 +590,9 @@ end
                                                 neighbor)
 
     # Hydrostatic pressure term from fluid and boundary acceleration
-    resulting_acceleration = neighbor_system.acceleration -
-                             @inbounds current_acceleration(system, particle)
+    # TODO: rename acceleration and add a function `system_external_acceleration`
+    resulting_acceleration = @inbounds acceleration_source(neighbor_system) -
+                                       @inbounds current_acceleration(system, particle)
     hydrostatic_pressure = dot(resulting_acceleration, density_neighbor * pos_diff)
 
     # Additional dynamic pressure term (only with `BernoulliPressureExtrapolation`)

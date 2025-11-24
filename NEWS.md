@@ -4,6 +4,32 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.4.2
+
+### API Changes
+
+- Keyword argument `n_clamped_particles` of the `TotalLagrangianSPHSystem`
+  has been deprecated in favor of a new kwarg `clamped_particles`.
+
+### Features
+
+- Added `OscillatingMotion2D` to create an oscillating `PrescribedMotion` combining
+  translation and rotation (#915).
+- Added `BoundaryModelDynamicalPressureZhang` for `OpenBoundarySystem` (#900).
+- Added `PrescribedMotion` to clamped particles in `TotalLagrangianSPHSystem` (#896).
+- Added new boundary density calculator `PressureBoundaries` specifically for
+  `ImplicitIncompressibleSPHSystem` (#946).
+- Included wall velocity in interpolation (#941).
+- 2D dam break validation now compares against the results from De Courcy et al. (#934).
+- Improved performance of `TotalLagrangianSPHSystem` on GPUs (#968).
+
+### Important Bugfixes
+
+- Fixed transport velocity formulation with tensile instability control (#948).
+- Fixed `TotalLagrangianSPHSystem` close to open boundaries (#954).
+- `extrude_geometry` now doesn't adjust the particle spacing (#965).
+- Reduced overhead of `UpdateCallback` when no update operations are performed (#973).
+
 ## Version 0.4.1
 
 ### Features

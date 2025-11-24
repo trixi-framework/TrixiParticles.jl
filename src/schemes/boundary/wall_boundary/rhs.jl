@@ -11,9 +11,10 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                   neighbor_system::AbstractFluidSystem, semi)
+                   neighbor_system::Union{AbstractFluidSystem,
+                                          OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
+                   semi)
     (; boundary_model) = particle_system
-    fluid_density_calculator = neighbor_system.density_calculator
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -31,8 +32,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         grad_kernel = smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
 
-        continuity_equation!(dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
-                             grad_kernel, particle)
+        continuity_equation!(dv, density_calculator(neighbor_system),
+                             m_b, rho_a, rho_b, v_diff, grad_kernel, particle)
     end
 
     return dv

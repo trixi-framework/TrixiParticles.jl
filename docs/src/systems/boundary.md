@@ -8,8 +8,9 @@
     BoundaryDEMSystem
 ```
 
-```@docs
-    PrescribedMotion
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "prescribed_motion.jl")]
 ```
 
 
@@ -137,7 +138,7 @@ The momentum equation therefore becomes
 where the first sum is over all fluid particles and the second over all boundary particles.
 
 This approach was first mentioned by [Akinci et al. (2012)](@cite Akinci2012) and written down in this form
-by [Band et al. (2018)](@cite Band2018).
+by [Band et al. (2018)](@cite Band2018a).
 ```@docs
     PressureMirroring
 ```
@@ -313,4 +314,37 @@ With ``J_1``, ``J_2`` and ``J_3`` determined, we can easily solve for the actual
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "open_boundary", "mirroring.jl")]
+```
+
+## [Dynamical Pressure](@id dynamical_pressure)
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "dynamical_pressure.jl")]
+```
+
+Unlike the [method of characteristics](@ref method_of_characteristics) or the [mirroring](@ref mirroring) method,
+which compute the physical properties of buffer particles within the [`BoundaryZone`](@ref)
+based on information from the fluid domain, this model directly solves the momentum equation for the buffer particles.
+
+A key challenge arises from the truncated support close to the free surface within the [`BoundaryZone`](@ref).
+This truncation leads to inaccurate evaluation of the pressure gradient.
+To address this issue, [Zhang et al. (2025)](@cite Zhang2025) introduce an additional term
+(second term in eq. (13) in [Zhang2025](@cite)) in the momentum equation:
+```math
++ 2 p_b \sum_j \left( \frac{m_j}{\rho_i \rho_j} \right) \nabla W_{ij},
+```
+where ``p_b`` is the prescribed dynamical boundary pressure.
+Note the positive sign, which compensates for the missing contribution due to the truncated support domain.
+This term vanishes for particles with full kernel support.
+Thus, it can be applied to all particles within the [`BoundaryZone`](@ref)
+without the need to specifically identify those near the free surface.
+
+To further handle incomplete kernel support, for example in the viscous term of the momentum equation,
+the updated velocity of particles within the [`BoundaryZone`](@ref) is projected onto the face normal,
+so that only the component in flow direction is kept.
+
+# Pressure Models
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "pressure_model.jl")]
 ```
