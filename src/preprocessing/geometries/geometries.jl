@@ -125,8 +125,8 @@ function oriented_bounding_box(point_cloud)
     min_corner = minimum(aligned_coords, dims=2)
     max_corner = maximum(aligned_coords, dims=2)
 
-    face_vertices = hcat(min_corner, max_corner,
-                         [min_corner[1], max_corner[2], min_corner[3]])
+    face_vertices = hcat([min_corner[1], max_corner[2], min_corner[3]],
+                         min_corner, max_corner)
 
     return eigen_vectors * face_vertices .+ means
 end

@@ -832,6 +832,26 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                     neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor, semi)
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::TotalLagrangianSPHSystem,
+                     neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                     u_system, u_neighbor, semi)
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
                      system::OpenBoundarySystem, neighbor::TotalLagrangianSPHSystem,
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
@@ -1070,10 +1090,22 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
 end
 
 function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
+    (; time_step, omega) = system
     foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem
             throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
             `WeaklyCompressibleSPHSystem`"))
+        end
+        if neighbor isa WallBoundarySystem
+            if (neighbor.boundary_model isa BoundaryModelDummyParticles &&
+                neighbor.boundary_model.density_calculator isa PressureBoundaries)
+                time_step_boundary = neighbor.boundary_model.density_calculator.time_step
+                omega_boundary = neighbor.boundary_model.density_calculator.omega
+                if !(time_step==time_step_boundary && omega==omega_boundary)
+                    throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
+                    `ImplicitIncompressibleSPHSystem` parameters"))
+                end
+            end
         end
     end
 end

@@ -241,7 +241,7 @@ end
 
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 
-@inline function current_velocity(v, system::WeaklyCompressibleSPHSystem)
+@propagate_inbounds function current_velocity(v, system::WeaklyCompressibleSPHSystem)
     return current_velocity(v, system.density_calculator, system)
 end
 
@@ -251,14 +251,14 @@ end
     return v
 end
 
-@inline function current_velocity(v, ::ContinuityDensity,
-                                  system::WeaklyCompressibleSPHSystem)
+@propagate_inbounds function current_velocity(v, ::ContinuityDensity,
+                                              system::WeaklyCompressibleSPHSystem)
     # When using `ContinuityDensity`, the velocity is stored
     # in the first `ndims(system)` rows of `v`.
     return view(v, 1:ndims(system), :)
 end
 
-@inline function current_density(v, system::WeaklyCompressibleSPHSystem)
+@propagate_inbounds function current_density(v, system::WeaklyCompressibleSPHSystem)
     return current_density(v, system.density_calculator, system)
 end
 
@@ -268,8 +268,8 @@ end
     return system.cache.density
 end
 
-@inline function current_density(v, ::ContinuityDensity,
-                                 system::WeaklyCompressibleSPHSystem)
+@propagate_inbounds function current_density(v, ::ContinuityDensity,
+                                             system::WeaklyCompressibleSPHSystem)
     # When using `ContinuityDensity`, the density is stored in the last row of `v`
     return view(v, size(v, 1), :)
 end
