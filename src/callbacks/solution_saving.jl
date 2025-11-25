@@ -167,7 +167,7 @@ function (solution_callback::SolutionSavingCallback)(integrator; from_initialize
             # Depending on the time integration scheme, this might call the RHS function
             @trixi_timeit timer() "update du" begin
                 # Don't create sub-timers here to avoid cluttering the timer output
-                @notimeit timer() dvdu_ode = get_du(integrator).x
+                @notimeit timer() dvdu_ode = get_du(integrator)
             end
         end
         semi = integrator.p
