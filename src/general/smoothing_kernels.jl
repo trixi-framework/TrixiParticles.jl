@@ -739,7 +739,7 @@ end
     # C = 2 * pi * (5 - 17 * exp(-4)) / 12
     C = oftype(h, 2.454963094351984)
     # C' = 1 / (h^2 * C)
-    return  1 / (h^2 * C)
+    return 1 / (h^2 * C)
 end
 
 @inline function normalization_factor(kernel::LaguerreGaussKernel{3}, h)
