@@ -30,10 +30,12 @@ particle_spacing = H / particles_per_height
 # Import variables from the example file
 alpha = 0.02
 viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+shifting_technique = nothing
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               alpha=0.02, # This is used by Marrone et al. (2011)
               sol=nothing,
               ode=nothing,
+              shifting_technique=shifting_technique,
               viscosity_fluid=viscosity_fluid,
               fluid_particle_spacing=particle_spacing)
 
@@ -130,5 +132,8 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               update_strategy=nothing,
               extra_callback=postprocessing_cb,
               extra_callback2=saving_paper,
+              extra_system=nothing,
+              extra_system2=nothing,
+              cfl=0.9,
               parallelization_backend=PolyesterBackend(),
               neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))

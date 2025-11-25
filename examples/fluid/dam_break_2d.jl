@@ -37,7 +37,7 @@ tspan = (0.0, 5.7 / sqrt(gravity / H))
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (W, H)
-tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
+tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing, 2.0+10*fluid_particle_spacing)
 
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * H)
@@ -61,8 +61,8 @@ viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 # The density diffusion model by Molteni and Colagrossi shows unphysical effects at the
 # free surface in long-running simulations, but is significantly faster than the model
 # by Antuono. This simulation is short enough to use the faster model.
-density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -70,7 +70,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity), correction=nothing,
                                            surface_tension=nothing,
-                                           reference_particle_spacing=0)
+                                           reference_particle_spacing=fluid_particle_spacing,
+                                           shifting_technique=nothing)
 
 # ==========================================================================================
 # ==== Boundary
@@ -83,7 +84,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing,
-                                             reference_particle_spacing=0,
+                                             reference_particle_spacing=fluid_particle_spacing,
                                              viscosity=viscosity_wall)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
@@ -93,7 +94,9 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
 # ==== Simulation
 # `nothing` will automatically choose the best update strategy. This is only to be able
 # to change this with `trixi_include`.
-semi = Semidiscretization(fluid_system, boundary_system,
+extra_system = nothing
+extra_system2 = nothing
+semi = Semidiscretization(fluid_system, boundary_system, extra_system, extra_system2,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
@@ -101,7 +104,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 
 solution_prefix = ""
-saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
+saving_callback = SolutionSavingCallback(dt=0.01, prefix=solution_prefix)
 
 # This can be overwritten with `trixi_include`
 extra_callback = nothing
@@ -117,6 +120,12 @@ callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra
                         extra_callback2, density_reinit_cb)
 
 time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
-sol = solve(ode, time_integration_scheme,
-            dt=1.0, # This is overwritten by the stepsize callback
+# sol = solve(ode, time_integration_scheme,
+#             dt=1.0, # This is overwritten by the stepsize callback
+#             save_everystep=false, callback=callbacks);
+sol = solve(ode, RDPK3SpFSAL35(),
+            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
+            maxiters=1e7,
             save_everystep=false, callback=callbacks);
