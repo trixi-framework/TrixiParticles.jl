@@ -391,7 +391,9 @@ end
 # `ParticleShiftingTechnique{<:Any, true}` means `update_everystage=true`
 function update_shifting!(system, shifting::ParticleShiftingTechnique{<:Any, true},
                           v, u, v_ode, u_ode, semi)
-    update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "update shifting" begin
+        update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    end
 end
 
 # `ParticleShiftingTechnique{<:Any, false}` means `update_everystage=false`
@@ -408,11 +410,13 @@ end
 # means `compute_v_max=true`
 function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, true},
                v, system)
-    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # This has similar performance as `maximum(..., eachparticle(system))`,
     # but is GPU-compatible.
-    v_max = maximum(x -> sqrt(dot(x, x)),
-                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
-                                current_velocity(v, system)))
+    v_max2 = maximum(x -> dot(x, x),
+                     reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                                 current_velocity(v, system)))
+    v_max = sqrt(v_max2)
+
     return shifting.v_factor * v_max
 end
 
@@ -497,10 +501,8 @@ end
 function particle_shifting_from_callback!(u_ode,
                                           shifting::ParticleShiftingTechnique{<:Any, false},
                                           system, v_ode, semi, integrator)
-    @trixi_timeit timer() "update particle shifting" begin
-        # Update the shifting velocity
-        update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi)
-    end
+    # Update the shifting velocity
+    update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi)
 
     @trixi_timeit timer() "apply particle shifting" begin
         # Update the particle positions with the shifting velocity

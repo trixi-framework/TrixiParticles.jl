@@ -16,16 +16,27 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
     normal_stiffness  :: ELTYPE
     buffer            :: Nothing
 
-    function BoundaryDEMSystem(initial_condition, normal_stiffness)
-        coordinates = initial_condition.coordinates
-        radius = 0.5 * initial_condition.particle_spacing *
-                 ones(length(initial_condition.mass))
-        NDIMS = size(coordinates, 1)
+    function BoundaryDEMSystem(initial_condition, coordinates, radius,
+                               normal_stiffness, buffer)
+        NDIMS = ndims(initial_condition)
 
-        return new{NDIMS, eltype(coordinates), typeof(initial_condition), typeof(radius),
+        return new{NDIMS, eltype(initial_condition), typeof(initial_condition),
+                   typeof(radius),
                    typeof(coordinates)}(initial_condition, coordinates, radius,
-                                        normal_stiffness, nothing)
+                                        normal_stiffness, buffer)
     end
+end
+
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function BoundaryDEMSystem(initial_condition, normal_stiffness)
+    ELTYPE = eltype(initial_condition)
+    coordinates = initial_condition.coordinates
+    radius = initial_condition.particle_spacing *
+             ones(ELTYPE, length(initial_condition.mass)) / 2
+
+    return BoundaryDEMSystem(initial_condition, coordinates, radius,
+                             normal_stiffness, nothing)
 end
 
 @inline function Base.eltype(system::BoundaryDEMSystem)
