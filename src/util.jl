@@ -187,6 +187,16 @@ function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
                                   parallelization_backend=A.parallelization_backend)
 end
 
+function Base.convert(::Type{ThreadedBroadcastArray{T, N, A, P}},
+                      a::AbstractArray) where {T, N, A, P}
+    if a isa ThreadedBroadcastArray{T, N, A, P}
+        return a
+    end
+
+    # TODO we only have the type `P` here and just assume that we can do `P()`
+    return ThreadedBroadcastArray(convert(A, a), parallelization_backend=P())
+end
+
 Base.@propagate_inbounds function Base.getindex(A::ThreadedBroadcastArray, i...)
     return getindex(A.array, i...)
 end

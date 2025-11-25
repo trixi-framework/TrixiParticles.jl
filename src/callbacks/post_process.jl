@@ -230,20 +230,20 @@ end
 function (pp::PostprocessCallback)(integrator; from_initialize=false)
     @trixi_timeit timer() "apply postprocess cb" begin
         vu_ode = integrator.u
-        # if from_initialize
+        if from_initialize
             # Avoid calling `get_du` here, since it will call the RHS function
             # if it is called before the first time step.
             # This would cause problems with `semi.update_callback_used`,
             # which might not yet be set to `true` at this point if the `UpdateCallback`
             # comes AFTER the `PostprocessCallback` in the `CallbackSet`.
             dv_ode, du_ode = zero(vu_ode).x
-        # else
-        #     # Depending on the time integration scheme, this might call the RHS function
-        #     @trixi_timeit timer() "update du" begin
-        #         # Don't create sub-timers here to avoid cluttering the timer output
-        #         @notimeit timer() dv_ode, du_ode = get_du(integrator).x
-        #     end
-        # end
+        else
+            # Depending on the time integration scheme, this might call the RHS function
+            @trixi_timeit timer() "update du" begin
+                # Don't create sub-timers here to avoid cluttering the timer output
+                @notimeit timer() dv_ode, du_ode = get_du(integrator).x
+            end
+        end
         v_ode, u_ode = vu_ode.x
         semi = integrator.p
         t = integrator.t
