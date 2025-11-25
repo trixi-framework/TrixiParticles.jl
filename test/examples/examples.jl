@@ -118,6 +118,7 @@
                                              maxiters=500,
                                              extra_callback=split_integration) [
                 "┌ Warning: Instability detected. Aborting\n",
+                r".*dt was forced below floating point epsilon.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
             @test sol.retcode == ReturnCode.Unstable
