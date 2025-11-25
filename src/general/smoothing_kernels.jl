@@ -682,7 +682,7 @@ end
 
 Truncated Laguerre–Gauss kernel (fourth-order smoothing) as defined in
 [Wang2024](@cite). Its radial form uses
-`s = r/h` and is truncated at `s = 2` (compact support `2h`):
+``s = r/h`` and is truncated at ``s = 2`` (compact support ``2h``):
 
 ```math
 W(r,h) = \frac{1}{h^d} \, w(s), \quad s=\frac{r}{h}, \quad
