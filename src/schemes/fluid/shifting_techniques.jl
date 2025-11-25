@@ -250,7 +250,7 @@ function ParticleShiftingTechniqueSun2017(; kwargs...)
 end
 
 """
-    ConsistentShiftingSun2019(; sound_speed_factor=0.1, kwargs...)
+    ConsistentShiftingSun2019(; sound_speed_factor=0.1f0, kwargs...)
 
 Consistent Particle Shifting Technique by [Sun et al. (2019)](@cite Sun2019).
 
@@ -261,10 +261,10 @@ ParticleShiftingTechnique(integrate_shifting_velocity=true,
                           modify_continuity_equation=true,
                           second_continuity_equation_term=ContinuityEquationTermSun2019(),
                           momentum_equation_term=MomentumEquationTermSun2019(),
-                          v_max_factor=0, sound_speed_factor=0.1)
+                          v_max_factor=0, sound_speed_factor=0.1f0)
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float64, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
@@ -284,7 +284,7 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 shifting_technique = ConsistentShiftingSun2019()
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float64, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 !!! warning
