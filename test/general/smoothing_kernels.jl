@@ -63,7 +63,8 @@
             WendlandC4Kernel,
             WendlandC6Kernel,
             SpikyKernel,
-            Poly6Kernel
+            Poly6Kernel,
+            LaguerreGaussKernel
         ]
 
         # Test 4 different smoothing lengths
@@ -106,7 +107,8 @@
             WendlandC4Kernel,
             WendlandC6Kernel,
             SpikyKernel,
-            Poly6Kernel
+            Poly6Kernel,
+            LaguerreGaussKernel
         ]
 
         # Test different smoothing length types

@@ -699,13 +699,7 @@ Eulerian / total Lagrangian SPH with relaxed particles.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct LaguerreGaussKernel{NDIMS, T} <: AbstractSmoothingKernel{NDIMS}
-    erf2::T
-    expm4::T
-    sqrtpi::T
-end
-LaguerreGaussKernel{NDIMS}() where {NDIMS} =
-    LaguerreGaussKernel{NDIMS, Float64}(erf(2.0), exp(-4.0), sqrt(pi))
+struct LaguerreGaussKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 @fastpow @inline function kernel(kernel::LaguerreGaussKernel, r::Real, h)
     q = r / h
@@ -735,32 +729,23 @@ end
 
 # Renormalized to the truncated integral over [0,2h]
 @inline function normalization_factor(kernel::LaguerreGaussKernel{1}, h)
-    erf2 = oftype(h, kernel.erf2)
-    expm4 = oftype(h, kernel.expm4)
-    sqrtpi = oftype(h, kernel.sqrtpi)
-
-    # C' = 1 / (2 * h * integral)
-    # integral = (7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4)
-    integral = (7 * sqrtpi / 16) * erf2 - (5 / 12) * expm4
-    return (1 / (2 * integral)) / h
+    # C = 1/(2*(7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4))
+    C = oftype(h, 0.65428780253539)
+    # C' = C/h
+    return C / h
 end
 
 @inline function normalization_factor(kernel::LaguerreGaussKernel{2}, h)
-    expm4 = oftype(h, kernel.expm4)
-
-    # C' = 1 / (2 * pi * h^2 * integral)
-    # integral = (5 - 17 * exp(-4)) / 12
-    integral = (5 - 17 * expm4) / 12
-    return  1 / (2 * pi * h^2 * integral)
+    # C = 2 * pi * (5 - 17 * exp(-4)) / 12
+    C = oftype(h, 2.454963094351984)
+    # C' = 1 / (h^2 * C)
+    return  1 / (h^2 * C)
 end
 
 @inline function normalization_factor(kernel::LaguerreGaussKernel{3}, h)
-    erf2 = oftype(h, kernel.erf2)
-    expm4 = oftype(h, kernel.expm4)
-    sqrtpi = oftype(h, kernel.sqrtpi)
+    # C = (7 * sqrt(pi) / 32) * erf(2) - (77 / 24) * exp(-4)
+    C = oftype(h, 0.3271479336905373)
 
-    # C' = 1 / (4 * pi * h^3 * integral)
-    # integral = (7 * sqrt(pi) / 32) * erf(2) - (77 / 24) * exp(-4)
-    integral = (7 * sqrtpi / 32) * erf2 - 77 * expm4 / 24
-    return 1 / (4 * pi * h^3 * integral)
+    # 4*pi cannot be pulled into C otherwise the test fails because of differences in rounding
+    return 1 / (C * 4 * pi * h^3)
 end
