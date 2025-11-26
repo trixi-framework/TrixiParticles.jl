@@ -36,6 +36,8 @@ end
 
 Literate.markdown(joinpath("docs", "literate", "src", "tut_setup.jl"),
                   joinpath("docs", "src", "tutorials"))
+Literate.markdown(joinpath("docs", "literate", "src", "tut_custom_kernel.jl"),
+                  joinpath("docs", "src", "tutorials"))
 Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
                   joinpath("docs", "src", "tutorials"))
 
@@ -76,7 +78,17 @@ makedocs(sitename="TrixiParticles.jl",
              "Installation" => "install.md",
              "Getting started" => "getting_started.md",
              "Development" => "development.md",
-             "Tutorial" => "tutorial.md",
+             "Tutorial" => [
+                "Overview" => "tutorial.md",
+                "General" => [
+                    "Setting up your simulation from scratch" => joinpath("tutorials", "tut_setup.md"),
+                    "Modifying or extending components of TrixiParticles.jl within a simulation file" =>
+                    joinpath("tutorials", "tut_custom_kernel.md")
+                ],
+                "Preprocessing" => [
+                    "Particle packing tutorial" => joinpath("tutorials", "tut_packing.md")
+                ],
+             ],
              "Examples" => "examples.md",
              "Visualization" => "visualization.md",
              "Preprocessing" => [
