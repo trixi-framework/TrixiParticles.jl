@@ -264,7 +264,7 @@ ParticleShiftingTechnique(integrate_shifting_velocity=true,
                           v_max_factor=0, sound_speed_factor=0.1f0)
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
@@ -284,7 +284,7 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 shifting_technique = ConsistentShiftingSun2019()
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 !!! warning
