@@ -28,9 +28,16 @@ H = 0.6
 particle_spacing = H / particles_per_height
 
 # Import variables from the example file
+alpha = 0.02
+viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+shifting_technique = nothing
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               alpha=0.02, # This is used by Marrone et al. (2011)
-              sol=nothing, ode=nothing, fluid_particle_spacing=particle_spacing)
+              sol=nothing,
+              ode=nothing,
+              shifting_technique=shifting_technique,
+              viscosity_fluid=viscosity_fluid,
+              fluid_particle_spacing=particle_spacing)
 
 use_edac = false # Set to false to use WCSPH
 
@@ -93,7 +100,9 @@ else
     method = "wcsph"
 end
 
-formatted_string = string(particles_per_height)
+
+extra_string = ""
+formatted_string = string(particles_per_height) * extra_string
 
 postprocessing_cb = PostprocessCallback(; dt=0.01 / sqrt(gravity / H),
                                         output_directory="out",
@@ -111,15 +120,20 @@ boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=fal
 # i.e. t(g/H)^(1/2) = (1.5, 2.36, 3.0, 5.7, 6.45).
 # Note that the images in Marrone et al. are obtained with `particles_per_height = 320`.
 saving_paper = SolutionSavingCallback(save_times=[0.0, 1.5, 2.36, 3.0, 5.7, 6.45] ./
-                                                 sqrt(gravity / H),
-                                      prefix="marrone_times")
+                                                 sqrt(gravity / H), prefix="marrone_times")
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
               boundary_density_calculator=boundary_density_calculator,
               state_equation=state_equation,
+              viscosity_fluid=viscosity_fluid,
               solution_prefix="validation_" * method * "_" * formatted_string,
               tspan=tspan, fluid_system=fluid_system,
               update_strategy=nothing,
               extra_callback=postprocessing_cb,
-              extra_callback2=saving_paper)
+              extra_callback2=saving_paper,
+              extra_system=nothing,
+              extra_system2=nothing,
+              cfl=0.9,
+              parallelization_backend=PolyesterBackend(),
+              neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))

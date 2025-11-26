@@ -7,6 +7,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
     (; density_calculator, correction) = particle_system
 
+    if neighbor_system isa AbstractBoundarySystem && abs(neighbor_system.boundary_model.state_equation.reference_density-particle_system.state_equation.reference_density) > 1
+        return dv
+    end
+
     sound_speed = system_sound_speed(particle_system)
 
     surface_tension_a = surface_tension_model(particle_system)
@@ -26,6 +30,13 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
+
+        smoothing_length_ = smoothing_length(particle_system, particle)
+
+        if neighbor_system isa AbstractFluidSystem && abs(neighbor_system.state_equation.reference_density- particle_system.state_equation.reference_density) > 1
+            smoothing_length_ *= Float32(0.5)
+        end
+
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.
@@ -39,7 +50,12 @@ function interact!(dv, v_particle_system, u_particle_system,
          surface_tension_correction) = free_surface_correction(correction, particle_system,
                                                                rho_mean)
 
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+        # grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+        grad_kernel =  corrected_kernel_grad(system_smoothing_kernel(particle_system), pos_diff,
+                                 distance, smoothing_length_,
+                                 system_correction(particle_system), particle_system, particle)
+
+
 
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)

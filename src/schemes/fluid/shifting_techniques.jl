@@ -18,7 +18,9 @@ function create_cache_shifting(initial_condition, ::AbstractShiftingTechnique)
     delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
                     nparticles(initial_condition))
 
-    return (; delta_v)
+    nct = zeros(eltype(initial_condition), nparticles(initial_condition))
+
+    return (; delta_v, nct)
 end
 
 # `δv` is the correction to the particle velocity due to the shifting.
@@ -489,7 +491,7 @@ function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
         end
     end
 
-    modify_shifting_at_free_surfaces!(system, u, semi)
+    modify_shifting_at_free_surfaces!(system, u, semi, u_ode)
 
     return system
 end
@@ -693,10 +695,590 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
         end
     end
 
-    modify_shifting_at_free_surfaces!(system, u, semi)
+    modify_shifting_at_free_surfaces!(system, u, semi, u_ode)
 
     return system
 end
 
 # TODO: Implement free surface detection to disable shifting close to free surfaces
-@inline modify_shifting_at_free_surfaces!(system, u, semi) = system
+# function modify_shifting_at_free_surfaces!(system, u, semi, u_ode)
+#     T   = eltype(system.cache.delta_v)
+#     dim = ndims(system)
+#     np  = size(system.cache.delta_v, 2)
+#     epsT = eps(T)
+
+#     # ------------------------------------------------------------
+#     # PASS 1: free-surface indicators & wall stats
+#     #   - psi_nog:   Σ W_ab (EXCLUDING boundary systems)  → limiter/support
+#     #   - gsum_wg:   Σ ∇W_ab (INCLUDING ghosts)           → FS normals
+#     #   - psi_wall:  Σ W_ab (boundary only)               → wall ratio/damping
+#     #   - S (2x2):   Σ (∇W)(∇W)^T (boundary only)         → corner detector
+#     # ------------------------------------------------------------
+#     coordsA  = current_coordinates(u, system)
+#     psi_nog  = zeros(T, np)
+#     gsum_wg  = zeros(T, dim, np)
+#     psi_wall = zeros(T, np)
+#     S11 = zeros(T, np); S12 = zeros(T, np); S22 = zeros(T, np)  # used in 2D
+
+#     foreach_system(semi) do sysB
+#         # if u_ode not passed, we can only see same-system neighbors
+#         if (u_ode === nothing) && (sysB !== system)
+#             return
+#         end
+#         uB      = (u_ode === nothing) ? u : wrap_u(u_ode, sysB, semi)
+#         coordsB = current_coordinates(uB, sysB)
+
+#         foreach_point_neighbor(system, sysB, coordsA, coordsB, semi;
+#                                points=each_integrated_particle(system)) do a,b,pos_diff,distance
+#             Wab  = smoothing_kernel(system, distance, a)
+#             gWab = smoothing_kernel_grad(system, pos_diff, distance, a)
+
+#             # WITH ghosts → robust normals near walls
+#             @inbounds for i in 1:dim
+#                 gsum_wg[i, a] += gWab[i]
+#             end
+
+#             if sysB isa AbstractBoundarySystem
+#                 @inbounds psi_wall[a] += Wab
+#                 if dim >= 2
+#                     @inbounds begin
+#                         S11[a] += gWab[1]*gWab[1]
+#                         S12[a] += gWab[1]*gWab[2]
+#                         S22[a] += gWab[2]*gWab[2]
+#                     end
+#                 end
+#             else
+#                 @inbounds psi_nog[a] += Wab   # support WITHOUT ghosts
+#             end
+#         end
+#     end
+
+#     smax_nog  = maximum(psi_nog)
+#     h         = smoothing_length(system, 1)
+
+#     # Tunables (more permissive than before)
+#     λ_min     = T(0.50)   # relaxed cutoff (was 0.55)
+#     α_mask    = T(0.85)   # FS detection threshold (unchanged)
+#     α_limit   = T(0.80)   # NEW: softer limiter denominator → more δu
+#     τ_grad    = T(0.30)
+#     s_min     = T(0.15)   # NEW: minimum limiter floor so FS keeps some δu
+
+#     # FS mask: detect using support (no-ghosts) and gradient magnitude (with-ghosts)
+#     FS = falses(np)
+#     @inbounds for a in 1:np
+#         g2 = zero(T)
+#         for i in 1:dim
+#             g2 += gsum_wg[i, a]^2
+#         end
+#         gnorm = sqrt(g2)
+#         FS[a] = (psi_nog[a] < α_mask * smax_nog) || (h * gnorm > τ_grad)
+#     end
+
+#     # Unit normals from WITH-ghosts gradient sum (only where FS=true)
+#     n_hat = zeros(T, dim, np)
+#     @inbounds for a in 1:np
+#         if FS[a]
+#             g2 = zero(T)
+#             for i in 1:dim
+#                 g2 += gsum_wg[i, a]^2
+#             end
+#             gnorm = sqrt(g2)
+#             if gnorm > T(1e2)*epsT
+#                 for i in 1:dim
+#                     n_hat[i, a] = -gsum_wg[i, a] / gnorm
+#                 end
+#             end
+#         end
+#     end
+
+#     # ------------------------------------------------------------
+#     # Curvature κ ≈ -∇·n_hat, fluid-only gather (kept, but softer limiter later)
+#     # ------------------------------------------------------------
+#     kappa = zeros(T, np)
+#     foreach_point_neighbor(system, system, coordsA, coordsA, semi;
+#                            points=each_integrated_particle(system)) do a,b,pos_diff,distance
+#         if FS[a] || FS[b]
+#             gW = smoothing_kernel_grad(system, pos_diff, distance, a)
+#             acc = zero(T)
+#             @inbounds for i in 1:dim
+#                 acc += (n_hat[i, b] - n_hat[i, a]) * gW[i]
+#             end
+#             @inbounds kappa[a] -= acc
+#         end
+#     end
+#     κ0 = max(T(1.2)/h, T(1e-6))  # relaxed (was 0.8/h)
+#     p  = T(1.5)                  # softer slope (was 2)
+
+#     # ------------------------------------------------------------
+#     # Tangential XSPH smoothing on δv (two-buffer, normalized): gentler
+#     # ------------------------------------------------------------
+#     alpha_t = T(0.04)  # gentler (was 0.08)
+#     dvt_src = zeros(T, dim, np) # tangential component of δv (source)
+#     dvt_acc = zeros(T, dim, np) # gather increments
+#     wsum    = zeros(T, np)
+
+#     if alpha_t > 0
+#         # build tangential source
+#         @inbounds for a in 1:np
+#             if FS[a]
+#                 dotnv = zero(T)
+#                 for i in 1:dim
+#                     dotnv += n_hat[i, a] * system.cache.delta_v[i, a]
+#                 end
+#                 for i in 1:dim
+#                     dvt_src[i, a] = system.cache.delta_v[i, a] - dotnv * n_hat[i, a]
+#                 end
+#             end
+#         end
+
+#         # gather smoothing (fluid-only, FS–FS)
+#         foreach_point_neighbor(system, system, coordsA, coordsA, semi;
+#                                points=each_integrated_particle(system)) do a,b,pos_diff,distance
+#             if FS[a] && FS[b]
+#                 Wab = smoothing_kernel(system, distance, a)
+#                 @inbounds begin
+#                     for i in 1:dim
+#                         dvt_acc[i, a] += (dvt_src[i, b] - dvt_src[i, a]) * Wab
+#                     end
+#                     wsum[a] += Wab
+#                 end
+#             end
+#         end
+
+#         # finalize tangential smoothing back into dvt_src
+#         @inbounds for a in 1:np
+#             if FS[a] && isfinite(wsum[a]) && wsum[a] > epsT
+#                 scale = alpha_t / wsum[a]
+#                 for i in 1:dim
+#                     dvt_src[i, a] += scale * dvt_acc[i, a]
+#                 end
+#             end
+#         end
+#     end
+
+#     # ------------------------------------------------------------
+#     # PASS 2: strongest two wall normals per particle (for corners)
+#     # ------------------------------------------------------------
+#     wall_g1 = zeros(T, dim, np)   # strongest wall normal proxy
+#     wall_g2 = zeros(T, dim, np)   # second strongest
+#     nrm1    = zeros(T, np)        # |g1|^2
+#     nrm2    = zeros(T, np)        # |g2|^2
+
+#     foreach_system(semi) do sysB
+#         if !(sysB isa AbstractBoundarySystem)
+#             return
+#         end
+#         if (u_ode === nothing) && (sysB !== system)
+#             return
+#         end
+#         uB      = (u_ode === nothing) ? u : wrap_u(u_ode, sysB, semi)
+#         coordsB = current_coordinates(uB, sysB)
+
+#         # accumulate gradient sum for THIS wall system
+#         gtmp = zeros(T, dim, np)
+#         foreach_point_neighbor(system, sysB, coordsA, coordsB, semi;
+#                                points=each_integrated_particle(system)) do a,b,pos_diff,distance
+#             gW = smoothing_kernel_grad(system, pos_diff, distance, a)
+#             @inbounds for i in 1:dim
+#                 gtmp[i, a] += gW[i]
+#             end
+#         end
+
+#         # update top-2 per particle
+#         @inbounds for a in 1:np
+#             wx = gtmp[1,a]; wy = dim>=2 ? gtmp[2,a] : zero(T); wz = dim==3 ? gtmp[3,a] : zero(T)
+#             val = wx*wx + wy*wy + wz*wz
+#             if val > nrm1[a] + epsT
+#                 for i in 1:dim
+#                     wall_g2[i,a] = wall_g1[i,a]
+#                     wall_g1[i,a] = gtmp[i,a]
+#                 end
+#                 nrm2[a] = nrm1[a]
+#                 nrm1[a] = val
+#             elseif val > nrm2[a] + epsT
+#                 for i in 1:dim
+#                     wall_g2[i,a] = gtmp[i,a]
+#                 end
+#                 nrm2[a] = val
+#             end
+#         end
+#     end
+
+#     # ------------------------------------------------------------
+#     # PASS 3: modify δv in place (kernel body)
+#     # ------------------------------------------------------------
+#     β_wall   = T(2)         # wall-proximity damping exponent
+#     κ_corner = T(0.30)      # corner eigen-ratio threshold (2D)
+
+#     @threaded semi for a in each_integrated_particle(system)
+#         # --- 3.0: corner kill-switch (2D only)
+#         if dim == 2
+#             tr  = @inbounds S11[a] + S22[a]
+#             det = @inbounds S11[a]*S22[a] - S12[a]*S12[a]
+#             disc = max(tr*tr - 4*det, zero(T))
+#             lam1 = T(0.5)*(tr + sqrt(disc))
+#             lam2 = T(0.5)*(tr - sqrt(disc))
+#             if lam1 > epsT && lam2/lam1 > κ_corner
+#                 @inbounds for i in 1:dim
+#                     system.cache.delta_v[i, a] = zero(T)
+#                 end
+#                 return
+#             end
+#         end
+
+#         # --- 3.1: smooth wall-proximity damping
+#         rw = @inbounds psi_wall[a] / (psi_wall[a] + psi_nog[a] + epsT)
+#         scale_wall = (one(T) - clamp(rw, zero(T), one(T)))^β_wall
+#         @inbounds for i in 1:dim
+#             system.cache.delta_v[i, a] *= scale_wall
+#         end
+
+#         # --- 3.2: λ-cutoff (Sun'19): disable PST if λ is too small
+#         λ = @inbounds psi_nog[a] / (smax_nog + epsT)
+#         if λ < λ_min
+#             @inbounds for i in 1:dim
+#                 system.cache.delta_v[i, a] = zero(T)
+#             end
+#             return
+#         end
+
+#         # --- 3.3: enforce wall no-penetration (project out up to 2 wall normals)
+#         n1 = nrm1[a]; n2 = nrm2[a]
+#         if n1 > epsT
+#             dot1 = zero(T)
+#             @inbounds for i in 1:dim
+#                 dot1 += system.cache.delta_v[i,a] * wall_g1[i,a]
+#             end
+#             scal1 = dot1 / (n1 + epsT)
+#             @inbounds for i in 1:dim
+#                 system.cache.delta_v[i,a] -= scal1 * wall_g1[i,a]
+#             end
+#         end
+#         if n2 > epsT
+#             # avoid re-projecting along near-colinear normals
+#             dot2 = zero(T); g1g2 = zero(T)
+#             @inbounds for i in 1:dim
+#                 dot2 += system.cache.delta_v[i,a] * wall_g2[i,a]
+#                 g1g2 += wall_g1[i,a]*wall_g2[i,a]
+#             end
+#             cos2 = (n1 > epsT) ? (g1g2*g1g2)/(n1*n2 + epsT) : zero(T)
+#             if cos2 < T(0.99)
+#                 scal2 = dot2 / (n2 + epsT)
+#                 @inbounds for i in 1:dim
+#                     system.cache.delta_v[i,a] -= scal2 * wall_g2[i,a]
+#                 end
+#             end
+#         end
+
+#         # --- 3.4: free-surface tangential-only (with sign test)
+#         g2 = zero(T)
+#         @inbounds for i in 1:dim
+#             g2 += gsum_wg[i,a] * gsum_wg[i,a]
+#         end
+#         gnorm = sqrt(g2)
+#         if FS[a] && gnorm > epsT
+#             # apply only if (n · δu*) >= 0 (i.e., outward)
+#             ndotu = zero(T)
+#             @inbounds for i in 1:dim
+#                 ndotu += (-gsum_wg[i,a] / gnorm) * system.cache.delta_v[i,a]
+#             end
+#             if ndotu >= 0
+#                 @inbounds for i in 1:dim
+#                     system.cache.delta_v[i,a] -= ndotu * (-gsum_wg[i,a] / (gnorm + epsT))
+#                 end
+#             end
+#             # soft FS limiter based on support without ghosts (LESS damping)
+#             s = @inbounds psi_nog[a] / (α_limit*smax_nog + epsT)
+#             s = clamp(s, s_min, one(T))   # NEW: floor keeps some δu
+#             @inbounds for i in 1:dim
+#                 system.cache.delta_v[i,a] *= s
+#             end
+#         end
+
+#         # --- 3.5: curvature-aware limiter (softer)
+#         kap    = @inbounds abs(kappa[a])
+#         f_curv = one(T) / (one(T) + (kap / (κ0 + epsT))^p)
+#         @inbounds for i in 1:dim
+#             system.cache.delta_v[i, a] *= f_curv
+#         end
+
+#         # --- 3.6: gently blend smoothed tangential δv (additive, not replacement)
+#         if alpha_t > 0 && FS[a]
+#             # add a small smoothed tangential increment, keep current normal part
+#             dotnv = zero(T)
+#             @inbounds for i in 1:dim
+#                 dotnv += n_hat[i, a] * system.cache.delta_v[i, a]
+#             end
+#             @inbounds for i in 1:dim
+#                 # δv ← current + (dvt_src - current_tangential) * η
+#                 # but dvt_src already includes (I - nnᵀ)δv + smoothing; add small increment:
+#                 inc = dvt_src[i, a] - (system.cache.delta_v[i, a] - dotnv * n_hat[i, a])
+#                 system.cache.delta_v[i, a] += inc   # η=1 here since alpha_t is already small
+#             end
+#         end
+#     end
+
+#     # ------------------------------------------------------------
+#     # PASS 4: sanitize NaNs/Infs (very cheap)
+#     # ------------------------------------------------------------
+#     @inbounds for a in 1:np
+#         for i in 1:dim
+#             v = system.cache.delta_v[i, a]
+#             if !isfinite(v)
+#                 system.cache.delta_v[i, a] = zero(T)
+#             end
+#         end
+#     end
+
+#     return system
+# end
+
+"""
+    modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
+                                      λ_off::Real = 0.78,
+                                      λ_on::Real  = 0.97,
+                                      s_min::Real = 0.03,
+                                      γ::Real     = 2.5)
+
+Scale the **particle shifting velocity** `δv` near the free surface using a simple,
+robust **neighbor–concentration ramp**. This attenuates shifting where particle
+support is truncated (tips/crests/intersections) and leaves it unchanged in the bulk.
+
+# How it works
+For each particle `a`, we build a **support fullness**
+`λ = N_a / N_ref ∈ [0,1]`, where `N_a` is the (fluid-phase) neighbor count found by
+the neighbor loop and `N_ref = max_a N_a` (an interior reference).
+We then compute a smooth ramp `s(λ)` and scale the current shifting velocity:
+
+s_lin(λ) = clamp( (λ - λ_off) / (λ_on - λ_off), 0, 1 )
+s(λ) = max(s_min, s_lin(λ))^γ
+δv_a ← s(λ_a) * δv_a
+
+markdown
+Code kopieren
+
+Thus:
+- Very sparse support (`λ ≤ λ_off`) → `s ≈ s_min` (almost off).
+- Full support (`λ ≥ λ_on`)       → `s ≈ 1`    (no attenuation).
+- In-between (`λ_off < λ < λ_on`) → linear ramp (optionally made steeper by `γ`).
+
+This strategy is commonly used in improved/enhanced PST variants to moderate
+shifting at free surfaces without explicit normal/curvature estimation.
+
+# Keyword parameters
+- `λ_off` (default `0.78`): **Ramp start**. Support below this is considered
+  “too sparse” for reliable shifting. Increasing `λ_off` **reduces** surface shifting
+  (safer at thin tongues/crests), decreasing it **increases** surface shifting.
+- `λ_on`  (default `0.97`): **Ramp end**. Support above this receives **full**
+  shifting. Increasing `λ_on` makes full shifting harder to reach; decreasing it
+  expands the region with full shifting.
+- `s_min` (default `0.03`): **Floor** of the scaling factor to avoid freezing
+  tangential reordering completely at the interface. Set to `0.0` to **disable
+  shifting entirely** when `λ` is below `λ_off`. Larger `s_min` keeps a bit more
+  motion but can promote peel-off/clustering if too high.
+- `γ`     (default `2.5`): **Nonlinearity** of the ramp. `γ > 1` concentrates
+  shifting in the bulk and damps it near the free surface; `γ < 1` does the
+  opposite (more aggressive at the surface). Typical safe range is `1.5–3.0`.
+
+# Practical tuning
+- **Leading edge (dam-break tongue too mobile):** raise `λ_off` a little
+  (e.g. `0.80`) or increase `γ` (e.g. `3.0`).
+- **Surface clustering/banding:** raise `λ_off` or lower `s_min` (down to `0.0`
+  if you prefer to fully switch off in very sparse regions). If clustering persists,
+  consider adding a tiny outward **sign-clamp** (remove outward component of `δv`
+  only when very close to the free surface) or a light δ-SPH density diffusion
+  in your solver (outside this function).
+- **More surface reordering:** lower `λ_off` slightly (e.g. `0.75`) or reduce `γ`.
+
+# Notes & assumptions
+- `N_a` is the neighbor count gathered by the provided neighbor traversal
+  (as written, it counts neighbors from whatever systems you iterate in
+  `foreach_system(semi)`; if you only want same-phase neighbors, limit that loop
+  to `system` only).
+- This routine **does not modify wall particles** and does not explicitly
+  project along wall normals; it simply scales `δv` by local support fullness.
+- The scaling is GPU- and threading-friendly: no global reductions beyond
+  computing `N_ref = maximum(ncnt)` and only per-particle operations thereafter.
+
+# Example
+```julia
+# safer at violent free surfaces (less shift at tips)
+modify_shifting_at_free_surfaces!(sys, u, semi, u_ode; λ_off=0.80, λ_on=0.97, s_min=0.02, γ=3.0)
+
+# slightly more surface ordering
+modify_shifting_at_free_surfaces!(sys, u, semi, u_ode; λ_off=0.75, λ_on=0.95, s_min=0.05, γ=1.8)
+"""
+# function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
+#                                            λ_off::Real = 0.78,
+#                                            λ_on::Real  = 0.97,
+#                                            s_min::Real = 0.03,
+#                                            γ::Real     = 2.5)
+
+function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
+                                           λ_off::Real = 0.70, #2 78 #3 70 > 65 already rounds out too much # 70
+                                           λ_on::Real  = 0.90, #2 95 #3 90 still fine #2 90
+                                           s_min::Real = 0.0, #3 03 0.1 <- detaches 0.05 detaches from wall #2 0
+                                           γ::Real     = 2.5) #2 2.5 #2 2.0 worse #2 3.0
+    dim = ndims(system)
+    epsT = eps(eltype(system.cache.delta_v))
+
+    coordsA = current_coordinates(u, system)
+    set_zero!(system.cache.nct)
+
+    foreach_system(semi) do sysB
+        uB      = wrap_u(u_ode, sysB, semi)
+        coordsB = current_coordinates(uB, sysB)
+
+        foreach_point_neighbor(system, sysB, coordsA, coordsB, semi;
+                                points=each_integrated_particle(system)) do a,b,pos_diff,distance
+                @inbounds system.cache.nct[a] += 1
+        end
+    end
+
+    Nref = max(maximum(system.cache.nct), 1)
+
+    inv_range = 1 / (λ_on - λ_off + epsT)
+
+    @threaded semi for a in each_integrated_particle(system)
+        λ = @inbounds system.cache.nct[a] / Nref     # 0..1 proxy for support fullness
+        s = (λ - λ_off) * inv_range         # linear ramp [α0..α1] → [0..1]
+        s = s < epsT ? 0 : (s > 1 ? 1 : s)
+        s = max(s, s_min)                  # keep some ordering if desired
+        sγ = s^γ
+        for i in 1:dim
+            @inbounds system.cache.delta_v[i, a] *= sγ
+        end
+    end
+
+    return system
+end
+
+
+"""
+Two-metric free-surface attenuation for PST (same-phase neighbors; walls only for FS mask).
+Adds:
+  • Tip clamp: extra ramp for very low same-phase support (leading edge).
+  • Anti-clustering equalizer: downscale where N_a > local weighted average.
+
+Tunables (safe defaults):
+  λ_off=0.76, λ_on=0.965, γ=2.0, s_min=0.05,
+  α_mask=0.92, clampλ=0.99,
+  λ_tip0=0.52, λ_tip1=0.65, γ_tip=2.0, q_eq=2.0
+"""
+# function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
+#     λ_off::Real=0.76, λ_on::Real=0.965, γ::Real=2.0, s_min::Real=0.05,
+#     α_mask::Real=0.92, clampλ::Real=0.99,
+#     λ_tip0::Real=0.52, λ_tip1::Real=0.65, γ_tip::Real=2.0, q_eq::Real=2.0)
+
+#     T   = eltype(system.cache.delta_v)
+#     dim = ndims(system)
+#     np  = size(system.cache.delta_v, 2)
+#     epsT = eps(T)
+
+#     coordsA = current_coordinates(u, system)
+
+#     # --- Pass 1: same-phase neighbor data -----------------------------------
+#     N_fluid     = zeros(T, np)          # same-phase neighbor count
+#     gsum_fluid  = zeros(T, dim, np)     # same-phase Σ∇W (for sign clamp)
+
+#     foreach_point_neighbor(system, system, coordsA, coordsA, semi;
+#                            points=each_integrated_particle(system)) do a,b,pos_diff,distance
+#         @inbounds N_fluid[a] += one(T)
+#         gWab = smoothing_kernel_grad(system, pos_diff, distance, a)
+#         @inbounds for i in 1:dim
+#             gsum_fluid[i, a] += gWab[i]
+#         end
+#     end
+
+#     # --- Pass 2: N_all = same-phase + wall neighbors (FS mask only) ----------
+#     N_all = copy(N_fluid)
+#     foreach_system(semi) do sysB
+#         (sysB isa AbstractBoundarySystem) || return
+#         uB      = (u_ode === nothing) ? u : wrap_u(u_ode, sysB, semi)
+#         coordsB = current_coordinates(uB, sysB)
+#         foreach_point_neighbor(system, sysB, coordsA, coordsB, semi;
+#                                points=each_integrated_particle(system)) do a,b,pos_diff,distance
+#             @inbounds N_all[a] += one(T)
+#         end
+#     end
+
+#     # --- Pass 3: local weighted average of same-phase neighbor count ----------
+#     nbar_num = zeros(T, np)   # Σ W_ab * N_fluid[b]
+#     nbar_den = zeros(T, np)   # Σ W_ab
+#     foreach_point_neighbor(system, system, coordsA, coordsA, semi;
+#                            points=each_integrated_particle(system)) do a,b,pos_diff,distance
+#         Wab = smoothing_kernel(system, distance, a)
+#         @inbounds begin
+#             nbar_num[a] += Wab * N_fluid[b]
+#             nbar_den[a] += Wab
+#         end
+#     end
+
+#     # References from maxima (interior-like)
+#     Nref_fluid = max(maximum(N_fluid), one(T))
+#     Nref_all   = max(maximum(N_all),   one(T))
+
+#     # Ramps/params
+#     α0 = T(λ_off); α1 = T(λ_on); invr = one(T)/(α1-α0 + epsT)
+#     αt0 = T(λ_tip0); αt1 = T(λ_tip1); invrt = one(T)/(αt1-αt0 + epsT)
+#     gexp = T(γ); gtip = T(γ_tip); smin = T(s_min)
+#     αmask = T(α_mask); clampλT = T(clampλ)
+#     qeq = T(q_eq)
+
+#     @threaded semi for a in each_integrated_particle(system)
+#         # Free-surface mask uses all neighbors (fluid + walls)
+#         λ_all = @inbounds N_all[a] / Nref_all
+#         is_FS = λ_all < αmask
+#         if !is_FS
+#             return
+#         end
+
+#         # Same-phase fullness
+#         λf = @inbounds N_fluid[a] / Nref_fluid
+
+#         # Main FS ramp
+#         s = (λf - α0) * invr
+#         s = s < zero(T) ? zero(T) : (s > one(T) ? one(T) : s)
+
+#         # Tip clamp (very low same-phase support → heavily attenuate)
+#         s_tip = (λf - αt0) * invrt
+#         s_tip = s_tip < zero(T) ? zero(T) : (s_tip > one(T) ? one(T) : s_tip)
+
+#         s_total = max(smin, (s^gexp) * (s_tip^gtip))
+
+#         @inbounds for i in 1:dim
+#             system.cache.delta_v[i, a] *= s_total
+#         end
+
+#         # Anti-clustering equalizer vs local weighted average (same-phase only)
+#         nbar = @inbounds nbar_num[a] / (nbar_den[a] + epsT)
+#         if @inbounds N_fluid[a] > nbar
+#             feq = (nbar / (@inbounds N_fluid[a] + epsT))^qeq
+#             @inbounds for i in 1:dim
+#                 system.cache.delta_v[i, a] *= feq
+#             end
+#         end
+
+#         # Tiny outward sign clamp close to FS (prevents peel-off)
+#         if λ_all < clampλT
+#             g2 = zero(T)
+#             @inbounds for i in 1:dim
+#                 g2 += gsum_fluid[i, a]^2
+#             end
+#             if g2 > T(1e2)*epsT
+#                 invg = inv(sqrt(g2))
+#                 ndot = zero(T)
+#                 @inbounds for i in 1:dim
+#                     ndot += system.cache.delta_v[i, a] * (-gsum_fluid[i, a] * invg)
+#                 end
+#                 if ndot > 0
+#                     @inbounds for i in 1:dim
+#                         system.cache.delta_v[i, a] -= ndot * (-gsum_fluid[i, a] * invg)
+#                     end
+#                 end
+#             end
+#         end
+#     end
+
+#     return system
+# end

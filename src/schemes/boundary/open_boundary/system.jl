@@ -524,7 +524,7 @@ end
 
 # One face of the boundary zone is the transition to the fluid domain.
 # The face opposite to this transition face is a free surface.
-@inline function modify_shifting_at_free_surfaces!(system::OpenBoundarySystem, u, semi)
+@inline function modify_shifting_at_free_surfaces!(system::OpenBoundarySystem, u, semi, u_ode)
     (; fluid_system, cache) = system
 
     @threaded semi for particle in each_integrated_particle(system)
