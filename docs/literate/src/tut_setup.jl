@@ -4,11 +4,7 @@
 # We will set up a simulation similar to the example simulation
 # [`examples/fluid/dam_break_2d.jl`](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/fluid/dam_break_2d.jl),
 # which is one of our simplest example simulations.
-# In the second part of this tutorial, we will show how to replace components
-# of TrixiParticles.jl by custom implementations from within a simulation file,
-# without ever cloning the repository.
-
-# For different setups and physics, have a look at [our other example files](@ref examples).
+# For different setups and physics, take a look at [our other example files](@ref examples).
 
 # First, we import TrixiParticles.jl and
 # [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), which we will
