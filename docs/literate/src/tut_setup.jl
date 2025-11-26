@@ -91,7 +91,8 @@ nothing # hide
 # We can plot these initial conditions to visualize the initial setup.
 using Plots
 plot(tank.fluid, tank.boundary, labels=["fluid" "boundary"])
-plot!(dpi=200); savefig("tut_setup_plot_tank.png"); nothing # hide
+plot!(dpi=200) # hide
+savefig("tut_setup_plot_tank.png"); # hide
 # ![plot tank](tut_setup_plot_tank.png)
 
 # ## Fluid system
@@ -200,7 +201,8 @@ sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks) #!md
 # For the simplest visualization, we can use [Plots.jl](https://docs.juliaplots.org/stable/):
 using Plots
 plot(sol)
-plot!(dpi=200); savefig("tut_setup_plot.png"); nothing # hide
+plot!(dpi=200) # hide
+savefig("tut_setup_plot.png"); # hide
 # ![plot](tut_setup_plot.png)
 
 # ## Replacing components with custom implementations
@@ -266,11 +268,13 @@ nothing # hide
 # We can compare these kernels in a plot.
 using Plots
 x = range(-0.05, 0.05, length=500)
-plot(x, r -> TrixiParticles.kernel(SchoenbergCubicSplineKernel{2}(), abs(r), smoothing_length),
+plot(x,
+     r -> TrixiParticles.kernel(SchoenbergCubicSplineKernel{2}(), abs(r), smoothing_length),
      label="SchoenbergCubicSplineKernel", xlabel="r")
 plot!(x, r -> TrixiParticles.kernel(MyGaussianKernel(), abs(r), smoothing_length_gauss),
       label="MyGaussianKernel")
-plot!(dpi=200); savefig("tut_setup_plot2.png"); nothing # hide
+plot!(dpi=200) # hide
+savefig("tut_setup_plot2.png"); # hide
 # ![plot](tut_setup_plot2.png)
 
 # This is all we need to use our custom kernel implementation in a simulation.
