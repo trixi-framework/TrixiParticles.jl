@@ -34,7 +34,6 @@ TrixiBase = "9a0f1c46-06d5-4909-a5a3-ce25d3fa3284"
 WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [weakdeps]
-IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 OrdinaryDiffEqCore = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
 
@@ -51,7 +50,6 @@ FastPow = "0.1"
 FileIO = "1"
 ForwardDiff = "1"
 GPUArraysCore = "0.2"
-IntervalSets = "0.7.13"
 JSON = "1"
 KernelAbstractions = "0.9"
 MuladdMacro = "0.2"
