@@ -175,7 +175,7 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     (; normalized_density_gradient) = density_diffusion
 
     # Compute correction matrix
-    density_fun = @inline(particle->current_density(v, system, particle))
+    density_fun = @propagate_inbounds(particle->current_density(v, system, particle))
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(density_diffusion.correction_matrix,
@@ -187,23 +187,19 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
                                                                        pos_diff, distance
-        # Density diffusion terms are all zero for distance zero.
-        # See `src/general/smoothing_kernels.jl` for more details.
-        distance^2 < eps(initial_smoothing_length(system)^2) && return
-
-        rho_a = current_density(v, system, particle)
-        rho_b = current_density(v, system, neighbor)
+        rho_a = @inbounds current_density(v, system, particle)
+        rho_b = @inbounds current_density(v, system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-        L = correction_matrix(density_diffusion, particle)
+        L = @inbounds correction_matrix(density_diffusion, particle)
 
-        m_b = hydrodynamic_mass(system, neighbor)
+        m_b = @inbounds hydrodynamic_mass(system, neighbor)
         volume_b = m_b / rho_b
 
         normalized_gradient = -(rho_a - rho_b) * L * grad_kernel * volume_b
 
         for i in eachindex(normalized_gradient)
-            normalized_density_gradient[i, particle] += normalized_gradient[i]
+            @inbounds normalized_density_gradient[i, particle] += normalized_gradient[i]
         end
     end
 
