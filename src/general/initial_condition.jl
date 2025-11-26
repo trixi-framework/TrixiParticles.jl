@@ -123,9 +123,6 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
     ELTYPE = typeof(particle_spacing)
     n_particles = size(coordinates, 2)
 
-    # Coordinates can have a different eltype, e.g., Float64 if others are Float32
-    coordinates_eltype = eltype(coordinates)
-
     if n_particles == 0
         return InitialCondition(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
                                 zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
@@ -133,7 +130,7 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
 
     # SVector of coordinates to pass to functions.
     # This will return a vector of SVectors in 2D and 3D, but an 1×n matrix in 1D.
-    coordinates_svector_ = reinterpret(reshape, SVector{NDIMS, coordinates_eltype},
+    coordinates_svector_ = reinterpret(reshape, SVector{NDIMS, eltype(coordinates)},
                                        coordinates)
     # In 1D, this will reshape the 1×n matrix to a vector, in 2D/3D it will do nothing
     coordinates_svector = reshape(coordinates_svector_, length(coordinates_svector_))
