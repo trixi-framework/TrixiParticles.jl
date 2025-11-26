@@ -248,7 +248,8 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     reference_values = (reference_velocity=velocity_ref, reference_pressure=pressure_ref,
                         reference_density=density_ref)
 
-    coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE}, ic.coordinates)
+    coordinates_svector = reinterpret(reshape, SVector{NDIMS, eltype(ic.coordinates)},
+                                      ic.coordinates)
 
     if prescribed_pressure
         ic.pressure .= pressure_ref.(coordinates_svector, 0)
@@ -365,7 +366,7 @@ function set_up_boundary_zone(boundary_face, face_normal, density, particle_spac
         spanning_set[:, 1] .*= -sign(dot_face_normal)
     end
 
-    spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
+    spanning_set_ = reinterpret(reshape, SVector{NDIMS, eltype(spanning_set)}, spanning_set)
 
     # Remove particles outside the boundary zone.
     # This check is only necessary when `initial_condition` or `extrude_geometry` are passed.

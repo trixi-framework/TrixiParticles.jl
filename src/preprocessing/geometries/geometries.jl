@@ -12,7 +12,8 @@ function Base.setdiff(initial_condition::InitialCondition,
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
-    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
+    coords = reinterpret(reshape,
+                         SVector{ndims(geometry), eltype(initial_condition.coordinates)},
                          initial_condition.coordinates)
 
     delete_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)
@@ -38,7 +39,8 @@ function Base.intersect(initial_condition::InitialCondition,
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
-    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
+    coords = reinterpret(reshape,
+                         SVector{ndims(geometry), eltype(initial_condition.coordinates)},
                          initial_condition.coordinates)
 
     keep_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)

@@ -161,5 +161,5 @@ function particle_grid(geometry, particle_spacing;
 
     grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                     min_corner; place_on_shell=true)
-    return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
+    return reinterpret(reshape, SVector{ndims(geometry), eltype(grid)}, grid)
 end

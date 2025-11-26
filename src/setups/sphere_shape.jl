@@ -224,7 +224,7 @@ function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_pos
         end
     end
 
-    return reinterpret(reshape, ELTYPE, coords)
+    return reinterpret(reshape, eltype(coords), coords)
 end
 
 function sphere_shape_coords(sphere::RoundSphere, particle_spacing, radius, center,
