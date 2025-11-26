@@ -28,7 +28,8 @@ using OrdinaryDiffEq
 # and is used in many pre-defined example simulation files.
 # See [the tutorial on setting up a simulation](@ref tut_setup) for details on the
 # general structure of a simulation file.
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"), sol=nothing)
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              sol=nothing)
 
 # ## Replacing components with custom implementations
 
