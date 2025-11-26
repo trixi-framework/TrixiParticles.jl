@@ -200,7 +200,9 @@
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
-            @test eltype(sol) == Float32
+            v_ode, u_ode = sol[end].x
+            @test eltype(v_ode) == Float32
+            @test eltype(u_ode) == Float64
         end
     end
 
@@ -227,6 +229,59 @@
                                                   "dam_break_2d_iisph.jl"),
                                          tspan=(0.0, 0.1),
                                          boundary_density_calculator=PressureMirroring()) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        if VERSION < v"1.11"
+            # For some reason, 1.10 produces allocations here
+            @test count_rhs_allocations(sol, semi) <= 32
+        else
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+    end
+
+    @trixi_testset "fluid/dam_break_2d_iisph.jl with AdamiPressureExtrapolation" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1),
+                                         boundary_density_calculator=AdamiPressureExtrapolation()) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        if VERSION < v"1.11"
+            # For some reason, 1.10 produces allocations here
+            @test count_rhs_allocations(sol, semi) <= 32
+        else
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+    end
+
+    @trixi_testset "fluid/dam_break_2d_iisph.jl with BernoulliPressureExtrapolation" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1),
+                                         boundary_density_calculator=BernoulliPressureExtrapolation()) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        if VERSION < v"1.11"
+            # For some reason, 1.10 produces allocations here
+            @test count_rhs_allocations(sol, semi) <= 32
+        else
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+    end
+
+    @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureBoundaries" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph_pressure_boundaries.jl"),
+                                         tspan=(0.0, 0.1)) [
             r"┌ Info: The desired tank length in y-direction .*\n",
             r"└ New tank length in y-direction.*\n"
         ]
