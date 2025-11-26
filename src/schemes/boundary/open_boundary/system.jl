@@ -82,7 +82,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     mass = copy(initial_conditions.mass)
     volume = similar(initial_conditions.density)
 
-    cache = (;
+    cache = (; neighbor_counter=zeros(Int, nparticles(initial_conditions)),
              create_cache_shifting(initial_conditions, shifting_technique)...,
              create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
                                         boundary_zones_)...)
@@ -304,6 +304,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
     @trixi_timeit timer() "update open boundary" begin
         u = wrap_u(u_ode, system, semi)
         v = wrap_v(v_ode, system, semi)
+
+        deactivate_lost_particles!(system, shifting_technique(system), u, semi)
 
         @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
@@ -548,6 +550,38 @@ end
             end
         end
     end
+
+    return system
+end
+
+@inline deactivate_lost_particles!(system, ::Nothing, u, semi) = system
+
+@inline function deactivate_lost_particles!(system, ::AbstractShiftingTechnique, u, semi)
+    (; neighbor_counter) = system.cache
+
+    set_zero!(neighbor_counter)
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    system_coords = current_coordinates(u, system)
+    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
+                           points=each_integrated_particle(system)) do particle,
+                                                                       neighbor,
+                                                                       pos_diff,
+                                                                       distance
+        (particle == neighbor) && return
+        neighbor_counter[particle] += 1
+    end
+
+    @threaded semi for particle in each_integrated_particle(system)
+        # Deactivate particles that have three or fewer neighbors.
+        # The threshold of 3 also accounts for possible clustered pairs.
+        if neighbor_counter[particle] <= 3
+            @warn "deactivate particle $particle"
+            deactivate_particle!(system, particle, u)
+        end
+    end
+
+    update_system_buffer!(system.buffer, semi)
 
     return system
 end
