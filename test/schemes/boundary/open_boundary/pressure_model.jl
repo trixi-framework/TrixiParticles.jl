@@ -1,7 +1,7 @@
 @testset verbose=true "`RCRWindkesselModel`" begin
     @testset verbose=true "Show" begin
         pressure_model = RCRWindkesselModel(; peripheral_resistance=1.2,
-                                            compliance=0.5,
+                                            compliance=0.5, cross_sectional_area=1.2,
                                             characteristic_resistance=2.3)
 
         show_box = """
@@ -11,6 +11,7 @@
             │ characteristic_resistance: ………… 2.3                                                              │
             │ peripheral_resistance: …………………… 1.2                                                              │
             │ compliance: ………………………………………………… 0.5                                                              │
+            │ cross sectional area: ……………………… 1.2                                                              │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
 
         @test repr("text/plain", pressure_model) == show_box
@@ -67,11 +68,12 @@
         function simulate_rcr(R1, R2, C, tspan, dt, p_0, func)
             pressure_model = RCRWindkesselModel(; peripheral_resistance=R2,
                                                 compliance=C,
-                                                characteristic_resistance=R1)
-            # Define a boundary zone with height=1.0 to ensure a unit volume,
-            # so velocity directly corresponds to flow rate.
+                                                characteristic_resistance=R1,
+                                                cross_sectional_area=1.0)
             reference_velocity(pos, t) = SVector(func(t), 0.0)
-            boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+            # Use an arbitrarily wide `boundary_face` to verify that the computed flow rate
+            # is invariant with respect to the boundary-zone front.
+            boundary_zone = BoundaryZone(; boundary_face=([0.0, -2.5], [0.0, 3.0]),
                                          particle_spacing=0.1, face_normal=(-1.0, 0.0),
                                          density=1000.0, reference_velocity,
                                          reference_pressure=pressure_model,
