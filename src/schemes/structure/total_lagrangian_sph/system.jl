@@ -1,7 +1,6 @@
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio;
-                             n_clamped_particles=0,
                              clamped_particles=Int[],
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
@@ -25,11 +24,6 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
-- `n_clamped_particles` (deprecated): Number of clamped particles that are fixed and not integrated
-                         to clamp the structure. Note that the clamped particles must be the **last**
-                         particles in the `InitialCondition`. See the info box below.
-                         This keyword is deprecated and will be removed in a future release.
-                         Instead pass `clamped_particles` with the explicit particle indices to be clamped.
 - `clamped_particles`: Indices specifying the clamped particles that are fixed
                        and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
@@ -47,24 +41,6 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     (which are the quantities of a single particle), returning a `Tuple`
                     or `SVector` that is to be added to the acceleration of that particle.
                     See, for example, [`SourceTermDamping`](@ref).
-
-!!! note
-    If specifying the clamped particles manually (via `n_clamped_particles`),
-    the clamped particles must be the **last** particles in the `InitialCondition`.
-    To do so, e.g. use the `union` function:
-    ```jldoctest; output = false, setup = :(clamped_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
-    structure = union(beam, clamped_particles)
-
-    # output
-    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-    │ InitialCondition{Float64}                                                                        │
-    │ ═════════════════════════                                                                        │
-    │ #dimensions: ……………………………………………… 2                                                                │
-    │ #particles: ………………………………………………… 16                                                               │
-    │ particle spacing: ………………………………… 0.1                                                              │
-    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
-    ```
-    where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 YM, PR, LL, LM, K, PF, V, ST, M, IM,
@@ -97,7 +73,6 @@ end
 
 function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_clamped_particles=0,
                                   clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> 0.0,
@@ -118,63 +93,45 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    # Backwards compatibility: `n_clamped_particles` is deprecated.
-    # Emit a deprecation warning and (if the user didn't supply explicit indices)
-    # convert the old `n_clamped_particles` convention to `clamped_particles`.
-    if n_clamped_particles != 0
-        Base.depwarn("keyword `n_clamped_particles` is deprecated and will be removed in a future release; " *
-                     "pass `clamped_particles` (Vector{Int} of indices) instead.",
-                     :n_clamped_particles)
-        if isempty(clamped_particles)
-            clamped_particles = collect((n_particles - n_clamped_particles + 1):n_particles)
-        else
-            throw(ArgumentError("Either `n_clamped_particles` or `clamped_particles` can be specified, not both."))
-        end
-    end
-
     # Handle clamped particles
     if !isempty(clamped_particles)
         @assert allunique(clamped_particles) "`clamped_particles` contains duplicate particle indices"
 
         n_clamped_particles = length(clamped_particles)
-        initial_condition_sorted = deepcopy(initial_condition)
-        young_modulus_sorted = copy(young_modulus)
-        poisson_ratio_sorted = copy(poisson_ratio)
-        move_particles_to_end!(initial_condition_sorted, clamped_particles)
-        move_particles_to_end!(young_modulus_sorted, clamped_particles)
-        move_particles_to_end!(poisson_ratio_sorted, clamped_particles)
-    else
-        initial_condition_sorted = initial_condition
-        young_modulus_sorted = young_modulus
-        poisson_ratio_sorted = poisson_ratio
+        ic_sorted_indices = deepcopy(initial_condition)
+        young_modulus_sorted_indices = copy(young_modulus)
+        poisson_ratio_sorted_indices = copy(poisson_ratio)
+        move_particles_to_end!(ic_sorted_indices, collect(clamped_particles))
+        move_particles_to_end!(young_modulus_sorted_indices, collect(clamped_particles))
+        move_particles_to_end!(poisson_ratio_sorted_indices, collect(clamped_particles))
     end
 
-    initial_coordinates = copy(initial_condition_sorted.coordinates)
-    current_coordinates = copy(initial_condition_sorted.coordinates)
-    mass = copy(initial_condition_sorted.mass)
-    material_density = copy(initial_condition_sorted.density)
+    initial_coordinates = copy(ic_sorted_indices.coordinates)
+    current_coordinates = copy(ic_sorted_indices.coordinates)
+    mass = copy(ic_sorted_indices.mass)
+    material_density = copy(ic_sorted_indices.density)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
 
     n_integrated_particles = n_particles - n_clamped_particles
 
-    lame_lambda = @. young_modulus_sorted * poisson_ratio_sorted /
-                     ((1 + poisson_ratio_sorted) *
-                      (1 - 2 * poisson_ratio_sorted))
-    lame_mu = @. (young_modulus_sorted / 2) / (1 + poisson_ratio_sorted)
+    lame_lambda = @. young_modulus_sorted_indices * poisson_ratio_sorted_indices /
+                     ((1 + poisson_ratio_sorted_indices) *
+                      (1 - 2 * poisson_ratio_sorted_indices))
+    lame_mu = @. (young_modulus_sorted_indices / 2) / (1 + poisson_ratio_sorted_indices)
 
     ismoving = Ref(!isnothing(clamped_particles_motion))
-    initialize_prescribed_motion!(clamped_particles_motion, initial_condition_sorted,
+    initialize_prescribed_motion!(clamped_particles_motion, ic_sorted_indices,
                                   n_clamped_particles)
 
-    cache = create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)
+    cache = create_cache_tlsph(clamped_particles_motion, ic_sorted_indices)
 
-    return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
+    return TotalLagrangianSPHSystem(ic_sorted_indices, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
-                                    pk1_rho2, deformation_grad, material_density,
-                                    n_integrated_particles, young_modulus_sorted,
-                                    poisson_ratio_sorted,
+                                    pk1_corrected, deformation_grad, material_density,
+                                    n_integrated_particles, young_modulus_sorted_indices,
+                                    poisson_ratio_sorted_indices,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
