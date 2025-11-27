@@ -557,6 +557,7 @@ end
 @inline deactivate_lost_particles!(system, ::Nothing, u, semi) = system
 
 @inline function deactivate_lost_particles!(system, ::AbstractShiftingTechnique, u, semi)
+    (; particle_spacing) = system.initial_condition
     (; neighbor_counter) = system.cache
 
     set_zero!(neighbor_counter)
@@ -572,10 +573,13 @@ end
         neighbor_counter[particle] += 1
     end
 
+    # Set 20% of the ideal neighbor count as threshold
+    min_neighbors = ideal_neighbor_count(Val(ndims(system)), particle_spacing,
+                                         compact_support(system, system)) / 5
+
     @threaded semi for particle in each_integrated_particle(system)
-        # Deactivate particles that have three or fewer neighbors.
-        # The threshold of 3 also accounts for possible clustered pairs.
-        if neighbor_counter[particle] <= 3
+        # Deactivate particles that have too few neighbors
+        if neighbor_counter[particle] < min_neighbors
             @warn "deactivate particle $particle"
             deactivate_particle!(system, particle, u)
         end
