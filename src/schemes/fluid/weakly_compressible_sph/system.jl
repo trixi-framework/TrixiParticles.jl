@@ -96,6 +96,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      buffer_size=nothing,
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
+                                     turbulence_model=nothing,
                                      reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
@@ -151,6 +152,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
+             create_cache_turbulence(initial_condition, turbulence_model)...,
              color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -324,6 +326,7 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
+    update_turbulence_models!(system, turbulence_model(system), v, u, v_ode, u_ode, semi)
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,

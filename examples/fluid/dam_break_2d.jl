@@ -70,6 +70,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity), correction=nothing,
                                            surface_tension=nothing,
+                                           turbulence_model=SPSTurbulenceModelDalrymple(; smallest_length_scale=fluid_particle_spacing),
                                            reference_particle_spacing=0)
 
 # ==========================================================================================
