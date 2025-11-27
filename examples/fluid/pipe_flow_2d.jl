@@ -42,19 +42,22 @@ sound_speed = 10 * maximum(abs.(prescribed_velocity))
 
 pipe = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density,
                        n_layers=boundary_layers, velocity=prescribed_velocity,
-                       faces=(false, false, true, true))
+                       faces=(false, false, true, true),
+                       coordinates_eltype=Float64)
 
 min_coords_inlet = (-open_boundary_layers * particle_spacing, 0.0)
 inlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                         fluid_density, n_layers=boundary_layers,
                         min_coordinates=min_coords_inlet,
-                        faces=(false, false, true, true))
+                        faces=(false, false, true, true),
+                        coordinates_eltype=Float64)
 
 min_coords_outlet = (pipe.fluid_size[1], 0.0)
 outlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density, n_layers=boundary_layers,
                          min_coordinates=min_coords_outlet,
-                         faces=(false, false, true, true))
+                         faces=(false, false, true, true),
+                         coordinates_eltype=Float64)
 
 NDIMS = ndims(pipe.fluid)
 

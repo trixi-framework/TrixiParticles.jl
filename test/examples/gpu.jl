@@ -39,8 +39,11 @@ end
                 ]
                 @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
                 @test sol.retcode == ReturnCode.Success
-                backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                v_ode, u_ode = sol.u[end].x
+                backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
+                @test eltype(v_ode) == Float64
+                @test eltype(u_ode) == Float64
             else
                 error = "Metal does not support Float64 values, try using Float32 instead"
                 @test_throws error trixi_include(@__MODULE__,
@@ -51,11 +54,39 @@ end
             end
         end
 
+        @trixi_testset "fluid/dam_break_2d_gpu.jl Float32 + Float64 coordinates" begin
+            if Main.supports_double_precision
+                @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                                 joinpath(examples_dir(), "fluid",
+                                                                         "dam_break_2d_gpu.jl"),
+                                                                 tspan=(0.0f0, 0.1f0),
+                                                                 parallelization_backend=Main.parallelization_backend) [
+                    r"┌ Info: The desired tank length in y-direction .*\n",
+                    r"└ New tank length in y-direction.*\n"
+                ]
+                @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+                @test sol.retcode == ReturnCode.Success
+                v_ode, u_ode = sol.u[end].x
+                backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
+                @test backend == Main.parallelization_backend
+                @test eltype(v_ode) == Float32
+                @test eltype(u_ode) == Float64
+            else
+                error = "Metal does not support Float64 values, try using Float32 instead"
+                @test_throws error trixi_include_changeprecision(Float32, @__MODULE__,
+                                                                 joinpath(examples_dir(), "fluid",
+                                                                          "dam_break_2d_gpu.jl"),
+                                                                 tspan=(0.0f0, 0.1f0),
+                                                                 parallelization_backend=Main.parallelization_backend)
+            end
+        end
+
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float32" begin
             # Import variables into scope
             trixi_include_changeprecision(Float32, @__MODULE__,
                                           joinpath(examples_dir(),
                                                    "fluid", "dam_break_2d.jl");
+                                          coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
             dam_break_tests = Dict(
@@ -74,6 +105,7 @@ end
                                                                               "fluid",
                                                                               "dam_break_2d_gpu.jl");
                                                                      tspan=(0.0f0, 0.1f0),
+                                                                     coordinates_eltype=Float32,
                                                                      parallelization_backend=Main.parallelization_backend,
                                                                      kwargs...) [
                         r"┌ Info: The desired tank length in y-direction .*\n",
@@ -81,8 +113,11 @@ end
                     ]
                     @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
                     @test sol.retcode == ReturnCode.Success
-                    backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                    v_ode, u_ode = sol.u[end].x
+                    backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                     @test backend == Main.parallelization_backend
+                    @test eltype(v_ode) == Float32
+                    @test eltype(u_ode) == Float32
                 end
             end
         end
@@ -93,6 +128,7 @@ end
                                                                       "fluid",
                                                                       "dam_break_2d_gpu.jl");
                                                              tspan=(0.0f0, 0.1f0),
+                                                             coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend,
                                                              boundary_density_calculator=ContinuityDensity()) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
@@ -110,6 +146,7 @@ end
                                           joinpath(examples_dir(),
                                                    "fluid", "dam_break_2d.jl");
                                           boundary_layers=1, spacing_ratio=3,
+                                          coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
             boundary_model = BoundaryModelMonaghanKajtar(0.5f0,
@@ -122,6 +159,7 @@ end
                                                                       "fluid",
                                                                       "dam_break_2d_gpu.jl");
                                                              tspan=(0.0f0, 0.1f0),
+                                                             coordinates_eltype=Float32,
                                                              boundary_layers=1,
                                                              spacing_ratio=3,
                                                              boundary_model=boundary_model,
@@ -141,6 +179,7 @@ end
                                           joinpath(examples_dir(), "fluid",
                                                    "dam_break_3d.jl"),
                                           fluid_particle_spacing=0.1,
+                                          coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
             # Neighborhood search with `FullGridCellList` for GPU compatibility
@@ -161,12 +200,16 @@ end
                                           joinpath(examples_dir(), "fluid",
                                                    "dam_break_3d.jl"),
                                           tspan=(0.0f0, 0.1f0),
+                                          coordinates_eltype=Float32,
                                           fluid_particle_spacing=0.1,
                                           semi=semi_fullgrid,
                                           maxiters=maxiters)
             @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            v_ode, u_ode = sol.u[end].x
+            backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
             @test backend == Main.parallelization_backend
+            @test eltype(v_ode) == Float32
+            @test eltype(u_ode) == Float32
 
             @testset "`SymplecticPositionVerlet`" begin
                 stepsize_callback = StepsizeCallback(cfl=0.65)
@@ -177,8 +220,11 @@ end
                             save_everystep=false, callback=callbacks)
                 @test sol.retcode == ReturnCode.Success
                 @test maximum(maximum.(abs, sol.u[end].x)) < 2^15
-                backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                v_ode, u_ode = sol.u[end].x
+                backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
+                @test eltype(v_ode) == Float32
+                @test eltype(u_ode) == Float32
             end
         end
 
@@ -189,6 +235,13 @@ end
                                           joinpath(examples_dir(), "fluid",
                                                    "hydrostatic_water_column_2d.jl"),
                                           sol=nothing, ode=nothing)
+
+            # Create tank with Float32 coordinates
+            tank = RectangularTank(fluid_particle_spacing, initial_fluid_size,
+                                   tank_size, fluid_density, n_layers=boundary_layers,
+                                   acceleration=(0.0f0, -gravity),
+                                   state_equation=state_equation,
+                                   coordinates_eltype=Float32)
 
             hydrostatic_water_column_tests = Dict(
                 "WCSPH default" => (),
@@ -247,7 +300,7 @@ end
                     trixi_include_changeprecision(Float32, @__MODULE__,
                                                   joinpath(examples_dir(), "fluid",
                                                            "hydrostatic_water_column_2d.jl");
-                                                  sol=nothing, ode=nothing,
+                                                  sol=nothing, ode=nothing, tank=tank,
                                                   kwargs...)
 
                     # Neighborhood search with `FullGridCellList` for GPU compatibility
@@ -266,12 +319,16 @@ end
                                                                               "fluid",
                                                                               "hydrostatic_water_column_2d.jl");
                                                                      semi=semi_fullgrid,
+                                                                     tank=tank,
                                                                      tspan=(0.0f0, 0.1f0),
                                                                      kwargs...)
 
                     @test sol.retcode == ReturnCode.Success
-                    backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+                    v_ode, u_ode = sol.u[end].x
+                    backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                     @test backend == Main.parallelization_backend
+                    @test eltype(v_ode) == Float32
+                    @test eltype(u_ode) == Float32
                 end
             end
         end
@@ -282,6 +339,7 @@ end
             trixi_include_changeprecision(Float32, @__MODULE__,
                                           joinpath(examples_dir(), "fluid",
                                                    "periodic_channel_2d.jl"),
+                                          coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
             # Neighborhood search with `FullGridCellList` for GPU compatibility
@@ -300,6 +358,7 @@ end
                                                                       "fluid",
                                                                       "periodic_channel_2d.jl"),
                                                              tspan=(0.0f0, 0.1f0),
+                                                             coordinates_eltype=Float32,
                                                              semi=semi_fullgrid)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -313,6 +372,7 @@ end
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
                                                              wcsph=true,
+                                                             coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -326,6 +386,7 @@ end
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
                                                              wcsph=false,
+                                                             coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -340,6 +401,7 @@ end
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
                                                              wcsph=true,
+                                                             coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -352,6 +414,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
+                                                             coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -364,6 +427,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
+                                                             coordinates_eltype=Float32,
                                                              open_boundary_model=BoundaryModelMirroringTafuni(),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
@@ -384,6 +448,7 @@ end
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
                                                              wcsph=true, sound_speed=20.0f0,
+                                                             coordinates_eltype=Float32,
                                                              open_boundary_model=BoundaryModelMirroringTafuni(;
                                                                                                               mirror_method=ZerothOrderMirroring()),
                                                              boundary_type_in=BidirectionalFlow(),
@@ -407,6 +472,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
+                                                             coordinates_eltype=Float32,
                                                              open_boundary_model=BoundaryModelCharacteristicsLastiwka(),
                                                              extra_callback=steady_state_reached,
                                                              tspan=(0.0f0, 1.5f0),
@@ -427,6 +493,7 @@ end
             trixi_include_changeprecision(Float32, @__MODULE__,
                                           joinpath(examples_dir(), "structure",
                                                    "oscillating_beam_2d.jl"),
+                                          coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
             # Neighborhood search with `FullGridCellList` for GPU compatibility
@@ -442,6 +509,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "structure",
                                                                       "oscillating_beam_2d.jl"),
+                                                             coordinates_eltype=Float32,
                                                              tspan=(0.0f0, 0.1f0),
                                                              semi=semi_fullgrid)
             @test sol.retcode == ReturnCode.Success
@@ -456,6 +524,7 @@ end
             trixi_include_changeprecision(Float32, @__MODULE__,
                                           joinpath(examples_dir(), "fsi",
                                                    "dam_break_gate_2d.jl"),
+                                          coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
             # Neighborhood search with `FullGridCellList` for GPU compatibility
@@ -474,6 +543,7 @@ end
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(), "fsi",
                                                                       "dam_break_gate_2d.jl"),
+                                                             coordinates_eltype=Float32,
                                                              tspan=(0.0f0, 0.4f0),
                                                              semi=semi_fullgrid,
                                                              # Needs <1500 steps on the CPU
@@ -489,6 +559,7 @@ end
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(), "dem",
                                                                       "rectangular_tank_2d.jl"),
+                                                             coordinates_eltype=Float32,
                                                              ode=nothing, sol=nothing)
             # Neighborhood search with `FullGridCellList` for GPU compatibility
             min_corner = minimum(tank.boundary.coordinates, dims=2)
@@ -501,6 +572,7 @@ end
                                                              joinpath(examples_dir(), "dem",
                                                                       "rectangular_tank_2d.jl"),
                                                              tspan=(0.0f0, 0.05f0),
+                                                             coordinates_eltype=Float32,
                                                              neighborhood_search=neighborhood_search,
                                                              parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
@@ -516,6 +588,7 @@ end
                                           joinpath(examples_dir(), "fluid",
                                                    "dam_break_2d_gpu.jl");
                                           fluid_particle_spacing=0.05f0,
+                                          coordinates_eltype=Float32,
                                           tspan=(0.0f0, 0.01f0),
                                           parallelization_backend=Main.parallelization_backend)
 
