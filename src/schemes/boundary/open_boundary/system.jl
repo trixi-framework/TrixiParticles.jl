@@ -573,14 +573,13 @@ end
         neighbor_counter[particle] += 1
     end
 
-    # Set 20% of the ideal neighbor count as threshold
+    # Set 10% of the ideal neighbor count as threshold
     min_neighbors = ideal_neighbor_count(Val(ndims(system)), particle_spacing,
-                                         compact_support(system, system)) / 5
+                                         compact_support(system, system)) / 10
 
     @threaded semi for particle in each_integrated_particle(system)
         # Deactivate particles that have too few neighbors
         if neighbor_counter[particle] < min_neighbors
-            @warn "deactivate particle $particle"
             deactivate_particle!(system, particle, u)
         end
     end
