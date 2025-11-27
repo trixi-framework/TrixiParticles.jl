@@ -305,7 +305,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
         u = wrap_u(u_ode, system, semi)
         v = wrap_v(v_ode, system, semi)
 
-        deactivate_lost_particles!(system, shifting_technique(system), u, semi)
+        calculate_neighbor_count!(system, shifting_technique(system), u, semi)
 
         @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
@@ -415,6 +415,12 @@ end
     # to determine if it exited the boundary zone through the free surface (outflow).
     if dot(relative_position, boundary_zone.face_normal) < 0
         # Particle is outside the fluid domain
+        deactivate_particle!(system, particle, u)
+
+        return system
+    end
+
+    if is_isolated(system, shifting_technique(system), particle)
         deactivate_particle!(system, particle, u)
 
         return system
@@ -554,9 +560,9 @@ end
     return system
 end
 
-@inline deactivate_lost_particles!(system, ::Nothing, u, semi) = system
+@inline calculate_neighbor_count!(system, ::Nothing, u, semi) = system
 
-@inline function deactivate_lost_particles!(system, ::AbstractShiftingTechnique, u, semi)
+@inline function calculate_neighbor_count!(system, ::AbstractShiftingTechnique, u, semi)
     (; particle_spacing) = system.initial_condition
     (; neighbor_counter) = system.cache
 
@@ -573,18 +579,21 @@ end
         neighbor_counter[particle] += 1
     end
 
-    # Set 10% of the ideal neighbor count as threshold
+    return system
+end
+
+@inline is_isolated(system, ::Nothing, particle) = false
+
+@inline function is_isolated(system, ::AbstractShiftingTechnique, particle)
+    (; particle_spacing) = system.initial_condition
+    (; neighbor_counter) = system.cache
+
     min_neighbors = ideal_neighbor_count(Val(ndims(system)), particle_spacing,
                                          compact_support(system, system)) / 10
 
-    @threaded semi for particle in each_integrated_particle(system)
-        # Deactivate particles that have too few neighbors
-        if neighbor_counter[particle] < min_neighbors
-            deactivate_particle!(system, particle, u)
-        end
+    if neighbor_counter[particle] < min_neighbors
+        return true
     end
 
-    update_system_buffer!(system.buffer, semi)
-
-    return system
+    return false
 end
