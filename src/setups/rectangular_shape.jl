@@ -3,12 +3,14 @@
                      velocity=zeros(length(n_particles_per_dimension)),
                      mass=nothing, density=nothing, pressure=0.0,
                      acceleration=nothing, state_equation=nothing,
-                     place_on_shell=false, loop_order=nothing)
+                     place_on_shell=false, coordinates_eltype=Float64,
+                     coordinates_perturbation=nothing)
 
 Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 
 # Arguments
-- `particle_spacing`:           Spacing between the particles.
+- `particle_spacing`:           Spacing between the particles. The type of this argument
+                                determines the eltype of the initial condition.
 - `n_particles_per_dimension`:  Tuple containing the number of particles in x, y and z
                                 (only 3D) direction, respectively.
 - `min_coordinates`:            Coordinates of the corner in negative coordinate directions.
@@ -17,9 +19,9 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 - `velocity`:       Either a function mapping each particle's coordinates to its velocity,
                     or, for a constant fluid velocity, a vector holding this velocity.
                     Velocity is constant zero by default.
-- `mass`:           Either `nothing` (default) to automatically compute particle mass from particle
-                    density and spacing, or a function mapping each particle's coordinates to its mass,
-                    or a scalar for a constant mass over all particles.
+- `mass`:           By default, automatically compute particle mass from particle
+                    density and spacing. Can also be a function mapping each particle's
+                    coordinates to its mass, or a scalar for a constant mass over all particles.
 - `density`:        Either a function mapping each particle's coordinates to its density,
                     or a scalar for a constant density over all particles.
                     Obligatory when not using a state equation. Cannot be used together with
@@ -40,12 +42,14 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 - `state_equation`: When calculating a hydrostatic pressure gradient by setting `acceleration`,
                     the `state_equation` will be used to set the corresponding density.
                     Cannot be used together with `density`.
-- `place_on_shell`: If `place_on_shell=true`, particles will be placed on the shell of the shape.
-                    For example, the [`TotalLagrangianSPHSystem`](@ref) requires particles
-                    to be placed on the shell of the shape and not half a particle spacing away,
-                    as for fluids.
+- `place_on_shell = false`: If `place_on_shell=true`, particles will be placed on the shell
+                    of the shape. For example, the [`TotalLagrangianSPHSystem`](@ref)
+                    requires particles to be placed on the shell of the shape and
+                    not half a particle spacing away, as for fluids.
+- `coordinates_eltype = Float64`: Eltype of the particle coordinates.
+                    See [the docs on GPU support](@ref gpu_support) for more information.
 - `coordinates_perturbation`: Add a small random displacement to the particle positions,
-                              where the amplitude is `coordinates_perturbation * particle_spacing`.
+                    where the amplitude is `coordinates_perturbation * particle_spacing`.
 
 # Examples
 ```jldoctest; output = false, setup = :(particle_spacing = 0.1)
@@ -75,11 +79,10 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), den
 """
 function RectangularShape(particle_spacing, n_particles_per_dimension, min_coordinates;
                           velocity=zeros(length(n_particles_per_dimension)),
-                          coordinates_perturbation=nothing,
                           mass=nothing, density=nothing, pressure=0.0,
                           acceleration=nothing, state_equation=nothing,
-                          place_on_shell=false, loop_order=nothing,
-                          coordinates_eltype=Float64)
+                          place_on_shell=false, coordinates_eltype=Float64,
+                          loop_order=nothing, coordinates_perturbation=nothing)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end

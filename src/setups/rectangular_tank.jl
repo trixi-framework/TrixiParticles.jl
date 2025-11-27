@@ -1,17 +1,17 @@
 @doc raw"""
     RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
                     velocity=zeros(length(fluid_size)), fluid_mass=nothing,
-                    pressure=0.0,
-                    acceleration=nothing, state_equation=nothing,
-                    boundary_density=fluid_density,
-                    n_layers=1, spacing_ratio=1.0,
+                    pressure=0, acceleration=nothing, state_equation=nothing,
+                    boundary_density=fluid_density, n_layers=1, spacing_ratio=1,
                     min_coordinates=zeros(length(fluid_size)),
-                    faces=Tuple(trues(2 * length(fluid_size))))
+                    faces=Tuple(trues(2 * length(fluid_size))),
+                    coordinates_eltype=Float64)
 
 Rectangular tank filled with a fluid to set up dam-break-style simulations.
 
 # Arguments
-- `particle_spacing`:   Spacing between the fluid particles.
+- `particle_spacing`:   Spacing between the fluid particles. The type of this argument
+                        determines the eltype of the initial condition.
 - `fluid_size`:         The dimensions of the fluid as `(x, y)` (or `(x, y, z)` in 3D).
 - `tank_size`:          The dimensions of the tank as `(x, y)` (or `(x, y, z)` in 3D).
 - `fluid_density`:      The rest density of the fluid. Will only be used as default for
@@ -21,9 +21,9 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `velocity`:       Either a function mapping each particle's coordinates to its velocity,
                     or, for a constant fluid velocity, a vector holding this velocity.
                     Velocity is constant zero by default.
-- `fluid_mass`:     Either `nothing` (default) to automatically compute particle mass from particle
-                    density and spacing, or a function mapping each particle's coordinates to its mass,
-                    or a scalar for a constant mass over all particles.
+- `fluid_mass`:     By default, automatically compute particle mass from particle
+                    density and spacing. Can also be a function mapping each particle's
+                    coordinates to its mass, or a scalar for a constant mass over all particles.
 - `pressure`:       Scalar to set the pressure of all particles to this value.
                     This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
                     will be overwritten when using an initial pressure function in the system.
@@ -40,15 +40,18 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `state_equation`: When calculating a hydrostatic pressure gradient by setting `acceleration`,
                     the `state_equation` will be used to set the corresponding density.
                     Cannot be used together with `density`.
-- `boundary_density`:   Density of each boundary particle (by default set to the fluid density)
-- `n_layers`:           Number of boundary layers.
-- `spacing_ratio`:      Ratio of `particle_spacing` to boundary particle spacing.
-                        A value of 2 means that the boundary particle spacing will be
-                        half the fluid particle spacing.
-- `min_coordinates`:    Coordinates of the corner in negative coordinate directions.
-- `faces`:              By default all faces are generated. Set faces by passing a
-                        bit-array of length 4 (2D) or 6 (3D) to generate the faces in the
-                        normal direction: -x,+x,-y,+y,-z,+z.
+- `boundary_density = fluid_density`: Density of each boundary particle.
+- `n_layers = 1`:   Number of boundary layers.
+- `spacing_ratio = 1`: Ratio of `particle_spacing` to boundary particle spacing.
+                    A value of 2 means that the boundary particle spacing will be
+                    half the fluid particle spacing.
+- `min_coordinates`: Coordinates of the corner in negative coordinate directions.
+                    By default this is set to the origin.
+- `faces`:          By default all faces are generated. Set faces by passing a
+                    bit-array of length 4 (2D) or 6 (3D) to generate the faces in the
+                    normal direction: -x,+x,-y,+y,-z,+z.
+- `coordinates_eltype = Float64`: Eltype of the particle coordinates.
+                    See [the docs on GPU support](@ref gpu_support) for more information.
 
 # Fields
 - `fluid::InitialCondition`:    [`InitialCondition`](@ref) for the fluid.
