@@ -51,7 +51,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     current_coordinates      :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     mass                     :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     correction_matrix        :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    pk1_corrected            :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    pk1_rho2                 :: ARRAY3D # PK1 corrected divided by rho^2: [i, j, particle]
     deformation_grad         :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
     material_density         :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     n_integrated_particles   :: Int64
@@ -111,7 +111,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
     mass = copy(ic_sorted_indices.mass)
     material_density = copy(ic_sorted_indices.density)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
-    pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+    pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
 
     n_integrated_particles = n_particles - n_clamped_particles
@@ -169,14 +169,14 @@ end
     return system.current_coordinates
 end
 
-@inline function current_coords(system::TotalLagrangianSPHSystem, particle)
+@propagate_inbounds function current_coords(system::TotalLagrangianSPHSystem, particle)
     # For this system, the current coordinates are stored in the system directly,
     # so we don't need a `u` array. This function is only to be used in this file
     # when no `u` is available.
     current_coords(nothing, system, particle)
 end
 
-@inline function current_velocity(v, system::TotalLagrangianSPHSystem, particle)
+@propagate_inbounds function current_velocity(v, system::TotalLagrangianSPHSystem, particle)
     if particle <= system.n_integrated_particles
         return extract_svector(v, system, particle)
     end
@@ -202,58 +202,58 @@ end
     error("`current_velocity(v, system)` is not implemented for `TotalLagrangianSPHSystem`")
 end
 
-@inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
+@propagate_inbounds function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
-@inline function current_density(v, system::TotalLagrangianSPHSystem)
+@propagate_inbounds function current_density(v, system::TotalLagrangianSPHSystem)
     return current_density(v, system.boundary_model, system)
 end
 
 # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
 # corresponding to the chosen boundary model.
-@inline function current_pressure(v, system::TotalLagrangianSPHSystem)
+@propagate_inbounds function current_pressure(v, system::TotalLagrangianSPHSystem)
     return current_pressure(v, system.boundary_model, system)
 end
 
-@inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
+@propagate_inbounds function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@inline function correction_matrix(system, particle)
+@propagate_inbounds function correction_matrix(system, particle)
     extract_smatrix(system.correction_matrix, system, particle)
 end
 
-@inline function deformation_gradient(system, particle)
+@propagate_inbounds function deformation_gradient(system, particle)
     extract_smatrix(system.deformation_grad, system, particle)
 end
-@inline function pk1_corrected(system, particle)
-    extract_smatrix(system.pk1_corrected, system, particle)
+@propagate_inbounds function pk1_rho2(system, particle)
+    extract_smatrix(system.pk1_rho2, system, particle)
 end
 
-function young_modulus(system::TotalLagrangianSPHSystem, particle)
+@propagate_inbounds function young_modulus(system::TotalLagrangianSPHSystem, particle)
     return young_modulus(system, system.young_modulus, particle)
 end
 
-function young_modulus(::TotalLagrangianSPHSystem, young_modulus, particle)
+@inline function young_modulus(::TotalLagrangianSPHSystem, young_modulus, particle)
     return young_modulus
 end
 
-function young_modulus(::TotalLagrangianSPHSystem,
-                       young_modulus::AbstractVector, particle)
+@propagate_inbounds function young_modulus(::TotalLagrangianSPHSystem,
+                                           young_modulus::AbstractVector, particle)
     return young_modulus[particle]
 end
 
-function poisson_ratio(system::TotalLagrangianSPHSystem, particle)
+@propagate_inbounds function poisson_ratio(system::TotalLagrangianSPHSystem, particle)
     return poisson_ratio(system, system.poisson_ratio, particle)
 end
 
-function poisson_ratio(::TotalLagrangianSPHSystem, poisson_ratio, particle)
+@inline function poisson_ratio(::TotalLagrangianSPHSystem, poisson_ratio, particle)
     return poisson_ratio
 end
 
-function poisson_ratio(::TotalLagrangianSPHSystem,
-                       poisson_ratio::AbstractVector, particle)
+@inline function poisson_ratio(::TotalLagrangianSPHSystem,
+                               poisson_ratio::AbstractVector, particle)
     return poisson_ratio[particle]
 end
 
@@ -314,16 +314,18 @@ function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
 end
 
 @inline function compute_pk1_corrected!(system, semi)
-    (; deformation_grad) = system
+    (; deformation_grad, pk1_rho2, material_density) = system
 
     calc_deformation_grad!(deformation_grad, system, semi)
 
     @threaded semi for particle in eachparticle(system)
         pk1_particle = pk1_stress_tensor(system, particle)
         pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
+        rho2_inv = 1 / material_density[particle]^2
 
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            system.pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
+        for j in 1:ndims(system), i in 1:ndims(system)
+            # Precompute PK1 / rho^2 to avoid repeated divisions in the interaction loop
+            @inbounds pk1_rho2[i, j, particle] = pk1_particle_corrected[i, j] * rho2_inv
         end
     end
 end
@@ -444,7 +446,7 @@ end
 # The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
 # See pages 32 and 123.
 function von_mises_stress(system)
-    von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
+    von_mises_stress_vector = zeros(eltype(system.pk1_rho2), nparticles(system))
 
     @threaded default_backend(von_mises_stress_vector) for particle in
                                                            each_integrated_particle(system)
@@ -461,7 +463,7 @@ end
 @inline function von_mises_stress(system, particle::Integer)
     F = deformation_gradient(system, particle)
     J = det(F)
-    P = pk1_corrected(system, particle)
+    P = pk1_rho2(system, particle) * system.material_density[particle]^2
     sigma = (1.0 / J) * P * F'
 
     # Calculate deviatoric stress tensor
@@ -477,14 +479,14 @@ end
 function cauchy_stress(system::TotalLagrangianSPHSystem)
     NDIMS = ndims(system)
 
-    cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
+    cauchy_stress_tensors = zeros(eltype(system.pk1_rho2), NDIMS, NDIMS,
                                   nparticles(system))
 
     @threaded default_backend(cauchy_stress_tensors) for particle in
                                                          each_integrated_particle(system)
         F = deformation_gradient(system, particle)
         J = det(F)
-        P = pk1_corrected(system, particle)
+        P = pk1_rho2(system, particle) * system.material_density[particle]^2
         sigma = (1.0 / J) * P * F'
         cauchy_stress_tensors[:, :, particle] = sigma
     end
@@ -505,7 +507,7 @@ end
 end
 
 function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
-    (; mass, material_density, deformation_grad, pk1_corrected, young_modulus,
+    (; mass, material_density, deformation_grad, young_modulus,
      poisson_ratio, lame_lambda, lame_mu) = system
 
     dv = wrap_v(dv_ode, system, semi)
@@ -516,6 +518,8 @@ function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_
     initial_coordinates_ = initial_coordinates(system)
     velocity = [current_velocity(v, system, particle) for particle in eachparticle(system)]
     acceleration = system_data_acceleration(dv, system, system.clamped_particles_motion)
+    pk1_corrected = [pk1_rho2(system, particle) * system.material_density[particle]^2
+                     for particle in eachparticle(system)]
 
     return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
             material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
