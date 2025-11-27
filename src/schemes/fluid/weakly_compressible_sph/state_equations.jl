@@ -1,4 +1,62 @@
 @doc raw"""
+StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
+                            reference_density, max_sound_speed=100.0, exponent,
+                            background_pressure=0.0, clip_negative_pressure=false)
+
+This variant of [`StateEquationCole`](@ref) is adaptive, allowing the speed of sound to be
+updated during a simulation.
+While a constant higher speed of sound more effectively reduces compressibility effects,
+the runtime also scales with the speed of sound.
+This state equation aims to reduce runtime compared to a constant higher speed of sound,
+while maintaining the advantages of a higher speed of sound.
+The speed of sound is initialized as 'min_sound_speed'.
+
+# Keywords
+- `mach_number_limit=0.1`: Target Mach number ratio for the simulation.
+   The adaptive scheme obtains the current maximum particle velocity and adjusts the reference sound speed 'c' to the ratio
+   ```math
+   c = \frac{U_\text{max}}{\mathrm{Ma_\text{limit}}}.
+   ```
+   A smaller `mach_number_limit` enforces a higher sound speed (reducing compressibility effects
+   but increasing computational cost), while a larger value allows stronger compressibility at lower runtime cost.
+- `reference_density`: Reference density of the fluid.
+- `min_sound_speed=10.0`: The minimum permissible speed of sound.
+- `max_sound_speed=100.0`: The maximum permissible speed of sound.
+- `exponent`: An exponent, typically 7 for water simulations.
+- `background_pressure=0.0`: A constant background pressure.
+- `clip_negative_pressure=false`: When true, negative pressure values are clipped to 0.0. This can prevent spurious surface tension effects but might allow for unphysical fluid rarefaction.
+"""
+struct StateEquationAdaptiveCole{ELTYPE, CLIP} # Boolean to clip negative pressure
+    sound_speed_ref     :: Base.RefValue{ELTYPE}
+    mach_number_limit   :: ELTYPE
+    min_sound_speed     :: ELTYPE
+    max_sound_speed     :: ELTYPE
+    exponent            :: ELTYPE
+    reference_density   :: ELTYPE
+    background_pressure :: ELTYPE
+
+    function StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
+                                       reference_density, max_sound_speed=100.0, exponent,
+                                       background_pressure=0.0,
+                                       clip_negative_pressure=false)
+        sound_speed = min_sound_speed
+        new{typeof(mach_number_limit),
+            clip_negative_pressure}(Ref(sound_speed), mach_number_limit, min_sound_speed,
+                                    max_sound_speed, exponent, reference_density,
+                                    background_pressure)
+    end
+end
+
+# Unwrap ref value `sound_speed` on read to maintain compatibility with existing code
+function Base.getproperty(se::StateEquationAdaptiveCole, name::Symbol)
+    if name === :sound_speed
+        return se.sound_speed_ref[]  # expose as plain value
+    else
+        return getfield(se, name)
+    end
+end
+
+@doc raw"""
     StateEquationCole(; sound_speed, reference_density, exponent,
                       background_pressure=0.0, clip_negative_pressure=false)
 
@@ -27,8 +85,9 @@ struct StateEquationCole{ELTYPE, CLIP} # Boolean to clip negative pressure
 end
 
 clip_negative_pressure(::StateEquationCole{<:Any, CLIP}) where {CLIP} = CLIP
+clip_negative_pressure(::StateEquationAdaptiveCole{<:Any, CLIP}) where {CLIP} = CLIP
 
-function (state_equation::StateEquationCole)(density)
+function (state_equation::Union{StateEquationCole, StateEquationAdaptiveCole})(density)
     (; sound_speed, exponent, reference_density, background_pressure) = state_equation
 
     B = reference_density * sound_speed^2 / exponent
@@ -42,7 +101,8 @@ function (state_equation::StateEquationCole)(density)
     return pressure
 end
 
-function inverse_state_equation(state_equation::StateEquationCole, pressure)
+function inverse_state_equation(state_equation::Union{StateEquationCole,
+                                                      StateEquationAdaptiveCole}, pressure)
     (; sound_speed, exponent, reference_density, background_pressure) = state_equation
 
     B = reference_density * sound_speed^2 / exponent
