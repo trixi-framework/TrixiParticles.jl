@@ -57,8 +57,9 @@ end
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float32 + Float64 coordinates" begin
             if Main.supports_double_precision
                 @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
-                                                                 joinpath(examples_dir(), "fluid",
-                                                                         "dam_break_2d_gpu.jl"),
+                                                                 joinpath(examples_dir(),
+                                                                          "fluid",
+                                                                          "dam_break_2d_gpu.jl"),
                                                                  tspan=(0.0f0, 0.1f0),
                                                                  parallelization_backend=Main.parallelization_backend) [
                     r"┌ Info: The desired tank length in y-direction .*\n",
@@ -74,7 +75,8 @@ end
             else
                 error = "Metal does not support Float64 values, try using Float32 instead"
                 @test_throws error trixi_include_changeprecision(Float32, @__MODULE__,
-                                                                 joinpath(examples_dir(), "fluid",
+                                                                 joinpath(examples_dir(),
+                                                                          "fluid",
                                                                           "dam_break_2d_gpu.jl"),
                                                                  tspan=(0.0f0, 0.1f0),
                                                                  parallelization_backend=Main.parallelization_backend)
