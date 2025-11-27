@@ -298,6 +298,8 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
     @trixi_timeit timer() "update density diffusion" update!(density_diffusion, v, u,
                                                              system, semi)
 
+    update_turbulence_model!(system, turbulence_model(system), v, u, v_ode, u_ode, semi)
+
     return system
 end
 
@@ -326,7 +328,6 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
-    update_turbulence_models!(system, turbulence_model(system), v, u, v_ode, u_ode, semi)
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,

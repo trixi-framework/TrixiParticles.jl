@@ -19,12 +19,17 @@ function create_cache_turbulence(initial_condition, turbulence_model::Nothing)
     return (; turbulence_model=nothing)
 end
 
-function create_cache_turbulence(initial_condition, turbulence_model)
+function create_cache_turbulence(initial_condition, turbulence_model; boundary=false)
     ELTYPE = eltype(initial_condition)
     NDIMS = ndims(initial_condition)
     fluid_stress_tensor = fill(zero(SMatrix{NDIMS, NDIMS, ELTYPE}),
                                nparticles(initial_condition))
 
+    if boundary
+        surface_normals = fill(zero(SVector{NDIMS, ELTYPE}), nparticles(initial_condition))
+        stress_vectors = copy(surface_normals)
+        return (; fluid_stress_tensor, turbulence_model, surface_normals, stress_vectors)
+    end
     return (; fluid_stress_tensor, turbulence_model)
 end
 
@@ -64,21 +69,31 @@ function dv_stress(turbulence_model, system, neighbor_system, particle, neighbor
                                  distance, grad_kernel, nothing)
 end
 
-function update_turbulence_models!(system, ::Nothing, v, u, v_ode, u_ode, semi)
+function update_turbulence_model!(system, ::Nothing, v, u, v_ode, u_ode, semi)
     return system
 end
 
-function update_turbulence_models!(system, turbulence_model, v, u, v_ode, u_ode, semi)
-    calculate_fluid_stress_tensor!(system, turbulence_model, v, u, v_ode, u_ode, semi)
+function update_turbulence_model!(system, ::SPSTurbulenceModelDalrymple,
+                                  v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "calculate fluid stress tensor" begin
+        calculate_fluid_stress_tensor!(system, v, u, v_ode, u_ode, semi)
+    end
 
     return system
 end
 
-@inline calculate_fluid_stress_tensor!(system, ::Nothing, v, u, v_ode, u_ode, semi) = system
+function update_turbulence_model!(system::AbstractBoundarySystem,
+                                  ::SPSTurbulenceModelDalrymple,
+                                  v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "extrapolate fluid stress tensor" begin
+        extrapolate_fluid_stress_tensor!(system, v, u, v_ode, u_ode, semi)
+    end
 
-@inline function calculate_fluid_stress_tensor!(system, turbulence_model, v, u,
-                                                v_ode, u_ode, semi)
-    (; fluid_stress_tensor) = system.cache
+    return system
+end
+
+function calculate_fluid_stress_tensor!(system, v, u, v_ode, u_ode, semi)
+    (; fluid_stress_tensor, turbulence_model) = system.cache
     (; smagorinsky_constant, isotropic_constant, smallest_length_scale) = turbulence_model
 
     fill!(fluid_stress_tensor, zero(eltype(fluid_stress_tensor)))
@@ -131,4 +146,74 @@ end
     end
 
     return system
+end
+
+function extrapolate_fluid_stress_tensor!(system, v, u, v_ode, u_ode, semi)
+    (; fluid_stress_tensor, surface_normals, stress_vectors) = system.cache
+    (; volume) = system.boundary_model.cache
+
+    set_zero!(volume)
+    fill!(fluid_stress_tensor, zero(eltype(fluid_stress_tensor)))
+    fill!(surface_normals, zero(eltype(surface_normals)))
+    fill!(stress_vectors, zero(eltype(stress_vectors)))
+
+    foreach_system(semi) do neighbor_system
+        extrapolate_fluid_stress_tensor!(system, neighbor_system, v, u, v_ode, u_ode, semi)
+    end
+
+    @threaded semi for particle in eachparticle(system)
+        # The summation is only over fluid particles, thus the volume stays zero when a boundary
+        # particle isn't surrounded by fluid particles.
+        # Check the volume to avoid NaNs in pressure and velocity.
+        if @inbounds volume[particle] > eps()
+            S_interpolated = fluid_stress_tensor[particle]
+            n = -normalize(surface_normals[particle])
+            surface_tangent = tangent_from_normal(n)
+
+            stress_vectors[particle] = S_interpolated ./ volume[particle] * surface_tangent
+        end
+    end
+end
+
+@inline function extrapolate_fluid_stress_tensor!(system, neighbor_system, v, u,
+                                                  v_ode, u_ode, semi)
+    return system
+end
+
+function extrapolate_fluid_stress_tensor!(system, neighbor_system::AbstractFluidSystem,
+                                          v, u, v_ode, u_ode, semi)
+    (; boundary_model) = system
+    (; fluid_stress_tensor, surface_normals) = system.cache
+
+    system_coords = current_coordinates(u, system)
+    u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+    v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+    neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+        rho_b = current_density(v_neighbor, neighbor_system, neighbor)
+        kernel_weight = smoothing_kernel(boundary_model, distance, particle) * m_b / rho_b
+        kernel_grad_weight = smoothing_kernel_grad(system, pos_diff, distance, particle) *
+                             m_b / rho_b
+
+        surface_normals[particle] += kernel_grad_weight
+        fluid_stress_tensor[particle] += kernel_weight *
+                                         current_fluid_stress_tensor(neighbor_system,
+                                                                     neighbor)
+        @inbounds boundary_model.cache.volume[particle] += kernel_weight
+    end
+end
+
+function tangent_from_normal(n::SVector{2})
+    nx, ny = n
+    return SVector(-ny, nx)
+end
+
+function tangent_from_normal(n::SVector{3})
+    nx, ny, nz = n
+    return SVector(nz, nx * nz, -nx)
 end
