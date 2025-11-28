@@ -136,17 +136,17 @@ function calculate_fluid_stress_tensor!(system, v, u, v_ode, u_ode, semi)
         S = (grad_v + grad_v') / 2
         S_mag = sqrt(2 * (S * S))
 
-        # Eddy viscosity
+        # Eddy viscosity (Smagorinsky model)
         mu_T = rho_a * (smagorinsky_constant * smallest_length_scale)^2 * S_mag
 
-        term1 = 2 .* S
-        term2 = -(2 / 3) * tr(S) .* I(ndims(system))
-        term3 = -(2 / 3) * isotropic_constant * smallest_length_scale^2 * (S_mag^2) .*
-                I(ndims(system))
+        # Deviatoric shear stress
+        tau_dev = 2 * mu_T .* (S .- (tr(S) / 3) * I(ndims(system)))
 
-        tau_a = mu_T .* (term1 + term2 + term3)
+        # Isotropic turbulent part
+        tau_iso = -(2 / 3) * rho_a * (smagorinsky_constant * smallest_length_scale)^2 *
+                  (S_mag^2) .*  I(ndims(system))
 
-        fluid_stress_tensor[particle] = tau_a
+        fluid_stress_tensor[particle] = tau_dev + tau_iso
     end
 
     return system
