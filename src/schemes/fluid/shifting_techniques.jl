@@ -412,9 +412,10 @@ function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, true},
                v, system)
     # This has similar performance as `maximum(..., eachparticle(system))`,
     # but is GPU-compatible.
+    velocity = current_velocity(v, system)
     v_max2 = maximum(x -> dot(x, x),
-                     reinterpret(reshape, SVector{ndims(system), eltype(v)},
-                                 current_velocity(v, system)))
+                     reinterpret(reshape, SVector{ndims(system), eltype(velocity)},
+                                 velocity))
     v_max = sqrt(v_max2)
 
     return shifting.v_factor * v_max

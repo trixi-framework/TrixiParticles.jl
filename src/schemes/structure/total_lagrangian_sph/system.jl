@@ -57,11 +57,13 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 
     # output
     ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-    │ InitialCondition{Float64}                                                                        │
-    │ ═════════════════════════                                                                        │
+    │ InitialCondition                                                                                 │
+    │ ════════════════                                                                                 │
     │ #dimensions: ……………………………………………… 2                                                                │
     │ #particles: ………………………………………………… 16                                                               │
     │ particle spacing: ………………………………… 0.1                                                              │
+    │ eltype: …………………………………………………………… Float64                                                          │
+    │ coordinate eltype: ……………………………… Float64                                                          │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
     where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
@@ -100,7 +102,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                   n_clamped_particles=0,
                                   clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
-                                  acceleration=ntuple(_ -> 0.0,
+                                  acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
                                   source_terms=nothing, boundary_model=nothing)

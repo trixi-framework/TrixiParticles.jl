@@ -54,19 +54,22 @@ flow_direction = (1.0, 0.0)
 pipe = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density,
                        pressure=(pos) -> pressure_out +
                                          pressure_drop * (1 - (pos[1] / flow_length)),
-                       n_layers=boundary_layers, faces=(false, false, true, true))
+                       n_layers=boundary_layers, faces=(false, false, true, true),
+                       coordinates_eltype=Float64)
 
 # The analytical solution depends on the length of the fluid domain.
 # Thus, the `BoundaryZone`s extend into the fluid domain because the pressure is not
 # prescribed at the `boundary_face`, but at the free surface of the `BoundaryZone`.
 inlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                         fluid_density, n_layers=boundary_layers, pressure=pressure_in,
-                        min_coordinates=(0.0, 0.0), faces=(false, false, true, true))
+                        min_coordinates=(0.0, 0.0), faces=(false, false, true, true),
+                        coordinates_eltype=Float64)
 
 outlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density, n_layers=boundary_layers,
                          min_coordinates=(pipe.fluid_size[1] - open_boundary_size[1], 0.0),
-                         faces=(false, false, true, true))
+                         faces=(false, false, true, true),
+                         coordinates_eltype=Float64)
 
 fluid = setdiff(pipe.fluid, inlet.fluid, outlet.fluid)
 

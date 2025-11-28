@@ -24,7 +24,7 @@ tank_height = 4.0
 # and a "boundary" region for the container walls.
 tank = RectangularTank(particle_spacing, (rock_width, rock_height),
                        (tank_width, tank_height), rock_density,
-                       n_layers=2)
+                       n_layers=2, coordinates_eltype=Float64)
 
 # ==========================================================================================
 # ==== Systems
