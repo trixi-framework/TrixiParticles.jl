@@ -81,6 +81,7 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
 export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS
+export SPSTurbulenceModelDalrymple
 export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffusionAntuono
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
