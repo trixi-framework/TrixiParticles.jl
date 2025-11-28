@@ -563,7 +563,6 @@ end
 @inline calculate_neighbor_count!(system, ::Nothing, u, semi) = system
 
 @inline function calculate_neighbor_count!(system, ::AbstractShiftingTechnique, u, semi)
-    (; particle_spacing) = system.initial_condition
     (; neighbor_counter) = system.cache
 
     set_zero!(neighbor_counter)
