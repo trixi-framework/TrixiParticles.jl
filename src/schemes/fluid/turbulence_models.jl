@@ -132,10 +132,11 @@ function calculate_fluid_stress_tensor!(system, v, u, v_ode, u_ode, semi)
         rho_a = current_density(v, system, particle)
         grad_v = fluid_stress_tensor[particle]
 
+        # Strain rate
         S = (grad_v + grad_v') / 2
-        invariant = sum(S .* S) # S:S
-        S_mag = sqrt(2 * invariant) # |S|
+        S_mag = sqrt(2 * (S * S))
 
+        # Eddy viscosity
         mu_T = rho_a * (smagorinsky_constant * smallest_length_scale)^2 * S_mag
 
         term1 = 2 .* S
@@ -143,7 +144,9 @@ function calculate_fluid_stress_tensor!(system, v, u, v_ode, u_ode, semi)
         term3 = -(2 / 3) * isotropic_constant * smallest_length_scale^2 * (S_mag^2) .*
                 I(ndims(system))
 
-        fluid_stress_tensor[particle] = mu_T .* (term1 + term2 + term3)
+        tau_a = mu_T .* (term1 + term2 + term3)
+
+        fluid_stress_tensor[particle] = tau_a
     end
 
     return system
