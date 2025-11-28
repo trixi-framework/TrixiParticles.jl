@@ -114,8 +114,8 @@ function calculate_fluid_stress_tensor!(system, v, u, v_ode, u_ode, semi)
             volume_b = hydrodynamic_mass(neighbor_system, neighbor) /
                        current_density(v_neighbor, neighbor_system, neighbor)
             # TODO: current or viscous velocity
-            v_a = viscous_velocity(v, system, particle)
-            v_b = viscous_velocity(v_neighbor, neighbor_system, neighbor)
+            v_a = current_velocity(v, system, particle)
+            v_b = current_velocity(v_neighbor, neighbor_system, neighbor)
 
             v_diff = v_b - v_a
 
