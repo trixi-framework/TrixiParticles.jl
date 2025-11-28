@@ -215,6 +215,7 @@ function tangent_from_normal(n::SVector{2})
 end
 
 function tangent_from_normal(n::SVector{3})
-    nx, ny, nz = n
-    return SVector(nz, nx * nz, -nx)
+    e = abs(n[1]) < 0.9 ? SVector(1.0, 0.0, 0.0) : SVector(0.0, 1.0, 0.0)
+    t = cross(n, e)
+    return normalize(t)
 end
