@@ -82,7 +82,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     mass = copy(initial_conditions.mass)
     volume = similar(initial_conditions.density)
 
-    cache = (;
+    cache = (; neighbor_counter=zeros(Int, nparticles(initial_conditions)),
              create_cache_shifting(initial_conditions, shifting_technique)...,
              create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
                                         boundary_zones_)...)
@@ -305,6 +305,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
         u = wrap_u(u_ode, system, semi)
         v = wrap_v(v_ode, system, semi)
 
+        calculate_neighbor_count!(system, shifting_technique(system), u, semi)
+
         @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
         update_pressure_model!(system, v, u, semi, integrator.dt)
@@ -413,6 +415,12 @@ end
     # to determine if it exited the boundary zone through the free surface (outflow).
     if dot(relative_position, boundary_zone.face_normal) < 0
         # Particle is outside the fluid domain
+        deactivate_particle!(system, particle, u)
+
+        return system
+    end
+
+    if is_isolated(system, shifting_technique(system), particle)
         deactivate_particle!(system, particle, u)
 
         return system
@@ -550,4 +558,41 @@ end
     end
 
     return system
+end
+
+@inline calculate_neighbor_count!(system, ::Nothing, u, semi) = system
+
+@inline function calculate_neighbor_count!(system, ::AbstractShiftingTechnique, u, semi)
+    (; neighbor_counter) = system.cache
+
+    set_zero!(neighbor_counter)
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    system_coords = current_coordinates(u, system)
+    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
+                           points=each_integrated_particle(system)) do particle,
+                                                                       neighbor,
+                                                                       pos_diff,
+                                                                       distance
+        (particle == neighbor) && return
+        neighbor_counter[particle] += 1
+    end
+
+    return system
+end
+
+@inline is_isolated(system, ::Nothing, particle) = false
+
+@inline function is_isolated(system, ::AbstractShiftingTechnique, particle)
+    (; particle_spacing) = system.initial_condition
+    (; neighbor_counter) = system.cache
+
+    min_neighbors = ideal_neighbor_count(Val(ndims(system)), particle_spacing,
+                                         compact_support(system, system)) / 10
+
+    if neighbor_counter[particle] < min_neighbors
+        return true
+    end
+
+    return false
 end
