@@ -661,3 +661,76 @@ end
 
 @inline normalization_factor(::SpikyKernel{2}, h) = 10 / (pi * h^2)
 @inline normalization_factor(::SpikyKernel{3}, h) = 15 / (pi * h^3)
+
+@doc raw"""
+    LaguerreGaussKernel{NDIMS}()
+
+Truncated Laguerre–Gauss kernel (fourth-order smoothing) as defined in
+[Wang2024](@cite). Its radial form uses
+``s = r/h`` and is truncated at ``s = 2`` (compact support ``2h``):
+
+```math
+W(r,h) = \frac{1}{h^d} \, w(s), \quad s=\frac{r}{h}, \quad
+w(s) = \alpha_d \left(1 - \frac{s^2}{2} + \frac{s^4}{6}\right) e^{-s^2},
+\quad 0 \le s \le 2,
+with normalization constants
+α₁ = 8/(5√π), α₂ = 3/π, α₃ = 8/π^{3/2}.
+```
+
+Recommended practical choice from the paper: use ``h \approx 1.3Δx`` and the same
+cut-off as Wendland (2h) for comparable cost. Negative lobes enforce the
+vanishing second moment (4th-order smoothing) while remaining stable in
+Eulerian / total Lagrangian SPH with relaxed particles.
+
+For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
+"""
+struct LaguerreGaussKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
+
+@fastpow @inline function kernel(kernel::LaguerreGaussKernel, r::Real, h)
+    q = r / h
+
+    # polynomial part: 1 - s^2/2 + s^4/6
+    poly = 1 - q^2 / 2 + q^4 / 6
+
+    # zero out for s ≥ 2
+    return ifelse(q < 2, normalization_factor(kernel, h) * poly * exp(-q^2), zero(q))
+end
+
+@inline function kernel_deriv(kernel::LaguerreGaussKernel, r::Real, h)
+    invh = 1 / h
+    q = r * invh
+
+    # dg/dq = (q/3)*(-q^4 + 5q^2 - 9) * exp(-q^2)
+    poly = ((-q^2 + 5) * q^2 - 9) * (q / 3)
+
+    return ifelse(q < 2, normalization_factor(kernel, h) * exp(-q^2) * poly * invh, zero(q))
+end
+
+@inline compact_support(::LaguerreGaussKernel, h) = 2 * h
+# Original normalization factors as in Wang2024
+# @inline normalization_factor(::LaguerreGaussKernel{1}, h) = (8 / (5 * sqrt(pi))) / h
+# @inline normalization_factor(::LaguerreGaussKernel{2}, h) = (3 / (pi)) / (h^2)
+# @inline normalization_factor(::LaguerreGaussKernel{3}, h) = (8 / (pi^(3 // 2))) / (h^3)
+
+# Renormalized to the truncated integral over [0,2h]
+@inline function normalization_factor(kernel::LaguerreGaussKernel{1}, h)
+    # C = 1/(2*(7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4))
+    C = oftype(h, 0.65428780253539)
+    # C' = C/h
+    return C / h
+end
+
+@inline function normalization_factor(kernel::LaguerreGaussKernel{2}, h)
+    # C = 2 * pi * (5 - 17 * exp(-4)) / 12
+    C = oftype(h, 2.454963094351984)
+    # C' = 1 / (h^2 * C)
+    return 1 / (h^2 * C)
+end
+
+@inline function normalization_factor(kernel::LaguerreGaussKernel{3}, h)
+    # C = (7 * sqrt(pi) / 32) * erf(2) - (77 / 24) * exp(-4)
+    C = oftype(h, 0.3271479336905373)
+
+    # 4*pi cannot be pulled into C otherwise the test fails because of differences in rounding
+    return 1 / (C * 4 * pi * h^3)
+end
