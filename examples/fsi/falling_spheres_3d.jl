@@ -87,7 +87,7 @@ structure_smoothing_kernel = WendlandC2Kernel{3}()
 # For the FSI we need the hydrodynamic masses and densities in the structure boundary model
 hydrodynamic_densites_1 = fluid_density * ones(size(sphere1.density))
 hydrodynamic_masses_1 = hydrodynamic_densites_1 *
-                        structure_particle_spacing^3
+                        structure_particle_spacing^ndims(fluid_system)
 
 structure_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
                                                          hydrodynamic_masses_1,
@@ -98,7 +98,7 @@ structure_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1
 
 hydrodynamic_densites_2 = fluid_density * ones(size(sphere2.density))
 hydrodynamic_masses_2 = hydrodynamic_densites_2 *
-                        structure_particle_spacing^3
+                        structure_particle_spacing^ndims(fluid_system)
 
 structure_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                          hydrodynamic_masses_2,
