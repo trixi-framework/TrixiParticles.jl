@@ -425,7 +425,7 @@ end
     # Particles lying almost exactly on the `boundary_face` might be reset
     # slightly outside the boundary zone.
     # Thus, we use a shortened vector to account for numerical precision issues.
-    reset_dist = boundary_zone.zone_width - sqrt(eps(boundary_zone.zone_width))
+    reset_dist = boundary_zone.zone_width - eps(boundary_zone.zone_width)
     reset_vector = -boundary_zone.face_normal * reset_dist
     for dim in 1:ndims(system)
         u[dim, particle] += reset_vector[dim]
