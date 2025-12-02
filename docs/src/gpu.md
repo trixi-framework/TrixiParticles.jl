@@ -37,6 +37,8 @@ semi = Semidiscretization(fluid_system, boundary_system,
 │ #systems: ……………………………………………………… 2                                                                │
 │ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
 │ total #particles: ………………………………… 636                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinates eltype: …………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 

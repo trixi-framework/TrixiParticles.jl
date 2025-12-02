@@ -31,6 +31,7 @@ ic = vtk2trixi(joinpath("out", "rectangular.vtu"))
 │ eltype: …………………………………………………………… Float64                                                          │
 │ coordinate eltype: ……………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+````
 """
 function vtk2trixi(file)
     vtk_file = ReadVTK.VTKFile(file)

@@ -44,6 +44,8 @@ semi = Semidiscretization(fluid_system, boundary_system,
 │ #systems: ……………………………………………………… 2                                                                │
 │ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
 │ total #particles: ………………………………… 636                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinates eltype: …………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
@@ -138,6 +140,8 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_line(io, "neighborhood search",
                      semi.neighborhood_searches |> eltype |> eltype |> nameof)
         summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
+        summary_line(io, "eltype", eltype(semi.systems[1]))
+        summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
         summary_footer(io)
     end
 end
