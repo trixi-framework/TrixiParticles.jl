@@ -2,7 +2,7 @@
     SphereShape(particle_spacing, radius, center_position, density;
                 sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                 cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
-                velocity=zeros(length(center_position)), mass=nothing, pressure=0.0,
+                velocity=zeros(length(center_position)), mass=nothing, pressure=0,
                 coordinates_eltype=Float64)
 
 Generate a sphere that is either completely filled (by default)
