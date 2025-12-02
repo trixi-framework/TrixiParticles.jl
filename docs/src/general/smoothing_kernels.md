@@ -19,40 +19,6 @@ Any Kernel with a stability rating of more than '+++' doesn't suffer from pairin
 We recommend to use the [`WendlandC2Kernel`](@ref) for most applications.
 If less smoothing is needed, try [`SchoenbergCubicSplineKernel`](@ref), for more smoothing try [`WendlandC6Kernel`](@ref).
 
-![Radial profiles and derivatives of the available smoothing kernels](smoothing_kernels.png)
-
-
-!!! note "Usage"
-    The kernel can be called as
-    ```
-    TrixiParticles.kernel(smoothing_kernel, r, h)
-    ```
-    The length of the compact support can be obtained as
-    ```
-    TrixiParticles.compact_support(smoothing_kernel, h)
-    ```
-
-    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
-    should be used as
-    ```math
-    W(\Vert r_a - r_b \Vert, h).
-    ```
-
-    The gradient required in SPH,
-    ```math
-        \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
-    ```
-    can be called as
-    ```
-    TrixiParticles.kernel_grad(smoothing_kernel, pos_diff, distance, h)
-    ```
-    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
-
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("general", "smoothing_kernels.jl")]
-```
-
 ```@eval
 
 using TrixiParticles                     
@@ -152,4 +118,38 @@ end
 
 CairoMakie.save("smoothing_kernels.png", fig)
                                                            
+```
+
+![Radial profiles and derivatives of the available smoothing kernels](smoothing_kernels.png)
+
+
+!!! note "Usage"
+    The kernel can be called as
+    ```
+    TrixiParticles.kernel(smoothing_kernel, r, h)
+    ```
+    The length of the compact support can be obtained as
+    ```
+    TrixiParticles.compact_support(smoothing_kernel, h)
+    ```
+
+    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
+    should be used as
+    ```math
+    W(\Vert r_a - r_b \Vert, h).
+    ```
+
+    The gradient required in SPH,
+    ```math
+        \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
+    ```
+    can be called as
+    ```
+    TrixiParticles.kernel_grad(smoothing_kernel, pos_diff, distance, h)
+    ```
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "smoothing_kernels.jl")]
 ```
