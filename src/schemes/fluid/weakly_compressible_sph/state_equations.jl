@@ -36,19 +36,18 @@ struct StateEquationAdaptiveCole{ELTYPE, CLIP, SR} # Boolean to clip negative pr
     background_pressure :: ELTYPE
 end
 
-StateEquationAdaptiveCole(sound_speed_ref, mach_number_limit,
-                          min_sound_speed, max_sound_speed,
-                          exponent, reference_density,
-                          background_pressure) where {ELTYPE, CLIP, SR} =
-    StateEquationAdaptiveCole{ELTYPE, CLIP, SR}(
-        sound_speed_ref,
-        mach_number_limit,
-        min_sound_speed,
-        max_sound_speed,
-        exponent,
-        reference_density,
-        background_pressure,
-    )
+function StateEquationAdaptiveCole(sound_speed_ref, mach_number_limit,
+                                   min_sound_speed, max_sound_speed,
+                                   exponent, reference_density,
+                                   background_pressure) where {ELTYPE, CLIP, SR}
+    StateEquationAdaptiveCole{ELTYPE, CLIP, SR}(sound_speed_ref,
+                                                mach_number_limit,
+                                                min_sound_speed,
+                                                max_sound_speed,
+                                                exponent,
+                                                reference_density,
+                                                background_pressure)
+end
 
 function StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
                                    reference_density, max_sound_speed=100.0, exponent,
