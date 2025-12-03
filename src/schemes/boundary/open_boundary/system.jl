@@ -568,7 +568,7 @@ end
 @inline function calculate_neighbor_count!(system, ::AbstractShiftingTechnique, u, semi)
     (; neighbor_counter) = system.cache
 
-    # Skip when `deactivate_isolated_particles` ist not activated
+    # Skip when `deactivate_isolated_particles` is not activated
     isnothing(neighbor_counter) && return system
 
     set_zero!(neighbor_counter)
@@ -593,7 +593,7 @@ end
     (; particle_spacing) = system.initial_condition
     (; neighbor_counter) = system.cache
 
-    # Skip when `deactivate_isolated_particles` ist not activated
+    # Skip when `deactivate_isolated_particles` is not activated
     isnothing(neighbor_counter) && return false
 
     min_neighbors = ideal_neighbor_count(Val(ndims(system)), particle_spacing,
