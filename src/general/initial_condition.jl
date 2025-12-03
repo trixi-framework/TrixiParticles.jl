@@ -81,17 +81,19 @@ initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, 
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64}                                                                        │
-│ ═════════════════════════                                                                        │
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 2                                                                │
 │ #particles: ………………………………………………… 3                                                                │
 │ particle spacing: ………………………………… -1.0                                                             │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinate eltype: ……………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct InitialCondition{ELTYPE, MATRIX, VECTOR}
+struct InitialCondition{ELTYPE, C, MATRIX, VECTOR}
     particle_spacing :: ELTYPE
-    coordinates      :: MATRIX # Array{ELTYPE, 2}
+    coordinates      :: C      # Array{coordinates_eltype, 2}
     velocity         :: MATRIX # Array{ELTYPE, 2}
     mass             :: VECTOR # Array{ELTYPE, 1}
     density          :: VECTOR # Array{ELTYPE, 1}
@@ -111,7 +113,14 @@ end
 # Function barrier to make `NDIMS` static and therefore SVectors type-stable
 function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
                                  pressure, particle_spacing) where {NDIMS}
-    ELTYPE = eltype(coordinates)
+    if !(particle_spacing isa AbstractFloat)
+        throw(ArgumentError("particle spacing must be a floating point number. " *
+                            "The type of the particle spacing determines the eltype " *
+                            "of the `InitialCondition`."))
+    end
+
+    # The arguments can all be functions, so use `particle_spacing` for the eltype
+    ELTYPE = typeof(particle_spacing)
     n_particles = size(coordinates, 2)
 
     if n_particles == 0
@@ -121,7 +130,8 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
 
     # SVector of coordinates to pass to functions.
     # This will return a vector of SVectors in 2D and 3D, but an 1×n matrix in 1D.
-    coordinates_svector_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+    coordinates_svector_ = reinterpret(reshape, SVector{NDIMS, eltype(coordinates)},
+                                       coordinates)
     # In 1D, this will reshape the 1×n matrix to a vector, in 2D/3D it will do nothing
     coordinates_svector = reshape(coordinates_svector_, length(coordinates_svector_))
 
@@ -194,19 +204,21 @@ end
 function Base.show(io::IO, ic::InitialCondition)
     @nospecialize ic # reduce precompilation time
 
-    print(io, "InitialCondition{$(eltype(ic))}()")
+    print(io, "InitialCondition{$(eltype(ic)), $(coordinates_eltype(ic))}()")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", ic::InitialCondition)
     @nospecialize ic # reduce precompilation time
 
     if get(io, :compact, false)
-        show(io, system)
+        show(io, ic)
     else
-        summary_header(io, "InitialCondition{$(eltype(ic))}")
+        summary_header(io, "InitialCondition")
         summary_line(io, "#dimensions", "$(ndims(ic))")
         summary_line(io, "#particles", "$(nparticles(ic))")
         summary_line(io, "particle spacing", "$(first(ic.particle_spacing))")
+        summary_line(io, "eltype", "$(eltype(ic))")
+        summary_line(io, "coordinate eltype", "$(coordinates_eltype(ic))")
         summary_footer(io)
     end
 end
@@ -229,7 +241,9 @@ end
     return size(initial_condition.coordinates, 1)
 end
 
-@inline function Base.eltype(initial_condition::InitialCondition)
+@inline Base.eltype(::InitialCondition{ELTYPE}) where {ELTYPE} = ELTYPE
+
+@inline function coordinates_eltype(initial_condition::InitialCondition)
     return eltype(initial_condition.coordinates)
 end
 

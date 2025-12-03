@@ -71,11 +71,13 @@ shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, de
 ┌ Info: The desired edge 2 length 0.9198039027185568 is not a multiple of the particle spacing 0.1.
 └ New edge 2 length is set to 0.9.
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64}                                                                        │
-│ ═════════════════════════                                                                        │
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 3                                                                │
 │ #particles: ………………………………………………… 144                                                              │
 │ particle spacing: ………………………………… 0.1                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinate eltype: ……………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
