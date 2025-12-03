@@ -59,14 +59,14 @@ kernel_groups = [
 # --- Pre-calculate global y-ranges for consistency ---      
 kernels_for_range_calc = vcat(wendland_kernels, schoenberg_kernels, other_kernels)  
 
-s_range = range(0, 3, length=300)     
+q_range = range(0, 3, length=300)     
 h = 1.0                               
 min_val, max_val = Inf, -Inf          
 min_deriv, max_deriv = Inf, -Inf      
 
 for (_, kernel_obj) in kernels_for_range_calc                             
-    kernel_values = [TrixiParticles.kernel(kernel_obj, s, h) for s in s_range]      
-    kernel_derivs = [TrixiParticles.kernel_deriv(kernel_obj, s, h) for s in s_range]
+    kernel_values = [TrixiParticles.kernel(kernel_obj, q, h) for q in q_range]      
+    kernel_derivs = [TrixiParticles.kernel_deriv(kernel_obj, q, h) for q in q_range]
 
     global min_val = min(min_val, minimum(kernel_values))     
     global max_val = max(max_val, maximum(kernel_values))     
@@ -84,11 +84,11 @@ fig = Figure(size = (1000, 1200), fontsize=16)
 
 for (i, group) in enumerate(kernel_groups)                    
     ax_val = Axis(fig[i, 1],                                  
-                  xlabel = "s = r/h", ylabel = "w(s)",        
+                  xlabel = "q = r/h", ylabel = "w(q)",        
                   title = group.title)                        
 
     ax_deriv = Axis(fig[i, 2],                                
-                    xlabel = "s = r/h", ylabel = "w'(s)",     
+                    xlabel = "q = r/h", ylabel = "w'(q)",     
                     title = group.title)                      
 
     if group.use_consistent_range                             
@@ -100,11 +100,11 @@ for (i, group) in enumerate(kernel_groups)
     hlines!(ax_deriv, [0.0], linestyle = :dash)               
 
     for (name, kernel_obj) in group.kernels                   
-        kernel_values = [TrixiParticles.kernel(kernel_obj, s, h) for s in s_range]    
-        kernel_derivs = [TrixiParticles.kernel_deriv(kernel_obj, s, h) for s in s_range]  
+        kernel_values = [TrixiParticles.kernel(kernel_obj, q, h) for q in q_range]    
+        kernel_derivs = [TrixiParticles.kernel_deriv(kernel_obj, q, h) for q in q_range]  
 
-        lines!(ax_val, s_range, kernel_values, label=name, linewidth=2.5)   
-        lines!(ax_deriv, s_range, kernel_derivs, label=name, linewidth=2.5) 
+        lines!(ax_val, q_range, kernel_values, label=name, linewidth=2.5)   
+        lines!(ax_deriv, q_range, kernel_derivs, label=name, linewidth=2.5) 
     end                                                       
 
     axislegend(ax_val, position = :rt)                        

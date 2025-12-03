@@ -666,21 +666,51 @@ end
     LaguerreGaussKernel{NDIMS}()
 
 Truncated Laguerre–Gauss kernel (fourth-order smoothing) as defined in
-[Wang2024](@cite). Its radial form uses
-``s = r/h`` and is truncated at ``s = 2`` (compact support ``2h``):
+[Wang2024](@cite). Its radial form uses ``q = r/h`` and is truncated at
+``q = 2`` (compact support ``2h``):
 
 ```math
-W(r,h) = \frac{1}{h^d} \, w(s), \quad s=\frac{r}{h}, \quad
-w(s) = \alpha_d \left(1 - \frac{s^2}{2} + \frac{s^4}{6}\right) e^{-s^2},
-\quad 0 \le s \le 2,
-with normalization constants
-α₁ = 8/(5√π), α₂ = 3/π, α₃ = 8/π^{3/2}.
+W(r,h) = \frac{C_d}{h^d}
+\left(1 - \frac{q^2}{2} + \frac{q^4}{6}\right) e^{-q^2},
+\quad q = \frac{r}{h}, \quad 0 \le q \le 2,
 ```
 
-Recommended practical choice from the paper: use ``h \approx 1.3Δx`` and the same
-cut-off as Wendland (2h) for comparable cost. Negative lobes enforce the
-vanishing second moment (4th-order smoothing) while remaining stable in
-Eulerian / total Lagrangian SPH with relaxed particles.
+where the dimension-dependent normalization constants `C_d` are chosen so that
+the truncated kernel is normalized,
+
+```math
+\int_{\lVert x \rVert \le 2h} W(\lVert x \rVert, h)\,\mathrm{d}^d x = 1.
+```
+
+Explicitly, for `d = 1,2,3` we obtain
+
+```math
+C_1 = \frac{1}{
+  2\Bigl(\frac{7\sqrt{\pi}}{16}\,\mathrm{erf}(2)
+         - \frac{5}{12} e^{-4}\Bigr)}
+    \approx 0.6542878,
+```
+
+```math
+C_2 = \frac{6}{\pi\bigl(5 - 17 e^{-4}\bigr)}
+    \approx 0.4073381,
+```
+
+```math
+C_3 = \frac{1}{
+  4\pi\Bigl(\frac{7\sqrt{\pi}}{32}\,\mathrm{erf}(2)
+           - \frac{77}{24} e^{-4}\Bigr)}
+    \approx 0.2432461.
+```
+
+These values differ from the original infinite-support normalization factors in
+[Wang2024](@cite) because the kernel is truncated at `q = 2` and then
+renormalized.
+
+Recommended practical choice from the paper: use `h \approx 1.3 \Delta x`
+and the same cut-off as Wendland (`2h`) for comparable cost. Negative lobes
+enforce the vanishing second moment (fourth-order smoothing) while remaining
+stable in Eulerian / total Lagrangian SPH with relaxed particles.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
