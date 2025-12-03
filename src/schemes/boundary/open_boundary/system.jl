@@ -64,6 +64,7 @@ end
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                             fluid_system::AbstractFluidSystem, buffer_size::Integer,
                             boundary_model,
+                            deactivate_isolated_particles=false,
                             pressure_acceleration=boundary_model isa
                                                   BoundaryModelDynamicalPressureZhang ?
                                                   fluid_system.pressure_acceleration_formulation :
@@ -82,7 +83,9 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     mass = copy(initial_conditions.mass)
     volume = similar(initial_conditions.density)
 
-    cache = (; neighbor_counter=zeros(Int, nparticles(initial_conditions)),
+    neighbor_counter = deactivate_isolated_particles ?
+                       zeros(Int, nparticles(initial_conditions)) : nothing
+    cache = (; neighbor_counter=neighbor_counter,
              create_cache_shifting(initial_conditions, shifting_technique)...,
              create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
                                         boundary_zones_)...)
@@ -565,6 +568,9 @@ end
 @inline function calculate_neighbor_count!(system, ::AbstractShiftingTechnique, u, semi)
     (; neighbor_counter) = system.cache
 
+    # Skip when `deactivate_isolated_particles` ist not activated
+    isnothing(neighbor_counter) && return system
+
     set_zero!(neighbor_counter)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
@@ -586,6 +592,9 @@ end
 @inline function is_isolated(system, ::AbstractShiftingTechnique, particle)
     (; particle_spacing) = system.initial_condition
     (; neighbor_counter) = system.cache
+
+    # Skip when `deactivate_isolated_particles` ist not activated
+    isnothing(neighbor_counter) && return false
 
     min_neighbors = ideal_neighbor_count(Val(ndims(system)), particle_spacing,
                                          compact_support(system, system)) / 10
