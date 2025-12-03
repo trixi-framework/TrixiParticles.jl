@@ -34,56 +34,10 @@ function copy_file(filename, replaces...;
     write(new_file, content)
 end
 
-function replace_with_code(filename)
-    if !isfile(filename)
-        cwd = pwd()
-        error("Markdown file not found: $filename in directory: $cwd")
-        return
-    end
-
-    # Define a regex pattern to match the include markers
-    pattern = r"!!include:([^\s!]+\.jl)!!"
-
-    function replace_include(match_::SubString{String})
-        # Extract the filename using regex
-        m = match(pattern, match_)
-        if m === nothing
-            error("Invalid include format in: $match")
-        end
-        file_to_include = joinpath(trixiparticles_root_dir, m.captures[1])
-
-        try
-            # Check if the Julia file exists
-            if !isfile(file_to_include)
-                error("File to include not found: $(file_to_include)")
-            end
-
-            # Read the content of the file to include
-            return read(file_to_include, String)
-        catch e
-            # In case of any error
-            error("Unable to include file $(file_to_include): $(e)")
-        end
-    end
-
-    # Check if tutorials directory exists, else create one
-    path_tutorials = joinpath("docs", "src", "tutorials")
-    if !isdir(path_tutorials)
-        mkdir(path_tutorials)
-    end
-
-    file_basename = basename(filename)
-
-    # Replace all occurrences in the markdown content
-    copy_file(filename, new_file=joinpath(path_tutorials, file_basename),
-              pattern => replace_include)
-end
-
-replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_setup.md"))
-replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_dam_break.md"))
-replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_beam.md"))
-replace_with_code(joinpath("docs", "src", "tutorials_template", "tut_falling.md"))
-
+Literate.markdown(joinpath("docs", "literate", "src", "tut_setup.jl"),
+                  joinpath("docs", "src", "tutorials"))
+Literate.markdown(joinpath("docs", "literate", "src", "tut_custom_kernel.jl"),
+                  joinpath("docs", "src", "tutorials"))
 Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
                   joinpath("docs", "src", "tutorials"))
 
@@ -124,7 +78,19 @@ makedocs(sitename="TrixiParticles.jl",
              "Installation" => "install.md",
              "Getting started" => "getting_started.md",
              "Development" => "development.md",
-             "Tutorial" => "tutorial.md",
+             "Tutorials" => [
+                 "Overview" => "tutorial.md",
+                 "General" => [
+                     "Setting up your simulation from scratch" => joinpath("tutorials",
+                                                                           "tut_setup.md"),
+                     "Modifying or extending components of TrixiParticles.jl within a simulation file" => joinpath("tutorials",
+                                                                                                                   "tut_custom_kernel.md")
+                 ],
+                 "Preprocessing" => [
+                     "Particle packing tutorial" => joinpath("tutorials",
+                                                             "tut_packing.md")
+                 ]
+             ],
              "Examples" => "examples.md",
              "Visualization" => "visualization.md",
              "Preprocessing" => [
