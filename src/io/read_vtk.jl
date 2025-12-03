@@ -30,6 +30,7 @@ data = vtk2trixi(joinpath("out", "rectangular.vtu");
 
 # output
 NamedTuple{data...}
+```
 """
 function vtk2trixi(file; custom_quantities...)
     vtk_file = ReadVTK.VTKFile(file)
