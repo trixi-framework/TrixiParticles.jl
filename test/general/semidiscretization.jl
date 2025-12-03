@@ -7,6 +7,8 @@
     system1 = System1()
     system2 = System2()
 
+    Base.eltype(::System1) = Float64
+    TrixiParticles.coordinates_eltype(::System1) = Float32
     TrixiParticles.u_nvariables(::System1) = 3
     TrixiParticles.u_nvariables(::System2) = 4
     TrixiParticles.v_nvariables(::System1) = 3
@@ -119,6 +121,8 @@
         │ #systems: ……………………………………………………… 2                                                                │
         │ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
         │ total #particles: ………………………………… 5                                                                │
+        │ eltype: …………………………………………………………… Float64                                                          │
+        │ coordinates eltype: …………………………… Float32                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", semi) == show_box
     end
