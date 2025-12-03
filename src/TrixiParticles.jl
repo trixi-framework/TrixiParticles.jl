@@ -77,7 +77,7 @@ export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechni
        ContinuityEquationTermSun2019, MomentumEquationTermSun2019
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
-       WendlandC6Kernel, SpikyKernel, Poly6Kernel
+       WendlandC6Kernel, SpikyKernel, Poly6Kernel, MarroneMLSKernel
 export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS
@@ -86,7 +86,7 @@ export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
        BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,
-       BernoulliPressureExtrapolation, PressureBoundaries
+       BernoulliPressureExtrapolation, PressureBoundaries, MarronePressureExtrapolation
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export PrescribedMotion, OscillatingMotion2D

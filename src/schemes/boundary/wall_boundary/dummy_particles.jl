@@ -64,9 +64,12 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     ELTYPE = eltype(smoothing_length)
     n_particles = length(initial_density)
 
-    cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
-             create_cache_model(initial_density, density_calculator, NDIMS)...,
-             create_cache_model(correction, initial_density, NDIMS, n_particles)...)
+    cache = (; create_cache_boundary_velocity(viscosity, n_particles, NDIMS)...,
+             create_cache_boundary_density(initial_density, density_calculator, NDIMS)...,
+             create_cache_boundary_correction(correction, initial_density, NDIMS,
+                                              n_particles)...,
+             create_cache_boundary_interpolation(density_calculator, n_particles, NDIMS,
+                                                 eltype(initial_density))...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -200,39 +203,63 @@ struct PressureBoundaries{ELTYPE}
         return new{eltype(time_step)}(time_step, omega)
     end
 end
-@inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
-function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
+@doc raw"""
+    MarronePressureExtrapolation()
+
+`density_calculator` for `BoundaryModelDummyParticles`.
+
+!!! note
+    This boundary model was orignally proposed in [𝛿-SPH Model for Simulating Violent Impact Flows](https://www.researchgate.net/publication/241077909_-SPH_model_for_simulating_violent_impact_flows).
+"""
+struct MarronePressureExtrapolation
+    allow_loop_flipping::Bool
+
+    function MarronePressureExtrapolation(; allow_loop_flipping=true)
+        return new(allow_loop_flipping)
+    end
+end
+
+@inline create_cache_boundary_correction(correction, density, NDIMS, nparticles) = (;)
+
+function create_cache_boundary_correction(::ShepardKernelCorrection, density, NDIMS,
+                                          n_particles)
     return (; kernel_correction_coefficient=similar(density))
 end
 
-function create_cache_model(::KernelCorrection, density, NDIMS, n_particles)
+function create_cache_boundary_correction(::KernelCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density), dw_gamma)
 end
 
-function create_cache_model(::Union{GradientCorrection, BlendedGradientCorrection}, density,
-                            NDIMS, n_particles)
+function create_cache_boundary_correction(::Union{GradientCorrection,
+                                                  BlendedGradientCorrection},
+                                          density,
+                                          NDIMS, n_particles)
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
     return (; correction_matrix)
 end
 
-function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_particles)
+function create_cache_boundary_correction(::MixedKernelGradientCorrection, density, NDIMS,
+                                          n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
-function create_cache_model(initial_density,
-                            ::Union{SummationDensity, PressureMirroring, PressureZeroing},
-                            NDIMS)
+function create_cache_boundary_density(initial_density,
+                                       ::Union{SummationDensity, PressureMirroring,
+                                               PressureZeroing}, NDIMS)
     density = copy(initial_density)
 
     return (; density)
 end
 
-function create_cache_model(initial_density,
-                            density_calculator::PressureBoundaries, NDIMS)
+@inline create_cache_boundary_density(initial_density,
+                                      ::ContinuityDensity, NDIMS) = (; initial_density)
+
+function create_cache_boundary_density(initial_density,
+                                       density_calculator::PressureBoundaries, NDIMS)
     ELTYPE = eltype(initial_density)
     n_particles = size(initial_density, 1)
 
@@ -253,22 +280,19 @@ function create_cache_model(initial_density,
             omega, time_step, density_error)
 end
 
-function create_cache_model(initial_density, ::ContinuityDensity, NDIMS)
-    return (; initial_density)
-end
-
-function create_cache_model(initial_density,
-                            ::Union{AdamiPressureExtrapolation,
-                                    BernoulliPressureExtrapolation}, NDIMS)
+function create_cache_boundary_density(initial_density,
+                                       ::Union{AdamiPressureExtrapolation,
+                                               BernoulliPressureExtrapolation,
+                                               MarronePressureExtrapolation}, NDIMS)
     density = copy(initial_density)
     volume = similar(initial_density)
 
     return (; density, volume)
 end
 
-@inline create_cache_model(viscosity::Nothing, n_particles, n_dims) = (;)
+@inline create_cache_boundary_velocity(viscosity::Nothing, n_particles, n_dims) = (;)
 
-function create_cache_model(viscosity, n_particles, n_dims)
+function create_cache_boundary_velocity(viscosity, n_particles, n_dims)
     ELTYPE = eltype(viscosity.epsilon)
 
     wall_velocity = zeros(ELTYPE, n_dims, n_particles)
@@ -276,15 +300,37 @@ function create_cache_model(viscosity, n_particles, n_dims)
     return (; wall_velocity)
 end
 
-@inline reset_cache!(cache, viscosity) = set_zero!(cache.volume)
+@inline create_cache_boundary_interpolation(density_calculator, n_particles, n_dims,
+                                            ELTYPE) = (;)
 
-function reset_cache!(cache, viscosity::ViscosityAdami)
-    (; volume, wall_velocity) = cache
+function create_cache_boundary_interpolation(density_calculator::MarronePressureExtrapolation,
+                                             n_particles, n_dims, ELTYPE)
+    # TODO: `wall_velocity` should be created in `create_cache_velocity`
+    wall_velocity = zeros(ELTYPE, n_dims, n_particles)
+    interpolation_coords = fill(zero(SVector{n_dims, ELTYPE}), n_particles)
+    _pressure = zeros(ELTYPE, n_particles)
+
+    return (; interpolation_coords, wall_velocity, _pressure)
+end
+
+function reset_cache!(model::BoundaryModelDummyParticles)
+    (; cache, viscosity, density_calculator) = model
+    (; volume) = cache
 
     set_zero!(volume)
-    set_zero!(wall_velocity)
+    reset_cache!(cache, viscosity)
+    reset_cache!(cache, density_calculator)
 
     return cache
+end
+
+@inline reset_cache!(_, _) = nothing
+
+@inline reset_cache!(cache, viscosity::ViscosityAdami) = set_zero!(cache.wall_velocity)
+
+function reset_cache!(cache, density_calculator::MarronePressureExtrapolation)
+    set_zero!(cache.wall_velocity)
+    set_zero!(cache._pressure)
 end
 
 function Base.show(io::IO, model::BoundaryModelDummyParticles)
@@ -320,7 +366,7 @@ end
                                  ::Union{SummationDensity, AdamiPressureExtrapolation,
                                          PressureMirroring, PressureZeroing,
                                          BernoulliPressureExtrapolation,
-                                         PressureBoundaries},
+                                         PressureBoundaries, MarronePressureExtrapolation},
                                  model::BoundaryModelDummyParticles)
     # When using `SummationDensity`, the density is stored in the cache
     return model.cache.density
@@ -348,10 +394,11 @@ end
 function compute_density!(boundary_model,
                           ::Union{ContinuityDensity, AdamiPressureExtrapolation,
                                   BernoulliPressureExtrapolation,
+                                  MarronePressureExtrapolation,
                                   PressureMirroring, PressureZeroing},
                           system, v, u, v_ode, u_ode, semi)
     # No density update for `ContinuityDensity`, `PressureMirroring` and `PressureZeroing`.
-    # For `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation`, the density is updated in `compute_pressure!`.
+    # For `AdamiPressureExtrapolation`, `MarronePressureExtrapolation` and `BernoulliPressureExtrapolation`, the density is updated in `compute_pressure!`.
     return boundary_model
 end
 
@@ -441,7 +488,8 @@ end
 
 function compute_pressure!(boundary_model,
                            ::Union{AdamiPressureExtrapolation,
-                                   BernoulliPressureExtrapolation},
+                                   BernoulliPressureExtrapolation,
+                                   MarronePressureExtrapolation},
                            system, v, u, v_ode, u_ode, semi)
     (; pressure, cache, viscosity) = boundary_model
     (; allow_loop_flipping) = boundary_model.density_calculator
@@ -449,7 +497,7 @@ function compute_pressure!(boundary_model,
     set_zero!(pressure)
 
     # Set `volume` to zero. For `ViscosityAdami` the `wall_velocity` is also set to zero.
-    reset_cache!(cache, viscosity)
+    reset_cache!(boundary_model)
 
     system_coords = current_coordinates(u, system)
 
