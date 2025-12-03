@@ -1,5 +1,6 @@
 include("write_vtk.jl")
 include("read_vtk.jl")
+include("restart.jl")
 
 # Handle "_" on optional prefix strings
 add_underscore_to_optional_prefix(str) = (str === "" ? "" : "$(str)_")
