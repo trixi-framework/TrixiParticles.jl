@@ -200,7 +200,9 @@
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
-            @test eltype(sol) == Float32
+            v_ode, u_ode = sol[end].x
+            @test eltype(v_ode) == Float32
+            @test eltype(u_ode) == Float64
         end
     end
 

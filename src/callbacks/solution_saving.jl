@@ -154,39 +154,44 @@ function (solution_callback::SolutionSavingCallback)(integrator; from_initialize
     (; interval, output_directory, custom_quantities, git_hash, verbose,
      prefix, latest_saved_iter, max_coordinates) = solution_callback
 
-    vu_ode = integrator.u
-    if from_initialize
-        # Avoid calling `get_du` here, since it will call the RHS function
-        # if it is called before the first time step.
-        # This would cause problems with `semi.update_callback_used`,
-        # which might not yet be set to `true` at this point if the `UpdateCallback`
-        # comes AFTER the `SolutionSavingCallback` in the `CallbackSet`.
-        dvdu_ode = zero(vu_ode)
-    else
-        dvdu_ode = get_du(integrator)
+    @trixi_timeit timer() "save solution" begin
+        vu_ode = integrator.u
+        if from_initialize
+            # Avoid calling `get_du` here, since it will call the RHS function
+            # if it is called before the first time step.
+            # This would cause problems with `semi.update_callback_used`,
+            # which might not yet be set to `true` at this point if the `UpdateCallback`
+            # comes AFTER the `SolutionSavingCallback` in the `CallbackSet`.
+            dvdu_ode = zero(vu_ode)
+        else
+            # Depending on the time integration scheme, this might call the RHS function
+            @trixi_timeit timer() "update du" begin
+                # Don't create sub-timers here to avoid cluttering the timer output
+                @notimeit timer() dvdu_ode = get_du(integrator)
+            end
+        end
+        semi = integrator.p
+        iter = get_iter(interval, integrator)
+
+        if iter == latest_saved_iter
+            # This should only happen at the end of the simulation when using `dt` and the
+            # final time is not a multiple of the saving interval.
+            @assert isfinished(integrator)
+
+            # Avoid overwriting the previous file
+            iter += 1
+        end
+
+        latest_saved_iter = iter
+
+        if verbose
+            println("Writing solution to $output_directory at t = $(integrator.t)")
+        end
+
+        trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
+                  iter, output_directory, prefix, git_hash=git_hash[],
+                  max_coordinates, custom_quantities...)
     end
-    semi = integrator.p
-    iter = get_iter(interval, integrator)
-
-    if iter == latest_saved_iter
-        # This should only happen at the end of the simulation when using `dt` and the
-        # final time is not a multiple of the saving interval.
-        @assert isfinished(integrator)
-
-        # Avoid overwriting the previous file
-        iter += 1
-    end
-
-    latest_saved_iter = iter
-
-    if verbose
-        println("Writing solution to $output_directory at t = $(integrator.t)")
-    end
-
-    @trixi_timeit timer() "save solution" trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
-                                                    iter, output_directory, prefix,
-                                                    git_hash=git_hash[], max_coordinates,
-                                                    custom_quantities...)
 
     # Tell OrdinaryDiffEq that `u` has not been modified
     u_modified!(integrator, false)
