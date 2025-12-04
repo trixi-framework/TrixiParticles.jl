@@ -675,7 +675,7 @@ W(r,h) = \frac{C_d}{h^d}
 \quad q = \frac{r}{h}, \quad 0 \le q \le 2,
 ```
 
-where the dimension-dependent normalization constants `C_d` are chosen so that
+where the dimension-dependent normalization constants ``C_d`` are chosen so that
 the truncated kernel is normalized,
 
 ```math
