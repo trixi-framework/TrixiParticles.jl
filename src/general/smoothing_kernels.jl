@@ -682,7 +682,7 @@ the truncated kernel is normalized,
 \int_{\lVert x \rVert \le 2h} W(\lVert x \rVert, h)\,\mathrm{d}^d x = 1.
 ```
 
-Explicitly, for `d = 1,2,3` we obtain
+Explicitly, for ``d = 1,2,3`` we obtain
 
 ```math
 C_1 = \frac{1}{
