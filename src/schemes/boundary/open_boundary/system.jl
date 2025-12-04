@@ -290,6 +290,12 @@ end
     return du
 end
 
+function update_positions!(system::OpenBoundarySystem, v, u, v_ode, u_ode, semi, t)
+    cell_list = get_neighborhood_search(system, semi).cell_list
+    deactivate_out_of_bounds_particles!(system, buffer(system), cell_list, u, semi)
+end
+
+
 function update_boundary_interpolation!(system::OpenBoundarySystem, v, u, v_ode, u_ode,
                                         semi, t)
     update_boundary_model!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
