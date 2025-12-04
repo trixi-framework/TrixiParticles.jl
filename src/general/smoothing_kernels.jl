@@ -704,7 +704,7 @@ C_3 = \frac{1}{
 ```
 
 These values differ from the original infinite-support normalization factors in
-[Wang2024](@cite) because the kernel is truncated at `q = 2` and then
+[Wang2024](@cite) because the kernel is truncated at ``q = 2`` and then
 renormalized.
 
 Recommended practical choice from the paper: use `h \approx 1.3 \Delta x`
