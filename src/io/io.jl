@@ -330,7 +330,13 @@ function add_system_data!(system_data, shifting_technique::ParticleShiftingTechn
     system_data["shifting_technique"] = Dict{String, Any}()
     system_data["shifting_technique"]["model"] = type2string(shifting_technique)
 end
-function TrixiParticles.add_system_data!(system_data, viscosity::ViscosityCarreauYasuda)
-    system_data["viscosity_model"] = "ViscosityCarreauYasuda"
-    return system_data
+function add_system_data!(system_data, viscosity::ViscosityCarreauYasuda)
+    system_data["viscosity_model"] = Dict{String, Any}()
+    system_data["viscosity_model"]["model"]   = type2string(viscosity)
+    system_data["viscosity_model"]["nu0"]     = viscosity.nu0
+    system_data["viscosity_model"]["nu_inf"]  = viscosity.nu_inf
+    system_data["viscosity_model"]["lambda"]  = viscosity.lambda
+    system_data["viscosity_model"]["a"]       = viscosity.a
+    system_data["viscosity_model"]["n"]       = viscosity.n
+    system_data["viscosity_model"]["epsilon"] = viscosity.epsilon
 end

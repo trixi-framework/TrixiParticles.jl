@@ -135,4 +135,71 @@
         @test isapprox(dv[1], -2.0328356978041036e-5, atol=6e-15)
         @test isapprox(dv[2], 6.776118992680346e-5, atol=6e-15)
     end
+
+    @testset verbose=true "`ViscosityCarreauYasuda`" begin
+        # Newtonian limit: ViscosityCarreauYasuda should behave like ViscosityAdami
+        nu = 7e-3
+
+        viscosity_adami = ViscosityAdami(nu=nu)
+        viscosity_cy_newtonian = ViscosityCarreauYasuda(
+            nu0    = nu,
+            nu_inf = nu,
+            lambda = 1.0,
+            a      = 2.0,
+            n      = 1.0,
+            epsilon = 0.01,
+        )
+
+        system_adami = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
+                                                   state_equation, smoothing_kernel,
+                                                   smoothing_length, viscosity=viscosity_adami)
+
+        system_cy = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
+                                                state_equation, smoothing_kernel,
+                                                smoothing_length, viscosity=viscosity_cy_newtonian)
+
+        grad_kernel = TrixiParticles.smoothing_kernel_grad(system_adami, pos_diff,
+                                                           distance, 1)
+        v = fluid.velocity
+
+        m_a = 0.01
+        m_b = 0.01
+
+        v[1, 1] = v_diff[1]
+        v[2, 1] = v_diff[2]
+        v[1, 2] = 0.0
+        v[2, 2] = 0.0
+
+        dv_adami = viscosity_adami(system_adami, system_adami,
+                                   v, v, 1, 2, pos_diff, distance,
+                                   sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+
+        dv_cy = viscosity_cy_newtonian(system_cy, system_cy,
+                                       v, v, 1, 2, pos_diff, distance,
+                                       sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+
+        # In the Newtonian limit, both models should give the same viscous contribution
+        @test isapprox(dv_cy[1], dv_adami[1], atol=6e-15)
+        @test isapprox(dv_cy[2], dv_adami[2], atol=6e-15)
+
+        # Now test the rheology helper: shear-thinning behavior
+        viscosity_shear = ViscosityCarreauYasuda(
+            nu0    = 3.5e-6,
+            nu_inf = 1.0e-6,
+            lambda = 3.313e-2,
+            a      = 2.0,
+            n      = 0.3,
+            epsilon = 0.01,
+        )
+
+        ν0 = TrixiParticles.carreau_yasuda_nu(viscosity_shear, 0.0)
+        ν_large = TrixiParticles.carreau_yasuda_nu(viscosity_shear, 1e6)
+
+        # Zero-shear viscosity is nu0
+        @test ν0 ≈ viscosity_shear.nu0
+
+        # At large shear, viscosity approaches nu_inf and is lower than ν0
+        @test ν_large < ν0
+        @test ν_large > viscosity_shear.nu_inf
+    end
 end

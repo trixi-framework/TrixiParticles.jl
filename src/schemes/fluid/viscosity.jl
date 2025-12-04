@@ -534,3 +534,100 @@ function kinematic_viscosity(system, viscosity::ViscosityCarreauYasuda,
                              smoothing_length, sound_speed)
     return viscosity.nu0
 end
+@doc raw"""
+    ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001)
+
+Subgrid-scale (SGS) viscosity model based on the formulation by [Morris (1997)](@cite Morris1997),
+by incorporating a subgrid-scale (SGS) eddy viscosity via a Smagorinsky-type [Smagorinsky (1963)](@cite Smagorinsky1963) closure.
+The effective kinematic viscosity is defined as
+
+```math
+\nu_{\text{eff}} = \nu_{\text{std}} + \nu_{\text{SGS}},
+```
+
+with
+
+```math
+\nu_{\text{SGS}} = (C_S h)^2 |S|,
+```
+
+and an approximation for the strain rate magnitude given by
+
+```math
+|S| \approx \frac{\|v_{ab}\|}{\|r_{ab}\| + \epsilon},
+```
+
+where:
+- ``C_S`` is the Smagorinsky constant (typically 0.1 to 0.2),
+- ``h`` is the local smoothing length.
+
+The effective dynamic viscosities are then computed as
+```math
+\eta_{a,\text{eff}} = \rho_a\, \nu_{\text{eff}},
+```
+and averaged as
+```math
+\bar{\eta}_{ab} = \frac{2 \eta_{a,\text{eff}} \eta_{b,\text{eff}}}{\eta_{a,\text{eff}}+\eta_{b,\text{eff}}}.
+```
+
+This model is appropriate for turbulent flows where unresolved scales contribute additional dissipation.
+
+# Keywords
+- `nu`:      Standard kinematic viscosity.
+- `C_S`:     Smagorinsky constant.
+- `epsilon=0.01`: Parameter to prevent singularities
+"""
+struct ViscosityMorrisSGS{ELTYPE}
+    nu::ELTYPE      # kinematic viscosity [e.g., 1e-6 m²/s]
+    C_S::ELTYPE     # Smagorinsky constant [e.g., 0.1-0.2]
+    epsilon::ELTYPE # Epsilon for singularity prevention [e.g., 0.001]
+end
+
+ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, epsilon)
+
+@propagate_inbounds function (viscosity::ViscosityMorrisSGS)(particle_system,
+                                                             neighbor_system,
+                                                             v_particle_system,
+                                                             v_neighbor_system,
+                                                             particle, neighbor, pos_diff,
+                                                             distance, sound_speed, m_a,
+                                                             m_b, rho_a, rho_b, grad_kernel)
+    epsilon = viscosity.epsilon
+
+    smoothing_length_particle = smoothing_length(particle_system, particle)
+    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
+    smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
+
+    nu_a = kinematic_viscosity(particle_system,
+                               viscosity_model(neighbor_system, particle_system),
+                               smoothing_length_particle, sound_speed)
+    nu_b = kinematic_viscosity(neighbor_system,
+                               viscosity_model(particle_system, neighbor_system),
+                               smoothing_length_neighbor, sound_speed)
+
+    v_a = viscous_velocity(v_particle_system, particle_system, particle)
+    v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_diff = v_a - v_b
+
+    # SGS part: Compute the subgrid-scale eddy viscosity.
+    # See comments above for `ViscosityAdamiSGS`.
+    S_mag = norm(v_diff) / (distance + epsilon)
+    nu_SGS = (viscosity.C_S * smoothing_length_average)^2 * S_mag
+
+    # Effective viscosities include the SGS term.
+    nu_a_eff = nu_a + nu_SGS
+    nu_b_eff = nu_b + nu_SGS
+
+    # For the Morris model, dynamic viscosities are:
+    mu_a = nu_a_eff * rho_a
+    mu_b = nu_b_eff * rho_b
+
+    force_Morris = (mu_a + mu_b) / (rho_a * rho_b) * (dot(pos_diff, grad_kernel)) /
+                   (distance^2 + epsilon * smoothing_length_average^2) * v_diff
+    return m_b * force_Morris
+end
+
+function kinematic_viscosity(system, viscosity::ViscosityMorrisSGS, smoothing_length,
+                             sound_speed)
+    return viscosity.nu
+end
