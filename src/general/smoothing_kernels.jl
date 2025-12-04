@@ -707,7 +707,7 @@ These values differ from the original infinite-support normalization factors in
 [Wang2024](@cite) because the kernel is truncated at ``q = 2`` and then
 renormalized.
 
-Recommended practical choice from the paper: use `h \approx 1.3 \Delta x`
+Recommended practical choice from the paper: use ``h \approx 1.3 \Delta x``
 and the same cut-off as Wendland (`2h`) for comparable cost. Negative lobes
 enforce the vanishing second moment (fourth-order smoothing) while remaining
 stable in Eulerian / total Lagrangian SPH with relaxed particles.
