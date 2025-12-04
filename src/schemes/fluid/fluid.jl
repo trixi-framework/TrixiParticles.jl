@@ -220,6 +220,10 @@ end
     return nothing
 end
 
+@inline function turbulence_model(system::AbstractFluidSystem)
+    return system.cache.turbulence_model
+end
+
 function system_data(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     (; mass) = system
 
@@ -247,3 +251,4 @@ include("surface_tension.jl")
 include("surface_normal_sph.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
+include("turbulence_models.jl")
