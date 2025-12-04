@@ -441,10 +441,18 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
             end
         end
 
-        # This only occurs if `face_normal` is not exactly normal to the `boundary_face`.
-        # In such cases, particles that are actually outside the simulation domain (outflow particles)
-        # may be incorrectly kept active as inflow particles and therefore cannot be assigned to any boundary zone.
-        # This issue should not occur and has been fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/926 .
+        # Assert that every active buffer particle is assigned to a boundary zone.
+        # This should always be true if the boundary zone geometry is set up correctly.
+        # However, rare edge cases during particle conversion (`convert_particle!`)
+        # may leave a particle unassigned. Potential causes for failure:
+        # - `face_normal` is not exactly normal to the `boundary_face`
+        #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/926).
+        # - Large downstream domain expansion can shift an inflow particle to the zone edge;
+        #   even after upstream adjustment it may remain outside
+        #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/997).
+        # - Floating-point rounding when a particle lies almost exactly on the `boundary_face`
+        #   during transition, causing a reset just outside the zone
+        #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/997).
         @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found for active buffer particle"
     end
 
