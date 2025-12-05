@@ -36,9 +36,9 @@ struct StateEquationAdaptiveCole{ELTYPE, CLIP, SR} # Boolean to clip negative pr
     background_pressure :: ELTYPE
 end
 
-function StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
-                                   reference_density, max_sound_speed=100.0, exponent,
-                                   background_pressure=0.0,
+function StateEquationAdaptiveCole(; mach_number_limit=0.1f0, min_sound_speed=10.0f0,
+                                   reference_density, max_sound_speed=100.0f0, exponent,
+                                   background_pressure=0.0f0,
                                    clip_negative_pressure=false)
     sound_speed = min_sound_speed
     return StateEquationAdaptiveCole{typeof(mach_number_limit), clip_negative_pressure,
