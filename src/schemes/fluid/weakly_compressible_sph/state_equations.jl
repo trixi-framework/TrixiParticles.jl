@@ -34,34 +34,42 @@ struct StateEquationAdaptiveCole{ELTYPE, CLIP, SR} # Boolean to clip negative pr
     exponent            :: ELTYPE
     reference_density   :: ELTYPE
     background_pressure :: ELTYPE
+
+    function StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
+                                       reference_density, max_sound_speed=100.0, exponent,
+                                       background_pressure=0.0,
+                                       clip_negative_pressure=false)
+        sound_speed = min_sound_speed
+        return new{typeof(mach_number_limit), clip_negative_pressure,
+                   typeof(Ref(sound_speed))}(Ref(sound_speed),
+                                             mach_number_limit,
+                                             min_sound_speed,
+                                             max_sound_speed,
+                                             exponent,
+                                             reference_density,
+                                             background_pressure)
+    end
 end
 
-function (::Type{StateEquationAdaptiveCole{ELTYPE, CLIP, SR}})(sound_speed_ref::SR, mach_number_limit::ELTYPE,
-                                   min_sound_speed::ELTYPE, max_sound_speed::ELTYPE,
-                                   exponent::ELTYPE, reference_density::ELTYPE,
-                                   background_pressure::ELTYPE) where {ELTYPE, CLIP, SR}
-    StateEquationAdaptiveCole{ELTYPE, CLIP, SR}(sound_speed_ref,
-                                                mach_number_limit,
-                                                min_sound_speed,
-                                                max_sound_speed,
-                                                exponent,
-                                                reference_density,
-                                                background_pressure)
-end
+function adapt_structure(to,
+                         se::StateEquationAdaptiveCole{ELTYPE, CLIP, SR}) where {ELTYPE,
+                                                                                 CLIP, SR}
+    sound_speed_ref = Adapt.adapt_structure(to, se.sound_speed_ref)
+    mach_number_limit = Adapt.adapt_structure(to, se.mach_number_limit)
+    min_sound_speed = Adapt.adapt_structure(to, se.min_sound_speed)
+    max_sound_speed = Adapt.adapt_structure(to, se.max_sound_speed)
+    exponent = Adapt.adapt_structure(to, se.exponent)
+    reference_density = Adapt.adapt_structure(to, se.reference_density)
+    background_pressure = Adapt.adapt_structure(to, se.background_pressure)
 
-function StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
-                                   reference_density, max_sound_speed=100.0, exponent,
-                                   background_pressure=0.0,
-                                   clip_negative_pressure=false)
-    sound_speed = min_sound_speed
-    return StateEquationAdaptiveCole{typeof(mach_number_limit),
-                                     clip_negative_pressure, typeof(Ref(sound_speed))}(Ref(sound_speed),
-                                                                                       mach_number_limit,
-                                                                                       min_sound_speed,
-                                                                                       max_sound_speed,
-                                                                                       exponent,
-                                                                                       reference_density,
-                                                                                       background_pressure)
+    return StateEquationAdaptiveCole(CLIP,
+                                     sound_speed_ref,
+                                     mach_number_limit,
+                                     min_sound_speed,
+                                     max_sound_speed,
+                                     exponent,
+                                     reference_density,
+                                     background_pressure)
 end
 
 # Unwrap ref value `sound_speed` on read to maintain compatibility with existing code
