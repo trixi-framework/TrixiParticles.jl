@@ -538,11 +538,10 @@ end
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)
-            # Ramp up shifting velocity for this particle.
-            # Note that Sun et al. 2017 propose a more sophisticated approach with a transition phase
-            # where only the component orthogonal to the surface normal is kept and the tangential
-            # component is set to zero. However, our experiments showed that this approach
-            # leads to stronger particle disorder in the boundary zone.
+            # Ramp shifting velocity near the free surface using a kernel-weighted transition.
+            # According to our experiment, alternative approaches lead to particle disorder anyway:
+            # - Sun et al. 2017: project onto surface-tangential component
+            # - Zhang et al. 2025: disable shifting entirely
             kernel_max = smoothing_kernel(system, 0, particle)
             support_gap = compact_support(fluid_system, fluid_system) - dist_free_surface
             shifting_weight = smoothing_kernel(system, support_gap, particle) / kernel_max
