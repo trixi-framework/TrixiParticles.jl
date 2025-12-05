@@ -76,4 +76,6 @@ lines!(ax2, ref.time, ref.Uy, color=:black, linestyle=:dash,
 
 legend_ax1 = Legend(fig[1, 2], ax1)
 legend_ax2 = Legend(fig[2, 2], ax2)
+
+# save("validation_osc_beam.png", fig)
 fig
