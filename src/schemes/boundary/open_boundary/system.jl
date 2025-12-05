@@ -541,7 +541,8 @@ end
             # Ramp up shifting velocity for this particle.
             # Note that Sun et al. 2017 propose a more sophisticated approach with a transition phase
             # where only the component orthogonal to the surface normal is kept and the tangential
-            # component is set to zero.
+            # component is set to zero. However, our experiments showed that this approach
+            # leads to stronger particle disorder in the boundary zone.
             kernel_max = smoothing_kernel(system, 0, particle)
             support_gap = compact_support(fluid_system, fluid_system) - dist_free_surface
             shifting_weight = smoothing_kernel(system, support_gap, particle) / kernel_max
