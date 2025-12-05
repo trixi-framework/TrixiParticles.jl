@@ -35,20 +35,37 @@ struct StateEquationAdaptiveCole{ELTYPE, CLIP, SR} # Boolean to clip negative pr
     reference_density   :: ELTYPE
     background_pressure :: ELTYPE
 
-    function StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
-                                       reference_density, max_sound_speed=100.0, exponent,
-                                       background_pressure=0.0,
-                                       clip_negative_pressure=false)
-        sound_speed = min_sound_speed
-        return new{typeof(mach_number_limit), clip_negative_pressure,
-                   typeof(Ref(sound_speed))}(Ref(sound_speed),
-                                             mach_number_limit,
-                                             min_sound_speed,
-                                             max_sound_speed,
-                                             exponent,
-                                             reference_density,
-                                             background_pressure)
-    end
+    # function StateEquationAdaptiveCole(sound_speed_ref::SR,
+    #                                    mach_number_limit::ELTYPE,
+    #                                    min_sound_speed::ELTYPE,
+    #                                    max_sound_speed::ELTYPE,
+    #                                    exponent::ELTYPE,
+    #                                    reference_density::ELTYPE,
+    #                                    background_pressure::ELTYPE) where {ELTYPE, CLIP, SR}
+    #     return new{ELTYPE, CLIP, SR}(sound_speed_ref,
+    #                                  mach_number_limit,
+    #                                  min_sound_speed,
+    #                                  max_sound_speed,
+    #                                  exponent,
+    #                                  reference_density,
+    #                                  background_pressure)
+    # end
+
+end
+
+function StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
+                                   reference_density, max_sound_speed=100.0, exponent,
+                                   background_pressure=0.0,
+                                   clip_negative_pressure=false)
+    sound_speed = min_sound_speed
+    return StateEquationAdaptiveCole{typeof(mach_number_limit), clip_negative_pressure,
+                                     typeof(Ref(sound_speed))}(Ref(sound_speed),
+                                                               mach_number_limit,
+                                                               min_sound_speed,
+                                                               max_sound_speed,
+                                                               exponent,
+                                                               reference_density,
+                                                               background_pressure)
 end
 
 function Adapt.adapt_structure(to,
