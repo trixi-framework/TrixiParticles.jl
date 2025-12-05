@@ -51,10 +51,13 @@ struct StateEquationAdaptiveCole{ELTYPE, CLIP, SR} # Boolean to clip negative pr
     end
 end
 
-function adapt_structure(to,
-                         se::StateEquationAdaptiveCole{ELTYPE, CLIP, SR}) where {ELTYPE,
-                                                                                 CLIP, SR}
-    sound_speed_ref = Adapt.adapt_structure(to, se.sound_speed_ref)
+function Adapt.adapt_structure(to,
+                               se::StateEquationAdaptiveCole{ELTYPE, CLIP, SR}) where {ELTYPE,
+                                                                                       CLIP,
+                                                                                       SR}
+    sound_speed_val = se.sound_speed_ref isa Base.RefValue ? se.sound_speed_ref[] :
+                      se.sound_speed_ref
+
     mach_number_limit = Adapt.adapt_structure(to, se.mach_number_limit)
     min_sound_speed = Adapt.adapt_structure(to, se.min_sound_speed)
     max_sound_speed = Adapt.adapt_structure(to, se.max_sound_speed)
@@ -62,20 +65,35 @@ function adapt_structure(to,
     reference_density = Adapt.adapt_structure(to, se.reference_density)
     background_pressure = Adapt.adapt_structure(to, se.background_pressure)
 
-    return StateEquationAdaptiveCole{typeof(mach_number_limit),
-                                        CLIP, typeof(Ref(sound_speed_ref))}(sound_speed_ref,
-                                                                                        mach_number_limit,
-                                                                                        min_sound_speed,
-                                                                                        max_sound_speed,
-                                                                                        exponent,
-                                                                                        reference_density,
-                                                                                        background_pressure)
+    SR_dev = typeof(sound_speed_val)
+    EL_dev = typeof(mach_number_limit)
+
+    return StateEquationAdaptiveCole{EL_dev, CLIP, SR_dev}(sound_speed_val,
+                                                           mach_number_limit,
+                                                           min_sound_speed,
+                                                           max_sound_speed,
+                                                           exponent,
+                                                           reference_density,
+                                                           background_pressure)
 end
 
 # Unwrap ref value `sound_speed` on read to maintain compatibility with existing code
-function Base.getproperty(se::StateEquationAdaptiveCole, name::Symbol)
+# Host: SR = Base.RefValue{ELTYPE}
+@inline function Base.getproperty(se::StateEquationAdaptiveCole{EL, CLIP,
+                                                                Base.RefValue{EL}},
+                                  name::Symbol) where {EL, CLIP}
     if name === :sound_speed
-        return se.sound_speed_ref[]  # expose as plain value
+        return se.sound_speed_ref[]
+    else
+        return getfield(se, name)
+    end
+end
+
+# Device
+@inline function Base.getproperty(se::StateEquationAdaptiveCole{EL, CLIP, EL},
+                                  name::Symbol) where {EL, CLIP}
+    if name === :sound_speed
+        return se.sound_speed_ref
     else
         return getfield(se, name)
     end
