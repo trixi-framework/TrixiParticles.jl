@@ -538,13 +538,16 @@ end
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)
-            # Disable shifting for this particle.
+            # Ramp up shifting velocity for this particle.
             # Note that Sun et al. 2017 propose a more sophisticated approach with a transition phase
             # where only the component orthogonal to the surface normal is kept and the tangential
-            # component is set to zero. However, we assume laminar flow in the boundary zone,
-            # so we simply disable shifting completely.
+            # component is set to zero.
+            kernel_max = smoothing_kernel(system, 0, particle)
+            support_gap = compact_support(fluid_system, fluid_system) - dist_free_surface
+            shifting_weight = smoothing_kernel(system, support_gap, particle) / kernel_max
+            delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
-                cache.delta_v[dim, particle] = zero(eltype(system))
+                cache.delta_v[dim, particle] = delta_v_ramped[dim]
             end
         end
     end
