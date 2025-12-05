@@ -539,12 +539,14 @@ end
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)
             # Ramp shifting velocity near the free surface using a kernel-weighted transition.
-            # According to our experiment, alternative approaches lead to particle disorder anyway:
-            # - Sun et al. 2017: project onto surface-tangential component
+            # According to our experiment, alternative approaches lead to particle disorder:
+            # - Sun et al. 2017: only use surface-tangential component
             # - Zhang et al. 2025: disable shifting entirely
             kernel_max = smoothing_kernel(system, 0, particle)
-            support_gap = compact_support(fluid_system, fluid_system) - dist_free_surface
-            shifting_weight = smoothing_kernel(system, support_gap, particle) / kernel_max
+            dist_from_cutoff = compact_support(fluid_system, fluid_system) -
+                               dist_free_surface
+            shifting_weight = smoothing_kernel(system, dist_from_cutoff, particle) /
+                              kernel_max
             delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
                 cache.delta_v[dim, particle] = delta_v_ramped[dim]
