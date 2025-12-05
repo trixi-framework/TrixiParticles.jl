@@ -302,7 +302,8 @@ end
 
 @inline function update_speed_of_sound!(system::WeaklyCompressibleSPHSystem, v,
                                         state_equation::StateEquationAdaptiveCole{EL, CLIP,
-                                                                                  Base.RefValue{EL}}) where {EL, CLIP}
+                                                                                  Base.RefValue{EL}}) where {EL,
+                                                                                                             CLIP}
     # This has similar performance to `maximum(..., eachparticle(system))`,
     # but is GPU-compatible.
     v_max2 = maximum(x -> dot(x, x),
