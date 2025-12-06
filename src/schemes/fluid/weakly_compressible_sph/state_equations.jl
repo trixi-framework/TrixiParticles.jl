@@ -64,12 +64,12 @@ function Adapt.adapt_structure(to,
     background_pressure = Adapt.adapt_structure(to, se.background_pressure)
 
     return StateEquationAdaptiveCole{ELTYPE, CLIP, typeof(sound_speed_ref)}(sound_speed_ref,
-                                                                                 mach_number_limit,
-                                                                                 min_sound_speed,
-                                                                                 max_sound_speed,
-                                                                                 exponent,
-                                                                                 reference_density,
-                                                                                 background_pressure)
+                                                                            mach_number_limit,
+                                                                            min_sound_speed,
+                                                                            max_sound_speed,
+                                                                            exponent,
+                                                                            reference_density,
+                                                                            background_pressure)
 end
 
 # Unwrap ref value `sound_speed` on read to maintain compatibility with existing code
