@@ -311,7 +311,7 @@ Pages = [joinpath("preprocessing", "geometries", "triangle_mesh.jl")]
 
 # [Particle Packing](@id particle_packing)
 To obtain a body-fitted and isotropic particle distribution, an initial configuration (see [Sampling of Geometries](@ref sampling_of_geometries)) is first generated. This configuration is then packed using a [`ParticlePackingSystem`](@ref) following the steps introduced in [Neher2026](@cite).
-For a hands-on tutorial with complete examples, see the particle packing tutorial.
+For a hands-on tutorial with complete examples, see the [particle packing tutorial](@ref tut_packing).
 The preprocessing pipeline consists of the following steps:
 
 - Load geometry: Fig. 1, [`load_geometry`](@ref).

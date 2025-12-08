@@ -37,6 +37,8 @@ semi = Semidiscretization(fluid_system, boundary_system,
 │ #systems: ……………………………………………………… 2                                                                │
 │ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
 │ total #particles: ………………………………… 636                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinates eltype: …………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -97,7 +99,8 @@ For Apple GPUs (which don't support double precision, see below), use
 using Metal
 trixi_include_changeprecision(Float32,
                               joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"),
-                              parallelization_backend=MetalBackend())
+                              parallelization_backend=MetalBackend(),
+                              coordinates_eltype=Float32)
 ```
 
 ## [Single precision simulations](@id single_precision)
@@ -119,3 +122,18 @@ trixi_include_changeprecision(Float32,
                               joinpath(examples_dir(), "fluid", "dam_break_2d_gpu.jl"),
                               parallelization_backend=CUDABackend())
 ```
+Note that this simulation will now use `Float32` everywhere, except for the
+coordinates of the particles, which are still `Float64` by default.
+In simulations where the particle spacing is very small compared to the size of the domain,
+floating point errors in the distance calculations can be large
+relative to the particle spacing.
+Using `Float64` for the coordinates and distance calculations is crucial in such cases
+to avoid artifacts in the simulation.
+On most GPUs, the performance impact of using `Float64` for the coordinates
+is about 30% compared to using `Float32` everywhere, which is still over 10x faster
+than using `Float64` everywhere.
+
+On GPUs that do not support `Float64`, such as most Apple GPUs, we also need to set
+the coordinates to `Float32` by passing `coordinates_eltype=Float32` to
+the setup functions that create [`InitialCondition`](@ref)s, such as
+[`RectangularTank`](@ref), [`RectangularShape`](@ref), and [`SphereShape`](@ref).
