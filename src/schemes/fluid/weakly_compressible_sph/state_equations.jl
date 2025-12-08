@@ -1,34 +1,34 @@
 @doc raw"""
-StateEquationAdaptiveCole(; mach_number_limit=0.1, min_sound_speed=10.0,
-                            reference_density, max_sound_speed=100.0, exponent,
-                            background_pressure=0.0, clip_negative_pressure=false)
+    StateEquationAdaptiveCole(; mach_number_target=0.1f0, min_sound_speed=10.0f0,
+                            reference_density, max_sound_speed=100.0f0, exponent,
+                            background_pressure=0.0f0, clip_negative_pressure=false)
 
 This variant of [`StateEquationCole`](@ref) is adaptive, allowing the speed of sound to be
 updated during a simulation.
-While a constant higher speed of sound more effectively reduces compressibility effects,
+While a constant high speed of sound more effectively reduces compressibility effects,
 the runtime also scales with the speed of sound.
-This state equation aims to reduce runtime compared to a constant higher speed of sound,
+This state equation aims to reduce runtime compared to a constant high speed of sound,
 while maintaining the advantages of a higher speed of sound.
-The speed of sound is initialized as 'min_sound_speed'.
+The speed of sound is initialized as `min_sound_speed`.
 
 # Keywords
-- `mach_number_limit=0.1`: Target Mach number ratio for the simulation.
-   The adaptive scheme obtains the current maximum particle velocity and adjusts the reference sound speed 'c' to the ratio
+- `mach_number_target=0.1`: Target Mach number ratio for the simulation.
+   The adaptive scheme obtains the current maximum particle velocity and adjusts the reference sound speed ``c`` to the ratio
    ```math
    c = \frac{U_\text{max}}{\mathrm{Ma_\text{limit}}}.
    ```
-   A smaller `mach_number_limit` enforces a higher sound speed (reducing compressibility effects
+   A smaller `mach_number_target` enforces a higher sound speed (reducing compressibility effects
    but increasing computational cost), while a larger value allows stronger compressibility at lower runtime cost.
 - `reference_density`: Reference density of the fluid.
-- `min_sound_speed=10.0`: The minimum permissible speed of sound.
-- `max_sound_speed=100.0`: The maximum permissible speed of sound.
+- `min_sound_speed=10.0f0`: The minimum permissible speed of sound.
+- `max_sound_speed=100.0f0`: The maximum permissible speed of sound.
 - `exponent`: An exponent, typically 7 for water simulations.
-- `background_pressure=0.0`: A constant background pressure.
+- `background_pressure=0.0f0`: A constant background pressure.
 - `clip_negative_pressure=false`: When true, negative pressure values are clipped to 0.0. This can prevent spurious surface tension effects but might allow for unphysical fluid rarefaction.
 """
 struct StateEquationAdaptiveCole{ELTYPE, CLIP, SR} # Boolean to clip negative pressure
     sound_speed_ref     :: SR
-    mach_number_limit   :: ELTYPE
+    mach_number_target  :: ELTYPE
     min_sound_speed     :: ELTYPE
     max_sound_speed     :: ELTYPE
     exponent            :: ELTYPE
@@ -36,14 +36,14 @@ struct StateEquationAdaptiveCole{ELTYPE, CLIP, SR} # Boolean to clip negative pr
     background_pressure :: ELTYPE
 end
 
-function StateEquationAdaptiveCole(; mach_number_limit=0.1f0, min_sound_speed=10.0f0,
+function StateEquationAdaptiveCole(; mach_number_target=0.1f0, min_sound_speed=10.0f0,
                                    reference_density, max_sound_speed=100.0f0, exponent,
                                    background_pressure=0.0f0,
                                    clip_negative_pressure=false)
     sound_speed = min_sound_speed
-    return StateEquationAdaptiveCole{typeof(mach_number_limit), clip_negative_pressure,
+    return StateEquationAdaptiveCole{typeof(mach_number_target), clip_negative_pressure,
                                      typeof(Ref(sound_speed))}(Ref(sound_speed),
-                                                               mach_number_limit,
+                                                               mach_number_target,
                                                                min_sound_speed,
                                                                max_sound_speed,
                                                                exponent,
@@ -56,7 +56,7 @@ function Adapt.adapt_structure(to,
                                                                                        CLIP,
                                                                                        SR}
     sound_speed_ref = Adapt.adapt_structure(to, se.sound_speed_ref)
-    mach_number_limit = Adapt.adapt_structure(to, se.mach_number_limit)
+    mach_number_target = Adapt.adapt_structure(to, se.mach_number_target)
     min_sound_speed = Adapt.adapt_structure(to, se.min_sound_speed)
     max_sound_speed = Adapt.adapt_structure(to, se.max_sound_speed)
     exponent = Adapt.adapt_structure(to, se.exponent)
@@ -64,7 +64,7 @@ function Adapt.adapt_structure(to,
     background_pressure = Adapt.adapt_structure(to, se.background_pressure)
 
     return StateEquationAdaptiveCole{ELTYPE, CLIP, typeof(sound_speed_ref)}(sound_speed_ref,
-                                                                            mach_number_limit,
+                                                                            mach_number_target,
                                                                             min_sound_speed,
                                                                             max_sound_speed,
                                                                             exponent,
@@ -72,13 +72,8 @@ function Adapt.adapt_structure(to,
                                                                             background_pressure)
 end
 
-# Unwrap ref value `sound_speed` on read to maintain compatibility with existing code
-function Base.getproperty(se::StateEquationAdaptiveCole, name::Symbol)
-    if name === :sound_speed
-        return se.sound_speed_ref[] # expose as plain value
-    else
-        return getfield(se, name)
-    end
+@inline function sound_speed(state_equation::StateEquationAdaptiveCole)
+    return state_equation.sound_speed_ref[]
 end
 
 @doc raw"""
@@ -182,4 +177,8 @@ function inverse_state_equation(state_equation::StateEquationIdealGas, pressure)
     density = (pressure - background_pressure) * gamma / sound_speed^2 + reference_density
 
     return density
+end
+
+@inline function sound_speed(state_equation)
+    return state_equation.sound_speed
 end

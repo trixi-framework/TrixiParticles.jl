@@ -278,7 +278,7 @@ end
     return system.pressure
 end
 
-@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
+@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = sound_speed(system.state_equation)
 
 @inline shifting_technique(system::WeaklyCompressibleSPHSystem) = system.shifting_technique
 
@@ -298,7 +298,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
     return system
 end
 
-@inline function update_speed_of_sound!(system, v, state_equation) end
+@inline update_speed_of_sound!(system, v, state_equation) = system
 
 @inline function update_speed_of_sound!(system::WeaklyCompressibleSPHSystem, v,
                                         state_equation::StateEquationAdaptiveCole)
@@ -312,8 +312,8 @@ end
     state_equation.sound_speed_ref[] = min(state_equation.max_sound_speed,
                                            max(state_equation.min_sound_speed,
                                                v_max /
-                                               state_equation.mach_number_limit))
-    return state_equation.sound_speed
+                                               state_equation.mach_number_target))
+    return system
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)

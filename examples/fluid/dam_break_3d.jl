@@ -29,7 +29,7 @@ tank_size = (floor(5.366 / boundary_particle_spacing) * boundary_particle_spacin
 
 fluid_density = 1000.0
 
-# we use an adaptive state equation to reduce runtime
+# We use an adaptive state equation to reduce runtime
 state_equation = StateEquationAdaptiveCole(; reference_density=fluid_density,
                                            exponent=7)
 
