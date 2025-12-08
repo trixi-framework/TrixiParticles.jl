@@ -421,9 +421,23 @@ end
     # Activate a new particle in simulation domain
     transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
 
-    # Reset position of boundary particle
+    # Reset position of boundary particle back to the beginning of the boundary zone.
+    # If we translated it by exactly `zone_width` along `-face_normal`, rounding
+    # errors could place it just outside the zone. To avoid this, use a slightly
+    # shorter distance (`zone_width - eps(zone_width)`), which guarantees the final
+    # position stays inside the boundary zone.
+    reset_dist = boundary_zone.zone_width - eps(boundary_zone.zone_width)
+    reset_vector = -boundary_zone.face_normal * reset_dist
     for dim in 1:ndims(system)
-        u[dim, particle] += boundary_zone.spanning_set[1][dim]
+        u[dim, particle] += reset_vector[dim]
+    end
+
+    # Verify the particle remains inside the boundary zone after the reset; deactivate it if not.
+    particle_coords = current_coords(u, system, particle)
+    if !is_in_boundary_zone(boundary_zone, particle_coords)
+        deactivate_particle!(system, particle, u)
+
+        return system
     end
 
     impose_rest_density!(v, system, particle, system.boundary_model)
