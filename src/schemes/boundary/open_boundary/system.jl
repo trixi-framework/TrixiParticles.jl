@@ -421,7 +421,7 @@ end
     # Activate a new particle in simulation domain
     transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
 
-    # Move the boundary particle to a well-defined position inside the boundary zone.
+    # Reset position of boundary particle back to the beginning of the boundary zone.
     # If we translated it by exactly `zone_width` along `-face_normal`, rounding
     # errors could place it just outside the zone. To avoid this, use a slightly
     # shorter distance (`zone_width - eps(zone_width)`), which guarantees the final
