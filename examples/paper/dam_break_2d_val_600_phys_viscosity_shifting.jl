@@ -24,15 +24,15 @@ min_corner = (-1.5, -1.5)
 max_corner = (6.5, 5.0)
 cell_list = FullGridCellList(; min_corner, max_corner, max_points_per_cell=30)
 
-neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
+neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
+                                                update_strategy=ParallelUpdate())
 # neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
 
 # switch to physical viscosity model
-viscosity_fluid = ViscosityMorris(nu = 8.9E-7)
+viscosity_fluid = ViscosityMorris(nu=8.9E-7)
 # viscosity_fluid = ViscosityAdami(nu = 8.9E-7)
 # alpha = 0.02
 # viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-
 
 # ==========================================================================================
 # ==== WCSPH simulation
@@ -40,11 +40,11 @@ trixi_include(@__MODULE__,
               joinpath(validation_dir(), "dam_break_2d",
                        "setup_marrone_2011.jl"),
               use_edac=false,
-              extra_string = "_phys_viscosity_shifting",
+              extra_string="_phys_viscosity_shifting",
               viscosity_fluid=viscosity_fluid,
               particles_per_height=resolution,
               shifting_technique=ConsistentShiftingSun2019(),
-            #   shifting_technique=ParticleShiftingTechniqueSun2017(),
+              #   shifting_technique=ParticleShiftingTechniqueSun2017(),
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
               tspan=(0.0, 7 / sqrt(9.81 / 0.6)), # This is used by De Courcy et al. (2024)
               parallelization_backend=PolyesterBackend(),

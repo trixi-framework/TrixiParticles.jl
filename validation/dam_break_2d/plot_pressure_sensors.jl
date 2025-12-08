@@ -26,8 +26,8 @@ case_dir = joinpath(validation_dir(), "dam_break_2d")
 
 edac_reference_files = joinpath.(case_dir,
                                  [
-                                    #  "validation_reference_edac_40.json",
-                                    #  "validation_reference_edac_80.json",
+                                 #  "validation_reference_edac_40.json",
+                                 #  "validation_reference_edac_80.json",
                                      "validation_reference_edac_400.json"
                                  ])
 edac_sim_files = include_sim_results ?
@@ -38,8 +38,8 @@ edac_files = sort(merged_files, by=extract_number_from_filename)
 
 wcsph_reference_files = joinpath.(case_dir,
                                   [
-                                    #   "validation_reference_wcsph_40.json",
-                                    #   "validation_reference_wcsph_80.json",
+                                  #   "validation_reference_wcsph_40.json",
+                                  #   "validation_reference_wcsph_80.json",
                                       "validation_reference_wcsph_400.json"
                                   ])
 wcsph_sim_files = include_sim_results ?

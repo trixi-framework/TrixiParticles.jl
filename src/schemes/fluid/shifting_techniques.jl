@@ -19,8 +19,9 @@ function create_cache_shifting(initial_condition, ::AbstractShiftingTechnique)
                     nparticles(initial_condition))
 
     nct = zeros(eltype(initial_condition), nparticles(initial_condition))
+    bnct = zeros(eltype(initial_condition), nparticles(initial_condition))
 
-    return (; delta_v, nct)
+    return (; delta_v, nct, bnct)
 end
 
 # `δv` is the correction to the particle velocity due to the shifting.
@@ -757,7 +758,7 @@ end
 #     h         = smoothing_length(system, 1)
 
 #     # Tunables (more permissive than before)
-#     λ_min     = T(0.50)   # relaxed cutoff (was 0.55)
+#     neighbor_factor_min     = T(0.50)   # relaxed cutoff (was 0.55)
 #     α_mask    = T(0.85)   # FS detection threshold (unchanged)
 #     α_limit   = T(0.80)   # NEW: softer limiter denominator → more δu
 #     τ_grad    = T(0.30)
@@ -933,9 +934,9 @@ end
 #             system.cache.delta_v[i, a] *= scale_wall
 #         end
 
-#         # --- 3.2: λ-cutoff (Sun'19): disable PST if λ is too small
-#         λ = @inbounds psi_nog[a] / (smax_nog + epsT)
-#         if λ < λ_min
+#         # --- 3.2: neighbor_factor-cutoff (Sun'19): disable PST if neighbor_factor is too small
+#         neighbor_factor = @inbounds psi_nog[a] / (smax_nog + epsT)
+#         if neighbor_factor < neighbor_factor_min
 #             @inbounds for i in 1:dim
 #                 system.cache.delta_v[i, a] = zero(T)
 #             end
@@ -1035,8 +1036,8 @@ end
 
 """
     modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
-                                      λ_off::Real = 0.78,
-                                      λ_on::Real  = 0.97,
+                                      neighbor_factor_off::Real = 0.78,
+                                      neighbor_factor_on::Real  = 0.97,
                                       s_min::Real = 0.03,
                                       γ::Real     = 2.5)
 
@@ -1046,49 +1047,49 @@ support is truncated (tips/crests/intersections) and leaves it unchanged in the 
 
 # How it works
 For each particle `a`, we build a **support fullness**
-`λ = N_a / N_ref ∈ [0,1]`, where `N_a` is the (fluid-phase) neighbor count found by
+`neighbor_factor = N_a / N_ref ∈ [0,1]`, where `N_a` is the (fluid-phase) neighbor count found by
 the neighbor loop and `N_ref = max_a N_a` (an interior reference).
-We then compute a smooth ramp `s(λ)` and scale the current shifting velocity:
+We then compute a smooth ramp `s(neighbor_factor)` and scale the current shifting velocity:
 
-s_lin(λ) = clamp( (λ - λ_off) / (λ_on - λ_off), 0, 1 )
-s(λ) = max(s_min, s_lin(λ))^γ
-δv_a ← s(λ_a) * δv_a
+s_lin(neighbor_factor) = clamp( (neighbor_factor - neighbor_factor_off) / (neighbor_factor_on - neighbor_factor_off), 0, 1 )
+s(neighbor_factor) = max(s_min, s_lin(neighbor_factor))^γ
+δv_a ← s(neighbor_factor_a) * δv_a
 
 markdown
 Code kopieren
 
 Thus:
-- Very sparse support (`λ ≤ λ_off`) → `s ≈ s_min` (almost off).
-- Full support (`λ ≥ λ_on`)       → `s ≈ 1`    (no attenuation).
-- In-between (`λ_off < λ < λ_on`) → linear ramp (optionally made steeper by `γ`).
+- Very sparse support (`neighbor_factor ≤ neighbor_factor_off`) → `s ≈ s_min` (almost off).
+- Full support (`neighbor_factor ≥ neighbor_factor_on`)       → `s ≈ 1`    (no attenuation).
+- In-between (`neighbor_factor_off < neighbor_factor < neighbor_factor_on`) → linear ramp (optionally made steeper by `γ`).
 
 This strategy is commonly used in improved/enhanced PST variants to moderate
 shifting at free surfaces without explicit normal/curvature estimation.
 
 # Keyword parameters
-- `λ_off` (default `0.78`): **Ramp start**. Support below this is considered
-  “too sparse” for reliable shifting. Increasing `λ_off` **reduces** surface shifting
+- `neighbor_factor_off` (default `0.78`): **Ramp start**. Support below this is considered
+  “too sparse” for reliable shifting. Increasing `neighbor_factor_off` **reduces** surface shifting
   (safer at thin tongues/crests), decreasing it **increases** surface shifting.
-- `λ_on`  (default `0.97`): **Ramp end**. Support above this receives **full**
-  shifting. Increasing `λ_on` makes full shifting harder to reach; decreasing it
+- `neighbor_factor_on`  (default `0.97`): **Ramp end**. Support above this receives **full**
+  shifting. Increasing `neighbor_factor_on` makes full shifting harder to reach; decreasing it
   expands the region with full shifting.
 - `s_min` (default `0.03`): **Floor** of the scaling factor to avoid freezing
   tangential reordering completely at the interface. Set to `0.0` to **disable
-  shifting entirely** when `λ` is below `λ_off`. Larger `s_min` keeps a bit more
+  shifting entirely** when `neighbor_factor` is below `neighbor_factor_off`. Larger `s_min` keeps a bit more
   motion but can promote peel-off/clustering if too high.
 - `γ`     (default `2.5`): **Nonlinearity** of the ramp. `γ > 1` concentrates
   shifting in the bulk and damps it near the free surface; `γ < 1` does the
   opposite (more aggressive at the surface). Typical safe range is `1.5–3.0`.
 
 # Practical tuning
-- **Leading edge (dam-break tongue too mobile):** raise `λ_off` a little
+- **Leading edge (dam-break tongue too mobile):** raise `neighbor_factor_off` a little
   (e.g. `0.80`) or increase `γ` (e.g. `3.0`).
-- **Surface clustering/banding:** raise `λ_off` or lower `s_min` (down to `0.0`
+- **Surface clustering/banding:** raise `neighbor_factor_off` or lower `s_min` (down to `0.0`
   if you prefer to fully switch off in very sparse regions). If clustering persists,
   consider adding a tiny outward **sign-clamp** (remove outward component of `δv`
   only when very close to the free surface) or a light δ-SPH density diffusion
   in your solver (outside this function).
-- **More surface reordering:** lower `λ_off` slightly (e.g. `0.75`) or reduce `γ`.
+- **More surface reordering:** lower `neighbor_factor_off` slightly (e.g. `0.75`) or reduce `γ`.
 
 # Notes & assumptions
 - `N_a` is the neighbor count gathered by the provided neighbor traversal
@@ -1103,56 +1104,118 @@ shifting at free surfaces without explicit normal/curvature estimation.
 # Example
 ```julia
 # safer at violent free surfaces (less shift at tips)
-modify_shifting_at_free_surfaces!(sys, u, semi, u_ode; λ_off=0.80, λ_on=0.97, s_min=0.02, γ=3.0)
+modify_shifting_at_free_surfaces!(sys, u, semi, u_ode; neighbor_factor_off=0.80, neighbor_factor_on=0.97, s_min=0.02, γ=3.0)
 
 # slightly more surface ordering
-modify_shifting_at_free_surfaces!(sys, u, semi, u_ode; λ_off=0.75, λ_on=0.95, s_min=0.05, γ=1.8)
+modify_shifting_at_free_surfaces!(sys, u, semi, u_ode; neighbor_factor_off=0.75, neighbor_factor_on=0.95, s_min=0.05, γ=1.8)
 """
 # function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
-#                                            λ_off::Real = 0.78,
-#                                            λ_on::Real  = 0.97,
+#                                            neighbor_factor_off::Real = 0.78,
+#                                            threshold_on::Real  = 0.97,
 #                                            s_min::Real = 0.03,
 #                                            γ::Real     = 2.5)
 
+# function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
+#                                            threshold_off::Real = 0.88, #2 78 #3 70 > 65 already rounds out too much # 70 #Losing in corner with 0.7 #0.75 -> ends with 49% #0.8 ends with 55% loses still in corner #0.85 the same
+#                                            threshold_on::Real  = 0.94, #2 95 #3 90 still fine #2 90
+#                                            minimum_shifting::Real = 0.0, #3 03 0.1 <- detaches 0.05 detaches from wall #2 0
+#                                            exponent::Real     = 2.5) #2 2.5 #2 2.0 worse #2 3.0
+#     dim = ndims(system)
+#     epsT = eps(eltype(system.cache.delta_v))
+
+#     coordsA = current_coordinates(u, system)
+#     set_zero!(system.cache.nct)
+
+#     foreach_system(semi) do sysB
+#         uB      = wrap_u(u_ode, sysB, semi)
+#         coordsB = current_coordinates(uB, sysB)
+
+#         foreach_point_neighbor(system, sysB, coordsA, coordsB, semi;
+#                                 points=each_integrated_particle(system)) do a,b,pos_diff,distance
+#                 @inbounds system.cache.nct[a] += 1
+#         end
+#     end
+
+#     Nref = max(maximum(system.cache.nct), 1)
+
+#     inv_range = 1 / (threshold_on - threshold_off + epsT)
+
+#     @threaded semi for a in each_integrated_particle(system)
+#         neighbor_factor = @inbounds system.cache.nct[a] / Nref # 0..1 proxy for support fullness
+#         s = (neighbor_factor - threshold_off) * inv_range # linear ramp -> neighbor_factor > threshold_on -> s>=1
+#         s_clamped = s < epsT ? 0 : (s > 1 ? 1 : s) # clamp to [0,1]
+
+#         spow = s_clamped^exponent # shape the ramp
+#         scale = max(minimum_shifting, spow)
+
+#         for i in 1:dim
+#             @inbounds system.cache.delta_v[i, a] *= scale
+#         end
+#     end
+
+#     return system
+# end
+
 function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
-                                           λ_off::Real = 0.70, #2 78 #3 70 > 65 already rounds out too much # 70
-                                           λ_on::Real  = 0.90, #2 95 #3 90 still fine #2 90
-                                           s_min::Real = 0.0, #3 03 0.1 <- detaches 0.05 detaches from wall #2 0
-                                           γ::Real     = 2.5) #2 2.5 #2 2.0 worse #2 3.0
+                                           threshold_off::Real=0.75, #2 78 #3 70 > 65 already rounds out too much # 70 #Losing in corner with 0.7 #0.75 -> ends with 49% #0.8 ends with 55% loses still in corner #0.85 the same
+                                           threshold_on::Real=0.9, #2 95 #3 90 still fine #2 90
+                                           minimum_shifting::Real=0.0, #3 03 0.1 <- detaches 0.05 detaches from wall #2 0
+                                           exponent::Real=2.5,
+                                           boundary_threshold_off::Real=0.8) #2 2.5 #2 2.0 worse #2 3.0 #today: increased from 0.5 to 0.6 (better) -> 0.7 (no real difference) -> 0.8
     dim = ndims(system)
     epsT = eps(eltype(system.cache.delta_v))
 
     coordsA = current_coordinates(u, system)
     set_zero!(system.cache.nct)
+    set_zero!(system.cache.bnct)
 
+    # Count how many fluid neighbors each particle has to its own system (phase)
+    foreach_point_neighbor(system, system, coordsA, coordsA, semi;
+                           points=each_integrated_particle(system)) do a, b, pos_diff,
+                                                                       distance
+        @inbounds system.cache.nct[a] += 1
+    end
+
+    # Additionally, count how many boundary/structure neighbors each particle has
+    # This is meanly used to reduce shifting near corners
     foreach_system(semi) do sysB
-        uB      = wrap_u(u_ode, sysB, semi)
+        uB = wrap_u(u_ode, sysB, semi)
         coordsB = current_coordinates(uB, sysB)
 
-        foreach_point_neighbor(system, sysB, coordsA, coordsB, semi;
-                                points=each_integrated_particle(system)) do a,b,pos_diff,distance
-                @inbounds system.cache.nct[a] += 1
+        if sysB isa AbstractBoundarySystem || sysB isa AbstractStructureSystem
+            foreach_point_neighbor(system, sysB, coordsA, coordsB, semi;
+                                   points=each_integrated_particle(system)) do a, b,
+                                                                               pos_diff,
+                                                                               distance
+                @inbounds system.cache.bnct[a] += 1
+            end
         end
     end
 
-    Nref = max(maximum(system.cache.nct), 1)
+    Nref = max(system.cache.ideal_neighbor_count, maximum(system.cache.nct))
+    # println("Nref: $Nref", "max: " * string(max(maximum(system.cache.nct), 1)))
 
-    inv_range = 1 / (λ_on - λ_off + epsT)
-
+    inv_range = 1 / (threshold_on - threshold_off + epsT)
     @threaded semi for a in each_integrated_particle(system)
-        λ = @inbounds system.cache.nct[a] / Nref     # 0..1 proxy for support fullness
-        s = (λ - λ_off) * inv_range         # linear ramp [α0..α1] → [0..1]
-        s = s < epsT ? 0 : (s > 1 ? 1 : s)
-        s = max(s, s_min)                  # keep some ordering if desired
-        sγ = s^γ
+        neighbor_factor = @inbounds system.cache.nct[a] / Nref # 0..1 proxy for support fullness
+        bneighbor_factor = @inbounds system.cache.bnct[a] / (system.cache.nct[a] + system.cache.bnct[a])
+        if system.cache.bnct[a] > 0 && bneighbor_factor >= boundary_threshold_off
+            neighbor_factor = 0 # disable shifting
+        end
+
+        s = (neighbor_factor - threshold_off) * inv_range # linear ramp -> neighbor_factor > threshold_on -> s>=1
+        s_clamped = s < epsT ? 0 : (s > 1 ? 1 : s) # clamp to [0,1]
+
+        spow = s_clamped^exponent # shape the ramp
+        scale = max(minimum_shifting, spow)
+
         for i in 1:dim
-            @inbounds system.cache.delta_v[i, a] *= sγ
+            @inbounds system.cache.delta_v[i, a] *= scale
         end
     end
 
     return system
 end
-
 
 """
 Two-metric free-surface attenuation for PST (same-phase neighbors; walls only for FS mask).
@@ -1161,14 +1224,14 @@ Adds:
   • Anti-clustering equalizer: downscale where N_a > local weighted average.
 
 Tunables (safe defaults):
-  λ_off=0.76, λ_on=0.965, γ=2.0, s_min=0.05,
-  α_mask=0.92, clampλ=0.99,
-  λ_tip0=0.52, λ_tip1=0.65, γ_tip=2.0, q_eq=2.0
+  neighbor_factor_off=0.76, neighbor_factor_on=0.965, γ=2.0, s_min=0.05,
+  α_mask=0.92, clampneighbor_factor=0.99,
+  neighbor_factor_tip0=0.52, neighbor_factor_tip1=0.65, γ_tip=2.0, q_eq=2.0
 """
 # function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
-#     λ_off::Real=0.76, λ_on::Real=0.965, γ::Real=2.0, s_min::Real=0.05,
-#     α_mask::Real=0.92, clampλ::Real=0.99,
-#     λ_tip0::Real=0.52, λ_tip1::Real=0.65, γ_tip::Real=2.0, q_eq::Real=2.0)
+#     neighbor_factor_off::Real=0.76, neighbor_factor_on::Real=0.965, γ::Real=2.0, s_min::Real=0.05,
+#     α_mask::Real=0.92, clampneighbor_factor::Real=0.99,
+#     neighbor_factor_tip0::Real=0.52, neighbor_factor_tip1::Real=0.65, γ_tip::Real=2.0, q_eq::Real=2.0)
 
 #     T   = eltype(system.cache.delta_v)
 #     dim = ndims(system)
@@ -1219,29 +1282,29 @@ Tunables (safe defaults):
 #     Nref_all   = max(maximum(N_all),   one(T))
 
 #     # Ramps/params
-#     α0 = T(λ_off); α1 = T(λ_on); invr = one(T)/(α1-α0 + epsT)
-#     αt0 = T(λ_tip0); αt1 = T(λ_tip1); invrt = one(T)/(αt1-αt0 + epsT)
+#     α0 = T(neighbor_factor_off); α1 = T(neighbor_factor_on); invr = one(T)/(α1-α0 + epsT)
+#     αt0 = T(neighbor_factor_tip0); αt1 = T(neighbor_factor_tip1); invrt = one(T)/(αt1-αt0 + epsT)
 #     gexp = T(γ); gtip = T(γ_tip); smin = T(s_min)
-#     αmask = T(α_mask); clampλT = T(clampλ)
+#     αmask = T(α_mask); clampneighbor_factorT = T(clampneighbor_factor)
 #     qeq = T(q_eq)
 
 #     @threaded semi for a in each_integrated_particle(system)
 #         # Free-surface mask uses all neighbors (fluid + walls)
-#         λ_all = @inbounds N_all[a] / Nref_all
-#         is_FS = λ_all < αmask
+#         neighbor_factor_all = @inbounds N_all[a] / Nref_all
+#         is_FS = neighbor_factor_all < αmask
 #         if !is_FS
 #             return
 #         end
 
 #         # Same-phase fullness
-#         λf = @inbounds N_fluid[a] / Nref_fluid
+#         neighbor_factorf = @inbounds N_fluid[a] / Nref_fluid
 
 #         # Main FS ramp
-#         s = (λf - α0) * invr
+#         s = (neighbor_factorf - α0) * invr
 #         s = s < zero(T) ? zero(T) : (s > one(T) ? one(T) : s)
 
 #         # Tip clamp (very low same-phase support → heavily attenuate)
-#         s_tip = (λf - αt0) * invrt
+#         s_tip = (neighbor_factorf - αt0) * invrt
 #         s_tip = s_tip < zero(T) ? zero(T) : (s_tip > one(T) ? one(T) : s_tip)
 
 #         s_total = max(smin, (s^gexp) * (s_tip^gtip))
@@ -1260,7 +1323,7 @@ Tunables (safe defaults):
 #         end
 
 #         # Tiny outward sign clamp close to FS (prevents peel-off)
-#         if λ_all < clampλT
+#         if neighbor_factor_all < clampneighbor_factorT
 #             g2 = zero(T)
 #             @inbounds for i in 1:dim
 #                 g2 += gsum_fluid[i, a]^2

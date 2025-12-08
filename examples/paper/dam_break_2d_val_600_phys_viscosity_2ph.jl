@@ -35,12 +35,12 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
 
 # tank_size = (floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing, 4.0)
 
-
 min_corner = (-1.5, -1.5)
 max_corner = (6.5, 5.0)
 cell_list = FullGridCellList(; min_corner, max_corner, max_points_per_cell=30)
 
-neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
+neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
+                                                update_strategy=ParallelUpdate())
 # neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
 
 # physical values
@@ -48,18 +48,17 @@ nu_water = 8.9E-7*10
 nu_air = 1.544E-5*10
 
 # switch to physical viscosity model
-viscosity_fluid = ViscosityMorris(nu = nu_water)
+viscosity_fluid = ViscosityMorris(nu=nu_water)
 # viscosity_fluid = ViscosityAdami(nu = 8.9E-7)
 #  viscosity_fluid = nothing
 
 # set air viscosity model
-viscosity_air = ViscosityMorris(nu = nu_air)
+viscosity_air = ViscosityMorris(nu=nu_air)
 
 #TODO: duplicated
 smoothing_length = 2 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 fluid_density_calculator = ContinuityDensity()
-
 
 # ==========================================================================================
 # ==== Setup air_system layer
@@ -101,24 +100,23 @@ tank_air_density = fill!(similar(tank.boundary.density), air_density)
 tank_air_mass = fill!(similar(tank.boundary.mass), air_density*fluid_particle_spacing^2)
 
 air_boundary_model = BoundaryModelDummyParticles(tank_air_density,
-                                             tank_air_mass,
-                                             state_equation=air_eos,
-                                             boundary_density_calculator,
-                                             smoothing_kernel,
-                                             smoothing_length,
-                                             correction=nothing,
-                                             reference_particle_spacing=fluid_particle_spacing,
-                                             viscosity=viscosity_wall)
+                                                 tank_air_mass,
+                                                 state_equation=air_eos,
+                                                 boundary_density_calculator,
+                                                 smoothing_kernel,
+                                                 smoothing_length,
+                                                 correction=nothing,
+                                                 reference_particle_spacing=fluid_particle_spacing,
+                                                 viscosity=viscosity_wall)
 
 air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model,
-                                     adhesion_coefficient=0.0)
-
+                                         adhesion_coefficient=0.0)
 
 trixi_include(@__MODULE__,
               joinpath(validation_dir(), "dam_break_2d",
                        "setup_marrone_2011.jl"),
               use_edac=false,
-              extra_string = "_phys_viscosity_2ph_v2_pa10",
+              extra_string="_phys_viscosity_2ph_v2_pa10",
               viscosity_fluid=viscosity_fluid,
               particles_per_height=resolution,
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024) (120)

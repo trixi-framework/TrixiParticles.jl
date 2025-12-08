@@ -37,7 +37,8 @@ tspan = (0.0, 5.7 / sqrt(gravity / H))
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (W, H)
-tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing, 2.0+10*fluid_particle_spacing)
+tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing,
+             2.0+10*fluid_particle_spacing)
 
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * H)

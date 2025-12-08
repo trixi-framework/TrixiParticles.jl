@@ -152,12 +152,16 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
              create_cache_shifting(initial_condition, shifting_technique)...,
              color=Int(color_value))
 
-    # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
+    # If the `reference_particle_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+                 reference_particle_spacing=reference_particle_spacing,
+                 ideal_neighbor_count=ideal_neighbor_count(Val{NDIMS}(),
+                                                           reference_particle_spacing,
+                                                           compact_support(smoothing_kernel,
+                                                                           smoothing_length)))
     end
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
@@ -246,7 +250,7 @@ system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 end
 
 @propagate_inbounds function current_velocity(v, ::SummationDensity,
-                                  system::WeaklyCompressibleSPHSystem)
+                                              system::WeaklyCompressibleSPHSystem)
     # When using `SummationDensity`, `v` contains only the velocity
     return v
 end
@@ -263,7 +267,7 @@ end
 end
 
 @propagate_inbounds function current_density(v, ::SummationDensity,
-                                 system::WeaklyCompressibleSPHSystem)
+                                             system::WeaklyCompressibleSPHSystem)
     # When using `SummationDensity`, the density is stored in the cache
     return system.cache.density
 end

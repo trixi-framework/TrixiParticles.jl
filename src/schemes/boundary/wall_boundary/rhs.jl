@@ -17,7 +17,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     (; boundary_model) = particle_system
 
     # skip interactions of systems with different reference densities
-    if abs(particle_system.boundary_model.state_equation.reference_density-neighbor_system.state_equation.reference_density) > 1
+    if abs(particle_system.boundary_model.state_equation.reference_density-neighbor_system.state_equation.reference_density) >
+       1
         return dv
     end
 

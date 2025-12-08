@@ -100,7 +100,6 @@ else
     method = "wcsph"
 end
 
-
 extra_string = ""
 formatted_string = string(particles_per_height) * extra_string
 

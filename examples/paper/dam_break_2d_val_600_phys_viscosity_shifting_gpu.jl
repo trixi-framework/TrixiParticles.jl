@@ -12,5 +12,6 @@ using CUDA
 # ==========================================================================================
 # ==== WCSPH simulation
 trixi_include_changeprecision(Float32, @__MODULE__,
-              joinpath(examples_dir(), "paper",
-                       "dam_break_2d_val_600_phys_viscosity_shifting.jl"), parallelization_backend=CUDABackend())
+                              joinpath(examples_dir(), "paper",
+                                       "dam_break_2d_val_600_phys_viscosity_shifting.jl"),
+                              parallelization_backend=CUDABackend())
