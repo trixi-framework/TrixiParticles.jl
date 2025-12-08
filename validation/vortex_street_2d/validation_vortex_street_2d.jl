@@ -2,17 +2,21 @@ using TrixiParticles
 
 tspan = (0.0, 20.0)
 
-# Results in 1.2M particles.
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
-resolution_factor = 0.02
+# Results in 1.3M particles and acceptable results compared to Tafuni et al. (2018).
+# resolution_factor = 0.02 # (runtime: ~6-10h)
+# Results in 100k particles and much noiser results compared to Tafuni et al. (2018).
+resolution_factor = 0.05
 
 reynolds_number = 200
+cylinder_diameter = 0.1
 
 open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
 
 trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
               reynolds_number=reynolds_number, saving_callback=nothing,
               open_boundary_model=open_boundary_model, factor_d=resolution_factor,
+              domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter), tspan=tspan,
               sol=nothing)
 
 shifting_technique = TransportVelocityAdami(background_pressure=5 * fluid_density *
@@ -81,4 +85,4 @@ trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
               output_directory=output_directory,
               open_boundary_model=open_boundary_model,
               shifting_technique=shifting_technique,
-              factor_d=resolution_factor, tspan=tspan, extra_callback=pp_callback)
+              factor_d=resolution_factor, extra_callback=pp_callback)

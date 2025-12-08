@@ -12,7 +12,7 @@ using OrdinaryDiffEq
 # ==== Resolution
 factor_d = 0.1 # Resolution in the paper is `0.01` (5M particles)
 
-const cylinder_diameter = 0.1
+cylinder_diameter = 0.1
 particle_spacing = factor_d * cylinder_diameter
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
@@ -26,10 +26,12 @@ open_boundary_layers = 8
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 5.0)
+tspan = (0.0, 4.0)
 
 # Boundary geometry and initial fluid particle positions
-domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
+# For better results the domain_size should be increased to
+# domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
+domain_size = (20 * cylinder_diameter, 10 * cylinder_diameter)
 
 flow_direction = [1.0, 0.0]
 reynolds_number = 200

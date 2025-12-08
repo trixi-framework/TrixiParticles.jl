@@ -122,7 +122,7 @@
                                              output_directory=joinpath(validation_dir(),
                                                                        "vortex_street_2d",
                                                                        "out_test"),
-                                             tspan=(0.0, 0.001))
+                                             tspan=(0.0, 1.0))
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
