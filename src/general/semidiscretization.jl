@@ -348,6 +348,15 @@ function semidiscretize(semi, tspan; reset_threads=true)
         # See the comments in general/gpu.jl for more details.
         semi_ = Adapt.adapt(semi.parallelization_backend, semi)
 
+        # If no `PrecomputedNeighborhoodSearch` is used, this will just return
+        # a copy of `semi_.neighborhood_searches`.
+        # If `PrecomputedNeighborhoodSearch` is used for TLSPH-TLSPH interactions,
+        # "freeze" these neighborhood searches to strip them from non-GPU-compatible
+        # data structures that are only required for updating the neighborhood search.
+        # Note that TLSPH-TLSPH interactions always happen in the initial configuration
+        # and therefore do not require updates.
+        neighborhood_searches = freeze_static_neighborhood_searches(semi_)
+
         # We now have a new `Semidiscretization` with new systems.
         # This means that systems linking to other systems still point to old systems.
         # Therefore, we have to re-link them, which yields yet another `Semidiscretization`.
@@ -355,7 +364,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
         # as systems don't link to other systems containing links.
         semi_new = Semidiscretization(set_system_links.(semi_.systems, Ref(semi_)),
                                       semi_.ranges_u, semi_.ranges_v,
-                                      semi_.neighborhood_searches,
+                                      neighborhood_searches,
                                       semi_.parallelization_backend,
                                       semi_.update_callback_used, semi_.integrate_tlsph)
     else
@@ -372,6 +381,31 @@ function semidiscretize(semi, tspan; reset_threads=true)
     semi_new.update_callback_used[] = false
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
+end
+
+function freeze_static_neighborhood_searches(semi)
+    # Create a tuple of n neighborhood searches for each of the n systems.
+    # If no `PrecomputedNeighborhoodSearch` is used,
+    # this will just copy `semi.neighborhood_searches`.
+    return Tuple(Tuple(freeze_static_neighborhood_search(semi, system, neighbor)
+                       for neighbor in semi.systems)
+                 for system in semi.systems)
+end
+
+# By default, just return the existing neighborhood search
+function freeze_static_neighborhood_search(semi, system, neighbor)
+    return get_neighborhood_search(system, neighbor, semi)
+end
+
+# TLSPH-TLSPH interactions happen in the initial configuration,
+# so this neighborhood search is never updated.
+# "Freezing" a `PrecomputedNeighborhoodSearch` strips it from the update machinery,
+# which might consist of data structures that are not GPU-compatible.
+function freeze_static_neighborhood_search(semi, system::TotalLagrangianSPHSystem,
+                                           neighbor::TotalLagrangianSPHSystem)
+    nhs = get_neighborhood_search(system, neighbor, semi)
+
+    return PointNeighbors.freeze_neighborhood_search(nhs)
 end
 
 """
