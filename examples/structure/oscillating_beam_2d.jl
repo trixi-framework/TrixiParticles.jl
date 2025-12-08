@@ -69,8 +69,10 @@ structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothi
 
 # ==========================================================================================
 # ==== Simulation
+# Note that the `neighborhood_search` passed here is not used if the simulation
+# consists of a single `TotalLagrangianSPHSystem`.
 semi = Semidiscretization(structure_system,
-                          neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
+                          neighborhood_search=nothing,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
