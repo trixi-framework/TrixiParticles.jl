@@ -421,10 +421,11 @@ end
     # Activate a new particle in simulation domain
     transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
 
-    # Reset position of boundary particle back into the boundary zone.
-    # Particles lying almost exactly on the `boundary_face` might be reset
-    # slightly outside the boundary zone.
-    # Thus, we use a shortened vector to account for numerical precision issues.
+    # Move the boundary particle to a well-defined position inside the boundary zone.
+    # If we translated it by exactly `zone_width` along `-face_normal`, rounding
+    # errors could place it just outside the zone. To avoid this, use a slightly
+    # shorter distance (`zone_width - eps(zone_width)`), which guarantees the final
+    # position stays inside the boundary zone.
     reset_dist = boundary_zone.zone_width - eps(boundary_zone.zone_width)
     reset_vector = -boundary_zone.face_normal * reset_dist
     for dim in 1:ndims(system)
