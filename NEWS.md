@@ -4,6 +4,31 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.4.3
+
+### API Changes
+
+- Added the keyword `coordinates_eltype` to `RectangularTank`,
+  `RectangularShape` and `SphereShape`, which defaults to `Float64` (#956).
+
+### Features
+- Added support for ASCII STL files with multiple patches as separate geometries,
+  plus a extrude_geometry function and a union operation for TriangleMesh (#962).
+
+- Added an `RCRWindkesselModel` open-boundary pressure model as a lumped-parameter
+  description of vascular systems (#935).
+
+- Added support for FP64 coordinates when using FP32 GPU computations. Fixing
+  stability issues at high resolutions (#956).
+
+- Added a new `LaguerreGaussKernel` smoothing kernel (#893). 
+  
+### Performance
+- Improve GPU performance with shifting up to a factor of x10 (#974, #993).
+
+### Important Bugfixes
+- Fix `DEM` for GPU and add support for FP32 mode (#979).
+
 ## Version 0.4.2
 
 ### API Changes
@@ -324,3 +349,4 @@ Features:
 #### TLSPH
 
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
+
