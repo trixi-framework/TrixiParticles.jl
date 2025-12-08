@@ -49,7 +49,8 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       acceleration=(0.0, -gravity), state_equation=state_equation,
+                       coordinates_eltype=Float64)
 
 # Make the gate slightly higher than the fluid
 gate_height = initial_fluid_size[2] + 4 * fluid_particle_spacing
@@ -57,7 +58,8 @@ gate_height = initial_fluid_size[2] + 4 * fluid_particle_spacing
 gate = RectangularShape(boundary_particle_spacing,
                         (boundary_layers,
                          round(Int, gate_height / boundary_particle_spacing)),
-                        (initial_fluid_size[1], 0.0), density=fluid_density)
+                        (initial_fluid_size[1], 0.0), density=fluid_density,
+                        coordinates_eltype=Float64)
 
 # Movement of the gate according to the paper
 movement_function(x, t) = x + SVector(0.0, -285.115 * t^3 + 72.305 * t^2 + 0.1463 * t)
@@ -91,10 +93,12 @@ plate_position = 0.6 - n_particles_x * structure_particle_spacing
 plate = RectangularShape(structure_particle_spacing,
                          (n_particles_x, n_particles_y - 1),
                          (plate_position, structure_particle_spacing),
-                         density=structure_density, place_on_shell=true)
+                         density=structure_density, place_on_shell=true,
+                         coordinates_eltype=Float64)
 clamped_particles = RectangularShape(structure_particle_spacing,
                                      (n_particles_x, 1), (plate_position, 0.0),
-                                     density=structure_density, place_on_shell=true)
+                                     density=structure_density, place_on_shell=true,
+                                     coordinates_eltype=Float64)
 
 structure = union(clamped_particles, plate)
 

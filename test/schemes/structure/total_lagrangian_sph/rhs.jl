@@ -59,6 +59,7 @@
 
             #### Mocking
             struct MockSystem <: TrixiParticles.AbstractSystem{2} end
+            @inline Base.eltype(::MockSystem) = Float64
             system = MockSystem()
 
             function TrixiParticles.initial_coordinates(::MockSystem)

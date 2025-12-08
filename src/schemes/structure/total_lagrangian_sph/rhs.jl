@@ -43,9 +43,10 @@ end
         pk1_rho2_a = @inbounds pk1_rho2(system, particle)
         pk1_rho2_b = @inbounds pk1_rho2(system, neighbor)
 
-        current_pos_diff = @inbounds current_coords(system, particle) -
-                                     current_coords(system, neighbor)
-        current_distance = sqrt(dot(current_pos_diff, current_pos_diff))
+        current_pos_diff_ = @inbounds current_coords(system, particle) -
+                                      current_coords(system, neighbor)
+        current_pos_diff = convert.(eltype(system), current_pos_diff_)
+        current_distance = norm(current_pos_diff)
 
         dv_stress = m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
 
