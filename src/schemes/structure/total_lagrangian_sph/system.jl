@@ -393,7 +393,7 @@ end
         volume = @inbounds mass[neighbor] / material_density[neighbor]
         pos_diff_ = @inbounds current_coords(system, particle) -
                               current_coords(system, neighbor)
-        # On GPUs convert `Float64` coordinates to `Float32`
+        # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
         pos_diff = convert.(eltype(system), pos_diff_)
 
         grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,

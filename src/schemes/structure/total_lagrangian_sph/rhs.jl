@@ -45,7 +45,7 @@ end
 
         current_pos_diff_ = @inbounds current_coords(system, particle) -
                                       current_coords(system, neighbor)
-        # On GPUs convert `Float64` coordinates to `Float32`
+        # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
         current_pos_diff = convert.(eltype(system), current_pos_diff_)
         current_distance = norm(current_pos_diff)
 
