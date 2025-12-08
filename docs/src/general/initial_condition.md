@@ -11,3 +11,8 @@ Pages = [joinpath("general", "initial_condition.jl")]
 Modules = [TrixiParticles]
 Pages = map(file -> joinpath("setups", file), readdir(joinpath("..", "src", "setups")))
 ```
+
+```@autodocs
+Modules = [TrixiParticles]
+Filter = t -> t === TrixiParticles.OrientedBoundingBox
+```
