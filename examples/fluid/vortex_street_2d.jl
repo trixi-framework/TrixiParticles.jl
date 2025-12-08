@@ -35,8 +35,8 @@ domain_size = (20 * cylinder_diameter, 10 * cylinder_diameter)
 
 flow_direction = [1.0, 0.0]
 reynolds_number = 200
-const prescribed_velocity = 1.0
-const fluid_density = 1000.0
+prescribed_velocity = 1.0
+fluid_density = 1000.0
 # Maximum velocity observed in the vortex street is typically around 1.5
 v_max = 1.5
 sound_speed = 10 * v_max
