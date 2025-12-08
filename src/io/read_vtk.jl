@@ -23,12 +23,15 @@ ic = vtk2trixi(joinpath("out", "rectangular.vtu"))
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64}                                                                        │
-│ ═════════════════════════                                                                        │
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 2                                                                │
 │ #particles: ………………………………………………… 100                                                              │
 │ particle spacing: ………………………………… 0.1                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinate eltype: ……………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+````
 """
 function vtk2trixi(file)
     vtk_file = ReadVTK.VTKFile(file)

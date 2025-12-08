@@ -1,5 +1,6 @@
 [deps]
 Asciicast = "2600d445-abca-43b9-92aa-ce144ac0b05b"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
 DocumenterMermaid = "a078cd44-4d9c-4618-b545-3ab9d77f9177"
@@ -9,6 +10,7 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
 [compat]
 Asciicast = "0.1.3"
+CairoMakie = "0.15"
 Documenter = "1"
 DocumenterCitations = "1"
 DocumenterMermaid = "0.2"
