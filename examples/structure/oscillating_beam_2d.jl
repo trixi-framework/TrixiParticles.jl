@@ -38,7 +38,7 @@ clamped_particles = SphereShape(particle_spacing, clamp_radius + particle_spacin
                                 (0.0, elastic_beam.thickness / 2), material.density,
                                 cutout_min=(0.0, 0.0),
                                 cutout_max=(clamp_radius, elastic_beam.thickness),
-                                place_on_shell=true)
+                                place_on_shell=true, coordinates_eltype=Float64)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 
@@ -50,7 +50,8 @@ n_particles_per_dimension = (round(Int, elastic_beam.length / particle_spacing) 
 # from the boundary, which is correct for fluids, but not for structures.
 # We therefore need to pass `place_on_shell=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (0.0, 0.0), density=material.density, place_on_shell=true)
+                        (0.0, 0.0), density=material.density, place_on_shell=true,
+                        coordinates_eltype=Float64)
 
 structure = union(clamped_particles, beam)
 
