@@ -157,6 +157,13 @@ function create_neighborhood_search(neighborhood_search, system, neighbor)
                                     nparticles(neighbor))
 end
 
+function create_neighborhood_search(neighborhood_search, system::TotalLagrangianSPHSystem,
+                                    neighbor::TotalLagrangianSPHSystem)
+    # TLSPH self-interaction is using a specialized neighborhood search
+    return copy_neighborhood_search(neighborhood_search, zero(eltype(system)),
+                                    nparticles(neighbor))
+end
+
 @inline function compact_support(system, neighbor)
     (; smoothing_kernel) = system
     # TODO: Variable search radius for NHS?
@@ -225,7 +232,7 @@ end
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
-    # For TLSPH, use the highly optimized self-interaction neighborhood search
+    # For TLSPH, use the specialized self-interaction neighborhood search
     # for finding neighbors in the initial configuration.
     return system.self_interaction_nhs
 end
@@ -238,7 +245,7 @@ end
     neighbor_index = system_indices(neighbor_system, semi)
 
     if system_index == neighbor_index
-        # For TLSPH, use the highly optimized self-interaction neighborhood search
+        # For TLSPH, use the specialized self-interaction neighborhood search
         # for finding neighbors in the initial configuration.
         return system.self_interaction_nhs
     end
@@ -916,7 +923,8 @@ end
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::TotalLagrangianSPHSystem,
                      u_system, u_neighbor, semi)
-    # Don't update. Neighborhood search works on the initial coordinates, which don't change.
+    # Don't update. This NHS is never used.
+    # TLSPH systems have their own self-interaction NHS.
     return neighborhood_search
 end
 
