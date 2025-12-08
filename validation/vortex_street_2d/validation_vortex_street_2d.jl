@@ -5,7 +5,7 @@ tspan = (0.0, 20.0)
 # In the Tafuni et al. (2018), the resolution is `0.01` (5M particles).
 # Results in 1.3M particles and acceptable results compared to Tafuni et al. (2018).
 # resolution_factor = 0.02 # (runtime: ~6-10h)
-# Results in 100k particles and much noiser results compared to Tafuni et al. (2018).
+# Results in 100k particles and much noisier results compared to Tafuni et al. (2018).
 resolution_factor = 0.05
 
 reynolds_number = 200
