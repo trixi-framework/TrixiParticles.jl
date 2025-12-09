@@ -152,6 +152,14 @@ function create_neighborhood_search(::Nothing, system, neighbor)
     return create_neighborhood_search(nhs, system, neighbor)
 end
 
+# Avoid method ambiguity
+function create_neighborhood_search(::Nothing, system::TotalLagrangianSPHSystem,
+                                    neighbor::TotalLagrangianSPHSystem)
+    nhs = TrivialNeighborhoodSearch{ndims(system)}()
+
+    return create_neighborhood_search(nhs, system, neighbor)
+end
+
 function create_neighborhood_search(neighborhood_search, system, neighbor)
     return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
                                     nparticles(neighbor))
