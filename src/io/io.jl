@@ -18,7 +18,7 @@ function write_meta_data(callback::SolutionSavingCallback, integrator)
                          "meta" * add_underscore_to_optional_postfix(prefix) * ".json")
 
     open(json_file, "w") do file
-        JSON.print(file, meta_data, 2)
+        JSON.json(file, meta_data; pretty=2)
     end
 end
 
