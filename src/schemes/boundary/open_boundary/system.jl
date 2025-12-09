@@ -421,9 +421,23 @@ end
     # Activate a new particle in simulation domain
     transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
 
-    # Reset position of boundary particle
+    # Reset position of boundary particle back to the beginning of the boundary zone.
+    # If we translated it by exactly `zone_width` along `-face_normal`, rounding
+    # errors could place it just outside the zone. To avoid this, use a slightly
+    # shorter distance (`zone_width - eps(zone_width)`), which guarantees the final
+    # position stays inside the boundary zone.
+    reset_dist = boundary_zone.zone_width - eps(boundary_zone.zone_width)
+    reset_vector = -boundary_zone.face_normal * reset_dist
     for dim in 1:ndims(system)
-        u[dim, particle] += boundary_zone.spanning_set[1][dim]
+        u[dim, particle] += reset_vector[dim]
+    end
+
+    # Verify the particle remains inside the boundary zone after the reset; deactivate it if not.
+    particle_coords = current_coords(u, system, particle)
+    if !is_in_boundary_zone(boundary_zone, particle_coords)
+        deactivate_particle!(system, particle, u)
+
+        return system
     end
 
     impose_rest_density!(v, system, particle, system.boundary_model)
@@ -538,13 +552,18 @@ end
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)
-            # Disable shifting for this particle.
-            # Note that Sun et al. 2017 propose a more sophisticated approach with a transition phase
-            # where only the component orthogonal to the surface normal is kept and the tangential
-            # component is set to zero. However, we assume laminar flow in the boundary zone,
-            # so we simply disable shifting completely.
+            # Ramp shifting velocity near the free surface using a kernel-weighted transition.
+            # According to our experiments, the proposed alternative approaches lead to particle disorder:
+            # - Sun et al. 2017: only use surface-tangential component
+            # - Zhang et al. 2025: disable shifting entirely
+            kernel_max = smoothing_kernel(system, 0, particle)
+            dist_from_cutoff = compact_support(fluid_system, fluid_system) -
+                               dist_free_surface
+            shifting_weight = smoothing_kernel(system, dist_from_cutoff, particle) /
+                              kernel_max
+            delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
-                cache.delta_v[dim, particle] = zero(eltype(system))
+                cache.delta_v[dim, particle] = delta_v_ramped[dim]
             end
         end
     end
