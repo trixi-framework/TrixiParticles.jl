@@ -10,7 +10,13 @@
                                                       "oscillating_beam_2d.jl"),
                                              tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with penalty force and viscosity" begin
@@ -21,7 +27,13 @@
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
                                              viscosity=ArtificialViscosityMonaghan(alpha=0.01))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with rotating clamp" begin
@@ -39,7 +51,13 @@
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
                                              clamped_particles_motion=prescribed_motion)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
     end
 
@@ -50,7 +68,13 @@
                                                       "falling_water_column_2d.jl"),
                                              tspan=(0.0, 0.4))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl" begin
@@ -61,7 +85,13 @@
                                              initial_fluid_size=(0.15, 0.29),
                                              tspan=(0.0, 0.4))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl split integration" begin
@@ -81,7 +111,13 @@
                 r"└ @ SciMLBase.*\n"
             ]
             @test sol.retcode == ReturnCode.MaxIters
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
 
             # Now use split integration and verify that we need less than 400 iterations
             split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
@@ -99,7 +135,13 @@
                                              maxiters=400,
                                              extra_callback=split_integration)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
 
             # Now use split integration and verify that it is actually used for TLSPH
             # by using a time step that is too large and verifying that it is crashing.
@@ -122,7 +164,13 @@
                 r"└ @ SciMLBase.*\n"
             ]
             @test sol.retcode == ReturnCode.Unstable
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "fsi/dam_break_gate_2d.jl" begin
@@ -132,7 +180,13 @@
                                              tspan=(0.0, 0.4),
                                              dtmax=1e-3)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "fsi/falling_spheres_2d.jl" begin
@@ -141,7 +195,13 @@
                                                       "falling_spheres_2d.jl"),
                                              tspan=(0.0, 1.0))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
     end
 
