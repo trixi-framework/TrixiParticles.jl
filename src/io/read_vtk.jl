@@ -29,7 +29,7 @@ data = vtk2trixi(joinpath("out", "rectangular.vtu");
                  my_custom_quantity="my_custom_quantity")
 
 # output
-NamedTuple{data...}
+
 ```
 """
 function vtk2trixi(file; custom_quantities...)
