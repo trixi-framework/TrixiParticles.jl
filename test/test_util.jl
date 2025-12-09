@@ -65,7 +65,7 @@ end
                                                                    eachpoint)
 end
 
-# Avoid ambiguity
+# Avoid method ambiguity
 @inline function TrixiParticles.get_neighborhood_search(system::TotalLagrangianSPHSystem,
                                                         neighbor_system::TotalLagrangianSPHSystem,
                                                         ::DummySemidiscretization)
