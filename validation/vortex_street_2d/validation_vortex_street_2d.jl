@@ -13,7 +13,7 @@ cylinder_diameter = 0.1
 
 open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
 
-trixi_include(joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
               reynolds_number=reynolds_number, saving_callback=nothing,
               open_boundary_model=open_boundary_model, factor_d=resolution_factor,
               domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter), tspan=tspan,
