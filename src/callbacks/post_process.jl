@@ -323,7 +323,7 @@ function write_postprocess_callback(pp::PostprocessCallback, integrator)
 
         open(abs_file_path, "w") do file
             # Indent by 4 spaces
-            JSON.print(file, data, 4)
+            JSON.json(file, data; pretty=4, allownan=true)
         end
     end
     if pp.write_csv
