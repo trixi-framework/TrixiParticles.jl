@@ -227,7 +227,9 @@ function Adapt.adapt_structure(to, system::TotalLagrangianSPHSystem)
         template = PrecomputedNeighborhoodSearch{ndims(system)}(transpose_backend=true)
 
         # Create concrete NHS from template
-        self_interaction_nhs = create_neighborhood_search(template, system, system)
+        search_radius = compact_support(system, system)
+        self_interaction_nhs = copy_neighborhood_search(template, search_radius,
+                                                        nparticles(system))
 
         # Use the original `initial_coordinates` to run initialization on the CPU.
         # Note that for large numbers of particles, initialization can take a while.
