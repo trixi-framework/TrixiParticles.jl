@@ -1,40 +1,47 @@
 @testset verbose=true "EnergyCalculatorCallback" begin
     # Mock system
-    struct MockSystem <: TrixiParticles.AbstractSystem{2} end
+    struct MockSystem <: TrixiParticles.AbstractSystem{2}
+        eltype :: Type
+    end
     TrixiParticles.nparticles(::MockSystem) = 4
+    Base.eltype(system::MockSystem) = system.eltype
 
     function TrixiParticles.create_neighborhood_search(neighborhood_search,
                                                        system::MockSystem, neighbor)
         return nothing
     end
 
-    system = MockSystem()
-    semi = Semidiscretization(system)
+    system32 = MockSystem(Float32)
+    semi32 = Semidiscretization(system32)
+    system64 = MockSystem(Float64)
+    semi64 = Semidiscretization(system64)
 
     @testset "Constructor and Basic Properties" begin
         # Test default constructor
-        callback = EnergyCalculatorCallback{Float64}(system, semi)
+        callback = EnergyCalculatorCallback(system64, semi64)
         @test callback.affect!.system_index == 1
         @test callback.affect!.interval == 1
         @test callback.affect!.t[] == 0.0
         @test callback.affect!.energy[] == 0.0
         @test callback.affect!.dv isa Array{Float64, 2}
         @test size(callback.affect!.dv) == (2, 4)
-        @test callback.affect!.eachparticle == 1:4
+        @test callback.affect!.eachparticle == 5:4
         @test calculated_energy(callback) == 0.0
 
         # Test constructor with interval
-        callback = EnergyCalculatorCallback{Float64}(system, semi; interval=5)
+        callback = EnergyCalculatorCallback(system64, semi64; interval=5)
         @test callback.affect!.interval == 5
+        @test eltype(callback.affect!.energy) == Float64
+        @test eltype(callback.affect!.t) == Float64
 
         # Test with specific element type
-        callback = EnergyCalculatorCallback{Float32}(system, semi; interval=2)
+        callback = EnergyCalculatorCallback(system32, semi32; interval=2)
         @test eltype(callback.affect!.energy) == Float32
         @test eltype(callback.affect!.t) == Float32
     end
 
     @testset "show" begin
-        callback = EnergyCalculatorCallback{Float64}(system, semi; interval=10)
+        callback = EnergyCalculatorCallback(system64, semi64; interval=10)
 
         # Test compact representation
         show_compact = "EnergyCalculatorCallback{Float64}(interval=10)"
@@ -85,8 +92,7 @@
                                               poisson_ratio,
                                               clamped_particles_motion=prescribed_motion,
                                               n_clamped_particles=n_clamped_particles[i],
-                                              acceleration=(0.0, -2.0),
-                                              use_with_energy_calculator_callback=true)
+                                              acceleration=(0.0, -2.0))
 
             semi = Semidiscretization(system)
             ode = semidiscretize(semi, (0.0, 1.0))
