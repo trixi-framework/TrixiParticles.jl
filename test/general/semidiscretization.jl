@@ -52,6 +52,7 @@
 
             kernel = Val(:smoothing_kernel)
             Base.ndims(::Val{:smoothing_kernel}) = 2
+            TrixiParticles.compact_support(::Val{:smoothing_kernel}, h) = h
 
             ic = InitialCondition(; particle_spacing=1.0, coordinates=ones(2, 2),
                                   density=[1.0, 1.0])
