@@ -144,6 +144,10 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
     density_reference_values = map(ref -> ref.reference_density, reference_values)
     velocity_reference_values = map(ref -> ref.reference_velocity, reference_values)
 
+    if any(pr -> isa(pr, AbstractPressureModel), pressure_reference_values)
+        calculate_flow_rate = true
+    end
+
     cache = (; pressure_reference_values=pressure_reference_values,
              density_reference_values=density_reference_values,
              velocity_reference_values=velocity_reference_values, calculate_flow_rate)

@@ -67,51 +67,32 @@ function update_pressure_model!(system, v, u, semi, dt)
 
     if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
         @trixi_timeit timer() "update pressure model" begin
-            calculate_flow_rate_and_pressure!(system, v, u, dt)
+            calculate_pressure!(system, dt)
         end
     end
 
     return system
 end
 
-function calculate_flow_rate_and_pressure!(system, v, u, dt)
-    (; pressure_reference_values) = system.cache
-    foreach_enumerate(pressure_reference_values) do (zone_id, pressure_model)
-        boundary_zone = system.boundary_zones[zone_id]
-        calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone, v, u, dt)
+function calculate_pressure!(system, dt)
+    (; pressure_reference_values, boundary_zones_flow_rate) = system.cache
+
+    foreach_noalloc(pressure_reference_values,
+                    boundary_zones_flow_rate) do (pressure_model, flow_rate)
+        calculate_pressure!(pressure_model, system, flow_rate[], dt)
     end
 
     return system
 end
 
-function calculate_flow_rate_and_pressure!(pressure_model, system, boundary_zone, v, u, dt)
+function calculate_pressure!(pressure_model, system, current_flow_rate, dt)
     return pressure_model
 end
 
-function calculate_flow_rate_and_pressure!(pressure_model::RCRWindkesselModel, system,
-                                           boundary_zone, v, u, dt)
-    (; particle_spacing) = system.initial_condition
+function calculate_pressure!(pressure_model::RCRWindkesselModel, system,
+                             current_flow_rate, dt)
     (; characteristic_resistance, peripheral_resistance, compliance,
      flow_rate, pressure) = pressure_model
-    (; face_normal) = boundary_zone
-
-    # Find particles within the current boundary zone
-    candidates = findall(particle -> boundary_zone ==
-                                     current_boundary_zone(system, particle),
-                         each_integrated_particle(system))
-
-    # Assuming negligible transverse velocity gradients within the boundary zone,
-    # the full area of the zone is taken as the representative cross-sectional
-    # area for volumetric flow-rate estimation.
-    cross_sectional_area = length(candidates) * particle_spacing^(ndims(system) - 1)
-
-    # Division inside the `sum` closure to maintain GPU compatibility
-    velocity_avg = sum(candidates) do particle
-        return dot(current_velocity(v, system, particle), -face_normal) / length(candidates)
-    end
-
-    # Compute volumetric flow rate: Q = v * A
-    current_flow_rate = velocity_avg * cross_sectional_area
 
     previous_pressure = pressure[]
     previous_flow_rate = flow_rate[]
