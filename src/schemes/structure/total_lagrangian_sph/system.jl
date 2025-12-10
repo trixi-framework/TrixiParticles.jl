@@ -6,7 +6,8 @@
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, viscosity=nothing,
-                             source_terms=nothing, boundary_model=nothing)
+                             source_terms=nothing, boundary_model=nothing,
+                             self_interaction_nhs=:default)
 
 System for particles of an elastic structure.
 
@@ -47,6 +48,16 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     (which are the quantities of a single particle), returning a `Tuple`
                     or `SVector` that is to be added to the acceleration of that particle.
                     See, for example, [`SourceTermDamping`](@ref).
+- `self_interaction_nhs`: Neighborhood search for self-interaction.
+                    Being a total Lagrangian formulation, the neighborhood search
+                    needs to find neighbors in the initial configuration only.
+                    Precomputing concrete neighbor lists is therefore much more efficient
+                    than the [`GridNeighborhoodSearch`](@ref) typically used for fluid
+                    systems. By default, a [`PrecomputedNeighborhoodSearch`](@ref) is used,
+                    which precomputes and stores the neighbor lists at initialization.
+                    This NHS is significantly faster (~2x on CPUs, up to 10x on GPUs)
+                    than the [`GridNeighborhoodSearch`](@ref).
+                    Alternatively, a user-defined neighborhood search can be passed here.
 
 !!! note
     If specifying the clamped particles manually (via `n_clamped_particles`),
