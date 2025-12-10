@@ -57,6 +57,9 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     which precomputes and stores the neighbor lists at initialization.
                     This NHS is significantly faster (~2x on CPUs, up to 10x on GPUs)
                     than the [`GridNeighborhoodSearch`](@ref).
+                    Note that when the default value is used here, the keyword argument
+                    `transpose_backend` of the [`PrecomputedNeighborhoodSearch`](@ref)
+                    is set to `true` when running on GPUs and `false` on CPUs.
                     Alternatively, a user-defined neighborhood search can be passed here.
 
 !!! note
