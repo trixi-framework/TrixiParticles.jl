@@ -15,7 +15,7 @@ Load VTK file and convert data to a NamedTuple.
     This is an experimental feature and may change in any future releases.
 
 # Example
-```jldoctest; output = false
+```jldoctest; output = false, filter = r"density = \\[.*\\]|pressure = \\[.*\\]|mass = \\[.*\\]|velocity = \\[.*\\]|coordinates = \\[.*\\]"
 # Create a rectangular shape
 rectangular = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0, -2.0),
                                pressure=1000.0)
@@ -29,7 +29,7 @@ data = vtk2trixi(joinpath("out", "rectangular.vtu");
                  my_custom_quantity="my_custom_quantity")
 
 # output
-
+(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], mass = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...])
 ```
 """
 function vtk2trixi(file; custom_quantities...)
