@@ -466,7 +466,7 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
         # - Floating-point rounding when a particle lies almost exactly on the `boundary_face`
         #   during transition, causing a reset just outside the zone
         #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/997).
-        @assert system.boundary_zone_indices[particle]!=0 "No boundary zone found for active buffer particle"
+        @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found for active buffer particle"
     end
 
     return system
