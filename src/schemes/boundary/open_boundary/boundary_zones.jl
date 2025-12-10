@@ -81,6 +81,10 @@ There are three ways to specify the actual shape of the boundary zone:
                        Per default it is set to zero (assuming a gauge pressure system).
                        - For `EntropicallyDampedSPHSystem`: Use the initial pressure from the `InitialCondition`
                        - For `WeaklyCompressibleSPHSystem`: Use the background pressure from the equation of state
+- `sample_points=:default`: Either `:default` to automatically generate sample points on the boundary face (default),
+                            or a matrix of dimensions `(ndims, n_points)` containing sample points
+                            on the boundary face used to compute the volumetric flow rate.
+                            Set to `nothing` to skip sampling.
 
 !!! note "Note"
     The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
@@ -168,7 +172,7 @@ end
 function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, average_inflow_velocity=true,
-                      boundary_type=BidirectionalFlow(), sample_points=nothing,
+                      boundary_type=BidirectionalFlow(), sample_points=:default,
                       rest_pressure=zero(eltype(density)),
                       reference_density=nothing, reference_pressure=nothing,
                       reference_velocity=nothing)

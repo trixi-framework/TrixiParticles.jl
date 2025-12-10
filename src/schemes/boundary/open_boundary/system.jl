@@ -1,7 +1,7 @@
 @doc raw"""
     OpenBoundarySystem(boundary_zone::BoundaryZone;
                        fluid_system::AbstractFluidSystem, buffer_size::Integer,
-                       boundary_model)
+                       boundary_model, calculate_flow_rate=false)
 
 Open boundary system for in- and outflow particles.
 
@@ -11,6 +11,8 @@ Open boundary system for in- and outflow particles.
 # Keywords
 - `fluid_system`: The corresponding fluid system
 - `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
+- `calculate_flow_rate=false`: Set to `true` to calculate the volumetric flow rate through each boundary zone.
+                               Default is `false`.
 - `buffer_size`: Number of buffer particles.
 - `pressure_acceleration`: Pressure acceleration formulation for the system. Required only
                            when using [`BoundaryModelDynamicalPressureZhang`](@ref).
