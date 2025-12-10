@@ -147,7 +147,7 @@ bidirectional_flow = BoundaryZone(; boundary_face=face_vertices, face_normal,
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R}
+struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R, C}
     initial_condition :: IC
     spanning_set      :: S
     zone_origin       :: ZO
@@ -156,6 +156,7 @@ struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R}
     face_normal       :: FN
     rest_pressure     :: ELTYPE # Only required for `BoundaryModelDynamicalPressureZhang`
     reference_values  :: R
+    cache             :: C
     # Note that the following can't be static type parameters, as all boundary zones in a system
     # must have the same type, so that we can loop over them in a type-stable way.
     average_inflow_velocity :: Bool
@@ -167,7 +168,7 @@ end
 function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, average_inflow_velocity=true,
-                      boundary_type=BidirectionalFlow(),
+                      boundary_type=BidirectionalFlow(), sample_points=nothing,
                       rest_pressure=zero(eltype(density)),
                       reference_density=nothing, reference_pressure=nothing,
                       reference_velocity=nothing)
@@ -262,10 +263,12 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
         ic.velocity .= stack(velocity_ref.(coordinates_svector, 0))
     end
 
+    cache = (; create_cache_boundary_zone(ic, sample_points)...)
+
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, face_normal_, rest_pressure, reference_values,
-                        average_inflow_velocity, prescribed_density, prescribed_pressure,
-                        prescribed_velocity)
+                        cache, average_inflow_velocity, prescribed_density,
+                        prescribed_pressure, prescribed_velocity)
 end
 
 function boundary_type_name(boundary_zone::BoundaryZone)
@@ -299,6 +302,16 @@ function Base.show(io::IO, ::MIME"text/plain", boundary_zone::BoundaryZone)
         summary_line(io, "width", round(boundary_zone.zone_width, digits=6))
         summary_footer(io)
     end
+end
+
+create_cache_boundary_zone(initial_condition, sample_points::Nothing) = (;)
+
+function create_cache_boundary_zone(initial_condition, sample_points::Matrix)
+    # TODO: Check matrix (ndims etc.)
+    shepard_coefficient = zeros(eltype(initial_condition), axes(sample_points, 2))
+    dA = initial_condition.particle_spacing
+    return (; sample_points=sample_points, sample_velocity=copy(sample_points),
+            shepard_coefficient, dA)
 end
 
 function set_up_boundary_zone(boundary_face, face_normal, density, particle_spacing,
@@ -453,7 +466,7 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
         # - Floating-point rounding when a particle lies almost exactly on the `boundary_face`
         #   during transition, causing a reset just outside the zone
         #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/997).
-        @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found for active buffer particle"
+        @assert system.boundary_zone_indices[particle]!=0 "No boundary zone found for active buffer particle"
     end
 
     return system

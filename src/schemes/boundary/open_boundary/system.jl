@@ -63,7 +63,7 @@ end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                             fluid_system::AbstractFluidSystem, buffer_size::Integer,
-                            boundary_model,
+                            boundary_model, calculate_flow_rate=false,
                             pressure_acceleration=boundary_model isa
                                                   BoundaryModelDynamicalPressureZhang ?
                                                   fluid_system.pressure_acceleration_formulation :
@@ -85,7 +85,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     cache = (;
              create_cache_shifting(initial_conditions, shifting_technique)...,
              create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
-                                        boundary_zones_)...)
+                                        calculate_flow_rate, boundary_zones_)...)
 
     fluid_system_index = Ref(0)
 
@@ -110,6 +110,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   zone.face_normal,
                                                   zone.rest_pressure,
                                                   nothing,
+                                                  zone.cache,
                                                   zone.average_inflow_velocity,
                                                   zone.prescribed_density,
                                                   zone.prescribed_pressure,
@@ -132,7 +133,7 @@ function initialize!(system::OpenBoundarySystem, semi)
 end
 
 function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
-                                    boundary_zones)
+                                    calculate_flow_rate, boundary_zones)
     reference_values = map(bz -> bz.reference_values, boundary_zones)
     ELTYPE = eltype(initial_condition)
 
@@ -141,6 +142,15 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
     density_reference_values = map(ref -> ref.reference_density, reference_values)
     velocity_reference_values = map(ref -> ref.reference_velocity, reference_values)
 
+    cache = (; pressure_reference_values=pressure_reference_values,
+             density_reference_values=density_reference_values,
+             velocity_reference_values=velocity_reference_values, calculate_flow_rate)
+
+    if calculate_flow_rate
+        boundary_zones_flow_rate = zeros(ELTYPE, length(boundary_zones))
+        cache = (; boundary_zones_flow_rate, cache...)
+    end
+
     if boundary_model isa BoundaryModelCharacteristicsLastiwka
         characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
         previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
@@ -148,10 +158,8 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         return (; characteristics=characteristics,
                 previous_characteristics=previous_characteristics,
                 pressure=copy(initial_condition.pressure),
-                density=copy(initial_condition.density),
-                pressure_reference_values=pressure_reference_values,
-                density_reference_values=density_reference_values,
-                velocity_reference_values=velocity_reference_values)
+                density=copy(initial_condition.density), cache...)
+
     elseif boundary_model isa BoundaryModelDynamicalPressureZhang
         # A separate array for the boundary pressure is required,
         # since it is specified independently from the computed pressure for the momentum equation.
@@ -171,10 +179,7 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         cache = (; density_calculator=ContinuityDensity(),
                  density_diffusion=density_diffusion_,
                  pressure_boundary=pressure_boundary,
-                 density_rest=density_rest,
-                 pressure_reference_values=pressure_reference_values,
-                 density_reference_values=density_reference_values,
-                 velocity_reference_values=velocity_reference_values)
+                 density_rest=density_rest, cache...)
 
         if fluid_system isa EntropicallyDampedSPHSystem
             # Density and pressure is stored in `v`
@@ -186,10 +191,7 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
     else
         return (;
                 pressure=copy(initial_condition.pressure),
-                density=copy(initial_condition.density),
-                pressure_reference_values=pressure_reference_values,
-                density_reference_values=density_reference_values,
-                velocity_reference_values=velocity_reference_values)
+                density=copy(initial_condition.density), cache...)
     end
 end
 
@@ -305,6 +307,10 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
         u = wrap_u(u_ode, system, semi)
         v = wrap_v(v_ode, system, semi)
 
+        # This must be called before `update_pressure_model!` and `check_domain!`
+        # to ensure quantities remain consistent with the current simulation state.
+        calculate_flow_rate!(system, v, u, v_ode, u_ode, semi)
+
         @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
         update_pressure_model!(system, v, u, semi, integrator.dt)
@@ -322,6 +328,28 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
 end
 
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator) = system
+
+function calculate_flow_rate!(system, v, u, v_ode, u_ode, semi)
+    system.cache.calculate_flow_rate || return system
+
+    for boundary_zone in system.boundary_zones
+        interpolate_velocity!(system, boundary_zone, v, u, v_ode, u_ode, semi)
+    end
+
+    foreach_enumerate(system.boundary_zones) do (zone_id, boundary_zone)
+        (; face_normal) = boundary_zone
+        (; sample_velocity, dA) = boundary_zone.cache
+        # Compute volumetric flow rate: Q = ∫ v ⋅ n dA
+        current_flow_rate = sum(axes(sample_velocity, 2)) do point
+            vn = dot(current_velocity(sample_velocity, system, point), -face_normal)
+            return vn * dA
+        end
+
+        system.cache.boundary_zones_flow_rate[zone_id] = current_flow_rate
+    end
+
+    return system
+end
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
     (; boundary_zones, boundary_candidates, fluid_candidates, fluid_system) = system
@@ -564,6 +592,47 @@ end
             delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
                 cache.delta_v[dim, particle] = delta_v_ramped[dim]
+            end
+        end
+    end
+
+    return system
+end
+
+function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone, v, u,
+                               v_ode, u_ode, semi)
+    (; sample_points, sample_velocity, shepard_coefficient) = boundary_zone.cache
+    smoothing_length = initial_smoothing_length(system)
+    smoothing_kernel = system_smoothing_kernel(system)
+
+    set_zero!(shepard_coefficient)
+    set_zero!(sample_velocity)
+
+    foreach_system(semi) do neighbor_system
+        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+        neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+
+        foreach_point_neighbor(system, neighbor_system, sample_points, neighbor_coords,
+                               semi,
+                               points=axes(sample_points, 2)) do point, neighbor,
+                                                                 pos_diff, distance
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
+            volume_b = m_b / current_density(v_neighbor, neighbor_system, neighbor)
+            W_ab = kernel(smoothing_kernel, distance, smoothing_length)
+            shepard_coefficient[point] += volume_b * W_ab
+
+            velocity_neighbor = viscous_velocity(v_neighbor, neighbor_system, neighbor)
+            for i in axes(velocity_neighbor, 1)
+                sample_velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
+            end
+        end
+    end
+
+    @threaded semi for point in axes(sample_points, 2)
+        if shepard_coefficient[point] > eps()
+            for i in axes(sample_velocity, 1)
+                sample_velocity[i, point] /= shepard_coefficient[point]
             end
         end
     end
