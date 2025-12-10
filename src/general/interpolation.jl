@@ -300,12 +300,7 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
         throw(ArgumentError("`interpolate_plane_3d` requires a 3D simulation"))
     end
 
-    points_coords, resolution_ = sample_plane((point1, point2, point3), resolution)
-
-    if !isapprox(resolution, resolution_, rtol=5e-2)
-        @info "The desired plane size is not a multiple of the resolution $resolution." *
-              "\nNew resolution is set to $resolution_."
-    end
+    points_coords = sample_face_with_fixed_size((point1, point2, point3), resolution)
 
     # Interpolate using the generated points
     results = interpolate_points(points_coords, semi, ref_system, v_ode, u_ode;
@@ -765,4 +760,50 @@ function divide_by_shepard_coefficient!(field::AbstractArray{T, 3}, shepard_coef
     end
 
     return field
+end
+
+function sample_face_with_fixed_size(face_points::NTuple{3}, resolution)
+    # Verify that points are in 3D space
+    if any(length.(face_points) .!= 3)
+        throw(ArgumentError("all points must be 3D coordinates"))
+    end
+
+    point1_ = SVector{3}(face_points[1])
+    point2_ = SVector{3}(face_points[2])
+    point3_ = SVector{3}(face_points[3])
+
+    # Vectors defining the edges of the parallelogram
+    edge1 = point2_ - point1_
+    edge2 = point3_ - point1_
+
+    # Check if the points are collinear
+    if isapprox(norm(cross(edge1, edge2)), 0; atol=eps())
+        throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
+    end
+
+    # Determine the number of points along each edge
+    num_points_edge1 = ceil(Int, norm(edge1) / resolution)
+    num_points_edge2 = ceil(Int, norm(edge2) / resolution)
+
+    coords = zeros(3, (num_points_edge1 + 1) * (num_points_edge2 + 1))
+
+    index = 1
+    for i in 0:num_points_edge1
+        for j in 0:num_points_edge2
+            point_on_plane = point1_ + (i / num_points_edge1) * edge1 +
+                             (j / num_points_edge2) * edge2
+            coords[:, index] = point_on_plane
+            index += 1
+        end
+    end
+
+    resolution_new = min(norm(edge1 / num_points_edge1),
+                         norm(edge2 / num_points_edge2))
+
+    if !isapprox(resolution, resolution_new, rtol=sqrt(eps(resolution)))
+        @info "The desired face size is not a multiple of the resolution $resolution." *
+              "\nNew resolution is set to $resolution_new."
+    end
+
+    return coords
 end

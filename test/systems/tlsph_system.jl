@@ -379,10 +379,11 @@
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu)
 
-        # Initialize deformation_grad and pk1_corrected with arbitrary values
+        # Initialize deformation_grad and pk1_rho2 with arbitrary values
         for particle in TrixiParticles.eachparticle(system)
             system.deformation_grad[:, :, particle] = [1.0 0.2; 0.2 1.0]
-            system.pk1_corrected[:, :, particle] = [1.0 0.5; 0.5 1.0]
+            system.pk1_rho2[:, :,
+                            particle] = [1.0 0.5; 0.5 1.0] / material_densities[particle]^2
         end
 
         von_mises_stress = TrixiParticles.von_mises_stress(system)

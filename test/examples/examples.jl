@@ -227,6 +227,7 @@
                                              maxiters=500,
                                              extra_callback=split_integration) [
                 "┌ Warning: Instability detected. Aborting\n",
+                r".*dt was forced below floating point epsilon.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
             @test sol.retcode == ReturnCode.Unstable
@@ -293,7 +294,8 @@
                 r"WARNING: using deprecated binding PlotUtils.*\n",
                 r"WARNING: Makie.* is deprecated.*\n",
                 r"  likely near none:1\n",
-                r", use .* instead.\n"
+                r", use .* instead.\n",
+                r"┌ Info: The desired face size is not a multiple of the resolution [0-9.]+\.\n└ New resolution is set to [0-9.]+\.\n"
             ]
             @test sol.retcode == ReturnCode.Success
         end

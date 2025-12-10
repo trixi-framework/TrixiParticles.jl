@@ -138,7 +138,7 @@ The momentum equation therefore becomes
 where the first sum is over all fluid particles and the second over all boundary particles.
 
 This approach was first mentioned by [Akinci et al. (2012)](@cite Akinci2012) and written down in this form
-by [Band et al. (2018)](@cite Band2018).
+by [Band et al. (2018)](@cite Band2018a).
 ```@docs
     PressureMirroring
 ```
@@ -342,3 +342,9 @@ without the need to specifically identify those near the free surface.
 To further handle incomplete kernel support, for example in the viscous term of the momentum equation,
 the updated velocity of particles within the [`BoundaryZone`](@ref) is projected onto the face normal,
 so that only the component in flow direction is kept.
+
+# Pressure Models
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "pressure_model.jl")]
+```
