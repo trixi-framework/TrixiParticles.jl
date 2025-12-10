@@ -51,7 +51,9 @@ function StateEquationAdaptiveCole(; mach_number_target=0.1f0, min_sound_speed=1
                                                                background_pressure)
 end
 
-function Adapt.adapt_structure(to, se::StateEquationAdaptiveCole{ELTYPE, CLIP}) where {ELTYPE, CLIP}
+function Adapt.adapt_structure(to,
+                               se::StateEquationAdaptiveCole{ELTYPE, CLIP}) where {ELTYPE,
+                                                                                   CLIP}
     sound_speed_ref = Adapt.adapt_structure(to, se.sound_speed_ref)
     mach_number_target = Adapt.adapt_structure(to, se.mach_number_target)
     min_sound_speed = Adapt.adapt_structure(to, se.min_sound_speed)
@@ -159,7 +161,8 @@ clip_negative_pressure(::StateEquationIdealGas{<:Any, CLIP}) where {CLIP} = CLIP
 
 function (state_equation::StateEquationIdealGas)(density)
     (; reference_density, gamma, background_pressure) = state_equation
-    pressure = (density - reference_density) * sound_speed(state_equation)^2 / gamma + background_pressure
+    pressure = (density - reference_density) * sound_speed(state_equation)^2 / gamma +
+               background_pressure
 
     # This is determined statically and has therefore no overhead
     if clip_negative_pressure(state_equation)
@@ -171,7 +174,8 @@ end
 
 function inverse_state_equation(state_equation::StateEquationIdealGas, pressure)
     (; reference_density, gamma, background_pressure) = state_equation
-    density = (pressure - background_pressure) * gamma / sound_speed(state_equation)^2 + reference_density
+    density = (pressure - background_pressure) * gamma / sound_speed(state_equation)^2 +
+              reference_density
 
     return density
 end
