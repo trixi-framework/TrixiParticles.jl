@@ -410,11 +410,13 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
                        for particle in eachparticle(system)]
 
     if system.cache.calculate_flow_rate
+        Q_total = zero(eltype(system))
         for i in eachindex(system.cache.boundary_zones_flow_rate)
-            vtk["Q_$i"] = system.cache.boundary_zones_flow_rate[i]
+            vtk["Q_$i"] = system.cache.boundary_zones_flow_rate[i][]
+            Q_total += system.cache.boundary_zones_flow_rate[i][]
         end
 
-        vtk["Q_total"] = sum(system.cache.boundary_zones_flow_rate)
+        vtk["Q_total"] = Q_total
     end
 
     return vtk

@@ -147,7 +147,8 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
              velocity_reference_values=velocity_reference_values, calculate_flow_rate)
 
     if calculate_flow_rate
-        boundary_zones_flow_rate = zeros(ELTYPE, length(boundary_zones))
+        boundary_zones_flow_rate = ntuple(i -> Ref(zero(ELTYPE)),
+                                          Val(length(boundary_zones)))
         cache = (; boundary_zones_flow_rate, cache...)
     end
 
@@ -329,23 +330,28 @@ end
 
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator) = system
 
-function calculate_flow_rate!(system, v, u, v_ode, u_ode, semi)
-    system.cache.calculate_flow_rate || return system
+function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS}, v, u, v_ode,
+                              u_ode, semi) where {ELTYPE, NDIMS}
+    (; calculate_flow_rate, boundary_zones_flow_rate) = system.cache
+    calculate_flow_rate || return system
 
     for boundary_zone in system.boundary_zones
         interpolate_velocity!(system, boundary_zone, v, u, v_ode, u_ode, semi)
     end
 
-    foreach_enumerate(system.boundary_zones) do (zone_id, boundary_zone)
+    foreach_enumerate(boundary_zones_flow_rate) do (zone_id, boundary_zone_flow_rate)
+        boundary_zone = system.boundary_zones[zone_id]
         (; face_normal) = boundary_zone
         (; sample_velocity, dA) = boundary_zone.cache
+
         # Compute volumetric flow rate: Q = ∫ v ⋅ n dA
-        current_flow_rate = sum(axes(sample_velocity, 2)) do point
-            vn = dot(current_velocity(sample_velocity, system, point), -face_normal)
+        velocities = reinterpret(reshape, SVector{NDIMS, ELTYPE}, sample_velocity)
+        current_flow_rate = sum(velocities) do velocity
+            vn = dot(velocity, -face_normal)
             return vn * dA
         end
 
-        system.cache.boundary_zones_flow_rate[zone_id] = current_flow_rate
+        boundary_zone_flow_rate[] = current_flow_rate
     end
 
     return system
