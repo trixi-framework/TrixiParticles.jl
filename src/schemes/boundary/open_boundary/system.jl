@@ -147,6 +147,12 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
              velocity_reference_values=velocity_reference_values, calculate_flow_rate)
 
     if calculate_flow_rate
+        if any(zone -> isnothing(zone.cache.sample_points), boundary_zones)
+            throw(ArgumentError("`sample_points` must be specified for all boundary zones when " *
+                                "`calculate_flow_rate` is true.\n" *
+                                "Use `sample_points=:default` to automatically generate sample points."))
+        end
+
         boundary_zones_flow_rate = ntuple(i -> Ref(zero(ELTYPE)),
                                           Val(length(boundary_zones)))
         cache = (; boundary_zones_flow_rate, cache...)
@@ -332,8 +338,8 @@ update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator) = syst
 
 function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS}, v, u, v_ode,
                               u_ode, semi) where {ELTYPE, NDIMS}
-    (; calculate_flow_rate, boundary_zones_flow_rate) = system.cache
-    calculate_flow_rate || return system
+    system.cache.calculate_flow_rate || return system
+    (; boundary_zones_flow_rate) = system.cache
 
     for boundary_zone in system.boundary_zones
         interpolate_velocity!(system, boundary_zone, v, u, v_ode, u_ode, semi)
@@ -342,13 +348,13 @@ function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS}, 
     foreach_enumerate(boundary_zones_flow_rate) do (zone_id, boundary_zone_flow_rate)
         boundary_zone = system.boundary_zones[zone_id]
         (; face_normal) = boundary_zone
-        (; sample_velocity, dA) = boundary_zone.cache
+        (; sample_velocity, area_increment) = boundary_zone.cache
 
         # Compute volumetric flow rate: Q = ∫ v ⋅ n dA
         velocities = reinterpret(reshape, SVector{NDIMS, ELTYPE}, sample_velocity)
         current_flow_rate = sum(velocities) do velocity
             vn = dot(velocity, -face_normal)
-            return vn * dA
+            return vn * area_increment
         end
 
         boundary_zone_flow_rate[] = current_flow_rate

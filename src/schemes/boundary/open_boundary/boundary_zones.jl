@@ -263,7 +263,8 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
         ic.velocity .= stack(velocity_ref.(coordinates_svector, 0))
     end
 
-    cache = (; create_cache_boundary_zone(ic, sample_points)...)
+    cache = (;
+             create_cache_boundary_zone(ic, boundary_face, face_normal_, sample_points)...)
 
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, face_normal_, rest_pressure, reference_values,
@@ -300,18 +301,55 @@ function Base.show(io::IO, ::MIME"text/plain", boundary_zone::BoundaryZone)
         summary_line(io, "boundary type", boundary_type_name(boundary_zone))
         summary_line(io, "#particles", nparticles(boundary_zone.initial_condition))
         summary_line(io, "width", round(boundary_zone.zone_width, digits=6))
+        if hasproperty(boundary_zone.cache, :cross_sectional_area)
+            summary_line(io, "cross sectional area",
+                         boundary_zone.cache.cross_sectional_area)
+        end
         summary_footer(io)
     end
 end
 
-create_cache_boundary_zone(initial_condition, sample_points::Nothing) = (;)
+function create_cache_boundary_zone(initial_condition, boundary_face, face_normal,
+                                    sample_points::Nothing)
+    return (; sample_points)
+end
 
-function create_cache_boundary_zone(initial_condition, sample_points::Matrix)
-    # TODO: Check matrix (ndims etc.)
-    shepard_coefficient = zeros(eltype(initial_condition), axes(sample_points, 2))
-    dA = initial_condition.particle_spacing
-    return (; sample_points=sample_points, sample_velocity=copy(sample_points),
-            shepard_coefficient, dA)
+function create_cache_boundary_zone(initial_condition, boundary_face, face_normal,
+                                    sample_points)
+    (; particle_spacing) = initial_condition
+    area_increment = particle_spacing^(ndims(initial_condition) - 1)
+    if sample_points === :default
+        sample_points_ = extrude_geometry(boundary_face; particle_spacing, density=Inf,
+                                          direction=(-face_normal), n_extrude=1).coordinates
+    else
+        if !(sample_points isa Matrix && size(sample_points, 1) == ndims(initial_condition))
+            throw(ArgumentError("`sample_points` must be a matrix with " *
+                                "`ndims(initial_condition)` rows"))
+        end
+
+        # TODO: Check if regular grid?
+
+        sample_points_ = sample_points
+    end
+
+    discrete_face_area = area_increment * size(sample_points_, 2)
+
+    if ndims(initial_condition) == 3
+        v1, v2, v3 = boundary_face
+        face_area = norm(cross(v2 - v1, v3 - v1))
+    elseif ndims(initial_condition) == 2
+        v1, v2 = boundary_face
+        face_area = norm(v2 - v1)
+    end
+
+    if discrete_face_area > face_area
+        @warn "The sampled area of the boundary face " *
+              "($(discrete_face_area)) is larger than the actual face area ($(face_area)). "
+    end
+
+    return (; sample_points=sample_points_, sample_velocity=copy(sample_points_),
+            shepard_coefficient=zeros(eltype(initial_condition), size(sample_points_, 2)),
+            area_increment, cross_sectional_area=discrete_face_area)
 end
 
 function set_up_boundary_zone(boundary_face, face_normal, density, particle_spacing,
