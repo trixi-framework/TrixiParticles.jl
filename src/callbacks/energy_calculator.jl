@@ -56,13 +56,13 @@ total_energy = calculated_energy(energy_cb)
 ```
 """
 struct EnergyCalculatorCallback{T, DV, EP}
-    interval                      :: Int
-    t                             :: T # Time of last call
-    energy                        :: T
-    system_index                  :: Int
-    dv                            :: DV
-    eachparticle                  :: EP
-    only_compute_force_on_fluid   :: Bool
+    interval                    :: Int
+    t                           :: T # Time of last call
+    energy                      :: T
+    system_index                :: Int
+    dv                          :: DV
+    eachparticle                :: EP
+    only_compute_force_on_fluid :: Bool
 end
 
 function EnergyCalculatorCallback(system, semi; interval=1,
