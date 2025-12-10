@@ -46,36 +46,52 @@
             # Load variables from the example
             trixi_include(@__MODULE__,
                           joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
-                          ode=nothing, sol=nothing)
+                          ode=nothing, sol=nothing, E=1e5)
 
             # We simply clamp all particles, move them up against gravity, and verify that
             # the energy calculated is just the potential energy difference.
             movement_function(x, t) = x + SVector(0.0, t)
             is_moving(t) = true
-            prescribed_motion = PrescribedMotion(movement_function, is_moving)
 
-            structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel,
-                                                        smoothing_length,
-                                                        material.E, material.nu,
-                                                        n_clamped_particles=nparticles(structure),
-                                                        acceleration=(0.0, -gravity),
-                                                        clamped_particles_motion=prescribed_motion)
+            tests = Dict(
+                "all particles clamped" => 1:nparticles(structure),
+                # Clamp everything but the top two layers of the beam
+                "some particles clamped" => 1:(nparticles(structure) - 162)
+            )
+            rtol = Dict(
+                "all particles clamped" => sqrt(eps()),
+                # Clamp everything but the top two layers of the beam.
+                # We don't expect very accurate results here, this is more of a smoke test.
+                "some particles clamped" => 0.1
+            )
+            @testset "$name" for (name, clamped_particles) in tests
+                # We need a new `PrescribedMotion` for each test due to
+                # https://github.com/trixi-framework/TrixiParticles.jl/issues/1020
+                prescribed_motion = PrescribedMotion(movement_function, is_moving)
+                structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel,
+                                                            smoothing_length,
+                                                            material.E, material.nu,
+                                                            clamped_particles=clamped_particles,
+                                                            acceleration=(0.0, -gravity),
+                                                            clamped_particles_motion=prescribed_motion)
 
-            semi = Semidiscretization(structure_system)
-            ode = semidiscretize(semi, (0.0, 1.0))
+                semi = Semidiscretization(structure_system)
+                ode = semidiscretize(semi, (0.0, 1.0))
 
-            energy_calculator = EnergyCalculatorCallback{Float64}(structure_system, semi;
-                                                                  interval=1)
+                energy_calculator = EnergyCalculatorCallback(structure_system, semi;
+                                                             interval=1)
 
-            sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
-                                           callback=energy_calculator)
+                sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
+                                               callback=energy_calculator)
 
-            @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+                @test sol.retcode == ReturnCode.Success
+                @test count_rhs_allocations(sol, semi) == 0
 
-            # Potential energy difference should be m * g * h
-            @test isapprox(calculated_energy(energy_calculator),
-                           sum(structure_system.mass) * gravity * 1)
+                # Potential energy difference should be m * g * h
+                @test isapprox(calculated_energy(energy_calculator),
+                               sum(structure_system.mass) * gravity * 1,
+                               rtol=rtol[name])
+            end
         end
     end
 
@@ -123,13 +139,9 @@
             ode = semidiscretize(semi, (0.0, 1.0))
 
             # Energy calculators for fluid + tank and fluid only
-            energy_calculator1 = EnergyCalculatorCallback{eltype(tlsph_system)}(tlsph_system,
-                                                                                semi;
-                                                                                interval=1)
-            energy_calculator2 = EnergyCalculatorCallback{eltype(tlsph_system)}(tlsph_system,
-                                                                                semi;
-                                                                                interval=1,
-                                                                                only_compute_force_on_fluid=true)
+            energy_calculator1 = EnergyCalculatorCallback(tlsph_system, semi; interval=1)
+            energy_calculator2 = EnergyCalculatorCallback(tlsph_system, semi; interval=1,
+                                                          only_compute_force_on_fluid=true)
 
             sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL35(), save_everystep=false,
                                            callback=CallbackSet(info_callback,
@@ -139,7 +151,9 @@
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
 
-            # Potential energy difference should be m * g * h and h = 1
+            # Potential energy difference should be m * g * h and h = 1.
+            # Since all particles are clamped, the energy added through clamped particles
+            # should be the same as that added to the fluid.
             expected_energy_fluid = sum(fluid_system.mass) * gravity * 1
             expected_energy_tank = sum(tlsph_system.mass) * gravity * 1
 
