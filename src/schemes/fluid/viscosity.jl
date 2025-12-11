@@ -451,9 +451,10 @@ end
 @doc raw"""
     ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01)
 
-Non-Newtonian Carreau–Yasuda viscosity model.
-
-The kinematic viscosity is modeled as
+Non-Newtonian viscosity model based on the Carreau–Yasuda law [Carreau (1972)](@cite Carreau1972), [Yasuda et al. (1981)](@cite Yasuda1981).
+The effective kinematic viscosity depends on the local shear-rate magnitude and smoothly transitions between a low-shear plateau and a high-shear plateau.
+This allows one to represent shear-thinning and shear-thickening behavior within the same framework.
+The effective kinematic viscosity is defined as
 
 ```math
 \nu(\dot\gamma) = \nu_\infty + (\nu_0 - \nu_\infty)
@@ -476,9 +477,17 @@ and ``\epsilon`` a small regularization parameter.
 All viscosities here are kinematic viscosities (m²/s); dynamic viscosity is obtained internally
 via ``\eta = \rho \nu``. A Newtonian fluid is recovered for ``n = 1`` and
 ``\nu_0 = \nu_\infty``.
+This model is appropriate for non-Newtonian fluids (e.g. polymer solutions or
+blood-like flows) where the viscosity varies significantly with shear rate.
+
+# Keywords
+- `nu0`:     Zero-shear kinematic viscosity.
+- `nu_inf`:  Infinite-shear kinematic viscosity.
+- `lambda`:  Time constant of the Carreau–Yasuda law.
+- `a`:       Yasuda parameter controlling the transition shape.
+- `n`:       Power-law index (shear-thinning/thickening behavior).
+- `epsilon`: Parameter to prevent singularities in the shear-rate approximation.
 """
-
-
 struct ViscosityCarreauYasuda{ELTYPE}
     nu0    :: ELTYPE  # zero-shear kinematic viscosity
     nu_inf :: ELTYPE  # infinite-shear kinematic viscosity
