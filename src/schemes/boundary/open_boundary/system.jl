@@ -318,7 +318,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
 
         # This must be called before `update_pressure_model!` and `check_domain!`
         # to ensure quantities remain consistent with the current simulation state.
-        calculate_flow_rate!(system, v, u, v_ode, u_ode, semi)
+        calculate_flow_rate!(system, v_ode, u_ode, semi)
 
         @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
@@ -338,28 +338,30 @@ end
 
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator) = system
 
-function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS}, v, u, v_ode,
-                              u_ode, semi) where {ELTYPE, NDIMS}
+function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS},
+                              v_ode, u_ode, semi) where {ELTYPE, NDIMS}
     system.cache.calculate_flow_rate || return system
-    (; boundary_zones_flow_rate) = system.cache
 
-    for boundary_zone in system.boundary_zones
-        interpolate_velocity!(system, boundary_zone, v, u, v_ode, u_ode, semi)
-    end
+    @trixi_timeit timer() "flow rate calculation" begin
+        (; boundary_zones) = system
+        (; boundary_zones_flow_rate) = system.cache
 
-    foreach_enumerate(boundary_zones_flow_rate) do (zone_id, boundary_zone_flow_rate)
-        boundary_zone = system.boundary_zones[zone_id]
-        (; face_normal) = boundary_zone
-        (; sample_velocity, area_increment) = boundary_zone.cache
+        foreach_noalloc(boundary_zones,
+                        boundary_zones_flow_rate) do (boundary_zone, flow_rate)
+            (; face_normal) = boundary_zone
+            (; sample_velocity, area_increment) = boundary_zone.cache
 
-        # Compute volumetric flow rate: Q = ∫ v ⋅ n dA
-        velocities = reinterpret(reshape, SVector{NDIMS, ELTYPE}, sample_velocity)
-        current_flow_rate = sum(velocities) do velocity
-            vn = dot(velocity, -face_normal)
-            return vn * area_increment
+            interpolate_velocity!(system, boundary_zone, v_ode, u_ode, semi)
+
+            # Compute volumetric flow rate: Q = ∫ v ⋅ n dA
+            velocities = reinterpret(reshape, SVector{NDIMS, ELTYPE}, sample_velocity)
+            current_flow_rate = sum(velocities) do velocity
+                vn = dot(velocity, -face_normal)
+                return vn * area_increment
+            end
+
+            flow_rate[] = current_flow_rate
         end
-
-        boundary_zone_flow_rate[] = current_flow_rate
     end
 
     return system
@@ -613,7 +615,7 @@ end
     return system
 end
 
-function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone, v, u,
+function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
                                v_ode, u_ode, semi)
     (; sample_points, sample_velocity, shepard_coefficient) = boundary_zone.cache
     smoothing_length = initial_smoothing_length(system)
