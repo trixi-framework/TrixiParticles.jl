@@ -145,6 +145,7 @@ bidirectional_flow = BoundaryZone(; boundary_face=face_vertices, face_normal,
 │ boundary type: ………………………………………… bidirectional_flow                                               │
 │ #particles: ………………………………………………… 234                                                              │
 │ width: ……………………………………………………………… 0.4                                                              │
+│ cross sectional area: ……………………… 1.0000000000000002                                               │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
