@@ -12,8 +12,8 @@ Open boundary system for in- and outflow particles.
 - `fluid_system`: The corresponding fluid system
 - `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
 - `calculate_flow_rate=false`: Set to `true` to calculate the volumetric flow rate through each boundary zone.
-                               Default is `false`.
-- `buffer_size`: Number of buffer particles.
+                               Default is `false`. To ensure accurate flow rate computation, the cross-sectional area
+                               of the `boundary_zone` must be properly sampled. See `sample_points` in [`BoundaryZone`](@ref).
 - `pressure_acceleration`: Pressure acceleration formulation for the system. Required only
                            when using [`BoundaryModelDynamicalPressureZhang`](@ref).
                            Defaults to the formulation from `fluid_system` if applicable; otherwise, `nothing`.
