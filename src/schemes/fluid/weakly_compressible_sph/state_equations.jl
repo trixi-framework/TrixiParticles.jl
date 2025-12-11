@@ -13,12 +13,14 @@ The speed of sound is initialized as `min_sound_speed`.
 
 # Keywords
 - `mach_number_target=0.1`: Target Mach number ratio for the simulation.
-The adaptive scheme obtains the current maximum particle velocity and adjusts the reference sound speed ``c`` to the ratio
-```math
-c = \frac{U_\text{max}}{\mathrm{Ma_\text{limit}}}.
-```
-A smaller `mach_number_target` enforces a higher sound speed (reducing compressibility effects
-but increasing computational cost), while a larger value allows stronger compressibility at lower runtime cost.
+  The adaptive scheme obtains the current maximum particle velocity and adjusts the
+  reference sound speed ``c`` to the ratio
+  ```math
+  c = \frac{U_\text{max}}{\mathrm{Ma_\text{limit}}}.
+  ```
+  A smaller `mach_number_target` enforces a higher sound speed (reducing compressibility
+  effects but increasing computational cost), while a larger value allows stronger
+  compressibility at lower runtime cost.
 - `reference_density`: Reference density of the fluid.
 - `min_sound_speed=10.0f0`: The minimum permissible speed of sound.
 - `max_sound_speed=100.0f0`: The maximum permissible speed of sound.
