@@ -346,7 +346,7 @@ function create_cache_boundary_zone(initial_condition, boundary_face, face_norma
         face_area = norm(v2 - v1)
     end
 
-    if discrete_face_area > face_area
+    if discrete_face_area > (face_area + eps(face_area))
         @warn "The sampled area of the boundary face " *
               "($(discrete_face_area)) is larger than the actual face area ($(face_area)). "
     end
