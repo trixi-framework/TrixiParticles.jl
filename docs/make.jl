@@ -137,6 +137,4 @@ makedocs(sitename="TrixiParticles.jl",
          ])
 
 deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",
-           devbranch="main", push_preview = all(!isempty,
-                              (get(ENV, "GITHUB_TOKEN", ""),
-                               get(ENV, "DOCUMENTER_KEY", ""))))
+           devbranch="main", push_preview = true)
