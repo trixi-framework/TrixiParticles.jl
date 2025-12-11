@@ -29,7 +29,7 @@ open_boundary_layers = 10
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 1.0)
+tspan = (0.0, 2.0)
 wcsph = true
 
 domain_size = (flow_length, wall_distance)
