@@ -349,7 +349,7 @@ function create_cache_boundary_zone(initial_condition, boundary_face, face_norma
 
     # We only check if the discretized area exceeds the boundary face area.
     # For 3D boundary zones with complex or non-rectangular flow profiles
-    # (e.g., pipe flow), the cross-sectional area can legitimately be smaller then the boundary face area.
+    # (e.g., pipe flow), the cross-sectional area can legitimately be smaller than the boundary face area.
     if discrete_face_area > (face_area + eps(face_area))
         @warn "The sampled area of the boundary face " *
               "($(discrete_face_area)) is larger than the actual face area ($(face_area)). "
@@ -512,7 +512,7 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
         # - Floating-point rounding when a particle lies almost exactly on the `boundary_face`
         #   during transition, causing a reset just outside the zone
         #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/997).
-        @assert system.boundary_zone_indices[particle]!=0 "No boundary zone found for active buffer particle"
+        @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found for active buffer particle"
     end
 
     return system
