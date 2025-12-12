@@ -1,10 +1,15 @@
 """
-	vtk2trixi(file::String)
+	vtk2trixi(file::String; element_type=:default, coordinates_eltype=Float64)
 
 Load VTK file and convert data to an [`InitialCondition`](@ref).
 
 # Arguments
 - `file`: Name of the VTK file to be loaded.
+
+# Keywords
+- `element_type`: Element type for particle fields (`:default` keeps the type
+    stored in the VTK file, otherwise converted to the given type).
+- `coordinates_eltype`: Element type for particle coordinates (defaults to `Float64`).
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
