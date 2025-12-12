@@ -82,8 +82,10 @@ There are three ways to specify the actual shape of the boundary zone:
                        - For `EntropicallyDampedSPHSystem`: Use the initial pressure from the `InitialCondition`
                        - For `WeaklyCompressibleSPHSystem`: Use the background pressure from the equation of state
 - `sample_points=:default`: Either `:default` to automatically generate sample points on the boundary face (default),
-                            or a matrix of dimensions `(ndims, n_points)` containing sample points
+                            or a matrix of dimensions `(ndims, npoints)` containing sample points
                             on the boundary face used to compute the volumetric flow rate.
+                            Each sample point represents a discrete area of `particle_spacing^(ndims-1)`.
+                            Therefore, `sample_points` must form a regular grid.
                             Set to `nothing` to skip sampling.
 
 !!! note "Note"
@@ -145,6 +147,7 @@ bidirectional_flow = BoundaryZone(; boundary_face=face_vertices, face_normal,
 │ boundary type: ………………………………………… bidirectional_flow                                               │
 │ #particles: ………………………………………………… 234                                                              │
 │ width: ……………………………………………………………… 0.4                                                              │
+│ cross sectional area: ……………………… 1.0000000000000002                                               │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -331,8 +334,6 @@ function create_cache_boundary_zone(initial_condition, boundary_face, face_norma
                                 "`ndims(initial_condition)` rows"))
         end
 
-        # TODO: Check if regular grid?
-
         sample_points_ = sample_points
     end
 
@@ -346,6 +347,9 @@ function create_cache_boundary_zone(initial_condition, boundary_face, face_norma
         face_area = norm(v2 - v1)
     end
 
+    # We only check if the discretized area exceeds the boundary face area.
+    # For 3D boundary zones with complex or non-rectangular flow profiles
+    # (e.g., pipe flow), the cross-sectional area can legitimately be smaller then the boundary face area.
     if discrete_face_area > (face_area + eps(face_area))
         @warn "The sampled area of the boundary face " *
               "($(discrete_face_area)) is larger than the actual face area ($(face_area)). "
@@ -508,7 +512,7 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
         # - Floating-point rounding when a particle lies almost exactly on the `boundary_face`
         #   during transition, causing a reset just outside the zone
         #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/997).
-        @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found for active buffer particle"
+        @assert system.boundary_zone_indices[particle]!=0 "No boundary zone found for active buffer particle"
     end
 
     return system
