@@ -33,18 +33,20 @@ ic = vtk2trixi(joinpath("out", "rectangular.vtu"))
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-function vtk2trixi(file; element_type=Float64, coordinates_eltype=Float64)
-    ELTYPE = element_type
-    cELTYPE = coordinates_eltype
+function vtk2trixi(file; element_type=:default, coordinates_eltype=Float64)
     vtk_file = ReadVTK.VTKFile(file)
 
     # Retrieve data fields (e.g., pressure, velocity, ...)
     point_data = ReadVTK.get_point_data(vtk_file)
     field_data = ReadVTK.get_field_data(vtk_file)
+    point_coords = ReadVTK.get_points(vtk_file)
+
+    cELTYPE = coordinates_eltype
+    ELTYPE = element_type === :default ? eltype(point_coords) : element_type
 
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))
-    coordinates = convert.(cELTYPE, ReadVTK.get_points(vtk_file)[1:ndims, :])
+    coordinates = convert.(cELTYPE, point_coords[1:ndims, :])
 
     fields = ["velocity", "density", "pressure", "mass", "particle_spacing"]
     results = Dict{String, Array{Float64}}()
