@@ -326,15 +326,15 @@ function create_cache_boundary_zone(initial_condition, boundary_face, face_norma
     (; particle_spacing) = initial_condition
     area_increment = particle_spacing^(ndims(initial_condition) - 1)
     if sample_points === :default
-        sample_points_ = extrude_geometry(boundary_face; particle_spacing, density=Inf,
-                                          direction=(-face_normal), n_extrude=1).coordinates
+        points = extrude_geometry(boundary_face; particle_spacing, density=Inf,
+                                  direction=(-face_normal), n_extrude=1).coordinates
+        sample_points_ = convert.(eltype(initial_condition), points)
     else
         if !(sample_points isa Matrix && size(sample_points, 1) == ndims(initial_condition))
             throw(ArgumentError("`sample_points` must be a matrix with " *
                                 "`ndims(initial_condition)` rows"))
         end
-
-        sample_points_ = sample_points
+        sample_points_ = convert.(eltype(initial_condition), sample_points)
     end
 
     discrete_face_area = area_increment * size(sample_points_, 2)
