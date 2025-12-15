@@ -269,7 +269,7 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
                                  semi, integrator)
     u = wrap_u(u_ode, system, semi)
 
-    update_position!(u, system, semi)
+    @trixi_timeit timer() "update particle packing" update_position!(u, system, semi)
 
     # Tell OrdinaryDiffEq that `integrator.u` has been modified
     u_modified!(integrator, true)
@@ -365,14 +365,16 @@ end
 # Update from `UpdateCallback` between time steps (skip for fixed systems)
 @inline function update_transport_velocity!(system::ParticlePackingSystem{<:Any, false},
                                             v_ode, semi, integrator)
-    v = wrap_v(v_ode, system, semi)
-    @threaded semi for particle in each_integrated_particle(system)
-        for i in 1:ndims(system)
-            system.advection_velocity[i, particle] = v[i, particle]
+    @trixi_timeit timer() "update packing TVF" begin
+        v = wrap_v(v_ode, system, semi)
+        @threaded semi for particle in each_integrated_particle(system)
+            for i in 1:ndims(system)
+                system.advection_velocity[i, particle] = v[i, particle]
 
-            # The particle velocity is set to zero at the beginning of each time step to
-            # achieve a fully stationary state.
-            v[i, particle] = zero(eltype(system))
+                # The particle velocity is set to zero at the beginning of each time step to
+                # achieve a fully stationary state.
+                v[i, particle] = zero(eltype(system))
+            end
         end
     end
 

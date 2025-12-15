@@ -12,7 +12,8 @@ function Base.setdiff(initial_condition::InitialCondition,
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
-    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
+    coords = reinterpret(reshape,
+                         SVector{ndims(geometry), eltype(initial_condition.coordinates)},
                          initial_condition.coordinates)
 
     delete_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)
@@ -38,7 +39,8 @@ function Base.intersect(initial_condition::InitialCondition,
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
-    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
+    coords = reinterpret(reshape,
+                         SVector{ndims(geometry), eltype(initial_condition.coordinates)},
                          initial_condition.coordinates)
 
     keep_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)
@@ -128,8 +130,8 @@ function oriented_bounding_box(point_cloud)
     if length(min_corner) == 2
         rect_coords = hcat(min_corner, max_corner, [min_corner[1], max_corner[2]])
     else
-        rect_coords = hcat(min_corner, max_corner,
-                           [min_corner[1], max_corner[2], min_corner[3]])
+        rect_coords = hcat([min_corner[1], max_corner[2], min_corner[3]],
+                           min_corner, max_corner)
     end
 
     rotated_rect_coords = eigen_vectors * rect_coords .+ means
@@ -232,8 +234,8 @@ function OrientedBoundingBox(point_cloud::AbstractMatrix;
     NDIMS = size(point_cloud, 1)
     vertices, eigen_vectors, (min_corner, max_corner) = oriented_bounding_box(point_cloud)
 
-    # Use the first vertex as box origin (bottom-left-front corner)
-    box_origin = SVector{NDIMS}(vertices[:, 1])
+    # Use the first (2D) or second (middle, 3D) vertex as box origin
+    box_origin = NDIMS == 2 ? SVector{2}(vertices[:, 1]) : SVector{3}(vertices[:, 2])
 
     # Calculate edge lengths from min/max corners
     edge_lengths = max_corner - min_corner
