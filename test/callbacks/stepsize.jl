@@ -7,8 +7,8 @@ mutable struct StepsizeTestOpts
 end
 
 mutable struct StepsizeTestIntegrator
-    u
-    p
+    u::Any
+    p::Any
     opts::StepsizeTestOpts
     dtcache::Float64
     proposed_dt::Float64

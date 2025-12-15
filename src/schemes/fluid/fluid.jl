@@ -209,7 +209,7 @@ function calculate_interface_dt(v_ode, u_ode, cfl_number,
                                 neighbor_system::AbstractFluidSystem,
                                 semi)
     h_interface = harmmean((initial_smoothing_length(system),
-                                           initial_smoothing_length(neighbor_system)))
+                            initial_smoothing_length(neighbor_system)))
 
     c_system = system_sound_speed(system)
     c_neighbor_system = system_sound_speed(neighbor_system)

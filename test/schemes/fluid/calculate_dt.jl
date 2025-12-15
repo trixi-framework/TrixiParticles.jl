@@ -11,7 +11,7 @@
         sound_speed::Float64
         viscosity::TestViscosity
         acceleration::NTuple{2, Float64}
-        surface_tension
+        surface_tension::Any
     end
 
     TrixiParticles.initial_smoothing_length(system::TestFluidSystem) = system.smoothing_length
@@ -75,7 +75,8 @@
 
         # dt_acoustic = 0.2 * harmonicmean(0.008,0.012)/harmonicmean(343,1482) ≈ 3.45e-6
         # dt_viscosity = 0.125 * h^2 / (1.5e-5 + 1e-6) ≈ 5.7e-4 → acoustic limit wins
-        dt = TrixiParticles.calculate_interface_dt(nothing, nothing, cfl, air, water, nothing)
+        dt = TrixiParticles.calculate_interface_dt(nothing, nothing, cfl, air, water,
+                                                   nothing)
         @test isapprox(dt, 3.45e-6; atol=1e-8)
     end
 
@@ -87,7 +88,8 @@
 
         # dt_acoustic ≈ 0.2 * 0.012 / harmonicmean(1482,200) ≈ 6.8e-6
         # dt_viscosity ≈ 0.125 * 0.012^2 / (1e-6 + 1e3) ≈ 1.8e-8 → viscous limit dominates
-        dt = TrixiParticles.calculate_interface_dt(nothing, nothing, cfl, water, bitumen, nothing)
+        dt = TrixiParticles.calculate_interface_dt(nothing, nothing, cfl, water, bitumen,
+                                                   nothing)
         @test isapprox(dt, 1.8e-8; atol=1e-10)
     end
 

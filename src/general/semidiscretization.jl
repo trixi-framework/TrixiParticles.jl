@@ -494,7 +494,8 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     return min(dt_systems, dt_interfaces)
 end
 
-@inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system, semi)
+@inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system,
+                                        semi)
     return Inf
 end
 
