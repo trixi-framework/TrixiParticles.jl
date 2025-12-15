@@ -11,6 +11,20 @@ end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
+@inline function foreach_noalloc(func, collection1, collection2)
+    element1 = first(collection1)
+    remaining_collection1 = Base.tail(collection1)
+    element2 = first(collection2)
+    remaining_collection2 = Base.tail(collection2)
+
+    func((element1, element2))
+
+    # Process remaining collection
+    foreach_noalloc(func, remaining_collection1, remaining_collection2)
+end
+
+@inline foreach_noalloc(func, collection1::Tuple{}, collection2::Tuple{}) = nothing
+
 # Same as `foreach(enumerate(something))`, but without allocations.
 # Note that compile times may increase if this is used with big tuples.
 @inline foreach_enumerate(func, collection) = foreach_enumerate(func, collection, 1)
