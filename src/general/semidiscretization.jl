@@ -474,7 +474,28 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
-    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system, semi), systems)
+    dt_systems = minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system, semi),
+                         systems)
+
+    dt_interfaces = Inf
+    nsystems = length(systems)
+    if nsystems > 1
+        for i in 1:(nsystems - 1)
+            system = systems[i]
+            for j in (i + 1):nsystems
+                neighbor_system = systems[j]
+                dt_interfaces = min(dt_interfaces,
+                                    calculate_interface_dt(v_ode, u_ode, cfl_number,
+                                                           system, neighbor_system, semi))
+            end
+        end
+    end
+
+    return min(dt_systems, dt_interfaces)
+end
+
+@inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system, semi)
+    return Inf
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)

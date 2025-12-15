@@ -99,16 +99,16 @@ end
 write_v0!(v0, system::AbstractFluidSystem, _) = v0
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
-# of the neighboring particle systems.
+# of the neighbor_systeming particle systems.
 
 @inline function viscosity_model(system::AbstractFluidSystem,
-                                 neighbor_system::AbstractFluidSystem)
-    return neighbor_system.viscosity
+                                 neighbor_system_system::AbstractFluidSystem)
+    return neighbor_system_system.viscosity
 end
 
 @inline function viscosity_model(system::AbstractFluidSystem,
-                                 neighbor_system::AbstractBoundarySystem)
-    return neighbor_system.boundary_model.viscosity
+                                 neighbor_system_system::AbstractBoundarySystem)
+    return neighbor_system_system.boundary_model.viscosity
 end
 
 @inline system_state_equation(system::AbstractFluidSystem) = system.state_equation
@@ -129,9 +129,9 @@ end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
-                                      particle_system, neighbor_system,
-                                      v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
+                                      particle_system, neighbor_system_system,
+                                      v_particle_system, v_neighbor_system_system,
+                                      particle, neighbor_system, pos_diff, distance,
                                       m_b, rho_a, rho_b, grad_kernel)
     return dv
 end
@@ -139,25 +139,25 @@ end
 # This formulation was chosen to be consistent with the used pressure_acceleration formulations
 @propagate_inbounds function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                                   particle_system::AbstractFluidSystem,
-                                                  neighbor_system,
-                                                  v_particle_system, v_neighbor_system,
-                                                  particle, neighbor, pos_diff, distance,
+                                                  neighbor_system_system,
+                                                  v_particle_system, v_neighbor_system_system,
+                                                  particle, neighbor_system, pos_diff, distance,
                                                   m_b, rho_a, rho_b, grad_kernel)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
-            current_velocity(v_neighbor_system, neighbor_system, neighbor)
+            current_velocity(v_neighbor_system_system, neighbor_system_system, neighbor_system)
 
     vdiff += continuity_equation_shifting_term(shifting_technique(particle_system),
-                                               particle_system, neighbor_system,
-                                               particle, neighbor, rho_a, rho_b)
+                                               particle_system, neighbor_system_system,
+                                               particle, neighbor_system, rho_a, rho_b)
 
     dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
 
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
-    if particle_system === neighbor_system
+    if particle_system === neighbor_system_system
         density_diffusion!(dv, density_diffusion(particle_system),
-                           v_particle_system, particle, neighbor,
+                           v_particle_system, particle, neighbor_system,
                            pos_diff, distance, m_b, rho_a, rho_b, particle_system,
                            grad_kernel)
     end
@@ -202,6 +202,36 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
     end
 
     return dt
+end
+
+function calculate_interface_dt(v_ode, u_ode, cfl_number,
+                                system::AbstractFluidSystem,
+                                neighbor_system::AbstractFluidSystem,
+                                semi)
+    h_interface = harmmean((initial_smoothing_length(system),
+                                           initial_smoothing_length(neighbor_system)))
+
+    c_system = system_sound_speed(system)
+    c_neighbor_system = system_sound_speed(neighbor_system)
+
+    # Adami et al. (2012) suggest that the stiffest interface waves travel with
+    # an impedance-limited signal speed; using the harmonic mean of both phase
+    # sound speeds penalizes strong contrasts already at t = 0.
+    signal_speed = harmmean((c_system, c_neighbor_system))
+    signal_speed == 0 && return Inf
+    dt_acoustic = cfl_number * h_interface / signal_speed
+
+    # Antuono et al. (2015) show stability requires Δt ∝ h² / nu. Summing both
+    # kinematic viscosities reflects the shear layer that forms across the interface.
+    nu_system = kinematic_viscosity(system, system.viscosity, h_interface, c_system)
+    nu_neighbor_system = kinematic_viscosity(neighbor_system, neighbor_system.viscosity,
+                                             h_interface, c_neighbor_system)
+    nu_interface = nu_system + nu_neighbor_system
+    dt_viscosity = nu_interface > 0 ?
+                   0.125 * h_interface^2 / nu_interface :
+                   Inf
+
+    return minimum((dt_acoustic, dt_viscosity))
 end
 
 @inline function surface_tension_model(system::AbstractFluidSystem)

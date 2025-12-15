@@ -152,4 +152,31 @@
         dv2 = TrixiParticles.wrap_v(dv_ode, system2, semi)
         @test iszero(dv2)
     end
+
+    @testset verbose=true "calculate_dt" begin
+        interface_called = Ref(false)
+
+        TrixiParticles.calculate_dt(v_ode, u_ode, cfl, ::System1, semi) = 0.2
+        TrixiParticles.calculate_dt(v_ode, u_ode, cfl, ::System2, semi) = 0.15
+
+        function TrixiParticles.calculate_interface_dt(v_ode, u_ode, cfl,
+                                                       ::System1, ::System2, semi)
+            interface_called[] = true
+            return 0.05
+        end
+
+        # Interface dt should limit the global dt when multiple systems are present
+        semi_multi = Semidiscretization(system1, system2, neighborhood_search=nothing)
+        interface_called[] = false
+        dt_multi = TrixiParticles.calculate_dt(nothing, nothing, 1.0, semi_multi)
+        @test dt_multi == 0.05
+        @test interface_called[]
+
+        # With a single system no inter-system dt should be evaluated
+        semi_single = Semidiscretization(system1, neighborhood_search=nothing)
+        interface_called[] = false
+        dt_single = TrixiParticles.calculate_dt(nothing, nothing, 1.0, semi_single)
+        @test dt_single == 0.2
+        @test !interface_called[]
+    end
 end
