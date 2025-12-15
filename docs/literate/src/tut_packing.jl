@@ -242,6 +242,81 @@ packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 plot(packed_ic, packed_boundary_ic)
 plot!(geometry, seriestype=:path, color=:black, linestyle=:dash, linewidth=2, label=nothing)
 
+
+# ## Assessing Packing Quality
+
+# After generating an initial particle configuration, it's critical to verify
+# the packing quality before running your simulation. Poor packing can lead
+# to numerical instabilities, artificial pressure fluctuations, or incorrect
+# physical behavior. This section shows how to visualize and quantify packing
+# quality metrics.
+
+# We analyze the interior particles after packing
+# packed_ic contains the packed interior particles
+neighbor_radius = smoothing_length  
+
+positions = packed_ic.coordinates
+num_particles = size(positions, 2)
+neighbor_count = zeros(num_particles)
+
+# We loop through each particle and count how many neighbors fall
+# within the smoothing radius. This tells us how densely packed
+# each local region is.
+for i in 1:num_particles
+    for j in 1:num_particles
+        if i != j
+            dx = positions[1,i] - positions[1,j]
+            dy = positions[2,i] - positions[2,j]
+            dist = sqrt(dx^2 + dy^2)
+            if dist ≤ neighbor_radius
+                neighbor_count[i] += 1
+            end
+        end
+    end
+end
+
+# Now we plot the packed distribution and color particles based
+# on how many neighbors they have. A darker color indicates that
+# the neighbor count is similar across particles, meaning spacing is
+# uniform. More variation in brightness would indicate uneven packing.
+using Plots
+
+p = plot(packed_ic;
+         zcolor=neighbor_count,
+         xlabel="x", ylabel="y",
+         title="Packed Particle Distribution Quality",
+         color=:plasma,
+         label=nothing)
+
+# Overlaying the geometry here makes it easier to see whether any
+# irregular spacing is occurring near the boundaries.
+plot!(p, geometry;
+      linestyle=:dash,
+      label=nothing,
+      showaxis=false,
+      color=:black,
+      seriestype=:path,
+      linewidth=2)
+
+display(p)
+
+# At this point, the plot helps evaluate packing quality visually.
+# In this example, particles appear mostly in darker shades,
+# meaning the neighbor counts are similar across the domain.
+# When neighbor counts are consistent, it indicates good, uniform
+# packing. Now, it is confirmed that the configuration is stable 
+# enough to proceed with simulation.
+
+
+## Potential Packing Issues
+
+# Even after running the packing algorithm, some areas may still be irregular.
+# - Under-sampled regions: particles are spaced too far apart, which can cause gaps or poor interpolation.
+# - Over-clustered regions: particles are too close together, potentially causing artificial pressure spikes.
+# - Boundaries or curved regions: particles may not achieve uniform spacing near corners or complex surfaces.
+# - Local irregularities: small clusters or sparse areas can persist if parameters like particle spacing or 
+# smoothing length are not optimal.
+
 # ## Multi-body packing
 
 # So far, we have focused on packing a single body.
