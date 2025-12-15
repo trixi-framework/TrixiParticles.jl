@@ -99,16 +99,16 @@ end
 write_v0!(v0, system::AbstractFluidSystem, _) = v0
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
-# of the neighbor_systeming particle systems.
+# of the neighboring particle systems.
 
 @inline function viscosity_model(system::AbstractFluidSystem,
-                                 neighbor_system_system::AbstractFluidSystem)
-    return neighbor_system_system.viscosity
+                                 neighbor_system::AbstractFluidSystem)
+    return neighbor_system.viscosity
 end
 
 @inline function viscosity_model(system::AbstractFluidSystem,
-                                 neighbor_system_system::AbstractBoundarySystem)
-    return neighbor_system_system.boundary_model.viscosity
+                                 neighbor_system::AbstractBoundarySystem)
+    return neighbor_system.boundary_model.viscosity
 end
 
 @inline system_state_equation(system::AbstractFluidSystem) = system.state_equation
@@ -129,9 +129,9 @@ end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
-                                      particle_system, neighbor_system_system,
-                                      v_particle_system, v_neighbor_system_system,
-                                      particle, neighbor_system, pos_diff, distance,
+                                      particle_system, neighbor_system,
+                                      v_particle_system, v_neighbor_system,
+                                      particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b, grad_kernel)
     return dv
 end
@@ -139,25 +139,25 @@ end
 # This formulation was chosen to be consistent with the used pressure_acceleration formulations
 @propagate_inbounds function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                                   particle_system::AbstractFluidSystem,
-                                                  neighbor_system_system,
-                                                  v_particle_system, v_neighbor_system_system,
-                                                  particle, neighbor_system, pos_diff, distance,
+                                                  neighbor_system,
+                                                  v_particle_system, v_neighbor_system,
+                                                  particle, neighbor, pos_diff, distance,
                                                   m_b, rho_a, rho_b, grad_kernel)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
-            current_velocity(v_neighbor_system_system, neighbor_system_system, neighbor_system)
+            current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
     vdiff += continuity_equation_shifting_term(shifting_technique(particle_system),
-                                               particle_system, neighbor_system_system,
-                                               particle, neighbor_system, rho_a, rho_b)
+                                               particle_system, neighbor_system,
+                                               particle, neighbor, rho_a, rho_b)
 
     dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
 
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
-    if particle_system === neighbor_system_system
+    if particle_system === neighbor_system
         density_diffusion!(dv, density_diffusion(particle_system),
-                           v_particle_system, particle, neighbor_system,
+                           v_particle_system, particle, neighbor,
                            pos_diff, distance, m_b, rho_a, rho_b, particle_system,
                            grad_kernel)
     end
