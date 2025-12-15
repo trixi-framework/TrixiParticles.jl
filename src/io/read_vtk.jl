@@ -1,10 +1,15 @@
 """
-	vtk2trixi(file::String)
+	vtk2trixi(file::String; element_type=:default, coordinates_eltype=Float64)
 
 Load VTK file and convert data to an [`InitialCondition`](@ref).
 
 # Arguments
 - `file`: Name of the VTK file to be loaded.
+
+# Keywords
+- `element_type`: Element type for particle fields (`:default` keeps the type
+    stored in the VTK file, otherwise converted to the given type).
+- `coordinates_eltype`: Element type for particle coordinates (defaults to `Float64`).
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
@@ -31,18 +36,22 @@ ic = vtk2trixi(joinpath("out", "rectangular.vtu"))
 │ eltype: …………………………………………………………… Float64                                                          │
 │ coordinate eltype: ……………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
-````
+```
 """
-function vtk2trixi(file)
+function vtk2trixi(file; element_type=:default, coordinates_eltype=Float64)
     vtk_file = ReadVTK.VTKFile(file)
 
     # Retrieve data fields (e.g., pressure, velocity, ...)
     point_data = ReadVTK.get_point_data(vtk_file)
     field_data = ReadVTK.get_field_data(vtk_file)
+    point_coords = ReadVTK.get_points(vtk_file)
+
+    cELTYPE = coordinates_eltype
+    ELTYPE = element_type === :default ? eltype(point_coords) : element_type
 
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))
-    coordinates = ReadVTK.get_points(vtk_file)[1:ndims, :]
+    coordinates = convert.(cELTYPE, point_coords[1:ndims, :])
 
     fields = ["velocity", "density", "pressure", "mass", "particle_spacing"]
     results = Dict{String, Array{Float64}}()
@@ -52,11 +61,11 @@ function vtk2trixi(file)
         all_keys = keys(point_data)
         idx = findfirst(k -> occursin(field, k), all_keys)
         if idx !== nothing
-            results[field] = ReadVTK.get_data(point_data[all_keys[idx]])
+            results[field] = convert.(ELTYPE, ReadVTK.get_data(point_data[all_keys[idx]]))
         else
             # Use zeros as default values when a field is missing
             results[field] = field in ["mass"] ?
-                             zeros(size(coordinates, 2)) : zero(coordinates)
+                             zeros(ELTYPE, size(coordinates, 2)) : zero(coordinates)
             @info "No '$field' field found in VTK file. Will be set to zero."
         end
     end
@@ -65,7 +74,8 @@ function vtk2trixi(file)
                        first(results["particle_spacing"]) :
                        results["particle_spacing"]
 
-    return InitialCondition(; coordinates, particle_spacing=particle_spacing,
+    return InitialCondition(; coordinates,
+                            particle_spacing=convert(ELTYPE, particle_spacing),
                             velocity=results["velocity"],
                             mass=results["mass"],
                             density=results["density"],
