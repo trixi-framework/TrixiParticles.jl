@@ -1,6 +1,46 @@
 include("write_vtk.jl")
 include("read_vtk.jl")
-include("restart.jl")
+
+"""
+    save_checkpoint(sol; output_directory="out_checkpoints", filename="checkpoint")
+
+Save `sol` in a JLD2 file for simulation restart capabilities.
+
+# Arguments
+- `sol`:              The `ODESolution` returned by `solve` of `OrdinaryDiffEq`.
+- `output_directory`: Directory to save the JLD2 file. Defaults to `"out_checkpoints"`.
+- `filename`:         Name of the JLD2 file (without extension). Defaults to `"checkpoint"`.
+
+# Returns
+- `file::String`: Path to the saved checkpoint file.
+"""
+function save_checkpoint(sol::TrixiParticlesODESolution;
+                         output_directory="out_checkpoints", filename="checkpoint")
+    isdir(output_directory) || mkpath(output_directory)
+
+    file = joinpath(output_directory, filename * ".jld2")
+
+    JLD2.jldopen(file, "w") do f
+        f["sol"] = sol
+    end
+
+    return file
+end
+
+"""
+    load_checkpoint(file)
+
+Load checkpoint data from a JLD2 file.
+
+# Arguments
+- `file::String`: Path to the checkpoint JLD2 file.
+
+# Returns
+- `sol::ODESolution`: The `ODESolution` loaded from the checkpoint file.
+"""
+function load_checkpoint(file)
+    return JLD2.load(file)["sol"]
+end
 
 # Handle "_" on optional prefix strings
 add_underscore_to_optional_prefix(str) = (str === "" ? "" : "$(str)_")

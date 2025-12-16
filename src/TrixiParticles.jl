@@ -61,6 +61,7 @@ include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
 include("visualization/recipes_plots.jl")
 include("io/io.jl")
+include("general/restart.jl")
 
 export Semidiscretization, semidiscretize, restart_with!, semidiscretize_from_checkpoint
 export InitialCondition
