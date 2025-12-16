@@ -119,3 +119,7 @@ end
     # Nothing to do in the update step
     return boundary_model
 end
+
+function restart_with!(system, boundary_model::BoundaryModelMonaghanKajtar, v, u)
+    return system
+end

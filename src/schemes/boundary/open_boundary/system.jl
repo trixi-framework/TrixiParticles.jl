@@ -659,3 +659,16 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
 
     return system
 end
+
+function restart_with!(system::OpenBoundarySystem, v, u)
+    indices = CartesianIndices(system.initial_condition.velocity)
+    copyto!(system.initial_condition.velocity, indices, v, indices)
+    copyto!(system.initial_condition.coordinates, indices, u, indices)
+
+    restart_with!(system, system.fluid_system, system.boundary_model, v, u)
+end
+
+function restart_with!(system::OpenBoundarySystem, fluid_system::AbstractFluidSystem,
+                       boundary_model, v, u)
+    return system
+end
