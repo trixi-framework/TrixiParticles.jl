@@ -342,3 +342,9 @@ without the need to specifically identify those near the free surface.
 To further handle incomplete kernel support, for example in the viscous term of the momentum equation,
 the updated velocity of particles within the [`BoundaryZone`](@ref) is projected onto the face normal,
 so that only the component in flow direction is kept.
+
+# Pressure Models
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "pressure_model.jl")]
+```

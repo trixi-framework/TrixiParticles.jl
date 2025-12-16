@@ -12,7 +12,8 @@ function Base.setdiff(initial_condition::InitialCondition,
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
-    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
+    coords = reinterpret(reshape,
+                         SVector{ndims(geometry), eltype(initial_condition.coordinates)},
                          initial_condition.coordinates)
 
     delete_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)
@@ -38,7 +39,8 @@ function Base.intersect(initial_condition::InitialCondition,
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
 
-    coords = reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)},
+    coords = reinterpret(reshape,
+                         SVector{ndims(geometry), eltype(initial_condition.coordinates)},
                          initial_condition.coordinates)
 
     keep_indices, _ = WindingNumberJacobson(; geometry)(geometry, coords)
@@ -125,8 +127,8 @@ function oriented_bounding_box(point_cloud)
     min_corner = minimum(aligned_coords, dims=2)
     max_corner = maximum(aligned_coords, dims=2)
 
-    face_vertices = hcat(min_corner, max_corner,
-                         [min_corner[1], max_corner[2], min_corner[3]])
+    face_vertices = hcat([min_corner[1], max_corner[2], min_corner[3]],
+                         min_corner, max_corner)
 
     return eigen_vectors * face_vertices .+ means
 end
