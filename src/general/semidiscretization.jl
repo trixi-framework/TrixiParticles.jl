@@ -394,14 +394,14 @@ function restart_with!(semi, sol; reset_threads=true)
         Polyester.reset_threads!()
     end
 
-    initialize_neighborhood_searches!(semi)
-
     foreach_system(semi) do system
         v = wrap_v(sol.u[end].x[1], system, semi)
         u = wrap_u(sol.u[end].x[2], system, semi)
 
         restart_with!(system, v, u)
     end
+
+    initialize_neighborhood_searches!(semi)
 
     # Reset callback flag that will be set by the `UpdateCallback`
     semi.update_callback_used[] = false

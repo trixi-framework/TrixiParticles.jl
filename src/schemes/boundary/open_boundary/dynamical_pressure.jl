@@ -227,3 +227,22 @@ end
 function inverse_state_equation!(density, density_rest, state_equation, pressure, particle)
     return inverse_state_equation!(density, state_equation, pressure, particle)
 end
+
+function restart_with!(system, ::WeaklyCompressibleSPHSystem,
+                       ::BoundaryModelDynamicalPressureZhang, v, u)
+    for particle in each_integrated_particle(system)
+        system.initial_condition.density[particle] = v[end, particle]
+    end
+
+    return system
+end
+
+function restart_with!(system, ::EntropicallyDampedSPHSystem,
+                       ::BoundaryModelDynamicalPressureZhang, v, u)
+    for particle in each_integrated_particle(system)
+        system.initial_condition.pressure[particle] = v[end - 1, particle]
+        system.initial_condition.density[particle] = v[end, particle]
+    end
+
+    return system
+end

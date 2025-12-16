@@ -22,7 +22,7 @@ function save_checkpoint(sol::TrixiParticlesODESolution;
         f["sol"] = sol
     end
 
-    return
+    return file
 end
 
 """
@@ -43,9 +43,7 @@ Load the `ode` from a JLD2 file for simulation restart.
 # See "examples/postprocessing/restart_moving_wall_2d.jl"
 
 """
-function load_checkpoint(; input_directory="out_checkpoints", filename="checkpoint")
-    file = joinpath(input_directory, filename * ".jld2")
-
+function load_checkpoint(file)
     return JLD2.load(file)["sol"]
 end
 

@@ -13,9 +13,9 @@ using OrdinaryDiffEq
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "moving_wall_2d.jl"),
               tspan=(0.0, 1.0))
 
-save_checkpoint(sol)
+file_checkpoint = save_checkpoint(sol)
 
-sol_checkpoint = load_checkpoint()
+sol_checkpoint = load_checkpoint(file_checkpoint)
 
 tspan = (1.0, 2.0)
 ode_checkpoint = semidiscretize_from_checkpoint(sol_checkpoint, tspan)
