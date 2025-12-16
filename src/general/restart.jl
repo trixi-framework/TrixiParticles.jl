@@ -13,6 +13,11 @@ Create a new `ODEProblem` from a checkpoint, restarting the simulation with the 
 # See Also
 - [`load_checkpoint`](@ref): Load a checkpoint from a file.
 - [`save_checkpoint`](@ref): Save a checkpoint to a file.
+
+!!! note
+    This is an experimental implementation.
+    Currently, restart is not supported for TLSPH systems whose initial configuration
+    moves in space (e.g., falling elastic spheres).
 """
 function semidiscretize_from_checkpoint(sol::TrixiParticlesODESolution, tspan;
                                         initialization_backend=PolyesterBackend())

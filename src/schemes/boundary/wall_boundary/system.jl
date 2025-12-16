@@ -232,18 +232,8 @@ function write_v0!(v0,
 end
 
 function restart_with!(system::WallBoundarySystem, v, u)
-    return system
-end
 
-function restart_with!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                       v, u)
-    (; initial_density) = model.cache
-
-    for particle in axes(v, 2)
-        initial_density[particle] = v[1, particle]
-    end
-
-    return system
+    return restart_with!(system, system.boundary_model, v, u)
 end
 
 # To incorporate the effect at boundaries in the viscosity term of the RHS, the neighbor

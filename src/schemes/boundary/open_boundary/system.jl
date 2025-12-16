@@ -579,4 +579,7 @@ function restart_with!(system::OpenBoundarySystem, v, u)
     restart_with!(system, system.fluid_system, system.boundary_model, v, u)
 end
 
-restart_with!(system, fluid_system, boundary_model, v, u) = system
+function restart_with!(system::OpenBoundarySystem, fluid_system::AbstractFluidSystem,
+                       boundary_model, v, u)
+    return system
+end
