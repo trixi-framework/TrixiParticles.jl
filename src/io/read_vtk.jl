@@ -2,7 +2,7 @@
 	vtk2trixi(file::String; element_type=:default, coordinates_eltype=Float64,
               custom_quantities...)
 
-Load VTK file and convert data to a NamedTuple.
+Load VTK file and convert data to a `NamedTuple`.
 
 # Arguments
 - `file`:                 Name of the VTK file to be loaded.
@@ -76,14 +76,17 @@ function vtk2trixi(file; element_type=:default, coordinates_eltype=Float64,
                                  results[:particle_spacing]
     results[:coordinates] = coordinates
     results[:time] = "time" in keys(field_data) ?
-                     first(ReadVTK.get_data(field_data["time"])) : 0.0
+                     first(ReadVTK.get_data(field_data["time"])) : zero(ELTYPE)
 
-    for (key, quantity) in custom_quantities
+    for (key, quantity_) in custom_quantities
+        quantity = string(quantity_)
         if quantity in keys(point_data)
             results[key] = ReadVTK.get_data(point_data[quantity])
-        end
-        if quantity in keys(field_data)
+        elseif quantity in keys(field_data)
             results[key] = first(ReadVTK.get_data(field_data[quantity]))
+        else
+            throw(ArgumentError("Custom quantity '$quantity' not found in VTK file. " *
+                                "Make sure it was included during the simulation."))
         end
     end
 
