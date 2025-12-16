@@ -14,12 +14,14 @@ Create a new `ODEProblem` from a checkpoint, restarting the simulation with the 
 - [`load_checkpoint`](@ref): Load a checkpoint from a file.
 - [`save_checkpoint`](@ref): Save a checkpoint to a file.
 """
-function semidiscretize_from_checkpoint(sol::TrixiParticlesODESolution, tspan)
-    restart_with!(sol)
+function semidiscretize_from_checkpoint(sol::TrixiParticlesODESolution, tspan;
+                                        initialization_backend=PolyesterBackend())
+    restart_with!(sol; initialization_backend)
 
-    return semidiscretize(sol.prob.p, tspan)
+    return semidiscretize(sol.prob.p, tspan; initialization_backend)
 end
 
-function restart_with!(sol::TrixiParticlesODESolution)
-    return restart_with!(sol.prob.p, sol)
+function restart_with!(sol::TrixiParticlesODESolution;
+                       initialization_backend=PolyesterBackend())
+    return restart_with!(sol.prob.p, sol; initialization_backend)
 end

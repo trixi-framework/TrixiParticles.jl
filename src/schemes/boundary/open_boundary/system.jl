@@ -572,10 +572,9 @@ end
 end
 
 function restart_with!(system::OpenBoundarySystem, v, u)
-    for particle in axes(v, 2)
-        system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
-        system.initial_condition.coordinates[:, particle] .= u[:, particle]
-    end
+    indices = CartesianIndices(system.initial_condition.velocity)
+    copyto!(system.initial_condition.velocity, indices, v, indices)
+    copyto!(system.initial_condition.coordinates, indices, u, indices)
 
     restart_with!(system, system.fluid_system, system.boundary_model, v, u)
 end

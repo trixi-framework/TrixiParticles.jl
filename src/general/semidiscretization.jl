@@ -288,7 +288,8 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads=true,
+                        initialization_backend=PolyesterBackend())
     (; systems) = semi
 
     # Check that all systems have the same eltype
@@ -339,7 +340,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
 
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
-    initialize_neighborhood_searches!(semi)
+    initialize_neighborhood_searches!(semi; initialization_backend)
 
     if semi.parallelization_backend isa KernelAbstractions.Backend
         # Convert all arrays to the correct array type.
@@ -386,7 +387,8 @@ in the solution `sol`.
 - `semi`:   The semidiscretization
 - `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
 """
-function restart_with!(semi, sol; reset_threads=true)
+function restart_with!(semi, sol; reset_threads=true,
+                       initialization_backend=PolyesterBackend())
     # Optionally reset Polyester.jl threads. See
     # https://github.com/trixi-framework/Trixi.jl/issues/1583
     # https://github.com/JuliaSIMD/Polyester.jl/issues/30
@@ -401,7 +403,7 @@ function restart_with!(semi, sol; reset_threads=true)
         restart_with!(system, v, u)
     end
 
-    initialize_neighborhood_searches!(semi)
+    initialize_neighborhood_searches!(semi; initialization_backend)
 
     # Reset callback flag that will be set by the `UpdateCallback`
     semi.update_callback_used[] = false
@@ -409,7 +411,7 @@ function restart_with!(semi, sol; reset_threads=true)
     return semi
 end
 
-function initialize_neighborhood_searches!(semi)
+function initialize_neighborhood_searches!(semi; initialization_backend=PolyesterBackend())
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
             # TODO Initialize after adapting to the GPU.
@@ -419,7 +421,7 @@ function initialize_neighborhood_searches!(semi)
                                        initial_coordinates(system),
                                        initial_coordinates(neighbor),
                                        eachindex_y=each_active_particle(neighbor),
-                                       parallelization_backend=PolyesterBackend())
+                                       parallelization_backend=initialization_backend)
         end
     end
 
