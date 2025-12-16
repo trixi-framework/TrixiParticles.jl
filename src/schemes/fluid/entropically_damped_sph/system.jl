@@ -374,7 +374,7 @@ function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
 end
 
 function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
-    for particle in each_integrated_particle(system)
+    for particle in axes(v, 2)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
         system.initial_condition.pressure[particle] = v[end, particle]

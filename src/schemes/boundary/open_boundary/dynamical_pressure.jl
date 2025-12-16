@@ -230,7 +230,7 @@ end
 
 function restart_with!(system, ::WeaklyCompressibleSPHSystem,
                        ::BoundaryModelDynamicalPressureZhang, v, u)
-    for particle in each_integrated_particle(system)
+    for particle in axes(v, 2)
         system.initial_condition.density[particle] = v[end, particle]
     end
 
@@ -239,7 +239,7 @@ end
 
 function restart_with!(system, ::EntropicallyDampedSPHSystem,
                        ::BoundaryModelDynamicalPressureZhang, v, u)
-    for particle in each_integrated_particle(system)
+    for particle in axes(v, 2)
         system.initial_condition.pressure[particle] = v[end - 1, particle]
         system.initial_condition.density[particle] = v[end, particle]
     end

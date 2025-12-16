@@ -572,9 +572,9 @@ end
 end
 
 function restart_with!(system::OpenBoundarySystem, v, u)
-    for particle in each_integrated_particle(system)
-        system.initial_condition.coordinates[:, particle] .= u[:, particle]
+    for particle in axes(v, 2)
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
+        system.initial_condition.coordinates[:, particle] .= u[:, particle]
     end
 
     restart_with!(system, system.fluid_system, system.boundary_model, v, u)
