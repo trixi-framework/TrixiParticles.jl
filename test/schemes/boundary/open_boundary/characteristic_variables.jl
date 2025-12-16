@@ -2,7 +2,7 @@
     particle_spacing = 0.1
 
     # Number of boundary particles in the influence of fluid particles
-    influenced_particles = [20, 52, 26]
+    influenced_particles = [20, 50, 26]
 
     open_boundary_layers = 8
     sound_speed = 20.0

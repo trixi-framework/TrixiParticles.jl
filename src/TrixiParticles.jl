@@ -15,7 +15,7 @@ using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
-using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
+using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
@@ -25,7 +25,6 @@ using Random: seed!
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
                  add_tstop!, get_du
-
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
@@ -77,7 +76,7 @@ export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechni
        ContinuityEquationTermSun2019, MomentumEquationTermSun2019
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
-       WendlandC6Kernel, SpikyKernel, Poly6Kernel
+       WendlandC6Kernel, SpikyKernel, Poly6Kernel, LaguerreGaussKernel
 export StateEquationCole, StateEquationIdealGas
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS
@@ -86,11 +85,12 @@ export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
        BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,
-       BernoulliPressureExtrapolation
+       BernoulliPressureExtrapolation, PressureBoundaries
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel
 export RCRWindkesselModel
 export PrescribedMotion, OscillatingMotion2D
+export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape

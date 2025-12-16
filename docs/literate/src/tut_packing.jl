@@ -1,4 +1,4 @@
-# # Particle Packing Tutorial
+# # [Particle Packing Tutorial](@id tut_packing)
 
 # In this tutorial, we will guide you through the complete particle packing pipeline.
 # The algorithmic background is explained in [Particle Packing](@ref particle_packing).
@@ -140,7 +140,7 @@ background_pressure = 1.0
 
 # For particle interaction, we select a [smoothing kernel](@ref smoothing_kernel)
 # with a suitable smoothing length. Empirically, a factor of `0.8` times the
-# particle spacing gives good results [Neher2025](@cite).
+# particle spacing gives good results [Neher2026](@cite).
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 smoothing_length = 0.8 * particle_spacing
 
@@ -152,7 +152,7 @@ packing_system = ParticlePackingSystem(shape_sampled;
                                        signed_distance_field=nothing, background_pressure)
 
 # We now proceed with the familiar steps
-# "Semidiscretization" and "Time integration" from the fluid tutorials.
+# "Semidiscretization" and "Time integration" from the [basic tutorial](@ref tut_setup).
 semi = Semidiscretization(packing_system)
 
 ## Use a high `tspan` to guarantee that the simulation runs for at least `maxiters`
@@ -203,7 +203,7 @@ plot(packed_ic)
 plot!(geometry, seriestype=:path, color=:black, label=nothing, linewidth=2)
 
 # We can see that the particles now stay inside the geometry,
-# but their distribution near the surface can still be improved by adding boundary particles [Neher2025](@cite).
+# but their distribution near the surface can still be improved by adding boundary particles [Neher2026](@cite).
 # Therefore, we set up a dedicated boundary packing system
 # by setting `is_boundary = true`.
 # For convex geometries, it is useful to slightly compress the

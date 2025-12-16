@@ -138,7 +138,7 @@ The momentum equation therefore becomes
 where the first sum is over all fluid particles and the second over all boundary particles.
 
 This approach was first mentioned by [Akinci et al. (2012)](@cite Akinci2012) and written down in this form
-by [Band et al. (2018)](@cite Band2018).
+by [Band et al. (2018)](@cite Band2018a).
 ```@docs
     PressureMirroring
 ```
