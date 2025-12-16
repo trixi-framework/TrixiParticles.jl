@@ -1,16 +1,15 @@
 """
-    save_checkpoint(semi, sol; output_directory="out", filename="solution")
+    save_checkpoint(sol; output_directory="out_checkpoints", filename="checkpoint")
 
-Save `semi` and `sol` in a JLD2 file for simulation restart capabilities.
+Save `sol` in a JLD2 file for simulation restart capabilities.
 
 # Arguments
-- `semi`:             The semidiscretization.
 - `sol`:              The `ODESolution` returned by `solve` of `OrdinaryDiffEq`.
-- `output_directory`: Directory to save the JLD2 file.
-- `filename`:         Name of the JLD2 file.
+- `output_directory`: Directory to save the JLD2 file. Defaults to `"out_checkpoints"`.
+- `filename`:         Name of the JLD2 file (without extension). Defaults to `"checkpoint"`.
 
-# Example
-# See "examples/postprocessing/restart_moving_wall_2d.jl"
+# Returns
+- `file::String`: Path to the saved checkpoint file.
 """
 function save_checkpoint(sol::TrixiParticlesODESolution;
                          output_directory="out_checkpoints", filename="checkpoint")
@@ -26,27 +25,36 @@ function save_checkpoint(sol::TrixiParticlesODESolution;
 end
 
 """
-    load_checkpoint(t_end; input_directory="out", filename="solution")
+    load_checkpoint(file)
 
-Load the `ode` from a JLD2 file for simulation restart.
+Load checkpoint data from a JLD2 file.
 
 # Arguments
-- `t_end`:            The final time for the continuation of the simulation.
-- `input_directory`:  Directory where the JLD2 file is located.
-- `filename`:         Name of the JLD2 file.
+- `file::String`: Path to the checkpoint JLD2 file.
 
 # Returns
-- `ode`: The new `ODEProblem` object, initialized with the state and setup loaded
-         from the file.
-
-# Example
-# See "examples/postprocessing/restart_moving_wall_2d.jl"
-
+- `sol::ODESolution`: The `ODESolution` loaded from the checkpoint file.
 """
 function load_checkpoint(file)
     return JLD2.load(file)["sol"]
 end
 
+"""
+    semidiscretize_from_checkpoint(sol::ODESolution, tspan)
+
+Create a new `ODEProblem` from a checkpoint, restarting the simulation with the loaded state.
+
+# Arguments
+- `sol::ODESolution`: The solution loaded from a checkpoint (see [`load_checkpoint`](@ref)).
+- `tspan::Tuple`: Time span for the continued simulation.
+
+# Returns
+- `ode:ODEProblem`: A new `ODEProblem` object initialized from the checkpoint state.
+
+# See Also
+- [`load_checkpoint`](@ref): Load a checkpoint from a file.
+- [`save_checkpoint`](@ref): Save a checkpoint to a file.
+"""
 function semidiscretize_from_checkpoint(sol::TrixiParticlesODESolution, tspan)
     restart_with!(sol)
 
