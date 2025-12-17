@@ -2,11 +2,12 @@ struct CheckpointCallback{I}
     interval         :: I
     output_directory :: String
     filename         :: String
+    overwrite        :: Bool
 end
 
 function CheckpointCallback(; interval::Integer=-1, dt=0.0,
                             output_directory=joinpath("out", "checkpoints"),
-                            filename="checkpoint")
+                            filename="checkpoint", overwrite=false)
     if dt > 0 && interval !== -1
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
@@ -15,7 +16,8 @@ function CheckpointCallback(; interval::Integer=-1, dt=0.0,
         interval = Float64(dt)
     end
 
-    checkpoint_callback = CheckpointCallback(interval, output_directory, filename)
+    checkpoint_callback = CheckpointCallback(interval, output_directory, filename,
+                                             overwrite)
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -53,16 +55,22 @@ end
 
 # `affect!`
 function (checkpoint_callback::CheckpointCallback)(integrator)
-    (; interval, output_directory, filename) = checkpoint_callback
+    (; interval, output_directory, filename, overwrite) = checkpoint_callback
 
     @trixi_timeit timer() "save checkpoint" begin
         vu_ode = integrator.u
         v_ode, u_ode = vu_ode.x
         semi = integrator.p
-        iter = get_iter(interval, integrator)
+
+        if overwrite
+            filename = filename_
+        else
+            iter = get_iter(interval, integrator)
+            filename_ = (filename * add_underscore_to_optional_postfix(iter))
+        end
 
         save_checkpoint(v_ode, u_ode, semi, integrator.t; output_directory,
-                        filename=(filename * add_underscore_to_optional_postfix(iter)))
+                        filename=filename_)
     end
 
     # Tell OrdinaryDiffEq that `u` has not been modified
@@ -93,7 +101,8 @@ function Base.show(io::IO, ::MIME"text/plain",
         checkpoint_cb = cb.affect!
         setup = [
             "interval" => checkpoint_cb.interval,
-            "output_directory" => checkpoint_cb.output_directory
+            "output_directory" => checkpoint_cb.output_directory,
+            "overwrite file" => checkpoint_cb.overwrite ? "yes" : "no"
         ]
         summary_box(io, "CheckpointCallback", setup)
     end
@@ -110,7 +119,8 @@ function Base.show(io::IO, ::MIME"text/plain",
         checkpoint_cb = cb.affect!.affect!
         setup = [
             "dt" => checkpoint_cb.interval,
-            "output_directory" => checkpoint_cb.output_directory
+            "output_directory" => checkpoint_cb.output_directory,
+            "overwrite file" => checkpoint_cb.overwrite ? "yes" : "no"
         ]
         summary_box(io, "CheckpointCallback", setup)
     end
