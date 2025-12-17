@@ -5,6 +5,39 @@ struct CheckpointSolution{V, U, ELTYPE}
     semi::Semidiscretization
 end
 
+function Base.show(io::IO, sol::CheckpointSolution)
+    @nospecialize sol # reduce precompilation time
+
+    print(io, "CheckpointSolution(")
+    semi = sol.semi
+    for system in semi.systems
+        print(io, system, ", ")
+    end
+    print(io, "neighborhood_search=")
+    print(io, semi.neighborhood_searches |> eltype |> eltype |> nameof)
+    print(io, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", sol::CheckpointSolution)
+    @nospecialize sol # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, sol)
+    else
+        semi = sol.semi
+        summary_header(io, "CheckpointSolution")
+        summary_line(io, "time stamp", "$(sol.time_stamp) sec.")
+        summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
+        summary_line(io, "#systems", length(semi.systems))
+        summary_line(io, "neighborhood search",
+                     semi.neighborhood_searches |> eltype |> eltype |> nameof)
+        summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
+        summary_line(io, "eltype", eltype(semi.systems[1]))
+        summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
+        summary_footer(io)
+    end
+end
+
 """
     semidiscretize_from_checkpoint(sol::TrixiParticles.CheckpointSolution, tspan)
 
