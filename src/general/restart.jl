@@ -1,6 +1,7 @@
-struct CheckpointSolution{V, U}
+struct CheckpointSolution{V, U, ELTYPE}
     v_ode::V
     u_ode::U
+    time_stamp::ELTYPE
     semi::Semidiscretization
 end
 
@@ -49,6 +50,9 @@ function semidiscretize_from_checkpoint(sol::CheckpointSolution, tspan)
 
         restart_with!(system, v, u)
     end
+
+    # Reset callback flag that will be set by the `UpdateCallback`
+    semi_new.update_callback_used[] = false
 
     return DynamicalODEProblem(kick!, drift!, v_ode, u_ode, tspan, semi_new)
 end

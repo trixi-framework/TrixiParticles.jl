@@ -30,6 +30,7 @@ using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, 
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
 using StrideArraysCore: PtrArray, StaticInt
+using Suppressor: @suppress
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings, TrixiBase
@@ -71,7 +72,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       SplitIntegrationCallback
+       SplitIntegrationCallback, CheckpointCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
