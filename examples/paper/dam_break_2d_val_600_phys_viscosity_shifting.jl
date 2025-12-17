@@ -43,7 +43,7 @@ trixi_include(@__MODULE__,
               extra_string="_phys_viscosity_shifting",
               viscosity_fluid=viscosity_fluid,
               particles_per_height=resolution,
-              shifting_technique=ConsistentShiftingSun2019(),
+              shifting_technique=ConsistentShiftingSun2019(sound_speed_factor=0.1),
               #   shifting_technique=ParticleShiftingTechniqueSun2017(),
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
               tspan=(0.0, 7 / sqrt(9.81 / 0.6)), # This is used by De Courcy et al. (2024)

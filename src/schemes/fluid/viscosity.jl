@@ -101,6 +101,13 @@ end
     smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
     smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
+    #TODO
+    if neighbor_system isa AbstractFluidSystem &&
+       abs(neighbor_system.state_equation.reference_density -
+           particle_system.state_equation.reference_density) > 1
+        smoothing_length_average *= Float32(0.75)
+    end
+
     nu_a = kinematic_viscosity(particle_system,
                                viscosity_model(neighbor_system, particle_system),
                                smoothing_length_particle, sound_speed)

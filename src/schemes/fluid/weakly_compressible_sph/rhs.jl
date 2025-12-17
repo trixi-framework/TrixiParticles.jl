@@ -34,10 +34,11 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 distance
         smoothing_length_ = smoothing_length(particle_system, particle)
 
+        # TODO
         if neighbor_system isa AbstractFluidSystem &&
            abs(neighbor_system.state_equation.reference_density -
                particle_system.state_equation.reference_density) > 1
-            smoothing_length_ *= Float32(0.5)
+            smoothing_length_ *= Float32(0.75)
         end
 
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are

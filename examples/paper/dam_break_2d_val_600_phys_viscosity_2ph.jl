@@ -23,15 +23,14 @@ H = 0.6
 # `resolution` in this case is set relative to `H`, the initial height of the fluid.
 # Use 40, 80 or 400 for validation.
 # Note: 400 takes about 30 minutes on a large data center CPU (much longer with serial update)
-resolution = 200
+resolution = 300
 
 #TODO: duplicated
 fluid_particle_spacing = H / resolution
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=fluid_particle_spacing,
-              sol=nothing,
-              ode=nothing)
+              sol=nothing, ode=nothing)
 
 # tank_size = (floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing, 4.0)
 
@@ -48,12 +47,15 @@ nu_water = 8.9E-7*10
 nu_air = 1.544E-5*10
 
 # switch to physical viscosity model
+# viscosity_fluid = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+
 viscosity_fluid = ViscosityMorris(nu=nu_water)
 # viscosity_fluid = ViscosityAdami(nu = 8.9E-7)
 #  viscosity_fluid = nothing
 
 # set air viscosity model
 viscosity_air = ViscosityMorris(nu=nu_air)
+# viscosity_air = ArtificialViscosityMonaghan(alpha=0.2, beta=0.0)
 
 #TODO: duplicated
 smoothing_length = 2 * fluid_particle_spacing
@@ -89,11 +91,18 @@ sound_speed=50 * sqrt(9.81 * 0.6)
 gravity = 9.81
 
 air_eos = StateEquationCole(; sound_speed, reference_density=air_density, exponent=1,
-                            clip_negative_pressure=false, background_pressure=10.0)
+                            clip_negative_pressure=false, background_pressure=0.0)
 
-air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calculator,
-                                                air_eos, smoothing_kernel, smoothing_length,
+air_system_system = WeaklyCompressibleSPHSystem(air_system,
+                                                fluid_density_calculator,
+                                                air_eos,
+                                                smoothing_kernel,
+                                                smoothing_length,
                                                 viscosity=viscosity_air,
+                                                reference_particle_spacing=fluid_particle_spacing,
+                                                density_diffusion=DensityDiffusionAntuono(air_system,
+                                                                                          delta=0.2),
+                                                shifting_technique=ConsistentShiftingSun2019(sound_speed_factor=0.2),
                                                 acceleration=(0.0, -gravity))
 
 tank_air_density = fill!(similar(tank.boundary.density), air_density)
@@ -116,7 +125,7 @@ trixi_include(@__MODULE__,
               joinpath(validation_dir(), "dam_break_2d",
                        "setup_marrone_2011.jl"),
               use_edac=false,
-              extra_string="_phys_viscosity_2ph_v2_pa10",
+              extra_string="_phys_viscosity_2ph_pst",
               viscosity_fluid=viscosity_fluid,
               particles_per_height=resolution,
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024) (120)

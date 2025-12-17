@@ -37,8 +37,10 @@ tspan = (0.0, 5.7 / sqrt(gravity / H))
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (W, H)
+# tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing,
+#              2.0+10*fluid_particle_spacing)
 tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing,
-             2.0+10*fluid_particle_spacing)
+             2.0)
 
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * H)
@@ -125,8 +127,8 @@ time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
 #             dt=1.0, # This is overwritten by the stepsize callback
 #             save_everystep=false, callback=callbacks);
 sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-6, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-4, # Limit stepsize to prevent crashing
             maxiters=1e7,
             save_everystep=false, callback=callbacks);

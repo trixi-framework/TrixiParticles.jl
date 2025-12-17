@@ -20,8 +20,9 @@ function create_cache_shifting(initial_condition, ::AbstractShiftingTechnique)
 
     nct = zeros(eltype(initial_condition), nparticles(initial_condition))
     bnct = zeros(eltype(initial_condition), nparticles(initial_condition))
+    onct = zeros(eltype(initial_condition), nparticles(initial_condition))
 
-    return (; delta_v, nct, bnct)
+    return (; delta_v, nct, bnct, onct)
 end
 
 # `δv` is the correction to the particle velocity due to the shifting.
@@ -1156,18 +1157,27 @@ modify_shifting_at_free_surfaces!(sys, u, semi, u_ode; neighbor_factor_off=0.75,
 #     return system
 # end
 
+# working
+# function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
+#                                            threshold_off::Real=0.75,
+#                                            threshold_on::Real=0.9,
+#                                            minimum_shifting::Real=0.0,
+#                                            boundary_threshold_off::Real=0.8,
+#                                            other_threshold_off::Real=0.5)
 function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
-                                           threshold_off::Real=0.75, #2 78 #3 70 > 65 already rounds out too much # 70 #Losing in corner with 0.7 #0.75 -> ends with 49% #0.8 ends with 55% loses still in corner #0.85 the same
-                                           threshold_on::Real=0.9, #2 95 #3 90 still fine #2 90
-                                           minimum_shifting::Real=0.0, #3 03 0.1 <- detaches 0.05 detaches from wall #2 0
+                                           threshold_off::Real=0.5, # 0.6 looks fine
+                                           threshold_on::Real=0.8,
+                                           minimum_shifting::Real=0.0,
                                            exponent::Real=2.5,
-                                           boundary_threshold_off::Real=0.8) #2 2.5 #2 2.0 worse #2 3.0 #today: increased from 0.5 to 0.6 (better) -> 0.7 (no real difference) -> 0.8
+                                           boundary_threshold_off::Real=0.8, # early pen at 25% with 0.9
+                                           other_threshold_off::Real=0.25) # too much shifting at the interface with 0.5/0.4, 0.3 better but not great, 0.2 no shifting at the interface
     dim = ndims(system)
     epsT = eps(eltype(system.cache.delta_v))
 
     coordsA = current_coordinates(u, system)
     set_zero!(system.cache.nct)
     set_zero!(system.cache.bnct)
+    set_zero!(system.cache.onct)
 
     # Count how many fluid neighbors each particle has to its own system (phase)
     foreach_point_neighbor(system, system, coordsA, coordsA, semi;
@@ -1182,12 +1192,25 @@ function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
         uB = wrap_u(u_ode, sysB, semi)
         coordsB = current_coordinates(uB, sysB)
 
-        if sysB isa AbstractBoundarySystem || sysB isa AbstractStructureSystem
+        # only count as  boundary neighbors if the densities are similar
+        if sysB isa AbstractBoundarySystem ||
+           sysB isa AbstractStructureSystem &&
+           abs(neighbor_system.boundary_model.state_equation.reference_density-particle_system.state_equation.reference_density) <
+           1
             foreach_point_neighbor(system, sysB, coordsA, coordsB, semi;
                                    points=each_integrated_particle(system)) do a, b,
                                                                                pos_diff,
                                                                                distance
                 @inbounds system.cache.bnct[a] += 1
+            end
+        else
+            if system !== sysB && sysB isa AbstractFluidSystem
+                foreach_point_neighbor(system, sysB, coordsA, coordsB, semi;
+                                       points=each_integrated_particle(system)) do a, b,
+                                                                                   pos_diff,
+                                                                                   distance
+                    @inbounds system.cache.onct[a] += 1
+                end
             end
         end
     end
@@ -1197,20 +1220,37 @@ function modify_shifting_at_free_surfaces!(system, u, semi, u_ode;
 
     inv_range = 1 / (threshold_on - threshold_off + epsT)
     @threaded semi for a in each_integrated_particle(system)
-        neighbor_factor = @inbounds system.cache.nct[a] / Nref # 0..1 proxy for support fullness
-        bneighbor_factor = @inbounds system.cache.bnct[a] / (system.cache.nct[a] + system.cache.bnct[a])
-        if system.cache.bnct[a] > 0 && bneighbor_factor >= boundary_threshold_off
-            neighbor_factor = 0 # disable shifting
-        end
+        if @inbounds system.cache.nct[a] > 0
+            neighbor_factor = @inbounds system.cache.nct[a] / Nref # 0..1 proxy for support fullness
 
-        s = (neighbor_factor - threshold_off) * inv_range # linear ramp -> neighbor_factor > threshold_on -> s>=1
-        s_clamped = s < epsT ? 0 : (s > 1 ? 1 : s) # clamp to [0,1]
+            bneighbor_factor = @inbounds system.cache.bnct[a] /
+                                            (system.cache.nct[a] + system.cache.bnct[a])
+            oneighbor_factor = @inbounds system.cache.onct[a] /
+                                            (system.cache.nct[a] + system.cache.onct[a])
 
-        spow = s_clamped^exponent # shape the ramp
-        scale = max(minimum_shifting, spow)
+            # since we compute the boundary neighbor factor from the boundary neighbor count and the boundary + same phase neighbor count,
+            # we can determine if a particle is dominated by boundary neighbors.
+            if system.cache.bnct[a] > 0 && bneighbor_factor >= boundary_threshold_off
+                neighbor_factor = 0 # disable shifting
+            end
 
-        for i in 1:dim
-            @inbounds system.cache.delta_v[i, a] *= scale
+            if system.cache.onct[a] > 0 && oneighbor_factor >= other_threshold_off
+                neighbor_factor = 0 # disable shifting
+            end
+
+            s = (neighbor_factor - threshold_off) * inv_range # linear ramp -> neighbor_factor > threshold_on -> s>=1
+            s_clamped = s < epsT ? 0 : (s > 1 ? 1 : s) # clamp to [0,1]
+
+            spow = s_clamped^exponent # shape the ramp
+            scale = max(minimum_shifting, spow)
+
+            for i in 1:dim
+                @inbounds system.cache.delta_v[i, a] *= scale
+            end
+        else
+            for i in 1:dim
+                @inbounds system.cache.delta_v[i, a] = 0
+            end
         end
     end
 
