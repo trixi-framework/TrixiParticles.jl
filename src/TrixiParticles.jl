@@ -13,6 +13,7 @@ using FastPow: @fastpow
 using FileIO: FileIO
 using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
+using JLD2: JLD2
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
@@ -58,10 +59,11 @@ include("callbacks/callbacks.jl")
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
-include("io/io.jl")
 include("visualization/recipes_plots.jl")
+include("io/io.jl")
+include("general/restart.jl")
 
-export Semidiscretization, semidiscretize, restart_with!
+export Semidiscretization, semidiscretize, restart_with!, semidiscretize_from_checkpoint
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        WallBoundarySystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySystem,
@@ -92,6 +94,7 @@ export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
+export save_checkpoint, load_checkpoint
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson

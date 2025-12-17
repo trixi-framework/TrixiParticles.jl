@@ -1,6 +1,63 @@
 include("write_vtk.jl")
 include("read_vtk.jl")
 
+"""
+    save_checkpoint(sol; output_directory="out_checkpoints", filename="checkpoint")
+
+Save `sol` in a JLD2 file for simulation restart capabilities.
+
+# Arguments
+- `sol`:              The `ODESolution` returned by `solve` of `OrdinaryDiffEq`.
+- `output_directory`: Directory to save the JLD2 file. Defaults to `"out_checkpoints"`.
+- `filename`:         Name of the JLD2 file (without extension). Defaults to `"checkpoint"`.
+
+# Returns
+- `file::String`: Path to the saved checkpoint file.
+"""
+function save_checkpoint(sol::TrixiParticlesODESolution;
+                         output_directory="out_checkpoints", filename="checkpoint")
+    v_ode = sol.u[end].x[1]
+    u_ode = sol.u[end].x[2]
+    semi = sol.prob.p
+
+    return save_checkpoint(v_ode, u_ode, semi; output_directory, filename)
+end
+
+function save_checkpoint(v_ode, u_ode, semi::Semidiscretization;
+                         output_directory="out_checkpoints", filename="checkpoint")
+    isdir(output_directory) || mkpath(output_directory)
+
+    file = joinpath(output_directory, filename * ".jld2")
+
+    JLD2.jldopen(file, "w") do f
+        f["v_ode"] = v_ode
+        f["u_ode"] = u_ode
+        f["semi"] = semi
+    end
+
+    return file
+end
+
+"""
+    load_checkpoint(file)
+
+Load checkpoint data from a JLD2 file.
+
+# Arguments
+- `file::String`: Path to the checkpoint JLD2 file.
+
+# Returns
+- `sol`: The `TrixiParticles.CheckpointSolution` loaded from the checkpoint file.
+"""
+function load_checkpoint(file)
+    variables = JLD2.load(file)
+    v_ode = variables["v_ode"]
+    u_ode = variables["u_ode"]
+    semi = variables["semi"]
+
+    return CheckpointSolution(v_ode, u_ode, semi)
+end
+
 # Handle "_" on optional prefix strings
 add_underscore_to_optional_prefix(str) = (str === "" ? "" : "$(str)_")
 # Same for optional postfix strings

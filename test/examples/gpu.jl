@@ -644,5 +644,59 @@ end
                                        1958.2637, 1888.739, 802.3146, -187.81871])
             end
         end
+
+        @testset verbose=true "Restart" begin
+            # Run full simulation
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fluid",
+                                                   "poiseuille_flow_2d.jl"),
+                                          tspan=(0.0f0, 0.5f0), sound_speed_factor=10,
+                                          particle_spacing=4.0f-5,
+                                          coordinates_eltype=Float32,
+                                          parallelization_backend=Main.parallelization_backend)
+
+            # Since this is an open boundary simulation, the number of active particles may
+            # differ. The results must be interpolated to enable comparison with the restart
+            # simulation. The fluid domain starts at `x = 10 * particle_spacing`.
+            n_interpolation_points = 10
+            start_point = [0.0f0 + 10 * particle_spacing, wall_distance / 2]
+            end_point = [flow_length - 10 * particle_spacing, wall_distance / 2]
+            result_full = interpolate_line(start_point, end_point, n_interpolation_points,
+                                           sol.prob.p, sol.prob.p.systems[1], sol,
+                                           cut_off_bnd=false)
+
+            # Run half simulation and safe checkpoint
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fluid",
+                                                   "poiseuille_flow_2d.jl"),
+                                          tspan=(0.0f0, 0.25f0), sound_speed_factor=10,
+                                          particle_spacing=4.0f-5,
+                                          coordinates_eltype=Float32,
+                                          parallelization_backend=Main.parallelization_backend)
+
+            tmp_dir = mktempdir()
+            file_checkpoint = save_checkpoint(sol; output_directory=tmp_dir)
+
+            # Load checkpoint and run remaining simulation
+            sol_checkpoint = load_checkpoint(file_checkpoint)
+
+            tspan = (0.25f0, 0.5f0)
+            ode_checkpoint = semidiscretize_from_checkpoint(sol_checkpoint, tspan)
+
+            callbacks = CallbackSet(UpdateCallback())
+
+            sol_restart = solve(ode_checkpoint, RDPK3SpFSAL35(), abstol=1.0f-6,
+                                reltol=1.0f-4, dtmax=1.0f-2, save_everystep=false,
+                                callback=callbacks)
+
+            result_restart = interpolate_line(start_point, end_point,
+                                              n_interpolation_points, sol_restart.prob.p,
+                                              sol_restart.prob.p.systems[1],
+                                              sol_restart, cut_off_bnd=false)
+
+            @test isapprox(result_full.velocity, result_restart.velocity, rtol=3e-3)
+            @test isapprox(result_full.density, result_restart.density, rtol=2e-4)
+            @test isapprox(result_full.pressure, result_restart.pressure, rtol=3e-2)
+        end
     end
 end

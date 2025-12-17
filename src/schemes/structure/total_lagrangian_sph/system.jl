@@ -476,9 +476,13 @@ function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
 end
 
 function restart_with!(system::TotalLagrangianSPHSystem, v, u)
-    for particle in each_integrated_particle(system)
-        system.current_coordinates[:, particle] .= u[:, particle]
-        system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
+    (; velocity) = system.initial_condition
+
+    @threaded default_backend(velocity) for particle in each_integrated_particle(system)
+        for dim in 1:ndims(system)
+            velocity[dim, particle] = v[dim, particle]
+            system.current_coordinates[dim, particle] = u[dim, particle]
+        end
     end
 
     # This is dispatched in the boundary system.jl file
