@@ -63,7 +63,7 @@ function (checkpoint_callback::CheckpointCallback)(integrator)
         semi = integrator.p
 
         if overwrite
-            filename = filename_
+            filename_ = filename
         else
             iter = get_iter(interval, integrator)
             filename_ = (filename * add_underscore_to_optional_postfix(iter))
