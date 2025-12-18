@@ -82,14 +82,6 @@ W = 2 * H
 # Import variables from the example file
 alpha = 0.01
 viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-shifting_technique = nothing
-# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-#               alpha=0.01,
-#               sol=nothing,
-#               ode=nothing,
-#               shifting_technique=shifting_technique,
-#               viscosity_fluid=viscosity_fluid,
-#               fluid_particle_spacing=particle_spacing)
 
 
 boundary_layers = 4
@@ -159,7 +151,7 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
 extra_system = nothing
 extra_system2 = nothing
 semi = Semidiscretization(fluid_system, boundary_system, extra_system, extra_system2,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
+                          neighborhood_search=neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 
 tspan = (0.0, 7 / sqrt(9.81 / 0.6)) # This is used by De Courcy et al. (2024)
@@ -173,17 +165,11 @@ formatted_string = string(particles_per_height) * extra_string
 solution_prefix = "validation_" * formatted_string
 saving_callback = SolutionSavingCallback(dt=0.01, prefix=solution_prefix)
 
-# This can be overwritten with `trixi_include`
-extra_callback = nothing
-extra_callback2 = nothing
-
 use_reinit = false
 density_reinit_cb = use_reinit ?
                     DensityReinitializationCallback(semi.systems[1], interval=10) :
                     nothing
 stepsize_callback = StepsizeCallback(cfl=0.9)
-
-fluid_density = 1000.0
 
 # Sensor positions used by De Courcy et al. (2024)
 sensor_size = 0.0084
