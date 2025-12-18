@@ -5,6 +5,7 @@
 # In: Computer Methods in Applied Mechanics and Engineering, Volume 420 (2024),
 # https://doi.org/10.1016/j.cma.2023.116700
 
+using OrdinaryDiffEq
 using TrixiParticles
 using TrixiParticles.JSON
 using CUDA
@@ -109,7 +110,7 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=1, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       n_layers=boundary_layers,
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
 # ==========================================================================================
@@ -160,11 +161,16 @@ extra_system2 = nothing
 semi = Semidiscretization(fluid_system, boundary_system, extra_system, extra_system2,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
                           parallelization_backend=PolyesterBackend())
+
+tspan = (0.0, 7 / sqrt(9.81 / 0.6)) # This is used by De Courcy et al. (2024)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-solution_prefix = "validation_" * method * "_" * formatted_string
+extra_string = ""
+formatted_string = string(particles_per_height) * extra_string
+
+solution_prefix = "validation_" * formatted_string
 saving_callback = SolutionSavingCallback(dt=0.01, prefix=solution_prefix)
 
 # This can be overwritten with `trixi_include`
@@ -176,9 +182,6 @@ density_reinit_cb = use_reinit ?
                     DensityReinitializationCallback(semi.systems[1], interval=10) :
                     nothing
 stepsize_callback = StepsizeCallback(cfl=0.9)
-
-
-tspan = (0.0, 7 / sqrt(9.81 / 0.6)) # This is used by De Courcy et al. (2024)
 
 fluid_density = 1000.0
 
@@ -215,8 +218,7 @@ pressure_P4 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
 method = "wcsph"
 
 
-extra_string = ""
-formatted_string = string(particles_per_height) * extra_string
+
 
 postprocessing_cb = PostprocessCallback(; dt=0.01 / sqrt(gravity / H),
                                         output_directory="out",
