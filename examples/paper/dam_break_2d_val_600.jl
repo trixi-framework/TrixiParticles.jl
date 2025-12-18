@@ -9,6 +9,27 @@ using TrixiParticles
 using TrixiParticles.JSON
 using CUDA
 
+
+function max_x_coord(system, data, t)
+    return maximum(view(data.coordinates, 1, :))
+end
+
+function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system, semi) end
+
+function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t,
+                               system::TrixiParticles.AbstractFluidSystem, semi)
+    n_interpolation_points = 10
+    interpolated_values = interpolate_line(coord_top, coord_bottom,
+                                           n_interpolation_points, semi, system, v_ode,
+                                           u_ode,
+                                           #    smoothing_length=2.0 *
+                                           #                     TrixiParticles.initial_smoothing_length(system),
+                                           clip_negative_pressure=true, cut_off_bnd=false)
+    return sum(map(x -> isnan(x) ? 0.0 : x, interpolated_values.pressure)) /
+           n_interpolation_points
+end
+# ==========================================================================================
+
 # When using data center CPUs with large numbers of cores, especially on multi-socket
 # systems with multiple NUMA nodes, pinning threads to cores can significantly
 # improve performance, even for low resolutions.
@@ -51,25 +72,6 @@ neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
 # In: Computer Methods in Applied Mechanics and Engineering, Volume 420 (2024),
 # https://doi.org/10.1016/j.cma.2023.116700
 
-function max_x_coord(system, data, t)
-    return maximum(view(data.coordinates, 1, :))
-end
-
-function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system, semi) end
-
-function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t,
-                               system::TrixiParticles.AbstractFluidSystem, semi)
-    n_interpolation_points = 10
-    interpolated_values = interpolate_line(coord_top, coord_bottom,
-                                           n_interpolation_points, semi, system, v_ode,
-                                           u_ode,
-                                           #    smoothing_length=2.0 *
-                                           #                     TrixiParticles.initial_smoothing_length(system),
-                                           clip_negative_pressure=true, cut_off_bnd=false)
-    return sum(map(x -> isnan(x) ? 0.0 : x, interpolated_values.pressure)) /
-           n_interpolation_points
-end
-# ==========================================================================================
 
 H = 0.6
 particle_spacing = H / particles_per_height
@@ -87,7 +89,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing)
 
 
-tspan = (0.0, 7 / sqrt(9.81 / 0.6)), # This is used by De Courcy et al. (2024)
+tspan = (0.0, 7 / sqrt(9.81 / 0.6)) # This is used by De Courcy et al. (2024)
 
 fluid_density = 1000.0
 
