@@ -204,6 +204,36 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
     return dt
 end
 
+function calculate_interface_dt(v_ode, u_ode, cfl_number,
+                                system::AbstractFluidSystem,
+                                neighbor_system::AbstractFluidSystem,
+                                semi)
+    h_interface = harmmean((initial_smoothing_length(system),
+                            initial_smoothing_length(neighbor_system)))
+
+    c_system = system_sound_speed(system)
+    c_neighbor_system = system_sound_speed(neighbor_system)
+
+    # Adami et al. (2012) suggest that the stiffest interface waves travel with
+    # an impedance-limited signal speed; using the harmonic mean of both phase
+    # sound speeds penalizes strong contrasts already at t = 0.
+    signal_speed = harmmean((c_system, c_neighbor_system))
+    signal_speed == 0 && return Inf
+    dt_acoustic = cfl_number * h_interface / signal_speed
+
+    # Antuono et al. (2015) show stability requires Δt ∝ h² / nu. Summing both
+    # kinematic viscosities reflects the shear layer that forms across the interface.
+    nu_system = kinematic_viscosity(system, system.viscosity, h_interface, c_system)
+    nu_neighbor_system = kinematic_viscosity(neighbor_system, neighbor_system.viscosity,
+                                             h_interface, c_neighbor_system)
+    nu_interface = nu_system + nu_neighbor_system
+    dt_viscosity = nu_interface > 0 ?
+                   0.125 * h_interface^2 / nu_interface :
+                   Inf
+
+    return minimum((dt_acoustic, dt_viscosity))
+end
+
 @inline function surface_tension_model(system::AbstractFluidSystem)
     return system.surface_tension
 end
