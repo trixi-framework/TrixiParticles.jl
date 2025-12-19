@@ -199,7 +199,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 
 base_folder = "paper/dam_break/"
-case = "600_val"
+case = "600_val_1"
 
 postprocessing_cb = PostprocessCallback(; dt=0.01 / sqrt(gravity / H),
                                         output_directory="$(base_folder)$(case)/sensors",
