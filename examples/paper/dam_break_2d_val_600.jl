@@ -34,8 +34,8 @@ end
 # When using data center CPUs with large numbers of cores, especially on multi-socket
 # systems with multiple NUMA nodes, pinning threads to cores can significantly
 # improve performance, even for low resolutions.
-# using ThreadPinning
-# pinthreads(:numa)
+using ThreadPinning
+pinthreads(:numa)
 
 # `resolution` in this case is set relative to `H`, the initial height of the fluid.
 # Use 40, 80 or 400 for validation.
@@ -134,23 +134,10 @@ method = "wcsph"
 extra_string = ""
 formatted_string = string(particles_per_height) * extra_string
 
-postprocessing_cb = PostprocessCallback(; dt=0.01 / sqrt(gravity / H),
-                                        output_directory="out",
-                                        filename="validation_result_dam_break_" *
-                                                 method * "_" * formatted_string,
-                                        write_csv=false, exclude_boundary=false,
-                                        max_x_coord,
-                                        pressure_P1, pressure_P2,
-                                        pressure_P3, pressure_P4)
-
 # Disable loop flipping to produce consistent results over different thread numbers
 boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=false)
 
-# Save at certain timepoints which allows comparison to the results of Marrone et al.,
-# i.e. t(g/H)^(1/2) = (1.5, 2.36, 3.0, 5.7, 6.45).
-# Note that the images in Marrone et al. are obtained with `particles_per_height = 320`.
-saving_paper = SolutionSavingCallback(save_times=[0.0, 1.5, 2.36, 3.0, 5.7, 6.45] ./
-                                                 sqrt(gravity / H), prefix="marrone_times")
+
 
 # ==========================================================================================
 # ==== Fluid
@@ -211,8 +198,29 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
+base_folder = "paper/dam_break/"
+case = "600_val"
+
+postprocessing_cb = PostprocessCallback(; dt=0.01 / sqrt(gravity / H),
+                                        output_directory="$(base_folder)$(case)/sensors",
+                                        filename="validation_result_dam_break_" *
+                                                 method * "_" * formatted_string,
+                                        write_csv=false,
+                                        exclude_boundary=false,
+                                        max_x_coord,
+                                        pressure_P1, pressure_P2,
+                                        pressure_P3, pressure_P4)
+
+# Save at certain timepoints which allows comparison to the results of Marrone et al.,
+# i.e. t(g/H)^(1/2) = (1.5, 2.36, 3.0, 5.7, 6.45).
+# Note that the images in Marrone et al. are obtained with `particles_per_height = 320`.
+saving_paper = SolutionSavingCallback(save_times=[0.0, 1.5, 2.36, 3.0, 5.7, 6.45] ./
+                                                 sqrt(gravity / H), prefix="marrone_times",
+                                                 output_directory="$(base_folder)$(case)/")
+
 solution_prefix = "validation_" * formatted_string
-saving_callback = SolutionSavingCallback(dt=0.01, prefix=solution_prefix)
+saving_callback = SolutionSavingCallback(dt=0.01, prefix=solution_prefix,
+                                                 output_directory="$(base_folder)$(case)/")
 
 use_reinit = false
 density_reinit_cb = use_reinit ?
