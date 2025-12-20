@@ -203,6 +203,83 @@
                                                       "postprocessing.jl"))
             @test sol.retcode == ReturnCode.Success
         end
+
+        @trixi_testset "Restart" begin
+            # Use an analytical velocity profile to test the custom function functionality
+            # of open boundaries during restart and to enable a 10x lower sound speed factor
+            # for faster simulation.
+            # Analytical velocity evolution given in eq. 16 (Zhang et al., 2025)
+            function poiseuille_velocity(y, t)
+
+                # Base profile (stationary part)
+                base_profile = (pressure_drop / (2 * dynamic_viscosity * flow_length)) * y *
+                               (y - wall_distance)
+
+                # Transient terms (Fourier series)
+                transient_sum = 0.0
+
+                for n in 0:10  # Limit to 10 terms for convergence
+                    coefficient = (4 * pressure_drop * wall_distance^2) /
+                                  (dynamic_viscosity * flow_length * pi^3 * (2 * n + 1)^3)
+
+                    sine_term = sin(pi * y * (2 * n + 1) / wall_distance)
+
+                    exp_term = exp(-((2 * n + 1)^2 * pi^2 * dynamic_viscosity * t) /
+                                   (fluid_density * wall_distance^2))
+
+                    transient_sum += coefficient * sine_term * exp_term
+                end
+
+                # Total velocity
+                v_x = base_profile + transient_sum
+
+                return -v_x
+            end
+            reference_velocity_in = (pos, t) -> SVector(poiseuille_velocity(pos[2], t), 0.0)
+
+            # Run full simulation
+            trixi_include(@__MODULE__,
+                          joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
+                          tspan=(0.0, 1.0), sound_speed_factor=10, particle_spacing=4e-5,
+                          reference_velocity_in=reference_velocity_in)
+
+            # Since this is an open boundary simulation, the number of active particles may
+            # differ. The results must be interpolated to enable comparison with the restart
+            # simulation. The fluid domain starts at `x = 10 * particle_spacing`.
+            n_interpolation_points = 10
+            start_point = [0.0 + 10 * particle_spacing, wall_distance / 2]
+            end_point = [flow_length - 10 * particle_spacing, wall_distance / 2]
+            result_full = interpolate_line(start_point, end_point, n_interpolation_points,
+                                           semi, fluid_system, sol, cut_off_bnd=false)
+
+            # Run half simulation and safe checkpoint
+            trixi_include(@__MODULE__,
+                          joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
+                          tspan=(0.0, 0.5), sound_speed_factor=10, particle_spacing=4e-5,
+                          reference_velocity_in=reference_velocity_in)
+
+            tmp_dir = mktempdir()
+            file_checkpoint = save_checkpoint(sol; output_directory=tmp_dir)
+
+            # Load checkpoint and run remaining simulation
+            sol_checkpoint = load_checkpoint(file_checkpoint)
+
+            tspan = (0.5, 1.0)
+            ode_checkpoint = semidiscretize_from_checkpoint(sol_checkpoint, tspan)
+
+            callbacks = CallbackSet(UpdateCallback())
+
+            sol_restart = solve(ode_checkpoint, RDPK3SpFSAL35(), abstol=1e-6, reltol=1e-4,
+                                dtmax=1e-2, save_everystep=false, callback=callbacks)
+            result_restart = interpolate_line(start_point, end_point,
+                                              n_interpolation_points, sol_restart.prob.p,
+                                              sol_restart.prob.p.systems[1],
+                                              sol_restart, cut_off_bnd=false)
+
+            @test isapprox(result_full.velocity, result_restart.velocity, rtol=2e-3)
+            @test isapprox(result_full.density, result_restart.density, rtol=8e-5)
+            @test isapprox(result_full.pressure, result_restart.pressure, rtol=8e-3)
+        end
     end
 
     @testset verbose=true "Preprocessing" begin

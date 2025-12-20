@@ -697,3 +697,14 @@ end
 @inline function correction_matrix(system::AbstractBoundarySystem, particle)
     extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
 end
+
+restart_with!(system, ::BoundaryModelDummyParticles, v, u) = system
+
+function restart_with!(system,
+                       boundary_model::BoundaryModelDummyParticles{ContinuityDensity}, v, u)
+    (; initial_density) = boundary_model.cache
+
+    initial_density .= v[1, :]
+
+    return system
+end

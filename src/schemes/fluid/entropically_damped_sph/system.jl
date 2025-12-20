@@ -374,9 +374,9 @@ function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
 end
 
 function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
-    for particle in each_integrated_particle(system)
-        system.initial_condition.coordinates[:, particle] .= u[:, particle]
-        system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
-        system.initial_condition.pressure[particle] = v[end, particle]
-    end
+    indices = CartesianIndices(system.initial_condition.velocity)
+    copyto!(system.initial_condition.velocity, indices, v, indices)
+    copyto!(system.initial_condition.coordinates, indices, u, indices)
+
+    system.initial_condition.pressure .= v[end, :]
 end

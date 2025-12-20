@@ -1,4 +1,4 @@
-# Used by `SolutionSavingCallback` and `DensityReinitializationCallback`
+# Used by `SolutionSavingCallback`, `DensityReinitializationCallback` and `CheckpointCallback`
 get_iter(::Integer, integrator) = integrator.stats.naccept
 function get_iter(dt::AbstractFloat, integrator)
     # Basically `(t - tspan[1]) / dt` as `Int`.
@@ -33,3 +33,4 @@ include("stepsize.jl")
 include("update.jl")
 include("steady_state_reached.jl")
 include("split_integration.jl")
+include("checkpoint.jl")
