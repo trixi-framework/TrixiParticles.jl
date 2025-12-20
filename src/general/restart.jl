@@ -77,13 +77,6 @@ function semidiscretize_from_checkpoint(sol::CheckpointSolution, tspan)
         semi_new = semi
     end
 
-    foreach_system(semi_new) do system
-        v = wrap_v(v_ode, system, semi_new)
-        u = wrap_u(u_ode, system, semi_new)
-
-        restart_with!(system, v, u)
-    end
-
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
