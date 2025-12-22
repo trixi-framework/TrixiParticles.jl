@@ -54,7 +54,7 @@
             is_moving(t) = true
 
             tests = Dict(
-                "all particles clamped" => 1:nparticles(structure),
+                "all particles clamped" => eachparticle(structure),
                 # Clamp everything but the top two layers of the beam
                 "some particles clamped" => 1:(nparticles(structure) - 162)
             )
@@ -112,7 +112,7 @@
                                              sound_speed=50.0,
                                              ode=nothing, sol=nothing)
 
-            # Move the tank up against gravity by 1 unit over 1 second
+            # Move the tank up against gravity smoothly by 1 unit over 1 second
             function movement_function(x, t)
                 return x + SVector(0.0, 0.5 * sin(pi * (t - 0.5)) + 0.5)
             end
@@ -129,7 +129,7 @@
             tlsph_system = TotalLagrangianSPHSystem(tank.boundary, tlsph_kernel,
                                                     tlsph_smoothing_length,
                                                     1.0e6, 0.3,
-                                                    n_clamped_particles=nparticles(tank.boundary),
+                                                    clamped_particles=eachparticle(tank.boundary),
                                                     acceleration=(0.0, -gravity),
                                                     clamped_particles_motion=prescribed_motion,
                                                     boundary_model=boundary_model)
