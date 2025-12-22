@@ -4,15 +4,15 @@ using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
-n_particles_y = 6
+n_particles_y = 4
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 3.0)
+tspan = (0.0, 2.0)
 
 fin_length = 0.6
-fin_thickness = 10e-3
-flexural_rigidity = 6.0
+fin_thickness = 30e-3
+flexural_rigidity = 60.0
 poisson_ratio = 0.3
 modulus = 12 * (1 - poisson_ratio^2) * flexural_rigidity / (fin_thickness^3)
 
@@ -66,106 +66,139 @@ fixed_particles = setdiff(shape_sampled, beam)
 
 # structure = union(beam, fixed_particles)
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
-boundary_layers = 4
-spacing_ratio = 1
+# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
+boundary_layers = 3
+
+# Make sure that the kernel support of fluid particles at an open boundary is always
+# fully sampled.
+# Note: Due to the dynamics at the inlets and outlets of open boundaries,
+# it is recommended to use `open_boundary_layers > boundary_layers`
+open_boundary_layers = 6
+
 fluid_density = 1000.0
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       n_layers=boundary_layers,
                        faces=(false, false, true, true), velocity=initial_velocity)
 # fluid = setdiff(tank.fluid, structure)
 
+open_boundary_size = (fluid_particle_spacing * open_boundary_layers, tank_size[2])
+
+min_coords_inlet = (-open_boundary_layers * fluid_particle_spacing, 0.0)
+inlet = RectangularTank(fluid_particle_spacing, open_boundary_size, open_boundary_size,
+                        fluid_density, n_layers=boundary_layers,
+                        min_coordinates=min_coords_inlet,
+                        faces=(false, false, true, true))
+
+min_coords_outlet = (tank.fluid_size[1], 0.0)
+outlet = RectangularTank(fluid_particle_spacing, open_boundary_size, open_boundary_size,
+                         fluid_density, n_layers=boundary_layers,
+                         min_coordinates=min_coords_outlet,
+                         faces=(false, false, true, true))
+
+
+NDIMS = ndims(tank.fluid)
+n_buffer_particles = 10 * tank.n_particles_per_dimension[2]^(NDIMS - 1)
+
 # ==========================================================================================
 # ==== Packing
-foot_sdf = SignedDistanceField(geometry, particle_spacing;
-                               max_signed_distance=4 * particle_spacing,
-                               use_for_boundary_packing=true)
+packing = false
+if packing
+    foot_sdf = SignedDistanceField(geometry, particle_spacing;
+                                max_signed_distance=4 * particle_spacing,
+                                use_for_boundary_packing=true)
 
-boundary_packing = sample_boundary(foot_sdf; boundary_density=density,
-                                   boundary_thickness=4 * particle_spacing)
-boundary_packing = setdiff(boundary_packing, beam)
+    boundary_packing = sample_boundary(foot_sdf; boundary_density=density,
+                                    boundary_thickness=4 * particle_spacing)
+    boundary_packing = setdiff(boundary_packing, beam)
 
-background_pressure = 1.0
-smoothing_length_packing = 0.8 * particle_spacing
-foot_packing_system = ParticlePackingSystem(fixed_particles; smoothing_length=smoothing_length_packing,
-                                            signed_distance_field=foot_sdf, background_pressure)
+    background_pressure = 1.0
+    smoothing_length_packing = 0.8 * particle_spacing
+    foot_packing_system = ParticlePackingSystem(fixed_particles; smoothing_length=smoothing_length_packing,
+                                                signed_distance_field=foot_sdf, background_pressure)
 
-fluid_packing_system = ParticlePackingSystem(boundary_packing; smoothing_length=smoothing_length_packing,
-                                             signed_distance_field=foot_sdf, is_boundary=true, background_pressure,
-                                             boundary_compress_factor=0.8)
+    fluid_packing_system = ParticlePackingSystem(boundary_packing; smoothing_length=smoothing_length_packing,
+                                                signed_distance_field=foot_sdf, is_boundary=true, background_pressure,
+                                                boundary_compress_factor=0.8)
 
-blade_packing_system = ParticlePackingSystem(beam; smoothing_length=smoothing_length_packing,
-                                             fixed_system=true, signed_distance_field=nothing, background_pressure)
+    blade_packing_system = ParticlePackingSystem(beam; smoothing_length=smoothing_length_packing,
+                                                fixed_system=true, signed_distance_field=nothing, background_pressure)
 
-min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
-max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
-periodic_box = PeriodicBox(; min_corner, max_corner)
-cell_list = FullGridCellList(; min_corner, max_corner)
-neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list, update_strategy=ParallelUpdate())
+    min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
+    max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
+    periodic_box = PeriodicBox(; min_corner, max_corner)
+    cell_list = FullGridCellList(; min_corner, max_corner)
+    neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list, update_strategy=ParallelUpdate())
 
-semi_packing = Semidiscretization(foot_packing_system, fluid_packing_system,
-                                  blade_packing_system; neighborhood_search)
+    semi_packing = Semidiscretization(foot_packing_system, fluid_packing_system,
+                                    blade_packing_system; neighborhood_search)
 
-ode_packing = semidiscretize(semi_packing, (0.0, 10.0))
+    ode_packing = semidiscretize(semi_packing, (0.0, 10.0))
 
-sol_packing = solve(ode_packing, RDPK3SpFSAL35();
-            save_everystep=false,
-            callback=CallbackSet(InfoCallback(interval=50),
-                                #  SolutionSavingCallback(interval=50, prefix="packing"),
-                                 UpdateCallback()),
-            dtmax=1e-2)
+    sol_packing = solve(ode_packing, RDPK3SpFSAL35();
+                save_everystep=false,
+                callback=CallbackSet(InfoCallback(interval=50),
+                                    #  SolutionSavingCallback(interval=50, prefix="packing"),
+                                    UpdateCallback()),
+                dtmax=1e-2)
 
-packed_foot = InitialCondition(sol_packing, foot_packing_system, semi_packing)
+    packed_foot = InitialCondition(sol_packing, foot_packing_system, semi_packing)
 
-# Move the fin to the center of the tank
-packed_foot.coordinates .+= center
-beam.coordinates .+= center
+    # Move the fin to the center of the tank
+    packed_foot.coordinates .+= center
+    beam.coordinates .+= center
 
-structure = union(beam, packed_foot)
-fluid = setdiff(tank.fluid, structure)
+    structure = union(beam, packed_foot)
+    fluid = setdiff(tank.fluid, structure)
+
+    # Pack the fluid against the fin and the tank boundary
+    pack_window = TrixiParticles.Polygon(stack([
+                                                [0.15, 0.42],
+                                                [0.3, 0.42],
+                                                [0.44, 0.48],
+                                                [1.12, 0.48],
+                                                [1.12, 0.52],
+                                                [0.55, 0.52],
+                                                [0.5, 0.56],
+                                                [0.24, 0.6],
+                                                [0.15, 0.6],
+                                                [0.15, 0.42]
+                                            ]))
+
+    # Then, we extract the particles that fall inside this window
+    pack_fluid = intersect(fluid, pack_window)
+    # and those outside the window
+    fixed_fluid = setdiff(fluid, pack_fluid)
+    fixed_union = union(fixed_fluid, structure)
+
+    fluid_packing_system = ParticlePackingSystem(pack_fluid; smoothing_length=smoothing_length_packing,
+                                                signed_distance_field=nothing, background_pressure)
+
+    fixed_packing_system = ParticlePackingSystem(fixed_union; smoothing_length=smoothing_length_packing,
+                                                fixed_system=true, signed_distance_field=nothing, background_pressure)
+
+    semi_packing = Semidiscretization(fluid_packing_system, fixed_packing_system;
+                                    neighborhood_search)
+
+    ode_packing = semidiscretize(semi_packing, (0.0, 2.0))
+
+    sol_packing = solve(ode_packing, RDPK3SpFSAL35();
+                save_everystep=false,
+                callback=CallbackSet(InfoCallback(interval=50),
+                                    #  SolutionSavingCallback(interval=50, prefix="packing"),
+                                    UpdateCallback()),
+                dtmax=1e-2)
+
+    fluid = InitialCondition(sol_packing, fluid_packing_system, semi_packing)
+    fluid = union(fluid, fixed_fluid)
+else
+    structure = union(beam, fixed_particles)
+    # Move the fin to the center of the tank
+    structure.coordinates .+= center
+
+    fluid = setdiff(tank.fluid, structure)
+end
 
 n_clamped_particles = nparticles(structure) - nparticles(beam)
-
-# Pack the fluid against the fin and the tank boundary
-pack_window = TrixiParticles.Polygon(stack([
-                                               [0.15, 0.42],
-                                               [0.3, 0.42],
-                                               [0.44, 0.48],
-                                               [1.12, 0.48],
-                                               [1.12, 0.52],
-                                               [0.55, 0.52],
-                                               [0.5, 0.56],
-                                               [0.24, 0.6],
-                                               [0.15, 0.6],
-                                               [0.15, 0.42]
-                                           ]))
-
-# Then, we extract the particles that fall inside this window
-pack_fluid = intersect(fluid, pack_window)
-# and those outside the window
-fixed_fluid = setdiff(fluid, pack_fluid)
-fixed_union = union(fixed_fluid, structure)
-
-fluid_packing_system = ParticlePackingSystem(pack_fluid; smoothing_length=smoothing_length_packing,
-                                             signed_distance_field=nothing, background_pressure)
-
-fixed_packing_system = ParticlePackingSystem(fixed_union; smoothing_length=smoothing_length_packing,
-                                             fixed_system=true, signed_distance_field=nothing, background_pressure)
-
-semi_packing = Semidiscretization(fluid_packing_system, fixed_packing_system;
-                                  neighborhood_search)
-
-ode_packing = semidiscretize(semi_packing, (0.0, 2.0))
-
-sol_packing = solve(ode_packing, RDPK3SpFSAL35();
-            save_everystep=false,
-            callback=CallbackSet(InfoCallback(interval=50),
-                                #  SolutionSavingCallback(interval=50, prefix="packing"),
-                                 UpdateCallback()),
-            dtmax=1e-2)
-
-fluid = InitialCondition(sol_packing, fluid_packing_system, semi_packing)
-fluid = union(fluid, fixed_fluid)
 
 # Movement function
 frequency = 1.3 # Hz
@@ -224,38 +257,77 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length_fluid, viscosity=viscosity_fluid,
                                            density_diffusion=density_diffusion,
-                                           shifting_technique=ParticleShiftingTechnique(),
-                                           pressure_acceleration=tensile_instability_control)
+                                           shifting_technique=ParticleShiftingTechnique(sound_speed_factor=0.2, v_max_factor=0.0),
+                                           pressure_acceleration=tensile_instability_control,
+                                           buffer_size=n_buffer_particles)
 # fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
 #                                            sound_speed, viscosity=ViscosityAdami(; nu),
 #                                            transport_velocity=TransportVelocityAdami(10 * sound_speed^2 * fluid_density))
 
 # ==========================================================================================
+# ==== Open Boundaries
+function velocity_function2d(pos, t)
+    return SVector(1.0, 0.0)
+end
+
+open_boundary_model = BoundaryModelDynamicalPressureZhang()
+# open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
+reference_velocity_in = velocity_function2d
+reference_pressure_in = nothing
+reference_density_in = nothing
+boundary_type_in = InFlow()
+face_in = ([0.0, 0.0], [0.0, tank_size[2]])
+flow_direction = [1.0, 0.0]
+inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
+                      open_boundary_layers, density=fluid_density, particle_spacing,
+                      reference_density=reference_density_in,
+                      reference_pressure=reference_pressure_in,
+                      reference_velocity=reference_velocity_in,
+                      initial_condition=inlet.fluid, boundary_type=boundary_type_in)
+
+reference_velocity_out = SVector(1.0, 0.0)
+reference_pressure_out = nothing
+reference_density_out = nothing
+boundary_type_out = OutFlow()
+face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], tank_size[2]])
+outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
+                       open_boundary_layers, density=fluid_density, particle_spacing,
+                       reference_density=reference_density_out,
+                       reference_pressure=reference_pressure_out,
+                       reference_velocity=reference_velocity_out,
+                       initial_condition=outlet.fluid, boundary_type=boundary_type_out)
+
+open_boundary_system = OpenBoundarySystem(inflow, outflow; fluid_system,
+                                   boundary_model=open_boundary_model,
+                                   buffer_size=n_buffer_particles,
+                                   shifting_technique=nothing)
+
+# ==========================================================================================
 # ==== Boundary
+wall = union(tank.boundary, inlet.boundary, outlet.boundary)
 boundary_density_calculator = AdamiPressureExtrapolation()
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length_fluid)
 
-boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(wall, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
-max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
-periodic_box = PeriodicBox(; min_corner, max_corner)
+min_corner = minimum(wall.coordinates, dims=2) .- fluid_particle_spacing / 2
+max_corner = maximum(wall.coordinates, dims=2) .+ fluid_particle_spacing / 2
 cell_list = FullGridCellList(; min_corner, max_corner)
-neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list, update_strategy=ParallelUpdate())
+neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
 
-semi = Semidiscretization(fluid_system, boundary_system, structure_system; neighborhood_search,
+semi = Semidiscretization(fluid_system, boundary_system, open_boundary_system, structure_system; neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
 
-split_dt = 1e-5
+split_dt = 5e-5
 split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false, dt=split_dt,
                                              maxiters=10^8)
 stepsize_callback = StepsizeCallback(cfl=1.0)
@@ -276,6 +348,9 @@ callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
 #             save_everystep=false, callback=callbacks, maxiters=10^8);
 
 dt_fluid = 1.25e-4
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+sol = solve(ode,
+            # RDPK3SpFSAL35(),
+            CarpenterKennedy2N54(williamson_condition=false),
             dt=dt_fluid, # This is overwritten by the stepsize callback
+            # reltol=1e-5, abstol=1e-7,
             save_everystep=false, callback=callbacks, maxiters=10^8);
