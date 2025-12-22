@@ -137,4 +137,4 @@ makedocs(sitename="TrixiParticles.jl",
          ])
 
 deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",
-           devbranch="main", push_preview = true)
+           devbranch="main", push_preview=true)
