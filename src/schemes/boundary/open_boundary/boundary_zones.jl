@@ -186,7 +186,7 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     NDIMS = ndims(ic)
     ELTYPE = eltype(ic)
     if !(reference_velocity isa Function || isnothing(reference_velocity) ||
-         (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
+         (reference_velocity isa AbstractVector && length(reference_velocity) == NDIMS))
         throw(ArgumentError("`reference_velocity` must be either a function mapping " *
                             "each particle's coordinates and time to its velocity, " *
                             "or, for a constant fluid velocity, a vector of length $NDIMS for a $(NDIMS)D problem holding this velocity"))
