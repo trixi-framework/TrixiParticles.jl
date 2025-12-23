@@ -541,10 +541,10 @@ end
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
-        boundary_pressure_inner!(boundary_model, density_calculator, system,
-                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
-                                 pos_diff, distance, viscosity, cache, pressure,
-                                 pressure_offset)
+        @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
+                                           neighbor_system, v, v_neighbor_system,
+                                           particle, neighbor, pos_diff, distance,
+                                           viscosity, cache, pressure, pressure_offset)
     end
 end
 
@@ -568,60 +568,61 @@ end
                                                                        pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
-        boundary_pressure_inner!(boundary_model, density_calculator, system,
-                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
-                                 pos_diff, distance, viscosity, cache, pressure,
-                                 pressure_offset)
+        @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
+                                           neighbor_system, v, v_neighbor_system,
+                                           particle, neighbor, pos_diff, distance,
+                                           viscosity, cache, pressure, pressure_offset)
     end
 end
 
-@inline function boundary_pressure_inner!(boundary_model, boundary_density_calculator,
-                                          system,
-                                          neighbor_system::Union{AbstractFluidSystem,
-                                                                 OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
-                                          v, v_neighbor_system, particle, neighbor,
-                                          pos_diff, distance, viscosity, cache, pressure,
-                                          pressure_offset)
-    density_neighbor = @inbounds current_density(v_neighbor_system, neighbor_system,
-                                                 neighbor)
+@propagate_inbounds function boundary_pressure_inner!(boundary_model,
+                                                      boundary_density_calculator, system,
+                                                      neighbor_system::Union{AbstractFluidSystem,
+                                                                             OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
+                                                      v, v_neighbor_system, particle,
+                                                      neighbor, pos_diff, distance,
+                                                      viscosity, cache, pressure,
+                                                      pressure_offset)
+    density_neighbor = current_density(v_neighbor_system, neighbor_system, neighbor)
 
     # Fluid pressure term
-    fluid_pressure = @inbounds current_pressure(v_neighbor_system, neighbor_system,
-                                                neighbor)
+    fluid_pressure = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
     # Hydrostatic pressure term from fluid and boundary acceleration
     # TODO: rename acceleration and add a function `system_external_acceleration`
-    resulting_acceleration = @inbounds acceleration_source(neighbor_system) -
-                                       @inbounds current_acceleration(system, particle)
+    resulting_acceleration = acceleration_source(neighbor_system) -
+                             current_acceleration(system, particle)
     hydrostatic_pressure = dot(resulting_acceleration, density_neighbor * pos_diff)
 
     # Additional dynamic pressure term (only with `BernoulliPressureExtrapolation`)
-    dynamic_pressure_ = dynamic_pressure(boundary_density_calculator, density_neighbor,
-                                         v, v_neighbor_system, pos_diff, distance,
-                                         particle, neighbor, system, neighbor_system)
+    dynamic_pressure_ = dynamic_pressure(boundary_density_calculator,
+                                         v, v_neighbor_system, system, neighbor_system,
+                                         particle, neighbor, pos_diff, distance,
+                                         density_neighbor)
 
     sum_pressures = pressure_offset + fluid_pressure + dynamic_pressure_ +
                     hydrostatic_pressure
 
     kernel_weight = smoothing_kernel(boundary_model, distance, particle)
 
-    @inbounds pressure[particle] += sum_pressures * kernel_weight
-    @inbounds cache.volume[particle] += kernel_weight
+    pressure[particle] += sum_pressures * kernel_weight
+    cache.volume[particle] += kernel_weight
 
     compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
                                kernel_weight, particle, neighbor)
 end
 
-@inline function dynamic_pressure(boundary_density_calculator, density_neighbor, v,
-                                  v_neighbor_system, pos_diff, distance, particle, neighbor,
-                                  system, neighbor_system)
+@inline function dynamic_pressure(boundary_density_calculator, v,
+                                  v_neighbor_system, system, neighbor_system, particle,
+                                  neighbor, pos_diff, distance, density_neighbor)
     return zero(density_neighbor)
 end
 
-@inline function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
-                                  density_neighbor, v, v_neighbor_system, pos_diff,
-                                  distance, particle, neighbor,
-                                  system::AbstractBoundarySystem, neighbor_system)
+@propagate_inbounds function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
+                                              v, v_neighbor_system,
+                                              system::AbstractBoundarySystem,
+                                              neighbor_system, particle, neighbor,
+                                              pos_diff, distance, density_neighbor)
     if system.ismoving[]
         relative_velocity = current_velocity(v, system, particle) .-
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -633,10 +634,11 @@ end
     return zero(density_neighbor)
 end
 
-@inline function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
-                                  density_neighbor, v, v_neighbor_system, pos_diff,
-                                  distance, particle, neighbor,
-                                  system::AbstractStructureSystem, neighbor_system)
+@propagate_inbounds function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
+                                              v, v_neighbor_system,
+                                              system::AbstractStructureSystem,
+                                              neighbor_system, particle, neighbor,
+                                              pos_diff, distance, density_neighbor)
     relative_velocity = current_velocity(v, system, particle) .-
                         current_velocity(v_neighbor_system, neighbor_system, neighbor)
     normal_velocity = dot(relative_velocity, pos_diff) / distance
@@ -645,17 +647,19 @@ end
            dot(normal_velocity, normal_velocity) / 2
 end
 
-function compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
-                                    kernel_weight, particle, neighbor)
+@inline function compute_smoothed_velocity!(cache, viscosity, neighbor_system,
+                                            v_neighbor_system, kernel_weight,
+                                            particle, neighbor)
     return cache
 end
 
-function compute_smoothed_velocity!(cache, viscosity::ViscosityAdami, neighbor_system,
-                                    v_neighbor_system, kernel_weight, particle, neighbor)
+@propagate_inbounds function compute_smoothed_velocity!(cache, viscosity::ViscosityAdami,
+                                                        neighbor_system, v_neighbor_system,
+                                                        kernel_weight, particle, neighbor)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
     for dim in eachindex(v_b)
-        @inbounds cache.wall_velocity[dim, particle] += kernel_weight * v_b[dim]
+        cache.wall_velocity[dim, particle] += kernel_weight * v_b[dim]
     end
 
     return cache
