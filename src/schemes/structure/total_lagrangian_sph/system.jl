@@ -336,17 +336,6 @@ function update_tlsph_positions!(system::TotalLagrangianSPHSystem, u, semi)
     return system
 end
 
-# This is much faster on GPUs
-function update_tlsph_positions!(system::TotalLagrangianSPHSystem,
-                                 u::AbstractGPUArray, semi)
-    (; current_coordinates) = system
-
-    indices = CartesianIndices((1:ndims(system), each_integrated_particle(system)))
-    copyto!(current_coordinates, indices, u, indices)
-
-    return system
-end
-
 function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
                                   prescribed_motion::PrescribedMotion, semi, t)
     (; clamped_particles_moving, current_coordinates, cache) = system
