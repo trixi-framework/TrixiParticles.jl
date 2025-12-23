@@ -315,17 +315,36 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; current_coordinates, clamped_particles_motion) = system
+    (; clamped_particles_motion) = system
 
-    # `current_coordinates` stores the coordinates of both integrated and clamped particles.
-    # Copy the coordinates of the integrated particles from `u`.
+    @trixi_timeit timer() "update TLSPH positions" update_tlsph_positions!(system, u, semi)
+
+    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+end
+
+# `current_coordinates` stores the coordinates of both integrated and clamped particles.
+# Copy the coordinates of the integrated particles from `u`.
+function update_tlsph_positions!(system::TotalLagrangianSPHSystem, u, semi)
+    (; current_coordinates) = system
+
     @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
-            current_coordinates[i, particle] = u[i, particle]
+            @inbounds current_coordinates[i, particle] = u[i, particle]
         end
     end
 
-    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+    return system
+end
+
+# This is much faster on GPUs
+function update_tlsph_positions!(system::TotalLagrangianSPHSystem,
+                                 u::AbstractGPUArray, semi)
+    (; current_coordinates) = system
+
+    indices = CartesianIndices((1:ndims(system), each_integrated_particle(system)))
+    copyto!(current_coordinates, indices, u, indices)
+
+    return system
 end
 
 function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
@@ -333,8 +352,10 @@ function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
     (; clamped_particles_moving, current_coordinates, cache) = system
     (; acceleration, velocity) = cache
 
-    prescribed_motion(current_coordinates, velocity, acceleration, clamped_particles_moving,
-                      system, semi, t)
+    @trixi_timeit timer() "apply prescribed motion" begin
+        prescribed_motion(current_coordinates, velocity, acceleration,
+                          clamped_particles_moving, system, semi, t)
+    end
 
     return system
 end
