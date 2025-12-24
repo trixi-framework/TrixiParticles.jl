@@ -168,13 +168,12 @@ end
 struct ThreadedBroadcastArray{T, N, A <: AbstractArray{T, N}, P} <: AbstractArray{T, N}
     array::A
     parallelization_backend::P
+end
 
-    function ThreadedBroadcastArray(array::AbstractArray{T, N};
-                                    parallelization_backend=default_backend(array)) where {T,
-                                                                                           N}
-        new{T, N, typeof(array), typeof(parallelization_backend)}(array,
-                                                                  parallelization_backend)
-    end
+function ThreadedBroadcastArray(array::AbstractArray{T, N};
+                                parallelization_backend=default_backend(array)) where {T,
+                                                                                        N}
+    ThreadedBroadcastArray(array, parallelization_backend)
 end
 
 Base.parent(A::ThreadedBroadcastArray) = A.array
@@ -234,6 +233,19 @@ function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
     end
 
     return dest
+end
+
+Base.copyto!(dest::ThreadedBroadcastArray, indices1::CartesianIndices, src::AbstractArray, indices2::CartesianIndices) =
+    copyto!(parent(dest), indices1, src, indices2)
+
+function Base.mapreduce(f, op, A::ThreadedBroadcastArray{<:Any, <:Any, <:AbstractGPUArray},
+                        As::Union{AbstractArray, Broadcast.Broadcasted}...;
+                        dims=:, init=nothing)
+    mapreduce(f, op, parent(A), As...; dims=dims, init=init)
+end
+
+function Base.any(f::Function, A::ThreadedBroadcastArray{<:Any, <:Any, <:AbstractGPUArray})
+    any(f, parent(A))
 end
 
 # Broadcasting style for `ThreadedBroadcastArray`.
