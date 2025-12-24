@@ -1,6 +1,6 @@
 mutable struct SplitIntegrationCallback
     # Type-stability does not matter here, and it is impossible to implement because
-    # the integration will be created during the initialization.
+    # the integrator will be created during the initialization.
     integrator :: Any
     alg        :: Any
     kwargs     :: Any
@@ -71,15 +71,20 @@ function initialize_split_integration!(cb, u, t, integrator)
     # Create split integrator with TLSPH systems only
     systems = filter(i -> i isa TotalLagrangianSPHSystem, semi.systems)
 
-    # These neighborhood searches are never used
+    # This neighborhood search is never used
+    neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}()
     semi_split = Semidiscretization(systems...,
-                                    neighborhood_search=TrivialNeighborhoodSearch{ndims(first(systems))}(),
+                                    neighborhood_search=neighborhood_search,
                                     parallelization_backend=semi.parallelization_backend)
 
     # Verify that a NHS implementation is used that does not require updates
     # for tlsph-neighbor interaction when neighbor is static.
     foreach_system(semi_split) do system
         foreach_system(semi) do neighbor
+            if system === neighbor
+                # TLSPH self-interaction is using its own NHS
+                return
+            end
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)
             # The first element indicates if the NHS requires an update when the first
             # system (the TLSPH system) changed.
@@ -195,13 +200,17 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
     @trixi_timeit timer() "source terms" add_source_terms!(dv_ode_split, v_ode_split,
                                                            u_ode_split, semi, t;
                                                            semi_wrap=semi_split)
+
+    # foreach_system(semi_split) do system
+    #     save_acceleration!(system, dv_ode_split, semi_split)
+    # end
 end
 
 function drift_split!(du_ode, v_ode, u_ode, p, t)
     drift!(du_ode, v_ode, u_ode, p.semi_split, t)
 end
 
-# Update the systems before calling `interact!` to compute forces.
+# Update the systems before calling `interact!` to compute forces
 function update_systems_split!(semi, v_ode, u_ode, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
@@ -314,6 +323,11 @@ end
             end
         end
     end
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, p::NamedTuple)
+    # The split integrator contains a `NamedTuple`
+    return calculate_dt(v_ode, u_ode, cfl_number, p.semi_split)
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SplitIntegrationCallback})

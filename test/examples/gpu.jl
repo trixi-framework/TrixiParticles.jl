@@ -488,32 +488,14 @@ end
     end
 
     @testset verbose=true "Structure" begin
-        # TODO after https://github.com/trixi-framework/PointNeighbors.jl/pull/10
-        # is merged, there should be no need to use the `FullGridCellList`.
         @trixi_testset "structure/oscillating_beam_2d.jl" begin
-            # Import variables into scope
-            trixi_include_changeprecision(Float32, @__MODULE__,
-                                          joinpath(examples_dir(), "structure",
-                                                   "oscillating_beam_2d.jl"),
-                                          coordinates_eltype=Float32,
-                                          sol=nothing, ode=nothing)
-
-            # Neighborhood search with `FullGridCellList` for GPU compatibility
-            min_corner = minimum(structure.coordinates, dims=2)
-            max_corner = maximum(structure.coordinates, dims=2)
-            cell_list = FullGridCellList(; min_corner, max_corner)
-            semi_fullgrid = Semidiscretization(structure_system,
-                                               neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                             cell_list),
-                                               parallelization_backend=Main.parallelization_backend)
-
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
                                                                       "structure",
                                                                       "oscillating_beam_2d.jl"),
                                                              coordinates_eltype=Float32,
                                                              tspan=(0.0f0, 0.1f0),
-                                                             semi=semi_fullgrid)
+                                                             parallelization_backend=Main.parallelization_backend)
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
