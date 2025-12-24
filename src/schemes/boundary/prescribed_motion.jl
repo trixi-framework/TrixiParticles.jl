@@ -150,11 +150,12 @@ translation_vector = SVector(1.0, 0.0)
 rotation_angle = pi / 2
 rotation_center = SVector(0.0, 0.0)
 
-motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
+motion = OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
                              rotation_center)
 
 # output
 PrescribedMotion{...}
+```
 """
 function OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
                              rotation_center, rotation_phase_offset=0, tspan=(-Inf, Inf),
