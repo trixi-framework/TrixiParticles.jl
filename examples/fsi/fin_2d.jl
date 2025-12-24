@@ -1,6 +1,6 @@
 using TrixiParticles
 using OrdinaryDiffEqLowStorageRK
-# using OrdinaryDiffEqSymplecticRK
+using OrdinaryDiffEqSymplecticRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -12,9 +12,11 @@ tspan = (0.0, 2.0)
 
 fin_length = 0.6
 fin_thickness = 30e-3
-flexural_rigidity = 60.0
+real_thickness = 1e-3
+real_modulus = 125e9
 poisson_ratio = 0.3
-modulus = 12 * (1 - poisson_ratio^2) * flexural_rigidity / (fin_thickness^3)
+flexural_rigidity = real_modulus * real_thickness^3 / (1 - poisson_ratio^2) / 12
+modulus = 12 * (1 - poisson_ratio^2) * flexural_rigidity / fin_thickness^3
 
 fiber_volume_fraction = 0.6
 fiber_density = 1800.0
@@ -266,45 +268,59 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
 
 # ==========================================================================================
 # ==== Open Boundaries
-function velocity_function2d(pos, t)
-    return SVector(1.0, 0.0)
+periodic = false
+if periodic
+    min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
+    max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
+    min_corner = convert.(typeof(fluid_particle_spacing), min_corner)
+    max_corner = convert.(typeof(fluid_particle_spacing), max_corner)
+    periodic_box = PeriodicBox(; min_corner, max_corner)
+    open_boundary_system = nothing
+    wall = tank.boundary
+else
+    periodic_box = nothing
+
+    function velocity_function2d(pos, t)
+        return SVector(1.0, 0.0)
+    end
+
+    open_boundary_model = BoundaryModelDynamicalPressureZhang()
+    # open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
+    reference_velocity_in = velocity_function2d
+    reference_pressure_in = nothing
+    reference_density_in = nothing
+    boundary_type_in = InFlow()
+    face_in = ([0.0, 0.0], [0.0, tank_size[2]])
+    flow_direction = [1.0, 0.0]
+    inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
+                        open_boundary_layers, density=fluid_density, particle_spacing,
+                        reference_density=reference_density_in,
+                        reference_pressure=reference_pressure_in,
+                        reference_velocity=reference_velocity_in,
+                        initial_condition=inlet.fluid, boundary_type=boundary_type_in)
+
+    reference_velocity_out = SVector(1.0, 0.0)
+    reference_pressure_out = nothing
+    reference_density_out = nothing
+    boundary_type_out = OutFlow()
+    face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], tank_size[2]])
+    outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
+                        open_boundary_layers, density=fluid_density, particle_spacing,
+                        reference_density=reference_density_out,
+                        reference_pressure=reference_pressure_out,
+                        reference_velocity=reference_velocity_out,
+                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)
+
+    open_boundary_system = OpenBoundarySystem(inflow, outflow; fluid_system,
+                                    boundary_model=open_boundary_model,
+                                    buffer_size=n_buffer_particles,
+                                    shifting_technique=nothing)
+
+    wall = union(tank.boundary, inlet.boundary, outlet.boundary)
 end
-
-open_boundary_model = BoundaryModelDynamicalPressureZhang()
-# open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
-reference_velocity_in = velocity_function2d
-reference_pressure_in = nothing
-reference_density_in = nothing
-boundary_type_in = InFlow()
-face_in = ([0.0, 0.0], [0.0, tank_size[2]])
-flow_direction = [1.0, 0.0]
-inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
-                      open_boundary_layers, density=fluid_density, particle_spacing,
-                      reference_density=reference_density_in,
-                      reference_pressure=reference_pressure_in,
-                      reference_velocity=reference_velocity_in,
-                      initial_condition=inlet.fluid, boundary_type=boundary_type_in)
-
-reference_velocity_out = SVector(1.0, 0.0)
-reference_pressure_out = nothing
-reference_density_out = nothing
-boundary_type_out = OutFlow()
-face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], tank_size[2]])
-outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
-                       open_boundary_layers, density=fluid_density, particle_spacing,
-                       reference_density=reference_density_out,
-                       reference_pressure=reference_pressure_out,
-                       reference_velocity=reference_velocity_out,
-                       initial_condition=outlet.fluid, boundary_type=boundary_type_out)
-
-open_boundary_system = OpenBoundarySystem(inflow, outflow; fluid_system,
-                                   boundary_model=open_boundary_model,
-                                   buffer_size=n_buffer_particles,
-                                   shifting_technique=nothing)
 
 # ==========================================================================================
 # ==== Boundary
-wall = union(tank.boundary, inlet.boundary, outlet.boundary)
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
                                              state_equation=state_equation,
@@ -318,7 +334,8 @@ boundary_system = WallBoundarySystem(wall, boundary_model)
 min_corner = minimum(wall.coordinates, dims=2) .- fluid_particle_spacing / 2
 max_corner = maximum(wall.coordinates, dims=2) .+ fluid_particle_spacing / 2
 cell_list = FullGridCellList(; min_corner, max_corner)
-neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
+neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list,
+                                                update_strategy=ParallelUpdate())
 
 semi = Semidiscretization(fluid_system, boundary_system, open_boundary_system, structure_system; neighborhood_search,
                           parallelization_backend=PolyesterBackend())
@@ -327,25 +344,23 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
 
-split_dt = 5e-5
-split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false, dt=split_dt,
+split_cfl = 0.5
+# SSPRK104 CFL = 2.5, 15k RHS evaluations
+# CarpenterKennedy2N54 CFL = 1.6, 11k RHS evaluations
+# RK4 CFL = 1.2, 12k RHS evaluations
+# VerletLeapfrog CFL = 0.5, 6.75k RHS evaluations
+# VelocityVerlet CFL = 0.5, 6.75k RHS evaluations
+# DPRKN4 CFL = 1.7, 9k RHS evaluations
+
+split_integration = SplitIntegrationCallback(VerletLeapfrog(), adaptive=false,
+                                             dt=1e-5, # This is overwritten by the stepsize callback
+                                             callback=StepsizeCallback(cfl=split_cfl),
                                              maxiters=10^8)
-stepsize_callback = StepsizeCallback(cfl=1.0)
+
+fluid_cfl = 0.4
+stepsize_callback = StepsizeCallback(cfl=fluid_cfl)
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
                         split_integration, stepsize_callback)
-
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so because forces become extremely large when
-# fluid particles are very close to boundary particles, and the time integration method
-# interprets this as an instability.
-# sol = solve(ode, RDPK3SpFSAL35(),
-#             abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-#             reltol=1e-6, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-#             dtmax=1e-2, # Limit stepsize to prevent crashing
-#             save_everystep=false, callback=callbacks, maxiters=10^8);
 
 dt_fluid = 1.25e-4
 sol = solve(ode,
