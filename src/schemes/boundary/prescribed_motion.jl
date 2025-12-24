@@ -155,7 +155,6 @@ motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
 
 # output
 PrescribedMotion{...}
-```
 """
 function OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
                              rotation_center, rotation_phase_offset=0, tspan=(-Inf, Inf),
