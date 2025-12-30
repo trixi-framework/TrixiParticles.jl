@@ -79,6 +79,12 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 
+    # For `TotalLagrangianSPHSystem`s, create specialized self-interaction NHS.
+    # For other systems, do nothing.
+    systems = map(system -> initialize_self_interaction_nhs(system, neighborhood_search,
+                                                            parallelization_backend),
+                  systems)
+
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
@@ -112,6 +118,12 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
                               parallelization_backend, update_callback_used,
                               integrate_tlsph)
+end
+
+# For non-TLSPH systems, do nothing
+function initialize_self_interaction_nhs(system, neighborhood_search,
+                                         parallelization_backend)
+    return system
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -352,7 +364,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     u0_ode_ = allocate(semi.parallelization_backend, cELTYPE, sum(sizes_u))
     v0_ode_ = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_v))
 
-    if semi.parallelization_backend isa KernelAbstractions.Backend
+    if semi.parallelization_backend isa KernelAbstractions.GPU
         u0_ode = u0_ode_
         v0_ode = v0_ode_
     else
@@ -378,7 +390,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
     initialize_neighborhood_searches!(semi)
 
-    if semi.parallelization_backend isa KernelAbstractions.Backend
+    if semi.parallelization_backend isa KernelAbstractions.GPU
         # Convert all arrays to the correct array type.
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
@@ -395,6 +407,9 @@ function semidiscretize(semi, tspan; reset_threads=true)
                                       semi_.neighborhood_searches,
                                       semi_.parallelization_backend,
                                       semi_.update_callback_used, semi_.integrate_tlsph)
+
+        @warn "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
+              "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
     else
         semi_new = semi
     end
@@ -1128,6 +1143,12 @@ end
 
 function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     (; boundary_model) = system
+
+    if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
+        throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *
+                            "self-interaction neighborhood search must be the same " *
+                            "as of the global neighborhood search."))
+    end
 
     foreach_system(systems) do neighbor
         if neighbor isa AbstractFluidSystem && boundary_model === nothing
