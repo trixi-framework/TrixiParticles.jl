@@ -203,20 +203,25 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     end
 
     if !(reference_pressure isa Function || reference_pressure isa Real ||
-         isnothing(reference_pressure))
+         reference_pressure isa AbstractPressureModel || isnothing(reference_pressure))
         throw(ArgumentError("`reference_pressure` must be either a function mapping " *
                             "each particle's coordinates and time to its pressure, " *
-                            "or a scalar"))
+                            "a scalar, or a pressure model"))
     else
         if reference_pressure isa Function
             test_result = reference_pressure(zeros(NDIMS), 0.0)
             if length(test_result) != 1
                 throw(ArgumentError("`reference_pressure` function must be a scalar function"))
             end
+            pressure_ref = reference_pressure
+        elseif reference_pressure isa AbstractPressureModel
+            pressure_ref = reference_pressure
+            pressure_ref.pressure[] = rest_pressure
+        else
+            # We need this dummy for type stability reasons
+            pressure_dummy = convert(ELTYPE, Inf)
+            pressure_ref = wrap_reference_function(reference_pressure, pressure_dummy)
         end
-        # We need this dummy for type stability reasons
-        pressure_dummy = convert(ELTYPE, Inf)
-        pressure_ref = wrap_reference_function(reference_pressure, pressure_dummy)
     end
 
     if !(reference_density isa Function || reference_density isa Real ||
@@ -243,7 +248,8 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     reference_values = (reference_velocity=velocity_ref, reference_pressure=pressure_ref,
                         reference_density=density_ref)
 
-    coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE}, ic.coordinates)
+    coordinates_svector = reinterpret(reshape, SVector{NDIMS, eltype(ic.coordinates)},
+                                      ic.coordinates)
 
     if prescribed_pressure
         ic.pressure .= pressure_ref.(coordinates_svector, 0)
@@ -360,7 +366,7 @@ function set_up_boundary_zone(boundary_face, face_normal, density, particle_spac
         spanning_set[:, 1] .*= -sign(dot_face_normal)
     end
 
-    spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
+    spanning_set_ = reinterpret(reshape, SVector{NDIMS, eltype(spanning_set)}, spanning_set)
 
     # Remove particles outside the boundary zone.
     # This check is only necessary when `initial_condition` or `extrude_geometry` are passed.
@@ -435,10 +441,18 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
             end
         end
 
-        # This only occurs if `face_normal` is not exactly normal to the `boundary_face`.
-        # In such cases, particles that are actually outside the simulation domain (outflow particles)
-        # may be incorrectly kept active as inflow particles and therefore cannot be assigned to any boundary zone.
-        # This issue should not occur and has been fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/926 .
+        # Assert that every active buffer particle is assigned to a boundary zone.
+        # This should always be true if the boundary zone geometry is set up correctly.
+        # However, rare edge cases during particle conversion (`convert_particle!`)
+        # may leave a particle unassigned. Potential causes for failure:
+        # - `face_normal` is not exactly normal to the `boundary_face`
+        #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/926).
+        # - Large downstream domain expansion can shift an inflow particle to the zone edge;
+        #   even after upstream adjustment it may remain outside
+        #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/997).
+        # - Floating-point rounding when a particle lies almost exactly on the `boundary_face`
+        #   during transition, causing a reset just outside the zone
+        #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/997).
         @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found for active buffer particle"
     end
 

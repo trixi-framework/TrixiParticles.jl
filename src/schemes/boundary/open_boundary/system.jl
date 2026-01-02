@@ -72,9 +72,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                BoundaryModelDynamicalPressureZhang ?
                                                shifting_technique(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
-    reference_values_ = map(bz -> bz.reference_values, boundary_zones_)
 
-    initial_conditions = union((bz.initial_condition for bz in boundary_zones)...)
+    initial_conditions = union((bz.initial_condition for bz in boundary_zones_)...)
 
     buffer = SystemBuffer(nparticles(initial_conditions), buffer_size)
 
@@ -86,7 +85,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     cache = (;
              create_cache_shifting(initial_conditions, shifting_technique)...,
              create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
-                                        reference_values_)...)
+                                        boundary_zones_)...)
 
     fluid_system_index = Ref(0)
 
@@ -101,6 +100,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     # Create new `BoundaryZone`s with `reference_values` set to `nothing` for type stability.
     # `reference_values` are only used as API feature to temporarily store the reference values
     # in the `BoundaryZone`, but they are not used in the actual simulation.
+    # The reference values are extracted above in the "create cache" function
+    # and then stored in `system.cache` as a `Tuple`.
     boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
                                                   zone.spanning_set,
                                                   zone.zone_origin,
@@ -113,7 +114,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   zone.prescribed_density,
                                                   zone.prescribed_pressure,
                                                   zone.prescribed_velocity),
-                             boundary_zones)
+                             boundary_zones_)
 
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
@@ -130,8 +131,9 @@ function initialize!(system::OpenBoundarySystem, semi)
     return system
 end
 
-function create_cache_open_boundary(boundary_model, fluid_system,
-                                    initial_condition, reference_values)
+function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
+                                    boundary_zones)
+    reference_values = map(bz -> bz.reference_values, boundary_zones)
     ELTYPE = eltype(initial_condition)
 
     # Separate `reference_values` into pressure, density and velocity reference values
@@ -217,6 +219,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySystem)
             summary_line(io, "density diffusion", density_diffusion(system))
             summary_line(io, "shifting technique", shifting_technique(system))
         end
+        for (i, pm) in enumerate(system.cache.pressure_reference_values)
+            !isa(pm, AbstractPressureModel) && continue
+            summary_line(io, "pressure model", type2string(pm) * " (in boundary zone $i)")
+        end
         summary_footer(io)
     end
 end
@@ -295,14 +301,18 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
                                         semi, t, integrator)
     (; boundary_model) = system
 
-    u = wrap_u(u_ode, system, semi)
-    v = wrap_v(v_ode, system, semi)
+    @trixi_timeit timer() "update open boundary" begin
+        u = wrap_u(u_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
 
-    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
+        @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-    # Update density, pressure and velocity based on the specific boundary model
-    @trixi_timeit timer() "update boundary quantities" begin
-        update_boundary_quantities!(system, boundary_model, v, u, v_ode, u_ode, semi, t)
+        update_pressure_model!(system, v, u, semi, integrator.dt)
+
+        # Update density, pressure and velocity based on the specific boundary model
+        @trixi_timeit timer() "update boundary quantities" begin
+            update_boundary_quantities!(system, boundary_model, v, u, v_ode, u_ode, semi, t)
+        end
     end
 
     # Tell OrdinaryDiffEq that `integrator.u` has been modified
@@ -411,9 +421,23 @@ end
     # Activate a new particle in simulation domain
     transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
 
-    # Reset position of boundary particle
+    # Reset position of boundary particle back to the beginning of the boundary zone.
+    # If we translated it by exactly `zone_width` along `-face_normal`, rounding
+    # errors could place it just outside the zone. To avoid this, use a slightly
+    # shorter distance (`zone_width - eps(zone_width)`), which guarantees the final
+    # position stays inside the boundary zone.
+    reset_dist = boundary_zone.zone_width - eps(boundary_zone.zone_width)
+    reset_vector = -boundary_zone.face_normal * reset_dist
     for dim in 1:ndims(system)
-        u[dim, particle] += boundary_zone.spanning_set[1][dim]
+        u[dim, particle] += reset_vector[dim]
+    end
+
+    # Verify the particle remains inside the boundary zone after the reset; deactivate it if not.
+    particle_coords = current_coords(u, system, particle)
+    if !is_in_boundary_zone(boundary_zone, particle_coords)
+        deactivate_particle!(system, particle, u)
+
+        return system
     end
 
     impose_rest_density!(v, system, particle, system.boundary_model)
@@ -528,13 +552,18 @@ end
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
         if dist_free_surface < compact_support(fluid_system, fluid_system)
-            # Disable shifting for this particle.
-            # Note that Sun et al. 2017 propose a more sophisticated approach with a transition phase
-            # where only the component orthogonal to the surface normal is kept and the tangential
-            # component is set to zero. However, we assume laminar flow in the boundary zone,
-            # so we simply disable shifting completely.
+            # Ramp shifting velocity near the free surface using a kernel-weighted transition.
+            # According to our experiments, the proposed alternative approaches lead to particle disorder:
+            # - Sun et al. 2017: only use surface-tangential component
+            # - Zhang et al. 2025: disable shifting entirely
+            kernel_max = smoothing_kernel(system, 0, particle)
+            dist_from_cutoff = compact_support(fluid_system, fluid_system) -
+                               dist_free_surface
+            shifting_weight = smoothing_kernel(system, dist_from_cutoff, particle) /
+                              kernel_max
+            delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
-                cache.delta_v[dim, particle] = zero(eltype(system))
+                cache.delta_v[dim, particle] = delta_v_ramped[dim]
             end
         end
     end
