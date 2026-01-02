@@ -23,16 +23,18 @@
     @testset verbose=true "Show" begin
         shape = RectangularShape(0.05, (20, 20), (0.0, 0.0), density=1.0)
 
-        show_compact = "InitialCondition{Float64}()"
+        show_compact = "InitialCondition{Float64, Float64}()"
         @test repr(shape) == show_compact
 
         show_box = """
             ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-            │ InitialCondition{Float64}                                                                        │
-            │ ═════════════════════════                                                                        │
+            │ InitialCondition                                                                                 │
+            │ ════════════════                                                                                 │
             │ #dimensions: ……………………………………………… 2                                                                │
             │ #particles: ………………………………………………… 400                                                              │
             │ particle spacing: ………………………………… 0.05                                                             │
+            │ eltype: …………………………………………………………… Float64                                                          │
+            │ coordinate eltype: ……………………………… Float64                                                          │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", shape) == show_box
     end
