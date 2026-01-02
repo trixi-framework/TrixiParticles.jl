@@ -1066,6 +1066,13 @@ end
 function check_configuration(system::WallBoundarySystem, systems, nhs)
     (; boundary_model) = system
 
+    n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+    if n_particles_model != nparticles(system)
+        throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                            "particles, but the `WallBoundarySystem` has " *
+                            "$(nparticles(system)) particles."))
+    end
+
     foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
@@ -1078,6 +1085,15 @@ end
 
 function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     (; boundary_model) = system
+
+    if !isnothing(boundary_model)
+        n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+        if n_particles_model != nparticles(system)
+            throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                                "particles, but the `WallBoundarySystem` has " *
+                                "$(nparticles(system)) particles."))
+        end
+    end
 
     foreach_system(systems) do neighbor
         if neighbor isa AbstractFluidSystem && boundary_model === nothing

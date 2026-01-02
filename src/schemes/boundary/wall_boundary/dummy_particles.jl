@@ -62,6 +62,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                          state_equation)
     NDIMS = ndims(smoothing_kernel)
     ELTYPE = eltype(smoothing_length)
+    @assert length(initial_density) == length(hydrodynamic_mass)
     n_particles = length(initial_density)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
@@ -537,6 +538,8 @@ end
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
 
+    @boundscheck checkbounds(pressure, eachparticle(system))
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=eachparticle(system)) do particle, neighbor,
@@ -560,6 +563,8 @@ end
                                                   v, v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
+
+    @boundscheck checkbounds(pressure, eachparticle(system))
 
     # This needs to be serial to avoid race conditions when writing into `system`
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
