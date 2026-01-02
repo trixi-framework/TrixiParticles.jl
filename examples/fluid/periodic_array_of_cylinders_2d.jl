@@ -62,10 +62,14 @@ smoothing_length = 2.0 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1, clip_negative_pressure=false)
+
+density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
+                                           density_diffusion=density_diffusion,
                                            viscosity=ViscosityAdami(; nu),
                                            shifting_technique=ParticleShiftingTechnique(),
+                                           pressure_acceleration=tensile_instability_control,
                                            acceleration=(acceleration_x, 0.0))
 
 # ==========================================================================================
