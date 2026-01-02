@@ -80,8 +80,8 @@ boundary_system = WallBoundarySystem(boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-min_corner=[0.0, -tank_size[2]]
-max_corner=[tank_size[1], 2 * tank_size[2]]
+min_corner = (0.0, -boundary_layers * particle_spacing)
+max_corner = (tank_size[1], tank_size[2] + boundary_layers * particle_spacing)
 periodic_box = PeriodicBox(; min_corner, max_corner)
 cell_list = FullGridCellList(; min_corner, max_corner)
 
