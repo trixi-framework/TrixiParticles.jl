@@ -71,6 +71,11 @@ function initialize_split_integration!(cb, u, t, integrator)
     # Create split integrator with TLSPH systems only
     systems = filter(i -> i isa TotalLagrangianSPHSystem, semi.systems)
 
+    if isempty(systems)
+        throw(ArgumentError("`SplitIntegrationCallback` must be used with a " *
+                            "`TotalLagrangianSPHSystem`"))
+    end
+
     # These neighborhood searches are never used
     periodic_box = extract_periodic_box(semi.neighborhood_searches[1][1])
     neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}(; periodic_box)
