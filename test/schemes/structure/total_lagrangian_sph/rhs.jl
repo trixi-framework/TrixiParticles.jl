@@ -178,6 +178,7 @@
             backends = [SerialBackend(), TrixiParticles.KernelAbstractions.CPU()]
             @testset "$(names[i])" for i in eachindex(names)
                 semi = Semidiscretization(system, parallelization_backend=backends[i])
+                system_ = semi.systems[1] # Get updated system
                 ode = semidiscretize(semi, tspan)
 
                 # Apply the deformation matrix
@@ -203,7 +204,7 @@
                 dv_ode = zero(v_ode)
                 TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
 
-                dv = TrixiParticles.wrap_v(dv_ode, system, semi)
+                dv = TrixiParticles.wrap_v(dv_ode, system_, semi)
 
                 @test isapprox(dv[:, particle], dv_expected_41[deformation],
                                rtol=sqrt(eps()), atol=sqrt(eps()))

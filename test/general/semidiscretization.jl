@@ -74,6 +74,9 @@
             # FSI with boundary model
             structure_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
                                                          boundary_model=model_a)
+            structure_system2 = TrixiParticles.initialize_self_interaction_nhs(structure_system2,
+                                                                               nothing,
+                                                                               nothing)
 
             @test_nowarn TrixiParticles.check_configuration((structure_system2,
                                                              fluid_system),
