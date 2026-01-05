@@ -274,6 +274,10 @@ end
     return v
 end
 
+function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi)
+    return Inf
+end
+
 @inline function add_velocity!(du, v, u, particle, system::OpenBoundarySystem, t)
     boundary_zone = current_boundary_zone(system, particle)
 

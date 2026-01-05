@@ -23,6 +23,7 @@ Adapt.@adapt_structure OpenBoundarySystem
 Adapt.@adapt_structure DEMSystem
 Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel
+Adapt.@adapt_structure ThreadedBroadcastArray
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 function KernelAbstractions.get_backend(system::AbstractSystem)
@@ -38,7 +39,7 @@ end
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
 end
 
-function allocate(backend::KernelAbstractions.Backend, ELTYPE, size)
+function allocate(backend::KernelAbstractions.GPU, ELTYPE, size)
     return KernelAbstractions.allocate(backend, ELTYPE, size)
 end
 

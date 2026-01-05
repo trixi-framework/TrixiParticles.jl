@@ -528,7 +528,7 @@ end
                                     cut_off_bnd=true, clip_negative_pressure=false)
     (; parallelization_backend) = semi
 
-    if parallelization_backend isa KernelAbstractions.Backend
+    if parallelization_backend isa KernelAbstractions.GPU
         point_coords = Adapt.adapt(parallelization_backend, point_coords_)
     else
         point_coords = point_coords_

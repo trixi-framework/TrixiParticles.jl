@@ -65,6 +65,16 @@ end
                                                                    eachpoint)
 end
 
+# Avoid method ambiguity
+@inline function TrixiParticles.get_neighborhood_search(system::TotalLagrangianSPHSystem,
+                                                        neighbor_system::TotalLagrangianSPHSystem,
+                                                        ::DummySemidiscretization)
+    search_radius = TrixiParticles.compact_support(system, neighbor_system)
+    eachpoint = TrixiParticles.eachparticle(neighbor_system)
+    return TrixiParticles.TrivialNeighborhoodSearch{ndims(system)}(; search_radius,
+                                                                   eachpoint)
+end
+
 @inline function TrixiParticles.get_neighborhood_search(system,
                                                         semi::DummySemidiscretization)
     return get_neighborhood_search(system, system, semi)
