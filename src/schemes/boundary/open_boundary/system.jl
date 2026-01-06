@@ -134,6 +134,26 @@ function initialize!(system::OpenBoundarySystem, semi)
     return system
 end
 
+function initialize_before_restart!(system::OpenBoundarySystem, restart_condition, semi)
+    set_zero!(system.boundary_zone_indices)
+
+    # We cannot simply use `update_boundary_zone_indices!` because rounding errors during file I/O
+    # may result in particles being located outside their intended boundary zone, even though they
+    # were written as active particles.
+    for particle in axes(restart_condition.u_restart, 2)
+        particle_coords = current_coords(restart_condition.u_restart, system, particle)
+
+        for (zone_id, boundary_zone) in enumerate(system.boundary_zones)
+            # Check if boundary particle is in the boundary zone
+            if is_in_boundary_zone(boundary_zone, particle_coords)
+                system.boundary_zone_indices[particle] = zone_id
+            end
+        end
+    end
+
+    return system
+end
+
 function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
                                     calculate_flow_rate, boundary_zones)
     reference_values = map(bz -> bz.reference_values, boundary_zones)
@@ -264,6 +284,8 @@ end
 @inline function shifting_technique(system::OpenBoundarySystem)
     return system.shifting_technique
 end
+
+@inline density_calculator(system::OpenBoundarySystem) = nothing
 
 system_sound_speed(system::OpenBoundarySystem) = system_sound_speed(system.fluid_system)
 
@@ -683,9 +705,6 @@ end
 function restart_v(system::OpenBoundarySystem, data)
     v_total = zeros(eltype(system), v_nvariables(system),
                     n_integrated_particles(system))
-    v_total .= eltype(system)(1e16)
-
-    system.buffer.active_particle .= false
 
     v_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
 
@@ -694,13 +713,10 @@ function restart_v(system::OpenBoundarySystem, data)
                                 density_calculator(system), data.pressure, data.density)
 
     for particle in axes(v_active, 2)
-        system.buffer.active_particle[particle] = true
         for i in axes(v_active, 1)
             v_total[i, particle] = v_active[i, particle]
         end
     end
-
-    update_system_buffer!(system.buffer)
 
     return v_total
 end

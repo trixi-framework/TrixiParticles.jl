@@ -243,10 +243,6 @@ end
 function restart_v(system::AbstractFluidSystem, data)
     velocity_total = zeros(eltype(system), v_nvariables(system),
                            n_integrated_particles(system))
-    velocity_total .= eltype(system)(1e16)
-
-    isnothing(buffer(system)) || (system.buffer.active_particle .= false)
-
     velocity_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
 
     velocity_active[1:ndims(system), :] = data.velocity
@@ -254,13 +250,10 @@ function restart_v(system::AbstractFluidSystem, data)
                                 data.pressure, data.density)
 
     for particle in axes(velocity_active, 2)
-        isnothing(buffer(system)) || (system.buffer.active_particle[particle] = true)
         for i in axes(velocity_active, 1)
             velocity_total[i, particle] = velocity_active[i, particle]
         end
     end
-
-    update_system_buffer!(system.buffer)
 
     return velocity_total
 end

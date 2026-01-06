@@ -45,6 +45,8 @@ function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
     end
 
     foreach_noalloc(semi.systems, restart_conditions) do (system, restart_condition)
+        initialize_before_restart!(system, restart_condition, semi)
+
         v0_system = wrap_v(v0_ode, system, semi)
         u0_system = wrap_u(u0_ode, system, semi)
 
@@ -86,3 +88,5 @@ function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSys
 end
 
 precondition_system!(system, restart_file) = system
+
+initialize_before_restart!(system, restart_condition, semi) = system
