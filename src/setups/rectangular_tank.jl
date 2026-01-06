@@ -141,9 +141,11 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
 
         # The type of the particle spacing determines the eltype of the coordinates
         boundary_coordinates,
-        face_indices, boundary_indices... = initialize_boundaries(convert.(coordinates_eltype, boundary_spacing),
-                                             tank_size_, n_boundaries_per_dim,
-                                             n_layers, faces)
+        face_indices,
+        boundary_indices... = initialize_boundaries(convert.(coordinates_eltype,
+                                                             boundary_spacing),
+                                                    tank_size_, n_boundaries_per_dim,
+                                                    n_layers, faces)
 
         boundary_masses = boundary_density * boundary_spacing^NDIMS *
                           ones(ELTYPE, size(boundary_coordinates, 2))
@@ -1173,13 +1175,11 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
 
                 # Set position
                 boundary.coordinates[dim,
-                particle] = positions[face] + layer_shift +
-                                                      0.5particle_spacing
+                                     particle] = positions[face] + layer_shift +
+                                                 0.5particle_spacing
             end
         end
     end
 
     return rectangular_tank
 end
-
-
