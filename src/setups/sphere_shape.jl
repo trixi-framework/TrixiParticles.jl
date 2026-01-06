@@ -125,7 +125,8 @@ function SphereShape(particle_spacing, radius, center_position, density;
     particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
     coordinates = coordinates[:, particles_not_in_cutout]
 
-    normals = normal == false ? nothing : compute_normals(coordinates, collect(center_position), radius, Val(NDIMS))
+    normals = normal == false ? nothing :
+              compute_normals(coordinates, collect(center_position), radius, Val(NDIMS))
 
     return InitialCondition(; coordinates, velocity, mass, density, pressure,
                             particle_spacing, normals)
@@ -444,7 +445,7 @@ function compute_normals(coordinates::Matrix{T}, center_position,
     for i in 1:n_points
         point = view(coordinates, :, i)
         diff = point - center_position
-        
+
         dist = norm(diff)
         if dist > threshold
             normals[:, i] .= center_position + radius * (diff / dist)
