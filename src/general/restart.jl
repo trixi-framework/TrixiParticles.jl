@@ -4,8 +4,14 @@ struct RestartCondition{V, U}
     t_restart::Real
 end
 
-function RestartCondition(system::AbstractSystem, restart_file; precondition_values=nothing)
-    restart_data = vtk2trixi(restart_file)
+function RestartCondition(system::AbstractSystem, filename; output_directory="out",
+                          precondition_values=nothing)
+                          @autoinfiltrate
+    if !occursin(vtkname(system), basename(splitext(filename)[1]))
+        throw(ArgumentError("Filename '$filename' does not seem to correspond to system of type $(nameof(typeof(system)))."))
+    end
+
+    restart_data = vtk2trixi(joinpath(output_directory, filename))
     v_restart = restart_v(system, restart_data)
     u_restart = restart_u(system, restart_data)
 
@@ -14,6 +20,26 @@ function RestartCondition(system::AbstractSystem, restart_file; precondition_val
     end
 
     return RestartCondition(v_restart, u_restart, restart_data.time)
+end
+
+function Base.show(io::IO, rc::RestartCondition)
+    @nospecialize rc # reduce precompilation time
+
+    print(io, "RestartCondition{}()")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", rc::RestartCondition)
+    @nospecialize rc # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, rc)
+    else
+        summary_header(io, "RestartCondition")
+        summary_line(io, "#particles u", "$(size(rc.u_restart, 2))")
+        summary_line(io, "#particles v", "$(size(rc.v_restart, 2))")
+        summary_line(io, "eltype", "$(eltype(rc.v_restart))")
+        summary_footer(io)
+    end
 end
 
 function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
