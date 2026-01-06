@@ -288,7 +288,7 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads=true, restart_conditions=nothing)
     (; systems) = semi
 
     # Check that all systems have the same eltype
@@ -329,13 +329,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system(semi) do system
-        u0_system = wrap_u(u0_ode, system, semi)
-        v0_system = wrap_v(v0_ode, system, semi)
-
-        write_u0!(u0_system, system)
-        write_v0!(v0_system, system)
-    end
+    set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
 
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
@@ -371,8 +365,21 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode,
+                               time_span(tspan, restart_conditions), semi_new)
 end
+
+function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions::Nothing)
+    foreach_system(semi) do system
+        v0_system = wrap_v(v0_ode, system, semi)
+        u0_system = wrap_u(u0_ode, system, semi)
+
+        write_v0!(v0_system, system)
+        write_u0!(u0_system, system)
+    end
+end
+
+time_span(tspan, restart_conditions::Nothing) = tspan
 
 """
     restart_with!(semi, sol)

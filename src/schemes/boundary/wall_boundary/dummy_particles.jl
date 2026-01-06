@@ -697,3 +697,7 @@ end
 @inline function correction_matrix(system::AbstractBoundarySystem, particle)
     extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
 end
+
+@inline function density_calculator(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
+    return system.boundary_model.density_calculator
+end

@@ -119,3 +119,7 @@ end
     # Nothing to do in the update step
     return boundary_model
 end
+
+@inline function density_calculator(system::WallBoundarySystem{<:BoundaryModelMonaghanKajtar})
+    return nothing
+end
