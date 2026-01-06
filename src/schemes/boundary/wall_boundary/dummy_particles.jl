@@ -297,6 +297,10 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
+@inline function density_calculator(model::BoundaryModelDummyParticles)
+    return model.density_calculator
+end
+
 # Set the initial pressure to zero for visualization
 function initial_boundary_pressure(initial_density, density_calculator, _)
     return zero(initial_density)
@@ -696,8 +700,4 @@ end
 
 @inline function correction_matrix(system::AbstractBoundarySystem, particle)
     extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
-end
-
-@inline function density_calculator(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.density_calculator
 end

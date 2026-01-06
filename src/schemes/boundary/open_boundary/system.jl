@@ -681,26 +681,26 @@ function restart_u(system::OpenBoundarySystem, data)
 end
 
 function restart_v(system::OpenBoundarySystem, data)
-    velocity_total = zeros(eltype(system), v_nvariables(system),
-                           n_integrated_particles(system))
-    velocity_total .= eltype(system)(1e16)
+    v_total = zeros(eltype(system), v_nvariables(system),
+                    n_integrated_particles(system))
+    v_total .= eltype(system)(1e16)
 
     system.buffer.active_particle .= false
 
-    velocity_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
+    v_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
 
-    velocity_active[1:ndims(system), :] = data.velocity
-    write_density_and_pressure!(velocity_active, system.fluid_system,
+    v_active[1:ndims(system), :] = data.velocity
+    write_density_and_pressure!(v_active, system.fluid_system,
                                 density_calculator(system), data.pressure, data.density)
 
-    for particle in axes(velocity_active, 2)
+    for particle in axes(v_active, 2)
         system.buffer.active_particle[particle] = true
-        for i in 1:axes(velocity_active, 1)
-            velocity_total[i, particle] = velocity_active[i, particle]
+        for i in axes(v_active, 1)
+            v_total[i, particle] = v_active[i, particle]
         end
     end
 
     update_system_buffer!(system.buffer)
 
-    return coords_total
+    return v_total
 end

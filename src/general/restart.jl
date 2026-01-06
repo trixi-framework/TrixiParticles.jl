@@ -9,12 +9,11 @@ function RestartCondition(system::AbstractSystem, restart_file; precondition_val
     v_restart = restart_v(system, restart_data)
     u_restart = restart_u(system, restart_data)
 
-    # TODO
-    t_restart = 0.0
+    if !isnothing(precondition_values)
+        precondition_system!(system, precondition_values)
+    end
 
-    precondition_system!(system, precondition_values)
-
-    return RestartCondition(v_restart, u_restart, t_restart)
+    return RestartCondition(v_restart, u_restart, restart_data.time)
 end
 
 function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
@@ -31,8 +30,14 @@ function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
     end
 end
 
-function time_span(tspan, restart_conditions::RestartCondition)
-    return (first(restart_conditions).t_restart, tspan[2])
+function time_span(tspan, restart_conditions)
+    t_restart = first(restart_conditions).t_restart
+
+    if !isapprox(tspan[1], t_restart)
+        @info "Adjusting initial time from $(tspan[1]) to restart time $t_restart"
+    end
+
+    return (t_restart, tspan[2])
 end
 
 function write_density_and_pressure!(v_restart, system, density_calculator,
@@ -57,37 +62,32 @@ function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSys
     return v_restart
 end
 
-precondition_system!(system, values::Nothing) = system
+precondition_system!(system, values) = system
 
 function precondition_system!(system::OpenBoundarySystem, values)
     (; pressure_reference_values, boundary_zones_flow_rate) = system.cache
 
-    if !haskey(values, :pressure_reference_values, :boundary_zones_flow_rate)
+    if !haskey(values, :pressure_reference_values) &&
+       !haskey(values, :boundary_zones_flow_rate)
         throw(ArgumentError("Missing required fields in `values` for `OpenBoundarySystem`"))
     end
 
     foreach_noalloc(pressure_reference_values,
                     values.pressure_reference_values) do (pressure_model,
-                                                          previous_pressure)
+                                                          pressure_restart)
         if isa(pressure_model, AbstractPressureModel)
-            pressure_model.pressure[] = previous_pressure
+            pressure_model.pressure[] = pressure_restart
         else
-            if previous_pressure != Inf
+            if pressure_restart != Inf
                 throw(ArgumentError("Expected `Inf` for non-pressure-model boundary zones"))
             end
         end
     end
 
-    foreach_noalloc(pressure_reference_values,
-                    values.boundary_zones_flow_rate) do (pressure_model,
-                                                         previous_flow_rate)
-        if isa(pressure_model, AbstractPressureModel)
-            pressure_model.flow_rate[] = previous_flow_rate
-        else
-            if previous_flow_rate != Inf
-                throw(ArgumentError("Expected `Inf` for non-pressure-model boundary zones"))
-            end
-        end
+    foreach_noalloc(boundary_zones_flow_rate,
+                    values.boundary_zones_flow_rate) do (flow_rate,
+                                                         flow_rate_restart)
+        flow_rate[] = flow_rate_restart
     end
 
     return system

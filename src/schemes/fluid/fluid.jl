@@ -224,12 +224,12 @@ function restart_u(system::AbstractFluidSystem, data)
     coords_total = zeros(eltype(system), u_nvariables(system),
                          n_integrated_particles(system))
     coords_total .= eltype(system)(1e16)
-    isnothing(buffer(system)) || system.buffer.active_particle .= false
+    isnothing(buffer(system)) || (system.buffer.active_particle .= false)
 
     coords_active = data.coordinates
 
     for particle in axes(coords_active, 2)
-        isnothing(buffer(system)) || system.buffer.active_particle[particle] = true
+        isnothing(buffer(system)) || (system.buffer.active_particle[particle] = true)
         for dim in 1:ndims(system)
             coords_total[dim, particle] = coords_active[dim, particle]
         end
@@ -245,7 +245,7 @@ function restart_v(system::AbstractFluidSystem, data)
                            n_integrated_particles(system))
     velocity_total .= eltype(system)(1e16)
 
-    isnothing(buffer(system)) || system.buffer.active_particle .= false
+    isnothing(buffer(system)) || (system.buffer.active_particle .= false)
 
     velocity_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
 
@@ -254,15 +254,15 @@ function restart_v(system::AbstractFluidSystem, data)
                                 data.pressure, data.density)
 
     for particle in axes(velocity_active, 2)
-        isnothing(buffer(system)) || system.buffer.active_particle[particle] = true
-        for i in 1:axes(velocity_active, 1)
+        isnothing(buffer(system)) || (system.buffer.active_particle[particle] = true)
+        for i in axes(velocity_active, 1)
             velocity_total[i, particle] = velocity_active[i, particle]
         end
     end
 
     update_system_buffer!(system.buffer)
 
-    return coords_total
+    return velocity_total
 end
 
 function system_data(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)

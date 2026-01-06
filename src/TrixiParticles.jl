@@ -59,9 +59,10 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
 include("io/io.jl")
+include("general/restart.jl")
 include("visualization/recipes_plots.jl")
 
-export Semidiscretization, semidiscretize, restart_with!
+export Semidiscretization, semidiscretize, restart_with!, RestartCondition
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        WallBoundarySystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySystem,
