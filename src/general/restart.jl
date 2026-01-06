@@ -16,7 +16,9 @@ function RestartCondition(system::AbstractSystem, filename; output_directory="ou
 
     precondition_system!(system, restart_file)
 
-    return RestartCondition(v_restart, u_restart, restart_data.time)
+    t_restart = convert(eltype(system), restart_data.time)
+
+    return RestartCondition(v_restart, u_restart, t_restart)
 end
 
 function Base.show(io::IO, rc::RestartCondition)
@@ -48,8 +50,8 @@ function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
         v0_system = wrap_v(v0_ode, system, semi)
         u0_system = wrap_u(u0_ode, system, semi)
 
-        u0_system .= restart_condition.u_restart
-        v0_system .= restart_condition.v_restart
+        v0_system .= Adapt.adapt(semi.parallelization_backend, restart_condition.v_restart)
+        u0_system .= Adapt.adapt(semi.parallelization_backend, restart_condition.u_restart)
     end
 end
 
@@ -105,7 +107,8 @@ function initialize_neighborhood_searches!(semi, u0_ode, restart_conditions)
 end
 
 function initial_restart_coordinates(system, u0_ode, semi)
-    return wrap_u(u0_ode, system, semi)
+    # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
+    return transfer2cpu(wrap_u(u0_ode, system, semi))
 end
 
 function initial_restart_coordinates(system::Union{WallBoundarySystem,
