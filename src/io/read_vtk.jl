@@ -56,7 +56,7 @@ function vtk2trixi(file; element_type=:default, coordinates_eltype=Float64,
     ndims = first(ReadVTK.get_data(field_data["ndims"]))
     coordinates = convert.(cELTYPE, point_coords[1:ndims, :])
 
-    fields = [:velocity, :density, :pressure, :mass, :particle_spacing]
+    fields = [:velocity, :density, :pressure, :particle_spacing]
     for field in fields
         # Look for any key that contains the field name
         all_keys = keys(point_data)
@@ -64,10 +64,7 @@ function vtk2trixi(file; element_type=:default, coordinates_eltype=Float64,
         if idx !== nothing
             results[field] = convert.(ELTYPE, ReadVTK.get_data(point_data[all_keys[idx]]))
         else
-            # Use zeros as default values when a field is missing
-            results[field] = string(field) in ["mass"] ?
-                             zeros(ELTYPE, size(coordinates, 2)) : zero(coordinates)
-            @info "No '$field' field found in VTK file. Will be set to zero."
+            @info "No '$field' field found in VTK file"
         end
     end
 
