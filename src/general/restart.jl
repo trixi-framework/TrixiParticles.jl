@@ -45,8 +45,6 @@ function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
     end
 
     foreach_noalloc(semi.systems, restart_conditions) do (system, restart_condition)
-        initialize_before_restart!(system, restart_condition, semi)
-
         v0_system = wrap_v(v0_ode, system, semi)
         u0_system = wrap_u(u0_ode, system, semi)
 
@@ -89,4 +87,39 @@ end
 
 precondition_system!(system, restart_file) = system
 
-initialize_before_restart!(system, restart_condition, semi) = system
+function initialize_neighborhood_searches!(semi, u0_ode, restart_conditions)
+    foreach_system(semi) do system
+        foreach_system(semi) do neighbor
+            # TODO Initialize after adapting to the GPU.
+            # Currently, this cannot use `semi.parallelization_backend`
+            # because data is still on the CPU.
+            PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
+                                       initial_restart_coordinates(system, u0_ode, semi),
+                                       initial_restart_coordinates(neighbor, u0_ode, semi),
+                                       eachindex_y=each_active_particle(neighbor),
+                                       parallelization_backend=PolyesterBackend())
+        end
+    end
+
+    return semi
+end
+
+function initial_restart_coordinates(system, u0_ode, semi)
+    return wrap_u(u0_ode, system, semi)
+end
+
+function initial_restart_coordinates(system::Union{WallBoundarySystem,
+                                                   AbstractStructureSystem}, u0_ode, semi)
+    return initial_coordinates(system)
+end
+
+function initialize!(semi::Semidiscretization, restart_conditions)
+    foreach_system(semi) do system
+        # Initialize this system
+        initialize_restart!(system, semi)
+    end
+
+    return semi
+end
+
+initialize_restart!(system, semi) = initialize!(system, semi)

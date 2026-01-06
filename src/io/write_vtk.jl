@@ -408,6 +408,8 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
                       for particle in eachparticle(system)]
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in eachparticle(system)]
+    vtk["zone_id"] = [system.boundary_zone_indices[particle]
+                      for particle in eachparticle(system)]
 
     if system.cache.calculate_flow_rate
         Q_total = zero(eltype(system))

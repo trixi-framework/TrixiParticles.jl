@@ -224,15 +224,18 @@ function restart_u(system::AbstractFluidSystem, data)
     coords_total = zeros(eltype(system), u_nvariables(system),
                          n_integrated_particles(system))
     coords_total .= eltype(system)(1e16)
-    isnothing(buffer(system)) || (system.buffer.active_particle .= false)
 
     coords_active = data.coordinates
 
     for particle in axes(coords_active, 2)
-        isnothing(buffer(system)) || (system.buffer.active_particle[particle] = true)
         for dim in 1:ndims(system)
             coords_total[dim, particle] = coords_active[dim, particle]
         end
+    end
+
+    if !isnothing(buffer(system))
+        system.buffer.active_particle .= false
+        system.buffer.active_particle[1:size(coords_active, 2)] .= true
     end
 
     update_system_buffer!(system.buffer)

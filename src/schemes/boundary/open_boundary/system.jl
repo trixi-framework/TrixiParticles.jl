@@ -134,25 +134,8 @@ function initialize!(system::OpenBoundarySystem, semi)
     return system
 end
 
-function initialize_before_restart!(system::OpenBoundarySystem, restart_condition, semi)
-    set_zero!(system.boundary_zone_indices)
-
-    # We cannot simply use `update_boundary_zone_indices!` because rounding errors during file I/O
-    # may result in particles being located outside their intended boundary zone, even though they
-    # were written as active particles.
-    for particle in axes(restart_condition.u_restart, 2)
-        particle_coords = current_coords(restart_condition.u_restart, system, particle)
-
-        for (zone_id, boundary_zone) in enumerate(system.boundary_zones)
-            # Check if boundary particle is in the boundary zone
-            if is_in_boundary_zone(boundary_zone, particle_coords)
-                system.boundary_zone_indices[particle] = zone_id
-            end
-        end
-    end
-
-    return system
-end
+# Skip during restart, as boundary zone indices are updated in `precondition_system!`
+initialize_restart!(system::OpenBoundarySystem, semi) = system
 
 function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
                                     calculate_flow_rate, boundary_zones)
@@ -686,16 +669,16 @@ function restart_u(system::OpenBoundarySystem, data)
     coords_total = zeros(eltype(system), u_nvariables(system),
                          n_integrated_particles(system))
     coords_total .= eltype(system)(1e16)
-    system.buffer.active_particle .= false
 
     coords_active = data.coordinates
-
     for particle in axes(coords_active, 2)
-        system.buffer.active_particle[particle] = true
         for dim in 1:ndims(system)
             coords_total[dim, particle] = coords_active[dim, particle]
         end
     end
+
+    system.buffer.active_particle .= false
+    system.buffer.active_particle[1:size(coords_active, 2)] .= true
 
     update_system_buffer!(system.buffer)
 
@@ -722,6 +705,13 @@ function restart_v(system::OpenBoundarySystem, data)
 end
 
 function precondition_system!(system::OpenBoundarySystem, file)
+    # We cannot simply use `update_boundary_zone_indices!` because rounding errors during file I/O
+    # may result in particles being located outside their intended boundary zone, even though they
+    # were written as active particles.
+    set_zero!(system.boundary_zone_indices)
+    values = vtk2trixi(file; zone_id="zone_id")
+    system.boundary_zone_indices[each_integrated_particle(system)] .= values.zone_id
+
     if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
         keys_p = [(Symbol(:p, i), "boundary_zone_pressure_$(i)")
                   for i in eachindex(system.boundary_zones)]

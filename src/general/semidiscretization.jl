@@ -333,7 +333,7 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_conditions=noth
 
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
-    initialize_neighborhood_searches!(semi)
+    initialize_neighborhood_searches!(semi, u0_ode, restart_conditions)
 
     if semi.parallelization_backend isa KernelAbstractions.Backend
         # Convert all arrays to the correct array type.
@@ -357,10 +357,7 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_conditions=noth
     end
 
     # Initialize all particle systems
-    foreach_system(semi_new) do system
-        # Initialize this system
-        initialize!(system, semi_new)
-    end
+    initialize!(semi_new, restart_conditions)
 
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
@@ -380,6 +377,15 @@ function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions::Nothin
 end
 
 time_span(tspan, restart_conditions::Nothing) = tspan
+
+function initialize!(semi::Semidiscretization, restart_conditions::Nothing)
+    foreach_system(semi) do system
+        # Initialize this system
+        initialize!(system, semi)
+    end
+
+    return semi
+end
 
 """
     restart_with!(semi, sol)
@@ -414,6 +420,10 @@ function restart_with!(semi, sol; reset_threads=true)
     semi.update_callback_used[] = false
 
     return semi
+end
+
+function initialize_neighborhood_searches!(semi, u0_ode, restart_conditions::Nothing)
+    initialize_neighborhood_searches!(semi)
 end
 
 function initialize_neighborhood_searches!(semi)
@@ -1112,7 +1122,7 @@ function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, n
                 neighbor.boundary_model.density_calculator isa PressureBoundaries)
                 time_step_boundary = neighbor.boundary_model.density_calculator.time_step
                 omega_boundary = neighbor.boundary_model.density_calculator.omega
-                if !(time_step==time_step_boundary && omega==omega_boundary)
+                if !(time_step == time_step_boundary && omega == omega_boundary)
                     throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
                     `ImplicitIncompressibleSPHSystem` parameters"))
                 end
