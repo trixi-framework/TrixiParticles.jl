@@ -6,7 +6,6 @@ end
 
 function RestartCondition(system::AbstractSystem, filename; output_directory="out",
                           precondition_values=nothing)
-                          @autoinfiltrate
     if !occursin(vtkname(system), basename(splitext(filename)[1]))
         throw(ArgumentError("Filename '$filename' does not seem to correspond to system of type $(nameof(typeof(system)))."))
     end
