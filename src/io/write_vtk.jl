@@ -419,6 +419,14 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
         vtk["Q_total"] = Q_total
     end
 
+    if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
+        for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
+            if pressure_model isa AbstractPressureModel
+                vtk["boundary_zone_pressure_$i"] = system.cache.pressure_reference_values[i].pressure[]
+            end
+        end
+    end
+
     return vtk
 end
 

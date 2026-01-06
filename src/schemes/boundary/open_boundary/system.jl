@@ -704,3 +704,21 @@ function restart_v(system::OpenBoundarySystem, data)
 
     return v_total
 end
+
+function precondition_system!(system::OpenBoundarySystem, file)
+    if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
+        keys_p = [(Symbol(:p, i), "boundary_zone_pressure_$(i)")
+                  for i in eachindex(system.boundary_zones)]
+        keys_Q = [(Symbol(:Q, i), "Q_$(i)") for i in eachindex(system.boundary_zones)]
+        values = vtk2trixi(file; merge(keys_p, keys_Q)...)
+
+        for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
+            if pressure_model isa AbstractPressureModel
+                pressure_model.pressure[] = values[Symbol(:p, i)]
+                pressure_model.flow_rate[] = values[Symbol(:Q, i)]
+            end
+        end
+    end
+
+    return system
+end

@@ -4,19 +4,17 @@ struct RestartCondition{V, U}
     t_restart::Real
 end
 
-function RestartCondition(system::AbstractSystem, filename; output_directory="out",
-                          precondition_values=nothing)
+function RestartCondition(system::AbstractSystem, filename; output_directory="out")
     if !occursin(vtkname(system), basename(splitext(filename)[1]))
         throw(ArgumentError("Filename '$filename' does not seem to correspond to system of type $(nameof(typeof(system)))."))
     end
 
-    restart_data = vtk2trixi(joinpath(output_directory, filename))
+    restart_file = joinpath(output_directory, filename)
+    restart_data = vtk2trixi(restart_file)
     v_restart = restart_v(system, restart_data)
     u_restart = restart_u(system, restart_data)
 
-    if !isnothing(precondition_values)
-        precondition_system!(system, precondition_values)
-    end
+    precondition_system!(system, restart_file)
 
     return RestartCondition(v_restart, u_restart, restart_data.time)
 end
@@ -87,33 +85,4 @@ function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSys
     return v_restart
 end
 
-precondition_system!(system, values) = system
-
-function precondition_system!(system::OpenBoundarySystem, values)
-    (; pressure_reference_values, boundary_zones_flow_rate) = system.cache
-
-    if !haskey(values, :pressure_reference_values) &&
-       !haskey(values, :boundary_zones_flow_rate)
-        throw(ArgumentError("Missing required fields in `values` for `OpenBoundarySystem`"))
-    end
-
-    foreach_noalloc(pressure_reference_values,
-                    values.pressure_reference_values) do (pressure_model,
-                                                          pressure_restart)
-        if isa(pressure_model, AbstractPressureModel)
-            pressure_model.pressure[] = pressure_restart
-        else
-            if pressure_restart != Inf
-                throw(ArgumentError("Expected `Inf` for non-pressure-model boundary zones"))
-            end
-        end
-    end
-
-    foreach_noalloc(boundary_zones_flow_rate,
-                    values.boundary_zones_flow_rate) do (flow_rate,
-                                                         flow_rate_restart)
-        flow_rate[] = flow_rate_restart
-    end
-
-    return system
-end
+precondition_system!(system, restart_file) = system
