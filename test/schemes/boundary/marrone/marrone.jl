@@ -1,46 +1,41 @@
-@testset verbose=true "Marrone Dummy Particles" begin
-    # struct DummySemidiscretization
-    #     parallelization_backend::Any
+@testset verbose=true "Dummy Particles with `MarronePressureExtrapolation`" begin
+    @testset "Compute Boundary Normal Vectors" begin
+        @testset "2D Normals" begin 
+            particle_spacing = 1.0
+            n_particles = 2
+            n_layers = 1
+            width = particle_spacing * n_particles
+            height = particle_spacing * n_particles
+            density = 257
 
-    #     function DummySemidiscretization(; parallelization_backend=SerialBackend())
-    #         new(parallelization_backend)
-    #     end
-    # end
+            tank = RectangularTank(particle_spacing, (width, height), (width, height),
+                                density, n_layers=n_layers,
+                                faces=(true, true, true, false), normal=true)
 
-    # @inline function PointNeighbors.parallel_foreach(f, iterator, semi::DummySemidiscretization)
-    #     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
-    # end
+            (; normals) = tank.boundary
+            normals_reference = [[-0.5 -0.5 0.5 0.5 0.0 0.0 -0.5 0.5]
+                                [0.0 0.0 0.0 0.0 -0.5 -0.5 -0.5 -0.5]]
 
-    # @inline function TrixiParticles.get_neighborhood_search(system, neighbor_system,
-    #                                                         ::DummySemidiscretization)
-    #     search_radius = TrixiParticles.compact_support(system, neighbor_system)
-    #     eachpoint = TrixiParticles.eachparticle(neighbor_system)
-    #     return TrixiParticles.TrivialNeighborhoodSearch{ndims(system)}(; search_radius,
-    #                                                                 eachpoint)
-    # end
+            @test normals == normals_reference
+        end
+        @testset "3D Normals" begin
+            particle_spacing = 1.0
+            n_particles = 2
+            n_layers = 1
+            tank_length = particle_spacing * n_particles
+            density = 257
 
-    # @inline function TrixiParticles.get_neighborhood_search(system,
-    #                                                         semi::DummySemidiscretization)
-    #     return get_neighborhood_search(system, system, semi)
-    # end
+            tank = RectangularTank(particle_spacing, (tank_length, tank_length, tank_length), (tank_length, tank_length, tank_length),
+                                density, n_layers=n_layers,
+                                faces=(true, true, true, true, true, false), normal=true)
 
-    @testset "Boundary Normals" begin
-        particle_spacing = 1.0
-        n_particles = 2
-        n_layers = 1
-        width = particle_spacing * n_particles
-        height = particle_spacing * n_particles
-        density = 257
-
-        tank = RectangularTank(particle_spacing, (width, height), (width, height),
-                               density, n_layers=n_layers,
-                               faces=(true, true, true, false), normal=true)
-
-        (; normals) = tank.boundary
-        normals_reference = [[-0.5 -0.5 0.5 0.5 0.0 0.0 -0.5 0.5]
-                             [0.0 0.0 0.0 0.0 -0.5 -0.5 -0.5 -0.5]]
-
-        @test normals == normals_reference
+            (; normals) = tank.boundary
+            normals_reference = [[-0.5 -0.5 -0.5 -0.5 0.5 0.5 0.5 0.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 -0.5 -0.5 -0.5 -0.5 0.5 0.5 0.5 0.5 0.0 0.0 0.0 0.0 -0.5 -0.5 0.5 0.5 -0.5 -0.5 0.5 0.5]
+                                 [0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 -0.5 -0.5 -0.5 -0.5 0.5 0.5 0.5 0.5 0.0 0.0 0.0 0.0 -0.5 -0.5 0.5 0.5 -0.5 -0.5 0.5 0.5 -0.5 -0.5 0.5 0.5 0.0 0.0 0.0 0.0 -0.5 0.5 -0.5 0.5]
+                                 [0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 -0.5 -0.5 -0.5 -0.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5]
+                                ]
+            @test normals == normals_reference
+        end
     end
 
     @testset "MarroneMLSKernel" begin

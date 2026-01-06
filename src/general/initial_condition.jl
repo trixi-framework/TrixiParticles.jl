@@ -91,14 +91,14 @@ initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, 
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct InitialCondition{ELTYPE, C, MATRIX, VECTOR}
+struct InitialCondition{ELTYPE, MATRIX, VECTOR, NORMALS}
     particle_spacing :: ELTYPE
-    coordinates      :: C      # Array{coordinates_eltype, 2}
-    velocity         :: MATRIX # Array{ELTYPE, 2}
-    mass             :: VECTOR # Array{ELTYPE, 1}
-    density          :: VECTOR # Array{ELTYPE, 1}
-    pressure         :: VECTOR # Array{ELTYPE, 1}
-    normals          :: Union{Nothing, MATRIX}
+    coordinates      :: MATRIX  # Array{ELTYPE, 2}
+    velocity         :: MATRIX  # Array{ELTYPE, 2}
+    mass             :: VECTOR  # Array{ELTYPE, 1}
+    density          :: VECTOR  # Array{ELTYPE, 1}
+    pressure         :: VECTOR  # Array{ELTYPE, 1}
+    normals          :: NORMALS # Union{Nothing, Vector{SVector{N, ELTYPE}}}
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
