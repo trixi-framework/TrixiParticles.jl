@@ -405,8 +405,8 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
                           v, u, v_fluid, u_fluid)
     end
 
-    update_system_buffer!(system.buffer, semi)
-    update_system_buffer!(fluid_system.buffer, semi)
+    update_system_buffer!(system.buffer)
+    update_system_buffer!(fluid_system.buffer)
 
     fluid_candidates .= false
 
@@ -436,8 +436,8 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
                           v, u, v_fluid, u_fluid)
     end
 
-    update_system_buffer!(system.buffer, semi)
-    update_system_buffer!(fluid_system.buffer, semi)
+    update_system_buffer!(system.buffer)
+    update_system_buffer!(fluid_system.buffer)
 
     # Since particles have been transferred, the neighborhood searches must be updated
     update_nhs!(semi, u_ode)
