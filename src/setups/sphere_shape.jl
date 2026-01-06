@@ -125,9 +125,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
     particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
     coordinates = coordinates[:, particles_not_in_cutout]
 
-    if normal
-        normals = compute_normals(coordinates, center_position, radius)
-    end
+    normals = normal == false ? nothing : compute_normals(coordinates, collect(center_position), radius, Val(NDIMS))
 
     return InitialCondition(; coordinates, velocity, mass, density, pressure,
                             particle_spacing, normals)
@@ -436,45 +434,23 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
     return particle_coords
 end
 
-# Copy to REPL and run
-# function plot_coords(boundary::Matrix{T}, normals=nothing) where {T}
-#     if size(boundary)[1] == 2
-#         x_b, y_b = eachrow(boundary)
-
-#         Plots.plot(x_b, y_b, seriestype=:scatter, color=:blue, label="Boundary")
-
-#         if normals !== nothing
-#             u, v = eachrow(normals)
-#             Plots.quiver!(x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
-#         end
-
-#     elseif size(boundary)[1] == 3
-#         x_b, y_b, z_b = eachrow(boundary)
-
-#         Plots.plot(x_b, y_b, z_b, seriestype=:scatter, color=:blue, label="Boundary")
-#     end
-# end
-
+# Compute the normals by projecting each point on the surface of the sphere
 function compute_normals(coordinates::Matrix{T}, center_position,
-                         radius::T) where {T}
+                         radius, ::Val{NDIMS}) where {T, NDIMS}
+    n_points = size(coordinates, 2)
     normals = zeros(size(coordinates))
-    center_position = collect(center_position)
 
-    for idx in 1:size(coordinates, 2)
-        coord = coordinates[:, idx]
-
-        # Project the point at coord on the circle
-        diff = center_position - coord
-
-        # Check for division-by-zero
-        diff_norm = norm(diff)
-        if iszero(diff_norm)
-            normal = zeros(T, 2)
+    threshold = eps(T)
+    for i in 1:n_points
+        point = view(coordinates, :, i)
+        diff = point - center_position
+        
+        dist = norm(diff)
+        if dist > threshold
+            normals[:, i] .= center_position + radius * (diff / dist)
         else
-            proj = center_position + radius * (diff / diff_norm)
-            normal = proj - coord
+            normals[:, i] .= zero(T)
         end
-        normals[:, idx] = normal
     end
 
     return normals
