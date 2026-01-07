@@ -7,8 +7,9 @@ Load VTK file and convert data to an [`InitialCondition`](@ref).
 - `file`: Name of the VTK file to be loaded.
 
 # Keywords
-- `element_type`: Element type for particle fields (`:default` keeps the type
-    stored in the VTK file, otherwise converted to the given type).
+- `element_type`: Element type for particle fields. By default, the type
+                  stored in the VTK file is used.
+                  Otherwise, data is converted to the specified type.
 - `coordinates_eltype`: Element type for particle coordinates (defaults to `Float64`).
 
 !!! warning "Experimental Implementation"
