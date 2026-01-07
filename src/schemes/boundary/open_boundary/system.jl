@@ -666,9 +666,9 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
 end
 
 function restart_u(system::OpenBoundarySystem, data)
-    coords_total = zeros(eltype(system), u_nvariables(system),
+    coords_total = zeros(coordinates_eltype(system), u_nvariables(system),
                          n_integrated_particles(system))
-    coords_total .= eltype(system)(1e16)
+    coords_total .= coordinates_eltype(system)(1e16)
 
     coords_active = data.coordinates
     for particle in axes(coords_active, 2)

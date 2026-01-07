@@ -1,7 +1,8 @@
 struct RestartCondition{V, U}
-    v_restart::V
-    u_restart::U
-    t_restart::Real
+    system    :: AbstractSystem
+    v_restart :: V
+    u_restart :: U
+    t_restart :: Real
 end
 
 function RestartCondition(system::AbstractSystem, filename; output_directory="out")
@@ -18,13 +19,13 @@ function RestartCondition(system::AbstractSystem, filename; output_directory="ou
 
     t_restart = convert(eltype(system), restart_data.time)
 
-    return RestartCondition(v_restart, u_restart, t_restart)
+    return RestartCondition(system, v_restart, u_restart, t_restart)
 end
 
 function Base.show(io::IO, rc::RestartCondition)
     @nospecialize rc # reduce precompilation time
 
-    print(io, "RestartCondition{}()")
+    print(io, "RestartCondition{$(nameof(typeof(rc.system)))}()")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", rc::RestartCondition)
@@ -34,18 +35,30 @@ function Base.show(io::IO, ::MIME"text/plain", rc::RestartCondition)
         show(io, rc)
     else
         summary_header(io, "RestartCondition")
+        summary_line(io, "System", "$(nameof(typeof(rc.system)))")
         summary_line(io, "#particles u", "$(size(rc.u_restart, 2))")
         summary_line(io, "#particles v", "$(size(rc.v_restart, 2))")
-        summary_line(io, "eltype", "$(eltype(rc.v_restart))")
+        summary_line(io, "eltype u", "$(eltype(rc.u_restart))")
+        summary_line(io, "eltype v", "$(eltype(rc.v_restart))")
         summary_footer(io)
     end
 end
 
 function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
+    # Check number of systems
     if length(semi.systems) != length(restart_conditions)
         throw(ArgumentError("Number of systems in `semi` does not match number of `restart_conditions`"))
     end
 
+    # Check that systems match
+    foreach_system(semi) do system
+        system_index = system_indices(system, semi)
+        if !(system == restart_conditions[system_index].system)
+            throw(ArgumentError("System at index $system_index in `semi` does not match system in `restart_conditions`"))
+        end
+    end
+
+    # Set initial conditions
     foreach_noalloc(semi.systems, restart_conditions) do (system, restart_condition)
         v0_system = wrap_v(v0_ode, system, semi)
         u0_system = wrap_u(u0_ode, system, semi)
