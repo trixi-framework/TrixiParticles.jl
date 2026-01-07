@@ -38,7 +38,7 @@ data = vtk2trixi(joinpath("out", "rectangular.vtu");
                  my_custom_quantity="my_custom_quantity")
 
 # output
-(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], mass = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...])
+(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...])
 ```
 """
 function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
@@ -93,5 +93,12 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
         end
     end
 
-    return NamedTuple(results)
+    results = NamedTuple(results)
+
+    ic = InitialCondition(; coordinates=results.coordinates,
+                          particle_spacing=results.particle_spacing,
+                          velocity=results.velocity, density=results.density,
+                          pressure=results.pressure)
+
+    return merge(results, (initial_condition=ic,))
 end

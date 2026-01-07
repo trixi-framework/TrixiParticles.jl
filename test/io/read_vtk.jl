@@ -4,7 +4,8 @@
         velocity = fill(2.0, 2, 12)
 
         expected_data = InitialCondition(coordinates=coordinates, velocity=velocity,
-                                         density=1000.0, pressure=900.0, mass=50.0)
+                                         density=1000.0, pressure=900.0,
+                                         particle_spacing=0.1)
 
         expected_cq_scalar = 3.0
         expected_cq_vector = fill(expected_cq_scalar, nparticles(expected_data))
