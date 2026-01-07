@@ -1,88 +1,41 @@
-"""
-    RestartCondition(system::AbstractSystem, filename; output_directory="out")
-
-Create a `RestartCondition` for the given `system` from the specified `filename`.
-
-# Arguments
-- `system`: The system to restart.
-- `filename`: The name of the file from which to restart. This file should be in
-              VTK format and correspond to the specified `system`.
-
-# Keywords
-- `output_directory`: The directory where the restart file is located (default: `"out"`).
-"""
-struct RestartCondition{V, U}
-    system    :: AbstractSystem
-    v_restart :: V
-    u_restart :: U
-    t_restart :: Real
-end
-
-function RestartCondition(system::AbstractSystem, filename; output_directory="out")
-    if !occursin(vtkname(system), basename(splitext(filename)[1]))
-        throw(ArgumentError("Filename '$filename' does not seem to correspond to system of type $(nameof(typeof(system)))."))
-    end
-
-    restart_file = joinpath(output_directory, filename)
-    restart_data = vtk2trixi(restart_file)
-    v_restart = restart_v(system, restart_data)
-    u_restart = restart_u(system, restart_data)
-
-    precondition_system!(system, restart_file)
-
-    t_restart = convert(eltype(system), restart_data.time)
-
-    return RestartCondition(system, v_restart, u_restart, t_restart)
-end
-
-function Base.show(io::IO, rc::RestartCondition)
-    @nospecialize rc # reduce precompilation time
-
-    print(io, "RestartCondition{$(nameof(typeof(rc.system)))}()")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", rc::RestartCondition)
-    @nospecialize rc # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, rc)
-    else
-        summary_header(io, "RestartCondition")
-        summary_line(io, "System", "$(nameof(typeof(rc.system)))")
-        summary_line(io, "#particles u", "$(size(rc.u_restart, 2))")
-        summary_line(io, "#particles v", "$(size(rc.v_restart, 2))")
-        summary_line(io, "eltype u", "$(eltype(rc.u_restart))")
-        summary_line(io, "eltype v", "$(eltype(rc.v_restart))")
-        summary_footer(io)
-    end
-end
-
-function set_initial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
+function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Tuple{Vararg{String}})
     # Check number of systems
-    if length(semi.systems) != length(restart_conditions)
-        throw(ArgumentError("Number of systems in `semi` does not match number of `restart_conditions`"))
+    if length(semi.systems) != length(restart_with)
+        throw(ArgumentError("Number of systems in `semi` does not match number of restart files provided " *
+                            "in `restart_with`"))
     end
 
     # Check that systems match
+    expected_system_names = system_names(semi.systems)
     foreach_system(semi) do system
         system_index = system_indices(system, semi)
-        if !(system == restart_conditions[system_index].system)
-            throw(ArgumentError("System at index $system_index in `semi` does not match system in `restart_conditions`"))
+        filename = restart_with[system_index]
+        expected_system_name = expected_system_names[system_index]
+        if !occursin(expected_system_name, basename(splitext(filename)[1]))
+            throw(ArgumentError("Filename '$filename' for system $system_index does not contain expected name '$expected_system_name'. " *
+                                "Expected a VTK file for system of type $(nameof(typeof(system)))."))
         end
     end
 
     # Set initial conditions
-    foreach_noalloc(semi.systems, restart_conditions) do (system, restart_condition)
+    foreach_noalloc(semi.systems, restart_with) do (system, restart_file)
         v0_system = wrap_v(v0_ode, system, semi)
         u0_system = wrap_u(u0_ode, system, semi)
 
-        v0_system .= Adapt.adapt(semi.parallelization_backend, restart_condition.v_restart)
-        u0_system .= Adapt.adapt(semi.parallelization_backend, restart_condition.u_restart)
+        restart_data = vtk2trixi(restart_file)
+        v_restart = restart_v(system, restart_data)
+        u_restart = restart_u(system, restart_data)
+
+        v0_system .= Adapt.adapt(semi.parallelization_backend, v_restart)
+        u0_system .= Adapt.adapt(semi.parallelization_backend, u_restart)
+
+        precondition_system!(system, restart_file)
     end
 end
 
-function time_span(tspan, restart_conditions)
-    t_restart = first(restart_conditions).t_restart
+function time_span(tspan, restart_with::Tuple{Vararg{String}})
+    restart_data = vtk2trixi(first(restart_with))
+    t_restart = convert(eltype(tspan), restart_data.time)
 
     if !isapprox(tspan[1], t_restart)
         @info "Adjusting initial time from $(tspan[1]) to restart time $t_restart"
@@ -115,7 +68,8 @@ end
 
 precondition_system!(system, restart_file) = system
 
-function initialize_neighborhood_searches!(semi, u0_ode, restart_conditions)
+function initialize_neighborhood_searches!(semi, u0_ode,
+                                           restart_with::Tuple{Vararg{String}})
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
             # TODO Initialize after adapting to the GPU.
@@ -142,7 +96,7 @@ function initial_restart_coordinates(system::Union{WallBoundarySystem,
     return initial_coordinates(system)
 end
 
-function initialize!(semi::Semidiscretization, restart_conditions)
+function initialize!(semi::Semidiscretization, restart_with::Tuple{Vararg{String}})
     foreach_system(semi) do system
         # Initialize this system
         initialize_restart!(system, semi)

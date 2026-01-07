@@ -16,13 +16,15 @@ trixi_include(@__MODULE__,
               tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5)
 
 iter = round(Int, 0.3 / 0.02)
-fluid_restart = RestartCondition(fluid_system, "fluid_1_$iter.vtu")
-open_boundary_restart = RestartCondition(open_boundary, "open_boundary_1_$iter.vtu")
-boundary_restart = RestartCondition(boundary_system, "boundary_1_$iter.vtu")
+
+restart_file_fluid = joinpath("out", "fluid_1_$iter.vtu")
+restart_file_open_boundary = joinpath("out", "open_boundary_1_$iter.vtu")
+restart_file_boundary = joinpath("out", "boundary_1_$iter.vtu")
 
 ode_restart = semidiscretize(semi, (0.3, 0.6);
-                             restart_conditions=(fluid_restart, open_boundary_restart,
-                                                 boundary_restart))
+                             restart_with=(restart_file_fluid,
+                                           restart_file_open_boundary,
+                                           restart_file_boundary))
 
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="restart")
 

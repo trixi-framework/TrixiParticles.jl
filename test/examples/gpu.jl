@@ -678,15 +678,13 @@ end
         semi_new = TrixiParticles.Adapt.adapt(Array, sol.prob.p)
 
         iter = round(Int, 0.3 / 0.02)
-        fluid_restart = RestartCondition(semi_new.systems[1], "fluid_1_$iter.vtu")
-        open_boundary_restart = RestartCondition(semi_new.systems[2],
-                                                 "open_boundary_1_$iter.vtu")
-        boundary_restart = RestartCondition(semi_new.systems[3], "boundary_1_$iter.vtu")
+        fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
+        open_boundary_restart = joinpath("out", "open_boundary_1_$iter.vtu")
+        boundary_restart = joinpath("out", "boundary_1_$iter.vtu")
 
         ode_restart = semidiscretize(semi_new, (0.3f0, 0.6f0);
-                                     restart_conditions=(fluid_restart,
-                                                         open_boundary_restart,
-                                                         boundary_restart))
+                                     restart_with=(fluid_restart, open_boundary_restart,
+                                                   boundary_restart))
 
         sol_restart = solve(ode_restart, RDPK3SpFSAL35(), abstol=1.0f-5,
                             reltol=1.0f-3, dtmax=1.0f-2, save_everystep=false,

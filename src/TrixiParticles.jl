@@ -62,7 +62,7 @@ include("io/io.jl")
 include("general/restart.jl")
 include("visualization/recipes_plots.jl")
 
-export Semidiscretization, semidiscretize, restart_with!, RestartCondition
+export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        WallBoundarySystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySystem,
