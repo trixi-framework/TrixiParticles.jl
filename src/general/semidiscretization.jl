@@ -253,7 +253,7 @@ end
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
 """
-    semidiscretize(semi, tspan; reset_threads=true)
+    semidiscretize(semi, tspan; reset_threads=true, restart_conditions=nothing)
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
@@ -262,6 +262,9 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
+- `restart_conditions`: A tuple of [`RestartCondition`](@ref) objects specifying
+  from which files to restart each system. The order has to match the order of systems
+  in `semi`. By default, no restart is performed.
 - `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
   After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
   ensures that threading is enabled again for the simulation.

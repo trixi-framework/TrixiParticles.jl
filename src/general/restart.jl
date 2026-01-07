@@ -1,3 +1,16 @@
+"""
+    RestartCondition(system::AbstractSystem, filename; output_directory="out")
+
+Create a `RestartCondition` for the given `system` from the specified `filename`.
+
+# Arguments
+- `system`: The system to restart.
+- `filename`: The name of the file from which to restart. This file should be in
+              VTK format and correspond to the specified `system`.
+
+# Keywords
+- `output_directory`: The directory where the restart file is located (default: `"out"`).
+"""
 struct RestartCondition{V, U}
     system    :: AbstractSystem
     v_restart :: V
