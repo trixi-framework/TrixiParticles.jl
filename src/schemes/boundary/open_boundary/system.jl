@@ -627,26 +627,31 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
-        foreach_point_neighbor(system, neighbor_system, sample_points, neighbor_coords,
-                               semi,
-                               points=axes(sample_points, 2)) do point, neighbor,
-                                                                 pos_diff, distance
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            volume_b = m_b / current_density(v_neighbor, neighbor_system, neighbor)
-            W_ab = kernel(smoothing_kernel, distance, smoothing_length)
-            shepard_coefficient[point] += volume_b * W_ab
+        points = axes(sample_points, 2)
+        @boundscheck checkbounds(shepard_coefficient, points)
+        @boundscheck checkbounds(sample_velocity, 1:ndims(system), points)
 
-            velocity_neighbor = viscous_velocity(v_neighbor, neighbor_system, neighbor)
-            @inbounds for i in axes(velocity_neighbor, 1)
-                sample_velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
+        foreach_point_neighbor(system, neighbor_system, sample_points, neighbor_coords,
+                               semi, points=points) do point, neighbor, pos_diff, distance
+            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+            rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
+            volume_b = m_b / rho_b
+            W_ab = kernel(smoothing_kernel, distance, smoothing_length)
+            @inbounds shepard_coefficient[point] += volume_b * W_ab
+
+            velocity_neighbor = @inbounds viscous_velocity(v_neighbor, neighbor_system,
+                                                           neighbor)
+            for i in axes(velocity_neighbor, 1)
+                @inbounds sample_velocity[i, point] += velocity_neighbor[i] * volume_b *
+                                                       W_ab
             end
         end
     end
 
-    @threaded semi for point in axes(sample_points, 2)
-        if shepard_coefficient[point] > eps(eltype(shepard_coefficient))
-            @inbounds for i in axes(sample_velocity, 1)
-                sample_velocity[i, point] /= shepard_coefficient[point]
+    @threaded semi for point in points
+        if @inbounds shepard_coefficient[point] > eps(eltype(shepard_coefficient))
+            for i in axes(sample_velocity, 1)
+                @inbounds sample_velocity[i, point] /= shepard_coefficient[point]
             end
         end
     end
