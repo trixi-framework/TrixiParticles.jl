@@ -446,9 +446,10 @@ end
     calc_deformation_grad!(deformation_grad, system, semi)
 
     @threaded semi for particle in eachparticle(system)
-        pk1_particle = pk1_stress_tensor(system, particle)
-        pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
-        rho2_inv = 1 / material_density[particle]^2
+        pk1_particle = @inbounds pk1_stress_tensor(system, particle)
+        pk1_particle_corrected = pk1_particle *
+                                 @inbounds correction_matrix(system, particle)
+        rho2_inv = 1 / @inbounds material_density[particle]^2
 
         for j in 1:ndims(system), i in 1:ndims(system)
             # Precompute PK1 / rho^2 to avoid repeated divisions in the interaction loop
@@ -463,26 +464,30 @@ end
     # Reset deformation gradient
     set_zero!(deformation_grad)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
                            semi) do particle, neighbor, initial_pos_diff, initial_distance
-        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+        # Only consider particles with a distance > 0.
+        # See `src/general/smoothing_kernels.jl` for more details.
         initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
 
-        volume = mass[neighbor] / material_density[neighbor]
-        pos_diff = current_coords(system, particle) - current_coords(system, neighbor)
+        volume = @inbounds mass[neighbor] / material_density[neighbor]
+        pos_diff_ = @inbounds current_coords(system, particle) -
+                              current_coords(system, neighbor)
+        # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
+        pos_diff = convert.(eltype(system), pos_diff_)
 
         grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
                                             initial_distance, particle)
 
-        result = volume * pos_diff * grad_kernel'
-
         # Multiply by L_{0a}
-        result *= correction_matrix(system, particle)'
+        L = @inbounds correction_matrix(system, particle)
 
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            deformation_grad[i, j, particle] -= result[i, j]
+        result = volume * pos_diff * grad_kernel' * L'
+
+        for j in 1:ndims(system), i in 1:ndims(system)
+            @inbounds deformation_grad[i, j, particle] -= result[i, j]
         end
     end
 
@@ -490,7 +495,7 @@ end
 end
 
 # First Piola-Kirchhoff stress tensor
-@inline function pk1_stress_tensor(system, particle)
+@propagate_inbounds function pk1_stress_tensor(system, particle)
     (; lame_lambda, lame_mu) = system
 
     F = deformation_gradient(system, particle)
@@ -500,8 +505,8 @@ end
 end
 
 # Second Piola-Kirchhoff stress tensor
-@inline function pk2_stress_tensor(F, lame_lambda::AbstractVector, lame_mu::AbstractVector,
-                                   particle)
+@propagate_inbounds function pk2_stress_tensor(F, lame_lambda::AbstractVector,
+                                               lame_mu::AbstractVector, particle)
 
     # Compute the Green-Lagrange strain
     E = (transpose(F) * F - I) / 2
