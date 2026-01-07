@@ -38,12 +38,12 @@
                 file = joinpath(tmp_dir, "tmp_initial_condition_32.vtu")
                 data = vtk2trixi(file)
 
-                @test isapprox(expected_ic_32.coordinates, test_ic.coordinates, rtol=1e-5)
-                @test isapprox(expected_ic_32.velocity, test_ic.velocity, rtol=1e-5)
-                @test isapprox(expected_ic_32.density, test_ic.density, rtol=1e-5)
-                @test isapprox(expected_ic_32.pressure, test_ic.pressure, rtol=1e-5)
-                @test eltype(test_ic) === Float32
-                @test eltype(test_ic.coordinates) === Float32
+                @test isapprox(expected_ic_32.coordinates, data.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic_32.velocity, data.velocity, rtol=1e-5)
+                @test isapprox(expected_ic_32.density, data.density, rtol=1e-5)
+                @test isapprox(expected_ic_32.pressure, data.pressure, rtol=1e-5)
+                @test all(key -> eltype(data[key]) === Float32, keys(data))
+                @test eltype(data.coordinates) === Float32
             end
 
             @testset verbose=true "Custom Element Type" begin
@@ -92,17 +92,18 @@
             end
 
             @testset verbose=true "Custom Element Type Mixed" begin
-                trixi2vtk(expected_ic; filename="tmp_initial_condition_64",
+                trixi2vtk(expected_data; filename="tmp_initial_condition_64",
                           output_directory=tmp_dir)
                 file = joinpath(tmp_dir, "tmp_initial_condition_64.vtu")
-                test_ic = vtk2trixi(file, element_type=Float32, coordinates_eltype=Float64)
+                data = vtk2trixi(file, element_type=Float32, coordinates_eltype=Float64)
 
-                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
-                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
-                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
-                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
-                @test eltype(test_ic) === Float32
-                @test eltype(test_ic.coordinates) === Float64
+                @test isapprox(expected_data.coordinates, data.coordinates, rtol=1e-5)
+                @test isapprox(expected_data.velocity, data.velocity, rtol=1e-5)
+                @test isapprox(expected_data.density, data.density, rtol=1e-5)
+                @test isapprox(expected_data.pressure, data.pressure, rtol=1e-5)
+                @test all(key -> eltype(data[key]) === Float32,
+                          setdiff(keys(data), (:coordinates,)))
+                @test eltype(data.coordinates) === Float64
             end
         end
 
