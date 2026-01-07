@@ -382,6 +382,10 @@ end
     # Reset deformation gradient
     set_zero!(deformation_grad)
 
+    neighborhood_search = get_neighborhood_search(system, semi)
+    periodic_box = neighborhood_search.periodic_box
+    search_radius = PointNeighbors.search_radius(neighborhood_search)
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
@@ -395,6 +399,10 @@ end
                               current_coords(system, neighbor)
         # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
         pos_diff = convert.(eltype(system), pos_diff_)
+        distance2 = dot(pos_diff, pos_diff)
+        pos_diff,
+        distance2 = PointNeighbors.compute_periodic_distance(pos_diff, distance2,
+                                                             search_radius, periodic_box)
 
         grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
                                             initial_distance, particle)

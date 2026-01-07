@@ -20,6 +20,10 @@ end
     # Everything here is done in the initial coordinates
     system_coords = initial_coordinates(system)
 
+    neighborhood_search = get_neighborhood_search(system, semi)
+    periodic_box = neighborhood_search.periodic_box
+    search_radius = PointNeighbors.search_radius(neighborhood_search)
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     # For structure-structure interaction, this has to happen in the initial coordinates.
     foreach_point_neighbor(system, system, system_coords, system_coords, semi;
@@ -47,7 +51,13 @@ end
                                       current_coords(system, neighbor)
         # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
         current_pos_diff = convert.(eltype(system), current_pos_diff_)
-        current_distance = norm(current_pos_diff)
+        current_distance2 = dot(current_pos_diff, current_pos_diff)
+        current_pos_diff,
+        current_distance2 = PointNeighbors.compute_periodic_distance(current_pos_diff,
+                                                                     current_distance2,
+                                                                     search_radius,
+                                                                     periodic_box)
+        current_distance = sqrt(current_distance2)
 
         dv_stress = m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
 
