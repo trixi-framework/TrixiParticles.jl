@@ -2,7 +2,6 @@ include("characteristic_variables.jl")
 include("mirroring.jl")
 include("boundary_zone.jl")
 include("pressure_model.jl")
-include("flow_rate.jl")
 
 @testset verbose=true "Calculate Flow Rate" begin
     particle_spacing = 0.01
