@@ -64,7 +64,10 @@ function vtk2trixi(file; element_type=:default, coordinates_eltype=Float64,
         if idx !== nothing
             results[field] = convert.(ELTYPE, ReadVTK.get_data(point_data[all_keys[idx]]))
         else
-            @info "No '$field' field found in VTK file"
+            # Use zeros as default values when a field is missing
+            results[field] = string(field) in ["velocity"] ?
+                             zero(coordinates) : zeros(ELTYPE, size(coordinates, 2))
+            @info "No '$field' field found in VTK file. Will be set to zero."
         end
     end
 
