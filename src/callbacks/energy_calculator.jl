@@ -44,7 +44,7 @@ The accumulated value can be retrieved via [`calculated_energy`](@ref).
                 estimates.
 
 # Examples
-```jldoctest; output = false, setup = :(system = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0), WendlandC2Kernel{2}(), 1.0, 1.0, 1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
 # Create an energy calculator callback that is called every 2 time steps
 energy_cb = EnergyCalculatorCallback(system, semi; interval=2)
 
@@ -91,7 +91,7 @@ Get the current calculated energy from an [`EnergyCalculatorCallback`](@ref).
 - `cb`: The `DiscreteCallback` returned by [`EnergyCalculatorCallback`](@ref).
 
 # Examples
-```jldoctest; output = false, setup = :(system = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0), WendlandC2Kernel{2}(), 1.0, 1.0, 1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
 # Create an energy calculator callback
 energy_cb = EnergyCalculatorCallback(system, semi)
 
