@@ -57,7 +57,7 @@ function Base.show(io::IO, ::MIME"text/plain", rc::RestartCondition)
     end
 end
 
-function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
+function set_initial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
     # Check number of systems
     if length(semi.systems) != length(restart_conditions)
         throw(ArgumentError("Number of systems in `semi` does not match number of `restart_conditions`"))

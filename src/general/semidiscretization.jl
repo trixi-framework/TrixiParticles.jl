@@ -332,7 +332,7 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_conditions=noth
     end
 
     # Set initial condition
-    set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
+    set_initial_conditions!(v0_ode, u0_ode, semi, restart_conditions)
 
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
@@ -369,7 +369,7 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_conditions=noth
                                time_span(tspan, restart_conditions), semi_new)
 end
 
-function set_intial_conditions!(v0_ode, u0_ode, semi, restart_conditions::Nothing)
+function set_initial_conditions!(v0_ode, u0_ode, semi, restart_conditions::Nothing)
     foreach_system(semi) do system
         v0_system = wrap_v(v0_ode, system, semi)
         u0_system = wrap_u(u0_ode, system, semi)
