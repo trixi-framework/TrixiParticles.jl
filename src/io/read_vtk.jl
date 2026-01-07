@@ -1,5 +1,5 @@
 """
-	vtk2trixi(file::String; element_type=:default, coordinates_eltype=Float64)
+	vtk2trixi(file::String; element_type=nothing, coordinates_eltype=nothing)
 
 Load VTK file and convert data to an [`InitialCondition`](@ref).
 
@@ -10,7 +10,9 @@ Load VTK file and convert data to an [`InitialCondition`](@ref).
 - `element_type`: Element type for particle fields. By default, the type
                   stored in the VTK file is used.
                   Otherwise, data is converted to the specified type.
-- `coordinates_eltype`: Element type for particle coordinates (defaults to `Float64`).
+- `coordinates_eltype`: Element type for particle coordinates. By default, the type
+                        stored in the VTK file is used.
+                        Otherwise, data is converted to the specified type.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
@@ -39,7 +41,7 @@ ic = vtk2trixi(joinpath("out", "rectangular.vtu"))
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-function vtk2trixi(file; element_type=:default, coordinates_eltype=Float64)
+function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
     vtk_file = ReadVTK.VTKFile(file)
 
     # Retrieve data fields (e.g., pressure, velocity, ...)
@@ -47,8 +49,8 @@ function vtk2trixi(file; element_type=:default, coordinates_eltype=Float64)
     field_data = ReadVTK.get_field_data(vtk_file)
     point_coords = ReadVTK.get_points(vtk_file)
 
-    cELTYPE = coordinates_eltype
-    ELTYPE = element_type === :default ? eltype(point_coords) : element_type
+    cELTYPE = isnothing(coordinates_eltype) ? eltype(point_coords) : coordinates_eltype
+    ELTYPE = isnothing(element_type) ? eltype(point_coords) : element_type
 
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))

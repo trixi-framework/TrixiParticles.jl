@@ -38,7 +38,7 @@
                 @test isapprox(expected_ic_32.density, test_ic.density, rtol=1e-5)
                 @test isapprox(expected_ic_32.pressure, test_ic.pressure, rtol=1e-5)
                 @test eltype(test_ic) === Float32
-                @test eltype(test_ic.coordinates) === Float64
+                @test eltype(test_ic.coordinates) === Float32
             end
 
             @testset verbose=true "Custom Element Type" begin
