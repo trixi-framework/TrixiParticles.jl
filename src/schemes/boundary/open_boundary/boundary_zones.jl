@@ -79,14 +79,20 @@ There are three ways to specify the actual shape of the boundary zone:
 - `rest_pressure=0.0`: For `BoundaryModelDynamicalPressureZhang`, a rest pressure is required when the pressure is not prescribed.
                        This should match the rest pressure of the fluid system.
                        Per default it is set to zero (assuming a gauge pressure system).
-                       - For `EntropicallyDampedSPHSystem`: Use the initial pressure from the `InitialCondition`
-                       - For `WeaklyCompressibleSPHSystem`: Use the background pressure from the equation of state
-- `sample_points=:default`: Either `:default` to automatically generate sample points on the boundary face (default),
-                            or a matrix of dimensions `(ndims, npoints)` containing sample points
-                            on the boundary face used to compute the volumetric flow rate.
-                            Each sample point represents a discrete area of `particle_spacing^(ndims-1)`.
-                            Therefore, `sample_points` must form a regular grid.
-                            Set to `nothing` to skip sampling.
+    - For `EntropicallyDampedSPHSystem`: Use the initial pressure from the `InitialCondition`
+    - For `WeaklyCompressibleSPHSystem`: Use the background pressure from the equation of state
+- `sample_points=:default`: Controls how the boundary face is sampled to estimate the
+                            volumetric flow rate.
+    - `:default` (default): Automatically generate sampling points
+      on the boundary face using a regular grid with spacing `particle_spacing`.
+    - `sample_points::AbstractMatrix`: Provide your own sampling points
+      as a matrix of size `(ndims, npoints)`, where **each column is
+      one point** on the boundary face (line in 2D, rectangle/face in 3D).
+      The points must lie on the face and form a regular grid.
+    - `nothing`: Disable flow-rate sampling.
+    Note: Each sampling point represents an area element of size
+    `particle_spacing^(ndims-1)`. Therefore, the discretized
+    sampled area is `npoints * particle_spacing^(ndims-1)`.
 
 !!! note "Note"
     The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
@@ -330,9 +336,9 @@ function create_cache_boundary_zone(initial_condition, boundary_face, face_norma
                                   direction=(-face_normal), n_extrude=1).coordinates
         sample_points_ = convert.(eltype(initial_condition), points)
     else
-        if !(sample_points isa Matrix && size(sample_points, 1) == ndims(initial_condition))
-            throw(ArgumentError("`sample_points` must be a matrix with " *
-                                "`ndims(initial_condition)` rows"))
+        if !(sample_points isa AbstractMatrix &&
+             size(sample_points, 1) == ndims(initial_condition))
+            throw(ArgumentError("`sample_points` must be an `(ndims, npoints)` matrix with $(ndims(initial_condition)) rows"))
         end
         sample_points_ = convert.(eltype(initial_condition), sample_points)
     end
@@ -347,9 +353,9 @@ function create_cache_boundary_zone(initial_condition, boundary_face, face_norma
         face_area = norm(v2 - v1)
     end
 
-    # We only check if the discretized area exceeds the boundary face area.
-    # For 3D boundary zones with complex or non-rectangular flow profiles
-    # (e.g., pipe flow), the cross-sectional area can legitimately be smaller than the boundary face area.
+    # We only warn when the discretized sampled area is larger than the geometric face area.
+    # In 3D, the effective flow cross-section may be smaller than the boundary face, especially for
+    # complex or non-rectangular profiles (e.g. pipe flow), so smaller sampled areas are acceptable.
     if discrete_face_area > (face_area + eps(face_area))
         @warn "The sampled area of the boundary face " *
               "($(discrete_face_area)) is larger than the actual face area ($(face_area)). "
