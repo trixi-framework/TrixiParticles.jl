@@ -65,7 +65,7 @@ struct EnergyCalculatorCallback{T, DV, EP}
     only_compute_force_on_fluid :: Bool
 end
 
-function EnergyCalculatorCallback(system::TotalLagrangianSPHSystem, semi; interval=1,
+function EnergyCalculatorCallback(system::AbstractStructureSystem, semi; interval=1,
                                   eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
                                   only_compute_force_on_fluid=false)
     ELTYPE = eltype(system)

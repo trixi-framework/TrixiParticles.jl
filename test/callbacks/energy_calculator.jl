@@ -1,6 +1,6 @@
 @testset verbose=true "EnergyCalculatorCallback" begin
     # Mock system
-    struct MockSystem <: TrixiParticles.AbstractSystem{2}
+    struct MockSystem <: TrixiParticles.AbstractStructureSystem{2}
         eltype::Type
     end
     TrixiParticles.nparticles(::MockSystem) = 4
