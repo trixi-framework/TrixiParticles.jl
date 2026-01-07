@@ -364,12 +364,8 @@ function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS},
 
             # Compute volumetric flow rate: Q = ∫ v ⋅ n dA
             velocities = reinterpret(reshape, SVector{NDIMS, ELTYPE}, sample_velocity)
-            current_flow_rate = sum(velocities) do velocity
-                vn = dot(velocity, -face_normal)
-                return vn * area_increment
-            end
-
-            flow_rate[] = current_flow_rate
+            flow_rate[] = @inbounds area_increment *
+                                    sum(v -> dot(v, -face_normal), velocities)
         end
     end
 
@@ -633,6 +629,8 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     set_zero!(shepard_coefficient)
     set_zero!(sample_velocity)
 
+    # Shepard-normalized interpolation:
+    #   v(p) = (Σ_b v_b V_b W_pb) / (Σ_b V_b W_pb)
     foreach_system(semi) do neighbor_system
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
@@ -648,15 +646,15 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
             shepard_coefficient[point] += volume_b * W_ab
 
             velocity_neighbor = viscous_velocity(v_neighbor, neighbor_system, neighbor)
-            for i in axes(velocity_neighbor, 1)
+            @inbounds for i in axes(velocity_neighbor, 1)
                 sample_velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
             end
         end
     end
 
     @threaded semi for point in axes(sample_points, 2)
-        if shepard_coefficient[point] > eps()
-            for i in axes(sample_velocity, 1)
+        if shepard_coefficient[point] > eps(eltype(shepard_coefficient))
+            @inbounds for i in axes(sample_velocity, 1)
                 sample_velocity[i, point] /= shepard_coefficient[point]
             end
         end
