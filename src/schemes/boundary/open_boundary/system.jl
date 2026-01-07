@@ -43,6 +43,7 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZ
     buffer                            :: B
     pressure_acceleration_formulation :: PF
     shifting_technique                :: ST
+    calculate_flow_rate               :: Bool
     cache                             :: C
 end
 
@@ -50,7 +51,8 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                             fluid_system_index, smoothing_kernel, smoothing_length, mass,
                             volume, boundary_candidates, fluid_candidates,
                             boundary_zone_indices, boundary_zone, buffer,
-                            pressure_acceleration, shifting_technique, cache)
+                            pressure_acceleration, shifting_technique, calculate_flow_rate,
+                            cache)
     OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                        typeof(initial_condition), typeof(fluid_system),
                        typeof(fluid_system_index), typeof(smoothing_kernel), typeof(mass),
@@ -62,7 +64,7 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                                       smoothing_length, mass, volume, boundary_candidates,
                                       fluid_candidates, boundary_zone_indices,
                                       boundary_zone, buffer, pressure_acceleration,
-                                      shifting_technique, cache)
+                                      shifting_technique, calculate_flow_rate, cache)
 end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
@@ -125,7 +127,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
                               volume, boundary_candidates, fluid_candidates,
                               boundary_zone_indices, boundary_zones_new, buffer,
-                              pressure_acceleration, shifting_technique, cache)
+                              pressure_acceleration, shifting_technique,
+                              calculate_flow_rate, cache)
 end
 
 function initialize!(system::OpenBoundarySystem, semi)
@@ -342,7 +345,7 @@ update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator) = syst
 
 function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS},
                               v_ode, u_ode, semi) where {ELTYPE, NDIMS}
-    system.cache.calculate_flow_rate || return system
+    system.calculate_flow_rate || return system
 
     @trixi_timeit timer() "flow rate calculation" begin
         (; boundary_zones) = system
@@ -622,6 +625,11 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     set_zero!(shepard_coefficient)
     set_zero!(sample_velocity)
 
+    # Pre-check array bounds before interpolation loop
+    points = axes(sample_points, 2)
+    @boundscheck checkbounds(shepard_coefficient, points)
+    @boundscheck checkbounds(sample_velocity, 1:ndims(system), points)
+
     # Shepard-normalized interpolation:
     #   v(p) = (Σ_b v_b V_b W_pb) / (Σ_b V_b W_pb)
     foreach_system(semi) do neighbor_system
@@ -629,10 +637,8 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
-        points = axes(sample_points, 2)
-        @boundscheck checkbounds(shepard_coefficient, points)
-        @boundscheck checkbounds(sample_velocity, 1:ndims(system), points)
-
+        # We can do this because we require the neighborhood search to support querying neighbors
+        # of arbitrary positions (see `PointNeighbors.requires_update` and `check_configuration`).
         foreach_point_neighbor(system, neighbor_system, sample_points, neighbor_coords,
                                semi, points=points) do point, neighbor, pos_diff, distance
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
