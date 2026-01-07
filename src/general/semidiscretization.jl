@@ -1090,7 +1090,7 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
         n_particles_model = length(system.boundary_model.hydrodynamic_mass)
         if n_particles_model != nparticles(system)
             throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
-                                "particles, but the `WallBoundarySystem` has " *
+                                "particles, but the `TotalLagrangianSPHSystem` has " *
                                 "$(nparticles(system)) particles."))
         end
     end
