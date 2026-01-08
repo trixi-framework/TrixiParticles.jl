@@ -95,6 +95,10 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
              create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
                                         calculate_flow_rate, boundary_zones_)...)
 
+    if any(pr -> isa(pr, RCRWindkesselModel), cache.pressure_reference_values)
+        calculate_flow_rate = true
+    end
+
     fluid_system_index = Ref(0)
 
     smoothing_kernel = system_smoothing_kernel(fluid_system)
@@ -150,10 +154,6 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
     pressure_reference_values = map(ref -> ref.reference_pressure, reference_values)
     density_reference_values = map(ref -> ref.reference_density, reference_values)
     velocity_reference_values = map(ref -> ref.reference_velocity, reference_values)
-
-    if any(pr -> isa(pr, AbstractPressureModel), pressure_reference_values)
-        calculate_flow_rate = true
-    end
 
     cache = (; pressure_reference_values=pressure_reference_values,
              density_reference_values=density_reference_values,
