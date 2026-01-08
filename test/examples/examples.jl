@@ -10,7 +10,7 @@
                                                       "oscillating_beam_2d.jl"),
                                              tspan=(0.0, 0.1)) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
-                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
+                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -30,7 +30,7 @@
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
                                              viscosity=ArtificialViscosityMonaghan(alpha=0.01)) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
-                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
+                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -57,7 +57,7 @@
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
                                              clamped_particles_motion=prescribed_motion) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
-                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
+                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -77,7 +77,7 @@
                                                       "falling_water_column_2d.jl"),
                                              tspan=(0.0, 0.4)) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
-                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
+                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -97,7 +97,7 @@
                                              initial_fluid_size=(0.15, 0.29),
                                              tspan=(0.0, 0.4)) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
-                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
+                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -123,7 +123,7 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=500) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
-                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n",
+                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n",
                 r"┌ Warning: Interrupted. Larger maxiters is needed.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
@@ -152,7 +152,7 @@
                                              maxiters=400,
                                              extra_callback=split_integration) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
-                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
+                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -200,7 +200,7 @@
                                              tspan=(0.0, 0.4),
                                              dtmax=1e-3) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
-                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
+                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -218,7 +218,7 @@
                                                       "falling_spheres_2d.jl"),
                                              tspan=(0.0, 1.0)) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
-                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
+                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/schemes/structure/total_lagrangian_sph/system.jl.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
