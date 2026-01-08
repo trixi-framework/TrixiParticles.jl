@@ -50,7 +50,8 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
     point_coords = ReadVTK.get_points(vtk_file)
 
     cELTYPE = isnothing(coordinates_eltype) ? eltype(point_coords) : coordinates_eltype
-    ELTYPE = isnothing(element_type) ? eltype(point_coords) : element_type
+    ELTYPE = isnothing(element_type) ?
+             eltype(first(ReadVTK.get_data(point_data["pressure"]))) : element_type
 
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))

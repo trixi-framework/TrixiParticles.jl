@@ -55,11 +55,16 @@
                 @test eltype(test_ic.coordinates) === Float32
             end
 
-            @testset verbose=true "Custom Element Type Mixed" begin
-                trixi2vtk(expected_ic; filename="tmp_initial_condition_64",
+            @testset verbose=true "Mixed Types" begin
+                expected_ic_mixed = InitialCondition(;
+                                                     coordinates=coordinates,
+                                                     velocity=convert.(Float32, velocity),
+                                                     density=1000.0f0, pressure=900.0f0,
+                                                     mass=50.0f0, particle_spacing=0.1f0)
+                trixi2vtk(expected_ic_mixed; filename="tmp_initial_condition_64",
                           output_directory=tmp_dir)
                 file = joinpath(tmp_dir, "tmp_initial_condition_64.vtu")
-                test_ic = vtk2trixi(file, element_type=Float32, coordinates_eltype=Float64)
+                test_ic = vtk2trixi(file)
 
                 @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
                 @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
