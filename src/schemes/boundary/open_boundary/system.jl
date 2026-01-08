@@ -361,8 +361,7 @@ function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS},
 
             # Compute volumetric flow rate: Q = ∫ v ⋅ n dA
             velocities = reinterpret(reshape, SVector{NDIMS, ELTYPE}, sample_velocity)
-            flow_rate[] = @inbounds area_increment *
-                                    sum(v -> dot(v, -face_normal), velocities)
+            flow_rate[] = area_increment * sum(v -> dot(v, -face_normal), velocities)
         end
     end
 
