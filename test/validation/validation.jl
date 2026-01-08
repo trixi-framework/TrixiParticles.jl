@@ -15,7 +15,8 @@
                                          joinpath(validation_dir(), "oscillating_beam_2d",
                                                   "validation_oscillating_beam_2d.jl"),
                                          tspan=(0.0, 1.0)) [
-            r"┌ Warning: To create the self-interaction neighborhood search.*\n"
+            r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+            r"└ @ TrixiParticles.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
         if VERSION < v"1.12"
