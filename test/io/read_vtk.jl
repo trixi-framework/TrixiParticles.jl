@@ -61,9 +61,9 @@
                                                      velocity=convert.(Float32, velocity),
                                                      density=1000.0f0, pressure=900.0f0,
                                                      mass=50.0f0, particle_spacing=0.1f0)
-                trixi2vtk(expected_ic_mixed; filename="tmp_initial_condition_64",
+                trixi2vtk(expected_ic_mixed; filename="tmp_initial_condition_mixed",
                           output_directory=tmp_dir)
-                file = joinpath(tmp_dir, "tmp_initial_condition_64.vtu")
+                file = joinpath(tmp_dir, "tmp_initial_condition_mixed.vtu")
                 test_ic = vtk2trixi(file)
 
                 @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
