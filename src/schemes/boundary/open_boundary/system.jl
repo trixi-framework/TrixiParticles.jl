@@ -12,7 +12,8 @@ Open boundary system for in- and outflow particles.
 - `fluid_system`: The corresponding fluid system
 - `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
 - `calculate_flow_rate=false`: Set to `true` to calculate the volumetric flow rate through each boundary zone.
-                               This value is (currently) not used in the simulation and is useful only for postprocessing.
+                               This value is automatically enabled when using [`RCRWindkesselModel`](@ref).
+                               Otherwise, it is useful only for postprocessing.
                                When enabled, velocities are interpolated at the sampling points
                                defined in each [`BoundaryZone`](@ref) and integrated to compute the flow rate.
                                Requires `sample_points` to be configured in all boundary zones.
