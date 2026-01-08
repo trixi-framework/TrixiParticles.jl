@@ -13,6 +13,7 @@ using FastPow: @fastpow
 using FileIO: FileIO
 using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
+using JLD2: JLD2
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
@@ -29,6 +30,7 @@ using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, 
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
 using StrideArraysCore: PtrArray, StaticInt
+using Suppressor: @suppress
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
 using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings, TrixiBase
@@ -58,10 +60,11 @@ include("callbacks/callbacks.jl")
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
-include("io/io.jl")
 include("visualization/recipes_plots.jl")
+include("io/io.jl")
+include("general/restart.jl")
 
-export Semidiscretization, semidiscretize, restart_with!
+export Semidiscretization, semidiscretize, restart_with!, semidiscretize_from_checkpoint
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        WallBoundarySystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySystem,
@@ -69,7 +72,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       SplitIntegrationCallback
+       SplitIntegrationCallback, CheckpointCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
@@ -92,6 +95,7 @@ export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
+export save_checkpoint, load_checkpoint
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
