@@ -157,9 +157,10 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
 
     cache = (; pressure_reference_values=pressure_reference_values,
              density_reference_values=density_reference_values,
-             velocity_reference_values=velocity_reference_values, calculate_flow_rate)
+             velocity_reference_values=velocity_reference_values)
 
-    if calculate_flow_rate
+    if calculate_flow_rate ||
+       any(pr -> isa(pr, RCRWindkesselModel), cache.pressure_reference_values)
         if any(zone -> isnothing(zone.cache.sample_points), boundary_zones)
             throw(ArgumentError("`sample_points` must be specified for all boundary zones when " *
                                 "`calculate_flow_rate` is true.\n" *
