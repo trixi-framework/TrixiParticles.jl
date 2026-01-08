@@ -201,7 +201,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
 end
 
 # Initialize self-interaction neighborhood search if not provided by the user
-# (which means self_interaction_nhs === :default). This cannot be done in the constructor
+# (which means `self_interaction_nhs === :default`). This cannot be done in the constructor
 # because we need both the parallelization backend (to optimize the memory layout)
 # and the NHS of the `Semidiscretization` (to copy the `PeriodicBox`).
 function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
