@@ -12,8 +12,11 @@ Open boundary system for in- and outflow particles.
 - `fluid_system`: The corresponding fluid system
 - `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
 - `calculate_flow_rate=false`: Set to `true` to calculate the volumetric flow rate through each boundary zone.
-                               Default is `false`. To ensure accurate flow rate computation, the cross-sectional area
-                               of the `boundary_zone` must be properly sampled. See `sample_points` in [`BoundaryZone`](@ref).
+                               This value is (currently) not used in the simulation and is useful only for postprocessing.
+                               When enabled, velocities are interpolated at the sampling points
+                               defined in each [`BoundaryZone`](@ref) and integrated to compute the flow rate.
+                               Requires `sample_points` to be configured in all boundary zones.
+                               Disable flow rate computation to save computational cost (default).
 - `pressure_acceleration`: Pressure acceleration formulation for the system. Required only
                            when using [`BoundaryModelDynamicalPressureZhang`](@ref).
                            Defaults to the formulation from `fluid_system` if applicable; otherwise, `nothing`.
@@ -41,6 +44,7 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZ
     buffer                            :: B
     pressure_acceleration_formulation :: PF
     shifting_technique                :: ST
+    calculate_flow_rate               :: Bool
     cache                             :: C
 end
 
@@ -48,7 +52,8 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                             fluid_system_index, smoothing_kernel, smoothing_length, mass,
                             volume, boundary_candidates, fluid_candidates,
                             boundary_zone_indices, boundary_zone, buffer,
-                            pressure_acceleration, shifting_technique, cache)
+                            pressure_acceleration, shifting_technique, calculate_flow_rate,
+                            cache)
     OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                        typeof(initial_condition), typeof(fluid_system),
                        typeof(fluid_system_index), typeof(smoothing_kernel), typeof(mass),
@@ -60,7 +65,7 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                                       smoothing_length, mass, volume, boundary_candidates,
                                       fluid_candidates, boundary_zone_indices,
                                       boundary_zone, buffer, pressure_acceleration,
-                                      shifting_technique, cache)
+                                      shifting_technique, calculate_flow_rate, cache)
 end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
@@ -123,7 +128,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
                               volume, boundary_candidates, fluid_candidates,
                               boundary_zone_indices, boundary_zones_new, buffer,
-                              pressure_acceleration, shifting_technique, cache)
+                              pressure_acceleration, shifting_technique,
+                              calculate_flow_rate, cache)
 end
 
 function initialize!(system::OpenBoundarySystem, semi)
@@ -344,7 +350,7 @@ update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator) = syst
 
 function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS},
                               v_ode, u_ode, semi) where {ELTYPE, NDIMS}
-    system.cache.calculate_flow_rate || return system
+    system.calculate_flow_rate || return system
 
     @trixi_timeit timer() "flow rate calculation" begin
         (; boundary_zones) = system
@@ -359,8 +365,7 @@ function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS},
 
             # Compute volumetric flow rate: Q = ∫ v ⋅ n dA
             velocities = reinterpret(reshape, SVector{NDIMS, ELTYPE}, sample_velocity)
-            flow_rate[] = @inbounds area_increment *
-                                    sum(v -> dot(v, -face_normal), velocities)
+            flow_rate[] = area_increment * sum(v -> dot(v, -face_normal), velocities)
         end
     end
 
@@ -624,6 +629,11 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     set_zero!(shepard_coefficient)
     set_zero!(sample_velocity)
 
+    # Pre-check array bounds before interpolation loop
+    points = axes(sample_points, 2)
+    @boundscheck checkbounds(shepard_coefficient, points)
+    @boundscheck checkbounds(sample_velocity, 1:ndims(system), points)
+
     # Shepard-normalized interpolation:
     #   v(p) = (Σ_b v_b V_b W_pb) / (Σ_b V_b W_pb)
     foreach_system(semi) do neighbor_system
@@ -631,26 +641,30 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
+        # We can do this because we require the neighborhood search to support querying neighbors
+        # of arbitrary positions (see `PointNeighbors.requires_update` and `check_configuration`).
         foreach_point_neighbor(system, neighbor_system, sample_points, neighbor_coords,
-                               semi,
-                               points=axes(sample_points, 2)) do point, neighbor,
-                                                                 pos_diff, distance
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            volume_b = m_b / current_density(v_neighbor, neighbor_system, neighbor)
+                               semi, points=points) do point, neighbor, pos_diff, distance
+            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+            rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
+            volume_b = m_b / rho_b
             W_ab = kernel(smoothing_kernel, distance, smoothing_length)
-            shepard_coefficient[point] += volume_b * W_ab
+            @inbounds shepard_coefficient[point] += volume_b * W_ab
 
-            velocity_neighbor = viscous_velocity(v_neighbor, neighbor_system, neighbor)
-            @inbounds for i in axes(velocity_neighbor, 1)
-                sample_velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
+            velocity_neighbor = @inbounds viscous_velocity(v_neighbor, neighbor_system,
+                                                           neighbor)
+            for i in axes(velocity_neighbor, 1)
+                @inbounds sample_velocity[i,
+                                          point] += velocity_neighbor[i] * volume_b *
+                                                    W_ab
             end
         end
     end
 
-    @threaded semi for point in axes(sample_points, 2)
-        if shepard_coefficient[point] > eps(eltype(shepard_coefficient))
-            @inbounds for i in axes(sample_velocity, 1)
-                sample_velocity[i, point] /= shepard_coefficient[point]
+    @threaded semi for point in points
+        if @inbounds shepard_coefficient[point] > eps(eltype(shepard_coefficient))
+            for i in axes(sample_velocity, 1)
+                @inbounds sample_velocity[i, point] /= shepard_coefficient[point]
             end
         end
     end

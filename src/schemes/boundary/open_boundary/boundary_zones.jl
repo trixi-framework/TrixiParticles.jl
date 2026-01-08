@@ -81,8 +81,10 @@ There are three ways to specify the actual shape of the boundary zone:
                        Per default it is set to zero (assuming a gauge pressure system).
     - For `EntropicallyDampedSPHSystem`: Use the initial pressure from the `InitialCondition`
     - For `WeaklyCompressibleSPHSystem`: Use the background pressure from the equation of state
-- `sample_points=:default`: Controls how the boundary face is sampled to estimate the
-                            volumetric flow rate.
+- `sample_points=:default`: Specifies how the boundary face is discretized for flow rate computation.
+                            Velocities are interpolated at these points and integrated to obtain
+                            the volumetric flow rate per boundary zone.
+                            Required when `calculate_flow_rate=true` in [`OpenBoundarySystem`](@ref).
     - `:default` (default): Automatically generate sampling points
       on the boundary face using a regular grid with spacing `particle_spacing`.
     - `sample_points::AbstractMatrix`: Provide your own sampling points
