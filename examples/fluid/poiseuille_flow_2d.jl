@@ -136,6 +136,7 @@ outflow = BoundaryZone(; boundary_face=face_out, face_normal=(.-(flow_direction)
 
 open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
                                    boundary_model=open_boundary_model,
+                                   calculate_flow_rate=true,
                                    buffer_size=n_buffer_particles)
 
 # ==========================================================================================
