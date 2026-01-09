@@ -1,8 +1,9 @@
 # Wrapper for any neighborhood search that forwards `foreach_point_neighbor` to the wrapped
 # neighborhood search, but doesn't do anything in the update step.
 # This is used in the example tests to test for zero allocations in the `kick!` function.
-struct NoUpdateNeighborhoodSearch{NHS}
+struct NoUpdateNeighborhoodSearch{NHS, CL}
     nhs::NHS
+    cell_list::CL
 end
 
 @inline Base.ndims(nhs::NoUpdateNeighborhoodSearch) = ndims(nhs.nhs)
@@ -10,7 +11,7 @@ end
 # Copy a `Semidiscretization`, but wrap the neighborhood searches with
 # `NoUpdateNeighborhoodSearch`.
 function copy_semi_with_no_update_nhs(semi)
-    neighborhood_searches = Tuple(Tuple(NoUpdateNeighborhoodSearch(nhs)
+    neighborhood_searches = Tuple(Tuple(NoUpdateNeighborhoodSearch(nhs, nhs.cell_list)
                                         for nhs in searches)
                                   for searches in semi.neighborhood_searches)
 
