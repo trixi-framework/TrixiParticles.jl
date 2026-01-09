@@ -1,4 +1,3 @@
-include("../test_util.jl")
 @testset verbose=true "ImplicitIncompressibleSPHSystem" begin
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructors" begin
@@ -59,7 +58,7 @@ include("../test_util.jl")
                                                      max_iterations=max_iterations,
                                                      time_step=time_step)
 
-            # Constructor copies input fields, applies defaults, and respects the requested dimensionality.
+            # Constructor copies input fields, applies defaults, and respects the requested dimensionality
             @test system isa ImplicitIncompressibleSPHSystem{NDIMS}
             @test system.initial_condition == initial_condition
             @test system.mass == mass
@@ -75,7 +74,7 @@ include("../test_util.jl")
             @test system.time_step == time_step
             @test length(system.density) == size(coordinates, 2)
 
-            # A too-short acceleration vector triggers dimension validation.
+            # A too-short acceleration vector triggers dimension validation
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str1) ImplicitIncompressibleSPHSystem(initial_condition,
                                                                                    smoothing_kernel,
@@ -84,7 +83,7 @@ include("../test_util.jl")
                                                                                    acceleration=(0.0),
                                                                                    time_step=0.001)
 
-            # Smoothing kernel dimensionality must match the problem dimension.
+            # Smoothing kernel dimensionality must match the problem dimension
             error_str2 = "smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str2) ImplicitIncompressibleSPHSystem(initial_condition,
                                                                                    smoothing_kernel2,
@@ -92,7 +91,7 @@ include("../test_util.jl")
                                                                                    reference_density,
                                                                                    time_step=0.001)
 
-            # Reference density must be positive.
+            # Reference density must be positive
             error_str3 = "`reference_density` must be a positive number"
             @test_throws ArgumentError(error_str3) ImplicitIncompressibleSPHSystem(initial_condition,
                                                                                    smoothing_kernel,
@@ -100,7 +99,7 @@ include("../test_util.jl")
                                                                                    0.0,
                                                                                    time_step=0.001)
 
-            # max_error is a percentage and must be in (0, 100].
+            # max_error is a percentage and must be in (0, 100]
             error_str4 = "`max_error` is given in percentage, so it must be a number between 0 and 100"
             @test_throws ArgumentError(error_str4) ImplicitIncompressibleSPHSystem(initial_condition,
                                                                                    smoothing_kernel,
@@ -109,7 +108,7 @@ include("../test_util.jl")
                                                                                    max_error=0.0,
                                                                                    time_step=0.001)
 
-            # min_iterations must be strictly positive.
+            # min_iterations must be strictly positive
             error_str5 = "`min_iterations` must be a positive number"
             @test_throws ArgumentError(error_str5) ImplicitIncompressibleSPHSystem(initial_condition,
                                                                                    smoothing_kernel,
@@ -118,7 +117,7 @@ include("../test_util.jl")
                                                                                    min_iterations=0,
                                                                                    time_step=0.001)
 
-            # min_iterations must not exceed max_iterations.
+            # min_iterations must not exceed max_iterations
             error_str6 = "`min_iterations` must be smaller or equal to `max_iterations`"
             @test_throws ArgumentError(error_str6) ImplicitIncompressibleSPHSystem(initial_condition,
                                                                                    smoothing_kernel,
@@ -128,7 +127,7 @@ include("../test_util.jl")
                                                                                    max_iterations=5,
                                                                                    time_step=0.001)
 
-            # time_step must be strictly positive.
+            # time_step must be strictly positive
             error_str7 = "`time_step must be a positive number"
             @test_throws ArgumentError(error_str6) ImplicitIncompressibleSPHSystem(initial_condition,
                                                                                    smoothing_kernel,
@@ -142,7 +141,7 @@ include("../test_util.jl")
 
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructors with Setups" begin
-        # Validate setup-based construction for several geometries and ensure validation hooks persist.
+        # Validate setup-based construction for several geometries and ensure validation hooks persist
         setups = [
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
             RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), density=1.0),
@@ -176,7 +175,7 @@ include("../test_util.jl")
                                                      reference_density,
                                                      time_step=0.001)
 
-            # Constructor from setup copies geometry properties, sets defaults, and preserves dimension.
+            # Constructor from setup copies geometry properties, sets defaults, and preserves dimension
             @test system isa ImplicitIncompressibleSPHSystem{NDIMS}
             @test system.initial_condition == setup
             @test system.mass == setup.mass
@@ -201,7 +200,7 @@ include("../test_util.jl")
 
             density_calculator = SummationDensity()
 
-            # Acceleration vector length validation also applies to setup-based constructors.
+            # Acceleration vector length validation also applies to setup-based constructors
             error_str = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str) ImplicitIncompressibleSPHSystem(setup,
                                                                                   smoothing_kernel,
@@ -294,7 +293,7 @@ include("../test_util.jl")
                                                  reference_density,
                                                  time_step=0.001)
 
-        # write_v0! must copy initial velocities into the solver state array.
+        # write_v0! must copy initial velocities into the solver state array
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))
         TrixiParticles.write_v0!(v0, system)
@@ -302,7 +301,7 @@ include("../test_util.jl")
         @test v0 == velocity
     end
 
-    # Validate helper routines that build the IISPH linear system and update pressures.
+    # Validate helper routines that build the IISPH linear system and update pressures
     @trixi_testset "Solver helper calculations" begin
         smoothing_kernel = Val(:smoothing_kernel)
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
@@ -339,19 +338,19 @@ include("../test_util.jl")
             # d_ij uses neighbor mass/density with kernel gradient sign; sum_term combines
             # both particles’ contributions per Ihmsen eq. 13.
             # With dt=0.5, m_b=3, rho_b=4, and grad_kernel=(1,-0.5), d_ij should be
-            # (-0.5^2 * 3 / 4^2)*grad_kernel = (-0.046875, 0.0234375).
+            # (-0.5^2 * 3 / 4^2)*grad_kernel = (-0.046875, 0.0234375)
             @test isapprox(TrixiParticles.calculate_d_ij(system, neighbor_system, 1,
                                                          grad_kernel, system.time_step),
                            SVector(-0.046875, 0.0234375))
             # sum_term expands to m_j * dot(sum_dik_pk - d_jj * p_j - (sum_djk_pk - d_ji * p_i), grad_kernel)
             # with the prepared values this yields 3 * dot((0.4,-0.2) - (0.3,0.1)*1.2 - ((0.05,0.07) -
-            # (-0.046875,0.0234375)*0.8), (1,-0.5)) = 0.615.
+            # (-0.046875,0.0234375)*0.8), (1,-0.5)) = 0.615
             @test isapprox(TrixiParticles.calculate_sum_term(system, neighbor_system, 1,
                                                               1, grad_kernel,
                                                               system.time_step),
                            0.615; atol=1.0e-12)
-            # d_ii uses particle i density and neighbor mass (eq. 9).
-            # Using m_b=3, rho_a=5, grad_kernel[1]=1, dt=0.5 gives -dt^2 * m_b / rho_a^2 * grad = -0.03.
+            # d_ii uses particle i density and neighbor mass (eq. 9)
+            # Using m_b=3, rho_a=5, grad_kernel[1]=1, dt=0.5 gives -dt^2 * m_b / rho_a^2 * grad = -0.03
             @test isapprox(TrixiParticles.calculate_d_ii(neighbor_system, mass_b[1],
                                                          density_a[1], grad_kernel[1],
                                                          system.time_step),
@@ -391,7 +390,7 @@ include("../test_util.jl")
                                                          [1.5], [7.0])
 
             # PressureMirroring removes off-diagonal pressure coupling and doubles diagonal term.
-            # For the mirroring path: -dt^2 * m_b / rho_b^2 * grad = -0.25^2 * 1.5 / 7^2 * (1,-0.5).
+            # For the mirroring path: -dt^2 * m_b / rho_b^2 * grad = -0.25^2 * 1.5 / 7^2 * (1,-0.5)
             @test isapprox(TrixiParticles.calculate_d_ij(system, boundary_system_mirroring, 1,
                                                          grad_kernel, system.time_step),
                            SVector(-0.007653061224489796, 0.003826530612244898))
@@ -401,7 +400,7 @@ include("../test_util.jl")
                                                          boundary_system_regular.mass[1],
                                                          density_a[1], grad_kernel[2],
                                                          system.time_step)
-            # Regular boundary path (no mirroring) uses -dt^2 * m_b / rho_a^2 * grad_kernel[2] = 0.0075.
+            # Regular boundary path (no mirroring) uses -dt^2 * m_b / rho_a^2 * grad_kernel[2] = 0.0075
             @test isapprox(regular_d_ii, 0.0075)
             @test isapprox(TrixiParticles.calculate_d_ii(boundary_system_mirroring,
                                                          boundary_system_mirroring.boundary_model,
@@ -410,7 +409,7 @@ include("../test_util.jl")
                                                          density_a[1], grad_kernel[2],
                                                          system.time_step),
                            2 * regular_d_ii; atol=1.0e-12)
-            # Boundary sum_term should still accumulate the fluid-side sum_dij_pj contribution.
+            # Boundary sum_term should still accumulate the fluid-side sum_dij_pj contribution
             @test isapprox(TrixiParticles.calculate_sum_term(system,
                                                               boundary_system_mirroring, 1,
                                                               1, grad_kernel,
@@ -437,7 +436,7 @@ include("../test_util.jl")
             semi = DummySemidiscretization()
             # First particle uses standard Jacobi update; second hits the safeguarded zero-a_ii path.
             # For particle 1: (1-omega)*0 + omega/a_ii * (source - sum_term) with omega=0.4,
-            # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and density_error -3.
+            # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and density_error -3
             relative_error = TrixiParticles.pressure_update(system_pressure,
                                                             system_pressure.pressure,
                                                             system_pressure.reference_density,
@@ -468,11 +467,11 @@ include("../test_util.jl")
                                                            time_step=0.25)
             system_iters.predicted_density .= [1005.0, 990.0]
 
-            # Source term equals reference density minus predicted density for each particle.
-            # Here: 1000-1005 = -5 and 1000-990 = 10, matching the solver source definition.
+            # Source term equals reference density minus predicted density for each particle
+            # Here: 1000-1005 = -5 and 1000-990 = 10, matching the solver source definition
             @test TrixiParticles.iisph_source_term(system_iters, 1) == -5.0
             @test TrixiParticles.iisph_source_term(system_iters, 2) == 10.0
-            # Accessors expose IISPH-specific particle counts and solver thresholds.
+            # Accessors expose IISPH-specific particle counts and solver thresholds
             @test TrixiParticles.n_iisph_particles(system_iters) == 2
             @test TrixiParticles.maximum_iisph_error(system_iters) == 0.25
             @test TrixiParticles.minimum_iisph_iterations(system_iters) == 3
