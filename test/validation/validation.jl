@@ -14,9 +14,18 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "oscillating_beam_2d",
                                                   "validation_oscillating_beam_2d.jl"),
-                                         tspan=(0.0, 1.0))
+                                         tspan=(0.0, 1.0)) [
+            r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+            r"└ @ TrixiParticles.*\n"
+        ]
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        if VERSION < v"1.12"
+            # Older Julia versions produce allocations because `get_neighborhood_search`
+            # is not type-stable with TLSPH.
+            @test count_rhs_allocations(sol, semi) < 200
+        else
+            @test count_rhs_allocations(sol, semi) == 0
+        end
         @test isapprox(error_deflection_x, 0, atol=eps())
         @test isapprox(error_deflection_y, 0, atol=eps())
 

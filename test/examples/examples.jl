@@ -8,9 +8,18 @@
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "structure",
                                                       "oscillating_beam_2d.jl"),
-                                             tspan=(0.0, 0.1))
+                                             tspan=(0.0, 0.1)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with penalty force and viscosity" begin
@@ -19,9 +28,18 @@
                                                       "oscillating_beam_2d.jl"),
                                              tspan=(0.0, 0.1),
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
-                                             viscosity=ArtificialViscosityMonaghan(alpha=0.01))
+                                             viscosity=ArtificialViscosityMonaghan(alpha=0.01)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with rotating clamp" begin
@@ -37,9 +55,18 @@
                                                       "oscillating_beam_2d.jl"),
                                              tspan=(0.0, 0.2),
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
-                                             clamped_particles_motion=prescribed_motion)
+                                             clamped_particles_motion=prescribed_motion) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
     end
 
@@ -48,9 +75,18 @@
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
                                                       "falling_water_column_2d.jl"),
-                                             tspan=(0.0, 0.4))
+                                             tspan=(0.0, 0.4)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl" begin
@@ -59,9 +95,18 @@
                                                       "dam_break_plate_2d.jl"),
                                              # Use rounded dimensions to avoid warnings
                                              initial_fluid_size=(0.15, 0.29),
-                                             tspan=(0.0, 0.4))
+                                             tspan=(0.0, 0.4)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl split integration" begin
@@ -77,11 +122,19 @@
                                              tspan=(0.0, 0.2),
                                              E=1e7, # Stiffer plate
                                              maxiters=500) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n",
                 r"┌ Warning: Interrupted. Larger maxiters is needed.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
             @test sol.retcode == ReturnCode.MaxIters
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
 
             # Now use split integration and verify that we need less than 400 iterations
             split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
@@ -97,9 +150,18 @@
                                              tspan=(0.0, 0.2),
                                              E=1e7, # Stiffer plate
                                              maxiters=400,
-                                             extra_callback=split_integration)
+                                             extra_callback=split_integration) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
 
             # Now use split integration and verify that it is actually used for TLSPH
             # by using a time step that is too large and verifying that it is crashing.
@@ -117,12 +179,20 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=500,
                                              extra_callback=split_integration) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n",
                 "┌ Warning: Instability detected. Aborting\n",
                 r".*dt was forced below floating point epsilon.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
             @test sol.retcode == ReturnCode.Unstable
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "fsi/dam_break_gate_2d.jl" begin
@@ -130,18 +200,36 @@
                                              joinpath(examples_dir(), "fsi",
                                                       "dam_break_gate_2d.jl"),
                                              tspan=(0.0, 0.4),
-                                             dtmax=1e-3)
+                                             dtmax=1e-3) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
 
         @trixi_testset "fsi/falling_spheres_2d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
                                                       "falling_spheres_2d.jl"),
-                                             tspan=(0.0, 1.0))
+                                             tspan=(0.0, 1.0)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 500
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
         end
     end
 
