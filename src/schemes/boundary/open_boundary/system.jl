@@ -12,7 +12,8 @@ Open boundary system for in- and outflow particles.
 - `fluid_system`: The corresponding fluid system
 - `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
 - `calculate_flow_rate=false`: Set to `true` to calculate the volumetric flow rate through each boundary zone.
-                               This value is (currently) not used in the simulation and is useful only for postprocessing.
+                               This value is automatically enabled when using [`RCRWindkesselModel`](@ref).
+                               Otherwise, it is useful only for postprocessing.
                                When enabled, velocities are interpolated at the sampling points
                                defined in each [`BoundaryZone`](@ref) and integrated to compute the flow rate.
                                Requires `sample_points` to be configured in all boundary zones.
@@ -94,6 +95,10 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
              create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
                                         calculate_flow_rate, boundary_zones_)...)
 
+    if any(pr -> isa(pr, RCRWindkesselModel), cache.pressure_reference_values)
+        calculate_flow_rate = true
+    end
+
     fluid_system_index = Ref(0)
 
     smoothing_kernel = system_smoothing_kernel(fluid_system)
@@ -152,9 +157,10 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
 
     cache = (; pressure_reference_values=pressure_reference_values,
              density_reference_values=density_reference_values,
-             velocity_reference_values=velocity_reference_values, calculate_flow_rate)
+             velocity_reference_values=velocity_reference_values)
 
-    if calculate_flow_rate
+    if calculate_flow_rate ||
+       any(pr -> isa(pr, RCRWindkesselModel), cache.pressure_reference_values)
         if any(zone -> isnothing(zone.cache.sample_points), boundary_zones)
             throw(ArgumentError("`sample_points` must be specified for all boundary zones when " *
                                 "`calculate_flow_rate` is true.\n" *
