@@ -2,7 +2,7 @@ include("../test_util.jl")
 @testset verbose=true "ImplicitIncompressibleSPHSystem" begin
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructors" begin
-        # Verify constructor wiring, default values, and argument validation across 2D/3D.
+        # Verify constructor wiring, default values, and argument validation across 2D/3D
         coordinates_ = [
             [1.0 2.0
              1.0 2.0],
@@ -267,7 +267,7 @@ include("../test_util.jl")
                                                  smoothing_length, reference_density,
                                                  time_step=0.001)
 
-        # write_u0! must copy initial coordinates into the solver state array.
+        # `write_u0!` must copy initial coordinates into the solver state array
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))
         TrixiParticles.write_u0!(u0, system)
