@@ -346,8 +346,8 @@
             # with the prepared values this yields 3 * dot((0.4,-0.2) - (0.3,0.1)*1.2 - ((0.05,0.07) -
             # (-0.046875,0.0234375)*0.8), (1,-0.5)) = 0.615
             @test isapprox(TrixiParticles.calculate_sum_term(system, neighbor_system, 1,
-                                                              1, grad_kernel,
-                                                              system.time_step),
+                                                             1, grad_kernel,
+                                                             system.time_step),
                            0.615; atol=1.0e-12)
             # d_ii uses particle i density and neighbor mass (eq. 9)
             # Using m_b=3, rho_a=5, grad_kernel[1]=1, dt=0.5 gives -dt^2 * m_b / rho_a^2 * grad = -0.03
@@ -371,7 +371,7 @@
             grad_kernel = SVector(1.0, -0.5)
 
             struct MockBoundaryModel{DC}
-                density_calculator :: DC
+                density_calculator::DC
             end
             struct MockBoundarySystem <: TrixiParticles.AbstractBoundarySystem{2}
                 boundary_model :: MockBoundaryModel
@@ -379,9 +379,12 @@
                 density        :: Vector{Float64}
             end
             Base.ndims(::MockBoundarySystem) = 2
-            TrixiParticles.hydrodynamic_mass(system::MockBoundarySystem, particle) = system.mass[particle]
-            TrixiParticles.current_density(::Nothing, system::MockBoundarySystem, particle) = system.density[particle]
-            TrixiParticles.current_density(_, system::MockBoundarySystem, particle) = system.density[particle]
+            TrixiParticles.hydrodynamic_mass(system::MockBoundarySystem,
+                                             particle) = system.mass[particle]
+            TrixiParticles.current_density(::Nothing, system::MockBoundarySystem,
+                                           particle) = system.density[particle]
+            TrixiParticles.current_density(_, system::MockBoundarySystem,
+                                           particle) = system.density[particle]
             TrixiParticles.nparticles(system::MockBoundarySystem) = length(system.mass)
 
             boundary_system_mirroring = MockBoundarySystem(MockBoundaryModel(PressureMirroring()),
@@ -391,7 +394,8 @@
 
             # PressureMirroring removes off-diagonal pressure coupling and doubles diagonal term.
             # For the mirroring path: -dt^2 * m_b / rho_b^2 * grad = -0.25^2 * 1.5 / 7^2 * (1,-0.5)
-            @test isapprox(TrixiParticles.calculate_d_ij(system, boundary_system_mirroring, 1,
+            @test isapprox(TrixiParticles.calculate_d_ij(system, boundary_system_mirroring,
+                                                         1,
                                                          grad_kernel, system.time_step),
                            SVector(-0.007653061224489796, 0.003826530612244898))
             regular_d_ii = TrixiParticles.calculate_d_ii(boundary_system_regular,
@@ -411,9 +415,9 @@
                            2 * regular_d_ii; atol=1.0e-12)
             # Boundary sum_term should still accumulate the fluid-side sum_dij_pj contribution
             @test isapprox(TrixiParticles.calculate_sum_term(system,
-                                                              boundary_system_mirroring, 1,
-                                                              1, grad_kernel,
-                                                              system.time_step),
+                                                             boundary_system_mirroring, 1,
+                                                             1, grad_kernel,
+                                                             system.time_step),
                            0.75; atol=1.0e-12)
         end
 
