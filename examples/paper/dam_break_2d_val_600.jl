@@ -5,6 +5,7 @@
 # In: Computer Methods in Applied Mechanics and Engineering, Volume 420 (2024),
 # https://doi.org/10.1016/j.cma.2023.116700
 
+using OrdinaryDiffEq
 using TrixiParticles
 using TrixiParticles.JSON
 using CUDA
@@ -33,20 +34,13 @@ end
 # When using data center CPUs with large numbers of cores, especially on multi-socket
 # systems with multiple NUMA nodes, pinning threads to cores can significantly
 # improve performance, even for low resolutions.
-# using ThreadPinning
-# pinthreads(:numa)
+using ThreadPinning
+pinthreads(:numa)
 
 # `resolution` in this case is set relative to `H`, the initial height of the fluid.
 # Use 40, 80 or 400 for validation.
 # Note: 400 takes about 30 minutes on a large data center CPU (much longer with serial update)
 particles_per_height = 600
-
-min_corner = (-1.5, -1.5)
-max_corner = (6.5, 5.0)
-cell_list = FullGridCellList(; min_corner, max_corner, max_points_per_cell=30)
-
-neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
-                                                update_strategy=ParallelUpdate())
 
 # ==========================================================================================
 # ==== WCSPH simulation
@@ -81,14 +75,6 @@ W = 2 * H
 # Import variables from the example file
 alpha = 0.01
 viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-shifting_technique = nothing
-# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-#               alpha=0.01,
-#               sol=nothing,
-#               ode=nothing,
-#               shifting_technique=shifting_technique,
-#               viscosity_fluid=viscosity_fluid,
-#               fluid_particle_spacing=particle_spacing)
 
 
 boundary_layers = 4
@@ -105,12 +91,53 @@ tank_size = (floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing,
 
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * H)
+tspan = (0.0, 7 / sqrt(9.81 / 0.6)) # This is used by De Courcy et al. (2024)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       n_layers=boundary_layers,
                        acceleration=(0.0, -gravity), state_equation=state_equation)
+
+# Sensor positions used by De Courcy et al. (2024)
+sensor_size = 0.0084
+P1_y_top = (6 + 4.2) / 600 * H
+P1_y_bottom = P1_y_top - sensor_size
+P2_y_top = (30 + 4.2) / 600 * H
+P2_y_bottom = P2_y_top - sensor_size
+P3_y_top = (60 + 4.2) / 600 * H
+P3_y_bottom = P3_y_top - sensor_size
+P4_y_top = (160 + 4.2) / 600 * H
+P4_y_bottom = P4_y_top - sensor_size
+
+tank_right_wall_x = tank_size[1]
+
+pressure_P1 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
+               t) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
+                                           [tank_right_wall_x, P1_y_bottom],
+                                           v_ode, u_ode, t, system, semi)
+pressure_P2 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
+               t) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
+                                           [tank_right_wall_x, P2_y_bottom],
+                                           v_ode, u_ode, t, system, semi)
+pressure_P3 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
+               t) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
+                                           [tank_right_wall_x, P3_y_bottom],
+                                           v_ode, u_ode, t, system, semi)
+pressure_P4 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
+               t) -> interpolated_pressure([tank_right_wall_x, P4_y_top],
+                                           [tank_right_wall_x, P4_y_bottom],
+                                           v_ode, u_ode, t, system, semi)
+
+method = "wcsph"
+
+extra_string = ""
+formatted_string = string(particles_per_height) * extra_string
+
+# Disable loop flipping to produce consistent results over different thread numbers
+boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=false)
+
+
 
 # ==========================================================================================
 # ==== Fluid
@@ -151,6 +178,13 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
                                      adhesion_coefficient=0.0)
 
+min_corner = (-1.5, -1.5)
+max_corner = (6.5, 5.0)
+cell_list = FullGridCellList(; min_corner, max_corner, max_points_per_cell=30)
+
+neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
+                                                update_strategy=ParallelUpdate())
+
 # ==========================================================================================
 # ==== Simulation
 # `nothing` will automatically choose the best update strategy. This is only to be able
@@ -158,78 +192,41 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
 extra_system = nothing
 extra_system2 = nothing
 semi = Semidiscretization(fluid_system, boundary_system, extra_system, extra_system2,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
+                          neighborhood_search=neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-solution_prefix = "validation_" * method * "_" * formatted_string
-saving_callback = SolutionSavingCallback(dt=0.01, prefix=solution_prefix)
-
-# This can be overwritten with `trixi_include`
-extra_callback = nothing
-extra_callback2 = nothing
-stepsize_callback = StepsizeCallback(cfl=0.9)
-
-
-tspan = (0.0, 7 / sqrt(9.81 / 0.6)) # This is used by De Courcy et al. (2024)
-
-fluid_density = 1000.0
-
-# Sensor positions used by De Courcy et al. (2024)
-sensor_size = 0.0084
-P1_y_top = (6 + 4.2) / 600 * H
-P1_y_bottom = P1_y_top - sensor_size
-P2_y_top = (30 + 4.2) / 600 * H
-P2_y_bottom = P2_y_top - sensor_size
-P3_y_top = (60 + 4.2) / 600 * H
-P3_y_bottom = P3_y_top - sensor_size
-P4_y_top = (160 + 4.2) / 600 * H
-P4_y_bottom = P4_y_top - sensor_size
-
-tank_right_wall_x = tank_size[1]
-
-pressure_P1 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
-                                           [tank_right_wall_x, P1_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
-pressure_P2 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
-                                           [tank_right_wall_x, P2_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
-pressure_P3 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
-                                           [tank_right_wall_x, P3_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
-pressure_P4 = (system, dv_ode, du_ode, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P4_y_top],
-                                           [tank_right_wall_x, P4_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
-
-method = "wcsph"
-
-
-extra_string = ""
-formatted_string = string(particles_per_height) * extra_string
+base_folder = "paper/dam_break/"
+case = "600_val_1"
 
 postprocessing_cb = PostprocessCallback(; dt=0.01 / sqrt(gravity / H),
-                                        output_directory="out",
+                                        output_directory="$(base_folder)$(case)/sensors",
                                         filename="validation_result_dam_break_" *
                                                  method * "_" * formatted_string,
-                                        write_csv=false, exclude_boundary=false,
+                                        write_csv=false,
+                                        exclude_boundary=false,
                                         max_x_coord,
                                         pressure_P1, pressure_P2,
                                         pressure_P3, pressure_P4)
-
-# Disable loop flipping to produce consistent results over different thread numbers
-boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=false)
 
 # Save at certain timepoints which allows comparison to the results of Marrone et al.,
 # i.e. t(g/H)^(1/2) = (1.5, 2.36, 3.0, 5.7, 6.45).
 # Note that the images in Marrone et al. are obtained with `particles_per_height = 320`.
 saving_paper = SolutionSavingCallback(save_times=[0.0, 1.5, 2.36, 3.0, 5.7, 6.45] ./
-                                                 sqrt(gravity / H), prefix="marrone_times")
+                                                 sqrt(gravity / H), prefix="marrone_times",
+                                                 output_directory="$(base_folder)$(case)/")
+
+solution_prefix = "validation_" * formatted_string
+saving_callback = SolutionSavingCallback(dt=0.01, prefix=solution_prefix,
+                                                 output_directory="$(base_folder)$(case)/")
+
+use_reinit = false
+density_reinit_cb = use_reinit ?
+                    DensityReinitializationCallback(semi.systems[1], interval=10) :
+                    nothing
+stepsize_callback = StepsizeCallback(cfl=0.9)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, postprocessing_cb,
                         saving_paper, density_reinit_cb)
