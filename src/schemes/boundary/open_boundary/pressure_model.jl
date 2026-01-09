@@ -95,8 +95,8 @@ function calculate_pressure!(pressure_model::RCRWindkesselModel, system,
      flow_rate, pressure) = pressure_model
 
     previous_pressure = pressure[]
-    previous_flow_rate = flow_rate[]
-    flow_rate[] = current_flow_rate
+    previous_flow_rate = flow_rate[] # Flow rate stored in `pressure_model`
+    flow_rate[] = current_flow_rate # Flow rate calculated in `calculate_flow_rate!`
 
     # Calculate new pressure according to eq. 22 in Zhang et al. (2025)
     R1 = characteristic_resistance
