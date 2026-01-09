@@ -170,11 +170,6 @@ saving_callback = SolutionSavingCallback(dt=0.01, prefix=solution_prefix)
 # This can be overwritten with `trixi_include`
 extra_callback = nothing
 extra_callback2 = nothing
-
-use_reinit = false
-density_reinit_cb = use_reinit ?
-                    DensityReinitializationCallback(semi.systems[1], interval=10) :
-                    nothing
 stepsize_callback = StepsizeCallback(cfl=0.9)
 
 
