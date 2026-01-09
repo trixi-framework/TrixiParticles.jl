@@ -16,7 +16,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   plus a extrude_geometry function and a union operation for TriangleMesh (#962).
 
 - Added an `RCRWindkesselModel` open-boundary pressure model as a lumped-parameter
-  description of vascular systems (#935).
+  description of vascular systems (#935, #1019, #992).
 
 - Added support for FP64 coordinates when using FP32 GPU computations. Fixing
   stability issues at high resolutions (#956).
