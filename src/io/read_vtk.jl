@@ -6,11 +6,6 @@ Load VTK file and convert data to a `NamedTuple`.
 
 # Arguments
 - `file`:                 Name of the VTK file to be loaded.
-- `custom_quantities...`: Additional custom quantities to be loaded from the VTK file.
-                          Each custom quantity must be explicitly listed in the
-                          `custom_quantities` during the simulation to ensure it is
-                          included in the VTK output and can be successfully loaded.
-                          See [Custom Quantities](@ref custom_quantities) for details.
 
 # Keywords
 - `element_type`: Element type for particle fields. By default, the type
@@ -19,6 +14,11 @@ Load VTK file and convert data to a `NamedTuple`.
 - `coordinates_eltype`: Element type for particle coordinates. By default, the type
                         stored in the VTK file is used.
                         Otherwise, data is converted to the specified type.
+- `custom_quantities...`: Additional custom quantities to be loaded from the VTK file.
+                          Each custom quantity must be explicitly listed in the
+                          `custom_quantities` during the simulation to ensure it is
+                          included in the VTK output and can be successfully loaded.
+                          See [Custom Quantities](@ref custom_quantities) for details.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
@@ -51,7 +51,8 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
     point_coords = ReadVTK.get_points(vtk_file)
 
     cELTYPE = isnothing(coordinates_eltype) ? eltype(point_coords) : coordinates_eltype
-    ELTYPE = isnothing(element_type) ? eltype(point_coords) : element_type
+    ELTYPE = isnothing(element_type) ?
+             eltype(first(ReadVTK.get_data(point_data["pressure"]))) : element_type
 
     results = Dict{Symbol, Any}()
 
