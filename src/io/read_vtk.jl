@@ -30,7 +30,7 @@ Missing fields are zero-filled; `:particle_spacing` is scalar if constant, other
     This is an experimental feature and may change in any future releases.
 
 # Example
-```jldoctest; output = false, filter = r"density = \\[.*\\]|pressure = \\[.*\\]|velocity = \\[.*\\]|coordinates = \\[.*\\]|initial_condition = \\[.*\\]"
+```jldoctest; output = false, filter = r"density = \\[.*\\]|pressure = \\[.*\\]|velocity = \\[.*\\]|coordinates = \\[.*\\]"
 # Create a rectangular shape
 rectangular = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0, -2.0),
                                pressure=1000.0)
@@ -44,7 +44,7 @@ data = vtk2trixi(joinpath("out", "rectangular.vtu");
                  my_custom_quantity="my_custom_quantity")
 
 # output
-(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...], initial_condition = [...])
+(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...], initial_condition = InitialCondition{Float64, Float64}())
 ```
 """
 function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
