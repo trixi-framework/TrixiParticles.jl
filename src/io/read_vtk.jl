@@ -11,6 +11,14 @@ Load VTK file and convert data to a NamedTuple.
                           included in the VTK output and can be successfully loaded.
                           See [Custom Quantities](@ref custom_quantities) for details.
 
+# Keywords
+- `element_type`: Element type for particle fields. By default, the type
+                  stored in the VTK file is used.
+                  Otherwise, data is converted to the specified type.
+- `coordinates_eltype`: Element type for particle coordinates. By default, the type
+                        stored in the VTK file is used.
+                        Otherwise, data is converted to the specified type.
+
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 
@@ -38,12 +46,17 @@ function vtk2trixi(file; custom_quantities...)
     # Retrieve data fields (e.g., pressure, velocity, ...)
     point_data = ReadVTK.get_point_data(vtk_file)
     field_data = ReadVTK.get_field_data(vtk_file)
+    point_coords = ReadVTK.get_points(vtk_file)
+
+    cELTYPE = isnothing(coordinates_eltype) ? eltype(point_coords) : coordinates_eltype
+    ELTYPE = isnothing(element_type) ?
+             eltype(first(ReadVTK.get_data(point_data["pressure"]))) : element_type
 
     results = Dict{Symbol, Any}()
 
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))
-    coordinates = ReadVTK.get_points(vtk_file)[1:ndims, :]
+    coordinates = convert.(cELTYPE, point_coords[1:ndims, :])
 
     fields = [:velocity, :density, :pressure, :mass, :particle_spacing]
     for field in fields
@@ -51,7 +64,7 @@ function vtk2trixi(file; custom_quantities...)
         all_keys = keys(point_data)
         idx = findfirst(k -> occursin(string(field), k), all_keys)
         if idx !== nothing
-            results[field] = ReadVTK.get_data(point_data[all_keys[idx]])
+            results[field] = convert.(ELTYPE, ReadVTK.get_data(point_data[all_keys[idx]]))
         else
             # Use zeros as default values when a field is missing
             results[field] = string(field) in ["mass"] ?
