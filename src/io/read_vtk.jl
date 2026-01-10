@@ -1,11 +1,14 @@
 """
 	vtk2trixi(file::String; element_type=nothing, coordinates_eltype=nothing,
-              custom_quantities...)
+              create_initial_condition=true, custom_quantities...)
 
-Load VTK file and convert data to a `NamedTuple`.
+Read a VTK file and return a `NamedTuple` with keys
+`:coordinates`, `:velocity`, `:density`, `:pressure`, `:particle_spacing`, `:time`,
+plus any requested custom quantities.
+Missing fields are zero-filled; `:particle_spacing` is scalar if constant, otherwise per-particle.
 
 # Arguments
-- `file`:                 Name of the VTK file to be loaded.
+- `file`: Name of the VTK file to be loaded.
 
 # Keywords
 - `element_type`: Element type for particle fields. By default, the type
@@ -14,17 +17,20 @@ Load VTK file and convert data to a `NamedTuple`.
 - `coordinates_eltype`: Element type for particle coordinates. By default, the type
                         stored in the VTK file is used.
                         Otherwise, data is converted to the specified type.
-- `custom_quantities...`: Additional custom quantities to be loaded from the VTK file.
-                          Each custom quantity must be explicitly listed in the
-                          `custom_quantities` during the simulation to ensure it is
-                          included in the VTK output and can be successfully loaded.
-                          See [Custom Quantities](@ref custom_quantities) for details.
+- `create_initial_condition`: If `true`, an `InitialCondition` object is created
+                              and included in the returned `NamedTuple` under
+                              the key `:initial_condition`. Default is `true`.
+- `custom_quantities...`: Keyword arguments to load additional quantities from the VTK file.
+                          Each keyword becomes a key in the returned `NamedTuple`, with its
+                          string value specifying the VTK field name to read.
+                          Example: `my_data="field_name"` loads VTK field `"field_name"`
+                          as `:my_data` in the result.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 
 # Example
-```jldoctest; output = false, filter = r"density = \\[.*\\]|pressure = \\[.*\\]|mass = \\[.*\\]|velocity = \\[.*\\]|coordinates = \\[.*\\]"
+```jldoctest; output = false, filter = r"density = \\[.*\\]|pressure = \\[.*\\]|velocity = \\[.*\\]|coordinates = \\[.*\\]|initial_condition = \\[.*\\]"
 # Create a rectangular shape
 rectangular = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0, -2.0),
                                pressure=1000.0)
@@ -38,11 +44,11 @@ data = vtk2trixi(joinpath("out", "rectangular.vtu");
                  my_custom_quantity="my_custom_quantity")
 
 # output
-(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...])
+(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...], initial_condition = [...])
 ```
 """
 function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
-                   custom_quantities...)
+                   create_initial_condition=true, custom_quantities...)
     vtk_file = ReadVTK.VTKFile(file)
 
     # Retrieve data fields (e.g., pressure, velocity, ...)
@@ -96,10 +102,14 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
 
     results = NamedTuple(results)
 
-    ic = InitialCondition(; coordinates=results.coordinates,
-                          particle_spacing=results.particle_spacing,
-                          velocity=results.velocity, density=results.density,
-                          pressure=results.pressure)
+    if create_initial_condition
+        ic = InitialCondition(; coordinates=results.coordinates,
+                              particle_spacing=results.particle_spacing,
+                              velocity=results.velocity, density=results.density,
+                              pressure=results.pressure)
 
-    return merge(results, (initial_condition=ic,))
+        return merge(results, (initial_condition=ic,))
+    else
+        return results
+    end
 end
