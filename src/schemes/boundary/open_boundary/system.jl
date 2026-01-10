@@ -678,3 +678,67 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
 
     return system
 end
+
+function restart_u(system::OpenBoundarySystem, data)
+    coords_total = zeros(coordinates_eltype(system), u_nvariables(system),
+                         n_integrated_particles(system))
+    coords_total .= coordinates_eltype(system)(1e16)
+
+    coords_active = data.coordinates
+    for particle in axes(coords_active, 2)
+        for dim in 1:ndims(system)
+            coords_total[dim, particle] = coords_active[dim, particle]
+        end
+    end
+
+    system.buffer.active_particle .= false
+    system.buffer.active_particle[1:size(coords_active, 2)] .= true
+
+    update_system_buffer!(system.buffer)
+
+    return coords_total
+end
+
+function restart_v(system::OpenBoundarySystem, data)
+    v_total = zeros(eltype(system), v_nvariables(system),
+                    n_integrated_particles(system))
+
+    v_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
+
+    v_active[1:ndims(system), :] = data.velocity
+    write_density_and_pressure!(v_active, system.fluid_system,
+                                density_calculator(system), data.pressure, data.density)
+
+    for particle in axes(v_active, 2)
+        for i in axes(v_active, 1)
+            v_total[i, particle] = v_active[i, particle]
+        end
+    end
+
+    return v_total
+end
+
+function precondition_system!(system::OpenBoundarySystem, file)
+    # We cannot simply use `update_boundary_zone_indices!` because rounding errors during file I/O
+    # may result in particles being located outside their intended boundary zone, even though they
+    # were written as active particles.
+    set_zero!(system.boundary_zone_indices)
+    values = vtk2trixi(file; zone_id="zone_id")
+    system.boundary_zone_indices[each_integrated_particle(system)] .= values.zone_id
+
+    if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
+        keys_p = [(Symbol(:p, i), "boundary_zone_pressure_$(i)")
+                  for i in eachindex(system.boundary_zones)]
+        keys_Q = [(Symbol(:Q, i), "Q_$(i)") for i in eachindex(system.boundary_zones)]
+        values = vtk2trixi(file; merge(keys_p, keys_Q)...)
+
+        for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
+            if pressure_model isa AbstractPressureModel
+                pressure_model.pressure[] = values[Symbol(:p, i)]
+                pressure_model.flow_rate[] = values[Symbol(:Q, i)]
+            end
+        end
+    end
+
+    return system
+end
