@@ -1,6 +1,5 @@
 """
-	vtk2trixi(file::String; element_type=nothing, coordinates_eltype=nothing,
-              custom_quantities...)
+	vtk2trixi(file::String; element_type=nothing, coordinates_eltype=nothing)
 
 Load VTK file and convert data to a `NamedTuple`.
 
@@ -11,6 +10,14 @@ Load VTK file and convert data to a `NamedTuple`.
                           `custom_quantities` during the simulation to ensure it is
                           included in the VTK output and can be successfully loaded.
                           See [Custom Quantities](@ref custom_quantities) for details.
+
+# Keywords
+- `element_type`: Element type for particle fields. By default, the type
+                  stored in the VTK file is used.
+                  Otherwise, data is converted to the specified type.
+- `coordinates_eltype`: Element type for particle coordinates. By default, the type
+                        stored in the VTK file is used.
+                        Otherwise, data is converted to the specified type.
 
 # Keywords
 - `element_type`: Element type for particle fields. By default, the type
@@ -38,11 +45,18 @@ data = vtk2trixi(joinpath("out", "rectangular.vtu");
                  my_custom_quantity="my_custom_quantity")
 
 # output
-(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], mass = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...])
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
+│ #dimensions: ……………………………………………… 2                                                                │
+│ #particles: ………………………………………………… 100                                                              │
+│ particle spacing: ………………………………… 0.1                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinate eltype: ……………………………… Float64                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
-                   custom_quantities...)
+function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
     vtk_file = ReadVTK.VTKFile(file)
 
     # Retrieve data fields (e.g., pressure, velocity, ...)
@@ -51,13 +65,15 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
     point_coords = ReadVTK.get_points(vtk_file)
 
     cELTYPE = isnothing(coordinates_eltype) ? eltype(point_coords) : coordinates_eltype
-    ELTYPE = isnothing(element_type) ? eltype(point_coords) : element_type
-
-    results = Dict{Symbol, Any}()
+    ELTYPE = isnothing(element_type) ?
+             eltype(first(ReadVTK.get_data(point_data["pressure"]))) : element_type
 
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))
     coordinates = convert.(cELTYPE, point_coords[1:ndims, :])
+
+    fields = ["velocity", "density", "pressure", "mass", "particle_spacing"]
+    results = Dict{String, Array{Float64}}()
 
     fields = [:velocity, :density, :pressure, :particle_spacing]
     for field in fields
@@ -68,8 +84,8 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
             results[field] = convert.(ELTYPE, ReadVTK.get_data(point_data[all_keys[idx]]))
         else
             # Use zeros as default values when a field is missing
-            results[field] = string(field) in ["velocity"] ?
-                             zero(coordinates) : zeros(ELTYPE, size(coordinates, 2))
+            results[field] = field in ["mass"] ?
+                             zeros(ELTYPE, size(coordinates, 2)) : zero(coordinates)
             @info "No '$field' field found in VTK file. Will be set to zero."
         end
     end
@@ -81,17 +97,10 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
     results[:time] = "time" in keys(field_data) ?
                      first(ReadVTK.get_data(field_data["time"])) : zero(ELTYPE)
 
-    for (key, quantity_) in custom_quantities
-        quantity = string(quantity_)
-        if quantity in keys(point_data)
-            results[key] = ReadVTK.get_data(point_data[quantity])
-        elseif quantity in keys(field_data)
-            results[key] = first(ReadVTK.get_data(field_data[quantity]))
-        else
-            throw(ArgumentError("Custom quantity '$quantity' not found in VTK file. " *
-                                "Make sure it was included during the simulation."))
-        end
-    end
-
-    return NamedTuple(results)
+    return InitialCondition(; coordinates,
+                            particle_spacing=convert(ELTYPE, particle_spacing),
+                            velocity=results["velocity"],
+                            mass=results["mass"],
+                            density=results["density"],
+                            pressure=results["pressure"])
 end

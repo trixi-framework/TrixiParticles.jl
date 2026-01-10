@@ -13,17 +13,17 @@
 
         @testset verbose=true "`InitialCondition`" begin
             @testset verbose=true "`Float64`" begin
-                trixi2vtk(expected_data; filename="tmp_initial_condition_64",
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_64",
                           output_directory=tmp_dir)
                 file = joinpath(tmp_dir, "tmp_initial_condition_64.vtu")
-                data = vtk2trixi(file)
+                test_ic = vtk2trixi(file)
 
-                @test isapprox(expected_data.coordinates, data.coordinates, rtol=1e-5)
-                @test isapprox(expected_data.velocity, data.velocity, rtol=1e-5)
-                @test isapprox(expected_data.density, data.density, rtol=1e-5)
-                @test isapprox(expected_data.pressure, data.pressure, rtol=1e-5)
-                @test all(key -> eltype(data[key]) === Float64, keys(data))
-                @test eltype(data.coordinates) === Float64
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float64
+                @test eltype(test_ic.coordinates) === Float64
             end
 
             @testset verbose=true "`Float32`" begin
@@ -36,7 +36,7 @@
                 trixi2vtk(expected_ic_32; filename="tmp_initial_condition_32",
                           output_directory=tmp_dir)
                 file = joinpath(tmp_dir, "tmp_initial_condition_32.vtu")
-                data = vtk2trixi(file)
+                test_ic = vtk2trixi(file)
 
                 @test isapprox(expected_ic_32.coordinates, test_ic.coordinates, rtol=1e-5)
                 @test isapprox(expected_ic_32.velocity, test_ic.velocity, rtol=1e-5)
@@ -47,55 +47,29 @@
             end
 
             @testset verbose=true "Custom Element Type" begin
-                trixi2vtk(expected_data; filename="tmp_initial_condition_64",
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_custom",
                           output_directory=tmp_dir)
-                file = joinpath(tmp_dir, "tmp_initial_condition_64.vtu")
-                data = vtk2trixi(file, element_type=Float32, coordinates_eltype=Float32)
+                file = joinpath(tmp_dir, "tmp_initial_condition_custom.vtu")
+                test_ic = vtk2trixi(file, element_type=Float32, coordinates_eltype=Float32)
 
-                @test isapprox(expected_data.coordinates, data.coordinates, rtol=1e-5)
-                @test isapprox(expected_data.velocity, data.velocity, rtol=1e-5)
-                @test isapprox(expected_data.density, data.density, rtol=1e-5)
-                @test isapprox(expected_data.pressure, data.pressure, rtol=1e-5)
-                @test all(key -> eltype(data[key]) === Float32, keys(data))
-                @test eltype(data.coordinates) === Float32
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float32
             end
 
-            @testset verbose=true "Scalar Custom Quantity" begin
-                trixi2vtk(expected_data; filename="tmp_initial_condition_scalar",
-                          output_directory=tmp_dir, cq_scalar=expected_cq_scalar)
-
-                # Load file containing test data
-                test_data = vtk2trixi(joinpath(tmp_dir, "tmp_initial_condition_scalar.vtu");
-                                      cq_scalar=:cq_scalar)
-
-                @test isapprox(expected_data.coordinates, test_data.coordinates, rtol=1e-5)
-                @test isapprox(expected_data.velocity, test_data.velocity, rtol=1e-5)
-                @test isapprox(expected_data.density, test_data.density, rtol=1e-5)
-                @test isapprox(expected_data.pressure, test_data.pressure, rtol=1e-5)
-                @test isapprox(expected_cq_scalar, test_data.cq_scalar, rtol=1e-5)
-            end
-
-            @testset verbose=true "Vector Custom Quantity" begin
-                trixi2vtk(expected_data; filename="tmp_initial_condition_vector",
-                          output_directory=tmp_dir,
-                          cq_vector=expected_cq_vector)
-
-                # Load file containing test data
-                test_data = vtk2trixi(joinpath(tmp_dir, "tmp_initial_condition_vector.vtu");
-                                      cq_vector=:cq_vector)
-
-                @test isapprox(expected_data.coordinates, test_data.coordinates, rtol=1e-5)
-                @test isapprox(expected_data.velocity, test_data.velocity, rtol=1e-5)
-                @test isapprox(expected_data.density, test_data.density, rtol=1e-5)
-                @test isapprox(expected_data.pressure, test_data.pressure, rtol=1e-5)
-                @test isapprox(expected_cq_vector, test_data.cq_vector, rtol=1e-5)
-            end
-
-            @testset verbose=true "Custom Element Type Mixed" begin
-                trixi2vtk(expected_ic; filename="tmp_initial_condition_64",
+            @testset verbose=true "Mixed Types" begin
+                expected_ic_mixed = InitialCondition(;
+                                                     coordinates=coordinates,
+                                                     velocity=convert.(Float32, velocity),
+                                                     density=1000.0f0, pressure=900.0f0,
+                                                     mass=50.0f0, particle_spacing=0.1f0)
+                trixi2vtk(expected_ic_mixed; filename="tmp_initial_condition_mixed",
                           output_directory=tmp_dir)
-                file = joinpath(tmp_dir, "tmp_initial_condition_64.vtu")
-                test_ic = vtk2trixi(file, element_type=Float32, coordinates_eltype=Float64)
+                file = joinpath(tmp_dir, "tmp_initial_condition_mixed.vtu")
+                test_ic = vtk2trixi(file)
 
                 @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
                 @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)

@@ -1,4 +1,4 @@
-# Same as `foreach`, but it optimizes away for small input tuples
+# Same as `foreach`, but it is unrolled by the compiler for small input tuples
 @inline function foreach_noalloc(func, collection)
     element = first(collection)
     remaining_collection = Base.tail(collection)
