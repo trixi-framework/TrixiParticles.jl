@@ -10,6 +10,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Keyword argument `n_clamped_particles` of the `TotalLagrangianSPHSystem`
   has been deprecated in favor of a new kwarg `clamped_particles`.
+- Return type of `vtk2trixi` changed to `NamedTuple` including an optional
+  `:initial_condition` field if `create_initial_condition=true` is passed. (#959)
 
 ### Features
 

@@ -253,7 +253,7 @@ end
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
 """
-    semidiscretize(semi, tspan; reset_threads=true)
+    semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
@@ -262,6 +262,10 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
+- `restart_with`: Can be used to restart the simulation from VTK solution files (see [`SolutionSavingCallback`](@ref)).
+  This has to be a tuple of filenames, one for each system in the [`Semidiscretization`](@ref).
+  The order of the filenames has to match the order of the systems in the [`Semidiscretization`](@ref).
+  If no restart is desired, use `nothing` (default).
 - `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
   After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
   ensures that threading is enabled again for the simulation.
@@ -288,7 +292,7 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     (; systems) = semi
 
     # Check that all systems have the same eltype
@@ -329,17 +333,11 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system(semi) do system
-        u0_system = wrap_u(u0_ode, system, semi)
-        v0_system = wrap_v(v0_ode, system, semi)
-
-        write_u0!(u0_system, system)
-        write_v0!(v0_system, system)
-    end
+    set_initial_conditions!(v0_ode, u0_ode, semi, restart_with)
 
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
-    initialize_neighborhood_searches!(semi)
+    initialize_neighborhood_searches!(semi, u0_ode, restart_with)
 
     if semi.parallelization_backend isa KernelAbstractions.Backend
         # Convert all arrays to the correct array type.
@@ -363,15 +361,34 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Initialize all particle systems
-    foreach_system(semi_new) do system
-        # Initialize this system
-        initialize!(system, semi_new)
-    end
+    initialize!(semi_new, restart_with)
 
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode,
+                               time_span(tspan, restart_with), semi_new)
+end
+
+function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Nothing)
+    foreach_system(semi) do system
+        v0_system = wrap_v(v0_ode, system, semi)
+        u0_system = wrap_u(u0_ode, system, semi)
+
+        write_v0!(v0_system, system)
+        write_u0!(u0_system, system)
+    end
+end
+
+time_span(tspan, restart_with::Nothing) = tspan
+
+function initialize!(semi::Semidiscretization, restart_with::Nothing)
+    foreach_system(semi) do system
+        # Initialize this system
+        initialize!(system, semi)
+    end
+
+    return semi
 end
 
 """
@@ -407,6 +424,10 @@ function restart_with!(semi, sol; reset_threads=true)
     semi.update_callback_used[] = false
 
     return semi
+end
+
+function initialize_neighborhood_searches!(semi, u0_ode, restart_with::Nothing)
+    initialize_neighborhood_searches!(semi)
 end
 
 function initialize_neighborhood_searches!(semi)
@@ -1105,7 +1126,7 @@ function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, n
                 neighbor.boundary_model.density_calculator isa PressureBoundaries)
                 time_step_boundary = neighbor.boundary_model.density_calculator.time_step
                 omega_boundary = neighbor.boundary_model.density_calculator.omega
-                if !(time_step==time_step_boundary && omega==omega_boundary)
+                if !(time_step == time_step_boundary && omega == omega_boundary)
                     throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
                     `ImplicitIncompressibleSPHSystem` parameters"))
                 end

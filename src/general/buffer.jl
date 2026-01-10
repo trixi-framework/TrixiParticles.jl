@@ -40,10 +40,10 @@ end
 # Dispatch by system type to handle systems that provide a buffer.
 @inline buffer(system) = nothing
 
-@inline update_system_buffer!(buffer::Nothing, semi) = buffer
+@inline update_system_buffer!(buffer::Nothing) = buffer
 
 # TODO `resize` allocates. Find a non-allocating version
-@inline function update_system_buffer!(buffer::SystemBuffer, semi)
+@inline function update_system_buffer!(buffer::SystemBuffer)
     (; active_particle) = buffer
 
     # TODO: Parallelize (see https://github.com/trixi-framework/TrixiParticles.jl/issues/810)
