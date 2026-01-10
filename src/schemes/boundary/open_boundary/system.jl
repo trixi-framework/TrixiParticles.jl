@@ -727,10 +727,12 @@ function precondition_system!(system::OpenBoundarySystem, file)
     system.boundary_zone_indices[each_integrated_particle(system)] .= values.zone_id
 
     if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
+        pm_zone_ids = findall(pm -> isa(pm, AbstractPressureModel),
+                              system.cache.pressure_reference_values)
         keys_p = [(Symbol(:p, i), "boundary_zone_pressure_$(i)")
-                  for i in eachindex(system.boundary_zones)]
+                  for i in eachindex(system.boundary_zones)[pm_zone_ids]]
         keys_Q = [(Symbol(:Q, i), "Q_$(i)") for i in eachindex(system.boundary_zones)]
-        values = vtk2trixi(file; merge(keys_p, keys_Q)...)
+        values = vtk2trixi(file; vcat(keys_p, keys_Q)...)
 
         for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
             if pressure_model isa AbstractPressureModel
