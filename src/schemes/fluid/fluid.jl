@@ -115,6 +115,11 @@ end
 
 @inline acceleration_source(system::AbstractFluidSystem) = system.acceleration
 
+function update_positions!(system::AbstractFluidSystem, v, u, v_ode, u_ode, semi, t)
+    cell_list = get_neighborhood_search(system, semi).cell_list
+    deactivate_out_of_bounds_particles!(system, buffer(system), cell_list, u, semi)
+end
+
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
     return system
