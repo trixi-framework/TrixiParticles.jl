@@ -23,6 +23,12 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `save_times=[]`               List of times at which to save a solution.
 - `save_initial_solution=true`: Save the initial solution.
 - `save_final_solution=true`:   Save the final solution.
+- `overwrite=false`:            If `true`, overwrite the previous VTK file with the latest solution.
+                                Useful for memory efficiency in large simulations where only
+                                the final result matters. The difference to simply setting
+                                `save_final_solution=true` is that this provides regular checkpoint
+                                backups at each save interval.
+                                If `false` (default), save the solution in every interval.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `prefix=""`:                  Prefix added to the filename.
@@ -71,6 +77,7 @@ mutable struct SolutionSavingCallback{I, CQ}
     verbose               :: Bool
     output_directory      :: String
     prefix                :: String
+    overwrite             :: Bool
     max_coordinates       :: Float64
     custom_quantities     :: CQ
     latest_saved_iter     :: Int
@@ -81,7 +88,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_times=Float64[],
                                 save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
-                                prefix="", verbose=false,
+                                prefix="", verbose=false, overwrite=false,
                                 max_coordinates=Float64(2^15),
                                 custom_quantities...)
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
@@ -99,7 +106,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
 
     solution_callback = SolutionSavingCallback(interval, Float64.(save_times),
                                                save_initial_solution, save_final_solution,
-                                               verbose, output_directory, prefix,
+                                               verbose, output_directory, prefix, overwrite,
                                                max_coordinates, custom_quantities,
                                                -1, Ref("UnknownVersion"))
 
@@ -151,7 +158,7 @@ end
 
 # `affect!`
 function (solution_callback::SolutionSavingCallback)(integrator; from_initialize=false)
-    (; interval, output_directory, custom_quantities, git_hash, verbose,
+    (; interval, output_directory, custom_quantities, git_hash, verbose, overwrite,
      prefix, latest_saved_iter, max_coordinates) = solution_callback
 
     @trixi_timeit timer() "save solution" begin
@@ -189,8 +196,8 @@ function (solution_callback::SolutionSavingCallback)(integrator; from_initialize
         end
 
         trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
-                  iter, output_directory, prefix, git_hash=git_hash[],
-                  max_coordinates, custom_quantities...)
+                  iter=(overwrite ? -1 : iter), output_directory, prefix,
+                  git_hash=git_hash[], max_coordinates, custom_quantities...)
     end
 
     # Tell OrdinaryDiffEq that `u` has not been modified
@@ -271,6 +278,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
+            "overwrite solution" => solution_saving.overwrite ? "yes" : "no",
             "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix
         ]
@@ -297,6 +305,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
+            "overwrite solution" => solution_saving.overwrite ? "yes" : "no",
             "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix
         ]
@@ -322,6 +331,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
+            "overwrite solution" => solution_saving.overwrite ? "yes" : "no",
             "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix
         ]
