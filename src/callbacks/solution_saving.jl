@@ -64,6 +64,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 │ custom quantities: ……………………………… [:my_custom_quantity => TrixiParticles.kinetic_energy]           │
 │ save initial solution: …………………… yes                                                              │
 │ save final solution: ………………………… yes                                                              │
+│ overwrite solution: …………………………… no                                                               │
 │ output directory: ………………………………… *path ignored with filter regex above*                           │
 │ prefix: ……………………………………………………………                                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
