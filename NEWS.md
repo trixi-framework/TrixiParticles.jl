@@ -29,9 +29,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
   
 ### Performance
-- Improve GPU performance with shifting up to a factor of 10x (#974, #993).
+- Improved GPU performance with shifting up to a factor of 10x (#974, #993).
 
-- Significantly improve GPU performance of TLSPH (#1014).
+- Significantly improved GPU performance of TLSPH (#1014).
 
 ## Version 0.4.2
 
