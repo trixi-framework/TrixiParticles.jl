@@ -10,6 +10,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added the keyword `coordinates_eltype` to `RectangularTank`,
   `RectangularShape` and `SphereShape`, which defaults to `Float64` (#956).
+
 - Added keywords `element_type` and `coordinates_eltype` to `vtk2trixi` (#991)
 
 ### Features
