@@ -23,15 +23,15 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added support for FP64 coordinates when using FP32 GPU computations, fixing
   stability issues at high resolutions (#956).
 
-- Added a new `LaguerreGaussKernel` smoothing kernel (#893). 
+- Added a new `LaguerreGaussKernel` smoothing kernel (#893).
+
+- Fix `DEM` for GPU and add support for FP32 mode (#979).
+
   
 ### Performance
 - Improve GPU performance with shifting up to a factor of 10x (#974, #993).
 
 - Significantly improve GPU performance of TLSPH (#1014).
-
-### Important Bugfixes
-- Fix `DEM` for GPU and add support for FP32 mode (#979).
 
 ## Version 0.4.2
 
@@ -353,4 +353,5 @@ Features:
 #### TLSPH
 
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
+
 
