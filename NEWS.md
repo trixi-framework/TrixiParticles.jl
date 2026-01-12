@@ -14,8 +14,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 - Added support for ASCII STL files with multiple patches as separate geometries,
-  plus a `extrude_geometry` function and a union operation for `TrixiParticles.TriangleMesh` (#962).
-
+  plus a function `extrude_geometry` and a union operation for `TrixiParticles.TriangleMesh` (#962).
 
 - Added an `RCRWindkesselModel` open-boundary pressure model as a lumped-parameter
   description of vascular systems (#935, #1019, #992).
