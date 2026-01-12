@@ -25,7 +25,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added a new `LaguerreGaussKernel` smoothing kernel (#893).
 
-- Fix `DEM` for GPU and add support for FP32 mode (#979).
+- Added GPU and FP32 support for DEM (#979).
 
   
 ### Performance
