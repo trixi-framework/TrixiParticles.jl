@@ -20,7 +20,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added an `RCRWindkesselModel` open-boundary pressure model as a lumped-parameter
   description of vascular systems (#935, #1019, #992).
 
-- Added support for FP64 coordinates when using FP32 GPU computations. Fixing
+- Added support for FP64 coordinates when using FP32 GPU computations, fixing
   stability issues at high resolutions (#956).
 
 - Added a new `LaguerreGaussKernel` smoothing kernel (#893). 
