@@ -38,11 +38,11 @@
             @test normals == normals_reference
         end
 
-        @testset "2D `SphereShape` Normals" begin 
+        @testset "2D `SphereShape` Normals" begin
             return 0
         end
-        @testset "3D `SphereShape` Normals" begin 
+        @testset "3D `SphereShape` Normals" begin
             return 0
-        end 
+        end
     end
 end
