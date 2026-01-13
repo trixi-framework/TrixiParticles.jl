@@ -15,11 +15,11 @@ function SortingCallback(; interval::Integer=-1, dt=0.0)
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
 
-    # Update in intervals in terms of simulation time
+    # Sort in intervals in terms of simulation time
     if dt > 0
         interval = Float64(dt)
 
-        # Update every time step (default)
+        # Sort every time step (default)
     elseif interval == -1
         interval = 1
     end
@@ -88,7 +88,7 @@ function sort_particles!(system::AbstractFluidSystem, v, u, semi)
     sort_particles!(system, v, u, nhs, cell_list, semi)
 end
 
-# TODO: Sort also masses and particle spacings for varialble smoothing lengths.
+# TODO: Sort also masses and particle spacings for variable smoothing lengths.
 function sort_particles!(system::AbstractFluidSystem, v, u, nhs,
                          cell_list::FullGridCellList, semi)
     # Note that the following contain also inactive particles
