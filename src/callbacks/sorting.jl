@@ -120,3 +120,46 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
 
     return system
 end
+
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SortingCallback})
+    @nospecialize cb # reduce precompilation time
+    print(io, "SortingCallback(interval=", cb.affect!.interval, ")")
+end
+
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:SortingCallback}})
+    @nospecialize cb # reduce precompilation time
+    print(io, "SortingCallback(dt=", cb.affect!.affect!.interval, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any, <:SortingCallback})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        sorting_cb = cb.affect!
+        setup = [
+            "interval" => sorting_cb.interval
+        ]
+        summary_box(io, "SortingCallback", setup)
+    end
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:SortingCallback}})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        sorting_cb = cb.affect!.affect!
+        setup = [
+            "dt" => sorting_cb.interval
+        ]
+        summary_box(io, "SortingCallback", setup)
+    end
+end
