@@ -94,7 +94,7 @@ function sort_system!(system, v, u, perm, buffer::SystemBuffer)
     active_particle_sorted = active_particle[perm]
 
     # Second permutation: move inactive particles to the end (true first, false last)
-    perm2 = sortperm(active_particle_sorted, rev=true)
+    perm2 = sortperm(transfer2cpu(active_particle_sorted), rev=true)
 
     # Combined permutation
     combined_perm = perm[perm2]
