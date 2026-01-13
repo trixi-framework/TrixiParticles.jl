@@ -97,7 +97,6 @@ function sort_particles!(system::AbstractFluidSystem, v, u, nhs,
     system_density = current_density(v, system)
     system_pressure = current_pressure(v, system)
 
-
     cell_ids = zeros(Int, nparticles(system))
     @threaded semi for particle in eachparticle(system)
         point_coords = current_coords(u, system, particle)
