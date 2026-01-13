@@ -98,7 +98,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
                      velocity=zeros(length(center_position)), mass=nothing, pressure=0,
-                     coordinates_eltype=Float64, normal=false)
+                     coordinates_eltype=Float64)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -125,8 +125,8 @@ function SphereShape(particle_spacing, radius, center_position, density;
     particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
     coordinates = coordinates[:, particles_not_in_cutout]
 
-    normals = normal == false ? nothing :
-              compute_normals(coordinates, collect(center_position), radius, Val(NDIMS))
+    normals = calculate_sphere_normals(coordinates, collect(center_position), radius,
+                                       Val(NDIMS))
 
     return InitialCondition(; coordinates, velocity, mass, density, pressure,
                             particle_spacing, normals)
@@ -436,21 +436,19 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
 end
 
 # Compute the normals by projecting each point on the surface of the sphere
-function compute_normals(coordinates::Matrix{T}, center_position,
-                         radius, ::Val{NDIMS}) where {T, NDIMS}
+function calculate_sphere_normals(coordinates::Matrix{T}, center_position,
+                                  radius, ::Val{NDIMS}) where {T, NDIMS}
     n_points = size(coordinates, 2)
-    normals = zeros(size(coordinates))
+    normals = zero(coordinates)
 
-    threshold = eps(T)
-    for i in 1:n_points
-        point = view(coordinates, :, i)
+    threshold = eps(radius)
+    for i in axes(coordinates, 2)
+        point = extract_svector(coordinates, Val(NDIMS), i)
         diff = point - center_position
-
         dist = norm(diff)
+
         if dist > threshold
             normals[:, i] .= center_position + radius * (diff / dist)
-        else
-            normals[:, i] .= zero(T)
         end
     end
 

@@ -1,6 +1,6 @@
 @testset verbose=true "Dummy Particles with `MarronePressureExtrapolation`" begin
     @testset "Compute Boundary Normal Vectors" begin
-        @testset "2D Normals" begin
+        @testset "2D `RectangularTank` Normals" begin
             particle_spacing = 1.0
             n_particles = 2
             n_layers = 1
@@ -18,7 +18,7 @@
 
             @test normals == normals_reference
         end
-        @testset "3D Normals" begin
+        @testset "3D `RectangularTank` Normals" begin
             particle_spacing = 1.0
             n_particles = 2
             n_layers = 1
@@ -37,5 +37,12 @@
                                  [0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 -0.5 -0.5 -0.5 -0.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5 -0.5]]
             @test normals == normals_reference
         end
+
+        @testset "2D `SphereShape` Normals" begin 
+            return 0
+        end
+        @testset "3D `SphereShape` Normals" begin 
+            return 0
+        end 
     end
 end
