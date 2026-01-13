@@ -1148,6 +1148,7 @@ function set_system_links(system::OpenBoundarySystem, semi)
                               system.initial_condition,
                               fluid_system, # link to fluid system
                               system.fluid_system_index,
+                              system.density_calculator,
                               system.smoothing_kernel,
                               system.smoothing_length,
                               system.mass,
