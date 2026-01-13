@@ -91,14 +91,8 @@ end
 # TODO: Sort also masses and particle spacings for variable smoothing lengths.
 function sort_particles!(system::AbstractFluidSystem, v, u, nhs,
                          cell_list::FullGridCellList, semi)
-    # Note that the following contain also inactive particles
-    system_coords = current_coordinates(u, system)
-    system_velocity = current_velocity(v, system)
-    system_density = current_density(v, system)
-    system_pressure = current_pressure(v, system)
-
     cell_ids = zeros(Int, nparticles(system))
-    @threaded semi for particle in eachparticle(system)
+    @threaded semi for particle in each_active_particle(system)
         point_coords = current_coords(u, system, particle)
         cell_ids[particle] = PointNeighbors.cell_index(cell_list,
                                                        PointNeighbors.cell_coords(point_coords,
@@ -107,14 +101,22 @@ function sort_particles!(system::AbstractFluidSystem, v, u, nhs,
 
     perm = sortperm(cell_ids)
 
+    sort_system!(system, v, u, perm, system.buffer)
+
+    return system
+end
+
+function sort_system!(system, v, u, perm, buffer::Nothing)
+    # Note that the following contain also inactive particles
+    system_coords = current_coordinates(u, system)
+    system_velocity = current_velocity(v, system)
+    system_density = current_density(v, system)
+    system_pressure = current_pressure(v, system)
+
     system_coords .= system_coords[:, perm]
     system_velocity .= system_velocity[:, perm]
     system_pressure .= system_pressure[perm]
     system_density .= system_density[perm]
 
-    sort_buffer!(system.buffer, perm, semi)
-
     return system
 end
-
-sort_buffer!(buffer, perm, semi) = buffer
