@@ -80,3 +80,13 @@ end
 
     return system
 end
+
+function sort_buffer!(buffer::SystemBuffer, perm, semi)
+    (; active_particle) = buffer
+
+    active_particle .= active_particle[perm]
+
+    update_system_buffer!(buffer, semi)
+
+    return buffer
+end
