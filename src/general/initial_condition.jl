@@ -112,13 +112,6 @@ function InitialCondition(; coordinates, density, velocity=zeros(size(coordinate
                                    pressure, particle_spacing, normals)
 end
 
-# Wrapper function for outer constructor without `normals`-keyword
-function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                 pressure, particle_spacing) where {NDIMS}
-    return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                   pressure, particle_spacing, nothing)
-end
-
 # Function barrier to make `NDIMS` static and therefore SVectors type-stable
 function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
                                  pressure, particle_spacing, normals) where {NDIMS}
@@ -296,9 +289,11 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
     mass = vcat(initial_condition.mass, ic.mass[valid_particles])
     density = vcat(initial_condition.density, ic.density[valid_particles])
     pressure = vcat(initial_condition.pressure, ic.pressure[valid_particles])
+    normals = isnothing(initial_condition.normals) ? nothing :
+              hcat(initial_condition.normals, ic.coordinates[:, valid_particles])
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                         particle_spacing)
+                                         particle_spacing, normals)
 
     return union(result, Base.tail(initial_conditions)...)
 end
@@ -331,9 +326,10 @@ function Base.setdiff(initial_condition::InitialCondition, initial_conditions...
     mass = initial_condition.mass[valid_particles]
     density = initial_condition.density[valid_particles]
     pressure = initial_condition.pressure[valid_particles]
+    normals = isnothing(initial_condition.normals) ? nothing : initial_condition.normals
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                         particle_spacing)
+                                         particle_spacing, normals)
 
     return setdiff(result, Base.tail(initial_conditions)...)
 end
@@ -365,9 +361,11 @@ function Base.intersect(initial_condition::InitialCondition, initial_conditions.
     mass = initial_condition.mass[too_close]
     density = initial_condition.density[too_close]
     pressure = initial_condition.pressure[too_close]
+    normals = isnothing(initial_condition.normals) ? nothing :
+              initial_condition.normals[:, too_close]
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                         particle_spacing)
+                                         particle_spacing, normals)
 
     return intersect(result, Base.tail(initial_conditions)...)
 end
@@ -396,13 +394,14 @@ function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=fal
     mass = ic.mass[not_too_close]
     density = ic.density[not_too_close]
     pressure = ic.pressure[not_too_close]
+    normals = isnothing(ic.normals) ? nothing : ic.normals[:, not_too_close]
 
     if length(too_close) > 0
         @info "Removed $(length(too_close)) particles that are too close together"
     end
 
     return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                       ic.particle_spacing)
+                                       ic.particle_spacing, normals)
 end
 
 # Find particles in `coords1` that are closer than `max_distance` to any particle in `coords2`

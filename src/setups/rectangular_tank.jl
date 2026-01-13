@@ -103,7 +103,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
                              n_layers=1, spacing_ratio=1,
                              min_coordinates=zeros(length(fluid_size)),
                              faces=Tuple(trues(2 * length(fluid_size))),
-                             coordinates_eltype=Float64, normal=false)
+                             coordinates_eltype=Float64)
         NDIMS = length(fluid_size)
         ELTYPE = eltype(particle_spacing)
         fluid_size_ = Tuple(convert.(ELTYPE, fluid_size))
@@ -156,9 +156,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
         fluid_size_ = check_tank_overlap(fluid_size_, tank_size_,
                                          particle_spacing, n_particles_per_dim)
 
-        normals = normal == false ? nothing :
-                  compute_normals(boundary_coordinates, boundary_spacing,
-                                  face_indices, boundary_indices, faces)
+        normals = calculate_normals(boundary_coordinates, boundary_spacing,
+                                    face_indices, boundary_indices, faces)
 
         boundary = InitialCondition(coordinates=boundary_coordinates,
                                     velocity=boundary_velocities,
@@ -199,16 +198,17 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
     end
 end
 
-function compute_normals(boundary_coordinates, boundary_spacing,
-                         face_indices, boundary_indices, faces)
-    _compute_normals(boundary_coordinates, boundary_spacing, face_indices, boundary_indices,
-                     faces,
-                     Val(size(boundary_coordinates, 1)))
+function calculate_normals(boundary_coordinates, boundary_spacing,
+                           face_indices, boundary_indices, faces)
+    _calculate_normals(boundary_coordinates, boundary_spacing, face_indices,
+                       boundary_indices,
+                       faces,
+                       Val(size(boundary_coordinates, 1)))
 end
 
 # 2D
-function _compute_normals(boundary_coordinates, boundary_spacing,
-                          face_indices, boundary_indices, faces, ::Val{2})
+function _calculate_normals(boundary_coordinates, boundary_spacing,
+                            face_indices, boundary_indices, faces, ::Val{2})
     corner_indices, = boundary_indices
     normals = zeros(size(boundary_coordinates))
     face_indices = Tuple(vec(x) for x in face_indices)
@@ -230,7 +230,7 @@ function _compute_normals(boundary_coordinates, boundary_spacing,
         end
     end
 
-    #### Bottomg boundary
+    #### Bottom boundary
     if faces[3]
         bottom_boundary = maximum(boundary_coordinates[2, face_indices[3]]) + offset
         for idx in face_indices[3]
@@ -290,8 +290,8 @@ function _compute_normals(boundary_coordinates, boundary_spacing,
 end
 
 # 3D
-function _compute_normals(boundary_coordinates, boundary_spacing,
-                          face_indices, boundary_indices, faces, ::Val{3})
+function _calculate_normals(boundary_coordinates, boundary_spacing,
+                            face_indices, boundary_indices, faces, ::Val{3})
     corner_indices, edge_indices = boundary_indices
     normals = zeros(size(boundary_coordinates))
     face_indices = Tuple(vec(x) for x in face_indices)
