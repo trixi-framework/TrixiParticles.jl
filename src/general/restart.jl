@@ -22,7 +22,7 @@ function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Tuple{Varar
         v0_system = wrap_v(v0_ode, system, semi)
         u0_system = wrap_u(u0_ode, system, semi)
 
-        restart_data = vtk2trixi(restart_file)
+        restart_data = vtk2trixi(restart_file; create_initial_condition=false)
         v_restart = restart_v(system, restart_data)
         u_restart = restart_u(system, restart_data)
 
