@@ -8,7 +8,10 @@
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "structure",
                                                       "oscillating_beam_2d.jl"),
-                                             tspan=(0.0, 0.1))
+                                             tspan=(0.0, 0.1)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -25,7 +28,10 @@
                                                       "oscillating_beam_2d.jl"),
                                              tspan=(0.0, 0.1),
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
-                                             viscosity=ArtificialViscosityMonaghan(alpha=0.01))
+                                             viscosity=ArtificialViscosityMonaghan(alpha=0.01)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -49,7 +55,10 @@
                                                       "oscillating_beam_2d.jl"),
                                              tspan=(0.0, 0.2),
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
-                                             clamped_particles_motion=prescribed_motion)
+                                             clamped_particles_motion=prescribed_motion) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -66,7 +75,10 @@
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
                                                       "falling_water_column_2d.jl"),
-                                             tspan=(0.0, 0.4))
+                                             tspan=(0.0, 0.4)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -83,7 +95,10 @@
                                                       "dam_break_plate_2d.jl"),
                                              # Use rounded dimensions to avoid warnings
                                              initial_fluid_size=(0.15, 0.29),
-                                             tspan=(0.0, 0.4))
+                                             tspan=(0.0, 0.4)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -107,6 +122,8 @@
                                              tspan=(0.0, 0.2),
                                              E=1e7, # Stiffer plate
                                              maxiters=500) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n",
                 r"┌ Warning: Interrupted. Larger maxiters is needed.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
@@ -133,7 +150,10 @@
                                              tspan=(0.0, 0.2),
                                              E=1e7, # Stiffer plate
                                              maxiters=400,
-                                             extra_callback=split_integration)
+                                             extra_callback=split_integration) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -159,6 +179,8 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=500,
                                              extra_callback=split_integration) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n",
                 "┌ Warning: Instability detected. Aborting\n",
                 r".*dt was forced below floating point epsilon.*\n",
                 r"└ @ SciMLBase.*\n"
@@ -178,7 +200,10 @@
                                              joinpath(examples_dir(), "fsi",
                                                       "dam_break_gate_2d.jl"),
                                              tspan=(0.0, 0.4),
-                                             dtmax=1e-3)
+                                             dtmax=1e-3) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -193,7 +218,10 @@
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
                                                       "falling_spheres_2d.jl"),
-                                             tspan=(0.0, 1.0))
+                                             tspan=(0.0, 1.0)) [
+                r"┌ Warning: To create the self-interaction neighborhood search.*\n",
+                r"└ @ TrixiParticles.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
