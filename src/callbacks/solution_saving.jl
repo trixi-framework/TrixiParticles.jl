@@ -23,12 +23,14 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `save_times=[]`               List of times at which to save a solution.
 - `save_initial_solution=true`: Save the initial solution.
 - `save_final_solution=true`:   Save the final solution.
-- `overwrite=false`:            If `true`, overwrite the previous VTK file with the latest solution.
+- `overwrite=false`:            If `true`, overwrite the previous set of VTK files instead of
+                                creating a new set of files each interval.
                                 Useful for memory efficiency in large simulations where only
                                 the final result matters. The difference to simply setting
                                 `save_final_solution=true` is that this provides regular checkpoint
                                 backups at each save interval.
-                                If `false` (default), save the solution in every interval.
+                                If `false` (default), files are not overwritten and an iteration
+                                postfix is appended for each interval.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `prefix=""`:                  Prefix added to the filename.
