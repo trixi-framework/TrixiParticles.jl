@@ -35,7 +35,7 @@ end
                                                  tspan=(0.0, 0.1),
                                                  parallelization_backend=Main.parallelization_backend) [
                     r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                    r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n",
+                    r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n",
                     r"┌ Info: The desired tank length in y-direction.*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
@@ -65,7 +65,7 @@ end
                                                                  tspan=(0.0f0, 0.1f0),
                                                                  parallelization_backend=Main.parallelization_backend) [
                     r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                    r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n",
+                    r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n",
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
@@ -115,7 +115,7 @@ end
                                                                      parallelization_backend=Main.parallelization_backend,
                                                                      kwargs...) [
                         r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                        r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n",
+                        r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n",
                         r"┌ Info: The desired tank length in y-direction.*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
@@ -140,7 +140,7 @@ end
                                                              parallelization_backend=Main.parallelization_backend,
                                                              boundary_density_calculator=ContinuityDensity()) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n",
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n",
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
@@ -175,7 +175,7 @@ end
                                                              boundary_model=boundary_model,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n",
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n",
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
@@ -218,7 +218,7 @@ end
                                                              semi=semi_fullgrid,
                                                              maxiters=maxiters) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             v_ode, u_ode = sol.u[end].x
@@ -339,7 +339,7 @@ end
                                                                      tspan=(0.0f0, 0.1f0),
                                                                      kwargs...) [
                         r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                        r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                        r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
                     ]
 
                     @test sol.retcode == ReturnCode.Success
@@ -380,7 +380,7 @@ end
                                                              coordinates_eltype=Float32,
                                                              semi=semi_fullgrid) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -397,7 +397,7 @@ end
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -414,7 +414,7 @@ end
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -432,7 +432,7 @@ end
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -448,7 +448,7 @@ end
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -471,7 +471,7 @@ end
                                                              reference_velocity_out=nothing,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -497,7 +497,7 @@ end
                                                              reference_velocity_out=nothing,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -519,7 +519,7 @@ end
                                                              parallelization_backend=Main.parallelization_backend,
                                                              viscosity_boundary=nothing) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
 
             # Make sure that the simulation is terminated after a reasonable amount of time
@@ -539,7 +539,7 @@ end
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -579,7 +579,7 @@ end
                                                              maxiters=1500) [
                 r"┌ Warning: To create the self-interaction neighborhood search.*\n",
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
@@ -609,7 +609,7 @@ end
                                                              neighborhood_search=neighborhood_search,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"┌ Warning: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
-                r"└ @ TrixiParticles .*/TrixiParticles.jl/src/general/semidiscretization.*\n"
+                r"└ @ TrixiParticles ~/git/TrixiParticles.jl/src/general/semidiscretization.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
