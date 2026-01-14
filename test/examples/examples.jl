@@ -9,7 +9,7 @@
                                              joinpath(examples_dir(), "structure",
                                                       "oscillating_beam_2d.jl"),
                                              tspan=(0.0, 0.1)) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n"
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -28,7 +28,7 @@
                                              tspan=(0.0, 0.1),
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
                                              viscosity=ArtificialViscosityMonaghan(alpha=0.01)) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n"
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -54,7 +54,7 @@
                                              tspan=(0.0, 0.2),
                                              penalty_force=PenaltyForceGanzenmueller(alpha=0.1),
                                              clamped_particles_motion=prescribed_motion) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n"
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -73,7 +73,7 @@
                                              joinpath(examples_dir(), "fsi",
                                                       "falling_water_column_2d.jl"),
                                              tspan=(0.0, 0.4)) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n"
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -92,7 +92,7 @@
                                              # Use rounded dimensions to avoid warnings
                                              initial_fluid_size=(0.15, 0.29),
                                              tspan=(0.0, 0.4)) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n"
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -117,7 +117,7 @@
                                              tspan=(0.0, 0.2),
                                              E=1e7, # Stiffer plate
                                              maxiters=500) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n",
+                r"\[ Info: To create the self-interaction neighborhood search.*\n",
                 r"┌ Warning: Interrupted. Larger maxiters is needed.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
@@ -145,7 +145,7 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=400,
                                              extra_callback=split_integration) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n"
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -172,7 +172,7 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=500,
                                              extra_callback=split_integration) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n",
+                r"\[ Info: To create the self-interaction neighborhood search.*\n",
                 "┌ Warning: Instability detected. Aborting\n",
                 r".*dt was forced below floating point epsilon.*\n",
                 r"└ @ SciMLBase.*\n"
@@ -193,7 +193,7 @@
                                                       "dam_break_gate_2d.jl"),
                                              tspan=(0.0, 0.4),
                                              dtmax=1e-3) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n"
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -210,7 +210,7 @@
                                              joinpath(examples_dir(), "fsi",
                                                       "falling_spheres_2d.jl"),
                                              tspan=(0.0, 1.0)) [
-                r"[ Info: To create the self-interaction neighborhood search.*\n"
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
