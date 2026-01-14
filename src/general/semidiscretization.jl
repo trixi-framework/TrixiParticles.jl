@@ -408,7 +408,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
                                       semi_.parallelization_backend,
                                       semi_.update_callback_used, semi_.integrate_tlsph)
 
-        @warn "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
+        @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
               "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
     else
         semi_new = semi
