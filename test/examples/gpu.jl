@@ -112,7 +112,7 @@ end
                                                                      coordinates_eltype=Float32,
                                                                      parallelization_backend=Main.parallelization_backend,
                                                                      kwargs...) [
-                        r"[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",,
+                        r"[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
                         r"┌ Info: The desired tank length in y-direction.*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
