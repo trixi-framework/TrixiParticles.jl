@@ -71,7 +71,14 @@ function initialize_split_integration!(cb, u, t, integrator)
     # Create split integrator with TLSPH systems only
     systems = filter(i -> i isa TotalLagrangianSPHSystem, semi.systems)
 
+    if isempty(systems)
+        throw(ArgumentError("`SplitIntegrationCallback` must be used with a " *
+                            "`TotalLagrangianSPHSystem`"))
+    end
+
     # These neighborhood searches are never used
+    periodic_box = extract_periodic_box(semi.neighborhood_searches[1][1])
+    neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}(; periodic_box)
     semi_split = Semidiscretization(systems...,
                                     neighborhood_search=TrivialNeighborhoodSearch{ndims(first(systems))}(),
                                     parallelization_backend=semi.parallelization_backend)
@@ -80,6 +87,10 @@ function initialize_split_integration!(cb, u, t, integrator)
     # for tlsph-neighbor interaction when neighbor is static.
     foreach_system(semi_split) do system
         foreach_system(semi) do neighbor
+            if system === neighbor
+                # TLSPH self-interaction is using its own NHS
+                return
+            end
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)
             # The first element indicates if the NHS requires an update when the first
             # system (the TLSPH system) changed.

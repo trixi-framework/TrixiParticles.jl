@@ -79,8 +79,22 @@ There are three ways to specify the actual shape of the boundary zone:
 - `rest_pressure=0.0`: For `BoundaryModelDynamicalPressureZhang`, a rest pressure is required when the pressure is not prescribed.
                        This should match the rest pressure of the fluid system.
                        Per default it is set to zero (assuming a gauge pressure system).
-                       - For `EntropicallyDampedSPHSystem`: Use the initial pressure from the `InitialCondition`
-                       - For `WeaklyCompressibleSPHSystem`: Use the background pressure from the equation of state
+    - For `EntropicallyDampedSPHSystem`: Use the initial pressure from the `InitialCondition`
+    - For `WeaklyCompressibleSPHSystem`: Use the background pressure from the equation of state
+- `sample_points=:default`: Specifies how the boundary face is discretized for flow rate computation.
+                            Velocities are interpolated at these points and integrated to obtain
+                            the volumetric flow rate per boundary zone.
+                            Required when `calculate_flow_rate=true` in [`OpenBoundarySystem`](@ref).
+    - `:default` (default): Automatically generate sampling points
+      on the boundary face using a regular grid with spacing `particle_spacing`.
+    - `sample_points::AbstractMatrix`: Provide your own sampling points
+      as a matrix of size `(ndims, npoints)`, where **each column is
+      one point** on the boundary face (line in 2D, rectangle/face in 3D).
+      The points must lie on the face and form a regular grid.
+    - `nothing`: Disable flow-rate sampling.
+    Note: Each sampling point represents an area element of size
+    `particle_spacing^(ndims-1)`. Therefore, the discretized
+    sampled area is `npoints * particle_spacing^(ndims-1)`.
 
 !!! note "Note"
     The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
@@ -141,13 +155,14 @@ bidirectional_flow = BoundaryZone(; boundary_face=face_vertices, face_normal,
 │ boundary type: ………………………………………… bidirectional_flow                                               │
 │ #particles: ………………………………………………… 234                                                              │
 │ width: ……………………………………………………………… 0.4                                                              │
+│ cross sectional area: ……………………… 1.0000000000000002                                               │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R}
+struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R, C}
     initial_condition :: IC
     spanning_set      :: S
     zone_origin       :: ZO
@@ -156,6 +171,7 @@ struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R}
     face_normal       :: FN
     rest_pressure     :: ELTYPE # Only required for `BoundaryModelDynamicalPressureZhang`
     reference_values  :: R
+    cache             :: C
     # Note that the following can't be static type parameters, as all boundary zones in a system
     # must have the same type, so that we can loop over them in a type-stable way.
     average_inflow_velocity :: Bool
@@ -167,7 +183,7 @@ end
 function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
                       initial_condition=nothing, extrude_geometry=nothing,
                       open_boundary_layers::Integer, average_inflow_velocity=true,
-                      boundary_type=BidirectionalFlow(),
+                      boundary_type=BidirectionalFlow(), sample_points=:default,
                       rest_pressure=zero(eltype(density)),
                       reference_density=nothing, reference_pressure=nothing,
                       reference_velocity=nothing)
@@ -262,10 +278,13 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
         ic.velocity .= stack(velocity_ref.(coordinates_svector, 0))
     end
 
+    cache = (;
+             create_cache_boundary_zone(ic, boundary_face, face_normal_, sample_points)...)
+
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, face_normal_, rest_pressure, reference_values,
-                        average_inflow_velocity, prescribed_density, prescribed_pressure,
-                        prescribed_velocity)
+                        cache, average_inflow_velocity, prescribed_density,
+                        prescribed_pressure, prescribed_velocity)
 end
 
 function boundary_type_name(boundary_zone::BoundaryZone)
@@ -297,8 +316,56 @@ function Base.show(io::IO, ::MIME"text/plain", boundary_zone::BoundaryZone)
         summary_line(io, "boundary type", boundary_type_name(boundary_zone))
         summary_line(io, "#particles", nparticles(boundary_zone.initial_condition))
         summary_line(io, "width", round(boundary_zone.zone_width, digits=6))
+        if hasproperty(boundary_zone.cache, :cross_sectional_area)
+            summary_line(io, "cross sectional area",
+                         boundary_zone.cache.cross_sectional_area)
+        end
         summary_footer(io)
     end
+end
+
+function create_cache_boundary_zone(initial_condition, boundary_face, face_normal,
+                                    sample_points::Nothing)
+    return (; sample_points)
+end
+
+function create_cache_boundary_zone(initial_condition, boundary_face, face_normal,
+                                    sample_points)
+    (; particle_spacing) = initial_condition
+    area_increment = particle_spacing^(ndims(initial_condition) - 1)
+    if sample_points === :default
+        points = extrude_geometry(boundary_face; particle_spacing, density=Inf,
+                                  direction=(-face_normal), n_extrude=1).coordinates
+        sample_points_ = convert.(eltype(initial_condition), points)
+    else
+        if !(sample_points isa AbstractMatrix &&
+             size(sample_points, 1) == ndims(initial_condition))
+            throw(ArgumentError("`sample_points` must be an `(ndims, npoints)` matrix with $(ndims(initial_condition)) rows"))
+        end
+        sample_points_ = convert.(eltype(initial_condition), sample_points)
+    end
+
+    discrete_face_area = area_increment * size(sample_points_, 2)
+
+    if ndims(initial_condition) == 3
+        v1, v2, v3 = boundary_face
+        face_area = norm(cross(v2 - v1, v3 - v1))
+    elseif ndims(initial_condition) == 2
+        v1, v2 = boundary_face
+        face_area = norm(v2 - v1)
+    end
+
+    # We only warn when the discretized sampled area is larger than the geometric face area.
+    # In 3D, the effective flow cross-section may be smaller than the boundary face, especially for
+    # complex or non-rectangular profiles (e.g. pipe flow), so smaller sampled areas are acceptable.
+    if discrete_face_area > (face_area + eps(face_area))
+        @warn "The sampled area of the boundary face " *
+              "($(discrete_face_area)) is larger than the actual face area ($(face_area)). "
+    end
+
+    return (; sample_points=sample_points_, sample_velocity=copy(sample_points_),
+            shepard_coefficient=zeros(eltype(initial_condition), size(sample_points_, 2)),
+            area_increment, cross_sectional_area=discrete_face_area)
 end
 
 function set_up_boundary_zone(boundary_face, face_normal, density, particle_spacing,
