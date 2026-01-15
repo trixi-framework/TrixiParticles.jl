@@ -41,12 +41,17 @@
             initial_coordinates[:, neighbor[i]] = initial_coordinates_neighbor[i]
             current_coordinates = zeros(2, 10)
             v_system = zeros(2, 10)
-            pk1_corrected = 2000 * ones(2, 2, 10) # Just something that's not zero to catch errors
-            pk1_corrected[:, :, particle[i]] = pk1_particle_corrected[i]
-            pk1_corrected[:, :, neighbor[i]] = pk1_neighbor_corrected[i]
 
             # Density equals the ID of the particle
             material_density = 1:10
+
+            pk1_rho2 = 2000 * ones(2, 2, 10) # Just something that's not zero to catch errors
+            pk1_rho2[:, :,
+                     particle[i]] = pk1_particle_corrected[i] /
+                                    material_density[particle[i]]^2
+            pk1_rho2[:, :,
+                     neighbor[i]] = pk1_neighbor_corrected[i] /
+                                    material_density[neighbor[i]]^2
 
             # Use the same setup as in the unit test above for calc_dv!
             mass = ones(Float64, 10)
@@ -54,6 +59,7 @@
 
             #### Mocking
             struct MockSystem <: TrixiParticles.AbstractSystem{2} end
+            @inline Base.eltype(::MockSystem) = Float64
             system = MockSystem()
 
             function TrixiParticles.initial_coordinates(::MockSystem)
@@ -67,8 +73,8 @@
                     return current_coordinates
                 elseif f === :material_density
                     return material_density
-                elseif f === :pk1_corrected
-                    return pk1_corrected
+                elseif f === :pk1_rho2
+                    return pk1_rho2
                 elseif f === :mass
                     return mass
                 elseif f === :penalty_force
@@ -172,6 +178,7 @@
             backends = [SerialBackend(), TrixiParticles.KernelAbstractions.CPU()]
             @testset "$(names[i])" for i in eachindex(names)
                 semi = Semidiscretization(system, parallelization_backend=backends[i])
+                system_ = semi.systems[1] # Get updated system
                 ode = semidiscretize(semi, tspan)
 
                 # Apply the deformation matrix
@@ -181,7 +188,7 @@
                 end
 
                 v_ode = ode.u0.x[1]
-                if backends[i] isa TrixiParticles.KernelAbstractions.Backend
+                if backends[i] isa TrixiParticles.KernelAbstractions.GPU
                     u_ode = vec(u)
                 else
                     u_ode = TrixiParticles.ThreadedBroadcastArray(vec(u);
@@ -197,7 +204,7 @@
                 dv_ode = zero(v_ode)
                 TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
 
-                dv = TrixiParticles.wrap_v(dv_ode, system, semi)
+                dv = TrixiParticles.wrap_v(dv_ode, system_, semi)
 
                 @test isapprox(dv[:, particle], dv_expected_41[deformation],
                                rtol=sqrt(eps()), atol=sqrt(eps()))

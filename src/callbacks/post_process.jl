@@ -238,7 +238,11 @@ function (pp::PostprocessCallback)(integrator; from_initialize=false)
             # comes AFTER the `PostprocessCallback` in the `CallbackSet`.
             dv_ode, du_ode = zero(vu_ode).x
         else
-            dv_ode, du_ode = get_du(integrator).x
+            # Depending on the time integration scheme, this might call the RHS function
+            @trixi_timeit timer() "update du" begin
+                # Don't create sub-timers here to avoid cluttering the timer output
+                @notimeit timer() dv_ode, du_ode = get_du(integrator).x
+            end
         end
         v_ode, u_ode = vu_ode.x
         semi = integrator.p
@@ -319,7 +323,7 @@ function write_postprocess_callback(pp::PostprocessCallback, integrator)
 
         open(abs_file_path, "w") do file
             # Indent by 4 spaces
-            JSON.print(file, data, 4)
+            JSON.json(file, data; pretty=4, allownan=true)
         end
     end
     if pp.write_csv

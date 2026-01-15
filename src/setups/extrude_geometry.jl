@@ -64,16 +64,20 @@ direction = [0.0, 0.0, 1.0]
 shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, density=1000.0)
 
 # output
-┌ Info: The desired size is not a multiple of the particle spacing 0.1.
-└ New particle spacing is set to 0.09387239731236392.
-┌ Info: The desired size is not a multiple of the particle spacing 0.1.
-└ New particle spacing is set to 0.09198039027185569.
+┌ Info: The desired line length 1.314213562373095 is not a multiple of the particle spacing 0.1.
+└ New line length is set to 1.3.
+┌ Info: The desired edge 1 length 1.0180339887498948 is not a multiple of the particle spacing 0.1.
+└ New edge 1 length is set to 1.0.
+┌ Info: The desired edge 2 length 0.9198039027185568 is not a multiple of the particle spacing 0.1.
+└ New edge 2 length is set to 0.9.
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64}                                                                        │
-│ ═════════════════════════                                                                        │
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 3                                                                │
 │ #particles: ………………………………………………… 144                                                              │
 │ particle spacing: ………………………………… 0.1                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinate eltype: ……………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -99,16 +103,9 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
 
     geometry = shift_plane_corners(geometry, direction_, particle_spacing, place_on_shell)
 
-    face_coords,
-    particle_spacing_ = sample_plane(geometry, particle_spacing;
-                                     place_on_shell=place_on_shell)
+    face_coords = sample_plane(geometry, particle_spacing; place_on_shell=place_on_shell)
 
-    if !isapprox(particle_spacing, particle_spacing_, rtol=5e-2)
-        @info "The desired size is not a multiple of the particle spacing $particle_spacing." *
-              "\nNew particle spacing is set to $particle_spacing_."
-    end
-
-    coords = (face_coords .+ i * particle_spacing_ * direction_ for i in 0:(n_extrude - 1))
+    coords = (face_coords .+ i * particle_spacing * direction_ for i in 0:(n_extrude - 1))
 
     # In this context, `stack` is faster than `hcat(coords...)`
     coordinates = reshape(stack(coords), (NDIMS, size(face_coords, 2) * n_extrude))
@@ -118,7 +115,7 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
     end
 
     return InitialCondition(; coordinates, velocity, density, mass, pressure,
-                            particle_spacing=particle_spacing_)
+                            particle_spacing=particle_spacing)
 end
 
 # For corners/endpoints of a plane/line, sample the plane/line with particles.
@@ -132,10 +129,10 @@ function sample_plane(geometry::AbstractMatrix, particle_spacing; place_on_shell
                       fill(place_on_shell ? 0 : particle_spacing / 2, size(geometry, 2))')
 
         # TODO: 2D shapes not only in x-y plane but in any user-defined plane
-        return coords, particle_spacing
+        return coords
     end
 
-    return geometry, particle_spacing
+    return geometry
 end
 
 function sample_plane(shape::InitialCondition, particle_spacing; place_on_shell)
@@ -148,10 +145,10 @@ function sample_plane(shape::InitialCondition, particle_spacing; place_on_shell)
                            size(shape.coordinates, 2))')
 
         # TODO: 2D shapes not only in x-y plane but in any user-defined plane
-        return coords, particle_spacing
+        return coords
     end
 
-    return shape.coordinates, particle_spacing
+    return shape.coordinates
 end
 
 function sample_plane(plane_points, particle_spacing; place_on_shell=nothing)
@@ -166,12 +163,19 @@ function sample_plane(plane_points::NTuple{2}, particle_spacing; place_on_shell=
         throw(ArgumentError("all points must be 2D coordinates"))
     end
 
-    n_points = ceil(Int, norm(plane_points[2] - plane_points[1]) / particle_spacing) + 1
+    p1 = plane_points[1]
+    p2 = plane_points[2]
 
-    coords = stack(range(plane_points[1], plane_points[2], length=n_points))
-    particle_spacing_new = norm(coords[:, 1] - coords[:, 2])
+    line_dir = p2 - p1
+    line_length = norm(line_dir)
 
-    return coords, particle_spacing_new
+    n_particles,
+    new_length = round_n_particles(line_length, particle_spacing,
+                                   "line length")
+
+    coords = stack([p1 + i * particle_spacing * normalize(line_dir) for i in 0:n_particles])
+
+    return coords
 end
 
 function sample_plane(plane_points::NTuple{3}, particle_spacing; place_on_shell=nothing)
@@ -194,25 +198,28 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing; place_on_shell=
     end
 
     # Determine the number of points along each edge
-    num_points_edge1 = ceil(Int, norm(edge1) / particle_spacing)
-    num_points_edge2 = ceil(Int, norm(edge2) / particle_spacing)
+    num_points_edge1,
+    new_length = round_n_particles(norm(edge1), particle_spacing,
+                                   "edge 1 length")
+    num_points_edge2,
+    new_length = round_n_particles(norm(edge2), particle_spacing,
+                                   "edge 2 length")
 
+    dir1 = normalize(edge1)
+    dir2 = normalize(edge2)
     coords = zeros(3, (num_points_edge1 + 1) * (num_points_edge2 + 1))
 
     index = 1
     for i in 0:num_points_edge1
         for j in 0:num_points_edge2
-            point_on_plane = point1_ + (i / num_points_edge1) * edge1 +
-                             (j / num_points_edge2) * edge2
+            point_on_plane = point1_ + i * particle_spacing * dir1 +
+                             j * particle_spacing * dir2
             coords[:, index] = point_on_plane
             index += 1
         end
     end
 
-    particle_spacing_new = min(norm(edge1 / num_points_edge1),
-                               norm(edge2 / num_points_edge2))
-
-    return coords, particle_spacing_new
+    return coords
 end
 
 # Shift corners of the plane/line inwards by half a particle spacing with `place_on_shell=false`
