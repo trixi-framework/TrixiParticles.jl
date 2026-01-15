@@ -34,6 +34,7 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZ
     initial_condition                 :: IC
     fluid_system                      :: FS
     fluid_system_index                :: FSI
+    density_calculator                :: ContinuityDensity
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
     mass                              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
@@ -50,9 +51,9 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZ
 end
 
 function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
-                            fluid_system_index, smoothing_kernel, smoothing_length, mass,
-                            volume, boundary_candidates, fluid_candidates,
-                            boundary_zone_indices, boundary_zone, buffer,
+                            fluid_system_index, density_calculator, smoothing_kernel,
+                            smoothing_length, mass, volume, boundary_candidates,
+                            fluid_candidates, boundary_zone_indices, boundary_zone, buffer,
                             pressure_acceleration, shifting_technique, calculate_flow_rate,
                             cache)
     OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
@@ -62,11 +63,12 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                        typeof(boundary_zone_indices), typeof(boundary_zone), typeof(buffer),
                        typeof(pressure_acceleration), typeof(shifting_technique),
                        typeof(cache)}(boundary_model, initial_condition, fluid_system,
-                                      fluid_system_index, smoothing_kernel,
-                                      smoothing_length, mass, volume, boundary_candidates,
-                                      fluid_candidates, boundary_zone_indices,
-                                      boundary_zone, buffer, pressure_acceleration,
-                                      shifting_technique, calculate_flow_rate, cache)
+                                      fluid_system_index, density_calculator,
+                                      smoothing_kernel, smoothing_length, mass, volume,
+                                      boundary_candidates, fluid_candidates,
+                                      boundary_zone_indices, boundary_zone, buffer,
+                                      pressure_acceleration, shifting_technique,
+                                      calculate_flow_rate, cache)
 end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
@@ -78,7 +80,10 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                                   nothing,
                             shifting_technique=boundary_model isa
                                                BoundaryModelDynamicalPressureZhang ?
-                                               shifting_technique(fluid_system) : nothing)
+                                               shifting_technique(fluid_system) : nothing,
+                            density_diffusion=boundary_model isa
+                                              BoundaryModelDynamicalPressureZhang ?
+                                              density_diffusion(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
 
     initial_conditions = union((bz.initial_condition for bz in boundary_zones_)...)
@@ -93,7 +98,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     cache = (;
              create_cache_shifting(initial_conditions, shifting_technique)...,
              create_cache_open_boundary(boundary_model, fluid_system, initial_conditions,
-                                        calculate_flow_rate, boundary_zones_)...)
+                                        density_diffusion, calculate_flow_rate,
+                                        boundary_zones_)...)
 
     if any(pr -> isa(pr, RCRWindkesselModel), cache.pressure_reference_values)
         calculate_flow_rate = true
@@ -130,10 +136,10 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                              boundary_zones_)
 
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
-                              fluid_system_index, smoothing_kernel, smoothing_length, mass,
-                              volume, boundary_candidates, fluid_candidates,
-                              boundary_zone_indices, boundary_zones_new, buffer,
-                              pressure_acceleration, shifting_technique,
+                              fluid_system_index, ContinuityDensity(), smoothing_kernel,
+                              smoothing_length, mass, volume, boundary_candidates,
+                              fluid_candidates, boundary_zone_indices, boundary_zones_new,
+                              buffer, pressure_acceleration, shifting_technique,
                               calculate_flow_rate, cache)
 end
 
@@ -146,7 +152,7 @@ function initialize!(system::OpenBoundarySystem, semi)
 end
 
 function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
-                                    calculate_flow_rate, boundary_zones)
+                                    density_diffusion, calculate_flow_rate, boundary_zones)
     reference_values = map(bz -> bz.reference_values, boundary_zones)
     ELTYPE = eltype(initial_condition)
 
@@ -190,11 +196,11 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         # as it was already verified in `allocate_buffer` that the density array is constant.
         density_rest = first(initial_condition.density)
 
-        dd = density_diffusion(fluid_system)
-        if dd isa DensityDiffusionAntuono
-            density_diffusion_ = DensityDiffusionAntuono(initial_condition; delta=dd.delta)
+        if density_diffusion isa DensityDiffusionAntuono
+            density_diffusion_ = DensityDiffusionAntuono(initial_condition;
+                                                         delta=density_diffusion.delta)
         else
-            density_diffusion_ = dd
+            density_diffusion_ = density_diffusion
         end
 
         cache = (; density_calculator=ContinuityDensity(),
@@ -277,6 +283,10 @@ system_sound_speed(system::OpenBoundarySystem) = system_sound_speed(system.fluid
 
 @inline hydrodynamic_mass(system::OpenBoundarySystem, particle) = system.mass[particle]
 
+@propagate_inbounds function current_velocity(v, system::OpenBoundarySystem)
+    return view(v, 1:ndims(system), :)
+end
+
 @inline function current_density(v, system::OpenBoundarySystem)
     return system.cache.density
 end
@@ -317,6 +327,9 @@ function update_boundary_interpolation!(system::OpenBoundarySystem, v, u, v_ode,
                                         semi, t)
     update_boundary_model!(system, system.boundary_model, v, u, v_ode, u_ode, semi, t)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
+
+    @trixi_timeit timer() "update density diffusion" update!(density_diffusion(system),
+                                                             v, u, system, semi)
 end
 
 # This function is called by the `UpdateCallback`, as the integrator array might be modified
@@ -408,8 +421,8 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
                           v, u, v_fluid, u_fluid)
     end
 
-    update_system_buffer!(system.buffer, semi)
-    update_system_buffer!(fluid_system.buffer, semi)
+    update_system_buffer!(system.buffer)
+    update_system_buffer!(fluid_system.buffer)
 
     fluid_candidates .= false
 
@@ -439,8 +452,8 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
                           v, u, v_fluid, u_fluid)
     end
 
-    update_system_buffer!(system.buffer, semi)
-    update_system_buffer!(fluid_system.buffer, semi)
+    update_system_buffer!(system.buffer)
+    update_system_buffer!(fluid_system.buffer)
 
     # Since particles have been transferred, the neighborhood searches must be updated
     update_nhs!(semi, u_ode)
@@ -464,7 +477,7 @@ end
     # to determine if it exited the boundary zone through the free surface (outflow).
     if dot(relative_position, boundary_zone.face_normal) < 0
         # Particle is outside the fluid domain
-        deactivate_particle!(system, particle, u)
+        deactivate_particle!(system, particle, v, u)
 
         return system
     end
@@ -486,7 +499,7 @@ end
     # Verify the particle remains inside the boundary zone after the reset; deactivate it if not.
     particle_coords = current_coords(u, system, particle)
     if !is_in_boundary_zone(boundary_zone, particle_coords)
-        deactivate_particle!(system, particle, u)
+        deactivate_particle!(system, particle, v, u)
 
         return system
     end
@@ -505,7 +518,7 @@ end
     transfer_particle!(system, fluid_system, particle, particle_new, v, u, v_fluid, u_fluid)
 
     # Deactivate particle in interior domain
-    deactivate_particle!(fluid_system, particle, u_fluid)
+    deactivate_particle!(fluid_system, particle, v_fluid, u_fluid)
 
     return fluid_system
 end
