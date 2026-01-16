@@ -275,7 +275,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
         semi_new = @set semi_.systems = set_system_links.(semi_.systems, Ref(semi_))
 
         @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
-              "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
+              "`Semidiscretization`. Use `semi = ode.p.semi` to access simulation data."
     else
         semi_new = semi
     end
@@ -289,7 +289,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
+    p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new, nothing))
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, p)
 end
 
 """
@@ -388,7 +389,9 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization, integr
     end
 end
 
-function drift!(du_ode, v_ode, u_ode, semi, t)
+function drift!(du_ode, v_ode, u_ode, p, t)
+    (; semi) = p
+
     @trixi_timeit timer() "drift!" begin
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
@@ -445,7 +448,13 @@ end
     return du
 end
 
-function kick!(dv_ode, v_ode, u_ode, semi, t)
+function kick!(dv_ode, v_ode, u_ode, p, t)
+    (; semi, split_integration_data) = p
+
+    # This is a no-op if no split integration
+    # or split integration without stage-coupling is used.
+    split_integrate_stage!(v_ode, u_ode, t, split_integration_data)
+
     @trixi_timeit timer() "kick!" begin
         # Check that the `UpdateCallback` is used if required
         check_update_callback(semi)

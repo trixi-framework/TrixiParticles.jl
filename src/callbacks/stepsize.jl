@@ -61,7 +61,7 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     (; cfl_number) = stepsize_callback
 
     v_ode, u_ode = integrator.u.x
-    semi = integrator.p
+    semi = integrator.p.semi
 
     # If a `SplitIntegrationCallback` appears AFTER this `StepsizeCallback` in the
     # `CallbackSet`, then `semi.integrate_tlsph[]` has not yet been set to `false`.
