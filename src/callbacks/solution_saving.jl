@@ -164,7 +164,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         end
 
         vu_ode = integrator.u
-        semi = integrator.p
+        semi = integrator.p.semi
         iter = get_iter(interval, integrator)
 
         if iter == solution_callback.latest_saved_iter

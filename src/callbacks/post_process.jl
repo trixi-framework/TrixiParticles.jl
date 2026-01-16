@@ -149,7 +149,7 @@ function (pp::PostprocessCallback)(integrator)
             dv_ode, du_ode = dvdu_ode.x
         end
 
-        semi = integrator.p
+        semi = integrator.p.semi
         t = integrator.t
         v_ode, u_ode = integrator.u.x
         filenames = system_names(semi.systems)
