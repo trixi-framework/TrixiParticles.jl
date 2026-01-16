@@ -53,7 +53,7 @@ function initial_update!(cb, u, t, integrator)
 end
 
 function initial_update!(cb::UpdateCallback, u, t, integrator)
-    semi = integrator.p
+    semi = integrator.p.semi
 
     # Tell the semidiscretization that the `UpdateCallback` is used
     semi.update_callback_used[] = true
@@ -71,7 +71,7 @@ end
 # `affect!`
 function (update_callback!::UpdateCallback)(integrator)
     t = integrator.t
-    semi = integrator.p
+    semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
 
     # Tell OrdinaryDiffEq that `integrator.u` has NOT been modified.
