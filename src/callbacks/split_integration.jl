@@ -177,7 +177,7 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
 
     # Tell OrdinaryDiffEq that `u` has NOT been modified.
     # Theoretically, the TLSPH part has been modified, but since TLSPH is integrated
-    # seperately, this part is never used by the main integrator (dv = du = 0).
+    # separately, this part is never used by the main integrator (dv = du = 0).
     # With this trick, we can avoid unnecessarily re-computing FSAL stages.
     u_modified!(integrator, false)
 end
@@ -199,6 +199,12 @@ end
 
 function split_integrate!(v_ode, u_ode, new_t, split_integration_data)
     old_t = split_integration_data.t_ref[]
+    if new_t <= old_t
+        # First stage is usually called at the same time as the last time step.
+        # Nothing to do here.
+        return v_ode
+    end
+
     vu_ode_split = split_integration_data.vu_ode_split
     split_integrator = split_integration_data.integrator
     semi_split = split_integrator.p.semi
@@ -208,11 +214,8 @@ function split_integrate!(v_ode, u_ode, new_t, split_integration_data)
     @trixi_timeit timer() "split integration" begin
         @trixi_timeit timer() "init" begin
             TimerOutputs.@notimeit timer() begin
-                SciMLBase.reinit!(split_integrator, vu_ode_split; t0=old_t, tf=old_t + 1)
+                SciMLBase.reinit!(split_integrator, vu_ode_split; t0=old_t, tf=new_t)
             end
-
-            # Remove the `tstop` (equivalent to zero `tspan`)
-            SciMLBase.pop_tstop!(split_integrator)
         end
 
         # Compute structure-fluid interaction forces
@@ -223,7 +226,6 @@ function split_integrate!(v_ode, u_ode, new_t, split_integration_data)
         end
 
         # Integrate the split integrator up to the new time
-        add_tstop!(split_integrator, new_t)
         SciMLBase.solve!(split_integrator)
 
         v_ode_split, u_ode_split = split_integrator.u.x
@@ -355,7 +357,7 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
 
             @trixi_timeit timer() timer_str begin
                 interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                            system, neighbor, semi; integrate_tlsph=true)
+                          system, neighbor, semi; integrate_tlsph=true)
             end
         end
     end
