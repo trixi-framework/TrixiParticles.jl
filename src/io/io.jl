@@ -25,7 +25,7 @@ end
 function create_meta_data_dict(callback, integrator)
     git_hash = callback.git_hash
     prefix = hasproperty(callback, :prefix) ? callback.prefix : ""
-    semi = integrator.p
+    semi = integrator.p.semi
     names = system_names(semi.systems)
 
     meta_data = Dict{String, Any}()
@@ -69,7 +69,7 @@ function add_simulation_info!(info, git_hash, integrator)
     end
 
     info["technical_setup"] = Dict{String, Any}()
-    info["technical_setup"]["parallelization_backend"] = type2string(integrator.p.parallelization_backend)
+    info["technical_setup"]["parallelization_backend"] = type2string(integrator.p.semi.parallelization_backend)
     info["technical_setup"]["number_of_threads"] = Threads.nthreads()
 end
 

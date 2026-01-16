@@ -61,7 +61,7 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     (; cfl_number) = stepsize_callback
 
     v_ode, u_ode = integrator.u.x
-    semi = integrator.p
+    semi = integrator.p.semi
 
     dt = @trixi_timeit timer() "calculate dt" calculate_dt(v_ode, u_ode, cfl_number, semi)
 
