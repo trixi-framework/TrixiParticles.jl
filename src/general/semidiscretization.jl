@@ -423,7 +423,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
-    p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new, nothing))
+    p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new,
+                                                                          nothing))
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, p)
 end
 
