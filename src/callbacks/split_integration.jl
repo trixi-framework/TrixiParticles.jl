@@ -31,8 +31,8 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
                           If `true`, the TLSPH systems are integrated to the intermediate
                           stage times of the main integrator as well. The sub-integration
                           starts from the solution at last full time step for each stage.
-                          This is significantly more expensive, but restores the order
-                          of the main time integrator.
+                          This is significantly more expensive, but restores the stability
+                          properties of the main time integrator.
                           For large time step size ratios, `stage_coupling=false` might
                           require a significantly smaller time step size for stability
                           at the FSI interface.
@@ -159,9 +159,6 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     new_t = integrator.t
     v_ode, u_ode = integrator.u.x
 
-    split_integrator = integrator.p.split_integration_data.integrator
-    (; t_ref, vu_ode_split) = integrator.p.split_integration_data
-
     @trixi_timeit timer() "split integration" begin
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
@@ -174,8 +171,9 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     split_integrate!(v_ode, u_ode, new_t, integrator.p.split_integration_data)
 
     # Update split solution stored in `integrator.p`
-    vu_ode_split .= split_integrator.u
-    t_ref[] = new_t
+    data = integrator.p.split_integration_data
+    data.vu_ode_split .= data.integrator.u
+    data.t_ref[] = new_t
 
     # Tell OrdinaryDiffEq that `u` has NOT been modified.
     # Theoretically, the TLSPH part has been modified, but since TLSPH is integrated
@@ -200,9 +198,12 @@ function split_integrate_stage!(v_ode, u_ode, t, split_integration_data)
 end
 
 function split_integrate!(v_ode, u_ode, new_t, split_integration_data)
-    split_integrator = split_integration_data.integrator
     old_t = split_integration_data.t_ref[]
     vu_ode_split = split_integration_data.vu_ode_split
+    split_integrator = split_integration_data.integrator
+    semi_split = split_integrator.p.semi
+    dv_ode_split = split_integrator.p.dv_ode_split
+    semi_large = split_integrator.p.semi_large
 
     @trixi_timeit timer() "split integration" begin
         @trixi_timeit timer() "init" begin
@@ -213,13 +214,7 @@ function split_integrate!(v_ode, u_ode, new_t, split_integration_data)
             # Remove the `tstop` (equivalent to zero `tspan`)
             SciMLBase.pop_tstop!(split_integrator)
         end
-    end
 
-    semi_split = split_integrator.p.semi
-    dv_ode_split = split_integrator.p.dv_ode_split
-    semi_large = split_integrator.p.semi_large
-
-    @trixi_timeit timer() "split integration" begin
         # Compute structure-fluid interaction forces
         @trixi_timeit timer() "system interaction" begin
             set_zero!(dv_ode_split)
