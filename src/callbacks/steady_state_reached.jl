@@ -81,7 +81,7 @@ end
     end
 
     v_ode, u_ode = integrator.u.x
-    semi = integrator.p
+    semi = integrator.p.semi
 
     # Calculate kinetic energy
     ekin = sum(semi.systems) do system
