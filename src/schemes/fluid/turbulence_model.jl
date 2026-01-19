@@ -128,6 +128,28 @@ function calculate_strain_rate!(system, velocity_gradient_tensor, strain_rate_te
     return system
 end
 
+# The stress tensor formulation presented in Laha et al. (2024) is not fully
+# consistent and requires clarification before implementation:
+#
+# (1) The velocity-gradient expression (Eq. 9 in the paper) contains an additional
+#     factor m_j, which leads to incorrect physical dimensions. The standard SPH
+#     gradient operator uses only (m_j / rho_j) and is adopted here.
+#
+# (2) The stress tensor reported in the paper corresponds to a sub-particle-scale
+#     (SPS) stress contribution only. The laminar viscous stress
+#         tau_lam = 2 * mu * S
+#     is not explicitly included in the presented stress formulation. Why?
+#
+# (3) For wall shear stress (WSS) evaluation, however, the total deviatoric stress
+#     must be reconstructed. Therefore, the present implementation explicitly
+#     combines the laminar viscous stress and the SPS stress contribution:
+#
+#         sigma = tau_lam + tau_dev (+ optional isotropic term)
+#
+# (4) The isotropic SPS term reported in the paper is pressure-like and does not
+#     contribute to the wall shear stress after tangential projection. Due to
+#     ambiguities in its dimensional consistency and definition, it is treated
+#     separately and can be disabled (isotropic_constant=0.0) without affecting WSS results.
 function calculate_stress_tensor!(system, turbulence_model, v, semi)
     (; smagorinsky_constant, isotropic_constant,
     smallest_length_scale, mu, field_variables) = turbulence_model
@@ -138,21 +160,19 @@ function calculate_stress_tensor!(system, turbulence_model, v, semi)
 
         S = strain_rate_tensor[particle]
 
-        # S_mag = sqrt(abs.(2 * (S * S)))
         S_mag = sqrt(2 * sum(S .* S))  # scalar |S|
 
         # Eddy viscosity (Smagorinsky model)
         mu_T = rho_a * (smagorinsky_constant * smallest_length_scale)^2 * S_mag
 
         # Deviatoric shear stress
-        tau_dev = 2 * mu_T .* S
-        # tau_dev = (S .- (tr(S) / 3) * I(ndims(system)))
+        tau_dev = (2 * mu_T) .* (S .- (tr(S) / 3) .* I(ndims(system)))
 
         # Isotropic turbulent part
-        tau_iso = -(2 / 3) * rho_a * (isotropic_constant * smallest_length_scale)^2 *
-                  (S_mag^2) .* I(ndims(system))
+        tau_iso = -(2 / 3) * rho_a * isotropic_constant *
+                  smallest_length_scale^2 * S_mag^2 .* I(ndims(system))
 
-        # TODO: is this correct? The paper says mu_T * 2 * S_ij
+        # TODO: is this correct?
         # laminar stress
         tau_lam = (2 * mu) .* S
 
