@@ -28,16 +28,14 @@
         particle_id = findfirst(==(false), system_buffer.buffer.active_particle)
         system_buffer.buffer.active_particle[particle_id] = true
 
-        TrixiParticles.update_system_buffer!(system_buffer.buffer,
-                                             DummySemidiscretization())
+        TrixiParticles.update_system_buffer!(system_buffer.buffer)
 
         @test TrixiParticles.each_integrated_particle(system_buffer) == 1:(n_particles + 1)
 
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
                                             ones(2, particle_id))
 
-        TrixiParticles.update_system_buffer!(system_buffer.buffer,
-                                             DummySemidiscretization())
+        TrixiParticles.update_system_buffer!(system_buffer.buffer)
 
         @test TrixiParticles.each_integrated_particle(system_buffer) == 1:n_particles
 
@@ -45,8 +43,7 @@
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
                                             ones(2, particle_id))
 
-        TrixiParticles.update_system_buffer!(system_buffer.buffer,
-                                             DummySemidiscretization())
+        TrixiParticles.update_system_buffer!(system_buffer.buffer)
 
         @test TrixiParticles.each_integrated_particle(system_buffer) ==
               setdiff(1:n_particles, particle_id)
