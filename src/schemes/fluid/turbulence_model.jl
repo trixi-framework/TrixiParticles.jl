@@ -1,25 +1,25 @@
 struct SPSTurbulenceModelDalrymple{ELTYPE, FV, C}
-    smagorinsky_constant  :: ELTYPE
-    isotropic_constant    :: ELTYPE
-    smallest_length_scale :: ELTYPE
-    mu                    :: ELTYPE
-    field_variables       :: FV
-    only_extrapolate      :: Bool
-    cache                 :: C
+    smagorinsky_constant   :: ELTYPE
+    isotropic_constant     :: ELTYPE
+    smallest_length_scale  :: ELTYPE
+    mu                     :: ELTYPE
+    field_variables        :: FV
+    only_wall_shear_stress :: Bool
+    cache                  :: C
 end
 
 function SPSTurbulenceModelDalrymple(; smallest_length_scale, smagorinsky_constant=0.12,
                                      isotropic_constant=6.6e-4, dynamic_viscosity,
-                                     extrapolate=false)
+                                     only_wall_shear_stress=false)
     return SPSTurbulenceModelDalrymple(smagorinsky_constant, isotropic_constant,
                                        smallest_length_scale, dynamic_viscosity,
-                                       nothing, extrapolate, nothing)
+                                       nothing, only_wall_shear_stress, nothing)
 end
 
 function SPSTurbulenceModelDalrymple(initial_condition;
                                      smallest_length_scale=first(initial_condition.particle_spacing),
                                      smagorinsky_constant=0.12, isotropic_constant=6.6e-4,
-                                     dynamic_viscosity, extrapolate=false)
+                                     dynamic_viscosity, only_wall_shear_stress=false)
     ELTYPE = eltype(initial_condition)
     NDIMS = ndims(initial_condition)
     velocity_gradient_tensor = fill(zero(SMatrix{NDIMS, NDIMS, ELTYPE}),
@@ -32,7 +32,7 @@ function SPSTurbulenceModelDalrymple(initial_condition;
 
     field_variables = (velocity_gradient_tensor=velocity_gradient_tensor,
                        strain_rate_tensor=strain_rate_tensor, stress_tensor=stress_tensor)
-    if extrapolate
+    if only_wall_shear_stress
         stress_vectors = copy(surface_normals)
         sample_points = copy(initial_condition.coordinates)
         volume = zeros(eltype(initial_condition), nparticles(initial_condition))
@@ -42,11 +42,15 @@ function SPSTurbulenceModelDalrymple(initial_condition;
                  volume=volume)
     else
         cache = (; surface_normals=surface_normals)
+
+        # TODO: This is for debugging
+        stress_vectors = copy(surface_normals)
+        field_variables = (; field_variables..., stress_vectors=stress_vectors)
     end
 
     return SPSTurbulenceModelDalrymple(smagorinsky_constant, isotropic_constant,
                                        smallest_length_scale, dynamic_viscosity,
-                                       field_variables, extrapolate, cache)
+                                       field_variables, only_wall_shear_stress, cache)
 end
 
 function calculate_fluid_stress_tensor!(system::AbstractFluidSystem, turbulence_model,
@@ -56,17 +60,17 @@ function calculate_fluid_stress_tensor!(system::AbstractFluidSystem, turbulence_
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
+    # We cannot calculate surface normals from the wall due to robustness issues with thin walls.
+    # Normal vectors could toggle.
+    # Instead, we compute fluid free surface normals and extrapolate them to the wall with reversed sign.
+    calculate_surface_normals!(system, turbulence_model, v, u, semi)
+
     calculate_velocity_gradients!(system, velocity_gradient_tensor,
                                   v, u, v_ode, u_ode, semi)
 
     calculate_strain_rate!(system, velocity_gradient_tensor, strain_rate_tensor, semi)
 
     calculate_stress_tensor!(system, turbulence_model, v, semi)
-
-    # We cannot calculate surface normals from the boundary due to robustness issues with thin boundaries.
-    # Normal vectors could toggle.
-    # Instead, we compute fluid free surface normals and extrapolate them to the boundary with reversed sign.
-    calculate_surface_normals!(system, turbulence_model, v, u, semi)
 
     return system
 end
@@ -76,7 +80,7 @@ function calculate_velocity_gradients!(system, velocity_gradient_tensor,
     # TODO: Do we need this or do wee assume that the wall velocity is already calculated?
     # Make sure wall velocity of the boundary system is calculated
     foreach_system(semi) do next_system
-        compute_wall_velocity!(next_system, v_ode, u_ode, semi)
+        update_wall_velocity!(next_system, v_ode, u_ode, semi)
     end
 
     # Set zero
@@ -153,15 +157,23 @@ function calculate_stress_tensor!(system, turbulence_model, v, semi)
         tau_lam = (2 * mu) .* S
 
         stress_tensor[particle] = tau_lam + tau_dev + tau_iso
+
+        # TODO: This is for debugging
+        # `n` must point inside the fluid domain
+        n = -turbulence_model.cache.surface_normals[particle]
+        traction = stress_tensor[particle] * n  # traction vector
+        tn = dot(n, traction)                   # normal component
+
+        turbulence_model.field_variables.stress_vectors[particle] = traction - tn * n
     end
 
     return system
 end
 
-function extrapolate_fluid_stress_tensor!(turbulence_model,
-                                          turbulence_model_neighbor,
-                                          neighbor_system::AbstractFluidSystem,
-                                          v_ode, u_ode, semi)
+function calculate_wall_shear_stress!(turbulence_model,
+                                      turbulence_model_neighbor,
+                                      neighbor_system::AbstractFluidSystem,
+                                      v_ode, u_ode, semi)
     (; stress_tensor, stress_vectors) = turbulence_model.field_variables
     (; sample_points, surface_normals, volume) = turbulence_model.cache
 
@@ -186,7 +198,7 @@ function extrapolate_fluid_stress_tensor!(turbulence_model,
         kernel_weight = smoothing_kernel(neighbor_system, distance, neighbor) * m_b / rho_b
 
         stress_tensor_neigbor = turbulence_model_neighbor.field_variables.stress_tensor
-        surface_normals_neighbor = turbulence_model_neighbor.field_variables.surface_normals
+        surface_normals_neighbor = turbulence_model_neighbor.cache.surface_normals
 
         @inbounds surface_normals[point] += surface_normals_neighbor[neighbor]
         @inbounds stress_tensor[point] += kernel_weight * stress_tensor_neigbor[neighbor]
@@ -234,11 +246,11 @@ function calculate_surface_normals!(system, turbulence_model, v, u, semi)
     return system
 end
 
-compute_wall_velocity!(system, v_ode, u_ode, semi) = system
+update_wall_velocity!(system, v_ode, u_ode, semi) = system
 
-function compute_wall_velocity!(system::Union{AbstractBoundarySystem,
-                                              AbstractStructureSystem},
-                                v_ode, u_ode, semi)
+function update_wall_velocity!(system::Union{AbstractBoundarySystem,
+                                             AbstractStructureSystem},
+                               v_ode, u_ode, semi)
     (; boundary_model) = system
     (; density_calculator) = boundary_model
     v = wrap_v(v_ode, system, semi)
