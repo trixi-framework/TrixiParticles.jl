@@ -184,7 +184,7 @@ function update_nhs!(semi, u_ode)
 end
 
 # NHS updates
-# To prevent hard-to-find bugs, there is not default version
+# To prevent hard-to-find bugs, there is no default version
 function update_nhs!(neighborhood_search,
                      system::AbstractFluidSystem,
                      neighbor::Union{AbstractFluidSystem, TotalLagrangianSPHSystem},
