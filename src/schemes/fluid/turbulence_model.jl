@@ -41,7 +41,8 @@ function SPSTurbulenceModelDalrymple(initial_condition;
         cache = (; sample_points=sample_points, surface_normals=surface_normals,
                  volume=volume)
     else
-        cache = (; surface_normals=surface_normals)
+        cache = (; surface_normals=surface_normals,
+                 neighbor_count=zeros(Int, nparticles(initial_condition)))
 
         # TODO: This is for debugging
         stress_vectors = copy(surface_normals)
@@ -175,9 +176,10 @@ function calculate_stress_tensor!(system, turbulence_model, v, semi)
         # TODO: This is for debugging
         # `n` must point inside the fluid domain
         n = -turbulence_model.cache.surface_normals[particle]
+        traction = stress_tensor[particle] * n  # traction vector
+        tn = dot(n, traction)                   # normal component
 
-        turbulence_model.field_variables.stress_vectors[particle] = stress_tensor[particle] *
-                                                                    tangent_from_normal(n)
+        turbulence_model.field_variables.stress_vectors[particle] = traction - tn * n
     end
 
     return system
@@ -224,7 +226,9 @@ function calculate_wall_shear_stress!(turbulence_model,
             stress_tensor_extrapolated = stress_tensor[point] ./ volume[point]
             n = -normalize(surface_normals[point] / volume[point])
 
-            stress_vectors[point] = stress_tensor_extrapolated * tangent_from_normal(n)
+            traction = stress_tensor_extrapolated * n  # traction vector
+            tn = dot(n, traction)                      # normal component
+            stress_vectors[point] = traction - tn * n
         end
     end
 
@@ -232,9 +236,10 @@ function calculate_wall_shear_stress!(turbulence_model,
 end
 
 function calculate_surface_normals!(system, turbulence_model, v, u, semi)
-    (; surface_normals) = turbulence_model.cache
+    (; surface_normals, neighbor_count) = turbulence_model.cache
 
     fill!(surface_normals, zero(eltype(surface_normals)))
+    fill!(neighbor_count, zero(eltype(system)))
 
     system_coords = current_coordinates(u, system)
 
@@ -248,10 +253,18 @@ function calculate_surface_normals!(system, turbulence_model, v, u, semi)
                              m_b / rho_b
 
         surface_normals[particle] += kernel_grad_weight
+        neighbor_count[particle] += 1
     end
 
+    compact_support_ = compact_support(system, system)
+    particle_spacing = first(system.initial_condition.particle_spacing)
+    max_neighbors = ideal_neighbor_count(Val(ndims(system)), particle_spacing,
+                                         compact_support_) * 2 / 3
+
     @threaded semi for particle in each_integrated_particle(system)
-        surface_normals[particle] = normalize(surface_normals[particle])
+        if neighbor_count[particle] < max_neighbors
+            surface_normals[particle] = normalize(surface_normals[particle])
+        end
     end
 
     return system
