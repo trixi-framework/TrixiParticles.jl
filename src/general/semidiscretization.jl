@@ -79,6 +79,10 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 
+    if isempty(systems)
+        throw(ArgumentError("Semidiscretization requires at least one non-nothing system"))
+    end
+
     # For `TotalLagrangianSPHSystem`s, create specialized self-interaction NHS.
     # For other systems, do nothing.
     systems = map(system -> initialize_self_interaction_nhs(system, neighborhood_search,
@@ -211,13 +215,18 @@ function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
 
     # Check that all systems have the same eltype
-    @assert all(system -> eltype(system) === eltype(systems[1]), systems)
-    ELTYPE = eltype(systems[1])
+    first_system = first(systems)
+    if !all(system -> eltype(system) === eltype(first_system), systems)
+        throw(ArgumentError("all systems must use the same eltype"))
+    end
+    ELTYPE = eltype(first_system)
 
     # Check that all systems have the same coordinates eltype
-    @assert all(system -> coordinates_eltype(system) === coordinates_eltype(systems[1]),
-                systems)
-    cELTYPE = coordinates_eltype(systems[1])
+    if !all(system -> coordinates_eltype(system) === coordinates_eltype(first_system),
+            systems)
+        throw(ArgumentError("all systems must use the same coordinates eltype"))
+    end
+    cELTYPE = coordinates_eltype(first_system)
 
     # Optionally reset Polyester.jl threads. See
     # https://github.com/trixi-framework/Trixi.jl/issues/1583
@@ -338,8 +347,12 @@ end
 
     range = ranges_v[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) ==
-                         v_nvariables(system) * n_integrated_particles(system)
+    @boundscheck begin
+        expected = v_nvariables(system) * n_integrated_particles(system)
+        range_length = length(range)
+        range_length == expected ||
+            throw(DimensionMismatch("v range length $range_length does not match expected $expected"))
+    end
 
     return wrap_array(v_ode, range,
                       (StaticInt(v_nvariables(system)), n_integrated_particles(system)))
@@ -350,8 +363,12 @@ end
 
     range = ranges_u[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) ==
-                         u_nvariables(system) * n_integrated_particles(system)
+    @boundscheck begin
+        expected = u_nvariables(system) * n_integrated_particles(system)
+        range_length = length(range)
+        range_length == expected ||
+            throw(DimensionMismatch("u range length $range_length does not match expected $expected"))
+    end
 
     return wrap_array(u_ode, range,
                       (StaticInt(u_nvariables(system)), n_integrated_particles(system)))
@@ -364,7 +381,8 @@ end
 end
 
 @inline function wrap_array(array::ThreadedBroadcastArray, range, size)
-    return ThreadedBroadcastArray(wrap_array(parent(array), range, size))
+    return ThreadedBroadcastArray(wrap_array(parent(array), range, size);
+                                  parallelization_backend=array.parallelization_backend)
 end
 
 @inline function wrap_array(array, range, size)
