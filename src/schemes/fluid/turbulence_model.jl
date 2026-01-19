@@ -77,12 +77,6 @@ end
 
 function calculate_velocity_gradients!(system, velocity_gradient_tensor,
                                        v, u, v_ode, u_ode, semi)
-    # TODO: Do we need this or do wee assume that the wall velocity is already calculated?
-    # Make sure wall velocity of the boundary system is calculated
-    foreach_system(semi) do next_system
-        update_wall_velocity!(next_system, v_ode, u_ode, semi)
-    end
-
     # Set zero
     fill!(velocity_gradient_tensor, zero(eltype(velocity_gradient_tensor)))
 
@@ -181,10 +175,9 @@ function calculate_stress_tensor!(system, turbulence_model, v, semi)
         # TODO: This is for debugging
         # `n` must point inside the fluid domain
         n = -turbulence_model.cache.surface_normals[particle]
-        traction = stress_tensor[particle] * n  # traction vector
-        tn = dot(n, traction)                   # normal component
 
-        turbulence_model.field_variables.stress_vectors[particle] = traction - tn * n
+        turbulence_model.field_variables.stress_vectors[particle] = stress_tensor[particle] *
+                                                                    tangent_from_normal(n)
     end
 
     return system
@@ -220,20 +213,18 @@ function calculate_wall_shear_stress!(turbulence_model,
         stress_tensor_neigbor = turbulence_model_neighbor.field_variables.stress_tensor
         surface_normals_neighbor = turbulence_model_neighbor.cache.surface_normals
 
-        @inbounds surface_normals[point] += surface_normals_neighbor[neighbor]
-        @inbounds stress_tensor[point] += kernel_weight * stress_tensor_neigbor[neighbor]
-        @inbounds volume[point] += kernel_weight
+        surface_normals[point] += surface_normals_neighbor[neighbor]
+        stress_tensor[point] += kernel_weight * stress_tensor_neigbor[neighbor]
+        volume[point] += kernel_weight
     end
 
     @threaded default_backend(sample_points) for point in axes(sample_points, 2)
         # Check the volume to avoid NaNs
-        if @inbounds volume[point] > eps(eltype(volume))
+        if volume[point] > eps(eltype(volume))
             stress_tensor_extrapolated = stress_tensor[point] ./ volume[point]
             n = -normalize(surface_normals[point] / volume[point])
 
-            traction = stress_tensor_extrapolated * n  # traction vector
-            tn = dot(n, traction)                      # normal component
-            stress_vectors[point] = traction - tn * n
+            stress_vectors[point] = stress_tensor_extrapolated * tangent_from_normal(n)
         end
     end
 
@@ -256,7 +247,7 @@ function calculate_surface_normals!(system, turbulence_model, v, u, semi)
         kernel_grad_weight = smoothing_kernel_grad(system, pos_diff, distance, particle) *
                              m_b / rho_b
 
-        @inbounds surface_normals[particle] += kernel_grad_weight
+        surface_normals[particle] += kernel_grad_weight
     end
 
     @threaded semi for particle in each_integrated_particle(system)
@@ -266,15 +257,13 @@ function calculate_surface_normals!(system, turbulence_model, v, u, semi)
     return system
 end
 
-update_wall_velocity!(system, v_ode, u_ode, semi) = system
+function tangent_from_normal(n::SVector{2})
+    nx, ny = n
+    return SVector(-ny, nx)
+end
 
-function update_wall_velocity!(system::Union{AbstractBoundarySystem,
-                                             AbstractStructureSystem},
-                               v_ode, u_ode, semi)
-    (; boundary_model) = system
-    (; density_calculator) = boundary_model
-    v = wrap_v(v_ode, system, semi)
-    u = wrap_u(u_ode, system, semi)
-
-    compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
+function tangent_from_normal(n::SVector{3})
+    e = abs(n[1]) < 0.9 ? SVector(1.0, 0.0, 0.0) : SVector(0.0, 1.0, 0.0)
+    t = cross(n, e)
+    return normalize(t)
 end
