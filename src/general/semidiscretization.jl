@@ -79,6 +79,12 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 
+    # For `TotalLagrangianSPHSystem`s, create specialized self-interaction NHS.
+    # For other systems, do nothing.
+    systems = map(system -> initialize_self_interaction_nhs(system, neighborhood_search,
+                                                            parallelization_backend),
+                  systems)
+
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
@@ -112,6 +118,12 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
                               parallelization_backend, update_callback_used,
                               integrate_tlsph)
+end
+
+# For non-TLSPH systems, do nothing
+function initialize_self_interaction_nhs(system, neighborhood_search,
+                                         parallelization_backend)
+    return system
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -152,8 +164,23 @@ function create_neighborhood_search(::Nothing, system, neighbor)
     return create_neighborhood_search(nhs, system, neighbor)
 end
 
+# Avoid method ambiguity
+function create_neighborhood_search(::Nothing, system::TotalLagrangianSPHSystem,
+                                    neighbor::TotalLagrangianSPHSystem)
+    nhs = TrivialNeighborhoodSearch{ndims(system)}()
+
+    return create_neighborhood_search(nhs, system, neighbor)
+end
+
 function create_neighborhood_search(neighborhood_search, system, neighbor)
     return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
+                                    nparticles(neighbor))
+end
+
+function create_neighborhood_search(neighborhood_search, system::TotalLagrangianSPHSystem,
+                                    neighbor::TotalLagrangianSPHSystem)
+    # TLSPH self-interaction is using a specialized neighborhood search
+    return copy_neighborhood_search(neighborhood_search, zero(eltype(system)),
                                     nparticles(neighbor))
 end
 
@@ -222,6 +249,28 @@ end
     system_index = system_indices(system, semi)
 
     return neighborhood_searches[system_index][system_index]
+end
+
+@inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
+    # For TLSPH, use the specialized self-interaction neighborhood search
+    # for finding neighbors in the initial configuration.
+    return system.self_interaction_nhs
+end
+
+@inline function get_neighborhood_search(system::TotalLagrangianSPHSystem,
+                                         neighbor_system::TotalLagrangianSPHSystem, semi)
+    (; neighborhood_searches) = semi
+
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor_system, semi)
+
+    if system_index == neighbor_index
+        # For TLSPH, use the specialized self-interaction neighborhood search
+        # for finding neighbors in the initial configuration.
+        return system.self_interaction_nhs
+    end
+
+    return neighborhood_searches[system_index][neighbor_index]
 end
 
 @inline function get_neighborhood_search(system, neighbor_system, semi)
@@ -315,7 +364,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     u0_ode_ = allocate(semi.parallelization_backend, cELTYPE, sum(sizes_u))
     v0_ode_ = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_v))
 
-    if semi.parallelization_backend isa KernelAbstractions.Backend
+    if semi.parallelization_backend isa KernelAbstractions.GPU
         u0_ode = u0_ode_
         v0_ode = v0_ode_
     else
@@ -341,7 +390,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
     initialize_neighborhood_searches!(semi)
 
-    if semi.parallelization_backend isa KernelAbstractions.Backend
+    if semi.parallelization_backend isa KernelAbstractions.GPU
         # Convert all arrays to the correct array type.
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
@@ -358,6 +407,9 @@ function semidiscretize(semi, tspan; reset_threads=true)
                                       semi_.neighborhood_searches,
                                       semi_.parallelization_backend,
                                       semi_.update_callback_used, semi_.integrate_tlsph)
+
+        @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
+              "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
     else
         semi_new = semi
     end
@@ -412,17 +464,29 @@ end
 function initialize_neighborhood_searches!(semi)
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
-            # TODO Initialize after adapting to the GPU.
-            # Currently, this cannot use `semi.parallelization_backend`
-            # because data is still on the CPU.
-            PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
-                                       initial_coordinates(system),
-                                       initial_coordinates(neighbor),
-                                       eachindex_y=each_active_particle(neighbor),
-                                       parallelization_backend=PolyesterBackend())
+            initialize_neighborhood_search!(semi, system, neighbor)
         end
     end
 
+    return semi
+end
+
+function initialize_neighborhood_search!(semi, system, neighbor)
+    # TODO Initialize after adapting to the GPU.
+    # Currently, this cannot use `semi.parallelization_backend`
+    # because data is still on the CPU.
+    PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
+                               initial_coordinates(system),
+                               initial_coordinates(neighbor),
+                               eachindex_y=each_active_particle(neighbor),
+                               parallelization_backend=PolyesterBackend())
+
+    return semi
+end
+
+function initialize_neighborhood_search!(semi, system::TotalLagrangianSPHSystem,
+                                         neighbor::TotalLagrangianSPHSystem)
+    # For TLSPH, the self-interaction NHS is already initialized in the system constructor
     return semi
 end
 
@@ -882,7 +946,8 @@ end
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::TotalLagrangianSPHSystem,
                      u_system, u_neighbor, semi)
-    # Don't update. Neighborhood search works on the initial coordinates, which don't change.
+    # Don't update. This NHS is never used.
+    # TLSPH systems have their own self-interaction NHS.
     return neighborhood_search
 end
 
@@ -1079,6 +1144,12 @@ end
 function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     (; boundary_model) = system
 
+    if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
+        throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *
+                            "self-interaction neighborhood search must be the same " *
+                            "as of the global neighborhood search."))
+    end
+
     foreach_system(systems) do neighbor
         if neighbor isa AbstractFluidSystem && boundary_model === nothing
             throw(ArgumentError("a boundary model for `TotalLagrangianSPHSystem` must be " *
@@ -1159,5 +1230,6 @@ function set_system_links(system::OpenBoundarySystem, semi)
                               system.buffer,
                               system.pressure_acceleration_formulation,
                               system.shifting_technique,
+                              system.calculate_flow_rate,
                               system.cache)
 end
