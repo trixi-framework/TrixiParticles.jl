@@ -50,6 +50,7 @@ include("general/abstract_system.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined
 include("callbacks/callbacks.jl")
 
