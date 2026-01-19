@@ -538,7 +538,39 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
-    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system, semi), systems)
+    dt_systems = minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system, semi),
+                         systems)
+
+
+    # determine if we need to calculate a dt based on interface conditions
+    dt_interfaces = Inf
+
+    for i in 1:(nsystems - 1)
+        system = systems[i]
+        for j in (i + 1):nsystems
+            neighbor_system = systems[j]
+            # TODO: EDAC doesn't currently support multiphase setups
+            if system isa WeaklyCompressibleSPHSystem &&
+                neighbor_system isa WeaklyCompressibleSPHSystem
+                rho_system = system.state_equation.reference_density
+                rho_neighbor_system = neighbor_system.state_equation.reference_density
+                # if the reference densities are different for two systems we use the interface conditions
+                if !isapprox(rho_system, rho_neighbor_system)
+                    dt_interfaces = min(dt_interfaces,
+                                    calculate_interface_dt(v_ode, u_ode, cfl_number,
+                                                            system, neighbor_system,
+                                                            semi))
+                end
+            end
+        end
+    end
+
+    return min(dt_systems, dt_interfaces)
+end
+
+@inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system,
+                                        semi)
+    return Inf
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
