@@ -52,6 +52,7 @@
 
             kernel = Val(:smoothing_kernel)
             Base.ndims(::Val{:smoothing_kernel}) = 2
+            TrixiParticles.compact_support(::Val{:smoothing_kernel}, h) = h
 
             ic = InitialCondition(; particle_spacing=1.0, coordinates=ones(2, 2),
                                   density=[1.0, 1.0])
@@ -73,6 +74,9 @@
             # FSI with boundary model
             structure_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
                                                          boundary_model=model_a)
+            structure_system2 = TrixiParticles.initialize_self_interaction_nhs(structure_system2,
+                                                                               nothing,
+                                                                               nothing)
 
             @test_nowarn TrixiParticles.check_configuration((structure_system2,
                                                              fluid_system),
