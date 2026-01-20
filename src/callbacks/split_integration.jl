@@ -149,20 +149,12 @@ end
 function (split_integration_callback::SplitIntegrationCallback)(integrator)
     new_t = integrator.t
     v_ode, u_ode = integrator.u.x
-
-    @trixi_timeit timer() "split integration" begin
-        # Update quantities that are stored in the systems. These quantities (e.g. pressure)
-        # still have the values from the last stage of the previous step if not updated here.
-        @trixi_timeit timer() "update systems and nhs" begin
-            update_systems_and_nhs(v_ode, u_ode, integrator.p.semi, new_t)
-        end
-    end
+    data = integrator.p.split_integration_data
 
     # Advance the split integrator to the new time
-    split_integrate!(v_ode, u_ode, new_t, integrator.p.split_integration_data)
+    split_integrate!(v_ode, u_ode, new_t, data)
 
     # Update split solution stored in `integrator.p`
-    data = integrator.p.split_integration_data
     data.vu_ode_split .= data.integrator.u
     data.t_ref[] = new_t
 
@@ -188,28 +180,63 @@ function split_integrate_stage!(v_ode, u_ode, t, split_integration_data)
     return v_ode
 end
 
-function split_integrate!(v_ode, u_ode, new_t, split_integration_data)
-    old_t = split_integration_data.t_ref[]
-    if new_t <= old_t
-        # First stage is usually called at the same time as the last time step.
-        # Nothing to do here.
+function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
+    split_integrator = split_integration_data.integrator
+
+    restart = false
+    if restart
+        # Restart the split integration from the last full time step
+        t_previous = split_integration_data.t_ref[]
+        vu_ode_split = split_integration_data.vu_ode_split
+    else
+        # Continue the split integration from the previous stage time
+        t_previous = split_integrator.t
+        vu_ode_split = split_integrator.u
+    end
+
+    if t_new <= t_previous
+        # Nothing to do here
         return v_ode
     end
 
-    vu_ode_split = split_integration_data.vu_ode_split
-    split_integrator = split_integration_data.integrator
     semi_split = split_integrator.p.semi
     dv_ode_split = split_integrator.p.dv_ode_split
     semi_large = split_integrator.p.semi_large
 
     @trixi_timeit timer() "split integration" begin
-        @trixi_timeit timer() "init" begin
-            TimerOutputs.@notimeit timer() begin
-                SciMLBase.reinit!(split_integrator, vu_ode_split; t0=old_t, tf=new_t)
+        # Predict structure positions at `t_new` for higher accuracy (not stability).
+        # Simply apply an Euler step `u += v * (t_new - t_previous)`.
+        predict_structure_positions = true
+        predict_positions = Val(predict_structure_positions)
+
+        # Copy the solutions back to the original integrator.
+        # We modify `v_ode` and `u_ode`, which is technically not allowed during stages,
+        # hence there are no guarantees about the structure part of `v_ode` and `u_ode`.
+        # By copying the current split integration values, we make sure that it's correct.
+        @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode,
+                                                           vu_ode_split.x...,
+                                                           semi_large, semi_split,
+                                                           t_new, t_previous;
+                                                           predict_positions)
+
+        if restart
+            # Reset the split integrator to the state at the last full time step
+            @trixi_timeit timer() "init" begin
+                TimerOutputs.@notimeit timer() begin
+                    SciMLBase.reinit!(split_integrator, vu_ode_split; t0=t_previous, tf=t_new)
+                end
             end
+        else
+            add_tstop!(split_integrator, t_new)
         end
 
-        # Compute structure-fluid interaction forces
+        # Update the large semidiscretization with the predicted structure positions
+        @trixi_timeit timer() "update systems and nhs" begin
+            update_systems_and_nhs(v_ode, u_ode, semi_large, t_new)
+        end
+
+        # Compute structure-fluid interaction forces that are kept constant
+        # when applied during the split integration.
         @trixi_timeit timer() "system interaction" begin
             set_zero!(dv_ode_split)
 
@@ -219,12 +246,11 @@ function split_integrate!(v_ode, u_ode, new_t, split_integration_data)
         # Integrate the split integrator up to the new time
         SciMLBase.solve!(split_integrator)
 
-        v_ode_split, u_ode_split = split_integrator.u.x
-
         # Copy the solutions back to the original integrator
         @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode,
-                                                           v_ode_split, u_ode_split,
-                                                           semi_large, semi_split)
+                                                           split_integrator.u.x...,
+                                                           semi_large, semi_split,
+                                                           t_new, t_previous)
     end
 
     return v_ode
@@ -242,8 +268,8 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
     end
 
     # Only compute structure-structure self-interaction.
-    # structure-fluid interaction forces are computed once before the split time integration
-    # loop and are applied below.
+    # structure-fluid interaction forces are computed once
+    # before the split time integration loop and are applied below.
     @trixi_timeit timer() "system interaction" begin
         self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split,
                                 semi_split, semi_large)
@@ -377,7 +403,9 @@ end
 end
 
 # Copy the solution from the split integrator to the large integrator
-@inline function copy_from_split!(v_ode, u_ode, v_ode_split, u_ode_split, semi, semi_split)
+@inline function copy_from_split!(v_ode, u_ode, v_ode_split, u_ode_split, semi, semi_split,
+                                  t_new, t_previous;
+                                  predict_positions::Val{PREDICT}=Val(false)) where {PREDICT}
     foreach_system(semi_split) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
@@ -391,6 +419,10 @@ end
 
             for i in axes(u, 1)
                 u[i, particle] = u_split[i, particle]
+                if PREDICT
+                    # Predict positions at `t_new` with a simple Euler step
+                    u[i, particle] += v[i, particle] * (t_new - t_previous)
+                end
             end
         end
     end
