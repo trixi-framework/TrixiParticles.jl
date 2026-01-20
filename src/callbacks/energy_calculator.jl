@@ -74,12 +74,22 @@ function EnergyCalculatorCallback(system::AbstractStructureSystem, semi; interva
     # Allocate buffer to write accelerations for all particles (including clamped ones)
     dv = allocate(semi.parallelization_backend, ELTYPE, (ndims(system), nparticles(system)))
 
+    # Note that time and energy are initialized in `initialize_energy_calculator_callback`
     cb = EnergyCalculatorCallback(interval, Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
                                   system_index, dv, eachparticle,
                                   only_compute_force_on_fluid)
 
     # The first one is the `condition`, the second the `affect!`
-    return DiscreteCallback(cb, cb, save_positions=(false, false))
+    return DiscreteCallback(cb, cb, save_positions=(false, false),
+                            initialize=initialize_energy_calculator_callback)
+end
+
+function initialize_energy_calculator_callback(discrete_callback, u, t, integrator)
+    energy_callback = discrete_callback.affect!
+
+    # Reset time and energy
+    energy_callback.t[] = t
+    energy_callback.energy[] = zero(eltype(energy_callback.energy))
 end
 
 """
