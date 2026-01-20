@@ -3,12 +3,11 @@
                               reference_density, max_sound_speed=100.0f0, exponent,
                               background_pressure=0.0f0, clip_negative_pressure=false)
 
-This variant of [`StateEquationCole`](@ref) is adaptive, allowing the speed of sound to be
-updated during a simulation.
-While a constant high speed of sound more effectively reduces compressibility effects,
-the runtime also scales with the speed of sound.
-This state equation aims to reduce runtime compared to a constant high speed of sound,
-while maintaining the advantages of a higher speed of sound.
+This variant of [`StateEquationCole`](@ref) adapts the speed of sound during simulation to
+balance accuracy and performance.
+While a constant high speed of sound effectively reduces compressibility,
+it increases computational cost proportionally.  This state equation reduces
+computational cost compared to constant high values, while maintaining their advantages.
 The speed of sound is initialized as `min_sound_speed`.
 
 # Keywords
