@@ -4,6 +4,13 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.4.4
+
+### Features
+
+- Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875)
+
+
 ## Version 0.4.3
 
 ### API Changes
