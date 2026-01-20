@@ -223,7 +223,8 @@ function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
             # Reset the split integrator to the state at the last full time step
             @trixi_timeit timer() "init" begin
                 TimerOutputs.@notimeit timer() begin
-                    SciMLBase.reinit!(split_integrator, vu_ode_split; t0=t_previous, tf=t_new)
+                    SciMLBase.reinit!(split_integrator, vu_ode_split;
+                                      t0=t_previous, tf=t_new)
                 end
             end
         else
