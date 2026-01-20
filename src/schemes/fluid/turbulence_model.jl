@@ -259,7 +259,7 @@ function calculate_surface_normals!(system, turbulence_model, v, u, semi)
     compact_support_ = compact_support(system, system)
     particle_spacing = first(system.initial_condition.particle_spacing)
     max_neighbors = ideal_neighbor_count(Val(ndims(system)), particle_spacing,
-                                         compact_support_) * 2 / 3
+                                         compact_support_) * 0.7
 
     @threaded semi for particle in each_integrated_particle(system)
         if neighbor_count[particle] < max_neighbors
