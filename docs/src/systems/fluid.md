@@ -162,7 +162,7 @@ with the dynamic viscosity of each particle given by `` \eta_a = \rho_a \nu_a ``
 originally proposed by [Carreau (1972)](@cite Carreau1972) and extended by
 [Yasuda et al. (1981)](@cite Yasuda1981). In this model, the kinematic viscosity
 depends on the local shear rate. This makes it suitable for shear-thinning and
-shear-thickening fluids, such as polymer solutions or blood-like flows.
+shear-thickening fluids, such as polymer solutions or blood-like fluids.
 Instead of prescribing a single constant viscosity, the apparent viscosity
 smoothly transitions between a low-shear plateau and a high-shear plateau.
 
