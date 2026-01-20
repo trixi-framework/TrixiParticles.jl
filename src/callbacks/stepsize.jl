@@ -63,10 +63,11 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     v_ode, u_ode = integrator.u.x
     semi = integrator.p
 
-    # If there is a `SplitIntegrationCallback` AFTER this `StepsizeCallback` in the
-    # `CallbackSet`, `semi.integrate_tlsph[]` has not been set to `false` yet.
-    # We cannot use `semi.integrate_tlsph[]` and instead have to check if a split
-    # integration callback is used and assume `integrate_tlsph = false` in that case.
+    # If a `SplitIntegrationCallback` appears AFTER this `StepsizeCallback` in the
+    # `CallbackSet`, then `semi.integrate_tlsph[]` has not yet been set to `false`.
+    # In that situation, we cannot rely on `semi.integrate_tlsph[]`.
+    # Instead, we must detect whether the list of callbacks contains
+    # a `SplitIntegrationCallback`, and, if so, assume `integrate_tlsph = false`.
     integrate_tlsph = !any(cb -> cb isa DiscreteCallback{SplitIntegrationCallback},
                            integrator.opts.callback.discrete_callbacks)
 
