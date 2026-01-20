@@ -1159,7 +1159,7 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
                                 "$(nparticles(system)) particles."))
         end
     end
-    
+
     if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
         throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *
                             "self-interaction neighborhood search must be the same " *
