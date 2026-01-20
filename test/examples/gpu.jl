@@ -34,7 +34,8 @@ end
                                                           "dam_break_2d_gpu.jl"),
                                                  tspan=(0.0, 0.1),
                                                  parallelization_backend=Main.parallelization_backend) [
-                    r"┌ Info: The desired tank length in y-direction .*\n",
+                    r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
+                    r"┌ Info: The desired tank length in y-direction.*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
                 @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
@@ -62,6 +63,7 @@ end
                                                                           "dam_break_2d_gpu.jl"),
                                                                  tspan=(0.0f0, 0.1f0),
                                                                  parallelization_backend=Main.parallelization_backend) [
+                    r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
@@ -110,7 +112,8 @@ end
                                                                      coordinates_eltype=Float32,
                                                                      parallelization_backend=Main.parallelization_backend,
                                                                      kwargs...) [
-                        r"┌ Info: The desired tank length in y-direction .*\n",
+                        r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
+                        r"┌ Info: The desired tank length in y-direction.*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
                     @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
@@ -133,7 +136,8 @@ end
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend,
                                                              boundary_density_calculator=ContinuityDensity()) [
-                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
+                r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
             @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
@@ -166,7 +170,8 @@ end
                                                              spacing_ratio=3,
                                                              boundary_model=boundary_model,
                                                              parallelization_backend=Main.parallelization_backend) [
-                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
+                r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
             @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
@@ -198,14 +203,17 @@ end
             # Maybe related to https://github.com/JuliaGPU/Metal.jl/issues/549
             ismetal = nameof(typeof(Main.parallelization_backend)) == :MetalBackend
             maxiters = ismetal ? 44 : 42
-            trixi_include_changeprecision(Float32, @__MODULE__,
-                                          joinpath(examples_dir(), "fluid",
-                                                   "dam_break_3d.jl"),
-                                          tspan=(0.0f0, 0.1f0),
-                                          coordinates_eltype=Float32,
-                                          fluid_particle_spacing=0.1,
-                                          semi=semi_fullgrid,
-                                          maxiters=maxiters)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "fluid",
+                                                                      "dam_break_3d.jl"),
+                                                             tspan=(0.0f0, 0.1f0),
+                                                             coordinates_eltype=Float32,
+                                                             fluid_particle_spacing=0.1,
+                                                             semi=semi_fullgrid,
+                                                             maxiters=maxiters) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             v_ode, u_ode = sol.u[end].x
             backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -217,9 +225,9 @@ end
                 stepsize_callback = StepsizeCallback(cfl=0.65)
                 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
-                sol = solve(ode, SymplecticPositionVerlet(),
-                            dt=1, # This is overwritten by the stepsize callback
-                            save_everystep=false, callback=callbacks)
+                @trixi_test_nowarn sol = solve(ode, SymplecticPositionVerlet(),
+                                               dt=1, # This is overwritten by the stepsize callback
+                                               save_everystep=false, callback=callbacks)
                 @test sol.retcode == ReturnCode.Success
                 @test maximum(maximum.(abs, sol.u[end].x)) < 2^15
                 v_ode, u_ode = sol.u[end].x
@@ -323,7 +331,9 @@ end
                                                                      semi=semi_fullgrid,
                                                                      tank=tank,
                                                                      tspan=(0.0f0, 0.1f0),
-                                                                     kwargs...)
+                                                                     kwargs...) [
+                        r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
+                    ]
 
                     @test sol.retcode == ReturnCode.Success
                     v_ode, u_ode = sol.u[end].x
@@ -361,7 +371,9 @@ end
                                                                       "periodic_channel_2d.jl"),
                                                              tspan=(0.0f0, 0.1f0),
                                                              coordinates_eltype=Float32,
-                                                             semi=semi_fullgrid)
+                                                             semi=semi_fullgrid) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -375,7 +387,9 @@ end
                                                                       "poiseuille_flow_2d.jl"),
                                                              wcsph=true,
                                                              coordinates_eltype=Float32,
-                                                             parallelization_backend=Main.parallelization_backend)
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -389,7 +403,9 @@ end
                                                                       "poiseuille_flow_2d.jl"),
                                                              wcsph=false,
                                                              coordinates_eltype=Float32,
-                                                             parallelization_backend=Main.parallelization_backend)
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -404,7 +420,9 @@ end
                                                                       "pipe_flow_2d.jl"),
                                                              wcsph=true,
                                                              coordinates_eltype=Float32,
-                                                             parallelization_backend=Main.parallelization_backend)
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -417,7 +435,9 @@ end
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
                                                              coordinates_eltype=Float32,
-                                                             parallelization_backend=Main.parallelization_backend)
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -437,7 +457,9 @@ end
                                                              reference_pressure_in=nothing,
                                                              reference_density_out=nothing,
                                                              reference_velocity_out=nothing,
-                                                             parallelization_backend=Main.parallelization_backend)
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -460,7 +482,9 @@ end
                                                              reference_density_out=nothing,
                                                              reference_pressure_out=nothing,
                                                              reference_velocity_out=nothing,
-                                                             parallelization_backend=Main.parallelization_backend)
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -479,7 +503,9 @@ end
                                                              extra_callback=steady_state_reached,
                                                              tspan=(0.0f0, 1.5f0),
                                                              parallelization_backend=Main.parallelization_backend,
-                                                             viscosity_boundary=nothing)
+                                                             viscosity_boundary=nothing) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
 
             # Make sure that the simulation is terminated after a reasonable amount of time
             @test 0.1 < sol.t[end] < 1.0
@@ -488,32 +514,17 @@ end
     end
 
     @testset verbose=true "Structure" begin
-        # TODO after https://github.com/trixi-framework/PointNeighbors.jl/pull/10
-        # is merged, there should be no need to use the `FullGridCellList`.
         @trixi_testset "structure/oscillating_beam_2d.jl" begin
-            # Import variables into scope
-            trixi_include_changeprecision(Float32, @__MODULE__,
-                                          joinpath(examples_dir(), "structure",
-                                                   "oscillating_beam_2d.jl"),
-                                          coordinates_eltype=Float32,
-                                          sol=nothing, ode=nothing)
-
-            # Neighborhood search with `FullGridCellList` for GPU compatibility
-            min_corner = minimum(structure.coordinates, dims=2)
-            max_corner = maximum(structure.coordinates, dims=2)
-            cell_list = FullGridCellList(; min_corner, max_corner)
-            semi_fullgrid = Semidiscretization(structure_system,
-                                               neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                             cell_list),
-                                               parallelization_backend=Main.parallelization_backend)
-
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
                                                                       "structure",
                                                                       "oscillating_beam_2d.jl"),
                                                              coordinates_eltype=Float32,
                                                              tspan=(0.0f0, 0.1f0),
-                                                             semi=semi_fullgrid)
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n",
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -549,7 +560,10 @@ end
                                                              tspan=(0.0f0, 0.4f0),
                                                              semi=semi_fullgrid,
                                                              # Needs <1500 steps on the CPU
-                                                             maxiters=1500)
+                                                             maxiters=1500) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n",
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -576,7 +590,9 @@ end
                                                              tspan=(0.0f0, 0.05f0),
                                                              coordinates_eltype=Float32,
                                                              neighborhood_search=neighborhood_search,
-                                                             parallelization_backend=Main.parallelization_backend)
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend

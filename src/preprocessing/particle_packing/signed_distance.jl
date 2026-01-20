@@ -22,9 +22,9 @@ to this surface.
                               a boundary [`ParticlePackingSystem`](@ref).
                               Use the default of `false` when packing without a boundary.
 """
-struct SignedDistanceField{ELTYPE, P, D}
+struct SignedDistanceField{ELTYPE, P, N, D}
     positions           :: P
-    normals             :: P
+    normals             :: N
     distances           :: D
     max_signed_distance :: ELTYPE
     boundary_packing    :: Bool
@@ -36,7 +36,7 @@ function SignedDistanceField(geometry, particle_spacing;
                              max_signed_distance=4 * particle_spacing,
                              use_for_boundary_packing=false)
     NDIMS = ndims(geometry)
-    ELTYPE = eltype(max_signed_distance)
+    ELTYPE = eltype(particle_spacing)
 
     sdf_factor = use_for_boundary_packing ? 2 : 1
 
@@ -69,8 +69,8 @@ function SignedDistanceField(geometry, particle_spacing;
     # This gives a performance boost for large geometries
     delete_positions_in_empty_cells!(positions, nhs)
 
-    normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(positions))
-    distances = fill(Inf, length(positions))
+    normals = fill(SVector(ntuple(dim -> convert(ELTYPE, Inf), NDIMS)), length(positions))
+    distances = fill(convert(ELTYPE, Inf), length(positions))
 
     calculate_signed_distances!(positions, distances, normals,
                                 geometry, sdf_factor, max_signed_distance, nhs)

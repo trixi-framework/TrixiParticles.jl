@@ -6,7 +6,8 @@
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, viscosity=nothing,
-                             source_terms=nothing, boundary_model=nothing)
+                             source_terms=nothing, boundary_model=nothing,
+                             self_interaction_nhs=:default)
 
 System for particles of an elastic structure.
 
@@ -47,6 +48,19 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     (which are the quantities of a single particle), returning a `Tuple`
                     or `SVector` that is to be added to the acceleration of that particle.
                     See, for example, [`SourceTermDamping`](@ref).
+- `self_interaction_nhs`: Neighborhood search for self-interaction.
+                    Being a total Lagrangian formulation, the neighborhood search
+                    needs to find neighbors in the initial configuration only.
+                    Precomputing concrete neighbor lists is therefore much more efficient
+                    than the [`GridNeighborhoodSearch`](@ref) typically used for fluid
+                    systems. By default, a [`PrecomputedNeighborhoodSearch`](@ref) is used,
+                    which precomputes and stores the neighbor lists at initialization.
+                    This NHS is significantly faster (~2x on CPUs, up to 10x on GPUs)
+                    than the [`GridNeighborhoodSearch`](@ref).
+                    Note that when the default value is used here, the keyword argument
+                    `transpose_backend` of the [`PrecomputedNeighborhoodSearch`](@ref)
+                    is set to `true` when running on GPUs and `false` on CPUs.
+                    Alternatively, a user-defined neighborhood search can be passed here.
 
 !!! note
     If specifying the clamped particles manually (via `n_clamped_particles`),
@@ -69,7 +83,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V, ST, M, IM,
+                                YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS,
                                 C} <: AbstractStructureSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -94,6 +108,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     source_terms             :: ST
     clamped_particles_motion :: M
     clamped_particles_moving :: IM
+    self_interaction_nhs     :: NHS
     cache                    :: C
 end
 
@@ -105,7 +120,8 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                   acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
-                                  source_terms=nothing, boundary_model=nothing)
+                                  source_terms=nothing, boundary_model=nothing,
+                                  self_interaction_nhs=:default)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -180,8 +196,74 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
-                                    clamped_particles_motion, ismoving, cache)
+                                    clamped_particles_motion, ismoving,
+                                    self_interaction_nhs, cache)
 end
+
+# Initialize self-interaction neighborhood search if not provided by the user
+# (which means `self_interaction_nhs === :default`). This cannot be done in the constructor
+# because we need both the parallelization backend (to optimize the memory layout)
+# and the NHS of the `Semidiscretization` (to copy the `PeriodicBox`).
+function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
+                                         neighborhood_search, parallelization_backend)
+    periodic_box = extract_periodic_box(neighborhood_search)
+
+    if system.self_interaction_nhs === :default
+        if parallelization_backend isa KernelAbstractions.GPU
+            # On GPUs, transpose the backend for an optimized memory access pattern
+            template = PrecomputedNeighborhoodSearch{ndims(system)}(transpose_backend=true;
+                                                                    periodic_box)
+        else
+            # On CPUs, use the default configuration to optimize cache hits
+            template = PrecomputedNeighborhoodSearch{ndims(system)}(; periodic_box)
+        end
+    elseif isnothing(system.self_interaction_nhs)
+        template = TrivialNeighborhoodSearch{ndims(system)}()
+    else
+        # The user supplied a custom self-interaction neighborhood search.
+        # We don't touch this one and just return the system as is.
+        return system
+    end
+
+    # Create concrete NHS from template
+    search_radius = compact_support(system, system)
+    self_interaction_nhs = copy_neighborhood_search(template, search_radius,
+                                                    nparticles(system))
+
+    # Note that for large numbers of particles, initialization can take a while
+    PointNeighbors.initialize!(self_interaction_nhs,
+                               system.initial_coordinates, system.initial_coordinates,
+                               parallelization_backend=PolyesterBackend())
+
+    # Self-interaction only requires neighbors in the initial configuration,
+    # so the self-interaction NHS will never be updated.
+    # For the `PrecomputedNeighborhoodSearch`, "freezing" strips all data structures
+    # that are only required for updating (and not necessarily GPU-compatible)
+    self_interaction_nhs = PointNeighbors.freeze_neighborhood_search(self_interaction_nhs)
+
+    @info "To create the self-interaction neighborhood search of a " *
+          "`TotalLagrangianSPHSystem`, a deep copy of the system is created inside " *
+          "the `Semidiscretization`. Use `system = semi.systems[i]` to access " *
+          "simulation data."
+
+    return TotalLagrangianSPHSystem(system.initial_condition,
+                                    system.initial_coordinates,
+                                    system.current_coordinates, system.mass,
+                                    system.correction_matrix, system.pk1_rho2,
+                                    system.deformation_grad, system.material_density,
+                                    system.n_integrated_particles, system.young_modulus,
+                                    system.poisson_ratio, system.lame_lambda,
+                                    system.lame_mu, system.smoothing_kernel,
+                                    system.smoothing_length, system.acceleration,
+                                    system.boundary_model, system.penalty_force,
+                                    system.viscosity, system.source_terms,
+                                    system.clamped_particles_motion,
+                                    system.clamped_particles_moving,
+                                    self_interaction_nhs, system.cache)
+end
+
+extract_periodic_box(::Nothing) = nothing
+extract_periodic_box(nhs) = nhs.periodic_box
 
 create_cache_tlsph(::Nothing, initial_condition) = (;)
 
