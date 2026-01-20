@@ -38,7 +38,7 @@ end
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
 end
 
-function allocate(backend::KernelAbstractions.Backend, ELTYPE, size)
+function allocate(backend::KernelAbstractions.GPU, ELTYPE, size)
     return KernelAbstractions.allocate(backend, ELTYPE, size)
 end
 
