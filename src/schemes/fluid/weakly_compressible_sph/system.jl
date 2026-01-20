@@ -278,7 +278,7 @@ end
     return system.pressure
 end
 
-@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
+@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = sound_speed(system.state_equation)
 
 @inline shifting_technique(system::WeaklyCompressibleSPHSystem) = system.shifting_technique
 
@@ -288,11 +288,31 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system
 
+    # Update speed of sound when an adaptive state equation is used
+    update_speed_of_sound!(system, v, system.state_equation)
     compute_density!(system, u, u_ode, semi, density_calculator)
 
     @trixi_timeit timer() "update density diffusion" update!(density_diffusion, v, u,
                                                              system, semi)
 
+    return system
+end
+
+@inline update_speed_of_sound!(system, v, state_equation) = system
+
+@inline function update_speed_of_sound!(system::WeaklyCompressibleSPHSystem, v,
+                                        state_equation::StateEquationAdaptiveCole)
+    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # but is GPU-compatible.
+    v_max2 = maximum(x -> dot(x, x),
+                     reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                                 current_velocity(v, system)))
+    v_max = sqrt(v_max2)
+
+    state_equation.sound_speed_ref[] = min(state_equation.max_sound_speed,
+                                           max(state_equation.min_sound_speed,
+                                               v_max /
+                                               state_equation.mach_number_target))
     return system
 end
 

@@ -7,15 +7,72 @@
                                        density=1000.0, pressure=900.0, mass=50.0)
 
         @testset verbose=true "`InitialCondition`" begin
-            trixi2vtk(expected_ic; filename="tmp_initial_condition",
-                      output_directory=tmp_dir)
+            @testset verbose=true "`Float64`" begin
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_64",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_64.vtu")
+                test_ic = vtk2trixi(file)
 
-            test_ic = vtk2trixi(joinpath(tmp_dir, "tmp_initial_condition.vtu"))
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float64
+                @test eltype(test_ic.coordinates) === Float64
+            end
 
-            @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
-            @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
-            @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
-            @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+            @testset verbose=true "`Float32`" begin
+                expected_ic_32 = InitialCondition(;
+                                                  coordinates=convert.(Float32,
+                                                                       coordinates),
+                                                  velocity=convert.(Float32, velocity),
+                                                  density=1000.0f0, pressure=900.0f0,
+                                                  mass=50.0f0, particle_spacing=0.1f0)
+                trixi2vtk(expected_ic_32; filename="tmp_initial_condition_32",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_32.vtu")
+                test_ic = vtk2trixi(file)
+
+                @test isapprox(expected_ic_32.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic_32.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic_32.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic_32.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float32
+            end
+
+            @testset verbose=true "Custom Element Type" begin
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_custom",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_custom.vtu")
+                test_ic = vtk2trixi(file, element_type=Float32, coordinates_eltype=Float32)
+
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float32
+            end
+
+            @testset verbose=true "Mixed Types" begin
+                expected_ic_mixed = InitialCondition(;
+                                                     coordinates=coordinates,
+                                                     velocity=convert.(Float32, velocity),
+                                                     density=1000.0f0, pressure=900.0f0,
+                                                     mass=50.0f0, particle_spacing=0.1f0)
+                trixi2vtk(expected_ic_mixed; filename="tmp_initial_condition_mixed",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_mixed.vtu")
+                test_ic = vtk2trixi(file)
+
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float64
+            end
         end
 
         @testset verbose=true "`AbstractFluidSystem`" begin

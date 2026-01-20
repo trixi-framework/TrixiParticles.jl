@@ -240,11 +240,12 @@ Filter = t -> typeof(t) === typeof(TrixiParticles.planar_geometry_to_face)
 ```
 
 # [Open Boundary Models](@id open_boundary_models)
-We offer two models for open boundaries, with the choice depending on the specific problem and flow characteristics near the boundary:
-1. [**Method of characteristics**](@ref method_of_characteristics): The method of characteristics is typically used in problems where tracking of wave propagation
+We offer three models for open boundaries, with the choice depending on the specific problem and flow characteristics near the boundary:
+1. [**Dynamical Pressure**](@ref dynamical_pressure): Highly robust and recommended for complex simulations with bidirectional flow.
+2. [**Method of characteristics**](@ref method_of_characteristics): The method of characteristics is typically used in problems where tracking of wave propagation
     or flow in a domain that interacts with open boundaries (e.g., shock waves, wave fronts, or any behavior that depends on the direction of propagation) is needed.
-    It avoids artificial reflections that could arise from boundary conditions.
-1. [**Mirroring**](@ref mirroring): The mirroring method is often applied when the flow near the boundary is expected to behave in a way that is easier to model by using symmetry
+    It avoids artificial reflections that could arise from boundary conditions. Limited to unidirectional flow.
+3. [**Mirroring**](@ref mirroring): The mirroring method is often applied when the flow near the boundary is expected to behave in a way that is easier to model by using symmetry
     or when the fluid does not exhibit complex wave behavior near the boundary (e.g., free-surface flows and simple outflow).
 
 ## [Method of characteristics](@id method_of_characteristics)
