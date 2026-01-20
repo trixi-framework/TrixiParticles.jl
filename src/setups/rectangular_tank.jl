@@ -214,8 +214,14 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
     face_indices = Tuple(vec(x) for x in face_indices)
     offset = boundary_spacing / 2
 
+    # Check if a face exists and if there are 
+    # any particles associated with it. 
+    function face_has_particles(i)
+        return faces[i] && !isempty(face_indices[i])
+    end
+
     #### Left boundary
-    if faces[1]
+    if face_has_particles(1)
         left_boundary = maximum(boundary_coordinates[1, face_indices[1]]) + offset
         for idx in face_indices[1]
             normals[1, idx] = -abs(boundary_coordinates[1, idx] - left_boundary)
@@ -223,7 +229,7 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
     end
 
     #### Right boundary
-    if faces[2]
+    if face_has_particles(2)
         right_boundary = minimum(boundary_coordinates[1, face_indices[2]]) - offset
         for idx in face_indices[2]
             normals[1, idx] = abs(boundary_coordinates[1, idx] - right_boundary)
@@ -231,7 +237,7 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
     end
 
     #### Bottom boundary
-    if faces[3]
+    if face_has_particles(3)
         bottom_boundary = maximum(boundary_coordinates[2, face_indices[3]]) + offset
         for idx in face_indices[3]
             normals[2, idx] = -abs(boundary_coordinates[2, idx] - bottom_boundary)
@@ -239,7 +245,7 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
     end
 
     #### Top boundary
-    if faces[4]
+    if face_has_particles(4)
         top_boundary = minimum(boundary_coordinates[2, face_indices[4]]) - offset
         for idx in face_indices[4]
             normals[2, idx] = abs(boundary_coordinates[2, idx] - top_boundary)
@@ -247,7 +253,7 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
     end
 
     # Bottom left corner
-    if faces[1] && faces[3]
+    if face_has_particles(1) && face_has_particles(3)
         boundary_corner_point = [maximum(boundary_coordinates[1, corner_indices[1]])
                                  maximum(boundary_coordinates[2, corner_indices[1]])]
         corner_point = boundary_corner_point + [offset; offset]
@@ -257,7 +263,7 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
     end
 
     # Top left corner
-    if faces[1] && faces[4]
+    if face_has_particles(1) && face_has_particles(4)
         boundary_corner_point = [maximum(boundary_coordinates[1, corner_indices[2]])
                                  minimum(boundary_coordinates[2, corner_indices[2]])]
         corner_point = boundary_corner_point + [offset; -offset]
@@ -267,7 +273,7 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
     end
 
     # Bottom right corner
-    if faces[2] && faces[3]
+    if face_has_particles(2) && face_has_particles(3)
         boundary_corner_point = [minimum(boundary_coordinates[1, corner_indices[3]])
                                  maximum(boundary_coordinates[2, corner_indices[3]])]
         corner_point = boundary_corner_point + [-offset; offset]
@@ -277,7 +283,7 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
     end
 
     # Top right corner
-    if faces[2] && faces[4]
+    if face_has_particles(2) && face_has_particles(4)
         boundary_corner_point = [minimum(boundary_coordinates[1, corner_indices[4]])
                                  minimum(boundary_coordinates[2, corner_indices[4]])]
         corner_point = boundary_corner_point + [-offset; -offset]
@@ -311,6 +317,12 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
         end
     end
 
+    # Check if a face exists and if there are 
+    # any particles associated with it. 
+    function face_has_particles(idxs, i)
+        return faces[i] && !isempty(idxs[i])
+    end
+
     # Compute normals for the faces
     # Faces: 1=Left(-x), 2=Right(+x), 3=Bottom(-y), 4=Top(+y), 5=Front(-z), 6=Back(+z)
     LEFT, RIGHT = 1, 2
@@ -323,7 +335,7 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
                  (FRONT, 3, 1, -1), (BACK, 3, 2, 1))
 
     for (f_idx, dim, side_type, sign) in face_defs
-        if faces[f_idx]
+        if face_has_particles(face_indices, f_idx)
             idxs = face_indices[f_idx]
             wall_pos = get_wall_pos(coords[dim], idxs, side_type)
             # Compute normals: sign * (abs(coord - wall) + offset)
@@ -346,7 +358,7 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
                  (BOTTOM, FRONT), (BOTTOM, BACK), (TOP, FRONT), (TOP, BACK))
 
     for (i, (f1, f2)) in enumerate(edge_defs)
-        if faces[f1] && faces[f2]
+        if face_has_particles(edge_indices, f1) && face_has_particles(edge_indices, f2)
             idxs = edge_indices[i]
             if isempty(idxs)
                 continue
@@ -373,7 +385,9 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
                    (RIGHT, TOP, FRONT), (RIGHT, TOP, BACK))
 
     for (i, (f1, f2, f3)) in enumerate(corner_defs)
-        if faces[f1] && faces[f2] && faces[f3]
+        if face_has_particles(corner_indices, f1) &&
+           face_has_particles(corner_indices, f2) &&
+           face_has_particles(corner_indices, f3)
             idxs = corner_indices[i]
             if isempty(idxs)
                 continue
@@ -397,31 +411,6 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
     end
     return normals
 end
-
-# Copy to REPL and run
-# function plot_coords(fluid::Matrix{T}, boundary::Matrix{T}, normals=nothing) where {T}
-#     if size(fluid, 1) == 2
-#         x_f, y_f = eachrow(fluid)
-#         x_b, y_b = eachrow(boundary)
-
-#         plt = plot(x_f, y_f, seriestype=:scatter, color=:red, label="Fluid")
-#         scatter!(plt, x_b, y_b, color=:blue, label="Boundary")
-
-#         if normals !== nothing
-#             u, v = eachrow(normals)
-#             quiver!(plt, x_b, y_b, quiver=(u, v), aspect_ratio=1, label="Normals")
-#         end
-
-#     elseif size(fluid, 1) == 3
-#         x_f, y_f, z_f = eachrow(fluid)
-#         x_b, y_b, z_b = eachrow(boundary)
-
-#         plt = plot(x_f, y_f, z_f, seriestype=:scatter, color=:red, label="Fluid")
-#         scatter!(plt, x_b, y_b, z_b, color=:blue, label="Boundary")
-#     end
-
-#     return plt
-# end
 
 function round_n_particles(size, spacing, type)
     n_particles = round(Int, size / spacing)
