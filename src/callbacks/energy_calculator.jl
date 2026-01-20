@@ -3,8 +3,8 @@
                              eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
                              only_compute_force_on_fluid=false)
 
-Callback to integrate the work done by particles in a
-[`TotalLagrangianSPHSystem`](@ref).
+Callback that accumulates the work done by a set of particles in a
+[`TotalLagrangianSPHSystem`](@ref) by integrating the instantaneous power over time.
 
 With the default arguments it tracks the energy contribution of the clamped particles
 that follow a [`PrescribedMotion`](@ref). By selecting different particles it can also be
