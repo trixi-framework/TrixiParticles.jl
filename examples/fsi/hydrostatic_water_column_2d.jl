@@ -1,23 +1,23 @@
-############################################################################################
+# ==========================================================================================
+# 2D Hydrostatic Water Column on an Elastic Plate (FSI)
+#
 # Case "Elastic plate under a hydrostatic water column" as described in
 # "A fluid–structure interaction model for free-surface flows and flexible structures
 # using smoothed particle hydrodynamics on a GPU" by J. O'Connor and B.D. Rogers
 # published in Journal of Fluids and Structures
 # https://doi.org/10.1016/j.jfluidstructs.2021.103312
-############################################################################################
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
 using JSON
 
-# ============================================================================
-# Options
-# ============================================================================
+# ==========================================================================================
+# ==== Options
 use_edac = true  # Use EDAC or WCSPH
 
-# ============================================================================
-# Experiment Parameters
-# ============================================================================
+# ==========================================================================================
+# ==== Experiment Parameters
 # The paper uses 5 to 40 (3 for short runtime in CI)
 n_particles_plate_y = 3
 boundary_layers = 3
@@ -47,9 +47,8 @@ analytical_value = -0.0026 * gravity *
                    (fluid_density * initial_fluid_size[2] +
                     solid_density * plate_size[2]) / D
 
-# ============================================================================
+# ==========================================================================================
 # ==== Geometry Definitions: Tank, Beam, and Fixed Particles
-# ============================================================================
 n_particles_plate_x = round(Int, plate_size[1] / solid_particle_spacing + 1)
 n_particles_per_dimension = (n_particles_plate_x, n_particles_plate_y)
 
@@ -66,9 +65,8 @@ fixed_particles = union(left_wall, right_wall)
 
 solid_geometry = union(plate, fixed_particles)
 
-# ============================================================================
-# Smoothing Kernel, Boundary, and Related Quantities
-# ============================================================================
+# ==========================================================================================
+# ==== Smoothing Kernel, Boundary, and Related Quantities
 smoothing_kernel = WendlandC2Kernel{2}()
 smoothing_length_solid = sqrt(2) * solid_particle_spacing
 
@@ -79,10 +77,8 @@ hydrodynamic_densities = fluid_density * ones(size(solid_geometry.density))
 hydrodynamic_masses = hydrodynamic_densities * solid_particle_spacing^ndims(solid_geometry)
 boundary_density_calculator = AdamiPressureExtrapolation()
 
-# ============================================================================
-# Run Simulations
-# ============================================================================
-
+# ==========================================================================================
+# ==== Run Simulations
 local_state_equation = use_edac ? nothing :
                        StateEquationCole(; sound_speed, reference_density=fluid_density,
                                          exponent=7, clip_negative_pressure=false)
