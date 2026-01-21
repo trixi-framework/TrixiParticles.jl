@@ -24,7 +24,7 @@ gravity = 9.81
 tspan = (0.0, 2.0)
 
 # Numerical settings
-smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_length = 1.75 * fluid_particle_spacing
 sound_speed = 100.0
 # when using the Ideal gas equation
 # sound_speed = 343.0

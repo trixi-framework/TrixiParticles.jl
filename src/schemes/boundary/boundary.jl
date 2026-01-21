@@ -1,10 +1,4 @@
-include("dummy_particles/dummy_particles.jl")
-include("system.jl")
-include("open_boundary/boundary_zones.jl")
-include("open_boundary/mirroring.jl")
-include("open_boundary/method_of_characteristics.jl")
-include("open_boundary/system.jl")
-# Monaghan-Kajtar repulsive boundary particles require the `BoundarySPHSystem`
-# and the `TotalLagrangianSPHSystem` and are therefore included later.
-
-@inline Base.ndims(boundary_model::BoundaryModelDummyParticles) = ndims(boundary_model.smoothing_kernel)
+include("prescribed_motion.jl")
+include("open_boundary/open_boundary.jl")
+include("wall_boundary/wall_boundary.jl")
+include("dem_boundary/system.jl")

@@ -6,7 +6,7 @@
                           smoothing_length_interpolation=smoothing_length,
                           is_boundary=false, boundary_compress_factor=1,
                           neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                          background_pressure, tlsph=false, fixed_system=false)
+                          background_pressure, place_on_shell=false, fixed_system=false)
 
 System to generate body-fitted particles for complex shapes.
 For more information on the methods, see [particle packing](@ref particle_packing).
@@ -18,10 +18,11 @@ For more information on the methods, see [particle packing](@ref particle_packin
 - `background_pressure`:   Constant background pressure to physically pack the particles.
                            A large `background_pressure` can cause high accelerations
                            which requires a properly adjusted time step.
-- `tlsph`:                 With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
-                           on the boundary of the shape and not half a particle spacing away,
-                           as for fluids. When `tlsph=true`, particles will be placed
-                           on the boundary of the shape.
+- `place_on_shell`:        If `place_on_shell=true`, particles will be placed
+                           on the shell of the geometry. For example,
+                           the [`TotalLagrangianSPHSystem`](@ref) requires particles to be placed
+                           on the shell of the geometry and not half a particle spacing away,
+                           as for fluids.
 - `is_boundary`:           When `shape` is inside the geometry that was used to create
                            `signed_distance_field`, set `is_boundary=false`.
                            Otherwise (`shape` is the sampled boundary), set `is_boundary=true`.
@@ -55,7 +56,7 @@ For more information on the methods, see [particle packing](@ref particle_packin
                               Recommended values are `0.8` or `0.9`.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
-                             IC, M, D, K, N, SD, UCU} <: FluidSystem{NDIMS}
+                             IC, M, D, K, N, SD} <: AbstractFluidSystem{NDIMS}
     initial_condition              :: IC
     advection_velocity             :: AV
     mass                           :: M
@@ -64,7 +65,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     smoothing_kernel               :: K
     smoothing_length_interpolation :: ELTYPE
     background_pressure            :: ELTYPE
-    tlsph                          :: Bool
+    place_on_shell                 :: Bool
     signed_distance_field          :: S
     is_boundary                    :: Bool
     shift_length                   :: ELTYPE
@@ -72,32 +73,30 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     signed_distances               :: SD # Only for visualization
     particle_refinement            :: PR
     buffer                         :: Nothing
-    update_callback_used           :: UCU
     cache                          :: C
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
                                    smoothing_kernel, smoothing_length_interpolation,
-                                   background_pressure, tlsph, signed_distance_field,
+                                   background_pressure, place_on_shell,
+                                   signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
                                    signed_distances, particle_refinement, buffer,
-                                   update_callback_used, fixed_system, cache,
-                                   advection_velocity)
+                                   fixed_system, cache, advection_velocity)
         return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
                    eltype(density), typeof(particle_refinement), typeof(cache),
                    typeof(advection_velocity), typeof(initial_condition), typeof(mass),
                    typeof(density), typeof(smoothing_kernel), typeof(neighborhood_search),
-                   typeof(signed_distances),
-                   typeof(update_callback_used)}(initial_condition, advection_velocity,
-                                                 mass, density, particle_spacing,
-                                                 smoothing_kernel,
-                                                 smoothing_length_interpolation,
-                                                 background_pressure, tlsph,
-                                                 signed_distance_field, is_boundary,
-                                                 shift_length, neighborhood_search,
-                                                 signed_distances, particle_refinement,
-                                                 buffer, update_callback_used, cache)
+                   typeof(signed_distances)}(initial_condition, advection_velocity,
+                                             mass, density, particle_spacing,
+                                             smoothing_kernel,
+                                             smoothing_length_interpolation,
+                                             background_pressure, place_on_shell,
+                                             signed_distance_field, is_boundary,
+                                             shift_length, neighborhood_search,
+                                             signed_distances, particle_refinement,
+                                             buffer, cache)
     end
 end
 
@@ -108,7 +107,8 @@ function ParticlePackingSystem(shape::InitialCondition;
                                smoothing_length_interpolation=smoothing_length,
                                is_boundary=false, boundary_compress_factor=1,
                                neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
-                               background_pressure, tlsph=false, fixed_system=false)
+                               background_pressure, place_on_shell=false,
+                               fixed_system=false)
     NDIMS = ndims(shape)
     ELTYPE = eltype(shape)
     mass = copy(shape.mass)
@@ -147,12 +147,12 @@ function ParticlePackingSystem(shape::InitialCondition;
     # Its value is negative if the particle is inside the geometry.
     # Otherwise (if outside), the value is positive.
     if is_boundary
-        offset = tlsph ? shape.particle_spacing : shape.particle_spacing / 2
+        offset = place_on_shell ? shape.particle_spacing : shape.particle_spacing / 2
 
         shift_length = -boundary_compress_factor *
                        signed_distance_field.max_signed_distance - offset
     else
-        shift_length = tlsph ? zero(ELTYPE) : shape.particle_spacing / 2
+        shift_length = place_on_shell ? zero(ELTYPE) : shape.particle_spacing / 2
     end
 
     cache = (; create_cache_refinement(shape, particle_refinement, smoothing_length)...)
@@ -161,11 +161,10 @@ function ParticlePackingSystem(shape::InitialCondition;
 
     return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
                                  smoothing_kernel, smoothing_length_interpolation,
-                                 background_pressure, tlsph, signed_distance_field,
+                                 background_pressure, place_on_shell, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
-                                 nothing, Ref(false), fixed_system, cache,
-                                 advection_velocity)
+                                 nothing, fixed_system, cache, advection_velocity)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
@@ -187,7 +186,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
                      system.neighborhood_search |> typeof |> nameof)
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "tlsph", system.tlsph ? "yes" : "no")
+        summary_line(io, "place_on_shell", system.place_on_shell ? "yes" : "no")
         summary_line(io, "boundary", system.is_boundary ? "yes" : "no")
         summary_footer(io)
     end
@@ -215,20 +214,11 @@ end
     return ndims(system)
 end
 
-function reset_callback_flag!(system::ParticlePackingSystem)
-    system.update_callback_used[] = false
+@inline requires_update_callback(system::ParticlePackingSystem) = true
 
-    return system
-end
-
-update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
-
-function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem)
     vtk["velocity"] = [advection_velocity(v, system, particle)
-                       for particle in active_particles(system)]
-    if write_meta_data
-        vtk["signed_distances"] = system.signed_distances
-    end
+                       for particle in eachparticle(system)]
 end
 
 # Skip for fixed systems
@@ -261,8 +251,8 @@ function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
     # Exclude boundary packing system
     is_boundary && return zero(eltype(system))
 
-    # If `each_moving_particle` is empty (no moving particles), return zero
-    return sum(each_moving_particle(system), init=zero(eltype(system))) do particle
+    # If `each_integrated_particle` is empty (no integrated particles), return zero
+    return sum(each_integrated_particle(system), init=zero(eltype(system))) do particle
         velocity = advection_velocity(v, system, particle)
         return initial_condition.mass[particle] * dot(velocity, velocity) / 2
     end
@@ -279,7 +269,10 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
                                  semi, integrator)
     u = wrap_u(u_ode, system, semi)
 
-    update_position!(u, system, semi)
+    @trixi_timeit timer() "update particle packing" update_position!(u, system, semi)
+
+    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    u_modified!(integrator, true)
 end
 
 function update_position!(u, system::ParticlePackingSystem, semi)
@@ -287,15 +280,6 @@ function update_position!(u, system::ParticlePackingSystem, semi)
     @trixi_timeit timer() func_name constrain_particles_onto_surface!(u, system, semi)
 
     return u
-end
-
-function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, t;
-                       update_from_callback=false)
-    if !update_from_callback && !(system.update_callback_used[])
-        throw(ArgumentError("`UpdateCallback` is required when using `ParticlePackingSystem`"))
-    end
-
-    return system
 end
 
 # Skip for systems without `SignedDistanceField`
@@ -349,8 +333,8 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
     (; shift_length) = system
 
     # For fluid particles:
-    # - `tlsph = true`: `shift_length = 0`
-    # - `tlsph = false`: `shift_length = particle_spacing / 2`
+    # - `place_on_shell = true`: `shift_length = 0`
+    # - `place_on_shell = false`: `shift_length = particle_spacing / 2`
     # For boundary particles:
     # `shift_length` is the thickness of the boundary.
     if distance_signed >= -shift_length
@@ -365,7 +349,7 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
     system.is_boundary || return u
 
     particle_spacing = system.initial_condition.particle_spacing
-    shift_length_inner = system.tlsph ? particle_spacing : particle_spacing / 2
+    shift_length_inner = system.place_on_shell ? particle_spacing : particle_spacing / 2
 
     if distance_signed < shift_length_inner
         shift = (distance_signed - shift_length_inner) * normal_vector
@@ -378,31 +362,41 @@ function constrain_particle!(u, system, particle, distance_signed, normal_vector
     return u
 end
 
-# Skip for fixed systems
-@inline update_transport_velocity!(system::ParticlePackingSystem{<:Any, true}, v_ode,
-                                   semi) = system
+# Update from `UpdateCallback` between time steps (skip for fixed systems)
+@inline function update_transport_velocity!(system::ParticlePackingSystem{<:Any, false},
+                                            v_ode, semi, integrator)
+    @trixi_timeit timer() "update packing TVF" begin
+        v = wrap_v(v_ode, system, semi)
+        @threaded semi for particle in each_integrated_particle(system)
+            for i in 1:ndims(system)
+                system.advection_velocity[i, particle] = v[i, particle]
 
-# Update from `UpdateCallback` (between time steps)
-@inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
-    v = wrap_v(v_ode, system, semi)
-    @threaded semi for particle in each_moving_particle(system)
-        for i in 1:ndims(system)
-            system.advection_velocity[i, particle] = v[i, particle]
-
-            # The particle velocity is set to zero at the beginning of each time step to
-            # achieve a fully stationary state.
-            v[i, particle] = zero(eltype(system))
+                # The particle velocity is set to zero at the beginning of each time step to
+                # achieve a fully stationary state.
+                v[i, particle] = zero(eltype(system))
+            end
         end
     end
+
+    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    u_modified!(integrator, true)
 
     return system
 end
 
-# Skip for fixed systems
-@inline add_velocity!(du, v, particle, system::ParticlePackingSystem{<:Any, true}) = du
+# Skip for fixed systems and non-packing systems
+@inline function update_transport_velocity!(system, v_ode, semi, integrator)
+    return system
+end
 
-# Add advection velocity.
-@inline function add_velocity!(du, v, particle, system::ParticlePackingSystem)
+# Skip for fixed systems
+@inline function add_velocity!(du, v, u, particle,
+                               system::ParticlePackingSystem{<:Any, true}, t)
+    return du
+end
+
+# Add advection velocity
+@inline function add_velocity!(du, v, u, particle, system::ParticlePackingSystem, t)
     for i in 1:ndims(system)
         du[i, particle] = system.advection_velocity[i, particle]
     end

@@ -34,7 +34,8 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity, 0.0), state_equation=state_equation)
+                       acceleration=(0.0, -gravity, 0.0), state_equation=state_equation,
+                       coordinates_eltype=Float64)
 
 # ==========================================================================================
 # ==== Fluid
@@ -59,7 +60,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

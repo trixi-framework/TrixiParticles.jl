@@ -1,8 +1,8 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
-    initial_condition :: InitialCondition{ELTYPE}
+struct NBodySystem{NDIMS, ELTYPE <: Real, IC} <: TrixiParticles.AbstractSystem{NDIMS}
+    initial_condition :: IC
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE
     buffer            :: Nothing
@@ -11,13 +11,13 @@ struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
         mass = copy(initial_condition.mass)
 
         new{size(initial_condition.coordinates, 1),
-            eltype(mass)}(initial_condition, mass, G, nothing)
+            eltype(mass), typeof(initial_condition)}(initial_condition, mass, G, nothing)
     end
 end
 
 TrixiParticles.timer_name(::NBodySystem) = "nbody"
 
-@inline Base.eltype(system::NBodySystem) = eltype(system.initial_condition.coordinates)
+@inline Base.eltype(system::NBodySystem{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
 function TrixiParticles.write_u0!(u0, system::NBodySystem)
     u0 .= system.initial_condition.coordinates
@@ -59,8 +59,8 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
     TrixiParticles.foreach_point_neighbor(particle_system, neighbor_system,
                                           system_coords, neighbor_coords,
                                           semi) do particle, neighbor, pos_diff, distance
-        # Only consider particles with a distance > 0
-        distance < sqrt(eps()) && return
+        # No interaction of a particle with itself
+        particle_system === neighbor_system && particle === neighbor && return
 
         # Original version
         # dv = -G * mass[neighbor] * pos_diff / norm(pos_diff)^3
@@ -105,13 +105,17 @@ end
 
 TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem; write_meta_data=true)
+function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
     (; mass) = system
 
     vtk["velocity"] = v
     vtk["mass"] = mass
 
     return vtk
+end
+
+function TrixiParticles.add_system_data!(system_data, system::NBodySystem)
+    return system_data
 end
 
 function Base.show(io::IO, system::NBodySystem)

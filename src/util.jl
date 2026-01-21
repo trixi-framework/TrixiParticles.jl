@@ -1,4 +1,4 @@
-# Same as `foreach`, but it optimizes away for small input tuples
+# Same as `foreach`, but it is unrolled by the compiler for small input tuples
 @inline function foreach_noalloc(func, collection)
     element = first(collection)
     remaining_collection = Base.tail(collection)
@@ -10,6 +10,31 @@
 end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
+
+@inline function foreach_noalloc(func, collection1, collection2)
+    element1 = first(collection1)
+    remaining_collection1 = Base.tail(collection1)
+    element2 = first(collection2)
+    remaining_collection2 = Base.tail(collection2)
+
+    func((element1, element2))
+
+    # Process remaining collection
+    foreach_noalloc(func, remaining_collection1, remaining_collection2)
+end
+
+@inline foreach_noalloc(func, collection1::Tuple{}, collection2::Tuple{}) = nothing
+
+# Returns `functions[index](args...)`, but in a type-stable way for a heterogeneous tuple `functions`
+@inline function apply_ith_function(functions, index, args...)
+    if index == 1
+        # Found the function to apply, apply it and return
+        return first(functions)(args...)
+    end
+
+    # Process remaining functions
+    apply_ith_function(Base.tail(functions), index - 1, args...)
+end
 
 # Print informative message at startup
 function print_startup_message()
@@ -127,7 +152,7 @@ function compute_git_hash()
     end
 
     try
-        git_cmd = Cmd(`git describe --tags --always --first-parent --dirty`,
+        git_cmd = Cmd(`git describe --tags --always --dirty`,
                       dir=pkg_directory)
         return string(readchomp(git_cmd))
     catch e
@@ -159,6 +184,16 @@ Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
 function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
     return ThreadedBroadcastArray(similar(A.array, T);
                                   parallelization_backend=A.parallelization_backend)
+end
+
+function Base.convert(::Type{ThreadedBroadcastArray{T, N, A, P}},
+                      a::AbstractArray) where {T, N, A, P}
+    if a isa ThreadedBroadcastArray{T, N, A, P}
+        return a
+    end
+
+    # TODO we only have the type `P` here and just assume that we can do `P()`
+    return ThreadedBroadcastArray(convert(A, a), parallelization_backend=P())
 end
 
 Base.@propagate_inbounds function Base.getindex(A::ThreadedBroadcastArray, i...)

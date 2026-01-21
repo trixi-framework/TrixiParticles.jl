@@ -35,7 +35,7 @@
         spacing_ratio = 0.5
         boundary_model = BoundaryModelMonaghanKajtar(K, spacing_ratio, 2particle_spacing,
                                                      boundary.mass)
-        boundary_system = BoundarySPHSystem(boundary, boundary_model)
+        boundary_system = WallBoundarySystem(boundary, boundary_model)
 
         # Density is integrated with `ContinuityDensity`
         v = vcat(fluid.velocity, fluid.density')

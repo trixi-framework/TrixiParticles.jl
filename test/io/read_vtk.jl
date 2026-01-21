@@ -1,24 +1,81 @@
 @testset verbose=true "`vtk2trixi`" begin
     mktempdir() do tmp_dir
-        coordinates=fill(1.0, 2, 12)
-        velocity=fill(2.0, 2, 12)
+        coordinates = fill(1.0, 2, 12)
+        velocity = fill(2.0, 2, 12)
 
         expected_ic = InitialCondition(; coordinates=coordinates, velocity=velocity,
                                        density=1000.0, pressure=900.0, mass=50.0)
 
         @testset verbose=true "`InitialCondition`" begin
-            trixi2vtk(expected_ic; filename="tmp_initial_condition",
-                      output_directory=tmp_dir)
+            @testset verbose=true "`Float64`" begin
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_64",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_64.vtu")
+                test_ic = vtk2trixi(file)
 
-            test_ic = vtk2trixi(joinpath(tmp_dir, "tmp_initial_condition.vtu"))
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float64
+                @test eltype(test_ic.coordinates) === Float64
+            end
 
-            @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
-            @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
-            @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
-            @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+            @testset verbose=true "`Float32`" begin
+                expected_ic_32 = InitialCondition(;
+                                                  coordinates=convert.(Float32,
+                                                                       coordinates),
+                                                  velocity=convert.(Float32, velocity),
+                                                  density=1000.0f0, pressure=900.0f0,
+                                                  mass=50.0f0, particle_spacing=0.1f0)
+                trixi2vtk(expected_ic_32; filename="tmp_initial_condition_32",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_32.vtu")
+                test_ic = vtk2trixi(file)
+
+                @test isapprox(expected_ic_32.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic_32.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic_32.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic_32.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float32
+            end
+
+            @testset verbose=true "Custom Element Type" begin
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_custom",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_custom.vtu")
+                test_ic = vtk2trixi(file, element_type=Float32, coordinates_eltype=Float32)
+
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float32
+            end
+
+            @testset verbose=true "Mixed Types" begin
+                expected_ic_mixed = InitialCondition(;
+                                                     coordinates=coordinates,
+                                                     velocity=convert.(Float32, velocity),
+                                                     density=1000.0f0, pressure=900.0f0,
+                                                     mass=50.0f0, particle_spacing=0.1f0)
+                trixi2vtk(expected_ic_mixed; filename="tmp_initial_condition_mixed",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_mixed.vtu")
+                test_ic = vtk2trixi(file)
+
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float64
+            end
         end
 
-        @testset verbose=true "`FluidSystem`" begin
+        @testset verbose=true "`AbstractFluidSystem`" begin
             fluid_system = EntropicallyDampedSPHSystem(expected_ic,
                                                        SchoenbergCubicSplineKernel{2}(),
                                                        1.5, 1.5)
@@ -29,19 +86,21 @@
             semi = Semidiscretization(fluid_system)
 
             # Create random ODE solutions
+            dvdu_ode = nothing
             v = fill(2.0, ndims(fluid_system), nparticles(fluid_system))
             pressure = fill(3.0, nparticles(fluid_system))
             v_ode = vec([v; pressure'])
-
             u = fill(1.0, ndims(fluid_system), nparticles(fluid_system))
             u_ode = vec(u)
+            x = (; v_ode, u_ode)
+            vu_ode = (; x)
 
-            # Write out `FluidSystem` Simulation-File
-            trixi2vtk(fluid_system, v_ode, u_ode, semi, 0.0,
+            # Write out `AbstractFluidSystem` Simulation-File
+            trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.0,
                       nothing; system_name="tmp_file_fluid", output_directory=tmp_dir,
                       iter=1)
 
-            # Load `FluidSystem` Simulation-File
+            # Load `AbstractFluidSystem` Simulation-File
             test = vtk2trixi(joinpath(tmp_dir, "tmp_file_fluid_1.vtu"))
 
             @test isapprox(u, test.coordinates, rtol=1e-5)
@@ -50,7 +109,7 @@
             @test isapprox(fluid_system.cache.density, test.density, rtol=1e-5)
         end
 
-        @testset verbose=true "`BoundarySystem`" begin
+        @testset verbose=true "`WallBoundarySystem`" begin
             boundary_model = BoundaryModelDummyParticles(expected_ic.density,
                                                          expected_ic.mass,
                                                          SummationDensity(),
@@ -61,23 +120,26 @@
             boundary_model.pressure .= expected_ic.pressure
             boundary_model.cache.density .= expected_ic.density
 
-            boundary_system = BoundarySPHSystem(expected_ic, boundary_model)
+            boundary_system = WallBoundarySystem(expected_ic, boundary_model)
             semi = Semidiscretization(boundary_system)
 
             # Create dummy ODE solutions
+            dvdu_ode = nothing
             v_ode = zeros(ndims(boundary_system) * nparticles(boundary_system))
             u_ode = zeros(ndims(boundary_system) * nparticles(boundary_system))
+            x = (; v_ode, u_ode)
+            vu_ode = (; x)
 
-            # Write out `BoundarySystem` Simulation-File
-            trixi2vtk(boundary_system, v_ode, u_ode, semi, 0.0,
+            # Write out `WallBoundarySystem` Simulation-File
+            trixi2vtk(boundary_system, dvdu_ode, vu_ode, semi, 0.0,
                       nothing; system_name="tmp_file_boundary", output_directory=tmp_dir,
                       iter=1)
 
-            # Load `BoundarySystem` Simulation-File
+            # Load `WallBoundarySystem` Simulation-File
             test = vtk2trixi(joinpath(tmp_dir, "tmp_file_boundary_1.vtu"))
 
             @test isapprox(boundary_system.coordinates, test.coordinates, rtol=1e-5)
-            # The velocity is always zero for `BoundarySystem`
+            # The velocity is always zero for `WallBoundarySystem`
             @test isapprox(zeros(size(test.velocity)), test.velocity, rtol=1e-5)
             @test isapprox(boundary_model.pressure, test.pressure, rtol=1e-5)
             @test isapprox(boundary_model.cache.density, test.density, rtol=1e-5)

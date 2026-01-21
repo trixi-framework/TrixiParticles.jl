@@ -1,28 +1,28 @@
 @testset verbose=true "`SystemBuffer`" begin
     # Mock fluid system
-    struct FluidSystemMock3 <: TrixiParticles.FluidSystem{2} end
+    struct FluidSystemMock3 <: TrixiParticles.AbstractFluidSystem{2}
+        pressure_acceleration_formulation::Nothing
+    end
     TrixiParticles.initial_smoothing_length(system::FluidSystemMock3) = 1.0
     TrixiParticles.nparticles(system::FluidSystemMock3) = 1
+    TrixiParticles.system_smoothing_kernel(system::FluidSystemMock3) = nothing
 
-    zone = BoundaryZone(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
-                        open_boundary_layers=2, density=1.0, plane_normal=[1.0, 0.0],
-                        boundary_type=InFlow())
-    system = OpenBoundarySPHSystem(zone; fluid_system=FluidSystemMock3(),
-                                   reference_density=0.0, reference_pressure=0.0,
-                                   reference_velocity=[0, 0],
-                                   boundary_model=BoundaryModelLastiwka(), buffer_size=0)
-    system_buffer = OpenBoundarySPHSystem(zone; buffer_size=5,
-                                          reference_density=0.0, reference_pressure=0.0,
-                                          reference_velocity=[0, 0],
-                                          boundary_model=BoundaryModelLastiwka(),
-                                          fluid_system=FluidSystemMock3())
+    zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
+                        open_boundary_layers=2, density=1.0, face_normal=[1.0, 0.0],
+                        reference_density=1.0, reference_pressure=0.0,
+                        reference_velocity=[0, 0], boundary_type=InFlow())
+    system = OpenBoundarySystem(zone; fluid_system=FluidSystemMock3(nothing), buffer_size=0,
+                                boundary_model=BoundaryModelCharacteristicsLastiwka())
+    system_buffer = OpenBoundarySystem(zone; buffer_size=5,
+                                       boundary_model=BoundaryModelCharacteristicsLastiwka(),
+                                       fluid_system=FluidSystemMock3(nothing))
 
     n_particles = nparticles(system)
 
     @testset "Iterators" begin
-        @test TrixiParticles.each_moving_particle(system) == 1:n_particles
+        @test TrixiParticles.each_integrated_particle(system) == 1:n_particles
 
-        @test TrixiParticles.each_moving_particle(system_buffer) == 1:n_particles
+        @test TrixiParticles.each_integrated_particle(system_buffer) == 1:n_particles
 
         # Activate a particle
         particle_id = findfirst(==(false), system_buffer.buffer.active_particle)
@@ -31,7 +31,7 @@
         TrixiParticles.update_system_buffer!(system_buffer.buffer,
                                              DummySemidiscretization())
 
-        @test TrixiParticles.each_moving_particle(system_buffer) == 1:(n_particles + 1)
+        @test TrixiParticles.each_integrated_particle(system_buffer) == 1:(n_particles + 1)
 
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
                                             ones(2, particle_id))
@@ -39,7 +39,7 @@
         TrixiParticles.update_system_buffer!(system_buffer.buffer,
                                              DummySemidiscretization())
 
-        @test TrixiParticles.each_moving_particle(system_buffer) == 1:n_particles
+        @test TrixiParticles.each_integrated_particle(system_buffer) == 1:n_particles
 
         particle_id = 5
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
@@ -48,7 +48,7 @@
         TrixiParticles.update_system_buffer!(system_buffer.buffer,
                                              DummySemidiscretization())
 
-        @test TrixiParticles.each_moving_particle(system_buffer) ==
+        @test TrixiParticles.each_integrated_particle(system_buffer) ==
               setdiff(1:n_particles, particle_id)
     end
 

@@ -84,8 +84,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              viscosity=ViscosityAdami(nu=wall_viscosity),
                                              reference_particle_spacing=fluid_particle_spacing)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    adhesion_coefficient=1.0)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
+                                     adhesion_coefficient=1.0)
 
 # ==========================================================================================
 # ==== Simulation
@@ -94,7 +94,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=1000)
 saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out",
-                                         prefix="", write_meta_data=true)
+                                         prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

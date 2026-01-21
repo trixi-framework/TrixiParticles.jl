@@ -28,7 +28,9 @@ It offers intuitive configuration, robust pre- and post-processing, and vendor-a
 
 ## Features
 - Incompressible Navier-Stokes
-  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC)
+  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH),
+    Entropically Damped Artificial Compressibility (EDAC),
+    Implicit Incompressible SPH (IISPH)
   - Models: Surface Tension, Open Boundaries
 - Solid-body mechanics
   - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)

@@ -219,6 +219,17 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
+@inline function correction_matrix(system, particle)
+    extract_smatrix(system.correction_matrix, system, particle)
+end
+
+@inline function deformation_gradient(system, particle)
+    extract_smatrix(system.deformation_grad, system, particle)
+end
+@inline function pk1_corrected(system, particle)
+    extract_smatrix(system.pk1_corrected, system, particle)
+end
+
 function initialize!(system::TotalLagrangianSPHSystem, semi)
     (; correction_matrix) = system
 

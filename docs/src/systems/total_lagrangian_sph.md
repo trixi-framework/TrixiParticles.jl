@@ -2,7 +2,7 @@
 
 A Total Lagrangian framework is used wherein the governing equations are formulated such that
 all relevant quantities and operators are measured with respect to the
-initial configuration ([O’Connor & Rogers, 2021](@cite O’Connor2021), [Belytschko et al., 2000](@cite Belytschko2000)).
+initial configuration ([O’Connor & Rogers, 2021](@cite OConnor2021), [Belytschko et al., 2000](@cite Belytschko2000)).
 
 The governing equations with respect to the initial configuration are given by:
 ```math
@@ -11,7 +11,7 @@ The governing equations with respect to the initial configuration are given by:
 where the zero subscript denotes a derivative with respect to the initial configuration
 and $\bm{P}$ is the first Piola-Kirchhoff (PK1) stress tensor.
 
-The discretized version of this equation is given by [O’Connor & Rogers (2021)](@cite O’Connor2021):
+The discretized version of this equation is given by [O’Connor & Rogers (2021)](@cite OConnor2021):
 ```math
 \frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t} = \sum_b m_{0b}
     \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
@@ -59,7 +59,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "system.jl")]
+Pages = [joinpath("schemes", "structure", "total_lagrangian_sph", "system.jl")]
 ```
 
 ## Penalty Force
@@ -100,5 +100,32 @@ where the error vector is defined as
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "penalty_force.jl")]
+Pages = [joinpath("schemes", "structure", "total_lagrangian_sph", "penalty_force.jl")]
 ```
+
+## Viscosity
+
+Another technique that is used to correct the hourglass instability is artificial viscosity.
+Hereby, a viscosity term designed for fluids (see [Viscosity](@ref viscosity_sph)) is applied.
+First, the force ``f_{ab}^{\text{fluid}}`` exerted by particle ``b`` on particle ``a``
+due to artificial viscosity is computed as if both particles were fluid particles
+(see [Viscosity](@ref viscosity_sph) for the relevant equations).
+Then, according to [Lin et al. (2015)](@cite Lin2015), this force can be applied to TLSPH
+with the following conversion:
+```math
+f_{ab}^{\text{AV}} = \det(F_a) F_a^{-1} f_{ab}^{\text{fluid}},
+```
+where ``F_a`` is the deformation gradient at particle ``a``.
+
+We found that artificial viscosity is not effective at correcting the incorrect
+particle positions due to hourglass modes.
+It does however prevent particles from oscillating between different incorrect positions,
+which develops into an instability if uncorrected.
+We still recommend penalty force over artificial viscosity to correct hourglass modes
+as penalty force is specifically designed to correct the incorrect particle positions.
+
+In some FSI simulations, notably when very thin structures or structures with low material
+density are present, instabilities in the fluid can be induced by the structure.
+In these cases, artificial viscosity is effective at stabilizing the fluid close to the
+structure, and we recommend using it in combination with penalty force to both
+prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.

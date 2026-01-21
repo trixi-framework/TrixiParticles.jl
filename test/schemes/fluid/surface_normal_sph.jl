@@ -36,7 +36,7 @@ function create_boundary_system(coordinates, particle_spacing, state_equation, k
                                                  correction=nothing,
                                                  reference_particle_spacing=particle_spacing)
 
-    boundary_system = BoundarySPHSystem(wall, boundary_model, adhesion_coefficient=0.0)
+    boundary_system = WallBoundarySystem(wall, boundary_model, adhesion_coefficient=0.0)
     return boundary_system
 end
 

@@ -28,13 +28,14 @@ initial_fluid_size = tank_size
 initial_velocity = (1.0, 0.0)
 
 fluid_density = 1000.0
-sound_speed = initial_velocity[1]
+sound_speed = 10 * initial_velocity[1]
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       faces=(false, false, true, true), velocity=initial_velocity)
+                       faces=(false, false, true, true), velocity=initial_velocity,
+                       coordinates_eltype=Float64)
 
 # ==========================================================================================
 # ==== Fluid
@@ -48,6 +49,7 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
+                                           shifting_technique=nothing,
                                            pressure_acceleration=nothing)
 
 # ==========================================================================================
@@ -63,7 +65,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              smoothing_kernel, smoothing_length,
                                              viscosity=viscosity_wall)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

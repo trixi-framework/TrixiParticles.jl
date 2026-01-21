@@ -1,118 +1,69 @@
+# This file computes the pressure sensor data of the dam break setup described in
+#
+# J. J. De Courcy, T. C. S. Rendall, L. Constantin, B. Titurus, J. E. Cooper.
+# "Incompressible δ-SPH via artificial compressibility".
+# In: Computer Methods in Applied Mechanics and Engineering, Volume 420 (2024),
+# https://doi.org/10.1016/j.cma.2023.116700
 
 include("../validation_util.jl")
 
 using TrixiParticles
-using JSON
+using TrixiParticles.JSON
 
-gravity = 9.81
+# When using data center CPUs with large numbers of cores, especially on multi-socket
+# systems with multiple NUMA nodes, pinning threads to cores can significantly
+# improve performance, even for low resolutions.
+# using ThreadPinning
+# pinthreads(:numa)
 
-H = 0.6
-W = 2 * H
-tspan = (0.0, 8.0 / sqrt(gravity / H))
+# `resolution` in this case is set relative to `H`, the initial height of the fluid.
+# Use 40, 80 or 400 for validation.
+# Note: 400 takes about 30 minutes on a large data center CPU (much longer with serial update)
+resolution = 40
 
-# `particle_spacing` in this case is set relative to `H`, the initial height of the fluid.
-# Use H / 80, H / 320 for validation.
-# Note: H / 320 takes a few hours!
-particle_spacing = H / 40
-smoothing_length = 1.75 * particle_spacing
-smoothing_kernel = WendlandC2Kernel{2}()
+# Use `SerialUpdate()` to obtain consistent results when using multiple threads
+update_strategy = nothing
+# update_strategy = SerialUpdate()
 
-fluid_density = 1000.0
-sound_speed = 20 * sqrt(gravity * H)
+# ==========================================================================================
+# ==== WCSPH simulation
+trixi_include(@__MODULE__,
+              joinpath(validation_dir(), "dam_break_2d",
+                       "setup_marrone_2011.jl"),
+              use_edac=false, update_strategy=update_strategy,
+              particles_per_height=resolution,
+              sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
+              alpha=0.01, # This is used by De Courcy et al. (2024)
+              tspan=(0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
 
-boundary_layers = 4
-spacing_ratio = 1
-boundary_particle_spacing = particle_spacing / spacing_ratio
+reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",
+                                     "validation_reference_wcsph_$formatted_string.json")
+run_file_wcsph_name = joinpath("out",
+                               "validation_result_dam_break_wcsph_$formatted_string.json")
 
-initial_fluid_size = (W, H)
-tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
+reference_data = JSON.parsefile(reference_file_wcsph_name)
+run_data = JSON.parsefile(run_file_wcsph_name)
 
-# The top of the sensors is at the position where the middle of the sensors is in the experiment.
-#
-# > Note, the probe position in the numerical setup does not exactly match the position in the experiment, but
-# > Greco [36] showed that this shift gives better agreement and reported several uncertainties in the
-# > measurements motivating this adjustment.
-# S. Adami, X. Y. Hu, N. A. Adams.
-# "A generalized wall boundary condition for smoothed particle hydrodynamics".
-# In: Journal of Computational Physics 231, 21 (2012), pages 7057--7075.
-# https://doi.org/10.1016/J.JCP.2012.05.005
-sensor_size = 0.009
-P1_y_top = 160 / 600 * H
-P1_y_bottom = P1_y_top - sensor_size
-P2_y_top = (160 + 424) / 600 * H
-P2_y_bottom = P2_y_top - sensor_size
-P3_y_top = (160 + 424 + 416) / 600 * H
-P3_y_bottom = P3_y_top - sensor_size
+error_wcsph_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
+                                  reference_data["pressure_P1_fluid_1"]["values"],
+                                  run_data["pressure_P1_fluid_1"]["time"],
+                                  run_data["pressure_P1_fluid_1"]["values"])
 
-sensor_names = ["P1", "P2", "P3"]
+error_wcsph_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
+                                  reference_data["pressure_P2_fluid_1"]["values"],
+                                  run_data["pressure_P2_fluid_1"]["time"],
+                                  run_data["pressure_P2_fluid_1"]["values"])
 
-tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing -
-                    0.5 * particle_spacing
-
-pressure_P1 = (system, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
-                                           [tank_right_wall_x, P1_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
-pressure_P2 = (system, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
-                                           [tank_right_wall_x, P2_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
-pressure_P3 = (system, v_ode, u_ode, semi,
-               t) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
-                                           [tank_right_wall_x, P3_y_bottom],
-                                           v_ode, u_ode, t, system, semi)
-
-function max_x_coord(system, data, t)
-    return maximum(j -> data.coordinates[1, j], axes(data.coordinates, 2))
-end
-
-function interpolated_pressure(coord_top, coord_bottom, v_ode, u_ode, t, system, semi)
-    n_interpolation_points = 10
-    interpolated_values = interpolate_line(coord_top, coord_bottom,
-                                           n_interpolation_points, semi, system, v_ode,
-                                           u_ode,
-                                           smoothing_length=2.0 *
-                                                            TrixiParticles.initial_smoothing_length(system),
-                                           clip_negative_pressure=true)
-    return sum(map(x -> isnan(x) ? 0.0 : x, interpolated_values.pressure)) /
-           n_interpolation_points
-end
-
-formatted_string = replace(string(particle_spacing), "." => "")
-
-# EDAC simulation
-############################################################################################
-method = "edac"
-postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
-                                        filename="validation_result_dam_break_" *
-                                                 method * "_" * formatted_string,
-                                        write_csv=false, max_x_coord, pressure_P1,
-                                        pressure_P2, pressure_P3)
-
-tank_edac = RectangularTank(particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                            n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                            acceleration=(0.0, -gravity), state_equation=nothing)
-
-alpha = 0.02
-viscosity_edac = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
-fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kernel,
-                                                smoothing_length,
-                                                sound_speed, viscosity=viscosity_edac,
-                                                density_calculator=ContinuityDensity(),
-                                                pressure_acceleration=nothing,
-                                                acceleration=(0.0, -gravity))
-
-# Disable loop flipping to produce consistent results over different thread numbers
-boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=false)
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              fluid_particle_spacing=particle_spacing,
-              smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
-              boundary_density_calculator=boundary_density_calculator,
-              boundary_layers=4, state_equation=nothing,
-              solution_prefix="validation_" * method * "_" * formatted_string,
-              extra_callback=postprocessing_cb, tspan=tspan,
-              fluid_system=fluid_system_edac, tank=tank_edac,
-              update_strategy=SerialUpdate()) # To get the same results with different thread numbers
+# ==========================================================================================
+# ==== EDAC simulation
+trixi_include(@__MODULE__,
+              joinpath(validation_dir(), "dam_break_2d",
+                       "setup_marrone_2011.jl"),
+              use_edac=true, update_strategy=update_strategy,
+              particles_per_height=resolution,
+              sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
+              alpha=0.01, # This is used by De Courcy et al. (2024)
+              tspan=(0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
 
 reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
                                     "validation_reference_edac_$formatted_string.json")
@@ -132,38 +83,5 @@ error_edac_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
                                  run_data["pressure_P2_fluid_1"]["time"],
                                  run_data["pressure_P2_fluid_1"]["values"])
 
-# WCSPH simulation
-############################################################################################
-method = "wcsph"
-postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
-                                        filename="validation_result_dam_break_" *
-                                                 method * "_" * formatted_string,
-                                        write_csv=false, max_x_coord, pressure_P1,
-                                        pressure_P2, pressure_P3)
-
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              fluid_particle_spacing=particle_spacing,
-              smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
-              boundary_density_calculator=boundary_density_calculator,
-              boundary_layers=4,
-              solution_prefix="validation_" * method * "_" * formatted_string,
-              extra_callback=postprocessing_cb, tspan=tspan,
-              update_strategy=SerialUpdate()) # To get the same results with different thread numbers
-
-reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",
-                                     "validation_reference_wcsph_$formatted_string.json")
-run_file_wcsph_name = joinpath("out",
-                               "validation_result_dam_break_wcsph_$formatted_string.json")
-
-reference_data = JSON.parsefile(reference_file_wcsph_name)
-run_data = JSON.parsefile(run_file_wcsph_name)
-
-error_wcsph_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
-                                  reference_data["pressure_P1_fluid_1"]["values"],
-                                  run_data["pressure_P1_fluid_1"]["time"],
-                                  run_data["pressure_P1_fluid_1"]["values"])
-
-error_wcsph_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
-                                  reference_data["pressure_P2_fluid_1"]["values"],
-                                  run_data["pressure_P2_fluid_1"]["time"],
-                                  run_data["pressure_P2_fluid_1"]["values"])
+print(error_edac_P1, " ", error_edac_P2, " ",
+      error_wcsph_P1, " ", error_wcsph_P2, "\n")

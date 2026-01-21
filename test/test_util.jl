@@ -45,10 +45,11 @@ macro trixi_testset(name, expr)
 end
 
 struct DummySemidiscretization
-    parallelization_backend::Any
+    parallelization_backend :: Any
+    integrate_tlsph         :: Any
 
     function DummySemidiscretization(; parallelization_backend=SerialBackend())
-        new(parallelization_backend)
+        new(parallelization_backend, Ref(true))
     end
 end
 
@@ -57,6 +58,16 @@ end
 end
 
 @inline function TrixiParticles.get_neighborhood_search(system, neighbor_system,
+                                                        ::DummySemidiscretization)
+    search_radius = TrixiParticles.compact_support(system, neighbor_system)
+    eachpoint = TrixiParticles.eachparticle(neighbor_system)
+    return TrixiParticles.TrivialNeighborhoodSearch{ndims(system)}(; search_radius,
+                                                                   eachpoint)
+end
+
+# Avoid method ambiguity
+@inline function TrixiParticles.get_neighborhood_search(system::TotalLagrangianSPHSystem,
+                                                        neighbor_system::TotalLagrangianSPHSystem,
                                                         ::DummySemidiscretization)
     search_radius = TrixiParticles.compact_support(system, neighbor_system)
     eachpoint = TrixiParticles.eachparticle(neighbor_system)

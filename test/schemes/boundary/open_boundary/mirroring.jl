@@ -11,11 +11,11 @@
         particle_spacing = 0.05
         domain_length = 1.0
 
-        plane_boundary = [
+        boundary_faces = [
             ([0.0, 0.0], [0.0, domain_length]),
             ([0.0, 0.0], [-domain_length, domain_length])
         ]
-        plane_boundary_normal = [[1.0, 0.0], [1.0, 1.0]]
+        boundary_face_normal = [[1.0, 0.0], [1.0, 1.0]]
 
         function pressure_function(pos)
             t = 0
@@ -54,36 +54,35 @@
 
         fluid_system.cache.density .= domain_fluid.density
 
-        @testset verbose=true "plane normal $i" for i in eachindex(files)
-            inflow = BoundaryZone(; plane=plane_boundary[i], boundary_type=InFlow(),
-                                  plane_normal=plane_boundary_normal[i],
+        @testset verbose=true "face normal $i" for i in eachindex(files)
+            inflow = BoundaryZone(; boundary_face=boundary_faces[i], boundary_type=InFlow(),
+                                  face_normal=boundary_face_normal[i],
                                   average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
-            open_boundary = OpenBoundarySPHSystem(inflow; fluid_system,
-                                                  boundary_model=BoundaryModelTafuni(),
-                                                  buffer_size=0)
+            open_boundary = OpenBoundarySystem(inflow; fluid_system,
+                                               boundary_model=BoundaryModelMirroringTafuni(),
+                                               buffer_size=0)
 
             semi = Semidiscretization(fluid_system, open_boundary)
             TrixiParticles.initialize_neighborhood_searches!(semi)
+            TrixiParticles.initialize!(open_boundary, semi)
 
             v_open_boundary = zero(inflow.initial_condition.velocity)
             v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
-            TrixiParticles.set_zero!(open_boundary.pressure)
+            TrixiParticles.set_zero!(open_boundary.cache.pressure)
 
             TrixiParticles.extrapolate_values!(open_boundary, FirstOrderMirroring(),
                                                v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
-                                               domain_fluid.coordinates, semi, 0.0;
-                                               prescribed_pressure=false,
-                                               prescribed_velocity=false)
+                                               domain_fluid.coordinates, semi)
             # Checked visually in ParaView:
             # trixi2vtk(fluid_system.initial_condition, filename="fluid",
             #           v=domain_fluid.velocity, p=domain_fluid.pressure)
 
             # trixi2vtk(open_boundary.initial_condition, filename="open_boundary",
-            #           v=v_open_boundary, p=open_boundary.pressure)
+            #           v=v_open_boundary, p=open_boundary.cache.pressure)
 
             data = TrixiParticles.CSV.read(joinpath(validation_dir, files[i]),
                                            TrixiParticles.DataFrame)
@@ -93,7 +92,7 @@
             expected_pressure = data.var"p"
 
             @test isapprox(v_open_boundary, expected_velocity, atol=1e-3)
-            @test isapprox(open_boundary.pressure, expected_pressure, atol=1e-3)
+            @test isapprox(open_boundary.cache.pressure, expected_pressure, atol=1e-3)
         end
     end
 
@@ -106,12 +105,12 @@
         particle_spacing = 0.05
         domain_length = 1.0
 
-        plane_boundary = [
+        boundary_faces = [
             ([0.0, 0.0, 0.0], [domain_length, 0.0, 0.0], [0.0, domain_length, 0.0]),
             ([0.0, 0.0, 0.0], [domain_length, 0.0, 0.0],
              [0.0, domain_length, domain_length])
         ]
-        plane_boundary_normal = [[0.0, 0.0, 1.0], [0.0, -1.0, 1.0]]
+        boundary_face_normal = [[0.0, 0.0, 1.0], [0.0, -1.0, 1.0]]
 
         function pressure_function(pos)
             t = 0
@@ -151,36 +150,35 @@
 
         fluid_system.cache.density .= domain_fluid.density
 
-        @testset verbose=true "plane normal $i" for i in eachindex(files)
-            inflow = BoundaryZone(; plane=plane_boundary[i], boundary_type=InFlow(),
-                                  plane_normal=plane_boundary_normal[i],
+        @testset verbose=true "face normal $i" for i in eachindex(files)
+            inflow = BoundaryZone(; boundary_face=boundary_faces[i], boundary_type=InFlow(),
+                                  face_normal=boundary_face_normal[i],
                                   average_inflow_velocity=false,
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
 
-            open_boundary = OpenBoundarySPHSystem(inflow; fluid_system,
-                                                  boundary_model=BoundaryModelTafuni(),
-                                                  buffer_size=0)
+            open_boundary = OpenBoundarySystem(inflow; fluid_system,
+                                               boundary_model=BoundaryModelMirroringTafuni(),
+                                               buffer_size=0)
 
             semi = Semidiscretization(fluid_system, open_boundary)
             TrixiParticles.initialize_neighborhood_searches!(semi)
+            TrixiParticles.initialize!(open_boundary, semi)
 
             v_open_boundary = zero(inflow.initial_condition.velocity)
             v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
-            TrixiParticles.set_zero!(open_boundary.pressure)
+            TrixiParticles.set_zero!(open_boundary.cache.pressure)
 
             TrixiParticles.extrapolate_values!(open_boundary, FirstOrderMirroring(),
                                                v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
-                                               domain_fluid.coordinates, semi, 0.0;
-                                               prescribed_pressure=false,
-                                               prescribed_velocity=false)
+                                               domain_fluid.coordinates, semi)
             # Checked visually in ParaView:
             # trixi2vtk(fluid_system.initial_condition, filename="fluid",
             #           v=domain_fluid.velocity, p=domain_fluid.pressure)
 
             # trixi2vtk(open_boundary.initial_condition, filename="open_boundary",
-            #           v=v_open_boundary, p=open_boundary.pressure)
+            #           v=v_open_boundary, p=open_boundary.cache.pressure)
 
             data = TrixiParticles.CSV.read(joinpath(validation_dir, files[i]),
                                            TrixiParticles.DataFrame)
@@ -191,7 +189,7 @@
             expected_pressure = data.var"p"
 
             @test isapprox(v_open_boundary, expected_velocity, atol=1e-2)
-            @test isapprox(open_boundary.pressure, expected_pressure, atol=1e-2)
+            @test isapprox(open_boundary.cache.pressure, expected_pressure, atol=1e-2)
         end
     end
 
@@ -220,36 +218,37 @@
         fluid_system.cache.density .= 1000.0
 
         if i == 2
-            plane_in = ([0.0, 0.0], [0.0, domain_length])
+            face_in = ([0.0, 0.0], [0.0, domain_length])
         else
-            plane_in = ([0.0, 0.0, 0.0], [0.0, domain_length, 0.0],
-                        [0.0, 0.0, domain_length])
+            face_in = ([0.0, 0.0, 0.0], [0.0, domain_length, 0.0],
+                       [0.0, 0.0, domain_length])
         end
 
-        inflow = BoundaryZone(; plane=plane_in, boundary_type=InFlow(),
-                              plane_normal=(i == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]),
+        inflow = BoundaryZone(; boundary_face=face_in, boundary_type=InFlow(),
+                              face_normal=(i == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]),
                               open_boundary_layers=open_boundary_layers, density=1000.0,
                               particle_spacing, average_inflow_velocity=true)
-        open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
-                                                 boundary_model=BoundaryModelTafuni(),
-                                                 buffer_size=0)
+        open_boundary_in = OpenBoundarySystem(inflow; fluid_system,
+                                              boundary_model=BoundaryModelMirroringTafuni(),
+                                              buffer_size=0)
 
         semi = Semidiscretization(fluid_system, open_boundary_in)
         TrixiParticles.initialize_neighborhood_searches!(semi)
+        TrixiParticles.initialize!(open_boundary_in, semi)
 
         v_open_boundary = zero(inflow.initial_condition.velocity)
         u_open_boundary = inflow.initial_condition.coordinates
         v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
-        TrixiParticles.set_zero!(open_boundary_in.pressure)
+        TrixiParticles.set_zero!(open_boundary_in.cache.pressure)
 
         TrixiParticles.extrapolate_values!(open_boundary_in, FirstOrderMirroring(),
                                            v_open_boundary, v_fluid,
                                            inflow.initial_condition.coordinates,
-                                           domain_fluid.coordinates, semi, 0.0)
+                                           domain_fluid.coordinates, semi)
 
         TrixiParticles.average_velocity!(v_open_boundary, u_open_boundary, open_boundary_in,
-                                         inflow, semi)
+                                         first(open_boundary_in.boundary_zones), semi)
 
         # Since the velocity profile increases linearly in positive x-direction,
         # we can use the first velocity entry as a representative value.
@@ -275,53 +274,53 @@
 
             fluid_system.cache.density .= domain_fluid.density
 
-            plane_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
+            face_out = ([domain_size[1], 0.0], [domain_size[1], domain_size[2]])
 
-            outflow = BoundaryZone(; plane=plane_out, boundary_type=OutFlow(),
-                                   plane_normal=[-1.0, 0.0],
+            outflow = BoundaryZone(; boundary_face=face_out, boundary_type=OutFlow(),
+                                   face_normal=[-1.0, 0.0],
                                    open_boundary_layers=10, density=1000.0,
                                    particle_spacing)
-            open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
-                                                      boundary_model=BoundaryModelTafuni(),
-                                                      buffer_size=0)
+            open_boundary_out = OpenBoundarySystem(outflow; fluid_system,
+                                                   boundary_model=BoundaryModelMirroringTafuni(),
+                                                   buffer_size=0)
 
             # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_out)
             TrixiParticles.initialize_neighborhood_searches!(semi)
+            TrixiParticles.initialize!(open_boundary_out, semi)
 
             v_open_boundary = zero(outflow.initial_condition.velocity)
             v_fluid = vcat(domain_fluid.velocity, domain_fluid.pressure')
 
-            TrixiParticles.set_zero!(open_boundary_out.pressure)
+            TrixiParticles.set_zero!(open_boundary_out.cache.pressure)
 
             TrixiParticles.extrapolate_values!(open_boundary_out, mirror_method,
                                                v_open_boundary, v_fluid,
                                                outflow.initial_condition.coordinates,
-                                               domain_fluid.coordinates, semi, 0.0;
-                                               prescribed_pressure=false)
+                                               domain_fluid.coordinates, semi)
 
-            plane_in = ([0.0, 0.0], [0.0, domain_size[2]])
+            face_in = ([0.0, 0.0], [0.0, domain_size[2]])
 
-            inflow = BoundaryZone(; plane=plane_in, boundary_type=InFlow(),
-                                  plane_normal=[1.0, 0.0],
+            inflow = BoundaryZone(; boundary_face=face_in, boundary_type=InFlow(),
+                                  face_normal=[1.0, 0.0],
                                   open_boundary_layers=10, density=1000.0, particle_spacing)
-            open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
-                                                     boundary_model=BoundaryModelTafuni(),
-                                                     buffer_size=0)
+            open_boundary_in = OpenBoundarySystem(inflow; fluid_system,
+                                                  boundary_model=BoundaryModelMirroringTafuni(),
+                                                  buffer_size=0)
 
             # Temporary semidiscretization just to extrapolate the pressure into the outflow system
             semi = Semidiscretization(fluid_system, open_boundary_in)
             TrixiParticles.initialize_neighborhood_searches!(semi)
+            TrixiParticles.initialize!(open_boundary_in, semi)
 
             v_open_boundary = zero(inflow.initial_condition.velocity)
 
-            TrixiParticles.set_zero!(open_boundary_in.pressure)
+            TrixiParticles.set_zero!(open_boundary_in.cache.pressure)
 
             TrixiParticles.extrapolate_values!(open_boundary_in, mirror_method,
                                                v_open_boundary, v_fluid,
                                                inflow.initial_condition.coordinates,
-                                               domain_fluid.coordinates, semi, 0.0;
-                                               prescribed_pressure=false)
+                                               domain_fluid.coordinates, semi)
 
             return fluid_system, open_boundary_in, open_boundary_out, v_fluid
         end
@@ -335,11 +334,11 @@
             v_fluid = mirror(pressure_func, mirror_method)
 
             p_fluid = [TrixiParticles.current_pressure(v_fluid, fluid_system, particle)
-                       for particle in TrixiParticles.active_particles(fluid_system)]
+                       for particle in TrixiParticles.eachparticle(fluid_system)]
 
             fluid_system.initial_condition.pressure .= p_fluid
-            open_boundary_in.initial_condition.pressure .= open_boundary_in.pressure
-            open_boundary_out.initial_condition.pressure .= open_boundary_out.pressure
+            open_boundary_in.initial_condition.pressure .= open_boundary_in.cache.pressure
+            open_boundary_out.initial_condition.pressure .= open_boundary_out.cache.pressure
 
             entire_domain = union(fluid_system.initial_condition,
                                   open_boundary_in.initial_condition,
@@ -540,5 +539,37 @@
                                                        "zeroth order mirroring"))
             @test isapprox(pressures[i], pressures_expected[i])
         end
+    end
+
+    @testset verbose=true "integrated variables $(n_dims)D" for n_dims in (2, 3)
+        particle_spacing = 0.1
+        initial_condition = rectangular_patch(particle_spacing, ntuple(_ -> 2, n_dims))
+
+        boundary_face = n_dims == 2 ? ([0.0, 0.0], [0.0, 1.0]) :
+                        ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 1.0])
+        face_normal = n_dims == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]
+        inflow = BoundaryZone(; boundary_face, boundary_type=InFlow(), face_normal,
+                              open_boundary_layers=10, density=1.0, particle_spacing)
+
+        system_wcsph = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),
+                                                   nothing,
+                                                   SchoenbergCubicSplineKernel{n_dims}(), 1)
+
+        open_boundary_wcsph = OpenBoundarySystem(inflow; fluid_system=system_wcsph,
+                                                 buffer_size=0,
+                                                 boundary_model=BoundaryModelMirroringTafuni())
+
+        @test TrixiParticles.v_nvariables(open_boundary_wcsph) == n_dims
+
+        system_edac_1 = EntropicallyDampedSPHSystem(initial_condition,
+                                                    SchoenbergCubicSplineKernel{n_dims}(),
+                                                    1.0,
+                                                    1.0)
+
+        open_boundary_edac_1 = OpenBoundarySystem(inflow; fluid_system=system_edac_1,
+                                                  buffer_size=0,
+                                                  boundary_model=BoundaryModelMirroringTafuni())
+
+        @test TrixiParticles.v_nvariables(open_boundary_edac_1) == n_dims
     end
 end

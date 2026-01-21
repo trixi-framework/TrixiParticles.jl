@@ -55,7 +55,7 @@ by Balsara ([Balsara1995](@cite)) or Morris ([Morris1997](@cite)).
 
 ##### Mathematical Formulation
 
-The force exerted by particle `b` on particle `a` due to artificial viscosity is given by:
+The force exerted by particle ``b`` on particle ``a`` due to artificial viscosity is given by:
 
 ```math
 F_{ab}^{\text{AV}} = - m_a m_b \Pi_{ab} \nabla W_{ab}

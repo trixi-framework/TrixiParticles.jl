@@ -147,3 +147,26 @@ RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
         end
     end
 end
+
+RecipesBase.@recipe function f(geometry::Polygon)
+    x = stack(geometry.vertices)[1, :]
+    y = stack(geometry.vertices)[2, :]
+
+    aspect_ratio --> :equal
+    grid --> false
+
+    # First plot the vertices as a scatter plot
+    @series begin
+        seriestype --> :scatter
+        return (x, y)
+    end
+
+    # Now plot the edges as a line plot
+    @series begin
+        # Ignore series in legend and color cycling. Note that `:=` forces the attribute,
+        # whereas `-->` would only set it if it is not already set.
+        primary := false
+
+        return (x, y)
+    end
+end

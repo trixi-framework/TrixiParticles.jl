@@ -20,7 +20,7 @@ tspan = (0.0, 5.7 / sqrt(gravity))
 fluid_particle_spacing = H / 60
 
 # Numerical settings
-smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_length = 1.75 * fluid_particle_spacing
 sound_speed = 20 * sqrt(gravity * H)
 
 # Physical values

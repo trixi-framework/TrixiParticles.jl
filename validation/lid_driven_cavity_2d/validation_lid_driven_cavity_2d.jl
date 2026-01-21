@@ -13,9 +13,10 @@ reynolds_numbers = [100.0, 1000.0, 10_000.0]
 const SENSOR_CAPTURE_TIME = 24.8
 const CAPTURE_STARTED = Ref(false)
 
-interpolated_velocity(system, v, u, semi, t) = nothing
+interpolated_velocity(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
 
-function interpolated_velocity(system::TrixiParticles.FluidSystem, v, u, semi, t)
+function interpolated_velocity(system::TrixiParticles.AbstractFluidSystem,
+                               dv_ode, du_ode, v_ode, u_ode, semi, t)
     if t < SENSOR_CAPTURE_TIME
         return nothing
     end
@@ -23,10 +24,10 @@ function interpolated_velocity(system::TrixiParticles.FluidSystem, v, u, semi, t
     n_particles_xy = round(Int, 1.0 / system.initial_condition.particle_spacing)
 
     values_y = interpolate_line([0.5, 0.0], [0.5, 1.0], n_particles_xy, semi, system,
-                                v, u; endpoint=true, cut_off_bnd=true)
+                                v_ode, u_ode; endpoint=true, cut_off_bnd=true)
 
     values_x = interpolate_line([0.0, 0.5], [1.0, 0.5], n_particles_xy, semi, system,
-                                v, u; endpoint=true, cut_off_bnd=true)
+                                v_ode, u_ode; endpoint=true, cut_off_bnd=true)
 
     vy_y = stack(values_y.velocity)[2, :]
     vy_x = stack(values_y.velocity)[1, :]

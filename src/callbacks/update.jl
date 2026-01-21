@@ -55,10 +55,8 @@ end
 function initial_update!(cb::UpdateCallback, u, t, integrator)
     semi = integrator.p
 
-    # Tell systems that `UpdateCallback` is used
-    foreach_system(semi) do system
-        update_callback_used!(system)
-    end
+    # Tell the semidiscretization that the `UpdateCallback` is used
+    semi.update_callback_used[] = true
 
     return cb(integrator)
 end
@@ -76,25 +74,38 @@ function (update_callback!::UpdateCallback)(integrator)
     semi = integrator.p
     v_ode, u_ode = integrator.u.x
 
-    # Update quantities that are stored in the systems. These quantities (e.g. pressure)
-    # still have the values from the last stage of the previous step if not updated here.
-    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
+    # Tell OrdinaryDiffEq that `integrator.u` has NOT been modified.
+    # This will be set to `true` in any of the update functions below that modify
+    # either `v_ode` or `u_ode`.
+    u_modified!(integrator, false)
 
-    # Update open boundaries first, since particles might be activated or deactivated
-    @trixi_timeit timer() "update open boundary" foreach_system(semi) do system
-        update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
+    @trixi_timeit timer() "update callback" begin
+        # Update quantities that are stored in the systems. These quantities (e.g. pressure)
+        # still have the values from the last stage of the previous step if not updated here.
+        @trixi_timeit timer() "update systems and nhs" begin
+            # Don't create sub-timers here to avoid cluttering the timer output
+            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
+        end
+
+        # Update open boundaries first, since particles might be activated or deactivated
+        foreach_system(semi) do system
+            update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator)
+        end
+
+        foreach_system(semi) do system
+            update_particle_packing(system, v_ode, u_ode, semi, integrator)
+        end
+
+        # This is only used by the particle packing system and should be removed in the future
+        foreach_system(semi) do system
+            update_transport_velocity!(system, v_ode, semi, integrator)
+        end
+
+        foreach_system(semi) do system
+            particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
+                                             v_ode, semi, integrator)
+        end
     end
-
-    @trixi_timeit timer() "update particle packing" foreach_system(semi) do system
-        update_particle_packing(system, v_ode, u_ode, semi, integrator)
-    end
-
-    @trixi_timeit timer() "update TVF" foreach_system(semi) do system
-        update_transport_velocity!(system, v_ode, semi)
-    end
-
-    # Tell OrdinaryDiffEq that `u` has been modified
-    u_modified!(integrator, true)
 
     return integrator
 end
@@ -141,5 +152,3 @@ function Base.show(io::IO, ::MIME"text/plain",
         summary_box(io, "UpdateCallback", setup)
     end
 end
-
-update_callback_used!(system) = system

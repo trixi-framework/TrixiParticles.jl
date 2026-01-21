@@ -26,6 +26,7 @@ end
 
 function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
                                     interval_size::Integer=10, abstol=1.0e-8, reltol=1.0e-6)
+    ELTYPE = eltype(abstol)
     abstol, reltol = promote(abstol, reltol)
 
     if dt > 0 && interval > 0
@@ -33,10 +34,11 @@ function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
     end
 
     if dt > 0
-        interval = Float64(dt)
+        interval = convert(ELTYPE, dt)
     end
 
-    steady_state_callback = SteadyStateReachedCallback(interval, abstol, reltol, [Inf64],
+    steady_state_callback = SteadyStateReachedCallback(interval, abstol, reltol,
+                                                       [convert(ELTYPE, Inf)],
                                                        interval_size)
 
     if dt > 0
@@ -129,11 +131,12 @@ end
 
     vu_ode = integrator.u
     v_ode, u_ode = vu_ode.x
+    dv_ode, du_ode = get_du(integrator).x
     semi = integrator.p
 
     # Calculate kinetic energy
     ekin = sum(semi.systems) do system
-        return kinetic_energy(system, v_ode, u_ode, semi, 0)
+        return kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, 0)
     end
 
     if length(previous_ekin) == interval_size

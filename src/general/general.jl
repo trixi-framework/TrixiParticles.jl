@@ -1,4 +1,4 @@
-# Note that `system.jl` has already been included.
+# Note that `abstract_system.jl` has already been included.
 # `semidiscretization.jl` depends on the system types and has to be included later.
 # `density_calculators.jl` needs to be included before `corrections.jl`.
 include("density_calculators.jl")

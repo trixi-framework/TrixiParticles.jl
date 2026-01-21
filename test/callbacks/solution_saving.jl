@@ -69,17 +69,21 @@
     @testset verbose=true "custom quantities" begin
         # Test that `custom_quantity` correctly chooses the correct method
         quantity1(system, data, t) = data
-        quantity2(system, v_ode, u_ode, semi, t) = 2
+        quantity2(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = 2
         quantity3() = 3
 
         system = Val(:mock_system)
-        TrixiParticles.system_data(::Val{:mock_system}, v_ode, u_ode, semi) = 1
+        TrixiParticles.system_data(::Val{:mock_system}, dv_ode, du_ode, v_ode, u_ode,
+                                   semi) = 1
 
-        data = v_ode = u_ode = semi = t = nothing
+        data = v_ode = u_ode = dv_ode = du_ode = semi = t = nothing
 
-        @test TrixiParticles.custom_quantity(quantity1, system, v_ode, u_ode, semi, t) == 1
-        @test TrixiParticles.custom_quantity(quantity2, system, v_ode, u_ode, semi, t) == 2
-        @test_throws MethodError TrixiParticles.custom_quantity(quantity3, system, v_ode,
-                                                                u_ode, semi, t)
+        @test TrixiParticles.custom_quantity(quantity1, system, dv_ode, du_ode, v_ode,
+                                             u_ode, semi, t) == 1
+        @test TrixiParticles.custom_quantity(quantity2, system, dv_ode, du_ode, v_ode,
+                                             u_ode, semi, t) == 2
+        @test_throws MethodError TrixiParticles.custom_quantity(quantity3, system, dv_ode,
+                                                                du_ode, v_ode, u_ode,
+                                                                semi, t)
     end
 end
