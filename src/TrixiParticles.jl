@@ -78,7 +78,7 @@ export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechni
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel, LaguerreGaussKernel
-export StateEquationCole, StateEquationIdealGas
+export StateEquationCole, StateEquationIdealGas, StateEquationAdaptiveCole
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS
 export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffusionAntuono

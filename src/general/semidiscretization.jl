@@ -557,9 +557,19 @@ end
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
+    calculate_dt(v_ode, u_ode, cfl_number, semi, semi.integrate_tlsph[])
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization, integrate_tlsph)
     (; systems) = semi
 
-    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system, semi), systems)
+    return minimum(systems) do system
+        if system isa TotalLagrangianSPHSystem && !integrate_tlsph
+            # Skip TLSPH systems if they are not integrated
+            return Inf
+        end
+        return calculate_dt(v_ode, u_ode, cfl_number, system, semi)
+    end
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
