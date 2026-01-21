@@ -141,7 +141,7 @@ semi = Semidiscretization(solid_system, fluid_system, boundary_system,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
-# for overwriting via trixi_include
+# This can be overwritten with `trixi_include`
 extra_callback = nothing
 
 info_callback = InfoCallback(interval=500)
