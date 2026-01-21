@@ -54,14 +54,14 @@ n_particles_plate_x = round(Int, plate_size[1] / solid_particle_spacing + 1)
 n_particles_per_dimension = (n_particles_plate_x, n_particles_plate_y)
 
 plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
-                         (0.0, -plate_size[2]), density=solid_density, tlsph=true)
+                         (0.0, -plate_size[2]), density=solid_density, place_on_shell=true)
 
 left_wall = RectangularShape(solid_particle_spacing, (3, n_particles_plate_y),
                              (-3 * solid_particle_spacing, -plate_size[2]),
-                             density=solid_density, tlsph=true)
+                             density=solid_density, place_on_shell=true)
 right_wall = RectangularShape(solid_particle_spacing, (3, n_particles_plate_y),
                               (plate_size[1] + solid_particle_spacing,
-                               -plate_size[2]), density=solid_density, tlsph=true)
+                               -plate_size[2]), density=solid_density, place_on_shell=true)
 fixed_particles = union(left_wall, right_wall)
 
 solid_geometry = union(plate, fixed_particles)
@@ -118,7 +118,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=local_state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length_fluid)
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densities,
                                                    hydrodynamic_masses,
                                                    state_equation=local_state_equation,
@@ -128,7 +128,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densities,
 solid_system = TotalLagrangianSPHSystem(solid_geometry, smoothing_kernel,
                                         smoothing_length_solid,
                                         E, nu, boundary_model=boundary_model_solid,
-                                        n_fixed_particles=nparticles(fixed_particles),
+                                        n_clamped_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity))
 
 # semi = Semidiscretization(solid_system, fluid_system, boundary_system)
