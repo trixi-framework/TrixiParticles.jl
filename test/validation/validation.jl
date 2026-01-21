@@ -101,7 +101,7 @@
             r"└ New tank length in y-direction is set to.*\n"
         ]
 
-        # we compare the relative error of the analytical_solution
+        # We compute the relative error compared the analytical solution
         @test isapprox(errors["edac"][2], 0, atol=0.032)
         @test isapprox(errors["wcsph"][2], 0, atol=0.044)
     end
