@@ -675,13 +675,13 @@ function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_
 
     coordinates = current_coordinates(u, system)
     initial_coordinates_ = initial_coordinates(system)
-    velocity = [current_velocity(v, system, particle) for particle in eachparticle(system)]
+    # velocity = [current_velocity(v, system, particle) for particle in eachparticle(system)]
     acceleration = system_data_acceleration(dv, system, system.clamped_particles_motion)
-    pk1_corrected = [pk1_rho2(system, particle) * system.material_density[particle]^2
-                     for particle in eachparticle(system)]
+    # pk1_corrected = [pk1_rho2(system, particle) * system.material_density[particle]^2
+    #                  for particle in eachparticle(system)]
 
-    return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
-            material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
+    return (; coordinates, initial_coordinates=initial_coordinates_, mass,
+            material_density, deformation_grad, young_modulus, poisson_ratio,
             lame_lambda, lame_mu, acceleration)
 end
 
