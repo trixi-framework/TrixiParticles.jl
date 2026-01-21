@@ -79,7 +79,7 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 
 # ==========================================================================================
 # ==== Run Simulations
-local_state_equation = use_edac ? nothing :
+state_equation = use_edac ? nothing :
                        StateEquationCole(; sound_speed, reference_density=fluid_density,
                                          exponent=7, clip_negative_pressure=false)
 
@@ -89,7 +89,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, (plate_size[1
                        spacing_ratio=spacing_ratio,
                        faces=(true, true, false, false),
                        acceleration=(0.0, -gravity),
-                       state_equation=local_state_equation)
+                       state_equation=state_equation)
 
 if use_edac
     fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel,
@@ -102,7 +102,7 @@ else
     fluid_density_calculator = ContinuityDensity()
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
     fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                               local_state_equation, smoothing_kernel,
+                                               state_equation, smoothing_kernel,
                                                smoothing_length_fluid,
                                                density_diffusion=density_diffusion,
                                                acceleration=(0.0, -gravity),
@@ -111,13 +111,13 @@ else
 end
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=local_state_equation,
+                                             state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length_fluid)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
                                                    hydrodynamic_masses,
-                                                   state_equation=local_state_equation,
+                                                   state_equation=state_equation,
                                                    boundary_density_calculator,
                                                    smoothing_kernel,
                                                    smoothing_length_structure)
