@@ -131,10 +131,8 @@ solid_system = TotalLagrangianSPHSystem(solid_geometry, smoothing_kernel,
                                         n_clamped_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity))
 
-# semi = Semidiscretization(solid_system, fluid_system, boundary_system)
-
-min_corner = [-1; -1]
-max_corner = [3; 3]
+min_corner = minimum(solid_geometry.coordinates, dims=2)
+max_corner = maximum(solid_geometry.coordinates, dims=2)
 cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(update_strategy=ParallelUpdate();
                                                 cell_list)
