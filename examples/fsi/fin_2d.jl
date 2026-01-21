@@ -37,7 +37,7 @@ particle_spacing = fin_thickness / (n_particles_y - 1)
 fluid_particle_spacing = particle_spacing
 
 smoothing_length_structure = sqrt(2) * particle_spacing
-smoothing_length_fluid = 2 * fluid_particle_spacing
+smoothing_length_fluid = 1.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 file = joinpath(examples_dir(), "preprocessing", "data", "fin.dxf")
@@ -246,7 +246,7 @@ structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothi
                                         modulus, poisson_ratio;
                                         n_clamped_particles, clamped_particles_motion=boundary_motion,
                                         boundary_model=boundary_model_structure,
-                                        viscosity=ArtificialViscosityMonaghan(alpha=0.01),
+                                        viscosity=ArtificialViscosityMonaghan(alpha=0.1),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
@@ -344,7 +344,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
 
-split_cfl = 0.5
+split_cfl = 1.0
 # SSPRK104 CFL = 2.5, 15k RHS evaluations
 # CarpenterKennedy2N54 CFL = 1.6, 11k RHS evaluations
 # RK4 CFL = 1.2, 12k RHS evaluations
@@ -352,15 +352,26 @@ split_cfl = 0.5
 # VelocityVerlet CFL = 0.5, 6.75k RHS evaluations
 # DPRKN4 CFL = 1.7, 9k RHS evaluations
 
-split_integration = SplitIntegrationCallback(VerletLeapfrog(), adaptive=false,
+split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false), adaptive=false,
+                                             stage_coupling=true,
                                              dt=1e-5, # This is overwritten by the stepsize callback
                                              callback=StepsizeCallback(cfl=split_cfl),
                                              maxiters=10^8)
 
-fluid_cfl = 0.4
+fluid_cfl = 0.8
 stepsize_callback = StepsizeCallback(cfl=fluid_cfl)
+
+function total_volume(system::WeaklyCompressibleSPHSystem, data, t)
+    return sum(data.mass ./ data.density)
+end
+function total_volume(system, data, t)
+    return nothing
+end
+pp_cb = PostprocessCallback(; total_volume, interval=100,
+                            filename="total_volume", write_file_interval=50)
+
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
-                        split_integration, stepsize_callback)
+                        stepsize_callback, split_integration, pp_cb)
 
 dt_fluid = 1.25e-4
 sol = solve(ode,
