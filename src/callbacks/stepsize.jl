@@ -63,7 +63,16 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     v_ode, u_ode = integrator.u.x
     semi = integrator.p
 
-    dt = @trixi_timeit timer() "calculate dt" calculate_dt(v_ode, u_ode, cfl_number, semi)
+    # If a `SplitIntegrationCallback` appears AFTER this `StepsizeCallback` in the
+    # `CallbackSet`, then `semi.integrate_tlsph[]` has not yet been set to `false`.
+    # In that situation, we cannot rely on `semi.integrate_tlsph[]`.
+    # Instead, we must detect whether the list of callbacks contains
+    # a `SplitIntegrationCallback`, and, if so, assume `integrate_tlsph = false`.
+    integrate_tlsph = !any(cb -> cb isa DiscreteCallback{SplitIntegrationCallback},
+                           integrator.opts.callback.discrete_callbacks)
+
+    dt = @trixi_timeit timer() "calculate dt" calculate_dt(v_ode, u_ode, cfl_number, semi,
+                                                           integrate_tlsph)
 
     set_proposed_dt!(integrator, dt)
     integrator.opts.dtmax = dt
