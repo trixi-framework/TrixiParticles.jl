@@ -30,51 +30,51 @@ initial_fluid_size = (1.0, 2.0)
 plate_size = (1.0, 0.05)
 
 fluid_density = 1000.0
-solid_density = 2700.0
+structure_density = 2700.0
 
 E = 67.5e9
 nu = 0.3
 sound_speed = 50
 
-# Particle spacings (solid and fluid share same spacing)
-solid_particle_spacing = plate_size[2] / (n_particles_plate_y - 1)
-fluid_particle_spacing = solid_particle_spacing
+# Particle spacings (structure and fluid share same spacing)
+structure_particle_spacing = plate_size[2] / (n_particles_plate_y - 1)
+fluid_particle_spacing = structure_particle_spacing
 boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 
 # Analytical solution (constant)
 D = E * plate_size[2]^3 / (12 * (1 - nu^2))
 analytical_value = -0.0026 * gravity *
                    (fluid_density * initial_fluid_size[2] +
-                    solid_density * plate_size[2]) / D
+                    structure_density * plate_size[2]) / D
 
 # ==========================================================================================
 # ==== Geometry Definitions: Tank, Beam, and Fixed Particles
-n_particles_plate_x = round(Int, plate_size[1] / solid_particle_spacing + 1)
+n_particles_plate_x = round(Int, plate_size[1] / structure_particle_spacing + 1)
 n_particles_per_dimension = (n_particles_plate_x, n_particles_plate_y)
 
-plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
-                         (0.0, -plate_size[2]), density=solid_density, place_on_shell=true)
+plate = RectangularShape(structure_particle_spacing, n_particles_per_dimension,
+                         (0.0, -plate_size[2]), density=structure_density, place_on_shell=true)
 
-left_wall = RectangularShape(solid_particle_spacing, (3, n_particles_plate_y),
-                             (-3 * solid_particle_spacing, -plate_size[2]),
-                             density=solid_density, place_on_shell=true)
-right_wall = RectangularShape(solid_particle_spacing, (3, n_particles_plate_y),
-                              (plate_size[1] + solid_particle_spacing,
-                               -plate_size[2]), density=solid_density, place_on_shell=true)
+left_wall = RectangularShape(structure_particle_spacing, (3, n_particles_plate_y),
+                             (-3 * structure_particle_spacing, -plate_size[2]),
+                             density=structure_density, place_on_shell=true)
+right_wall = RectangularShape(structure_particle_spacing, (3, n_particles_plate_y),
+                              (plate_size[1] + structure_particle_spacing,
+                               -plate_size[2]), density=structure_density, place_on_shell=true)
 fixed_particles = union(left_wall, right_wall)
 
-solid_geometry = union(plate, fixed_particles)
+structure_geometry = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Smoothing Kernel, Boundary, and Related Quantities
 smoothing_kernel = WendlandC2Kernel{2}()
-smoothing_length_solid = sqrt(2) * solid_particle_spacing
+smoothing_length_structure = sqrt(2) * structure_particle_spacing
 
-# Note: Setting this to something else than the solid particle spacing results in a larger error
+# Note: Setting this to something else than the structure particle spacing results in a larger error
 smoothing_length_fluid = sqrt(2) * fluid_particle_spacing
 
-hydrodynamic_densities = fluid_density * ones(size(solid_geometry.density))
-hydrodynamic_masses = hydrodynamic_densities * solid_particle_spacing^ndims(solid_geometry)
+hydrodynamic_densities = fluid_density * ones(size(structure_geometry.density))
+hydrodynamic_masses = hydrodynamic_densities * structure_particle_spacing^ndims(structure_geometry)
 boundary_density_calculator = AdamiPressureExtrapolation()
 
 # ==========================================================================================
@@ -115,26 +115,26 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length_fluid)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densities,
+boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
                                                    hydrodynamic_masses,
                                                    state_equation=local_state_equation,
                                                    boundary_density_calculator,
                                                    smoothing_kernel,
-                                                   smoothing_length_solid)
-solid_system = TotalLagrangianSPHSystem(solid_geometry, smoothing_kernel,
-                                        smoothing_length_solid,
-                                        E, nu, boundary_model=boundary_model_solid,
+                                                   smoothing_length_structure)
+structure_system = TotalLagrangianSPHSystem(structure_geometry, smoothing_kernel,
+                                        smoothing_length_structure,
+                                        E, nu, boundary_model=boundary_model_structure,
                                         n_clamped_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity))
 
-# semi = Semidiscretization(solid_system, fluid_system, boundary_system)
+# semi = Semidiscretization(structure_system, fluid_system, boundary_system)
 
 min_corner = [-1; -1]
 max_corner = [3; 3]
 cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(update_strategy=ParallelUpdate();
                                                 cell_list)
-semi = Semidiscretization(solid_system, fluid_system, boundary_system,
+semi = Semidiscretization(structure_system, fluid_system, boundary_system,
                           neighborhood_search=neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
