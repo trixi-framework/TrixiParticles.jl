@@ -11,6 +11,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
   `:initial_condition` field if `create_initial_condition=true` is passed. (#959)
 
+## Version 0.4.4
+
+### Features
+
+- Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875)
+
 ## Version 0.4.3
 
 ### API Changes
@@ -33,7 +39,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added a new `LaguerreGaussKernel` smoothing kernel (#893).
 
 - Added GPU and FP32 support for DEM (#979).
-
 
 ### Performance
 - Improved GPU performance with shifting up to a factor of 10x (#974, #993).
