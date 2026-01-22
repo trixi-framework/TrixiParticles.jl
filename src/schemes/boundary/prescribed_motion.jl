@@ -150,29 +150,33 @@ translation_vector = SVector(1.0, 0.0)
 rotation_angle = pi / 2
 rotation_center = SVector(0.0, 0.0)
 
-motion = OscillatingMotion2D(frequency, translation_vector, rotation_angle,
+motion = OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
                              rotation_center)
 
 # output
 PrescribedMotion{...}
+```
 """
 function OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
                              rotation_center, rotation_phase_offset=0, tspan=(-Inf, Inf),
                              ramp_up_tspan=(0.0, 0.0), moving_particles=nothing)
+    translation_vector_ = SVector{2}(translation_vector)
+    rotation_center_ = SVector{2}(rotation_center)
+
     @inline function movement_function(x, t)
         if isfinite(tspan[1])
             t = t - tspan[1]
         end
 
         sin_scaled = sin(frequency * 2pi * t)
-        translation = sin_scaled * translation_vector
-        x_centered = x .- rotation_center
+        translation = sin_scaled * translation_vector_
+        x_centered = x .- rotation_center_
         sin_scaled_offset = sin(2pi * (frequency * t - rotation_phase_offset))
         angle = rotation_angle * sin_scaled_offset
         rotated = SVector(x_centered[1] * cos(angle) - x_centered[2] * sin(angle),
                           x_centered[1] * sin(angle) + x_centered[2] * cos(angle))
 
-        result = rotated .+ rotation_center .+ translation
+        result = rotated .+ rotation_center_ .+ translation
 
         if ramp_up_tspan[2] > ramp_up_tspan[1] && ramp_up_tspan[1] <= t <= ramp_up_tspan[2]
             # Apply a smoothstep ramp-up during the ramp-up time span
