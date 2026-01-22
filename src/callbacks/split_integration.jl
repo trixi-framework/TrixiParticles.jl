@@ -327,6 +327,11 @@ end
     end
 end
 
+function calculate_dt(v_ode, u_ode, cfl_number, p::NamedTuple, integrate_tlsph)
+    # The split integrator contains a `NamedTuple`
+    return calculate_dt(v_ode, u_ode, cfl_number, p.semi_split, integrate_tlsph)
+end
+
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SplitIntegrationCallback})
     @nospecialize cb # reduce precompilation time
     print(io, "SplitIntegrationCallback(alg=", cb.affect!.alg, ")")
