@@ -98,7 +98,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
                            :total_width => 100,
                            :indentation_level => 0)
 
-    semi = integrator.p
+    semi = integrator.p.semi
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
     foreach_system(semi) do system
