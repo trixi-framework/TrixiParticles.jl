@@ -160,38 +160,6 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-@inline function system_indices(system, semi)
-    # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
-    # is ~30x slower because `hash(::System)` is very slow.
-    index = findfirst(==(system), semi.systems)
-
-    if isnothing(index)
-        throw(ArgumentError("system is not in the semidiscretization"))
-    end
-
-    return index
-end
-
-# This is just for readability to loop over all systems without allocations
-@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization})
-    return foreach_noalloc(f, semi.systems)
-end
-
-@inline foreach_system(f, systems) = foreach_noalloc(f, systems)
-
-# This is just for readability to loop over all systems with indices without allocations.
-@inline function foreach_system_indexed(f, semi::Union{NamedTuple, Semidiscretization})
-    return foreach_system_indexed(f, semi.systems)
-end
-
-@inline function foreach_system_indexed(f, systems::Tuple)
-    indices = ntuple(identity, Val(length(systems)))
-
-    return foreach_noalloc(indices, systems) do (index, system)
-        f(index, system)
-    end
-end
-
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)
@@ -603,9 +571,6 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
     return dv_ode
 end
 
-@inline source_terms(system) = nothing
-@inline source_terms(system::Union{AbstractFluidSystem, AbstractStructureSystem}) = system.source_terms
-
 @inline function add_acceleration!(dv, particle, system, integrate_tlsph)
     add_acceleration!(dv, particle, system)
 end
@@ -658,41 +623,6 @@ end
 end
 
 @inline add_source_terms_inner!(dv, v, u, particle, system, source_terms_::Nothing, t) = dv
-
-@doc raw"""
-    SourceTermDamping(; damping_coefficient)
-
-A source term to be used when a damping step is required before running a full simulation.
-The term ``-c \cdot v_a`` is added to the acceleration ``\frac{\mathrm{d}v_a}{\mathrm{d}t}``
-of particle ``a``, where ``c`` is the damping coefficient and ``v_a`` is the velocity of
-particle ``a``.
-
-# Keywords
-- `damping_coefficient`:    The coefficient ``d`` above. A higher coefficient means more
-                            damping. A coefficient of `1e-4` is a good starting point for
-                            damping a fluid at rest.
-
-# Examples
-```jldoctest; output = false
-source_terms = SourceTermDamping(; damping_coefficient=1e-4)
-
-# output
-SourceTermDamping{Float64}(0.0001)
-```
-"""
-struct SourceTermDamping{ELTYPE}
-    damping_coefficient::ELTYPE
-
-    function SourceTermDamping(; damping_coefficient)
-        return new{typeof(damping_coefficient)}(damping_coefficient)
-    end
-end
-
-@inline function (source_term::SourceTermDamping)(coords, velocity, density, pressure, t)
-    (; damping_coefficient) = source_term
-
-    return -damping_coefficient * velocity
-end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
     # Call `interact!` for each pair of systems
