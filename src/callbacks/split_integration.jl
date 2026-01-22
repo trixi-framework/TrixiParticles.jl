@@ -214,34 +214,14 @@ end
 
 # Update the systems before calling `interact!` to compute forces.
 function update_systems_split!(semi, v_ode, u_ode, t)
-    # First update step before updating the NHS
-    # (for example for writing the current coordinates in the solid system)
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_positions!(system, v, u, v_ode, u_ode, semi, t)
-    end
-
-    # Second update step.
-    # This is used to calculate density and pressure of the fluid systems
-    # before updating the boundary systems,
-    # since the fluid pressure is needed by the Adami interpolation.
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_quantities!(system, v, u, v_ode, u_ode, semi, t)
-    end
-
-    # Perform correction and pressure calculation
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_pressure!(system, v, u, v_ode, u_ode, semi, t)
-    end
-
     # No `update_boundary_interpolation!` for performance reasons, or we will lose
     # a lot of the speedup that we can gain with split integration.
     # We assume that the TLSPH particles move so little during the substeps
     # that the extrapolated pressure/density values can be treated as constant.
-
-    # Final update step for all remaining systems
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_final!(system, v, u, v_ode, u_ode, semi, t)
-    end
+    update_systems!(v_ode, u_ode, semi, t;
+                    update_nhs=false,
+                    update_boundary_interpolation=false,
+                    update_inter_system=false)
 end
 
 function system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
