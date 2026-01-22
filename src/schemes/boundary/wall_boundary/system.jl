@@ -61,6 +61,19 @@ function create_cache_boundary(prescribed_motion::PrescribedMotion, initial_cond
     return (; velocity, acceleration, initial_coordinates)
 end
 
+function check_configuration(system::WallBoundarySystem, systems, nhs)
+    (; boundary_model) = system
+
+    foreach_system(systems) do neighbor
+        if neighbor isa WeaklyCompressibleSPHSystem &&
+           boundary_model isa BoundaryModelDummyParticles &&
+           isnothing(boundary_model.state_equation)
+            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
+                                "setting a `state_equation` for all boundary models"))
+        end
+    end
+end
+
 @inline Base.eltype(::WallBoundarySystem{<:Any, ELTYPE}) where {ELTYPE} = ELTYPE
 
 @inline function nparticles(system::WallBoundarySystem)
