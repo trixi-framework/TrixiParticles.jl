@@ -50,7 +50,7 @@ include("general/abstract_system.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
-# must be after `schemes.jl`
+# `neighborhood_search.jl` requires the system types to be defined
 include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined
 include("callbacks/callbacks.jl")
@@ -79,7 +79,7 @@ export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechni
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel, LaguerreGaussKernel
-export StateEquationCole, StateEquationIdealGas
+export StateEquationCole, StateEquationIdealGas, StateEquationAdaptiveCole
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS
 export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffusionAntuono
