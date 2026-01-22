@@ -49,9 +49,7 @@ end
 function (info_callback::InfoCallback)(u, t, integrator)
     (; interval) = info_callback
 
-    return interval != 0 &&
-           integrator.stats.naccept % interval == 0 ||
-           isfinished(integrator)
+    return condition_integrator_interval(integrator, interval)
 end
 
 # affect!

@@ -1,6 +1,6 @@
 mutable struct SplitIntegrationCallback
     # Type-stability does not matter here, and it is impossible to implement because
-    # the integration will be created during the initialization.
+    # the integrator will be created during the initialization.
     integrator :: Any
     alg        :: Any
     kwargs     :: Any
@@ -80,7 +80,7 @@ function initialize_split_integration!(cb, u, t, integrator)
     periodic_box = extract_periodic_box(semi.neighborhood_searches[1][1])
     neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}(; periodic_box)
     semi_split = Semidiscretization(systems...,
-                                    neighborhood_search=TrivialNeighborhoodSearch{ndims(first(systems))}(),
+                                    neighborhood_search=neighborhood_search,
                                     parallelization_backend=semi.parallelization_backend)
 
     # Verify that a NHS implementation is used that does not require updates
