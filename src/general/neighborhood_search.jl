@@ -105,44 +105,45 @@ end
 
 # === Neighborhood search lookup ===
 @inline function get_neighborhood_search(system, semi)
-    (; neighborhood_searches) = semi
-
     system_index = system_indices(system, semi)
 
-    return neighborhood_searches[system_index][system_index]
+    return get_neighborhood_search(system, semi, system_index)
 end
 
-@inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
+@inline function get_neighborhood_search(system, neighbor_system, semi)
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor_system, semi)
+
+    return get_neighborhood_search(system, neighbor_system, semi, system_index, neighbor_index)
+end
+
+@inline function get_neighborhood_search(system, semi, system_index::Integer)
+    return semi.neighborhood_searches[system_index][system_index]
+end
+
+@inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi,
+                                         system_index::Integer)
     # For TLSPH, use the specialized self-interaction neighborhood search
     # for finding neighbors in the initial configuration.
     return system.self_interaction_nhs
 end
 
-@inline function get_neighborhood_search(system, neighbor_system, semi)
-    (; neighborhood_searches) = semi
-
-    system_index = system_indices(system, semi)
-    neighbor_index = system_indices(neighbor_system, semi)
-
-    return neighborhood_searches[system_index][neighbor_index]
+@inline function get_neighborhood_search(system, neighbor_system, semi,
+                                         system_index::Integer, neighbor_index::Integer)
+    return semi.neighborhood_searches[system_index][neighbor_index]
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem,
-                                         neighbor_system::TotalLagrangianSPHSystem, semi)
-    (; neighborhood_searches) = semi
-
-    system_index = system_indices(system, semi)
-    neighbor_index = system_indices(neighbor_system, semi)
-
+                                         neighbor_system::TotalLagrangianSPHSystem, semi,
+                                         system_index::Integer, neighbor_index::Integer)
     if system_index == neighbor_index
         # For TLSPH, use the specialized self-interaction neighborhood search
         # for finding neighbors in the initial configuration.
         return system.self_interaction_nhs
     end
 
-    return neighborhood_searches[system_index][neighbor_index]
+    return semi.neighborhood_searches[system_index][neighbor_index]
 end
-
 # === Initialization ===
 # For non-TLSPH systems, do nothing
 function initialize_self_interaction_nhs(system, neighborhood_search,
@@ -160,11 +161,13 @@ function initialize_neighborhood_searches!(semi)
     return semi
 end
 
-function initialize_neighborhood_search!(semi, system, neighbor)
+function initialize_neighborhood_search!(semi, system, neighbor,
+                                         system_index::Integer, neighbor_index::Integer)
     # TODO Initialize after adapting to the GPU.
     # Currently, this cannot use `semi.parallelization_backend`
     # because data is still on the CPU.
-    PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
+    PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi,
+                                                       system_index, neighbor_index),
                                initial_coordinates(system),
                                initial_coordinates(neighbor),
                                eachindex_y=each_active_particle(neighbor),
@@ -174,20 +177,30 @@ function initialize_neighborhood_search!(semi, system, neighbor)
 end
 
 function initialize_neighborhood_search!(semi, system::TotalLagrangianSPHSystem,
-                                         neighbor::TotalLagrangianSPHSystem)
+                                         neighbor::TotalLagrangianSPHSystem,
+                                         system_index::Integer, neighbor_index::Integer)
     # For TLSPH, the self-interaction NHS is already initialized in the system constructor
     return semi
+end
+
+function initialize_neighborhood_search!(semi, system, neighbor)
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor, semi)
+
+    return initialize_neighborhood_search!(semi, system, neighbor,
+                                           system_index, neighbor_index)
 end
 
 # === Neighborhood search updates (per-system) ===
 function update_nhs!(semi, u_ode)
     # Update NHS for each pair of systems
-    foreach_system(semi) do system
-        u_system = wrap_u(u_ode, system, semi)
+    foreach_system_indexed(semi) do system_index, system
+        u_system = wrap_u(u_ode, system, semi, system_index)
 
-        foreach_system(semi) do neighbor
-            u_neighbor = wrap_u(u_ode, neighbor, semi)
-            neighborhood_search = get_neighborhood_search(system, neighbor, semi)
+        foreach_system_indexed(semi) do neighbor_index, neighbor
+            u_neighbor = wrap_u(u_ode, neighbor, semi, neighbor_index)
+            neighborhood_search = get_neighborhood_search(system, neighbor, semi,
+                                                          system_index, neighbor_index)
 
             update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor, semi)
         end

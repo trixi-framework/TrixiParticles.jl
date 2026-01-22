@@ -179,21 +179,36 @@ end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
+# This is just for readability to loop over all systems with indices without allocations.
+@inline function foreach_system_indexed(f, semi::Union{NamedTuple, Semidiscretization})
+    return foreach_system_indexed(f, semi.systems)
+end
+
+@inline function foreach_system_indexed(f, systems::Tuple)
+    indices = ntuple(identity, Val(length(systems)))
+
+    return foreach_noalloc(indices, systems) do (index, system)
+        f(index, system)
+    end
+end
+
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)
-    return foreach_system(semi) do system
-        f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
+    return foreach_system_indexed(semi) do system_index, system
+        f(system,
+          wrap_v(v_ode, system, semi, system_index),
+          wrap_u(u_ode, system, semi, system_index))
     end
 end
 
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         dv_ode, v_ode, u_ode)
-    return foreach_system(semi) do system
+    return foreach_system_indexed(semi) do system_index, system
         f(system,
-          wrap_v(dv_ode, system, semi),
-          wrap_v(v_ode, system, semi),
-          wrap_u(u_ode, system, semi))
+          wrap_v(dv_ode, system, semi, system_index),
+          wrap_v(v_ode, system, semi, system_index),
+          wrap_u(u_ode, system, semi, system_index))
     end
 end
 
@@ -360,10 +375,14 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_v(v_ode, system, semi)
-    (; ranges_v) = semi
+    return wrap_v(v_ode, system, semi, system_indices(system, semi))
+end
 
-    range = ranges_v[system_indices(system, semi)]
+@inline function wrap_v(v_ode, system, semi, system_index::Integer)
+    return wrap_v(v_ode, system, semi.ranges_v[system_index])
+end
 
+@inline function wrap_v(v_ode, system, range::AbstractUnitRange)
     @boundscheck begin
         expected = v_nvariables(system) * n_integrated_particles(system)
         range_length = length(range)
@@ -376,10 +395,14 @@ end
 end
 
 @inline function wrap_u(u_ode, system, semi)
-    (; ranges_u) = semi
+    return wrap_u(u_ode, system, semi, system_indices(system, semi))
+end
 
-    range = ranges_u[system_indices(system, semi)]
+@inline function wrap_u(u_ode, system, semi, system_index::Integer)
+    return wrap_u(u_ode, system, semi.ranges_u[system_index])
+end
 
+@inline function wrap_u(u_ode, system, range::AbstractUnitRange)
     @boundscheck begin
         expected = u_nvariables(system) * n_integrated_particles(system)
         range_length = length(range)
@@ -670,19 +693,18 @@ end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
     # Call `interact!` for each pair of systems
-    foreach_system(semi) do system
-        foreach_system(semi) do neighbor
+    foreach_system_indexed(semi) do system_index, system
+        foreach_system_indexed(semi) do neighbor_index, neighbor
             # Construct string for the interactions timer.
             # Avoid allocations from string construction when no timers are used.
             if timeit_debug_enabled()
-                system_index = system_indices(system, semi)
-                neighbor_index = system_indices(neighbor, semi)
                 timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
             else
                 timer_str = ""
             end
 
-            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
+            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                      system_index, neighbor_index; timer_str=timer_str)
         end
     end
 
@@ -694,12 +716,21 @@ end
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
-    dv = wrap_v(dv_ode, system, semi)
-    v_system = wrap_v(v_ode, system, semi)
-    u_system = wrap_u(u_ode, system, semi)
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor, semi)
 
-    v_neighbor = wrap_v(v_ode, neighbor, semi)
-    u_neighbor = wrap_u(u_ode, neighbor, semi)
+    return interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                     system_index, neighbor_index; timer_str=timer_str)
+end
+
+@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                           system_index::Integer, neighbor_index::Integer; timer_str="")
+    dv = wrap_v(dv_ode, system, semi, system_index)
+    v_system = wrap_v(v_ode, system, semi, system_index)
+    u_system = wrap_u(u_ode, system, semi, system_index)
+
+    v_neighbor = wrap_v(v_ode, neighbor, semi, neighbor_index)
+    u_neighbor = wrap_u(u_ode, neighbor, semi, neighbor_index)
 
     @trixi_timeit timer() timer_str begin
         interact!(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor, semi)
