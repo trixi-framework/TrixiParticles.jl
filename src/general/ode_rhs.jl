@@ -1,26 +1,11 @@
-function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
-    calculate_dt(v_ode, u_ode, cfl_number, semi, semi.integrate_tlsph[])
-end
-
-function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization, integrate_tlsph)
-    (; systems) = semi
-
-    return minimum(systems) do system
-        if system isa TotalLagrangianSPHSystem && !integrate_tlsph
-            # Skip TLSPH systems if they are not integrated
-            return Inf
-        end
-        return calculate_dt(v_ode, u_ode, cfl_number, system, semi)
-    end
-end
-
+# === RHS entry points ===
 function drift!(du_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "drift!" begin
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
             # Set velocity and add acceleration for each system
-              foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
                 du = wrap_u(du_ode, system, semi)
 
                 @threaded semi for particle in each_integrated_particle(system)
@@ -34,6 +19,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     return du_ode
 end
 
+# === Drift helpers ===
 @inline function add_velocity!(du, v, u, particle, system, semi::Semidiscretization, t)
     add_velocity!(du, v, u, particle, system, t)
 end
@@ -69,6 +55,7 @@ end
     return du
 end
 
+# === Kick ===
 function kick!(dv_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "kick!" begin
         # Check that the `UpdateCallback` is used if required
@@ -89,6 +76,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
+# === System updates ===
 # Update the systems for a simulation before calling `interact!` to compute forces.
 function update_systems!(v_ode, u_ode, semi, t;
                          update_nhs=true,
@@ -145,6 +133,54 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
                     update_inter_system=true)
 end
 
+# === Interactions ===
+function system_interaction!(dv_ode, v_ode, u_ode, semi)
+    # Call `interact!` for each pair of systems
+    foreach_system_indexed(semi) do system_index, system
+        foreach_system_indexed(semi) do neighbor_index, neighbor
+            # Construct string for the interactions timer.
+            # Avoid allocations from string construction when no timers are used.
+            if timeit_debug_enabled()
+                timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+            else
+                timer_str = ""
+            end
+
+            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                      system_index, neighbor_index; timer_str=timer_str)
+        end
+    end
+
+    return dv_ode
+end
+
+# Function barrier to make benchmarking interactions easier.
+# One can benchmark, e.g. the fluid-fluid interaction, with:
+# dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
+# @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
+@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor, semi)
+
+    return interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                     system_index, neighbor_index; timer_str=timer_str)
+end
+
+@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                           system_index::Integer, neighbor_index::Integer; timer_str="")
+    dv = wrap_v(dv_ode, system, semi, system_index)
+    v_system = wrap_v(v_ode, system, semi, system_index)
+    u_system = wrap_u(u_ode, system, semi, system_index)
+
+    v_neighbor = wrap_v(v_ode, neighbor, semi, neighbor_index)
+    u_neighbor = wrap_u(u_ode, neighbor, semi, neighbor_index)
+
+    @trixi_timeit timer() timer_str begin
+        interact!(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor, semi)
+    end
+end
+
+# === Source terms ===
 # The `SplitIntegrationCallback` overwrites `semi_wrap` to use a different
 # semidiscretization for wrapping arrays.
 # TODO `semi` is not used yet, but will be used when the source terms API is modified
@@ -217,52 +253,24 @@ end
 
 @inline add_source_terms_inner!(dv, v, u, particle, system, source_terms_::Nothing, t) = dv
 
-function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    # Call `interact!` for each pair of systems
-    foreach_system_indexed(semi) do system_index, system
-        foreach_system_indexed(semi) do neighbor_index, neighbor
-            # Construct string for the interactions timer.
-            # Avoid allocations from string construction when no timers are used.
-            if timeit_debug_enabled()
-                timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-            else
-                timer_str = ""
-            end
+# === Step size ===
+function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
+    calculate_dt(v_ode, u_ode, cfl_number, semi, semi.integrate_tlsph[])
+end
 
-            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
-                      system_index, neighbor_index; timer_str=timer_str)
+function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization, integrate_tlsph)
+    (; systems) = semi
+
+    return minimum(systems) do system
+        if system isa TotalLagrangianSPHSystem && !integrate_tlsph
+            # Skip TLSPH systems if they are not integrated
+            return Inf
         end
-    end
-
-    return dv_ode
-end
-
-# Function barrier to make benchmarking interactions easier.
-# One can benchmark, e.g. the fluid-fluid interaction, with:
-# dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
-# @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
-@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
-    system_index = system_indices(system, semi)
-    neighbor_index = system_indices(neighbor, semi)
-
-    return interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
-                     system_index, neighbor_index; timer_str=timer_str)
-end
-
-@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
-                           system_index::Integer, neighbor_index::Integer; timer_str="")
-    dv = wrap_v(dv_ode, system, semi, system_index)
-    v_system = wrap_v(v_ode, system, semi, system_index)
-    u_system = wrap_u(u_ode, system, semi, system_index)
-
-    v_neighbor = wrap_v(v_ode, neighbor, semi, neighbor_index)
-    u_neighbor = wrap_u(u_ode, neighbor, semi, neighbor_index)
-
-    @trixi_timeit timer() timer_str begin
-        interact!(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor, semi)
+        return calculate_dt(v_ode, u_ode, cfl_number, system, semi)
     end
 end
 
+# === Callback guards ===
 function check_update_callback(semi)
     foreach_system(semi) do system
         # This check will be optimized away if the system does not require the callback
@@ -272,4 +280,3 @@ function check_update_callback(semi)
         end
     end
 end
-
