@@ -145,7 +145,7 @@ function initialize!(system::OpenBoundarySystem, semi)
     return system
 end
 
-# Skip during restart, as boundary zone indices are updated in `precondition_system!`
+# Skip during restart, as boundary zone indices are updated in `restore_previous_state!`
 initialize_restart!(system::OpenBoundarySystem, semi) = system
 
 function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
@@ -718,7 +718,7 @@ function restart_v(system::OpenBoundarySystem, data)
     return v_total
 end
 
-function precondition_system!(system::OpenBoundarySystem, file)
+function restore_previous_state!(system::OpenBoundarySystem, file)
     # We cannot simply use `update_boundary_zone_indices!` because rounding errors during file I/O
     # may result in particles being located outside their intended boundary zone, even though they
     # were written as active particles.

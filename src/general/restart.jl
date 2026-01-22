@@ -29,7 +29,7 @@ function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Tuple{Varar
         v0_system .= Adapt.adapt(semi.parallelization_backend, v_restart)
         u0_system .= Adapt.adapt(semi.parallelization_backend, u_restart)
 
-        precondition_system!(system, restart_file)
+        restore_previous_state!(system, restart_file)
     end
 end
 
@@ -66,7 +66,7 @@ function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSys
     return v_restart
 end
 
-precondition_system!(system, restart_file) = system
+restore_previous_state!(system, restart_file) = system
 
 function initialize_neighborhood_searches!(semi, u0_ode,
                                            restart_with::Tuple{Vararg{String}})

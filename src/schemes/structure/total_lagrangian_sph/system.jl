@@ -573,13 +573,12 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
 end
 
 function restart_u(system::AbstractStructureSystem, data)
-    # TODO: Is this correct?
-    # data.coordinates = coords_integrated
+    # The integration array requires only the particles that need to be integrated
     return data.coordinates[:, each_integrated_particle(system)]
 end
 
 function restart_v(system::AbstractStructureSystem, data)
-    # TODO: Is this correct?
+    # The integration array requires only the particles that need to be integrated
     return data.velocity[:, each_integrated_particle(system)]
 end
 
