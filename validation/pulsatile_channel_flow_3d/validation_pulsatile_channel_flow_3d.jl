@@ -7,7 +7,8 @@ function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem{3},
     end_point = [flow_length / 2, pipe_radius, 0.0]
 
     values = interpolate_line(start_point, end_point, 100, semi, system, v_ode, u_ode;
-                              cut_off_bnd=true, clip_negative_pressure=false)
+                              cut_off_bnd=true, clip_negative_pressure=false,
+                              include_wall_velocity=true)
 
     return values.velocity[1, :]
 end
