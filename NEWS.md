@@ -4,12 +4,18 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5
+
+### API Changes
+
+- Return type of `vtk2trixi` changed to `NamedTuple` including an optional
+  `:initial_condition` field if `create_initial_condition=true` is passed. (#959)
+
 ## Version 0.4.4
 
 ### Features
 
 - Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875)
-
 
 ## Version 0.4.3
 
@@ -34,7 +40,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added GPU and FP32 support for DEM (#979).
 
-  
 ### Performance
 - Improved GPU performance with shifting up to a factor of 10x (#974, #993).
 
@@ -360,5 +365,3 @@ Features:
 #### TLSPH
 
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
-
-
