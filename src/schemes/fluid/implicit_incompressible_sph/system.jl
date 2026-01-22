@@ -216,7 +216,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                                                                  semi)
 end
 
-function update_implicit_sph!(semi, v_ode, u_ode, t)
+function update_inter_system_quantities!(semi, v_ode, u_ode, t)
     # This check is performed statically by the compiler and has no overhead
     if !any(system -> system isa ImplicitIncompressibleSPHSystem, semi.systems)
         return semi
@@ -726,4 +726,25 @@ function iisph_source_term(system::ImplicitIncompressibleSPHSystem, particle)
     (; reference_density, predicted_density) = system
 
     return reference_density - predicted_density[particle]
+end
+
+function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
+    (; time_step, omega) = system
+    foreach_system(systems) do neighbor
+        if neighbor isa WeaklyCompressibleSPHSystem
+            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
+            `WeaklyCompressibleSPHSystem`"))
+        end
+        if neighbor isa WallBoundarySystem
+            if (neighbor.boundary_model isa BoundaryModelDummyParticles &&
+                neighbor.boundary_model.density_calculator isa PressureBoundaries)
+                time_step_boundary = neighbor.boundary_model.density_calculator.time_step
+                omega_boundary = neighbor.boundary_model.density_calculator.omega
+                if !(time_step==time_step_boundary && omega==omega_boundary)
+                    throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
+                    `ImplicitIncompressibleSPHSystem` parameters"))
+                end
+            end
+        end
+    end
 end
