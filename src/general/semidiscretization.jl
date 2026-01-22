@@ -375,43 +375,46 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_v(v_ode, system, semi)
-    return wrap_v(v_ode, system, semi, system_indices(system, semi))
+    return wrap_field(v_ode, system, semi.ranges_v, v_nvariables, "v",
+                      system_indices(system, semi))
 end
 
 @inline function wrap_v(v_ode, system, semi, system_index::Integer)
-    return wrap_v(v_ode, system, semi.ranges_v[system_index])
+    return wrap_field(v_ode, system, semi.ranges_v, v_nvariables, "v", system_index)
 end
 
 @inline function wrap_v(v_ode, system, range::AbstractUnitRange)
-    @boundscheck begin
-        expected = v_nvariables(system) * n_integrated_particles(system)
-        range_length = length(range)
-        range_length == expected ||
-            throw(DimensionMismatch("v range length $range_length does not match expected $expected"))
-    end
-
-    return wrap_array(v_ode, range,
-                      (StaticInt(v_nvariables(system)), n_integrated_particles(system)))
+    return wrap_field(v_ode, system, range, v_nvariables, "v")
 end
 
 @inline function wrap_u(u_ode, system, semi)
-    return wrap_u(u_ode, system, semi, system_indices(system, semi))
+    return wrap_field(u_ode, system, semi.ranges_u, u_nvariables, "u",
+                      system_indices(system, semi))
 end
 
 @inline function wrap_u(u_ode, system, semi, system_index::Integer)
-    return wrap_u(u_ode, system, semi.ranges_u[system_index])
+    return wrap_field(u_ode, system, semi.ranges_u, u_nvariables, "u", system_index)
 end
 
 @inline function wrap_u(u_ode, system, range::AbstractUnitRange)
+    return wrap_field(u_ode, system, range, u_nvariables, "u")
+end
+
+@inline function wrap_field(array, system, ranges, nvariables, field_name,
+                            system_index::Integer)
+    return wrap_field(array, system, ranges[system_index], nvariables, field_name)
+end
+
+@inline function wrap_field(array, system, range::AbstractUnitRange, nvariables, field_name)
     @boundscheck begin
-        expected = u_nvariables(system) * n_integrated_particles(system)
+        expected = nvariables(system) * n_integrated_particles(system)
         range_length = length(range)
         range_length == expected ||
-            throw(DimensionMismatch("u range length $range_length does not match expected $expected"))
+            throw(DimensionMismatch("$field_name range length $range_length does not match expected $expected"))
     end
 
-    return wrap_array(u_ode, range,
-                      (StaticInt(u_nvariables(system)), n_integrated_particles(system)))
+    return wrap_array(array, range,
+                      (StaticInt(nvariables(system)), n_integrated_particles(system)))
 end
 
 @inline function wrap_array(array::Array, range, size)
