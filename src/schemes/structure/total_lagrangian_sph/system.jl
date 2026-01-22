@@ -572,6 +572,16 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     restart_with!(system, system.boundary_model, v, u)
 end
 
+function restart_u(system::AbstractStructureSystem, data)
+    # The integration array requires only the particles that need to be integrated
+    return data.coordinates[:, each_integrated_particle(system)]
+end
+
+function restart_v(system::AbstractStructureSystem, data)
+    # The integration array requires only the particles that need to be integrated
+    return data.velocity[:, each_integrated_particle(system)]
+end
+
 # An explanation of these equation can be found in
 # J. Lubliner, 2008. Plasticity theory.
 # See here below Equation 5.3.21 for the equation for the equivalent stress.

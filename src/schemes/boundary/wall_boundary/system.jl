@@ -246,6 +246,23 @@ function restart_with!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{
     return system
 end
 
+function restart_u(system::WallBoundarySystem, data)
+    if n_integrated_particles(system) > 0
+        throw(ArgumentError("`WallBoundarySystem` does not support integrated particle coordinates"))
+    end
+
+    return zeros(eltype(system), u_nvariables(system), n_integrated_particles(system))
+end
+
+function restart_v(system::WallBoundarySystem, data)
+    v_ode = zeros(eltype(system), v_nvariables(system), n_integrated_particles(system))
+
+    write_density_and_pressure!(v_ode, system, density_calculator(system),
+                                data.pressure, data.density)
+
+    return v_ode
+end
+
 # To incorporate the effect at boundaries in the viscosity term of the RHS, the neighbor
 # viscosity model has to be used.
 @inline function viscosity_model(system::WallBoundarySystem,
@@ -292,6 +309,10 @@ end
 
 function system_correction(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.correction
+end
+
+@inline function density_calculator(system::WallBoundarySystem)
+    return density_calculator(system.boundary_model)
 end
 
 function system_data(system::WallBoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi)

@@ -220,6 +220,47 @@ end
     return nothing
 end
 
+function restart_u(system::AbstractFluidSystem, data)
+    coords_total = zeros(coordinates_eltype(system), u_nvariables(system),
+                         n_integrated_particles(system))
+    coords_total .= coordinates_eltype(system)(1e16)
+
+    coords_active = data.coordinates
+
+    for particle in axes(coords_active, 2)
+        for dim in 1:ndims(system)
+            coords_total[dim, particle] = coords_active[dim, particle]
+        end
+    end
+
+    if !isnothing(buffer(system))
+        system.buffer.active_particle .= false
+        system.buffer.active_particle[1:size(coords_active, 2)] .= true
+    end
+
+    update_system_buffer!(system.buffer)
+
+    return coords_total
+end
+
+function restart_v(system::AbstractFluidSystem, data)
+    velocity_total = zeros(eltype(system), v_nvariables(system),
+                           n_integrated_particles(system))
+    velocity_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
+
+    velocity_active[1:ndims(system), :] = data.velocity
+    write_density_and_pressure!(velocity_active, system, density_calculator(system),
+                                data.pressure, data.density)
+
+    for particle in axes(velocity_active, 2)
+        for i in axes(velocity_active, 1)
+            velocity_total[i, particle] = velocity_active[i, particle]
+        end
+    end
+
+    return velocity_total
+end
+
 function system_data(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     (; mass) = system
 
