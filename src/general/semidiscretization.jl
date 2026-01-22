@@ -93,14 +93,18 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
 
+    @inline function ranges_from_sizes(sizes)
+        ends = cumsum(sizes)
+        starts = ends .- sizes .+ 1
+        return Tuple(starts[i]:ends[i] for i in eachindex(sizes))
+    end
+
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                     for i in eachindex(sizes_u))
+    ranges_u = ranges_from_sizes(sizes_u)
     sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                     for i in eachindex(sizes_v))
+    ranges_v = ranges_from_sizes(sizes_v)
 
     # Create a tuple of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
@@ -174,6 +178,24 @@ end
 end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
+
+# This is just for readability to loop over all systems with wrapped arrays.
+@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
+                                        v_ode, u_ode)
+    return foreach_system(semi) do system
+        f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
+    end
+end
+
+@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
+                                        dv_ode, v_ode, u_ode)
+    return foreach_system(semi) do system
+        f(system,
+          wrap_v(dv_ode, system, semi),
+          wrap_v(v_ode, system, semi),
+          wrap_u(u_ode, system, semi))
+    end
+end
 
 """
     semidiscretize(semi, tspan; reset_threads=true)
@@ -257,10 +279,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system(semi) do system
-        u0_system = wrap_u(u0_ode, system, semi)
-        v0_system = wrap_v(v0_ode, system, semi)
-
+    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
         write_u0!(u0_system, system)
         write_v0!(v0_system, system)
     end
@@ -327,10 +346,8 @@ function restart_with!(semi, sol; reset_threads=true)
 
     initialize_neighborhood_searches!(semi)
 
-    foreach_system(semi) do system
-        v = wrap_v(sol.u[end].x[1], system, semi)
-        u = wrap_u(sol.u[end].x[2], system, semi)
-
+    v_ode, u_ode = sol.u[end].x
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         restart_with!(system, v, u)
     end
 
@@ -416,10 +433,8 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
 
         @trixi_timeit timer() "velocity" begin
             # Set velocity and add acceleration for each system
-            foreach_system(semi) do system
+              foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
                 du = wrap_u(du_ode, system, semi)
-                v = wrap_v(v_ode, system, semi)
-                u = wrap_u(u_ode, system, semi)
 
                 @threaded semi for particle in each_integrated_particle(system)
                     # This can be dispatched per system
@@ -492,10 +507,7 @@ end
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
@@ -506,37 +518,25 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     update_implicit_sph!(semi, v_ode, u_ode, t)
 
     # Perform correction and pressure calculation
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # This update depends on the computed quantities of the fluid system and therefore
     # needs to be after `update_quantities!`.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
@@ -546,11 +546,7 @@ end
 # TODO `semi` is not used yet, but will be used when the source terms API is modified
 # to match the custom quantities API.
 function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
-    foreach_system(semi_wrap) do system
-        dv = wrap_v(dv_ode, system, semi_wrap)
-        v = wrap_v(v_ode, system, semi_wrap)
-        u = wrap_u(u_ode, system, semi_wrap)
-
+    foreach_system_wrapped(semi, dv_ode, v_ode, u_ode) do system, dv, v, u
         @threaded semi for particle in each_integrated_particle(system)
             # Dispatch by system type to exclude boundary systems.
             # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
