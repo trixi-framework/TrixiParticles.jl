@@ -95,8 +95,8 @@ function calculate_velocity_gradients!(system, velocity_gradient_tensor,
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             rho_b = current_density(v_neighbor, neighbor_system, neighbor)
             volume_b = m_b / rho_b
-
-            # We use the `viscous_velocity` to ensure a continuous velocity gradient at the boundary
+            # Use `viscous_velocity` to ensure continuous velocity gradients at boundaries,
+            # unlike Laha et al. (2024) who employ mDBC (English et al., 2020) with zero boundary velocities.
             v_a = viscous_velocity(v, system, particle)
             v_b = viscous_velocity(v_neighbor, neighbor_system, neighbor)
 
@@ -123,28 +123,29 @@ function calculate_strain_rate!(system, velocity_gradient_tensor, strain_rate_te
     return system
 end
 
-# The stress tensor formulation presented in Laha et al. (2024) is not fully
-# consistent and requires clarification before implementation:
+# The stress tensor formulation presented in Laha et al. (2024) and Dalrymple et al. (2006)
+# is not fully consistent and requires clarification before implementation:
 #
-# (1) The velocity-gradient expression (Eq. 9 in the paper) contains an additional
-#     factor m_j, which leads to incorrect physical dimensions. The standard SPH
-#     gradient operator uses only (m_j / rho_j) and is adopted here.
-#
-# (2) The stress tensor reported in the paper corresponds to a sub-particle-scale
-#     (SPS) stress contribution only. The laminar viscous stress
-#         tau_lam = 2 * mu * S
+# (1) The laminar viscous stress `tau_lam = 2 * mu * S`
 #     is not explicitly included in the presented stress formulation. Why?
 #
-# (3) For wall shear stress (WSS) evaluation, however, the total deviatoric stress
-#     must be reconstructed. Therefore, the present implementation explicitly
-#     combines the laminar viscous stress and the SPS stress contribution:
-#
-#         sigma = tau_lam + tau_dev (+ optional isotropic term)
-#
-# (4) The isotropic SPS term reported in the paper is pressure-like and does not
+# (2) The isotropic SPS term reported in the paper is pressure-like and does not
 #     contribute to the wall shear stress after tangential projection. Due to
 #     ambiguities in its dimensional consistency and definition, it is treated
 #     separately and can be disabled (isotropic_constant=0.0) without affecting WSS results.
+#
+# (3) When the stress vector is interpolated to the boundary particles, it is not
+#     evaluated exactly at the physical wall location. This introduces a spatial
+#     offset that may affect the accuracy of wall shear stress calculations.
+#
+# (4) The velocity gradient is not computed from a continuous velocity field at
+#     the boundary, since the modified dynamic boundary condition (mDBC) approach
+#     (English et al., 2020) enforces zero velocity on boundary particles. This
+#     discontinuity can lead to inaccurate gradient estimates near walls.
+#
+# (5) The relationship between equation (15) in Laha et al. and equation (10) in Dalrymple et al.
+#     is unclear. The formulations appear to be inconsistent.
+#
 function calculate_stress_tensor!(system, turbulence_model, v, semi)
     (; smagorinsky_constant, isotropic_constant,
     smallest_length_scale, mu, field_variables) = turbulence_model
