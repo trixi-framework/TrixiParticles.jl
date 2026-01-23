@@ -12,19 +12,29 @@ using TrixiParticles
 using OrdinaryDiffEq
 using JSON
 
-n_particles_plate_y = 3
+# Reference date is available for 3, 5, 11 and 13
+# computational time on a single cores
+# n_particles_plate_y = 3: ~0.25h
+# n_particles_plate_y = 5: ~1.5h
+# n_particles_plate_y = 11: ~10h
+# n_particles_plate_y = 13: ~15h
+
+n_particles_plate_y = 5
+
+# For better results this should be increased to at least 0.5
 tspan=(0.0, 0.3)
 
 # ============================================================================
 # Sensor Function (for Postprocessing)
 # ============================================================================
-function y_deflection(system::TotalLagrangianSPHSystem, v, u, semi, t)
+function y_deflection(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi,
+                      t)
     # Choose the particle in the middle of the beam along x.
     particle_id = Int(n_particles_per_dimension[1] * (n_particles_plate_y + 1) / 2 -
                       (n_particles_per_dimension[1] + 1) / 2 + 1)
-    return TrixiParticles.current_coords(u, system, particle_id)[2] + plate_size[2] / 2
+    return TrixiParticles.current_coords(u_ode, system, particle_id)[2] + plate_size[2] / 2
 end
-y_deflection(system, v, u, semi, t) = nothing
+y_deflection(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
 
 # ============================================================================
 # Run Simulations and Compute Errors

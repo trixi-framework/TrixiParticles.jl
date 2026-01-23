@@ -256,7 +256,7 @@
     "datatype": "Float64",
     "type": "series"
   },
-  "kinetic_energy_solid_1": {
+  "kinetic_energy_structure_1": {
     "n_values": 121,
     "time": [
       0.0,
@@ -519,7 +519,7 @@
     "datatype": "Float64",
     "type": "point"
   },
-  "y_deflection_solid_1": {
+  "y_deflection_structure_1": {
     "n_values": 121,
     "time": [
       0.0,

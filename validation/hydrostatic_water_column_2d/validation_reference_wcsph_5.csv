@@ -1,4 +1,4 @@
-time,kinetic_energy_fluid_1,kinetic_energy_solid_1,y_deflection_solid_1
+time,kinetic_energy_fluid_1,kinetic_energy_structure_1,y_deflection_structure_1
 0.0,0.0,0.0,0.0
 0.0025,0.06892288043359274,0.16507869944149234,-7.843034386614475e-5
 0.005,0.09345361420360568,0.0793779185715772,-7.288832494828368e-5
