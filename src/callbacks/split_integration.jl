@@ -216,10 +216,7 @@ end
 function update_systems_split!(semi, v_ode, u_ode, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
@@ -227,18 +224,12 @@ function update_systems_split!(semi, v_ode, u_ode, t)
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Perform correction and pressure calculation
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
@@ -248,10 +239,7 @@ function update_systems_split!(semi, v_ode, u_ode, t)
     # that the extrapolated pressure/density values can be treated as constant.
 
     # Final update step for all remaining systems
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
