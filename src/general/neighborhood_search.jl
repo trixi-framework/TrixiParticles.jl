@@ -1,3 +1,4 @@
+# === PointNeighbors integration ===
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
 # By default, loop over `eachparticle(system)`.
@@ -10,12 +11,72 @@ function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                            points, parallelization_backend)
 end
 
-# For non-TLSPH systems, do nothing
-function initialize_self_interaction_nhs(system, neighborhood_search,
-                                         parallelization_backend)
-    return system
+# === Compact support selection ===
+# -- Generic
+@inline function compact_support(system, neighbor)
+    (; smoothing_kernel) = system
+    # TODO: Variable search radius for NHS?
+    return compact_support(smoothing_kernel, initial_smoothing_length(system))
 end
 
+# -- Open boundary systems
+@inline function compact_support(system::OpenBoundarySystem,
+                                 neighbor::OpenBoundarySystem)
+    # This NHS is never used
+    return zero(eltype(system))
+end
+
+@inline function compact_support(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                                 neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
+    # Use the compact support of the fluid
+    return compact_support(system.fluid_system, neighbor.fluid_system)
+end
+
+# -- DEM boundaries
+@inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
+    # This NHS is never used
+    return zero(eltype(system))
+end
+
+@inline function compact_support(system::BoundaryDEMSystem, neighbor::DEMSystem)
+    # Use the compact support of the DEMSystem
+    return compact_support(neighbor, system)
+end
+
+# -- TLSPH systems
+@inline function compact_support(system::TotalLagrangianSPHSystem,
+                                 neighbor::TotalLagrangianSPHSystem)
+    (; smoothing_kernel, smoothing_length) = system
+    return compact_support(smoothing_kernel, smoothing_length)
+end
+
+# -- Boundary models
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem,
+                                               WallBoundarySystem},
+                                 neighbor)
+    return compact_support(system, system.boundary_model, neighbor)
+end
+
+@inline function compact_support(system, model::BoundaryModelMonaghanKajtar, neighbor)
+    # Use the compact support of the fluid for structure-fluid interaction
+    return compact_support(neighbor, system)
+end
+
+@inline function compact_support(system, model::BoundaryModelMonaghanKajtar,
+                                 neighbor::WallBoundarySystem)
+    # This NHS is never used
+    return zero(eltype(system))
+end
+
+@inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
+    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for structure-fluid
+    # interaction. Dummy particle BC use the model's compact support, which is also used
+    # for density summations.
+    (; smoothing_kernel, smoothing_length) = model
+    return compact_support(smoothing_kernel, smoothing_length)
+end
+
+# === Neighborhood search creation ===
 function create_neighborhood_search(::Nothing, system, neighbor)
     nhs = TrivialNeighborhoodSearch{ndims(system)}()
 
@@ -42,102 +103,52 @@ function create_neighborhood_search(neighborhood_search, system::TotalLagrangian
                                     nparticles(neighbor))
 end
 
-@inline function compact_support(system, neighbor)
-    (; smoothing_kernel) = system
-    # TODO: Variable search radius for NHS?
-    return compact_support(smoothing_kernel, initial_smoothing_length(system))
-end
-
-@inline function compact_support(system::OpenBoundarySystem,
-                                 neighbor::OpenBoundarySystem)
-    # This NHS is never used
-    return zero(eltype(system))
-end
-
-@inline function compact_support(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
-                                 neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
-    # Use the compact support of the fluid
-    return compact_support(system.fluid_system, neighbor.fluid_system)
-end
-
-@inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
-    # This NHS is never used
-    return zero(eltype(system))
-end
-
-@inline function compact_support(system::BoundaryDEMSystem, neighbor::DEMSystem)
-    # Use the compact support of the DEMSystem
-    return compact_support(neighbor, system)
-end
-
-@inline function compact_support(system::TotalLagrangianSPHSystem,
-                                 neighbor::TotalLagrangianSPHSystem)
-    (; smoothing_kernel, smoothing_length) = system
-    return compact_support(smoothing_kernel, smoothing_length)
-end
-
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem,
-                                               WallBoundarySystem},
-                                 neighbor)
-    return compact_support(system, system.boundary_model, neighbor)
-end
-
-@inline function compact_support(system, model::BoundaryModelMonaghanKajtar, neighbor)
-    # Use the compact support of the fluid for structure-fluid interaction
-    return compact_support(neighbor, system)
-end
-
-@inline function compact_support(system, model::BoundaryModelMonaghanKajtar,
-                                 neighbor::WallBoundarySystem)
-    # This NHS is never used
-    return zero(eltype(system))
-end
-
-@inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
-    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for structure-fluid
-    # interaction. Dummy particle BC use the model's compact support, which is also used
-    # for density summations.
-    (; smoothing_kernel, smoothing_length) = model
-    return compact_support(smoothing_kernel, smoothing_length)
-end
-
+# === Neighborhood search lookup ===
 @inline function get_neighborhood_search(system, semi)
-    (; neighborhood_searches) = semi
-
     system_index = system_indices(system, semi)
 
-    return neighborhood_searches[system_index][system_index]
+    return get_neighborhood_search(system, semi, system_index)
 end
 
-@inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
+@inline function get_neighborhood_search(system, neighbor_system, semi)
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor_system, semi)
+
+    return get_neighborhood_search(system, neighbor_system, semi, system_index, neighbor_index)
+end
+
+@inline function get_neighborhood_search(system, semi, system_index::Integer)
+    return semi.neighborhood_searches[system_index][system_index]
+end
+
+@inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi,
+                                         system_index::Integer)
     # For TLSPH, use the specialized self-interaction neighborhood search
     # for finding neighbors in the initial configuration.
     return system.self_interaction_nhs
 end
 
+@inline function get_neighborhood_search(system, neighbor_system, semi,
+                                         system_index::Integer, neighbor_index::Integer)
+    return semi.neighborhood_searches[system_index][neighbor_index]
+end
+
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem,
-                                         neighbor_system::TotalLagrangianSPHSystem, semi)
-    (; neighborhood_searches) = semi
-
-    system_index = system_indices(system, semi)
-    neighbor_index = system_indices(neighbor_system, semi)
-
+                                         neighbor_system::TotalLagrangianSPHSystem, semi,
+                                         system_index::Integer, neighbor_index::Integer)
     if system_index == neighbor_index
         # For TLSPH, use the specialized self-interaction neighborhood search
         # for finding neighbors in the initial configuration.
         return system.self_interaction_nhs
     end
 
-    return neighborhood_searches[system_index][neighbor_index]
+    return semi.neighborhood_searches[system_index][neighbor_index]
 end
-
-@inline function get_neighborhood_search(system, neighbor_system, semi)
-    (; neighborhood_searches) = semi
-
-    system_index = system_indices(system, semi)
-    neighbor_index = system_indices(neighbor_system, semi)
-
-    return neighborhood_searches[system_index][neighbor_index]
+# === Initialization ===
+# For non-TLSPH systems, do nothing
+function initialize_self_interaction_nhs(system, neighborhood_search,
+                                         parallelization_backend)
+    return system
 end
 
 function initialize_neighborhood_searches!(semi)
@@ -150,11 +161,13 @@ function initialize_neighborhood_searches!(semi)
     return semi
 end
 
-function initialize_neighborhood_search!(semi, system, neighbor)
+function initialize_neighborhood_search!(semi, system, neighbor,
+                                         system_index::Integer, neighbor_index::Integer)
     # TODO Initialize after adapting to the GPU.
     # Currently, this cannot use `semi.parallelization_backend`
     # because data is still on the CPU.
-    PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
+    PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi,
+                                                       system_index, neighbor_index),
                                initial_coordinates(system),
                                initial_coordinates(neighbor),
                                eachindex_y=each_active_particle(neighbor),
@@ -164,27 +177,39 @@ function initialize_neighborhood_search!(semi, system, neighbor)
 end
 
 function initialize_neighborhood_search!(semi, system::TotalLagrangianSPHSystem,
-                                         neighbor::TotalLagrangianSPHSystem)
+                                         neighbor::TotalLagrangianSPHSystem,
+                                         system_index::Integer, neighbor_index::Integer)
     # For TLSPH, the self-interaction NHS is already initialized in the system constructor
     return semi
 end
 
+function initialize_neighborhood_search!(semi, system, neighbor)
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor, semi)
+
+    return initialize_neighborhood_search!(semi, system, neighbor,
+                                           system_index, neighbor_index)
+end
+
+# === Neighborhood search updates (per-system) ===
 function update_nhs!(semi, u_ode)
     # Update NHS for each pair of systems
-    foreach_system(semi) do system
-        u_system = wrap_u(u_ode, system, semi)
+    foreach_system_indexed(semi) do system_index, system
+        u_system = wrap_u(u_ode, system, semi, system_index)
 
-        foreach_system(semi) do neighbor
-            u_neighbor = wrap_u(u_ode, neighbor, semi)
-            neighborhood_search = get_neighborhood_search(system, neighbor, semi)
+        foreach_system_indexed(semi) do neighbor_index, neighbor
+            u_neighbor = wrap_u(u_ode, neighbor, semi, neighbor_index)
+            neighborhood_search = get_neighborhood_search(system, neighbor, semi,
+                                                          system_index, neighbor_index)
 
             update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor, semi)
         end
     end
 end
 
-# NHS updates
+# === Neighborhood search updates (per-pair dispatch) ===
 # To prevent hard-to-find bugs, there is no default version
+# -- Fluid / structure interactions
 function update_nhs!(neighborhood_search,
                      system::AbstractFluidSystem,
                      neighbor::Union{AbstractFluidSystem, TotalLagrangianSPHSystem},
@@ -196,6 +221,7 @@ function update_nhs!(neighborhood_search,
             semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
 end
 
+# -- Fluid / wall interactions
 function update_nhs!(neighborhood_search,
                      system::Union{AbstractFluidSystem,
                                    OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
@@ -208,6 +234,7 @@ function update_nhs!(neighborhood_search,
             semi, points_moving=(true, neighbor.ismoving[]))
 end
 
+# -- Open boundary interactions
 function update_nhs!(neighborhood_search,
                      system::AbstractFluidSystem, neighbor::OpenBoundarySystem,
                      u_system, u_neighbor, semi)
@@ -264,6 +291,7 @@ function update_nhs!(neighborhood_search,
             semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
 end
 
+# -- Open boundary combinations that are never used
 function update_nhs!(neighborhood_search,
                      system::OpenBoundarySystem, neighbor::TotalLagrangianSPHSystem,
                      u_system, u_neighbor, semi)
@@ -278,6 +306,7 @@ function update_nhs!(neighborhood_search,
     return neighborhood_search
 end
 
+# -- TLSPH interactions
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::AbstractFluidSystem,
                      u_system, u_neighbor, semi)
@@ -286,14 +315,6 @@ function update_nhs!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
             semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
-end
-
-function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem, neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    # TLSPH systems have their own self-interaction NHS.
-    return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
@@ -307,6 +328,15 @@ function update_nhs!(neighborhood_search,
             semi, points_moving=(true, neighbor.ismoving[]))
 end
 
+function update_nhs!(neighborhood_search,
+                     system::TotalLagrangianSPHSystem, neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    # TLSPH systems have their own self-interaction NHS.
+    return neighborhood_search
+end
+
+# -- Wall dummy particle interactions
 # This function is the same as the one below to avoid ambiguous dispatch when using `Union`
 function update_nhs!(neighborhood_search,
                      system::WallBoundarySystem{<:BoundaryModelDummyParticles},
@@ -361,6 +391,7 @@ function update_nhs!(neighborhood_search,
             semi, points_moving=(system.ismoving[], true))
 end
 
+# -- Wall / wall interactions
 function update_nhs!(neighborhood_search,
                      system::WallBoundarySystem{<:BoundaryModelDummyParticles},
                      neighbor::WallBoundarySystem,
@@ -373,6 +404,7 @@ function update_nhs!(neighborhood_search,
             semi, points_moving=(system.ismoving[], neighbor.ismoving[]))
 end
 
+# -- DEM interactions
 function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::DEMSystem,
                      u_system, u_neighbor, semi)
@@ -393,6 +425,7 @@ function update_nhs!(neighborhood_search,
             semi, points_moving=(true, false))
 end
 
+# -- Combinations that are never used
 function update_nhs!(neighborhood_search,
                      system::WallBoundarySystem,
                      neighbor::AbstractFluidSystem,
@@ -417,7 +450,7 @@ function update_nhs!(neighborhood_search,
     return neighborhood_search
 end
 
-# Forward to PointNeighbors.jl
+# === PointNeighbors forwarding ===
 function update!(neighborhood_search, x, y, semi; points_moving=(true, true),
                  eachindex_y=axes(y, 2))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving, eachindex_y,

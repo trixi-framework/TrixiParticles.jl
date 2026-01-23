@@ -376,10 +376,7 @@ end
 function reinit_density!(vu_ode, semi)
     v_ode, u_ode = vu_ode.x
 
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         reinit_density!(system, v, u, v_ode, u_ode, semi)
     end
 
