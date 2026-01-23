@@ -79,6 +79,10 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 
+    if isempty(systems)
+        throw(ArgumentError("Semidiscretization requires at least one non-nothing system"))
+    end
+
     # For `TotalLagrangianSPHSystem`s, create specialized self-interaction NHS.
     # For other systems, do nothing.
     systems = map(system -> initialize_self_interaction_nhs(system, neighborhood_search,
@@ -89,14 +93,18 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
 
+    @inline function ranges_from_sizes(sizes)
+        ends = cumsum(sizes)
+        starts = ends .- sizes .+ 1
+        return Tuple(starts[i]:ends[i] for i in eachindex(sizes))
+    end
+
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                     for i in eachindex(sizes_u))
+    ranges_u = ranges_from_sizes(sizes_u)
     sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                     for i in eachindex(sizes_v))
+    ranges_v = ranges_from_sizes(sizes_v)
 
     # Create a tuple of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
@@ -171,6 +179,24 @@ end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
+# This is just for readability to loop over all systems with wrapped arrays.
+@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
+                                        v_ode, u_ode)
+    return foreach_system(semi) do system
+        f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
+    end
+end
+
+@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
+                                        dv_ode, v_ode, u_ode)
+    return foreach_system(semi) do system
+        f(system,
+          wrap_v(dv_ode, system, semi),
+          wrap_v(v_ode, system, semi),
+          wrap_u(u_ode, system, semi))
+    end
+end
+
 """
     semidiscretize(semi, tspan; reset_threads=true)
 
@@ -211,13 +237,18 @@ function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
 
     # Check that all systems have the same eltype
-    @assert all(system -> eltype(system) === eltype(systems[1]), systems)
-    ELTYPE = eltype(systems[1])
+    first_system = first(systems)
+    if !all(system -> eltype(system) === eltype(first_system), systems)
+        throw(ArgumentError("all systems must use the same eltype"))
+    end
+    ELTYPE = eltype(first_system)
 
     # Check that all systems have the same coordinates eltype
-    @assert all(system -> coordinates_eltype(system) === coordinates_eltype(systems[1]),
-                systems)
-    cELTYPE = coordinates_eltype(systems[1])
+    if !all(system -> coordinates_eltype(system) === coordinates_eltype(first_system),
+            systems)
+        throw(ArgumentError("all systems must use the same coordinates eltype"))
+    end
+    cELTYPE = coordinates_eltype(first_system)
 
     # Optionally reset Polyester.jl threads. See
     # https://github.com/trixi-framework/Trixi.jl/issues/1583
@@ -248,10 +279,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system(semi) do system
-        u0_system = wrap_u(u0_ode, system, semi)
-        v0_system = wrap_v(v0_ode, system, semi)
-
+    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
         write_u0!(u0_system, system)
         write_v0!(v0_system, system)
     end
@@ -318,10 +346,8 @@ function restart_with!(semi, sol; reset_threads=true)
 
     initialize_neighborhood_searches!(semi)
 
-    foreach_system(semi) do system
-        v = wrap_v(sol.u[end].x[1], system, semi)
-        u = wrap_u(sol.u[end].x[2], system, semi)
-
+    v_ode, u_ode = sol.u[end].x
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         restart_with!(system, v, u)
     end
 
@@ -338,8 +364,12 @@ end
 
     range = ranges_v[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) ==
-                         v_nvariables(system) * n_integrated_particles(system)
+    @boundscheck begin
+        expected = v_nvariables(system) * n_integrated_particles(system)
+        range_length = length(range)
+        range_length == expected ||
+            throw(DimensionMismatch("v range length $range_length does not match expected $expected"))
+    end
 
     return wrap_array(v_ode, range,
                       (StaticInt(v_nvariables(system)), n_integrated_particles(system)))
@@ -350,8 +380,12 @@ end
 
     range = ranges_u[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) ==
-                         u_nvariables(system) * n_integrated_particles(system)
+    @boundscheck begin
+        expected = u_nvariables(system) * n_integrated_particles(system)
+        range_length = length(range)
+        range_length == expected ||
+            throw(DimensionMismatch("u range length $range_length does not match expected $expected"))
+    end
 
     return wrap_array(u_ode, range,
                       (StaticInt(u_nvariables(system)), n_integrated_particles(system)))
@@ -364,7 +398,8 @@ end
 end
 
 @inline function wrap_array(array::ThreadedBroadcastArray, range, size)
-    return ThreadedBroadcastArray(wrap_array(parent(array), range, size))
+    return ThreadedBroadcastArray(wrap_array(parent(array), range, size);
+                                  parallelization_backend=array.parallelization_backend)
 end
 
 @inline function wrap_array(array, range, size)
@@ -398,10 +433,8 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
 
         @trixi_timeit timer() "velocity" begin
             # Set velocity and add acceleration for each system
-            foreach_system(semi) do system
+              foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
                 du = wrap_u(du_ode, system, semi)
-                v = wrap_v(v_ode, system, semi)
-                u = wrap_u(u_ode, system, semi)
 
                 @threaded semi for particle in each_integrated_particle(system)
                     # This can be dispatched per system
@@ -469,58 +502,60 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
-# Update the systems and neighborhood searches (NHS) for a simulation
-# before calling `interact!` to compute forces.
-function update_systems_and_nhs(v_ode, u_ode, semi, t)
+# Update the systems for a simulation before calling `interact!` to compute forces.
+function update_systems!(v_ode, u_ode, semi, t;
+                         update_nhs=true,
+                         update_boundary_interpolation=true,
+                         update_inter_system=true)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Update NHS
-    @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
+    if update_nhs
+        @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
+    end
 
     # Second update step.
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    update_implicit_sph!(semi, v_ode, u_ode, t)
+    if update_inter_system
+        update_inter_system_quantities!(semi, v_ode, u_ode, t)
+    end
 
     # Perform correction and pressure calculation
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # This update depends on the computed quantities of the fluid system and therefore
     # needs to be after `update_quantities!`.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
-        update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    if update_boundary_interpolation
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+        end
     end
 
     # Final update step for all remaining systems
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
+end
+
+# Update the systems and neighborhood searches (NHS) for a simulation
+# before calling `interact!` to compute forces.
+function update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems!(v_ode, u_ode, semi, t;
+                    update_nhs=true,
+                    update_boundary_interpolation=true,
+                    update_inter_system=true)
 end
 
 # The `SplitIntegrationCallback` overwrites `semi_wrap` to use a different
@@ -528,11 +563,7 @@ end
 # TODO `semi` is not used yet, but will be used when the source terms API is modified
 # to match the custom quantities API.
 function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
-    foreach_system(semi_wrap) do system
-        dv = wrap_v(dv_ode, system, semi_wrap)
-        v = wrap_v(v_ode, system, semi_wrap)
-        u = wrap_u(u_ode, system, semi_wrap)
-
+    foreach_system_wrapped(semi, dv_ode, v_ode, u_ode) do system, dv, v, u
         @threaded semi for particle in each_integrated_particle(system)
             # Dispatch by system type to exclude boundary systems.
             # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
@@ -708,98 +739,6 @@ function check_system_color(systems)
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
             throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
         end
-    end
-end
-
-function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
-    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
-        foreach_system(systems) do neighbor
-            if neighbor isa AbstractFluidSystem &&
-               isnothing(fluid_system.surface_tension) &&
-               isnothing(fluid_system.surface_normal_method)
-                throw(ArgumentError("either none or all fluid systems in a simulation need " *
-                                    "to use a surface tension model or a surface normal method."))
-            end
-        end
-    end
-end
-
-function check_configuration(system::WallBoundarySystem, systems, nhs)
-    (; boundary_model) = system
-
-    foreach_system(systems) do neighbor
-        if neighbor isa WeaklyCompressibleSPHSystem &&
-           boundary_model isa BoundaryModelDummyParticles &&
-           isnothing(boundary_model.state_equation)
-            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
-                                "setting a `state_equation` for all boundary models"))
-        end
-    end
-end
-
-function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
-    (; boundary_model) = system
-
-    if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
-        throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *
-                            "self-interaction neighborhood search must be the same " *
-                            "as of the global neighborhood search."))
-    end
-
-    foreach_system(systems) do neighbor
-        if neighbor isa AbstractFluidSystem && boundary_model === nothing
-            throw(ArgumentError("a boundary model for `TotalLagrangianSPHSystem` must be " *
-                                "specified when simulating a fluid-structure interaction."))
-        end
-    end
-
-    if boundary_model isa BoundaryModelDummyParticles &&
-       boundary_model.density_calculator isa ContinuityDensity
-        throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
-                            "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
-    end
-end
-
-function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
-    (; time_step, omega) = system
-    foreach_system(systems) do neighbor
-        if neighbor isa WeaklyCompressibleSPHSystem
-            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
-            `WeaklyCompressibleSPHSystem`"))
-        end
-        if neighbor isa WallBoundarySystem
-            if (neighbor.boundary_model isa BoundaryModelDummyParticles &&
-                neighbor.boundary_model.density_calculator isa PressureBoundaries)
-                time_step_boundary = neighbor.boundary_model.density_calculator.time_step
-                omega_boundary = neighbor.boundary_model.density_calculator.omega
-                if !(time_step==time_step_boundary && omega==omega_boundary)
-                    throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
-                    `ImplicitIncompressibleSPHSystem` parameters"))
-                end
-            end
-        end
-    end
-end
-
-function check_configuration(system::OpenBoundarySystem, systems,
-                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
-    (; boundary_model, boundary_zones) = system
-
-    # Store index of the fluid system. This is necessary for re-linking
-    # in case we use Adapt.jl to create a new semidiscretization.
-    fluid_system_index = findfirst(==(system.fluid_system), systems)
-    system.fluid_system_index[] = fluid_system_index
-
-    if boundary_model isa BoundaryModelCharacteristicsLastiwka &&
-       any(zone -> isnothing(zone.flow_direction), boundary_zones)
-        throw(ArgumentError("`BoundaryModelCharacteristicsLastiwka` needs a specific flow direction. " *
-                            "Please specify `InFlow()` and `OutFlow()`."))
-    end
-
-    if first(PointNeighbors.requires_update(neighborhood_search))
-        throw(ArgumentError("`OpenBoundarySystem` requires a neighborhood search " *
-                            "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
-                            "See the PointNeighbors.jl documentation for more details."))
     end
 end
 
