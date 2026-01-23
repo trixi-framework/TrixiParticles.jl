@@ -29,16 +29,15 @@ y_deflection(system, v, u, semi, t) = nothing
 # ============================================================================
 # Run Simulations and Compute Errors
 # ============================================================================
-errors = Dict{String, Tuple{Float64, Float64}}()
-
-for method in ["edac", "wcsph"]
-    pp_filename = "validation_result_hyd_" * method * "_" * string(n_particles_plate_y)
+function run_simulation(method; n_particles_plate_y, tspan)
+    method_label = String(method.name)
+    pp_filename = "validation_result_hyd_" * method_label * "_" * string(n_particles_plate_y)
     pp = PostprocessCallback(; dt=0.0025, filename=pp_filename, y_deflection,
                              kinetic_energy)
 
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fsi", "hydrostatic_water_column_2d.jl"),
-                  use_edac=(method == "edac" ? true : false),
+                  use_edac=method.use_edac,
                   n_particles_plate_y=n_particles_plate_y,
                   update_strategy=SerialUpdate(),
                   dt=0.5,
@@ -49,6 +48,20 @@ for method in ["edac", "wcsph"]
 
     sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, abstol=1e-7, maxiters=1e6,
                 save_everystep=false, callback=callbacks)
+
+    return pp_filename, sol
+end
+
+methods = (
+    (name=:edac, use_edac=true),
+    (name=:wcsph, use_edac=false),
+)
+errors = Dict{Symbol, Tuple{Float64, Float64}}()
+
+for method in methods
+    pp_filename, _ = run_simulation(method;
+                                    n_particles_plate_y=n_particles_plate_y,
+                                    tspan=tspan)
 
     # Load the run JSON file and add the analytical solution as a single point
     run_filename = joinpath("out", pp_filename * ".json")
@@ -77,7 +90,7 @@ for method in ["edac", "wcsph"]
     avg_sim = sum(sim_vals[inds]) / length(sim_vals[inds])
     abs_error = abs(avg_sim - analytical_value)
     rel_error = abs_error / abs(analytical_value)
-    errors[method] = (abs_error, rel_error)
+    errors[method.name] = (abs_error, rel_error)
 end
 
 println("Errors for hydrostatic water column 2D:", errors)
