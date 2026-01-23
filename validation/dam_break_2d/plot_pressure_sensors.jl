@@ -11,9 +11,9 @@ using Glob
 using Printf
 
 # Set to save figures as SVG
-save_figures = false
+save_figures = true
 # Set to true to include simulation results in the `out` folder (if available)
-include_sim_results = false
+include_sim_results = true
 
 # Initial width of the fluid
 H = 0.6
@@ -26,8 +26,8 @@ case_dir = joinpath(validation_dir(), "dam_break_2d")
 
 edac_reference_files = joinpath.(case_dir,
                                  [
-                                     "validation_reference_edac_40.json",
-                                     "validation_reference_edac_80.json",
+                                    #  "validation_reference_edac_40.json",
+                                    #  "validation_reference_edac_80.json",
                                      "validation_reference_edac_400.json"
                                  ])
 edac_sim_files = include_sim_results ?
@@ -38,8 +38,8 @@ edac_files = sort(merged_files, by=extract_number_from_filename)
 
 wcsph_reference_files = joinpath.(case_dir,
                                   [
-                                      "validation_reference_wcsph_40.json",
-                                      "validation_reference_wcsph_80.json",
+                                    #   "validation_reference_wcsph_40.json",
+                                    #   "validation_reference_wcsph_80.json",
                                       "validation_reference_wcsph_400.json"
                                   ])
 wcsph_sim_files = include_sim_results ?
@@ -81,6 +81,9 @@ function plot_sensor_results(axs, files)
                       normalization_factor_pressure
         label_prefix = occursin("reference", json_file) ? "TrixiParticles " : ""
         res = extract_number_from_filename(json_file)
+        if res < 400
+            continue
+        end
 
         lines!(axs[1], t, pressure_P1; label="$label_prefix H/$res",
                color=idx, colormap=:tab10, colorrange=(1, 10))
@@ -100,7 +103,7 @@ axs_edac = [Axis(fig_sensors[1, i], title="Sensor P$i (EDAC)")
 axs_wcsph = [Axis(fig_sensors[3, i], title="Sensor P$i (WCSPH)")
              for i in 1:n_sensors]
 
-function plot_reference(ax, time, data, label, color=:red, linestyle=:solid, linewidth=3)
+function plot_reference(ax, time, data, label, color=:red, linestyle=:solid, linewidth=2)
     lines!(ax, time, data; color, linestyle, linewidth, label)
 end
 
