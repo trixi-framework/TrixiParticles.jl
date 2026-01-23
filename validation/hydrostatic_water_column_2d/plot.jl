@@ -82,9 +82,9 @@ function compute_errors(json_file)
     return res_val, abs_err, rel_err
 end
 
-edac_resolution = Float64[];
-edac_abs_err = Float64[];
-edac_rel_err = Float64[];
+edac_resolution = Float64[]
+edac_abs_err = Float64[]
+edac_rel_err = Float64[]
 for file in edac_files
     res_val, abs_err, rel_err = compute_errors(file)
     push!(edac_resolution, res_val !== missing ? res_val : length(edac_resolution) + 1.0)
@@ -92,9 +92,9 @@ for file in edac_files
     push!(edac_rel_err, rel_err)
 end
 
-wcsph_res = Float64[];
-wcsph_abs_err = Float64[];
-wcsph_rel_err = Float64[];
+wcsph_res = Float64[]
+wcsph_abs_err = Float64[]
+wcsph_rel_err = Float64[]
 for file in wcsph_files
     res_val, abs_err, rel_err = compute_errors(file)
     push!(wcsph_res, res_val !== missing ? res_val : length(wcsph_res) + 1.0)
