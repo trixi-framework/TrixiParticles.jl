@@ -673,3 +673,25 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
 
     return system
 end
+
+function check_configuration(system::OpenBoundarySystem, systems,
+                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
+    (; boundary_model, boundary_zones) = system
+
+    # Store index of the fluid system. This is necessary for re-linking
+    # in case we use Adapt.jl to create a new semidiscretization.
+    fluid_system_index = findfirst(==(system.fluid_system), systems)
+    system.fluid_system_index[] = fluid_system_index
+
+    if boundary_model isa BoundaryModelCharacteristicsLastiwka &&
+       any(zone -> isnothing(zone.flow_direction), boundary_zones)
+        throw(ArgumentError("`BoundaryModelCharacteristicsLastiwka` needs a specific flow direction. " *
+                            "Please specify `InFlow()` and `OutFlow()`."))
+    end
+
+    if first(PointNeighbors.requires_update(neighborhood_search))
+        throw(ArgumentError("`OpenBoundarySystem` requires a neighborhood search " *
+                            "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
+                            "See the PointNeighbors.jl documentation for more details."))
+    end
+end
