@@ -53,14 +53,16 @@ n_particles_plate_x = round(Int, plate_size[1] / structure_particle_spacing + 1)
 n_particles_per_dimension = (n_particles_plate_x, n_particles_plate_y)
 
 plate = RectangularShape(structure_particle_spacing, n_particles_per_dimension,
-                         (0.0, -plate_size[2]), density=structure_density, place_on_shell=true)
+                         (0.0, -plate_size[2]), density=structure_density,
+                         place_on_shell=true)
 
 left_wall = RectangularShape(structure_particle_spacing, (3, n_particles_plate_y),
                              (-3 * structure_particle_spacing, -plate_size[2]),
                              density=structure_density, place_on_shell=true)
 right_wall = RectangularShape(structure_particle_spacing, (3, n_particles_plate_y),
                               (plate_size[1] + structure_particle_spacing,
-                               -plate_size[2]), density=structure_density, place_on_shell=true)
+                               -plate_size[2]), density=structure_density,
+                              place_on_shell=true)
 fixed_particles = union(left_wall, right_wall)
 
 structure_geometry = union(plate, fixed_particles)
@@ -74,14 +76,15 @@ smoothing_length_structure = sqrt(2) * structure_particle_spacing
 smoothing_length_fluid = sqrt(2) * fluid_particle_spacing
 
 hydrodynamic_densities = fluid_density * ones(size(structure_geometry.density))
-hydrodynamic_masses = hydrodynamic_densities * structure_particle_spacing^ndims(structure_geometry)
+hydrodynamic_masses = hydrodynamic_densities *
+                      structure_particle_spacing^ndims(structure_geometry)
 boundary_density_calculator = AdamiPressureExtrapolation()
 
 # ==========================================================================================
 # ==== Run Simulations
 state_equation = use_edac ? nothing :
-                       StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                         exponent=7, clip_negative_pressure=false)
+                 StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, (plate_size[1], 3.0),
                        min_coordinates=(0.0, fluid_particle_spacing / 2),
@@ -116,16 +119,16 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              smoothing_kernel, smoothing_length_fluid)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
-                                                   hydrodynamic_masses,
-                                                   state_equation=state_equation,
-                                                   boundary_density_calculator,
-                                                   smoothing_kernel,
-                                                   smoothing_length_structure)
+                                                       hydrodynamic_masses,
+                                                       state_equation=state_equation,
+                                                       boundary_density_calculator,
+                                                       smoothing_kernel,
+                                                       smoothing_length_structure)
 structure_system = TotalLagrangianSPHSystem(structure_geometry, smoothing_kernel,
-                                        smoothing_length_structure,
-                                        E, nu, boundary_model=boundary_model_structure,
-                                        n_clamped_particles=nparticles(fixed_particles),
-                                        acceleration=(0.0, -gravity))
+                                            smoothing_length_structure,
+                                            E, nu, boundary_model=boundary_model_structure,
+                                            n_clamped_particles=nparticles(fixed_particles),
+                                            acceleration=(0.0, -gravity))
 
 min_corner = minimum(solid_geometry.coordinates, dims=2)
 max_corner = maximum(solid_geometry.coordinates, dims=2)
