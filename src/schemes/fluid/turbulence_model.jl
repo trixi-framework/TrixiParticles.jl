@@ -18,7 +18,7 @@ end
 
 function SPSTurbulenceModelDalrymple(initial_condition;
                                      smallest_length_scale=first(initial_condition.particle_spacing),
-                                     smagorinsky_constant=0.12, isotropic_constant=6.6e-4,
+                                     smagorinsky_constant=0.12, isotropic_constant=6.6e-3,
                                      dynamic_viscosity, only_wall_shear_stress=false)
     ELTYPE = eltype(initial_condition)
     NDIMS = ndims(initial_condition)
@@ -126,8 +126,7 @@ end
 # The stress tensor formulation presented in Laha et al. (2024) and Dalrymple et al. (2006)
 # is not fully consistent and requires clarification before implementation:
 #
-# (1) The laminar viscous stress `tau_lam = 2 * mu * S`
-#     is not explicitly included in the presented stress formulation. Why?
+# (1) Why can I not just use `tau_lam = 2 * mu * S`
 #
 # (2) The isotropic SPS term reported in the paper is pressure-like and does not
 #     contribute to the wall shear stress after tangential projection. Due to
@@ -145,6 +144,9 @@ end
 #
 # (5) The relationship between equation (15) in Laha et al. and equation (10) in Dalrymple et al.
 #     is unclear. The formulations appear to be inconsistent.
+#
+# (6) Chatzoglou et al. (2025) describes "k" as "the turbulent kinetic energy per unit mass."
+#     But do not provide a formulation for it.
 #
 function calculate_stress_tensor!(system, turbulence_model, v, semi)
     (; smagorinsky_constant, isotropic_constant,
