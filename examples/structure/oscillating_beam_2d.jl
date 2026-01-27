@@ -65,12 +65,16 @@ structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothi
                                             clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity),
                                             penalty_force=nothing, viscosity=nothing,
-                                            clamped_particles_motion=nothing)
+                                            clamped_particles_motion=nothing,
+                                            self_interaction_nhs=:default)
 
 # ==========================================================================================
 # ==== Simulation
+# Note that the `neighborhood_search` passed here is not used if the simulation
+# consists of a single `TotalLagrangianSPHSystem`.
+# Instead, the neighborhood search passed to the `TotalLagrangianSPHSystem` is used.
 semi = Semidiscretization(structure_system,
-                          neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
+                          neighborhood_search=nothing,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
