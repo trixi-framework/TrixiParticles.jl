@@ -452,33 +452,8 @@ end
     ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01)
 
 Non-Newtonian viscosity model based on the Carreau–Yasuda law [Carreau (1972)](@cite Carreau1972), [Yasuda et al. (1981)](@cite Yasuda1981).
-The effective kinematic viscosity depends on the local shear-rate magnitude and smoothly transitions between a low-shear plateau and a high-shear plateau.
-This allows one to represent shear-thinning and shear-thickening behavior within the same framework.
-The effective kinematic viscosity is defined as
 
-```math
-\nu(\dot\gamma) = \nu_\infty + (\nu_0 - \nu_\infty)
-\left[ 1 + (\lambda \dot\gamma)^a \right]^{\frac{n-1}{a}}.
-```
-where
-
-- ``\nu_0``: zero-shear kinematic viscosity,
-- ``\nu_\infty``: infinite-shear kinematic viscosity,
-- ``\lambda``: time constant,
-- ``a``: Yasuda parameter,
-- ``n``: power-law index (``n < 1`` for shear-thinning, ``n > 1`` for shear-thickening),
-- ``\dot\gamma``: shear-rate magnitude.
-
-In this implementation the shear-rate magnitude is approximated per particle pair as
-``\dot\gamma \approx \frac{\lVert \mathbf{v}_{ab} \rVert}{\lVert \mathbf{r}_{ab} \rVert + \epsilon}``,
-with ``\mathbf{v}_{ab}`` the relative velocity, ``\mathbf{r}_{ab}`` the position difference,
-and ``\epsilon`` a small regularization parameter.
-
-All viscosities here are kinematic viscosities (m²/s); dynamic viscosity is obtained internally
-via ``\eta = \rho \nu``. A Newtonian fluid is recovered for ``n = 1`` and
-``\nu_0 = \nu_\infty``.
-This model is appropriate for non-Newtonian fluids (e.g. polymer solutions or
-blood-like flows) where the viscosity varies significantly with shear rate.
+See [`Viscosity`](@ref viscosity_sph) for an overview and comparison of implemented viscosity models.
 
 # Keywords
 - `nu0`:     Zero-shear kinematic viscosity.
@@ -489,35 +464,28 @@ blood-like flows) where the viscosity varies significantly with shear rate.
 - `epsilon`: Parameter to prevent singularities in the shear-rate approximation.
 """
 struct ViscosityCarreauYasuda{ELTYPE}
-    nu0    :: ELTYPE  # zero-shear kinematic viscosity
-    nu_inf :: ELTYPE  # infinite-shear kinematic viscosity
-    lambda :: ELTYPE  # time constant
-    a      :: ELTYPE  # Yasuda parameter
-    n      :: ELTYPE  # power-law index
-    epsilon:: ELTYPE  # regularization
+    nu0     :: ELTYPE  # zero-shear kinematic viscosity
+    nu_inf  :: ELTYPE  # infinite-shear kinematic viscosity
+    lambda  :: ELTYPE  # time constant
+    a       :: ELTYPE  # Yasuda parameter
+    n       :: ELTYPE  # power-law index
+    epsilon :: ELTYPE  # regularization
 end
 
-ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01) =
+function ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01)
     ViscosityCarreauYasuda(nu0, nu_inf, lambda, a, n, epsilon)
-
-@inline function carreau_yasuda_nu(viscosity::ViscosityCarreauYasuda, gamma_dot)
-    (; nu0, nu_inf, lambda, a, n) = viscosity
-    return nu_inf + (nu0 - nu_inf) *
-           (1 + (lambda * gamma_dot)^a)^((n - 1) / a)
 end
 
-@propagate_inbounds function (viscosity::ViscosityCarreauYasuda)(
-    particle_system,
-    neighbor_system,
-    v_particle_system,
-    v_neighbor_system,
-    particle, neighbor,
-    pos_diff, distance,
-    sound_speed,
-    m_a, m_b,
-    rho_a, rho_b,
-    grad_kernel,
-)
+@propagate_inbounds function (viscosity::ViscosityCarreauYasuda)(particle_system,
+                                                                 neighbor_system,
+                                                                 v_particle_system,
+                                                                 v_neighbor_system,
+                                                                 particle, neighbor,
+                                                                 pos_diff, distance,
+                                                                 sound_speed,
+                                                                 m_a, m_b,
+                                                                 rho_a, rho_b,
+                                                                 grad_kernel)
     epsilon = viscosity.epsilon
 
     smoothing_length_particle = smoothing_length(particle_system, particle)
@@ -530,7 +498,9 @@ end
 
     gamma_dot = norm(v_diff) / (distance + epsilon)
 
-    nu_eff = carreau_yasuda_nu(viscosity, gamma_dot)
+    # Compute Carreau-Yasuda effective viscosity
+    (; nu0, nu_inf, lambda, a, n) = viscosity
+    nu_eff = nu_inf + (nu0 - nu_inf) * (1 + (lambda * gamma_dot)^a)^((n - 1) / a)
     nu_a = nu_eff
     nu_b = nu_eff
 
@@ -541,4 +511,4 @@ end
 function kinematic_viscosity(system, viscosity::ViscosityCarreauYasuda,
                              smoothing_length, sound_speed)
     return viscosity.nu0
-end 
+end

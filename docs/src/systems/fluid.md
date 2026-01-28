@@ -166,11 +166,11 @@ shear-thickening fluids, such as polymer solutions or blood-like fluids.
 Instead of prescribing a single constant viscosity, the apparent viscosity
 smoothly transitions between a low-shear plateau and a high-shear plateau.
 
-This allows simulations to reproduce realistic effective viscosities over a wide
-range of deformation rates, while still using the same SPH discretization as for
-the other viscosity models. A Newtonian fluid is recovered as a special case
-when the parameters are chosen such that the viscosity becomes independent of
-the shear rate.
+In SPH, this can be incorporated by evaluating a shear-rate-dependent
+viscosity locally and using it in the standard viscous discretization. A Newtonian
+fluid is recovered as a special case when the parameters are chosen such that the
+viscosity becomes independent of the shear rate. ([Zhang et al. (2017)](@cite Zhang2017);
+[Vahabi & Sadeghy (2014)](@cite VahabiSadeghy2014)).
 
 
 ##### Mathematical Formulation

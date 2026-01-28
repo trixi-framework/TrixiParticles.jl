@@ -137,83 +137,57 @@
     end
 
     @testset verbose=true "`ViscosityCarreauYasuda`" begin
-        # ------------------------------------------------------------------
-        # 1) Newtonian limit: ViscosityCarreauYasuda should behave like
-        #    ViscosityAdami when nu0 == nu_inf and n == 1.
-        # ------------------------------------------------------------------
-        nu = 7e-3
-
-        viscosity_adami = ViscosityAdami(nu=nu)
-        viscosity_cy_newtonian = ViscosityCarreauYasuda(
-            nu0    = nu,
-            nu_inf = nu,
-            lambda = 1.0,
-            a      = 2.0,
-            n      = 1.0,
-            epsilon = 0.01,
-        )
-
-        system_adami = WeaklyCompressibleSPHSystem(
-            fluid, ContinuityDensity(),
-            state_equation, smoothing_kernel,
-            smoothing_length; viscosity=viscosity_adami,
-        )
-
-        system_cy = WeaklyCompressibleSPHSystem(
-            fluid, ContinuityDensity(),
-            state_equation, smoothing_kernel,
-            smoothing_length; viscosity=viscosity_cy_newtonian,
-        )
-
-        grad_kernel = TrixiParticles.smoothing_kernel_grad(
-            system_adami, pos_diff, distance, 1,
-        )
-
         v = fluid.velocity
+        v .= 0.0
+        v[1, 1] = v_diff[1]
+        v[2, 1] = v_diff[2]
+
         m_a = 0.01
         m_b = 0.01
 
-        v[1, 1] = v_diff[1]
-        v[2, 1] = v_diff[2]
-        v[1, 2] = 0.0
-        v[2, 2] = 0.0
+        # ------------------------------------------------------------------
+        # 1) Newtonian limit: should match the constant-viscosity behavior
+        # ------------------------------------------------------------------
+        nu = 7e-3
+        viscosity = ViscosityCarreauYasuda(nu0     = nu, 
+                                           nu_inf  = nu,
+                                           lambda  = 1.0,
+                                           a       = 2.0,
+                                           n       = 1.0,
+                                           epsilon = 0.01)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
+                                                   state_equation, smoothing_kernel,
+                                                   smoothing_length; viscosity=viscosity)
 
-        dv_adami = viscosity_adami(
-            system_adami, system_adami,
-            v, v, 1, 2, pos_diff, distance,
-            sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel,
-        )
+        grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff, 
+                                                           distance, 1)
+        dv = viscosity(system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
-        dv_cy = viscosity_cy_newtonian(
-            system_cy, system_cy,
-            v, v, 1, 2, pos_diff, distance,
-            sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel,
-        )
-
-        # In the Newtonian limit, both models should give the same viscous contribution
-        @test isapprox(dv_cy[1], dv_adami[1]; atol=6e-15)
-        @test isapprox(dv_cy[2], dv_adami[2]; atol=6e-15)
+        @test isapprox(dv[1], -1.0895602048035410e-5, atol=6e-15)
+        @test isapprox(dv[2],  3.6318673493451364e-5, atol=6e-15)
 
         # ------------------------------------------------------------------
-        # 2) Rheology helper: Carreau–Yasuda viscosity vs. shear rate
+        # 2) Shear-thinning case: fixed (precomputed) values
         # ------------------------------------------------------------------
-        viscosity_shear = ViscosityCarreauYasuda(
-            nu0    = 3.5e-6,
-            nu_inf = 1.0e-6,
-            lambda = 3.313e-2,
-            a      = 2.0,
-            n      = 0.3,
-            epsilon = 0.01,
-        )
+        viscosity = ViscosityCarreauYasuda(nu0     = 3.5e-6,
+                                           nu_inf  = 1.0e-6,
+                                           lambda  = 3.313e-2,
+                                           a       = 2.0,
+                                           n       = 0.3,
+                                           epsilon = 0.01)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
+                                                   state_equation, smoothing_kernel,
+                                                   smoothing_length; viscosity=viscosity)
 
-        nu0_val   = TrixiParticles.carreau_yasuda_nu(viscosity_shear, 0.0)
-        nu_large  = TrixiParticles.carreau_yasuda_nu(viscosity_shear, 1e6)
+        grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff, 
+                                                           distance, 1)
+        dv = viscosity(system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
-        # Zero-shear viscosity is nu0
-        @test nu0_val ≈ viscosity_shear.nu0
-
-        # At large shear, viscosity approaches nu_inf and is lower than nu0
-        @test nu_large < nu0_val
-        @test nu_large > viscosity_shear.nu_inf
+        @test isapprox(dv[1], -5.33743497379846e-9, atol=6e-15)
+        @test isapprox(dv[2],  1.7791449912661534e-8, atol=6e-15)
     end
 end
