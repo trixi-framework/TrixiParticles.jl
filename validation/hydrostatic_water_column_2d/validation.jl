@@ -41,7 +41,8 @@ y_deflection(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
 # ============================================================================
 function run_simulation(method; n_particles_plate_y, tspan)
     method_label = String(method.name)
-    pp_filename = "validation_result_hyd_" * method_label * "_" * string(n_particles_plate_y)
+    pp_filename = "validation_result_hyd_" * method_label * "_" *
+                  string(n_particles_plate_y)
     pp = PostprocessCallback(; dt=0.0025, filename=pp_filename, y_deflection,
                              kinetic_energy)
 
@@ -62,16 +63,15 @@ function run_simulation(method; n_particles_plate_y, tspan)
     return pp_filename, sol
 end
 
-methods = (
-    (name=:edac, use_edac=true),
-    (name=:wcsph, use_edac=false),
-)
+methods = ((name=:edac, use_edac=true),
+           (name=:wcsph, use_edac=false))
 errors = Dict{Symbol, Tuple{Float64, Float64}}()
 
 for method in methods
-    pp_filename, _ = run_simulation(method;
-                                    n_particles_plate_y=n_particles_plate_y,
-                                    tspan=tspan)
+    pp_filename,
+    _ = run_simulation(method;
+                       n_particles_plate_y=n_particles_plate_y,
+                       tspan=tspan)
 
     # Load the run JSON file and add the analytical solution as a single point
     run_filename = joinpath("out", pp_filename * ".json")

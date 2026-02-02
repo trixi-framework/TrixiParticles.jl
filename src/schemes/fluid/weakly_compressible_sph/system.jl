@@ -449,6 +449,10 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     return system
 end
 
+@inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
+    extract_smatrix(system.cache.correction_matrix, system, particle)
+end
+
 @inline function curvature(particle_system::AbstractFluidSystem, particle)
     (; cache) = particle_system
     return cache.curvature[particle]
