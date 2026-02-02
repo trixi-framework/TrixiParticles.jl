@@ -539,7 +539,7 @@ end
                                                                       "oscillating_beam_2d.jl"),
                                                              coordinates_eltype=Float32,
                                                              tspan=(0.0f0, 0.1f0),
-                                                             extra_callback=pp,
+                                                             saving_callback=pp,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
