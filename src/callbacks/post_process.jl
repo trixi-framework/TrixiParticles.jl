@@ -257,17 +257,17 @@ function (pp::PostprocessCallback)(integrator; from_initialize=false)
             @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
         end
 
+        # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
+        v_ode_cpu, u_ode_cpu, semi_cpu = transfer2cpu(v_ode, u_ode, semi)
+        dv_ode_cpu, du_ode_cpu = transfer2cpu(dv_ode, du_ode)
+
         foreach_system(semi) do system
             if system isa AbstractBoundarySystem && pp.exclude_boundary
                 return
             end
 
             system_index = system_indices(system, semi)
-
-            # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
-            v_ode_cpu, u_ode_cpu, system_cpu, semi_cpu = transfer2cpu(v_ode, u_ode,
-                                                                       system, semi)
-            dv_ode_cpu, du_ode_cpu = transfer2cpu(dv_ode, du_ode)
+            system_cpu = semi_cpu.systems[system_index]
 
             for (key, f) in pp.func
                 result_ = custom_quantity(f, system_cpu, dv_ode_cpu, du_ode_cpu, v_ode_cpu,
