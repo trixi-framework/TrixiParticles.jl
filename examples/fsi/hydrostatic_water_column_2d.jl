@@ -147,10 +147,13 @@ semi = Semidiscretization(structure_system, fluid_system, boundary_system,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
+split_integration = SplitIntegrationCallback(RDPK3SpFSAL49(), adaptive=true,
+                                                         dt=5e-5)
+
 # This can be overwritten with `trixi_include`
 extra_callback = nothing
 
-info_callback = InfoCallback(interval=500)
+info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.1, prefix="")
-callbacks = CallbackSet(info_callback, saving_callback, extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, split_integration, extra_callback)
 sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)

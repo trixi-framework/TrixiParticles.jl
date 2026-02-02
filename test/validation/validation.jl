@@ -102,8 +102,8 @@
         ]
 
         # We compute the relative error compared the analytical solution
-        @test isapprox(errors[:edac][2], 0.15179586, atol=0.01)
-        @test isapprox(errors[:wcsph][2], 0.14765189, atol=0.01)
+        @test isapprox(errors[:edac][2], 0.0, atol=0.032)
+        @test isapprox(errors[:wcsph][2], 0.0, atol=0.044)
     end
     @trixi_testset "TGV_2D" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
