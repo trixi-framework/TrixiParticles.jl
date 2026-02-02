@@ -148,7 +148,7 @@ semi = Semidiscretization(structure_system, fluid_system, boundary_system,
 ode = semidiscretize(semi, tspan)
 
 split_integration = SplitIntegrationCallback(RDPK3SpFSAL49(), adaptive=true,
-                                                         dt=5e-5)
+                                             dt=5e-5)
 
 # This can be overwritten with `trixi_include`
 extra_callback = nothing
