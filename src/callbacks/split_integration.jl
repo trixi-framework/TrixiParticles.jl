@@ -212,7 +212,7 @@ function drift_split!(du_ode, v_ode, u_ode, p, t)
     drift!(du_ode, v_ode, u_ode, p.semi_split, t)
 end
 
-# Update the systems before calling `interact!` to compute forces.
+# Update the systems before calling `interact!` to compute forces
 function update_systems_split!(semi, v_ode, u_ode, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
