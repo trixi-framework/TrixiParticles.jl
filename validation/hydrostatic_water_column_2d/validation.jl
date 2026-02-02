@@ -19,7 +19,7 @@ using JSON
 # n_particles_plate_y = 11: ~10h
 # n_particles_plate_y = 13: ~15h
 
-n_particles_plate_y = 5
+n_particles_plate_y = 3
 
 # For better results this should be increased to at least 0.5
 tspan=(0.0, 0.3)
