@@ -170,7 +170,7 @@ function (solution_callback::SolutionSavingCallback)(integrator; from_initialize
                 @notimeit timer() dvdu_ode = get_du(integrator)
             end
         end
-        semi = integrator.p
+        semi = integrator.p.semi
         iter = get_iter(interval, integrator)
 
         if iter == latest_saved_iter
