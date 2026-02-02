@@ -532,7 +532,7 @@ end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with PostprocessCallback" begin
             pp = PostprocessCallback(; interval=5, kinetic_energy, total_mass,
-                                    write_file_interval=0)
+                                     write_file_interval=0)
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
                                                                       "structure",
@@ -549,7 +549,7 @@ end
             @test backend == Main.parallelization_backend
             # Check that the postprocess callback was called and computed values
             @test !isempty(pp.func)
-            @test length(pp.times) > 0
+            @test !isempty(pp.times)
         end
     end
 
