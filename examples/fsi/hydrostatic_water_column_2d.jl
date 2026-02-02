@@ -72,7 +72,6 @@ structure_geometry = union(plate, fixed_particles)
 smoothing_kernel = WendlandC2Kernel{2}()
 smoothing_length_structure = sqrt(2) * structure_particle_spacing
 
-# Note: Setting this to something else than the structure particle spacing results in a larger error
 smoothing_length_fluid = sqrt(2) * fluid_particle_spacing
 
 hydrodynamic_densities = fluid_density * ones(size(structure_geometry.density))
