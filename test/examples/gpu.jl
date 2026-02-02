@@ -548,8 +548,8 @@ end
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
             # Check that the postprocess callback was called and computed values
-            @test !isempty(pp.func)
-            @test !isempty(pp.times)
+            @test !isempty(pp.affect!.func)
+            @test !isempty(pp.affect!.times)
         end
     end
 
