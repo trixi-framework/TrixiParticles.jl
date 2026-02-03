@@ -223,7 +223,7 @@ function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_p
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
-function create_cache_model(initial_density,
+function create_cache_model(initial_density::AbstractVector,
                             ::Union{SummationDensity, PressureMirroring, PressureZeroing},
                             NDIMS)
     density = copy(initial_density)
@@ -231,7 +231,7 @@ function create_cache_model(initial_density,
     return (; density)
 end
 
-function create_cache_model(initial_density,
+function create_cache_model(initial_density::AbstractVector,
                             density_calculator::PressureBoundaries, NDIMS)
     ELTYPE = eltype(initial_density)
     n_particles = size(initial_density, 1)
@@ -253,11 +253,11 @@ function create_cache_model(initial_density,
             omega, time_step, density_error)
 end
 
-function create_cache_model(initial_density, ::ContinuityDensity, NDIMS)
+function create_cache_model(initial_density::AbstractVector, ::ContinuityDensity, NDIMS)
     return (; initial_density)
 end
 
-function create_cache_model(initial_density,
+function create_cache_model(initial_density::AbstractVector,
                             ::Union{AdamiPressureExtrapolation,
                                     BernoulliPressureExtrapolation}, NDIMS)
     density = copy(initial_density)
