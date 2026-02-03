@@ -3,8 +3,7 @@
 # By default, loop over `eachparticle(system)`.
 function PointNeighbors.foreach_point_neighbor(f, system::AbstractSystem,
                                                neighbor_system::AbstractSystem,
-                                               system_coords, neighbor_coords,
-                                               semi::Semidiscretization;
+                                               system_coords, neighbor_coords, semi;
                                                points=eachparticle(system),
                                                parallelization_backend=semi.parallelization_backend)
     neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
