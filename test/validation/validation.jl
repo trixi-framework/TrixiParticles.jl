@@ -100,6 +100,9 @@
             r"┌ Info: The desired tank length in y-direction.*\n",
             r"└ New tank length in y-direction is set to.*\n",
             r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
+            r"│   caller = ip:0x0\n",
+            r"└ @ Core :-1\n",
+            r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
 
         # We compare the relative error to the analytical solution
