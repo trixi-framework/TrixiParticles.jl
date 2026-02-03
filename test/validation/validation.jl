@@ -100,7 +100,7 @@
             r"┌ Info: The desired tank length in y-direction.*\n",
             r"└ New tank length in y-direction is set to.*\n",
             r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
-``        ]
+            ]
 
         # We compare the relative error to the analytical solution
         @test isapprox(errors[:edac][2], 0.0, atol=0.032)
