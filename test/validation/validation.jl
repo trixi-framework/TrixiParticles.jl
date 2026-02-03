@@ -97,8 +97,7 @@
                                          joinpath(validation_dir(),
                                                   "hydrostatic_water_column_2d",
                                                   "validation.jl")) [
-            r"┌ Info: The desired tank length in y-direction.*\n",
-            r"└ New tank length in y-direction is set to.*\n"
+            r"(?:┌ Info: The desired tank length in y-direction.*\n└ New tank length in y-direction is set to.*\n|┌ Warning: keyword `n_clamped_particles` is deprecated.*\n|\[ Info: To create the self-interaction neighborhood search.*\n)"
         ]
 
         # We compute the relative error compared the analytical solution
