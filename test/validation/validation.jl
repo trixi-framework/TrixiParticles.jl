@@ -103,7 +103,7 @@
             r"│   caller = ip:0x0\n",
             r"└ @ Core :-1\n",
             r"\[ Info: To create the self-interaction neighborhood search.*\n"
-            ]
+        ]
 
         # We compare the relative error to the analytical solution
         @test isapprox(errors[:edac][2], 0.0, atol=0.032)
