@@ -80,5 +80,16 @@ end
     return get_neighborhood_search(system, system, semi)
 end
 
+# Test-only wrapper matching the package behavior for `DummySemidiscretization`.
+function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
+                                               system_coords, neighbor_coords,
+                                               semi::DummySemidiscretization;
+                                               points=eachparticle(system),
+                                               parallelization_backend=semi.parallelization_backend)
+    neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
+    foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
+                           points, parallelization_backend)
+end
+
 include("count_allocations.jl")
 include("rectangular_patch.jl")
