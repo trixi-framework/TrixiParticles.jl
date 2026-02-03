@@ -545,6 +545,9 @@ function write_v0!(v0, system::TotalLagrangianSPHSystem)
     return v0
 end
 
+write_v0!(v0, system::AbstractFluidSystem, ::TotalLagrangianSPHSystem) = v0
+write_v0!(v0, system::OpenBoundarySystem, ::TotalLagrangianSPHSystem) = v0
+
 function write_v0!(v0, model, system::TotalLagrangianSPHSystem)
     return v0
 end

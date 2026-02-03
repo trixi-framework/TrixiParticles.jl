@@ -543,7 +543,6 @@ function write_v0!(v0, system::OpenBoundarySystem)
 end
 
 write_v0!(v0, system::OpenBoundarySystem, boundary_model) = v0
-write_v0!(v0, system::OpenBoundarySystem, ::AbstractStructureSystem) = v0
 
 function write_u0!(u0, system::OpenBoundarySystem)
     (; initial_condition) = system

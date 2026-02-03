@@ -97,7 +97,6 @@ function write_v0!(v0, system::AbstractFluidSystem)
 end
 
 write_v0!(v0, system::AbstractFluidSystem, _) = v0
-write_v0!(v0, system::AbstractFluidSystem, ::AbstractStructureSystem) = v0
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
 # of the neighboring particle systems.
