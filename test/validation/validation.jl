@@ -102,7 +102,7 @@
             r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
 ``        ]
 
-        # We compute the relative error compared the analytical solution
+        # We compare the relative error to the analytical solution
         @test isapprox(errors[:edac][2], 0.0, atol=0.032)
         @test isapprox(errors[:wcsph][2], 0.0, atol=0.044)
     end
