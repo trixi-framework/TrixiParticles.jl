@@ -21,6 +21,10 @@ a fixed interval of simulation time (`dt`).
                 system with `available_data(system)`.
                 See [Custom Quantities](@ref custom_quantities)
                 for a list of pre-defined custom quantities that can be used here.
+                **Note:** When using GPU backends, all data is automatically transferred
+                to the CPU before being passed to the custom quantity functions. This
+                ensures compatibility but may introduce overhead for frequent callbacks
+                on large simulations.
 - `interval=0`: Specifies the number of time steps between each invocation of the callback.
                 If set to `0`, the callback will not be triggered based on time steps.
                 Either `interval` or `dt` must be set to something larger than 0.
