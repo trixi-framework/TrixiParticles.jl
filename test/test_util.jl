@@ -86,7 +86,7 @@ end
                                                points=TrixiParticles.eachparticle(system),
                                                parallelization_backend=semi.parallelization_backend)
     neighborhood_search = TrixiParticles.get_neighborhood_search(system, neighbor_system,
-                                                                  semi)
+                                                                 semi)
     PointNeighbors.foreach_point_neighbor(f, system_coords, neighbor_coords,
                                           neighborhood_search;
                                           points, parallelization_backend)

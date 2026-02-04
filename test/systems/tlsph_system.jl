@@ -181,8 +181,7 @@
                                                         ::Val{:mock_system_tensor})
                     return Inf
                 end
-                TrixiParticles.eachparticle(system::Val{:mock_system_tensor}) =
-                    Base.OneTo(TrixiParticles.nparticles(system))
+                TrixiParticles.eachparticle(system::Val{:mock_system_tensor}) = Base.OneTo(TrixiParticles.nparticles(system))
 
                 Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
