@@ -453,7 +453,7 @@ end
 
 Non-Newtonian viscosity model based on the Carreau–Yasuda law [Carreau (1972)](@cite Carreau1972), [Yasuda et al. (1981)](@cite Yasuda1981).
 
-See [`Viscosity`](@ref viscosity_sph) for an overview and comparison of implemented viscosity models.
+See [the docs on viscosity](@ref viscosity_sph) for an overview and comparison of implemented viscosity models.
 
 # Keywords
 - `nu0`:     Zero-shear kinematic viscosity.
