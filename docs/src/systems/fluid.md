@@ -157,7 +157,6 @@ with the dynamic viscosity of each particle given by `` \eta_a = \rho_a \nu_a ``
 
 #### ViscosityCarreauYasuda
 
-
 `ViscosityCarreauYasuda` implements the Carreau–Yasuda non-Newtonian viscosity model,
 originally proposed by [Carreau (1972)](@cite Carreau1972) and extended by
 [Yasuda et al. (1981)](@cite Yasuda1981). In this model, the kinematic viscosity
