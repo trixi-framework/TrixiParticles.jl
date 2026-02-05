@@ -9,7 +9,7 @@ function system_names(systems)
 end
 
 """
-    trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
+    trixi2vtk(vu_ode, semi, t; iter=-1, output_directory="out", prefix="",
               max_coordinates=Inf, custom_quantities...)
 
 Convert Trixi simulation data to VTK format.
@@ -21,8 +21,9 @@ Convert Trixi simulation data to VTK format.
 - `t`:      Current time of the simulation.
 
 # Keywords
-- `iter=nothing`:           Iteration number when multiple iterations are to be stored in
+- `iter=-1`:                Iteration number when multiple iterations are to be stored in
                             separate files. This number is just appended to the filename.
+                            If `-1`, no iteration number is appended (default).
 - `output_directory="out"`: Output directory path.
 - `prefix=""`:              Prefix for output files.
 - `max_coordinates=Inf`     The coordinates of particles will be clipped if their absolute
@@ -47,7 +48,7 @@ trixi2vtk(sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
 
 ```
 """
-function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
+function trixi2vtk(vu_ode, semi, t; iter=-1, output_directory="out",
                    prefix="", git_hash=compute_git_hash(), max_coordinates=Inf,
                    custom_quantities...)
 
@@ -58,7 +59,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
                      prefix, git_hash, max_coordinates, custom_quantities...)
 end
 
-function trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, output_directory="out",
+function trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=-1, output_directory="out",
                    prefix="", git_hash=compute_git_hash(), max_coordinates=Inf,
                    custom_quantities...)
     (; systems) = semi
@@ -85,7 +86,7 @@ end
 
 # Convert data for a single TrixiParticle system to VTK format
 function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
-                   output_directory="out", prefix="", iter=nothing,
+                   output_directory="out", prefix="", iter=-1,
                    system_name=vtkname(system_), max_coordinates=Inf,
                    git_hash=compute_git_hash(), custom_quantities...)
     mkpath(output_directory)
@@ -103,9 +104,9 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    file = joinpath(output_directory,
-                    add_underscore_to_optional_prefix(prefix) * "$system_name"
-                    * add_underscore_to_optional_postfix(iter))
+    file_ = joinpath(output_directory,
+                     add_underscore_to_optional_prefix(prefix) * "$system_name")
+    file = iter < 0 ? file_ : file_ * add_underscore_to_optional_postfix(iter)
 
     collection_file = joinpath(output_directory,
                                add_underscore_to_optional_prefix(prefix) * "$system_name")
