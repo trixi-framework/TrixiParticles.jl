@@ -42,7 +42,9 @@
     @testset verbose=true "Check Configuration" begin
         @testset verbose=true "Structure-Fluid Interaction" begin
             # Mock boundary model
-            struct BoundaryModelMock end
+            struct BoundaryModelMock
+                hydrodynamic_mass::Any
+            end
 
             # Mock fluid system
             struct FluidSystemMock <: TrixiParticles.AbstractFluidSystem{2}
@@ -58,11 +60,12 @@
                                   density=[1.0, 1.0])
 
             fluid_system = FluidSystemMock()
-            model_a = BoundaryModelMock()
-            model_b = BoundaryModelDummyParticles([1.0], [1.0], ContinuityDensity(), kernel,
-                                                  1.0)
+            model_a = BoundaryModelMock(zeros(2))
+            model_b = BoundaryModelDummyParticles([1.0, 1.0], [1.0, 1.0],
+                                                  ContinuityDensity(), kernel, 1.0)
+            model_c = BoundaryModelMock(zeros(3))
 
-            # FSI without boundary model.
+            # FSI without boundary model
             structure_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
 
             error_str = "a boundary model for `TotalLagrangianSPHSystem` must be " *
@@ -89,6 +92,16 @@
             error_str = "`BoundaryModelDummyParticles` with density calculator " *
                         "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
             @test_throws ArgumentError(error_str) Semidiscretization(structure_system3,
+                                                                     fluid_system,
+                                                                     neighborhood_search=nothing)
+
+            # FSI with wrong boundary model
+            structure_system4 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+                                                         boundary_model=model_c)
+
+            error_str = "the boundary model was initialized with 3 particles, " *
+                        "but the `TotalLagrangianSPHSystem` has 2 particles."
+            @test_throws ArgumentError(error_str) Semidiscretization(structure_system4,
                                                                      fluid_system,
                                                                      neighborhood_search=nothing)
         end
