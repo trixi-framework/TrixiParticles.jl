@@ -397,17 +397,25 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; current_coordinates, clamped_particles_motion) = system
+    (; clamped_particles_motion) = system
 
-    # `current_coordinates` stores the coordinates of both integrated and clamped particles.
-    # Copy the coordinates of the integrated particles from `u`.
+    @trixi_timeit timer() "update TLSPH positions" update_tlsph_positions!(system, u, semi)
+
+    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+end
+
+# `current_coordinates` stores the coordinates of both integrated and clamped particles.
+# Copy the coordinates of the integrated particles from `u`.
+function update_tlsph_positions!(system::TotalLagrangianSPHSystem, u, semi)
+    (; current_coordinates) = system
+
     @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
-            current_coordinates[i, particle] = u[i, particle]
+            @inbounds current_coordinates[i, particle] = u[i, particle]
         end
     end
 
-    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+    return system
 end
 
 function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
@@ -415,8 +423,10 @@ function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
     (; clamped_particles_moving, current_coordinates, cache) = system
     (; acceleration, velocity) = cache
 
-    prescribed_motion(current_coordinates, velocity, acceleration, clamped_particles_moving,
-                      system, semi, t)
+    @trixi_timeit timer() "apply prescribed motion" begin
+        prescribed_motion(current_coordinates, velocity, acceleration,
+                          clamped_particles_moving, system, semi, t)
+    end
 
     return system
 end
@@ -624,6 +634,23 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
     end
 
     return cauchy_stress_tensors
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, system::TotalLagrangianSPHSystem, semi)
+    # TODO variable smoothing length
+    smoothing_length_ = initial_smoothing_length(system)
+
+    # Compute bulk modulus from Young's modulus and Poisson's ratio.
+    # See the table at the end of https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
+    # TODO Should we compute the sound speed per particle and then use the maximum?
+    E = maximum(system.young_modulus)
+    K = E / (ndims(system) * (1 - 2 * maximum(system.poisson_ratio)))
+
+    # Newton–Laplace equation
+    sound_speed = sqrt(K / minimum(system.material_density))
+
+    # According to Eq. 19 in Sun et al. (2021) "An accurate FSI-SPH modeling..."
+    return cfl_number * smoothing_length_ / sound_speed
 end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model
