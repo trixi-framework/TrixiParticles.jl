@@ -439,7 +439,7 @@ end
 function calculate_sphere_normals(coordinates::Matrix{T}, center_position,
                                   radius, ::Val{NDIMS}) where {T, NDIMS}
     n_points = size(coordinates, 2)
-    normals = zero(coordinates)
+    normals = zeros(T, NDIMS, n_points)
 
     threshold = eps(radius)
     for i in axes(coordinates, 2)

@@ -156,8 +156,9 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
         fluid_size_ = check_tank_overlap(fluid_size_, tank_size_,
                                          particle_spacing, n_particles_per_dim)
 
-        normals = calculate_normals(boundary_coordinates, boundary_spacing,
-                                    face_indices, boundary_indices, faces)
+        normals = zeros(ELTYPE, size(boundary_coordinates))
+        calculate_normals!(normals, boundary_coordinates, boundary_spacing,
+                           face_indices, boundary_indices, faces)
 
         boundary = InitialCondition(coordinates=boundary_coordinates,
                                     velocity=boundary_velocities,
@@ -198,19 +199,18 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
     end
 end
 
-function calculate_normals(boundary_coordinates, boundary_spacing,
-                           face_indices, boundary_indices, faces)
-    _calculate_normals(boundary_coordinates, boundary_spacing, face_indices,
-                       boundary_indices,
-                       faces,
-                       Val(size(boundary_coordinates, 1)))
+function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
+                            face_indices, boundary_indices, faces)
+    _calculate_normals!(normals, boundary_coordinates, boundary_spacing, face_indices,
+                        boundary_indices,
+                        faces,
+                        Val(size(boundary_coordinates, 1)))
 end
 
 # 2D
-function _calculate_normals(boundary_coordinates, boundary_spacing,
-                            face_indices, boundary_indices, faces, ::Val{2})
+function _calculate_normals!(normals, boundary_coordinates, boundary_spacing,
+                             face_indices, boundary_indices, faces, ::Val{2})
     corner_indices, = boundary_indices
-    normals = zeros(size(boundary_coordinates))
     face_indices = Tuple(vec(x) for x in face_indices)
     offset = boundary_spacing / 2
 
@@ -291,15 +291,12 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
             normals[:, idx] = boundary_coordinates[:, idx] - corner_point
         end
     end
-
-    return normals
 end
 
 # 3D
-function _calculate_normals(boundary_coordinates, boundary_spacing,
-                            face_indices, boundary_indices, faces, ::Val{3})
+function _calculate_normals!(normals, boundary_coordinates, boundary_spacing,
+                             face_indices, boundary_indices, faces, ::Val{3})
     corner_indices, edge_indices = boundary_indices
-    normals = zeros(size(boundary_coordinates))
     face_indices = Tuple(vec(x) for x in face_indices)
     offset = boundary_spacing / 2
 
@@ -409,7 +406,6 @@ function _calculate_normals(boundary_coordinates, boundary_spacing,
             @views normals[d3, idxs] .= coords[d3][idxs] .- p3
         end
     end
-    return normals
 end
 
 function round_n_particles(size, spacing, type)
