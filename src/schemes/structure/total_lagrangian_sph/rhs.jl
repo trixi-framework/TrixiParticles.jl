@@ -45,6 +45,7 @@ end
 
         current_pos_diff_ = @inbounds current_coords(system, particle) -
                                       current_coords(system, neighbor)
+        # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
         current_pos_diff = convert.(eltype(system), current_pos_diff_)
         current_distance = norm(current_pos_diff)
 
@@ -92,7 +93,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+        # Only consider particles with a distance > 0.
+        # See `src/general/smoothing_kernels.jl` for more details.
         distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
 
         # Apply the same force to the structure particle

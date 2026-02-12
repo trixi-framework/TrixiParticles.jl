@@ -6,7 +6,8 @@
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, viscosity=nothing,
-                             source_terms=nothing, boundary_model=nothing)
+                             source_terms=nothing, boundary_model=nothing,
+                             self_interaction_nhs=:default)
 
 System for particles of an elastic structure.
 
@@ -47,6 +48,19 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     (which are the quantities of a single particle), returning a `Tuple`
                     or `SVector` that is to be added to the acceleration of that particle.
                     See, for example, [`SourceTermDamping`](@ref).
+- `self_interaction_nhs`: Neighborhood search for self-interaction.
+                    Being a total Lagrangian formulation, the neighborhood search
+                    needs to find neighbors in the initial configuration only.
+                    Precomputing concrete neighbor lists is therefore much more efficient
+                    than the [`GridNeighborhoodSearch`](@ref) typically used for fluid
+                    systems. By default, a [`PrecomputedNeighborhoodSearch`](@ref) is used,
+                    which precomputes and stores the neighbor lists at initialization.
+                    This NHS is significantly faster (~2x on CPUs, up to 10x on GPUs)
+                    than the [`GridNeighborhoodSearch`](@ref).
+                    Note that when the default value is used here, the keyword argument
+                    `transpose_backend` of the [`PrecomputedNeighborhoodSearch`](@ref)
+                    is set to `true` when running on GPUs and `false` on CPUs.
+                    Alternatively, a user-defined neighborhood search can be passed here.
 
 !!! note
     If specifying the clamped particles manually (via `n_clamped_particles`),
@@ -69,7 +83,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V, ST, M, IM,
+                                YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS,
                                 C} <: AbstractStructureSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -94,6 +108,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     source_terms             :: ST
     clamped_particles_motion :: M
     clamped_particles_moving :: IM
+    self_interaction_nhs     :: NHS
     cache                    :: C
 end
 
@@ -105,7 +120,8 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                   acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
-                                  source_terms=nothing, boundary_model=nothing)
+                                  source_terms=nothing, boundary_model=nothing,
+                                  self_interaction_nhs=:default)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -180,8 +196,74 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
-                                    clamped_particles_motion, ismoving, cache)
+                                    clamped_particles_motion, ismoving,
+                                    self_interaction_nhs, cache)
 end
+
+# Initialize self-interaction neighborhood search if not provided by the user
+# (which means `self_interaction_nhs === :default`). This cannot be done in the constructor
+# because we need both the parallelization backend (to optimize the memory layout)
+# and the NHS of the `Semidiscretization` (to copy the `PeriodicBox`).
+function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
+                                         neighborhood_search, parallelization_backend)
+    periodic_box = extract_periodic_box(neighborhood_search)
+
+    if system.self_interaction_nhs === :default
+        if parallelization_backend isa KernelAbstractions.GPU
+            # On GPUs, transpose the backend for an optimized memory access pattern
+            template = PrecomputedNeighborhoodSearch{ndims(system)}(transpose_backend=true;
+                                                                    periodic_box)
+        else
+            # On CPUs, use the default configuration to optimize cache hits
+            template = PrecomputedNeighborhoodSearch{ndims(system)}(; periodic_box)
+        end
+    elseif isnothing(system.self_interaction_nhs)
+        template = TrivialNeighborhoodSearch{ndims(system)}()
+    else
+        # The user supplied a custom self-interaction neighborhood search.
+        # We don't touch this one and just return the system as is.
+        return system
+    end
+
+    # Create concrete NHS from template
+    search_radius = compact_support(system, system)
+    self_interaction_nhs = copy_neighborhood_search(template, search_radius,
+                                                    nparticles(system))
+
+    # Note that for large numbers of particles, initialization can take a while
+    PointNeighbors.initialize!(self_interaction_nhs,
+                               system.initial_coordinates, system.initial_coordinates,
+                               parallelization_backend=PolyesterBackend())
+
+    # Self-interaction only requires neighbors in the initial configuration,
+    # so the self-interaction NHS will never be updated.
+    # For the `PrecomputedNeighborhoodSearch`, "freezing" strips all data structures
+    # that are only required for updating (and not necessarily GPU-compatible)
+    self_interaction_nhs = PointNeighbors.freeze_neighborhood_search(self_interaction_nhs)
+
+    @info "To create the self-interaction neighborhood search of a " *
+          "`TotalLagrangianSPHSystem`, a deep copy of the system is created inside " *
+          "the `Semidiscretization`. Use `system = semi.systems[i]` to access " *
+          "simulation data."
+
+    return TotalLagrangianSPHSystem(system.initial_condition,
+                                    system.initial_coordinates,
+                                    system.current_coordinates, system.mass,
+                                    system.correction_matrix, system.pk1_rho2,
+                                    system.deformation_grad, system.material_density,
+                                    system.n_integrated_particles, system.young_modulus,
+                                    system.poisson_ratio, system.lame_lambda,
+                                    system.lame_mu, system.smoothing_kernel,
+                                    system.smoothing_length, system.acceleration,
+                                    system.boundary_model, system.penalty_force,
+                                    system.viscosity, system.source_terms,
+                                    system.clamped_particles_motion,
+                                    system.clamped_particles_moving,
+                                    self_interaction_nhs, system.cache)
+end
+
+extract_periodic_box(::Nothing) = nothing
+extract_periodic_box(nhs) = nhs.periodic_box
 
 create_cache_tlsph(::Nothing, initial_condition) = (;)
 
@@ -315,17 +397,25 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; current_coordinates, clamped_particles_motion) = system
+    (; clamped_particles_motion) = system
 
-    # `current_coordinates` stores the coordinates of both integrated and clamped particles.
-    # Copy the coordinates of the integrated particles from `u`.
+    @trixi_timeit timer() "update TLSPH positions" update_tlsph_positions!(system, u, semi)
+
+    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+end
+
+# `current_coordinates` stores the coordinates of both integrated and clamped particles.
+# Copy the coordinates of the integrated particles from `u`.
+function update_tlsph_positions!(system::TotalLagrangianSPHSystem, u, semi)
+    (; current_coordinates) = system
+
     @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
-            current_coordinates[i, particle] = u[i, particle]
+            @inbounds current_coordinates[i, particle] = u[i, particle]
         end
     end
 
-    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+    return system
 end
 
 function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
@@ -333,8 +423,10 @@ function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
     (; clamped_particles_moving, current_coordinates, cache) = system
     (; acceleration, velocity) = cache
 
-    prescribed_motion(current_coordinates, velocity, acceleration, clamped_particles_moving,
-                      system, semi, t)
+    @trixi_timeit timer() "apply prescribed motion" begin
+        prescribed_motion(current_coordinates, velocity, acceleration,
+                          clamped_particles_moving, system, semi, t)
+    end
 
     return system
 end
@@ -364,9 +456,10 @@ end
     calc_deformation_grad!(deformation_grad, system, semi)
 
     @threaded semi for particle in eachparticle(system)
-        pk1_particle = pk1_stress_tensor(system, particle)
-        pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
-        rho2_inv = 1 / material_density[particle]^2
+        pk1_particle = @inbounds pk1_stress_tensor(system, particle)
+        pk1_particle_corrected = pk1_particle *
+                                 @inbounds correction_matrix(system, particle)
+        rho2_inv = 1 / @inbounds material_density[particle]^2
 
         for j in 1:ndims(system), i in 1:ndims(system)
             # Precompute PK1 / rho^2 to avoid repeated divisions in the interaction loop
@@ -381,26 +474,30 @@ end
     # Reset deformation gradient
     set_zero!(deformation_grad)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
                            semi) do particle, neighbor, initial_pos_diff, initial_distance
-        # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
+        # Only consider particles with a distance > 0.
+        # See `src/general/smoothing_kernels.jl` for more details.
         initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
 
-        volume = mass[neighbor] / material_density[neighbor]
-        pos_diff = current_coords(system, particle) - current_coords(system, neighbor)
+        volume = @inbounds mass[neighbor] / material_density[neighbor]
+        pos_diff_ = @inbounds current_coords(system, particle) -
+                              current_coords(system, neighbor)
+        # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
+        pos_diff = convert.(eltype(system), pos_diff_)
 
         grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
                                             initial_distance, particle)
 
-        result = volume * pos_diff * grad_kernel'
-
         # Multiply by L_{0a}
-        result *= correction_matrix(system, particle)'
+        L = @inbounds correction_matrix(system, particle)
 
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            deformation_grad[i, j, particle] -= result[i, j]
+        result = volume * pos_diff * grad_kernel' * L'
+
+        for j in 1:ndims(system), i in 1:ndims(system)
+            @inbounds deformation_grad[i, j, particle] -= result[i, j]
         end
     end
 
@@ -408,7 +505,7 @@ end
 end
 
 # First Piola-Kirchhoff stress tensor
-@inline function pk1_stress_tensor(system, particle)
+@propagate_inbounds function pk1_stress_tensor(system, particle)
     (; lame_lambda, lame_mu) = system
 
     F = deformation_gradient(system, particle)
@@ -418,8 +515,8 @@ end
 end
 
 # Second Piola-Kirchhoff stress tensor
-@inline function pk2_stress_tensor(F, lame_lambda::AbstractVector, lame_mu::AbstractVector,
-                                   particle)
+@propagate_inbounds function pk2_stress_tensor(F, lame_lambda::AbstractVector,
+                                               lame_mu::AbstractVector, particle)
 
     # Compute the Green-Lagrange strain
     E = (transpose(F) * F - I) / 2
@@ -537,6 +634,23 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
     end
 
     return cauchy_stress_tensors
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, system::TotalLagrangianSPHSystem, semi)
+    # TODO variable smoothing length
+    smoothing_length_ = initial_smoothing_length(system)
+
+    # Compute bulk modulus from Young's modulus and Poisson's ratio.
+    # See the table at the end of https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
+    # TODO Should we compute the sound speed per particle and then use the maximum?
+    E = maximum(system.young_modulus)
+    K = E / (ndims(system) * (1 - 2 * maximum(system.poisson_ratio)))
+
+    # Newton–Laplace equation
+    sound_speed = sqrt(K / minimum(system.material_density))
+
+    # According to Eq. 19 in Sun et al. (2021) "An accurate FSI-SPH modeling..."
+    return cfl_number * smoothing_length_ / sound_speed
 end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model

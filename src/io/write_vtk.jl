@@ -158,12 +158,21 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     vtk_save(pvd)
 end
 
-function transfer2cpu(v_::AbstractGPUArray, u_, system_, semi_)
+function transfer2cpu(v_::AbstractGPUArray, u_, semi_)
     semi = Adapt.adapt(Array, semi_)
+    v, u = transfer2cpu(v_, u_)
+
+    return v, u, semi
+end
+
+function transfer2cpu(v_, u_, semi_)
+    return v_, u_, semi_
+end
+
+function transfer2cpu(v_::AbstractGPUArray, u_, system_, semi_)
+    v, u, semi = transfer2cpu(v_, u_, semi_)
     system_index = system_indices(system_, semi_)
     system = semi.systems[system_index]
-
-    v, u = transfer2cpu(v_, u_)
 
     return v, u, system, semi
 end
@@ -408,6 +417,16 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
                       for particle in eachparticle(system)]
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in eachparticle(system)]
+
+    if system.calculate_flow_rate
+        Q_total = zero(eltype(system))
+        for i in eachindex(system.cache.boundary_zones_flow_rate)
+            vtk["Q_$i"] = system.cache.boundary_zones_flow_rate[i][]
+            Q_total += system.cache.boundary_zones_flow_rate[i][]
+        end
+
+        vtk["Q_total"] = Q_total
+    end
 
     return vtk
 end
