@@ -98,21 +98,23 @@ struct InitialCondition{ELTYPE, C, MATRIX, VECTOR}
     mass             :: VECTOR # Array{ELTYPE, 1}
     density          :: VECTOR # Array{ELTYPE, 1}
     pressure         :: VECTOR # Array{ELTYPE, 1}
+    normals          :: Union{Nothing, MATRIX}
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
-                          mass=nothing, pressure=0.0, particle_spacing=-1.0)
+                          mass=nothing, pressure=0.0, particle_spacing=-1.0,
+                          normals=nothing)
     NDIMS = size(coordinates, 1)
 
     return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                   pressure, particle_spacing)
+                                   pressure, particle_spacing, normals)
 end
 
 # Function barrier to make `NDIMS` static and therefore SVectors type-stable
 function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                 pressure, particle_spacing) where {NDIMS}
+                                 pressure, particle_spacing, normals) where {NDIMS}
     if !(particle_spacing isa AbstractFloat)
         throw(ArgumentError("particle spacing must be a floating point number. " *
                             "The type of the particle spacing determines the eltype " *
@@ -125,7 +127,8 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
 
     if n_particles == 0
         return InitialCondition(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
-                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
+                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0),
+                                normals)
     end
 
     # SVector of coordinates to pass to functions.
@@ -197,8 +200,15 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
         masses = mass_fun.(coordinates_svector)
     end
 
+    if normals isa AbstractMatrix
+        if size(coordinates) != size(normals)
+            throw(ArgumentError("`coordinates` and `normals` must be of the same size"))
+        end
+    end
+
     return InitialCondition(particle_spacing, coordinates, ELTYPE.(velocities),
-                            ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures))
+                            ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures),
+                            normals)
 end
 
 function Base.show(io::IO, ic::InitialCondition)
@@ -279,9 +289,11 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
     mass = vcat(initial_condition.mass, ic.mass[valid_particles])
     density = vcat(initial_condition.density, ic.density[valid_particles])
     pressure = vcat(initial_condition.pressure, ic.pressure[valid_particles])
+    normals = isnothing(initial_condition.normals) ? nothing :
+              hcat(initial_condition.normals, ic.coordinates[:, valid_particles])
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                         particle_spacing)
+                                         particle_spacing, normals)
 
     return union(result, Base.tail(initial_conditions)...)
 end
@@ -314,9 +326,10 @@ function Base.setdiff(initial_condition::InitialCondition, initial_conditions...
     mass = initial_condition.mass[valid_particles]
     density = initial_condition.density[valid_particles]
     pressure = initial_condition.pressure[valid_particles]
+    normals = isnothing(initial_condition.normals) ? nothing : initial_condition.normals
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                         particle_spacing)
+                                         particle_spacing, normals)
 
     return setdiff(result, Base.tail(initial_conditions)...)
 end
@@ -348,9 +361,11 @@ function Base.intersect(initial_condition::InitialCondition, initial_conditions.
     mass = initial_condition.mass[too_close]
     density = initial_condition.density[too_close]
     pressure = initial_condition.pressure[too_close]
+    normals = isnothing(initial_condition.normals) ? nothing :
+              initial_condition.normals[:, too_close]
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                         particle_spacing)
+                                         particle_spacing, normals)
 
     return intersect(result, Base.tail(initial_conditions)...)
 end
@@ -379,13 +394,14 @@ function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=fal
     mass = ic.mass[not_too_close]
     density = ic.density[not_too_close]
     pressure = ic.pressure[not_too_close]
+    normals = isnothing(ic.normals) ? nothing : ic.normals[:, not_too_close]
 
     if length(too_close) > 0
         @info "Removed $(length(too_close)) particles that are too close together"
     end
 
     return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                       ic.particle_spacing)
+                                       ic.particle_spacing, normals)
 end
 
 # Find particles in `coords1` that are closer than `max_distance` to any particle in `coords2`
