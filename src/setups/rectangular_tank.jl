@@ -314,8 +314,8 @@ function _calculate_normals!(normals, boundary_coordinates, boundary_spacing,
         end
     end
 
-    # Check if a face exists and if there are 
-    # any particles associated with it. 
+    # Check if a face exists and if there 
+    # are any particles associated with it. 
     function face_has_particles(idxs, i)
         return faces[i] && !isempty(idxs[i])
     end
