@@ -218,7 +218,9 @@ end
 # Based on
 # copyto_unaliased!(deststyle::IndexStyle, dest::AbstractArray, srcstyle::IndexStyle, src::AbstractArray)
 # defined in base/abstractarray.jl.
-function Base.copyto!(dest::ThreadedBroadcastArray, src::AbstractArray)
+#
+# Restrict to strided sources to avoid method ambiguities with external array types.
+function Base.copyto!(dest::ThreadedBroadcastArray, src::StridedArray)
     if eachindex(dest) == eachindex(src)
         # Shared-iterator implementation
         @threaded dest.parallelization_backend for I in eachindex(dest)
