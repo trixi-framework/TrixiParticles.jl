@@ -1,7 +1,10 @@
 """
 	vtk2trixi(file::String; element_type=nothing, coordinates_eltype=nothing)
 
-Load VTK file and convert data to an [`InitialCondition`](@ref).
+Read a VTK file and return a `NamedTuple` with keys
+`:coordinates`, `:velocity`, `:density`, `:pressure`, `:particle_spacing`, `:time`,
+plus any custom quantities.
+Missing fields are zero-filled; `:particle_spacing` is scalar if constant, otherwise per-particle.
 
 # Arguments
 - `file`: Name of the VTK file to be loaded.
@@ -18,27 +21,20 @@ Load VTK file and convert data to an [`InitialCondition`](@ref).
     This is an experimental feature and may change in any future releases.
 
 # Example
-```jldoctest; output = false
+```jldoctest; output = false, filter = r"density = \\[.*\\]|pressure = \\[.*\\]|velocity = \\[.*\\]|coordinates = \\[.*\\]"
 # Create a rectangular shape
 rectangular = RectangularShape(0.1, (10, 10), (0, 0), density=1.5, velocity=(1.0, -2.0),
                                pressure=1000.0)
 
-# Write the `InitialCondition` to a vtk file
-trixi2vtk(rectangular; filename="rectangular", output_directory="out")
+# Write the `InitialCondition` with custom quantity to a VTK file
+trixi2vtk(rectangular; filename="rectangular", output_directory="out",
+          my_custom_quantity=3.0)
 
-# Read the vtk file and convert it to `InitialCondition`
-ic = vtk2trixi(joinpath("out", "rectangular.vtu"))
+# Read the VTK file and convert the data to a `NamedTuple`
+data = vtk2trixi(joinpath("out", "rectangular.vtu"))
 
 # output
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition                                                                                 │
-│ ════════════════                                                                                 │
-│ #dimensions: ……………………………………………… 2                                                                │
-│ #particles: ………………………………………………… 100                                                              │
-│ particle spacing: ………………………………… 0.1                                                              │
-│ eltype: …………………………………………………………… Float64                                                          │
-│ coordinate eltype: ……………………………… Float64                                                          │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], mass = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...], initial_condition = InitialCondition{Float64, Float64}())
 ```
 """
 function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
@@ -53,35 +49,60 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
     ELTYPE = isnothing(element_type) ?
              eltype(first(ReadVTK.get_data(point_data["pressure"]))) : element_type
 
+    results = Dict{Symbol, Any}()
+
+    # Tracking used keys like `initial_velocity`
+    used_keys = String[]
+
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))
     coordinates = convert.(cELTYPE, point_coords[1:ndims, :])
 
-    fields = ["velocity", "density", "pressure", "mass", "particle_spacing"]
-    results = Dict{String, Array{Float64}}()
-
+    fields = [:velocity, :density, :pressure, :particle_spacing]
     for field in fields
         # Look for any key that contains the field name
         all_keys = keys(point_data)
-        idx = findfirst(k -> occursin(field, k), all_keys)
+        idx = findfirst(k -> occursin(string(field), k), all_keys)
         if idx !== nothing
             results[field] = convert.(ELTYPE, ReadVTK.get_data(point_data[all_keys[idx]]))
+            push!(used_keys, all_keys[idx])
         else
             # Use zeros as default values when a field is missing
-            results[field] = field in ["mass"] ?
-                             zeros(ELTYPE, size(coordinates, 2)) : zero(coordinates)
+            results[field] = string(field) in ["velocity"] ?
+                             zero(coordinates) : zeros(ELTYPE, size(coordinates, 2))
             @info "No '$field' field found in VTK file. Will be set to zero."
         end
     end
 
-    particle_spacing = allequal(results["particle_spacing"]) ?
-                       first(results["particle_spacing"]) :
-                       results["particle_spacing"]
+    results[:particle_spacing] = allequal(results[:particle_spacing]) ?
+                                 first(results[:particle_spacing]) :
+                                 results[:particle_spacing]
+    results[:coordinates] = coordinates
+    results[:time] = "time" in keys(field_data) ?
+                     first(ReadVTK.get_data(field_data["time"])) : zero(ELTYPE)
 
-    return InitialCondition(; coordinates,
-                            particle_spacing=convert(ELTYPE, particle_spacing),
-                            velocity=results["velocity"],
-                            mass=results["mass"],
-                            density=results["density"],
-                            pressure=results["pressure"])
+    append!(used_keys, ["index", "ndims"])
+    # Load any custom quantities
+    for key in keys(point_data)
+        if !(key in used_keys)
+            results[Symbol(key)] = convert.(ELTYPE, ReadVTK.get_data(point_data[key]))
+        end
+    end
+
+    for key in keys(field_data)
+        if !(key in used_keys)
+            data = ReadVTK.get_data(field_data[key])
+            conv_data = convert.(ELTYPE, data)
+            results[Symbol(key)] = length(conv_data) == 1 ? first(conv_data) : conv_data
+        end
+    end
+
+    results = NamedTuple(results)
+
+    ic = InitialCondition(; coordinates=results.coordinates,
+                          particle_spacing=results.particle_spacing,
+                          velocity=results.velocity, density=results.density,
+                          pressure=results.pressure)
+
+    return (; results..., initial_condition=ic)
 end
