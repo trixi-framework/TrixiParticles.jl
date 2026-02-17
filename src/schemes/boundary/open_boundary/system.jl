@@ -244,7 +244,7 @@ end
 @inline buffer(system::OpenBoundarySystem) = system.buffer
 
 # The `UpdateCallback` is required to update particle positions between time steps
-@inline requires_update_callback(system::OpenBoundarySystem) = true
+@inline requires_update_callback(system::OpenBoundarySystem, semi) = true
 
 function smoothing_length(system::OpenBoundarySystem, particle)
     return system.smoothing_length
