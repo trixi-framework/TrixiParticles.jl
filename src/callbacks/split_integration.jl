@@ -122,6 +122,15 @@ function initialize_split_integration!(cb, u, t, integrator)
     ode_split = DynamicalODEProblem(kick_split!, drift_split!, v0_ode_split, u0_ode_split,
                                     tspan, p)
 
+    # Add lightweight callback to (potentially) update the averaged velocity
+    # during the split integration.
+    callback = UpdateAveragedVelocityCallback()
+    if haskey(kwargs, :callback)
+        kwargs[:callback] = CallbackSet(kwargs[:callback], callback)
+    else
+        kwargs[:callback] = callback
+    end
+
     # Create the split integrator.
     # We need the timer here to keep the output clean because this will call `kick!` once.
     @trixi_timeit timer() "split integration" begin
@@ -355,4 +364,48 @@ function Base.show(io::IO, ::MIME"text/plain",
 
         summary_box(io, "SplitIntegrationCallback", setup)
     end
+end
+
+# === Non-public callback for updating the averaged velocity ===
+# When no split integration is used, this is done from the `UpdateCallback`.
+# With split integration, we use this lightweight callback to avoid updating the systems.
+function UpdateAveragedVelocityCallback()
+    # The first one is the `condition`, the second the `affect!`
+    return DiscreteCallback(update_averaged_velocity_callback!,
+                            update_averaged_velocity_callback!,
+                            initialize=(initialize_averaged_velocity_callback!),
+                            save_positions=(false, false))
+end
+
+# `initialize`
+function initialize_averaged_velocity_callback!(cb, vu_ode, t, integrator)
+    v_ode, u_ode = vu_ode.x
+    semi = integrator.p
+
+    foreach_system(semi) do system
+        initialize_averaged_velocity!(system, v_ode, semi, t)
+    end
+
+    return cb
+end
+
+# `condition`
+function update_averaged_velocity_callback!(u, t, integrator)
+    return true
+end
+
+# `affect!`
+function update_averaged_velocity_callback!(integrator)
+    t_new = integrator.t
+    semi = integrator.p
+    v_ode, u_ode = integrator.u.x
+
+    foreach_system(semi) do system
+        compute_averaged_velocity!(system, v_ode, semi, t_new)
+    end
+
+    # Tell OrdinaryDiffEq that `integrator.u` has not been modified
+    u_modified!(integrator, false)
+
+    return integrator
 end
