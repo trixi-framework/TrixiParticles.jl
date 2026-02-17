@@ -34,7 +34,7 @@ trixi2vtk(rectangular; filename="rectangular", output_directory="out",
 data = vtk2trixi(joinpath("out", "rectangular.vtu"))
 
 # output
-(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...], initial_condition = InitialCondition{Float64, Float64}())
+(particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], mass = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...], initial_condition = InitialCondition{Float64, Float64}())
 ```
 """
 function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
@@ -51,6 +51,9 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
 
     results = Dict{Symbol, Any}()
 
+    # Tracking used keys like `initial_velocity`
+    used_keys = String[]
+
     # Retrieve fields
     ndims = first(ReadVTK.get_data(field_data["ndims"]))
     coordinates = convert.(cELTYPE, point_coords[1:ndims, :])
@@ -62,6 +65,7 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
         idx = findfirst(k -> occursin(string(field), k), all_keys)
         if idx !== nothing
             results[field] = convert.(ELTYPE, ReadVTK.get_data(point_data[all_keys[idx]]))
+            push!(used_keys, all_keys[idx])
         else
             # Use zeros as default values when a field is missing
             results[field] = string(field) in ["velocity"] ?
@@ -77,20 +81,19 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
     results[:time] = "time" in keys(field_data) ?
                      first(ReadVTK.get_data(field_data["time"])) : zero(ELTYPE)
 
+    append!(used_keys, ["index", "ndims"])
     # Load any custom quantities
     for key in keys(point_data)
-        sym_key = Symbol(key)
-        if !haskey(results, sym_key)
-            results[sym_key] = convert.(ELTYPE, ReadVTK.get_data(point_data[key]))
+        if !(key in used_keys)
+            results[Symbol(key)] = convert.(ELTYPE, ReadVTK.get_data(point_data[key]))
         end
     end
 
     for key in keys(field_data)
-        sym_key = Symbol(key)
-        if !haskey(results, sym_key)
+        if !(key in used_keys)
             data = ReadVTK.get_data(field_data[key])
             conv_data = convert.(ELTYPE, data)
-            results[sym_key] = length(conv_data) == 1 ? first(conv_data) : conv_data
+            results[Symbol(key)] = length(conv_data) == 1 ? first(conv_data) : conv_data
         end
     end
 
