@@ -16,10 +16,8 @@ end
 end
 
 @inline function velocity_for_viscosity(v, ::VelocityAveraging, system, particle)
-    return extract_svector(system.cache.average_velocity, system, particle)
+    return extract_svector(system.cache.averaged_velocity, system, particle)
 end
-
-initialize_averaged_velocity!(system, v_ode, semi, t) = system
 
 function initialize_averaged_velocity!(system, v_ode, semi, t)
     initialize_averaged_velocity!(system, velocity_averaging(system), v_ode, semi, t)
@@ -44,8 +42,6 @@ function initialize_averaged_velocity!(system, ::VelocityAveraging, v_ode, semi,
 
     return system
 end
-
-compute_averaged_velocity!(system, v_ode, semi, t_new) = system
 
 function compute_averaged_velocity!(system, v_ode, semi, t_new)
     compute_averaged_velocity!(system, velocity_averaging(system), v_ode, semi, t_new)
