@@ -249,7 +249,7 @@ function (pp::PostprocessCallback)(integrator; from_initialize=false)
             end
         end
         v_ode, u_ode = vu_ode.x
-        semi = integrator.p
+        semi = integrator.p.semi
         t = integrator.t
         filenames = system_names(semi.systems)
         new_data = false

@@ -67,7 +67,7 @@ function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integr
     # Reinitialize initial solution
     if cb.reinit_initial_solution
         # Update systems to compute quantities like density and pressure.
-        semi = integrator.p
+        semi = integrator.p.semi
         v_ode, u_ode = u.x
         update_systems_and_nhs(v_ode, u_ode, semi, t)
 
@@ -97,7 +97,7 @@ end
 # affect!
 function (reinit_callback::DensityReinitializationCallback)(integrator)
     vu_ode = integrator.u
-    semi = integrator.p
+    semi = integrator.p.semi
 
     @trixi_timeit timer() "reinit density" reinit_density!(vu_ode, semi)
 
