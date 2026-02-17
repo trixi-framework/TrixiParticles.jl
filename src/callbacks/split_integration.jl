@@ -340,14 +340,45 @@ function split_integrate!(v_ode, u_ode, t_new, data)
                   "Try reducing the split integration time step size.")
         end
 
+        # compute_average_velocity(split_integrator, semi_split, t_new, t_previous, u_ode, semi_large)
+
         # Copy the solutions back to the original integrator
         @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode,
                                                            split_integrator.u.x...,
                                                            semi_large, semi_split,
                                                            t_new, t_previous)
+
+        # foreach_system(semi_split) do system
+        #     # Compute current acceleration
+        #     kick_split!(dv_ode_split, split_integrator.u.x..., split_integrator.p, t_new)
+
+        #     # Save the acceleration in the system
+        #     dv = wrap_v(dv_ode_split, system, semi_split)
+
+        #     @threaded semi_split for particle in each_integrated_particle(system)
+        #         for i in 1:ndims(system)
+        #             system.cache.acceleration[i, particle] = dv[i, particle]
+        #         end
+        #     end
+        # end
     end
 
     return true
+end
+
+function compute_average_velocity(split_integrator, semi_split, t_new, t_previous, u_ode, semi_large)
+    foreach_system(semi_split) do system
+        # Save the acceleration in the system
+        u_after = wrap_u(split_integrator.u.x[2], system, semi_split)
+        u_before = wrap_u(u_ode, system, semi_large)
+        v_avg = system.cache.average_velocity
+
+        @threaded semi_split for particle in each_integrated_particle(system)
+            for i in 1:ndims(system)
+                v_avg[i, particle] = 0 * v_avg[i, particle] + 1 * (u_after[i, particle] - u_before[i, particle]) / (t_new - t_previous)
+            end
+        end
+    end
 end
 
 function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
@@ -374,10 +405,6 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
 
     add_source_terms!(dv_ode_split, v_ode_split, u_ode_split, semi_large, t;
                       semi_wrap=semi_split)
-
-    # foreach_system(semi_split) do system
-    #     save_acceleration!(system, dv_ode_split, semi_split)
-    # end
 end
 
 function drift_split!(du_ode, v_ode, u_ode, p, t)
@@ -568,7 +595,7 @@ end
 # `initialize`
 function initialize_averaged_velocity_callback!(cb, vu_ode, t, integrator)
     v_ode, u_ode = vu_ode.x
-    semi = integrator.p
+    semi = integrator.p.semi
 
     foreach_system(semi) do system
         initialize_averaged_velocity!(system, v_ode, semi, t)
@@ -585,7 +612,7 @@ end
 # `affect!`
 function update_averaged_velocity_callback!(integrator)
     t_new = integrator.t
-    semi = integrator.p
+    semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
 
     foreach_system(semi) do system
