@@ -155,7 +155,7 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                   v_ode, u_ode; include_wall_velocity=false,
                                   smoothing_length=initial_smoothing_length(ref_system),
                                   cut_off_bnd=true, clip_negative_pressure=false,
-                                  output_directory="out", filename="plane")
+                                  output_directory="out", filename="plane", pvd=nothing, t=-1)
     # Don't filter out particles without neighbors to keep 2D grid structure
     filter_no_neighbors = false
     @trixi_timeit timer() "interpolate plane" begin
@@ -177,6 +177,10 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
         vtk["density"] = density
         vtk["velocity"] = velocity
         vtk["pressure"] = pressure
+
+        if !isnothing(pvd) && t >= 0
+            pvd[t] = vtk
+        end
     end
 end
 
