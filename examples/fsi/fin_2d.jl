@@ -246,14 +246,15 @@ structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothi
                                         modulus, poisson_ratio;
                                         n_clamped_particles, clamped_particles_motion=boundary_motion,
                                         boundary_model=boundary_model_structure,
+                                        velocity_averaging=nothing,
                                         viscosity=ArtificialViscosityMonaghan(alpha=0.1),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
 # ==== Fluid
 fluid_density_calculator = ContinuityDensity()
-density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-# density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
+# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -280,13 +281,9 @@ if periodic
 else
     periodic_box = nothing
 
-    function velocity_function2d(pos, t)
-        return SVector(1.0, 0.0)
-    end
-
     open_boundary_model = BoundaryModelDynamicalPressureZhang()
     # open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
-    reference_velocity_in = velocity_function2d
+    reference_velocity_in = SVector(1.0, 0.0)
     reference_pressure_in = nothing
     reference_density_in = nothing
     boundary_type_in = InFlow()
@@ -299,8 +296,8 @@ else
                         reference_velocity=reference_velocity_in,
                         initial_condition=inlet.fluid, boundary_type=boundary_type_in)
 
-    reference_velocity_out = SVector(1.0, 0.0)
-    reference_pressure_out = nothing
+    reference_velocity_out = nothing
+    reference_pressure_out = 0.0
     reference_density_out = nothing
     boundary_type_out = OutFlow()
     face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], tank_size[2]])
@@ -317,6 +314,8 @@ else
                                     shifting_technique=nothing)
 
     wall = union(tank.boundary, inlet.boundary, outlet.boundary)
+    min_corner = minimum(wall.coordinates, dims=2) .- 5 * fluid_particle_spacing
+    max_corner = maximum(wall.coordinates, dims=2) .+ 5 * fluid_particle_spacing
 end
 
 # ==========================================================================================
@@ -331,8 +330,6 @@ boundary_system = WallBoundarySystem(wall, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-min_corner = minimum(wall.coordinates, dims=2) .- fluid_particle_spacing / 2
-max_corner = maximum(wall.coordinates, dims=2) .+ fluid_particle_spacing / 2
 cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list,
                                                 update_strategy=ParallelUpdate())
@@ -342,7 +339,8 @@ semi = Semidiscretization(fluid_system, boundary_system, open_boundary_system, s
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
+prefix = ""
+saving_callback = SolutionSavingCallback(dt=0.01; prefix)
 
 split_cfl = 1.0
 # SSPRK104 CFL = 2.5, 15k RHS evaluations
@@ -368,10 +366,25 @@ function total_volume(system, data, t)
     return nothing
 end
 pp_cb = PostprocessCallback(; total_volume, interval=100,
-                            filename="total_volume", write_file_interval=50)
+                            filename="$(prefix)_total_volume", write_file_interval=50)
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
-                        stepsize_callback, split_integration, pp_cb)
+function plane_vtk(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return nothing
+end
+function plane_vtk(system::WeaklyCompressibleSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
+    resolution = fluid_particle_spacing / 6
+    pvd = TrixiParticles.paraview_collection("out/$(prefix)_plane"; append=t > 0)
+    interpolate_plane_2d_vtk(min_corner, max_corner, resolution,
+                             semi, semi.systems[1], v_ode, u_ode, include_wall_velocity=true,
+                             filename="$(prefix)_plane_$(round(Int, t * 1000))", pvd=pvd, t=t)
+    TrixiParticles.vtk_save(pvd)
+    return nothing
+end
+interpolate_cb = PostprocessCallback(; plane_vtk, dt=0.01, filename="plane")
+
+callbacks = CallbackSet(info_callback, saving_callback,
+                        stepsize_callback, split_integration, pp_cb, interpolate_cb,
+                        UpdateCallback())
 
 dt_fluid = 1.25e-4
 sol = solve(ode,
