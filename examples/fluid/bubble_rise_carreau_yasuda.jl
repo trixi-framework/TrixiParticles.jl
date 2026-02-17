@@ -1,7 +1,7 @@
 ###############################################################################
 # bubble_rise_carreau_yasuda.jl
 #
-# Demonstration / validation-style example:
+# Demonstration example:
 #   Run the same bubble-rise setup twice:
 #     (A) Newtonian viscosity (constant ν)
 #     (B) Carreau–Yasuda viscosity (ν(γ̇), shear-thinning for n < 1)
