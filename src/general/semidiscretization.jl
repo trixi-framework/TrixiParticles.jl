@@ -211,12 +211,18 @@ function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
 
     # Check that all systems have the same eltype
-    @assert all(system -> eltype(system) === eltype(systems[1]), systems)
+    if !all(system -> eltype(system) === eltype(systems[1]), systems)
+        throw(ArgumentError("`eltype(system)` must be the same for all systems in the " *
+                            "`Semidiscretization`"))
+    end
     ELTYPE = eltype(systems[1])
 
     # Check that all systems have the same coordinates eltype
-    @assert all(system -> coordinates_eltype(system) === coordinates_eltype(systems[1]),
-                systems)
+    if !all(system -> coordinates_eltype(system) === coordinates_eltype(systems[1]),
+            systems)
+        throw(ArgumentError("`coordinates_eltype(system)` must be the same " *
+                            "for all systems in the `Semidiscretization`"))
+    end
     cELTYPE = coordinates_eltype(systems[1])
 
     # Optionally reset Polyester.jl threads. See
