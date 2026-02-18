@@ -2,6 +2,7 @@ module TrixiParticles
 
 using Reexport: @reexport
 
+using Accessors: @set
 using Adapt: Adapt
 using Base: @propagate_inbounds
 using CSV: CSV
