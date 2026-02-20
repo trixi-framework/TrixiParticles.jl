@@ -212,7 +212,7 @@ end
                                                 pos_diff, distance, m_b, rho_a, rho_b,
                                                 particle_system::Union{AbstractFluidSystem,
                                                                        OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
-                                                grad_kernel)
+                                                grad_kernel, ::Val{true})
     # Density diffusion terms are all zero for distance zero.
     # See `src/general/smoothing_kernels.jl` for more details.
     distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
@@ -235,6 +235,6 @@ end
 # Density diffusion `nothing` or interaction other than fluid-fluid
 @inline function density_diffusion!(dv, density_diffusion, v_particle_system, particle,
                                     neighbor, pos_diff, distance, m_b, rho_a, rho_b,
-                                    particle_system, grad_kernel)
+                                    particle_system, grad_kernel, apply_density_diffusion)
     return dv
 end
