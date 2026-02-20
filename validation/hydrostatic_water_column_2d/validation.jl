@@ -55,7 +55,6 @@ function run_simulation(method; n_particles_plate_y, tspan)
                   use_edac=method.use_edac,
                   n_particles_plate_y=n_particles_plate_y,
                   update_strategy=SerialUpdate(),
-                  dt=0.5,
                   tspan=tspan,
                   prefix=pp_filename,
                   extra_callback=pp)
