@@ -67,7 +67,7 @@ end
            boundary_kernel(distance, smoothing_length(particle_system, particle))
 end
 
-# Disambiguation for corrections with asymmetric kernel gradients.
+# Disambiguation for corrections with asymmetric kernel gradients
 @inline function pressure_acceleration(particle_system,
                                        neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},

@@ -215,28 +215,6 @@ function Base.fill!(A::ThreadedBroadcastArray{T}, x) where {T}
     return A
 end
 
-# Based on
-# copyto_unaliased!(deststyle::IndexStyle, dest::AbstractArray, srcstyle::IndexStyle, src::AbstractArray)
-# defined in base/abstractarray.jl.
-#
-# Restrict to strided sources to avoid method ambiguities with external array types.
-function Base.copyto!(dest::ThreadedBroadcastArray, src::StridedArray)
-    if eachindex(dest) == eachindex(src)
-        # Shared-iterator implementation
-        @threaded dest.parallelization_backend for I in eachindex(dest)
-            @inbounds dest.array[I] = src[I]
-        end
-    else
-        # Dual-iterator implementation
-        @threaded dest.parallelization_backend for (Idest, Isrc) in zip(eachindex(dest),
-                                                       eachindex(src))
-            @inbounds dest.array[Idest] = src[Isrc]
-        end
-    end
-
-    return dest
-end
-
 # Broadcasting style for `ThreadedBroadcastArray`.
 struct ThreadedBroadcastStyle{P} <: Broadcast.AbstractArrayStyle{1} end
 

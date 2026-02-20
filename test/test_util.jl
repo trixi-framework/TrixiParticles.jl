@@ -80,41 +80,5 @@ end
     return get_neighborhood_search(system, system, semi)
 end
 
-@inline function _foreach_point_neighbor_dummy(f, system, neighbor_system,
-                                               system_coords, neighbor_coords,
-                                               semi::DummySemidiscretization;
-                                               points=TrixiParticles.eachparticle(system),
-                                               parallelization_backend=semi.parallelization_backend)
-    neighborhood_search = TrixiParticles.get_neighborhood_search(system, neighbor_system,
-                                                                 semi)
-    PointNeighbors.foreach_point_neighbor(f, system_coords, neighbor_coords,
-                                          neighborhood_search;
-                                          points, parallelization_backend)
-end
-
-# Test-only wrapper matching the package behavior for `DummySemidiscretization`.
-function PointNeighbors.foreach_point_neighbor(f,
-                                               system::TrixiParticles.AbstractSystem,
-                                               neighbor_system::TrixiParticles.AbstractSystem,
-                                               system_coords, neighbor_coords,
-                                               semi::DummySemidiscretization;
-                                               points=TrixiParticles.eachparticle(system),
-                                               parallelization_backend=semi.parallelization_backend)
-    return _foreach_point_neighbor_dummy(f, system, neighbor_system,
-                                         system_coords, neighbor_coords, semi;
-                                         points, parallelization_backend)
-end
-
-# Mock systems in tests (e.g. `Val{:mock_system_tensor}`) are not `AbstractSystem`s.
-function PointNeighbors.foreach_point_neighbor(f, system::Val, neighbor_system::Val,
-                                               system_coords, neighbor_coords,
-                                               semi::DummySemidiscretization;
-                                               points=TrixiParticles.eachparticle(system),
-                                               parallelization_backend=semi.parallelization_backend)
-    return _foreach_point_neighbor_dummy(f, system, neighbor_system,
-                                         system_coords, neighbor_coords, semi;
-                                         points, parallelization_backend)
-end
-
 include("count_allocations.jl")
 include("rectangular_patch.jl")

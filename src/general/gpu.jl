@@ -24,16 +24,6 @@ Adapt.@adapt_structure DEMSystem
 Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel
 
-@inline kernel_backend(x) = KernelAbstractions.get_backend(x)
-@inline kernel_backend(::PtrArray) = KernelAbstractions.CPU()
-function KernelAbstractions.get_backend(system::AbstractSystem)
-    kernel_backend(system.mass)
-end
-
-function KernelAbstractions.get_backend(system::WallBoundarySystem)
-    kernel_backend(system.coordinates)
-end
-
 # This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
