@@ -155,5 +155,5 @@ info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.1, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback, split_integration, extra_callback)
 
-sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, save_everystep=false,
+sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-6, save_everystep=false,
             callback=callbacks)
