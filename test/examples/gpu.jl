@@ -529,6 +529,28 @@ end
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
+
+        @trixi_testset "structure/oscillating_beam_2d.jl with PostprocessCallback" begin
+            pp = PostprocessCallback(; interval=5, total_mass,
+                                     write_file_interval=0)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "structure",
+                                                                      "oscillating_beam_2d.jl"),
+                                                             coordinates_eltype=Float32,
+                                                             tspan=(0.0f0, 0.1f0),
+                                                             saving_callback=pp,
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n",
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+            # Check that the postprocess callback was called and computed values
+            @test !isempty(pp.affect!.func)
+            @test !isempty(pp.affect!.times)
+        end
     end
 
     @testset verbose=true "FSI" begin
