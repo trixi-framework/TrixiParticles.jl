@@ -1,19 +1,23 @@
 include("../validation_util.jl")
 
-############################################################################################
+# ==========================================================================================
+# 2D Hydrostatic Water Column on an Elastic Plate Validation
+#
 # Case "Elastic plate under a hydrostatic water column" as described in
 # "A fluid–structure interaction model for free-surface flows and flexible structures
 # using smoothed particle hydrodynamics on a GPU" by J. O'Connor and B.D. Rogers
 # published in Journal of Fluids and Structures
 # https://doi.org/10.1016/j.jfluidstructs.2021.103312
-############################################################################################
+# ==========================================================================================
 
 using TrixiParticles
 using OrdinaryDiffEq
 using JSON
 
-# Reference data is available for 3, 5, 11 and 13
-# computational time on a single cores
+# ==========================================================================================
+# ==== Resolution
+# Reference data is available for n_particles_plate_y = 3, 5, 11, and 13.
+# Computational time on a single core:
 # n_particles_plate_y = 3: ~0.25h
 # n_particles_plate_y = 5: ~1.5h
 # n_particles_plate_y = 11: ~10h
@@ -21,12 +25,13 @@ using JSON
 
 n_particles_plate_y = 5
 
-# For better results this should be increased to at least 0.5
+# ==========================================================================================
+# ==== Experiment Setup
+# For better results this should be increased to at least 0.5.
 tspan = (0.0, 0.5)
 
-# ============================================================================
-# Sensor Function (for Postprocessing)
-# ============================================================================
+# ==========================================================================================
+# ==== Sensor (Postprocessing)
 function y_deflection(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi,
                       t)
     # Choose the particle in the middle of the beam along x.
@@ -36,9 +41,8 @@ function y_deflection(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u
 end
 y_deflection(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
 
-# ============================================================================
-# Run Simulations and Compute Errors
-# ============================================================================
+# ==========================================================================================
+# ==== Run Simulations and Compute Errors
 function run_simulation(method; n_particles_plate_y, tspan)
     method_label = String(method.name)
     pp_filename = "validation_result_hyd_" * method_label * "_" *
@@ -69,7 +73,7 @@ for method in methods
                        n_particles_plate_y=n_particles_plate_y,
                        tspan=tspan)
 
-    # Load the run JSON file and add the analytical solution as a single point
+    # Load the run JSON file and add the analytical solution as a single point.
     run_filename = joinpath("out", pp_filename * ".json")
     run_data = nothing
     open(run_filename, "r") do io
@@ -88,7 +92,8 @@ for method in methods
         JSON.print(io, run_data, 2)
     end
 
-    # Compute errors using average over t ∈ [0.25, 0.5] for the sensor starting with "y_deflection"
+    # Compute errors using the average over t in [0.25, 0.5]
+    # for the sensor starting with "y_deflection".
     sensor_key = first(filter(k -> startswith(k, "y_deflection"), keys(run_data)))
     time_vals = run_data[sensor_key]["time"]
     sim_vals = run_data[sensor_key]["values"]
