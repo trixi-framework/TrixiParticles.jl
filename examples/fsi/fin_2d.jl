@@ -99,7 +99,7 @@ outlet = RectangularTank(fluid_particle_spacing, open_boundary_size, open_bounda
 
 
 NDIMS = ndims(tank.fluid)
-n_buffer_particles = 10 * tank.n_particles_per_dimension[2]^(NDIMS - 1)
+n_buffer_particles = 20 * tank.n_particles_per_dimension[2]^(NDIMS - 1)
 
 # ==========================================================================================
 # ==== Packing
