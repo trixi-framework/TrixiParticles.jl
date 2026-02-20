@@ -14,6 +14,7 @@ using FastPow: @fastpow
 using FileIO: FileIO
 using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
+using JLD2: JLD2
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
@@ -95,6 +96,7 @@ export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
+export save_jld2, load_jld2
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
