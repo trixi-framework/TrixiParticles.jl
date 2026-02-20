@@ -95,6 +95,7 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
                                      buffer_size=nothing,
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
+                                     turbulence_model=nothing,
                                      reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
@@ -150,6 +151,7 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
+             create_cache_turbulence(initial_condition, turbulence_model)...,
              color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -294,6 +296,8 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
 
     @trixi_timeit timer() "update density diffusion" update!(density_diffusion, v, u,
                                                              system, semi)
+
+    update_turbulence_model!(system, turbulence_model(system), v, u, v_ode, u_ode, semi)
 
     return system
 end

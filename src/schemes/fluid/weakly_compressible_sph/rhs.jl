@@ -70,6 +70,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                sound_speed, m_a, m_b, rho_a, rho_b,
                                                grad_kernel)
 
+        dv_turbulence = @inbounds dv_stress(particle_system, neighbor_system,
+                                            particle, neighbor, pos_diff, distance,
+                                            m_a, m_b, rho_a, rho_b, grad_kernel)
+
         # Extra terms in the momentum equation when using a shifting technique
         dv_tvf = @inbounds dv_shifting(shifting_technique(particle_system),
                                        particle_system, neighbor_system,
@@ -87,7 +91,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle, neighbor, pos_diff, distance)
 
         dv_particle = dv_pressure + dv_viscosity_ + dv_tvf + dv_surface_tension +
-                      dv_adhesion
+                      dv_adhesion + dv_turbulence
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_particle[i]

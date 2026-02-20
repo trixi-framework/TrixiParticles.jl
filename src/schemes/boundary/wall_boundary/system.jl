@@ -38,14 +38,16 @@ struct WallBoundarySystem{BM, ELTYPE <: Real, NDIMS, IC, CO, M, IM,
 end
 
 function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
-                            adhesion_coefficient=0.0, color_value=0)
+                            adhesion_coefficient=0.0, color_value=0,
+                            turbulence_model=nothing)
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(prescribed_motion))
     initialize_prescribed_motion!(prescribed_motion, initial_condition)
 
-    cache = create_cache_boundary(prescribed_motion, initial_condition)
-    cache = (cache..., color=Int(color_value))
+    cache = (; create_cache_boundary(prescribed_motion, initial_condition)...,
+             create_cache_turbulence(initial_condition, turbulence_model; boundary=true)...,
+             color=Int(color_value))
 
     return WallBoundarySystem(initial_condition, coordinates, model, prescribed_motion,
                               ismoving, adhesion_coefficient, cache)
@@ -212,6 +214,8 @@ function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode,
     # so no pressure is updated in the previous update steps.
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
+    update_turbulence_model!(system, turbulence_model(system), v, u, v_ode, u_ode, semi)
+
     return system
 end
 
@@ -294,6 +298,10 @@ end
 
 function system_correction(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.correction
+end
+
+@inline function turbulence_model(system::WallBoundarySystem)
+    return system.cache.turbulence_model
 end
 
 function system_data(system::WallBoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi)

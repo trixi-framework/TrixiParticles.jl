@@ -441,6 +441,10 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
 end
 
 function write2vtk!(vtk, v, u, t, system::WallBoundarySystem)
+    if haskey(system.cache, :turbulence_model)
+        vtk["WSS"] = system.cache.turbulence_model.cache.stress_vectors
+    end
+
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
 
