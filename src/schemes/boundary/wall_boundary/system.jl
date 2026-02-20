@@ -64,6 +64,13 @@ end
 function check_configuration(system::WallBoundarySystem, systems, nhs)
     (; boundary_model) = system
 
+    n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+    if n_particles_model != nparticles(system)
+        throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                            "particles, but the `WallBoundarySystem` has " *
+                            "$(nparticles(system)) particles."))
+    end
+
     foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
@@ -196,7 +203,9 @@ function apply_prescribed_motion!(system::WallBoundarySystem,
     (; ismoving, coordinates, cache) = system
     (; acceleration, velocity) = cache
 
-    prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+    @trixi_timeit timer() "apply prescribed motion" begin
+        prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+    end
 
     return system
 end
