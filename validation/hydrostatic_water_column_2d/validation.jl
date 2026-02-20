@@ -12,17 +12,17 @@ using TrixiParticles
 using OrdinaryDiffEq
 using JSON
 
-# Reference date is available for 3, 5, 11 and 13
+# Reference data is available for 3, 5, 11 and 13
 # computational time on a single cores
 # n_particles_plate_y = 3: ~0.25h
 # n_particles_plate_y = 5: ~1.5h
 # n_particles_plate_y = 11: ~10h
 # n_particles_plate_y = 13: ~15h
 
-n_particles_plate_y = 3
+n_particles_plate_y = 5
 
 # For better results this should be increased to at least 0.5
-tspan=(0.0, 0.3)
+tspan = (0.0, 0.5)
 
 # ============================================================================
 # Sensor Function (for Postprocessing)
@@ -54,11 +54,7 @@ function run_simulation(method; n_particles_plate_y, tspan)
                   dt=0.5,
                   tspan=tspan,
                   prefix=pp_filename,
-                  extra_callback=pp,
-                  sol=nothing)
-
-    sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, abstol=1e-7, maxiters=1e6,
-                save_everystep=false, callback=callbacks)
+                  extra_callback=pp)
 
     return pp_filename, sol
 end
@@ -92,7 +88,7 @@ for method in methods
         JSON.print(io, run_data, 2)
     end
 
-    # Compute errors using data from t ∈ [0.25, 0.5] for the sensor starting with "y_deflection"
+    # Compute errors using average over t ∈ [0.25, 0.5] for the sensor starting with "y_deflection"
     sensor_key = first(filter(k -> startswith(k, "y_deflection"), keys(run_data)))
     time_vals = run_data[sensor_key]["time"]
     sim_vals = run_data[sensor_key]["values"]

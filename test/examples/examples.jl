@@ -226,7 +226,7 @@
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
                                                       "hydrostatic_water_column_2d.jl"),
-                                             tspan=(0.0, 0.1), n_particles_plate_y = 3) [
+                                             tspan=(0.0, 0.1), n_particles_plate_y=3) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success

@@ -74,7 +74,7 @@ for file in all_files
     inds = findall(t -> t <= 0.5, time_vals)
     global global_ymin,
            global_ymax = extrema(deflection_data["values"][inds])
-    # Analytical solution is constant.
+    # Analytical solution is constant
     analytical_data = require_key(json_data, "analytical_solution", file)
     require_fields(analytical_data, ["values"], "analytical_solution", file)
     global_ymin = min(global_ymin, analytical_data["values"][1])
@@ -91,7 +91,7 @@ avg_color_map = Dict{Int, RGB}()
 for (i, resolution) in enumerate(unique_resolution)
     base_color = cmap[i]
     sim_color_map[resolution] = lighten(base_color, 0.15)
-    # Make the average markers slightly darker than the simulation plots.
+    # Make the average markers slightly darker than the simulation plots
     avg_color_map[resolution] = darken(base_color, 0.15)
 end
 
@@ -140,7 +140,7 @@ edac_out_res, edac_out_abs_err, edac_out_rel_err = collect_errors(edac_out_files
 wcsph_ref_res, wcsph_ref_abs_err, wcsph_ref_rel_err = collect_errors(wcsph_reference_files)
 wcsph_out_res, wcsph_out_abs_err, wcsph_out_rel_err = collect_errors(wcsph_out_files)
 
-# Rescale resolution for error plots (example: nondimensionalize by 0.05).
+# Rescale resolution for error plots (example: nondimensionalize by 0.05)
 edac_ref_res = 0.05 ./ edac_ref_res
 edac_out_res = 0.05 ./ edac_out_res
 wcsph_ref_res = 0.05 ./ wcsph_ref_res
@@ -148,9 +148,9 @@ wcsph_out_res = 0.05 ./ wcsph_out_res
 
 # ==========================================================================================
 # ==== Create figure and layout (3 rows x 2 columns)
-# Row 1: Reference simulation plots (data for t in [0, 0.5]).
-# Row 2: Out simulation plots (data for t in [0, 0.5]).
-# Row 3: Error plots.
+# Row 1: Reference simulation plots (data for t in [0, 0.5])
+# Row 2: Out simulation plots (data for t in [0, 0.5])
+# Row 3: Error plots
 fig = Figure(size=(1200, 1000), padding=(10, 10, 10, 10))
 ax_edac_ref = Axis(fig[1, 1], title="Hydrostatic Water Column: EDAC (Reference)",
                    height=260)
@@ -179,7 +179,7 @@ function plot_dataset!(ax, json_file; source=:reference, show_sim_label=false,
                    json_file)
     time_vals = deflection_data["time"]
     sim_vals = deflection_data["values"]
-    # Analytical solution is constant.
+    # Analytical solution is constant
     analytical_data = require_key(json_data, "analytical_solution", json_file)
     require_fields(analytical_data, ["values"], "analytical_solution", json_file)
     analytic_val = analytical_data["values"][1]
@@ -211,7 +211,7 @@ function plot_dataset!(ax, json_file; source=:reference, show_sim_label=false,
            color=avg_col, linestyle=avg_line_style, linewidth=4, label=avg_label)
 end
 
-# Plot simulation datasets.
+# Plot simulation datasets
 for (i, file) in enumerate(edac_reference_files)
     plot_dataset!(ax_edac_ref, file; source=:reference, show_sim_label=true,
                   show_avg_label=i == 1, show_analytic=i == 1)
@@ -261,7 +261,7 @@ scatter!(ax_abs, reference_res, reference_error; marker=:diamond, markersize=10,
 lines!(ax_abs, reference_res, reference_error; color=:black, linestyle=:solid, linewidth=2,
        label="Literature")
 
-# Plot EDAC errors (blue, circle).
+# Plot EDAC errors (blue, circle)
 plot_error_series!(ax_abs, ax_rel, edac_ref_res, edac_ref_abs_err, edac_ref_rel_err;
                    color=:blue, marker=:circle, linestyle=reference_sim_linestyle,
                    label="EDAC (reference)")
@@ -269,7 +269,7 @@ plot_error_series!(ax_abs, ax_rel, edac_out_res, edac_out_abs_err, edac_out_rel_
                    color=:blue, marker=:circle, linestyle=out_sim_linestyle,
                    label="EDAC (out)")
 
-# Plot WCSPH errors (red, xcross).
+# Plot WCSPH errors (red, xcross)
 plot_error_series!(ax_abs, ax_rel, wcsph_ref_res, wcsph_ref_abs_err, wcsph_ref_rel_err;
                    color=:red, marker=:xcross, linestyle=reference_sim_linestyle,
                    label="WCSPH (reference)")

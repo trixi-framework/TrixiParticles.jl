@@ -132,16 +132,13 @@ structure_system = TotalLagrangianSPHSystem(structure_geometry, smoothing_kernel
 
 min_corner = min.(minimum(structure_geometry.coordinates, dims=2),
                   minimum(tank.boundary.coordinates, dims=2),
-                  minimum(tank.fluid.coordinates, dims=2))
+                  minimum(tank.fluid.coordinates, dims=2)) .- smoothing_length_fluid
 max_corner = max.(maximum(structure_geometry.coordinates, dims=2),
                   maximum(tank.boundary.coordinates, dims=2),
-                  maximum(tank.fluid.coordinates, dims=2))
+                  maximum(tank.fluid.coordinates, dims=2)) .+ smoothing_length_fluid
 
-cell_list_padding = 2 * max(smoothing_length_structure, smoothing_length_fluid)
-min_corner .-= cell_list_padding
-max_corner .+= cell_list_padding
 cell_list = FullGridCellList(; min_corner, max_corner)
-neighborhood_search = GridNeighborhoodSearch{2}(update_strategy=ParallelUpdate();
+neighborhood_search = GridNeighborhoodSearch{2}(; update_strategy=ParallelUpdate(),
                                                 cell_list)
 semi = Semidiscretization(structure_system, fluid_system, boundary_system,
                           neighborhood_search=neighborhood_search,
@@ -157,4 +154,6 @@ extra_callback = nothing
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.1, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback, split_integration, extra_callback)
-sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, save_everystep=false, callback=callbacks)
+
+sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, save_everystep=false,
+            callback=callbacks)
