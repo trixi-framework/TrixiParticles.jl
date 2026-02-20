@@ -16,7 +16,11 @@ end
 end
 
 @inline function velocity_for_viscosity(v, ::VelocityAveraging, system, particle)
-    return extract_svector(system.cache.averaged_velocity, system, particle)
+    if particle <= system.n_integrated_particles
+        return extract_svector(system.cache.averaged_velocity, system, particle)
+    end
+
+    return current_clamped_velocity(v, system, system.clamped_particles_motion, particle)
 end
 
 function initialize_averaged_velocity!(system, v_ode, semi, t)
