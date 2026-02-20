@@ -19,12 +19,12 @@ use_edac = true  # Use EDAC or WCSPH
 # ==========================================================================================
 # ==== Experiment Parameters
 # The paper uses 5 to 40 (3 for short runtime in CI)
-n_particles_plate_y = 3
+n_particles_plate_y = 5
 boundary_layers = 3
 spacing_ratio = 1
 gravity = 9.81
 # Recommended: run at least to 0.5 (paper runs to 1.0); using 0.3 for speed in CI
-tspan = (0.0, 0.3)
+tspan = (0.0, 0.5)
 
 initial_fluid_size = (1.0, 2.0)
 plate_size = (1.0, 0.05)
@@ -34,7 +34,7 @@ structure_density = 2700.0
 
 E = 67.5e9
 nu = 0.3
-sound_speed = 50
+sound_speed = 50.0
 
 # Particle spacings (structure and fluid share same spacing)
 structure_particle_spacing = plate_size[2] / (n_particles_plate_y - 1)
@@ -136,6 +136,7 @@ min_corner = min.(minimum(structure_geometry.coordinates, dims=2),
 max_corner = max.(maximum(structure_geometry.coordinates, dims=2),
                   maximum(tank.boundary.coordinates, dims=2),
                   maximum(tank.fluid.coordinates, dims=2))
+
 cell_list_padding = 2 * max(smoothing_length_structure, smoothing_length_fluid)
 min_corner .-= cell_list_padding
 max_corner .+= cell_list_padding
@@ -156,4 +157,4 @@ extra_callback = nothing
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.1, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback, split_integration, extra_callback)
-sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
+sol = solve(ode, RDPK3SpFSAL49(), dt=1e-8, reltol=1e-5, save_everystep=false, callback=callbacks)
