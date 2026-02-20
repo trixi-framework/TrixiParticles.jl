@@ -272,11 +272,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
         # Therefore, we have to re-link them, which yields yet another `Semidiscretization`.
         # Note that this re-creates systems containing links, so it only works as long
         # as systems don't link to other systems containing links.
-        semi_new = Semidiscretization(set_system_links.(semi_.systems, Ref(semi_)),
-                                      semi_.ranges_u, semi_.ranges_v,
-                                      semi_.neighborhood_searches,
-                                      semi_.parallelization_backend,
-                                      semi_.update_callback_used, semi_.integrate_tlsph)
+        semi_new = @set semi_.systems = set_system_links.(semi_.systems, Ref(semi_))
 
         @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
               "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
@@ -727,6 +723,13 @@ end
 function check_configuration(system::WallBoundarySystem, systems, nhs)
     (; boundary_model) = system
 
+    n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+    if n_particles_model != nparticles(system)
+        throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                            "particles, but the `WallBoundarySystem` has " *
+                            "$(nparticles(system)) particles."))
+    end
+
     foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
@@ -739,6 +742,15 @@ end
 
 function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     (; boundary_model) = system
+
+    if !isnothing(boundary_model)
+        n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+        if n_particles_model != nparticles(system)
+            throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                                "particles, but the `TotalLagrangianSPHSystem` has " *
+                                "$(nparticles(system)) particles."))
+        end
+    end
 
     if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
         throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *
@@ -806,26 +818,10 @@ end
 # After `adapt`, the system type information may change.
 # This means that systems linking to other systems still point to old systems.
 # Therefore, we have to re-link them based on the stored system index.
-set_system_links(system, semi) = system
-
 function set_system_links(system::OpenBoundarySystem, semi)
     fluid_system = semi.systems[system.fluid_system_index[]]
 
-    return OpenBoundarySystem(system.boundary_model,
-                              system.initial_condition,
-                              fluid_system, # link to fluid system
-                              system.fluid_system_index,
-                              system.smoothing_kernel,
-                              system.smoothing_length,
-                              system.mass,
-                              system.volume,
-                              system.boundary_candidates,
-                              system.fluid_candidates,
-                              system.boundary_zone_indices,
-                              system.boundary_zones,
-                              system.buffer,
-                              system.pressure_acceleration_formulation,
-                              system.shifting_technique,
-                              system.calculate_flow_rate,
-                              system.cache)
+    return @set system.fluid_system = fluid_system
 end
+
+set_system_links(system, semi) = system
