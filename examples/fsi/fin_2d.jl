@@ -350,6 +350,11 @@ split_cfl = 1.0
 # VelocityVerlet CFL = 0.5, 6.75k RHS evaluations
 # DPRKN4 CFL = 1.7, 9k RHS evaluations
 
+# function tip_velocity(system::TotalLagrangianSPHSystem, data, t)
+#     return data.velocity[2254]
+# end
+# pp_tip = PostprocessCallback(; tip_velocity, interval=1,
+#                             filename="$(prefix)_tip_velocity", write_file_interval=10_000)
 split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false), adaptive=false,
                                              stage_coupling=true,
                                              dt=1e-5, # This is overwritten by the stepsize callback
