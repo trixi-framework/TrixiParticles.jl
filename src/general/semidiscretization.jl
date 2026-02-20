@@ -79,6 +79,10 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 
+    if isempty(systems)
+        throw(ArgumentError("Semidiscretization requires at least one non-nothing system"))
+    end
+
     # For `TotalLagrangianSPHSystem`s, create specialized self-interaction NHS.
     # For other systems, do nothing.
     systems = map(system -> initialize_self_interaction_nhs(system, neighborhood_search,
@@ -211,13 +215,18 @@ function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
 
     # Check that all systems have the same eltype
-    @assert all(system -> eltype(system) === eltype(systems[1]), systems)
-    ELTYPE = eltype(systems[1])
+    first_system = first(systems)
+    if !all(system -> eltype(system) === eltype(first_system), systems)
+        throw(ArgumentError("all systems must use the same eltype"))
+    end
+    ELTYPE = eltype(first_system)
 
     # Check that all systems have the same coordinates eltype
-    @assert all(system -> coordinates_eltype(system) === coordinates_eltype(systems[1]),
-                systems)
-    cELTYPE = coordinates_eltype(systems[1])
+    if !all(system -> coordinates_eltype(system) === coordinates_eltype(first_system),
+            systems)
+        throw(ArgumentError("all systems must use the same coordinates eltype"))
+    end
+    cELTYPE = coordinates_eltype(first_system)
 
     # Optionally reset Polyester.jl threads. See
     # https://github.com/trixi-framework/Trixi.jl/issues/1583
@@ -334,8 +343,12 @@ end
 
     range = ranges_v[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) ==
-                         v_nvariables(system) * n_integrated_particles(system)
+    @boundscheck begin
+        expected = v_nvariables(system) * n_integrated_particles(system)
+        range_length = length(range)
+        range_length == expected ||
+            throw(DimensionMismatch("v range length $range_length does not match expected $expected"))
+    end
 
     return wrap_array(v_ode, range,
                       (StaticInt(v_nvariables(system)), n_integrated_particles(system)))
@@ -346,8 +359,12 @@ end
 
     range = ranges_u[system_indices(system, semi)]
 
-    @boundscheck @assert length(range) ==
-                         u_nvariables(system) * n_integrated_particles(system)
+    @boundscheck begin
+        expected = u_nvariables(system) * n_integrated_particles(system)
+        range_length = length(range)
+        range_length == expected ||
+            throw(DimensionMismatch("u range length $range_length does not match expected $expected"))
+    end
 
     return wrap_array(u_ode, range,
                       (StaticInt(u_nvariables(system)), n_integrated_particles(system)))
@@ -360,7 +377,8 @@ end
 end
 
 @inline function wrap_array(array::ThreadedBroadcastArray, range, size)
-    return ThreadedBroadcastArray(wrap_array(parent(array), range, size))
+    return ThreadedBroadcastArray(wrap_array(parent(array), range, size);
+                                  parallelization_backend=array.parallelization_backend)
 end
 
 @inline function wrap_array(array, range, size)
@@ -704,114 +722,6 @@ function check_system_color(systems)
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
             throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
         end
-    end
-end
-
-function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
-    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
-        foreach_system(systems) do neighbor
-            if neighbor isa AbstractFluidSystem &&
-               isnothing(fluid_system.surface_tension) &&
-               isnothing(fluid_system.surface_normal_method)
-                throw(ArgumentError("either none or all fluid systems in a simulation need " *
-                                    "to use a surface tension model or a surface normal method."))
-            end
-        end
-    end
-end
-
-function check_configuration(system::WallBoundarySystem, systems, nhs)
-    (; boundary_model) = system
-
-    n_particles_model = length(system.boundary_model.hydrodynamic_mass)
-    if n_particles_model != nparticles(system)
-        throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
-                            "particles, but the `WallBoundarySystem` has " *
-                            "$(nparticles(system)) particles."))
-    end
-
-    foreach_system(systems) do neighbor
-        if neighbor isa WeaklyCompressibleSPHSystem &&
-           boundary_model isa BoundaryModelDummyParticles &&
-           isnothing(boundary_model.state_equation)
-            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
-                                "setting a `state_equation` for all boundary models"))
-        end
-    end
-end
-
-function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
-    (; boundary_model) = system
-
-    if !isnothing(boundary_model)
-        n_particles_model = length(system.boundary_model.hydrodynamic_mass)
-        if n_particles_model != nparticles(system)
-            throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
-                                "particles, but the `TotalLagrangianSPHSystem` has " *
-                                "$(nparticles(system)) particles."))
-        end
-    end
-
-    if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
-        throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *
-                            "self-interaction neighborhood search must be the same " *
-                            "as of the global neighborhood search."))
-    end
-
-    foreach_system(systems) do neighbor
-        if neighbor isa AbstractFluidSystem && boundary_model === nothing
-            throw(ArgumentError("a boundary model for `TotalLagrangianSPHSystem` must be " *
-                                "specified when simulating a fluid-structure interaction."))
-        end
-    end
-
-    if boundary_model isa BoundaryModelDummyParticles &&
-       boundary_model.density_calculator isa ContinuityDensity
-        throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
-                            "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
-    end
-end
-
-function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
-    (; time_step, omega) = system
-    foreach_system(systems) do neighbor
-        if neighbor isa WeaklyCompressibleSPHSystem
-            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
-            `WeaklyCompressibleSPHSystem`"))
-        end
-        if neighbor isa WallBoundarySystem
-            if (neighbor.boundary_model isa BoundaryModelDummyParticles &&
-                neighbor.boundary_model.density_calculator isa PressureBoundaries)
-                time_step_boundary = neighbor.boundary_model.density_calculator.time_step
-                omega_boundary = neighbor.boundary_model.density_calculator.omega
-                if !(time_step==time_step_boundary && omega==omega_boundary)
-                    throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
-                    `ImplicitIncompressibleSPHSystem` parameters"))
-                end
-            end
-        end
-    end
-end
-
-function check_configuration(system::OpenBoundarySystem, systems,
-                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
-    (; boundary_model, boundary_zones) = system
-
-    # Store index of the fluid system. This is necessary for re-linking
-    # in case we use Adapt.jl to create a new semidiscretization.
-    fluid_system_index = findfirst(==(system.fluid_system), systems)
-    system.fluid_system_index[] = fluid_system_index
-
-    if boundary_model isa BoundaryModelCharacteristicsLastiwka &&
-       any(zone -> isnothing(zone.flow_direction), boundary_zones)
-        throw(ArgumentError("`BoundaryModelCharacteristicsLastiwka` needs a specific flow direction. " *
-                            "Please specify `InFlow()` and `OutFlow()`."))
-    end
-
-    if first(PointNeighbors.requires_update(neighborhood_search))
-        throw(ArgumentError("`OpenBoundarySystem` requires a neighborhood search " *
-                            "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
-                            "See the PointNeighbors.jl documentation for more details."))
     end
 end
 

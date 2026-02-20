@@ -265,6 +265,38 @@ end
 extract_periodic_box(::Nothing) = nothing
 extract_periodic_box(nhs) = nhs.periodic_box
 
+function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
+    (; boundary_model) = system
+
+    if !isnothing(boundary_model)
+        n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+        if n_particles_model != nparticles(system)
+            throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                                "particles, but the `TotalLagrangianSPHSystem` has " *
+                                "$(nparticles(system)) particles."))
+        end
+    end
+
+    if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
+        throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *
+                            "self-interaction neighborhood search must be the same " *
+                            "as of the global neighborhood search."))
+    end
+
+    foreach_system(systems) do neighbor
+        if neighbor isa AbstractFluidSystem && boundary_model === nothing
+            throw(ArgumentError("a boundary model for `TotalLagrangianSPHSystem` must be " *
+                                "specified when simulating a fluid-structure interaction."))
+        end
+    end
+
+    if boundary_model isa BoundaryModelDummyParticles &&
+       boundary_model.density_calculator isa ContinuityDensity
+        throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
+                            "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+end
+
 create_cache_tlsph(::Nothing, initial_condition) = (;)
 
 function create_cache_tlsph(::PrescribedMotion, initial_condition)
