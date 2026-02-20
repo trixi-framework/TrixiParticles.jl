@@ -7,6 +7,11 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
     (; density_calculator, correction) = particle_system
 
+    # Artificial density diffusion should only be applied to systems representing a fluid
+    # with the same physical properties i.e. density and viscosity.
+    # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
+    apply_density_diffusion = Val(particle_system === neighbor_system)
+
     sound_speed = system_sound_speed(particle_system)
 
     surface_tension_a = surface_tension_model(particle_system)
@@ -100,7 +105,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         @inbounds continuity_equation!(dv, density_calculator, particle_system,
                                        neighbor_system, v_particle_system,
                                        v_neighbor_system, particle, neighbor,
-                                       pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
+                                       pos_diff, distance, m_b, rho_a, rho_b, grad_kernel;
+                                       apply_density_diffusion)
     end
     # Debug example
     # periodic_box = neighborhood_search.periodic_box
