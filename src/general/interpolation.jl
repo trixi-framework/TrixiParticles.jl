@@ -593,6 +593,12 @@ end
                 # According to:
                 # u(r_a) = (∑_b u(r_b) ⋅ V_b ⋅ W(r_a-r_b)) / (∑_b V_b ⋅ W(r_a-r_b)),
                 # where V_b = m_b / ρ_b.
+                #
+                # The equality check above is dynamic, so all methods
+                # of `interpolate_system!` are compiled on the GPU, even though most
+                # are skipped. This will fail if we try to access non-existing
+                # fields in the cache (because the cache belongs to `ref_system`).
+                # `is_ref_system` allows us to make this check static.
                 interpolate_system!(cache, v, neighbor_system,
                                     point, neighbor, volume_b, W_ab,
                                     clip_negative_pressure, is_ref_system)
