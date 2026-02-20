@@ -132,7 +132,8 @@ end
                                       particle_system, neighbor_system,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b, grad_kernel)
+                                      m_b, rho_a, rho_b, grad_kernel;
+                                      apply_density_diffusion=Val(false))
     return dv
 end
 
@@ -142,7 +143,8 @@ end
                                                   neighbor_system,
                                                   v_particle_system, v_neighbor_system,
                                                   particle, neighbor, pos_diff, distance,
-                                                  m_b, rho_a, rho_b, grad_kernel)
+                                                  m_b, rho_a, rho_b, grad_kernel;
+                                                  apply_density_diffusion=Val(false))
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
@@ -152,15 +154,10 @@ end
 
     dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
 
-    # Artificial density diffusion should only be applied to systems representing a fluid
-    # with the same physical properties i.e. density and viscosity.
-    # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
-    if particle_system === neighbor_system
-        density_diffusion!(dv, density_diffusion(particle_system),
-                           v_particle_system, particle, neighbor,
-                           pos_diff, distance, m_b, rho_a, rho_b, particle_system,
-                           grad_kernel)
-    end
+    density_diffusion!(dv, density_diffusion(particle_system),
+                       v_particle_system, particle, neighbor,
+                       pos_diff, distance, m_b, rho_a, rho_b, particle_system,
+                       grad_kernel, apply_density_diffusion)
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, semi)
