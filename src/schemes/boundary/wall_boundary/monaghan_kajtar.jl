@@ -67,6 +67,21 @@ end
            boundary_kernel(distance, smoothing_length(particle_system, particle))
 end
 
+# Disambiguation for corrections with asymmetric kernel gradients
+@inline function pressure_acceleration(particle_system,
+                                       neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                                              TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       pos_diff, distance, grad_kernel,
+                                       ::Union{KernelCorrection,
+                                               GradientCorrection,
+                                               BlendedGradientCorrection,
+                                               MixedKernelGradientCorrection})
+    return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
+                                 grad_kernel, nothing)
+end
+
 @fastpow @inline function boundary_kernel(r, h)
     q = r / h
 
