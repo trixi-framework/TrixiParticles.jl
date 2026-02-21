@@ -7,7 +7,8 @@
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, viscosity=nothing,
                              source_terms=nothing, boundary_model=nothing,
-                             self_interaction_nhs=:default)
+                             self_interaction_nhs=:default,
+                             velocity_averaging=nothing)
 
 System for particles of an elastic structure.
 
@@ -61,6 +62,9 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     `transpose_backend` of the [`PrecomputedNeighborhoodSearch`](@ref)
                     is set to `true` when running on GPUs and `false` on CPUs.
                     Alternatively, a user-defined neighborhood search can be passed here.
+- `velocity_averaging`: Velocity averaging technique to be applied on the velocity field
+                    to obtain an averaged velocity to be used in fluid-structure interaction.
+                    See [`VelocityAveraging`](@ref) for details.
 
 !!! note
     If specifying the clamped particles manually (via `n_clamped_particles`),
@@ -83,7 +87,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS,
+                                YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS, VA,
                                 C} <: AbstractStructureSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -109,6 +113,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     clamped_particles_motion :: M
     clamped_particles_moving :: IM
     self_interaction_nhs     :: NHS
+    velocity_averaging       :: VA
     cache                    :: C
 end
 
@@ -121,7 +126,8 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
                                   source_terms=nothing, boundary_model=nothing,
-                                  self_interaction_nhs=:default)
+                                  self_interaction_nhs=:default,
+                                  velocity_averaging=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -186,7 +192,8 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
     initialize_prescribed_motion!(clamped_particles_motion, initial_condition_sorted,
                                   n_clamped_particles)
 
-    cache = create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)
+    cache = (; create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)...,
+             create_cache_tlsph(velocity_averaging, initial_condition_sorted)...)
 
     return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -197,7 +204,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
                                     clamped_particles_motion, ismoving,
-                                    self_interaction_nhs, cache)
+                                    self_interaction_nhs, velocity_averaging, cache)
 end
 
 # Initialize self-interaction neighborhood search if not provided by the user
@@ -259,7 +266,8 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
                                     system.viscosity, system.source_terms,
                                     system.clamped_particles_motion,
                                     system.clamped_particles_moving,
-                                    self_interaction_nhs, system.cache)
+                                    self_interaction_nhs, system.velocity_averaging,
+                                    system.cache)
 end
 
 extract_periodic_box(::Nothing) = nothing
@@ -272,6 +280,22 @@ function create_cache_tlsph(::PrescribedMotion, initial_condition)
     acceleration = zero(initial_condition.velocity)
 
     return (; velocity, acceleration)
+end
+
+function create_cache_tlsph(::VelocityAveraging, initial_condition)
+    averaged_velocity = zero(initial_condition.velocity)
+    t_last_averaging = Ref(zero(eltype(initial_condition)))
+
+    return (; averaged_velocity, t_last_averaging)
+end
+
+@inline function requires_update_callback(system::TotalLagrangianSPHSystem, semi)
+    # Velocity averaging used and `integrate_tlsph == false` means that split integration
+    # is used and the averaged velocity is updated there.
+    # Velocity averaging used, `integrate_tlsph == true`, and no fluid system in the semi
+    # means we are inside the split integration
+    return !isnothing(system.velocity_averaging) && semi.integrate_tlsph[] &&
+        any(system -> system isa AbstractFluidSystem, semi.systems)
 end
 
 @inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
@@ -384,6 +408,10 @@ end
     return poisson_ratio[particle]
 end
 
+@inline function velocity_averaging(system::TotalLagrangianSPHSystem)
+    return system.velocity_averaging
+end
+
 function initialize!(system::TotalLagrangianSPHSystem, semi)
     (; correction_matrix) = system
 
@@ -438,6 +466,8 @@ end
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
+
+    # @trixi_timeit timer() "KV damping" apply_kelvin_voigt_damping!(system.pk1_rho2, v, system, semi)
 
     return system
 end
@@ -502,6 +532,54 @@ end
     end
 
     return deformation_grad
+end
+
+@inline function apply_kelvin_voigt_damping!(pk1_rho2, v, system, semi)
+    (; mass, material_density) = system
+
+    # Compute bulk modulus from Young's modulus and Poisson's ratio.
+    # See the table at the end of https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
+    # TODO Should we compute the sound speed per particle and then use the maximum?
+    E = maximum(system.young_modulus)
+    K = E / (ndims(system) * (1 - 2 * maximum(system.poisson_ratio)))
+
+    # Newton–Laplace equation
+    sound_speed = sqrt(K / minimum(system.material_density))
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
+    initial_coords = initial_coordinates(system)
+    foreach_point_neighbor(system, system, initial_coords, initial_coords,
+                           semi) do particle, neighbor, initial_pos_diff, initial_distance
+        # Only consider particles with a distance > 0.
+        # See `src/general/smoothing_kernels.jl` for more details.
+        initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
+
+        volume = @inbounds mass[neighbor] / material_density[neighbor]
+        v_diff = @inbounds current_velocity(v, system, particle) -
+                              current_velocity(v, system, neighbor)
+
+        grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
+                                            initial_distance, particle)
+
+        # Multiply by L_{0a}
+        L = @inbounds correction_matrix(system, particle)
+
+        dF = -volume * v_diff * grad_kernel' * L'
+
+        F = deformation_gradient(system, particle)
+
+        alpha = 1.0
+        rho = material_density[particle]
+
+        h = smoothing_length(system, particle)
+        P_rho2 = alpha / rho * sound_speed * h / 2 * F * (dF' * F + F' * dF)
+
+        for j in 1:ndims(system), i in 1:ndims(system)
+            @inbounds pk1_rho2[i, j, particle] += P_rho2[i, j]
+        end
+    end
+
+    return pk1_rho2
 end
 
 # First Piola-Kirchhoff stress tensor

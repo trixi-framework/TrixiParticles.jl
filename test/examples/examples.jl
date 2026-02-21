@@ -65,9 +65,132 @@
                 @test count_rhs_allocations(sol, semi) == 0
             end
         end
+
+        @trixi_testset "structure/oscillating_beam_2d.jl with EnergyCalculatorCallback" begin
+            # Load variables from the example
+            trixi_include(@__MODULE__,
+                          joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
+                          ode=nothing, sol=nothing, E=1e5)
+
+            # We simply clamp all particles, move them up against gravity, and verify that
+            # the energy calculated is just the potential energy difference.
+            movement_function(x, t) = x + SVector(0.0, t)
+            is_moving(t) = true
+
+            tests = Dict(
+                "all particles clamped" => eachparticle(structure),
+                # Clamp everything but the top two layers of the beam
+                "some particles clamped" => 1:(nparticles(structure) - 162)
+            )
+            rtol = Dict(
+                "all particles clamped" => sqrt(eps()),
+                # Clamp everything but the top two layers of the beam.
+                # We don't expect very accurate results here, this is more of a smoke test.
+                "some particles clamped" => 0.1
+            )
+            @testset "$name" for (name, clamped_particles) in tests
+                # We need a new `PrescribedMotion` for each test due to
+                # https://github.com/trixi-framework/TrixiParticles.jl/issues/1020
+                prescribed_motion = PrescribedMotion(movement_function, is_moving)
+                structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel,
+                                                            smoothing_length,
+                                                            material.E, material.nu,
+                                                            clamped_particles=clamped_particles,
+                                                            acceleration=(0.0, -gravity),
+                                                            clamped_particles_motion=prescribed_motion)
+
+                semi = Semidiscretization(structure_system)
+                ode = semidiscretize(semi, (0.0, 1.0))
+
+                energy_calculator = EnergyCalculatorCallback(structure_system, semi;
+                                                             interval=1)
+
+                sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
+                                               callback=energy_calculator)
+
+                @test sol.retcode == ReturnCode.Success
+                @test count_rhs_allocations(sol, semi) == 0
+
+                # Potential energy difference should be m * g * h
+                @test isapprox(calculated_energy(energy_calculator),
+                               sum(structure_system.mass) * gravity * 1,
+                               rtol=rtol[name])
+            end
+        end
     end
 
     @testset verbose=true "FSI" begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with moving TLSPH walls" begin
+            # In this test, we move a water-filled tank up against gravity by 1 unit
+            # and verify that the energy calculated by the `EnergyCalculatorCallback`
+            # matches the expected potential energy.
+
+            # Load variables from the example
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fluid",
+                                                      "hydrostatic_water_column_2d.jl"),
+                                             # Use tank without airspace
+                                             tank_size=(1.0, 0.9),
+                                             # Higher speed of sound for smaller error
+                                             # due to compressibility.
+                                             sound_speed=50.0,
+                                             ode=nothing, sol=nothing)
+
+            # Move the tank up against gravity smoothly by 1 unit over 1 second
+            function movement_function(x, t)
+                return x + SVector(0.0, 0.5 * sin(pi * (t - 0.5)) + 0.5)
+            end
+            is_moving(t) = true
+            prescribed_motion = PrescribedMotion(movement_function, is_moving)
+
+            # Create TLSPH system for the tank walls and clamp all particles.
+            # This is identical to a `WallBoundarySystem`, but now we can
+            # use the `EnergyCalculatorCallback` to compute the energy.
+            boundary_spacing = tank.boundary.particle_spacing
+            tlsph_kernel = WendlandC2Kernel{2}()
+            tlsph_smoothing_length = sqrt(2) * boundary_spacing
+
+            tlsph_system = TotalLagrangianSPHSystem(tank.boundary, tlsph_kernel,
+                                                    tlsph_smoothing_length,
+                                                    1.0e6, 0.3,
+                                                    clamped_particles=eachparticle(tank.boundary),
+                                                    acceleration=(0.0, -gravity),
+                                                    clamped_particles_motion=prescribed_motion,
+                                                    boundary_model=boundary_model)
+
+            semi = Semidiscretization(fluid_system, tlsph_system,
+                                      parallelization_backend=PolyesterBackend())
+            ode = semidiscretize(semi, (0.0, 1.0))
+
+            # Energy calculators for fluid + tank and fluid only
+            energy_calculator1 = EnergyCalculatorCallback(tlsph_system, semi; interval=1)
+            energy_calculator2 = EnergyCalculatorCallback(tlsph_system, semi; interval=1,
+                                                          only_compute_force_on_fluid=true)
+
+            sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL35(), save_everystep=false,
+                                           callback=CallbackSet(info_callback,
+                                                                energy_calculator1,
+                                                                energy_calculator2))
+
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+
+            # Potential energy difference should be m * g * h and h = 1.
+            # Since all particles are clamped, the energy added through clamped particles
+            # should be the same as that added to the fluid.
+            expected_energy_fluid = sum(fluid_system.mass) * gravity * 1
+            expected_energy_tank = sum(tlsph_system.mass) * gravity * 1
+
+            # We don't expect very accurate results here because the fluid is weakly
+            # compressible and is deformed during the simulation.
+            # A slower prescribed motion (e.g., over 2 seconds instead of 1) or a higher
+            # speed of sound in the fluid would improve accuracy (and increase runtime).
+            @test isapprox(calculated_energy(energy_calculator1),
+                           expected_energy_fluid + expected_energy_tank, rtol=5e-4)
+            @test isapprox(calculated_energy(energy_calculator2), expected_energy_fluid,
+                           rtol=5e-4)
+        end
+
         @trixi_testset "fsi/falling_water_column_2d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",

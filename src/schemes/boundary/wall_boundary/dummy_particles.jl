@@ -438,7 +438,7 @@ end
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function apply_state_equation!(boundary_model, density, particle)
-    boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0)
+    boundary_model.pressure[particle] = max(boundary_model.state_equation(density), -Inf)
 end
 
 function compute_pressure!(boundary_model,
@@ -509,7 +509,7 @@ function compute_adami_density!(boundary_model, system, v, particle)
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
-    @inbounds pressure[particle] = max(pressure[particle], 0)
+    # @inbounds pressure[particle] = max(pressure[particle], 0)
 
     # Apply inverse state equation to compute density (not used with EDAC)
     inverse_state_equation!(density, state_equation, pressure, particle)
@@ -681,8 +681,10 @@ end
     (; volume, wall_velocity) = cache
 
     # Prescribed velocity of the boundary particle.
-    # This velocity is zero when not using moving boundaries.
-    v_boundary = current_velocity(v, system, particle)
+    # This velocity is zero when not using moving boundaries or TLSPH.
+    # If not using TLSPH with velocity averaging, this function simply
+    # forwards to `current_velocity`.
+    v_boundary = velocity_for_viscosity(v, system, particle)
 
     for dim in eachindex(v_boundary)
         # The second term is the precalculated smoothed velocity field of the fluid

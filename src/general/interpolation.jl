@@ -155,7 +155,7 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                   v_ode, u_ode; include_wall_velocity=false,
                                   smoothing_length=initial_smoothing_length(ref_system),
                                   cut_off_bnd=true, clip_negative_pressure=false,
-                                  output_directory="out", filename="plane")
+                                  output_directory="out", filename="plane", pvd=nothing, t=-1)
     # Don't filter out particles without neighbors to keep 2D grid structure
     filter_no_neighbors = false
     @trixi_timeit timer() "interpolate plane" begin
@@ -172,11 +172,20 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                        length(y_range))
     pressure = reshape(results.pressure, length(x_range), length(y_range))
 
+    # If data is on the GPU, first transfer it to CPU before writing to VTK
+    density = transfer2cpu(density)
+    velocity = transfer2cpu(velocity)
+    pressure = transfer2cpu(pressure)
+
     @trixi_timeit timer() "write to vtk" vtk_grid(joinpath(output_directory, filename),
                                                   x_range, y_range) do vtk
         vtk["density"] = density
         vtk["velocity"] = velocity
         vtk["pressure"] = pressure
+
+        if !isnothing(pvd) && t >= 0
+            pvd[t] = vtk
+        end
     end
 end
 
@@ -560,6 +569,7 @@ end
 
     foreach_system(systems) do neighbor_system
         system_id = system_indices(neighbor_system, semi)
+        is_ref_system = Val(system_id == ref_id)
         nhs = neighborhood_searches[system_id]
 
         v = wrap_v(v_ode, neighbor_system, semi)
@@ -587,8 +597,15 @@ end
                 # According to:
                 # u(r_a) = (∑_b u(r_b) ⋅ V_b ⋅ W(r_a-r_b)) / (∑_b V_b ⋅ W(r_a-r_b)),
                 # where V_b = m_b / ρ_b.
+                #
+                # The equality check above is dynamic, so all methods
+                # of `interpolate_system!` are compiled on the GPU, even though most
+                # are skipped. This will fail if we try to access non-existing
+                # fields in the cache (because the cache belongs to `ref_system`).
+                # `is_ref_system` allows us to make this check static.
                 interpolate_system!(cache, v, neighbor_system,
-                                    point, neighbor, volume_b, W_ab, clip_negative_pressure)
+                                    point, neighbor, volume_b, W_ab,
+                                    clip_negative_pressure, is_ref_system)
             else
                 other_density[point] += m_b * W_ab
 
@@ -674,13 +691,20 @@ end
 end
 
 function interpolate_system!(cache, v, neighbor_system,
-                             point, neighbor, volume_b, W_ab, clip_negative_pressure)
+                             point, neighbor, volume_b, W_ab,
+                             clip_negative_pressure, is_ref_system)
     return cache
 end
 
-@inline function interpolate_system!(cache, v, system::AbstractFluidSystem,
+# `ref_system` and `neighbor_system` are always the same system. But this is behind
+# a dynamic `==` on the system index, so all methods of `interpolate_system!` are compiled
+# even though most are skipped. This will fail on the GPU if we try to access non-existing
+# fields in the cache (because the cache belongs to `ref_system`).
+# A simple fix is to pass both systems and skip distinct system types by dispatching.
+@inline function interpolate_system!(cache, v, ref_system::AbstractFluidSystem,
+                                     system::AbstractFluidSystem,
                                      point, neighbor, volume_b, W_ab,
-                                     clip_negative_pressure)
+                                     clip_negative_pressure, ::Val{true})
     velocity = current_velocity(v, system, neighbor)
     for i in axes(cache.velocity, 1)
         cache.velocity[i, point] += velocity[i] * volume_b * W_ab
@@ -698,9 +722,15 @@ end
     return cache
 end
 
-@inline function interpolate_system!(cache, v, system::AbstractStructureSystem,
+# `ref_system` and `neighbor_system` are always the same system. But this is behind
+# a dynamic `==` on the system index, so all methods of `interpolate_system!` are compiled
+# even though most are skipped. This will fail on the GPU if we try to access non-existing
+# fields in the cache (because the cache belongs to `ref_system`).
+# A simple fix is to pass both systems and skip distinct system types by dispatching.
+@inline function interpolate_system!(cache, v, ref_system::AbstractStructureSystem,
+                                     system::AbstractStructureSystem,
                                      point, neighbor, volume_b, W_ab,
-                                     clip_negative_pressure)
+                                     clip_negative_pressure, ::Val{true})
     velocity = current_velocity(v, system, neighbor)
     for i in axes(cache.velocity, 1)
         cache.velocity[i, point] += velocity[i] * volume_b * W_ab

@@ -31,7 +31,7 @@ function UpdateCallback(; interval::Integer=-1, dt=0.0)
     update_callback! = UpdateCallback(interval)
 
     if dt > 0
-        # Add a `tstop` every `dt`, and save the final solution.
+        # Add a `tstop` every `dt`
         return PeriodicCallback(update_callback!, dt,
                                 initialize=(initial_update!),
                                 save_positions=(false, false))
@@ -52,11 +52,16 @@ function initial_update!(cb, u, t, integrator)
     initial_update!(cb.affect!, u, t, integrator)
 end
 
-function initial_update!(cb::UpdateCallback, u, t, integrator)
-    semi = integrator.p
+function initial_update!(cb::UpdateCallback, vu_ode, t, integrator)
+    v_ode, u_ode = vu_ode.x
+    semi = integrator.p.semi
 
     # Tell the semidiscretization that the `UpdateCallback` is used
     semi.update_callback_used[] = true
+
+    foreach_system(semi) do system
+        initialize_averaged_velocity!(system, v_ode, semi, t)
+    end
 
     return cb(integrator)
 end
@@ -71,7 +76,7 @@ end
 # `affect!`
 function (update_callback!::UpdateCallback)(integrator)
     t = integrator.t
-    semi = integrator.p
+    semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
 
     # Tell OrdinaryDiffEq that `integrator.u` has NOT been modified.
@@ -104,6 +109,10 @@ function (update_callback!::UpdateCallback)(integrator)
         foreach_system(semi) do system
             particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
                                              v_ode, semi, integrator)
+        end
+
+        foreach_system(semi) do system
+            compute_averaged_velocity!(system, v_ode, semi, t)
         end
     end
 

@@ -114,20 +114,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     # in the `BoundaryZone`, but they are not used in the actual simulation.
     # The reference values are extracted above in the "create cache" function
     # and then stored in `system.cache` as a `Tuple`.
-    boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
-                                                  zone.spanning_set,
-                                                  zone.zone_origin,
-                                                  zone.zone_width,
-                                                  zone.flow_direction,
-                                                  zone.face_normal,
-                                                  zone.rest_pressure,
-                                                  nothing,
-                                                  zone.cache,
-                                                  zone.average_inflow_velocity,
-                                                  zone.prescribed_density,
-                                                  zone.prescribed_pressure,
-                                                  zone.prescribed_velocity),
-                             boundary_zones_)
+    boundary_zones_new = map(zone -> @set(zone.reference_values = nothing), boundary_zones_)
 
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
@@ -257,7 +244,7 @@ end
 @inline buffer(system::OpenBoundarySystem) = system.buffer
 
 # The `UpdateCallback` is required to update particle positions between time steps
-@inline requires_update_callback(system::OpenBoundarySystem) = true
+@inline requires_update_callback(system::OpenBoundarySystem, semi) = true
 
 function smoothing_length(system::OpenBoundarySystem, particle)
     return system.smoothing_length
@@ -295,6 +282,11 @@ end
     current_density(v, system)[particle] = density
 
     return v
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi)
+    # Open boundaries don't affect the timestep calculation
+    return Inf
 end
 
 @inline function add_velocity!(du, v, u, particle, system::OpenBoundarySystem, t)

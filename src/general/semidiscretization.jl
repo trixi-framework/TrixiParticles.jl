@@ -155,7 +155,7 @@ end
 @inline function system_indices(system, semi)
     # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
     # is ~30x slower because `hash(::System)` is very slow.
-    index = findfirst(==(system), semi.systems)
+    index = findfirst(s -> s === system, semi.systems)
 
     if isnothing(index)
         throw(ArgumentError("system is not in the semidiscretization"))
@@ -211,12 +211,18 @@ function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
 
     # Check that all systems have the same eltype
-    @assert all(system -> eltype(system) === eltype(systems[1]), systems)
+    if !all(system -> eltype(system) === eltype(systems[1]), systems)
+        throw(ArgumentError("`eltype(system)` must be the same for all systems in the " *
+                            "`Semidiscretization`"))
+    end
     ELTYPE = eltype(systems[1])
 
     # Check that all systems have the same coordinates eltype
-    @assert all(system -> coordinates_eltype(system) === coordinates_eltype(systems[1]),
-                systems)
+    if !all(system -> coordinates_eltype(system) === coordinates_eltype(systems[1]),
+            systems)
+        throw(ArgumentError("`coordinates_eltype(system)` must be the same " *
+                            "for all systems in the `Semidiscretization`"))
+    end
     cELTYPE = coordinates_eltype(systems[1])
 
     # Optionally reset Polyester.jl threads. See
@@ -275,7 +281,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
         semi_new = @set semi_.systems = set_system_links.(semi_.systems, Ref(semi_))
 
         @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
-              "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
+              "`Semidiscretization`. Use `semi = ode.p.semi` to access simulation data."
     else
         semi_new = semi
     end
@@ -289,7 +295,9 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
+    p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new,
+                                                                          nothing))
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, p)
 end
 
 """
@@ -388,7 +396,9 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization, integr
     end
 end
 
-function drift!(du_ode, v_ode, u_ode, semi, t)
+function drift!(du_ode, v_ode, u_ode, p, t)
+    (; semi) = p
+
     @trixi_timeit timer() "drift!" begin
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
@@ -445,7 +455,13 @@ end
     return du
 end
 
-function kick!(dv_ode, v_ode, u_ode, semi, t)
+function kick!(dv_ode, v_ode, u_ode, p, t)
+    (; semi, split_integration_data) = p
+
+    # This is a no-op if no split integration
+    # or split integration without stage-coupling is used.
+    split_integrate_stage!(v_ode, u_ode, t, split_integration_data)
+
     @trixi_timeit timer() "kick!" begin
         # Check that the `UpdateCallback` is used if required
         check_update_callback(semi)
@@ -463,6 +479,23 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     end
 
     return dv_ode
+end
+
+@inline save_acceleration!(system, dv_ode, semi) = system
+
+@inline function save_acceleration!(system::TotalLagrangianSPHSystem, dv_ode, semi)
+    if semi.integrate_tlsph[]
+        # Save the acceleration in the system
+        dv = wrap_v(dv_ode, system, semi)
+
+        @threaded semi for particle in each_moving_particle(system)
+            for i in 1:ndims(system)
+                system.cache.acceleration[i, particle] = dv[i, particle]
+            end
+        end
+    end
+
+    return system
 end
 
 # Update the systems and neighborhood searches (NHS) for a simulation
@@ -674,7 +707,7 @@ end
 function check_update_callback(semi)
     foreach_system(semi) do system
         # This check will be optimized away if the system does not require the callback
-        if requires_update_callback(system) && !semi.update_callback_used[]
+        if requires_update_callback(system, semi) && !semi.update_callback_used[]
             system_name = system |> typeof |> nameof
             throw(ArgumentError("`UpdateCallback` is required for `$system_name`"))
         end
