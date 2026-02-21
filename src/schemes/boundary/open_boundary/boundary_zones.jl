@@ -162,13 +162,13 @@ bidirectional_flow = BoundaryZone(; boundary_face=face_vertices, face_normal,
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct BoundaryZone{IC, S, ZO, ZW, FD, FN, ELTYPE, R, C}
+struct BoundaryZone{NDIMS, ELTYPE, IC, S, R, C}
     initial_condition :: IC
     spanning_set      :: S
-    zone_origin       :: ZO
-    zone_width        :: ZW
-    flow_direction    :: FD
-    face_normal       :: FN
+    zone_origin       :: SVector{NDIMS, ELTYPE}
+    zone_width        :: ELTYPE
+    flow_direction    :: SVector{NDIMS, ELTYPE}
+    face_normal       :: SVector{NDIMS, ELTYPE}
     rest_pressure     :: ELTYPE # Only required for `BoundaryModelDynamicalPressureZhang`
     reference_values  :: R
     cache             :: C
@@ -202,7 +202,7 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     NDIMS = ndims(ic)
     ELTYPE = eltype(ic)
     if !(reference_velocity isa Function || isnothing(reference_velocity) ||
-         (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
+         (reference_velocity isa AbstractVector && length(reference_velocity) == NDIMS))
         throw(ArgumentError("`reference_velocity` must be either a function mapping " *
                             "each particle's coordinates and time to its velocity, " *
                             "or, for a constant fluid velocity, a vector of length $NDIMS for a $(NDIMS)D problem holding this velocity"))
@@ -290,7 +290,7 @@ end
 function boundary_type_name(boundary_zone::BoundaryZone)
     (; flow_direction, face_normal) = boundary_zone
 
-    if isnothing(flow_direction)
+    if iszero(flow_direction)
         return "bidirectional_flow"
     elseif signbit(dot(flow_direction, face_normal))
         return "outflow"
@@ -378,7 +378,7 @@ function set_up_boundary_zone(boundary_face, face_normal, density, particle_spac
         # Unit vector pointing in downstream direction
         flow_direction = -face_normal
     elseif boundary_type isa BidirectionalFlow
-        flow_direction = nothing
+        flow_direction = zero(face_normal)
     end
 
     # Sample particles in boundary zone
