@@ -174,6 +174,7 @@ struct BoundaryZone{NDIMS, ELTYPE, IC, S, R, C}
     cache             :: C
     # Note that the following can't be static type parameters, as all boundary zones in a system
     # must have the same type, so that we can loop over them in a type-stable way.
+    is_bidirectional        :: Bool
     average_inflow_velocity :: Bool
     prescribed_density      :: Bool
     prescribed_pressure     :: Bool
@@ -281,16 +282,18 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     cache = (;
              create_cache_boundary_zone(ic, boundary_face, face_normal_, sample_points)...)
 
+    is_bidirectional = boundary_type isa BidirectionalFlow
+
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
                         flow_direction, face_normal_, rest_pressure, reference_values,
-                        cache, average_inflow_velocity, prescribed_density,
-                        prescribed_pressure, prescribed_velocity)
+                        cache, is_bidirectional, average_inflow_velocity,
+                        prescribed_density, prescribed_pressure, prescribed_velocity)
 end
 
 function boundary_type_name(boundary_zone::BoundaryZone)
-    (; flow_direction, face_normal) = boundary_zone
+    (; flow_direction, face_normal, is_bidirectional) = boundary_zone
 
-    if iszero(flow_direction)
+    if is_bidirectional
         return "bidirectional_flow"
     elseif signbit(dot(flow_direction, face_normal))
         return "outflow"
