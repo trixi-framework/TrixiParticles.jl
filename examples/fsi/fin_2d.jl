@@ -299,7 +299,9 @@ else
     reference_velocity_out = nothing
     reference_pressure_out = 0.0
     reference_density_out = nothing
-    boundary_type_out = OutFlow()
+    # Vortices with negative x-velocity can pass through the outlet,
+    # which a pure outflow boundary cannot handle.
+    boundary_type_out = BidirectionalFlow()
     face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], tank_size[2]])
     outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
                         open_boundary_layers, density=fluid_density, particle_spacing,
@@ -342,7 +344,7 @@ info_callback = InfoCallback(interval=100)
 prefix = ""
 saving_callback = SolutionSavingCallback(dt=0.01; prefix)
 
-split_cfl = 1.0
+split_cfl = 1.6
 # SSPRK104 CFL = 2.5, 15k RHS evaluations
 # CarpenterKennedy2N54 CFL = 1.6, 11k RHS evaluations
 # RK4 CFL = 1.2, 12k RHS evaluations
@@ -361,7 +363,7 @@ split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_con
                                              callback=StepsizeCallback(cfl=split_cfl),
                                              maxiters=10^8)
 
-fluid_cfl = 0.8
+fluid_cfl = 1.2
 stepsize_callback = StepsizeCallback(cfl=fluid_cfl)
 
 function total_volume(system::WeaklyCompressibleSPHSystem, data, t)
