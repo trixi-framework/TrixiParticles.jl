@@ -105,7 +105,7 @@ end
 
     # The following is equivalent to `du = duprev + dt * kdu` for the velocity, but when
     # the density is integrated, a different update is used for the density.
-    semi = p
+    semi = p.semi
     TrixiParticles.foreach_system(semi) do system
         kdu_system = TrixiParticles.wrap_v(kdu, system, semi)
         du_system = TrixiParticles.wrap_v(du, system, semi)
