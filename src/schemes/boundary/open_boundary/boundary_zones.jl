@@ -565,7 +565,7 @@ function wrap_reference_function(constant_vector::AbstractVector,
     return @inline((coords, t)->SVector{NDIMS, ELTYPE}(constant_vector))
 end
 
-function reference_pressure(boundary_zone, v, system, particle, pos, t)
+@inline function reference_pressure(boundary_zone, v, system, particle, pos, t)
     (; prescribed_pressure) = boundary_zone
     (; pressure_reference_values) = system.cache
 
@@ -579,7 +579,7 @@ function reference_pressure(boundary_zone, v, system, particle, pos, t)
     end
 end
 
-function reference_density(boundary_zone, v, system, particle, pos, t)
+@inline function reference_density(boundary_zone, v, system, particle, pos, t)
     (; prescribed_density) = boundary_zone
     (; density_reference_values) = system.cache
 
@@ -593,7 +593,7 @@ function reference_density(boundary_zone, v, system, particle, pos, t)
     end
 end
 
-function reference_velocity(boundary_zone, v, system, particle, pos, t)
+@inline function reference_velocity(boundary_zone, v, system, particle, pos, t)
     (; prescribed_velocity) = boundary_zone
     (; velocity_reference_values) = system.cache
 
