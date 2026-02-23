@@ -145,8 +145,9 @@ semi = Semidiscretization(structure_system, fluid_system, boundary_system,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
-split_integration = SplitIntegrationCallback(RDPK3SpFSAL49(), adaptive=true,
-                                             dt=5e-5)
+split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                             callback=StepsizeCallback(cfl=1.6),
+                                             dt=1.0) # dt will be overwritten by the stepsize cb
 
 # This can be overwritten with `trixi_include`
 extra_callback = nothing
