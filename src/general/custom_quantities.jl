@@ -24,12 +24,10 @@ function kinetic_energy(system::AbstractStructureSystem,
     mass = system.mass
     energy = zero(eltype(system))
 
-    @inbounds for particle in each_active_particle(system)
+    return sum(each_active_particle(system)) do particle
         v_i = current_velocity(v, system, particle)
         energy += mass[particle] * dot(v_i, v_i) / 2
     end
-
-    return energy
 end
 
 function kinetic_energy(system::AbstractBoundarySystem,
