@@ -20,7 +20,6 @@ run
 *.vtu
 *.pvd
 *.mp4
-*.txt
 
 # ParaView states
 *.pvsm
