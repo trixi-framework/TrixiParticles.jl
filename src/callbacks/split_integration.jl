@@ -88,8 +88,17 @@ callback = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=fa
 """
 function SplitIntegrationCallback(alg; stage_coupling=false, predict_positions=true,
                                   kwargs...)
+    # Add lightweight callback to (potentially) update the averaged velocity
+    # during the split integration.
+    if haskey(kwargs, :callback)
+        # Note that `CallbackSet`s can be nested
+        kwargs = (; kwargs..., callback=CallbackSet(values(kwargs).callback,
+                                                    UpdateAveragedVelocityCallback()))
+    else
+        kwargs = (; kwargs..., callback=UpdateAveragedVelocityCallback())
+    end
     split_integration_callback = SplitIntegrationCallback(alg, stage_coupling,
-                                                          predict_positions, kwargs)
+                                                          predict_positions, pairs(kwargs))
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(split_integration_callback, split_integration_callback,
@@ -142,15 +151,6 @@ function initialize_split_integration!(cb, vu_ode, t, integrator)
     p = (; semi=semi_split, semi_large=semi, dv_ode_split)
     ode_split = DynamicalODEProblem(kick_split!, drift_split!, v0_ode_split, u0_ode_split,
                                     tspan, p)
-
-    # Add lightweight callback to (potentially) update the averaged velocity
-    # during the split integration.
-    callback = UpdateAveragedVelocityCallback()
-    if haskey(kwargs, :callback)
-        kwargs[:callback] = CallbackSet(kwargs[:callback], callback)
-    else
-        kwargs[:callback] = callback
-    end
 
     # Create the split integrator.
     # We need the timer here to keep the output clean because this will call `kick!` once.
