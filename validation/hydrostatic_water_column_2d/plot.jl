@@ -20,28 +20,6 @@ function darken(c::Colorant, amount::Real)
 end
 
 # ==========================================================================================
-# ==== JSON helpers
-function require_key(json_data, key, json_file)
-    if !haskey(json_data, key)
-        available = sort(collect(keys(json_data)))
-        available_list = join(available, ", ")
-        error("Missing key \"$(key)\" in $json_file. Available keys: $available_list.")
-    end
-    return json_data[key]
-end
-
-function require_fields(data, fields, key, json_file)
-    missing_fields = [field for field in fields if !haskey(data, field)]
-    if !isempty(missing_fields)
-        available = sort(collect(keys(data)))
-        missing_list = join(missing_fields, ", ")
-        available_list = join(available, ", ")
-        error("Key \"$(key)\" in $json_file missing fields $missing_list. " *
-              "Available fields: $available_list.")
-    end
-end
-
-# ==========================================================================================
 # ==== Directories, files, and global y-limits for simulation plots
 include_reference_files = true
 include_out_files = true
@@ -68,15 +46,13 @@ global_ymin = -Inf
 global_ymax = Inf
 for file in all_files
     json_data = JSON.parsefile(file)
-    deflection_data = require_key(json_data, "y_deflection_structure_1", file)
-    require_fields(deflection_data, ["time", "values"], "y_deflection_structure_1", file)
+    deflection_data = json_data["y_deflection_structure_1"]
     time_vals = deflection_data["time"]
     inds = findall(t -> t <= 0.5, time_vals)
     global global_ymin,
            global_ymax = extrema(deflection_data["values"][inds])
     # Analytical solution is constant
-    analytical_data = require_key(json_data, "analytical_solution", file)
-    require_fields(analytical_data, ["values"], "analytical_solution", file)
+    analytical_data = json_data["analytical_solution"]
     global_ymin = min(global_ymin, analytical_data["values"][1])
     global_ymax = max(global_ymax, analytical_data["values"][1])
 end
@@ -102,9 +78,7 @@ analytical_value = -0.0026 * 9.81 * (1000 * 2.0 + 2700 * 0.05) / D
 
 function compute_errors(json_file)
     json_data = JSON.parsefile(json_file)
-    deflection_data = require_key(json_data, "y_deflection_structure_1", json_file)
-    require_fields(deflection_data, ["time", "values"], "y_deflection_structure_1",
-                   json_file)
+    deflection_data = json_data["y_deflection_structure_1"]
     time_vals = deflection_data["time"]
     sim_vals = deflection_data["values"]
     inds = findall(t -> 0.25 <= t <= 1.0, time_vals)
@@ -174,14 +148,11 @@ avg_line_style = (:dot, :loose)
 function plot_dataset!(ax, json_file; source=:reference, show_sim_label=false,
                        show_avg_label=false, show_analytic=false)
     json_data = JSON.parsefile(json_file)
-    deflection_data = require_key(json_data, "y_deflection_structure_1", json_file)
-    require_fields(deflection_data, ["time", "values"], "y_deflection_structure_1",
-                   json_file)
+    deflection_data = json_data["y_deflection_structure_1"]
     time_vals = deflection_data["time"]
     sim_vals = deflection_data["values"]
     # Analytical solution is constant
-    analytical_data = require_key(json_data, "analytical_solution", json_file)
-    require_fields(analytical_data, ["values"], "analytical_solution", json_file)
+    analytical_data = json_data["analytical_solution"]
     analytic_val = analytical_data["values"][1]
 
     inds_plot = findall(t -> t <= 0.5, time_vals)
