@@ -52,7 +52,16 @@ callback = SplitIntegrationCallback(RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4)
 ```
 """
 function SplitIntegrationCallback(alg; kwargs...)
-    split_integration_callback = SplitIntegrationCallback(nothing, alg, kwargs)
+    # Add lightweight callback to (potentially) update the averaged velocity
+    # during the split integration.
+    if haskey(kwargs, :callback)
+        # Note that `CallbackSet`s can be nested
+        kwargs = (; kwargs..., callback=CallbackSet(values(kwargs).callback,
+                                                    UpdateAveragedVelocityCallback()))
+    else
+        kwargs = (; kwargs..., callback=UpdateAveragedVelocityCallback())
+    end
+    split_integration_callback = SplitIntegrationCallback(nothing, alg, pairs(kwargs))
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(split_integration_callback, split_integration_callback,
@@ -121,15 +130,6 @@ function initialize_split_integration!(cb, u, t, integrator)
     p = (; v_ode, u_ode, semi, semi_split)
     ode_split = DynamicalODEProblem(kick_split!, drift_split!, v0_ode_split, u0_ode_split,
                                     tspan, p)
-
-    # Add lightweight callback to (potentially) update the averaged velocity
-    # during the split integration.
-    callback = UpdateAveragedVelocityCallback()
-    if haskey(kwargs, :callback)
-        kwargs[:callback] = CallbackSet(kwargs[:callback], callback)
-    else
-        kwargs[:callback] = callback
-    end
 
     # Create the split integrator.
     # We need the timer here to keep the output clean because this will call `kick!` once.
