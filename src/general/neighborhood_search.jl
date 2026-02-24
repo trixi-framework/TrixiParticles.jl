@@ -124,30 +124,74 @@ function get_neighborhood_search(handler::PairsNHSHandler, system_index, neighbo
     return handler.neighborhood_searches[system_index][neighbor_index]
 end
 
-struct GridNHSHandler{SI, NHS} <: AbstractNHSHandler
-    search_radii :: SI
+struct VariableRadiusNHS{SR, NHS} <: PointNeighbors.AbstractNeighborhoodSearch
+    search_radii          :: SR
     neighborhood_searches :: NHS
 end
 
-function create_neighborhood_search_handler(::Type{<:GridNHSHandler}, nhs, systems)
+function VariableSearchRadiusNHS(nhs_implementation, search_radii, n_particles)
+    searches = Tuple(copy_neighborhood_search(nhs_implementation, search_radius, n_particles)
+                     for search_radius in search_radii)
+    return VariableRadiusNHS(search_radii, searches)
+end
+
+@inline Base.ndims(::TrivialNeighborhoodSearch{NDIMS}) where {NDIMS} = NDIMS
+
+@inline requires_update(::TrivialNeighborhoodSearch) = (false, true)
+
+@inline function initialize!(search::TrivialNeighborhoodSearch, x, y;
+                             parallelization_backend = default_backend(x),
+                             eachindex_y = axes(y, 2))
+    return search
+end
+
+@inline function update!(search::TrivialNeighborhoodSearch, x, y;
+                         points_moving = (true, true),
+                         parallelization_backend = default_backend(x),
+                         eachindex_y = axes(y, 2))
+    return search
+end
+
+# Create a copy of a neighborhood search but with a different search radius
+function copy_neighborhood_search(nhs::TrivialNeighborhoodSearch, search_radius, x, y)
+    return nhs
+end
+
+function copy_neighborhood_search(nhs::TrivialNeighborhoodSearch,
+                                  search_radius, n_points; eachpoint = 1:n_points)
+    return TrivialNeighborhoodSearch{ndims(nhs)}(; search_radius, eachpoint,
+                                                 periodic_box = nhs.periodic_box)
+end
+
+@inline function foreach_neighbor(f, neighbor_system_coords,
+                                  neighborhood_search::VariableRadiusNHS,
+                                  point, point_coords, search_radius)
+    # Find the index of the search radius in the list of search radii for this system
+    search_radii = neighborhood_search.search_radii
+    idx = searchsortedfirst(search_radii, search_radius - eps(search_radius))
+
+    nhs = neighborhood_search.neighborhood_searches[idx]
+
+    PointNeighbors.foreach_neighbor(f, neighbor_system_coords, nhs, point, point_coords, search_radius)
+end
+
+struct VariableNHSHandler{NHS} <: AbstractNHSHandler
+    neighborhood_searches::NHS
+end
+
+function create_neighborhood_search_handler(::Type{<:VariableNHSHandler}, nhs, systems)
     # Find a list of search radii that will be requested for each system
     search_radii = Tuple([compact_support(system, neighbor) for neighbor in systems] for system in systems)
     search_radii = Tuple.(unique.(search_radii))
 
     # For each system, create a neighborhood search for each unique search radius
-    return Tuple(Tuple(copy_neighborhood_search(nhs, search_radius, nparticles(system))
-                       for search_radius in search_radii[system_indices(system, systems)])
+    return Tuple(VariableSearchRadiusNHS(nhs, search_radii[system_indices(system, systems)], nparticles(system))
                  for system in systems)
 end
 
-function get_neighborhood_search(handler::GridNHSHandler, system_index, neighbor_index,
+function get_neighborhood_search(handler::VariableNHSHandler, system_index, neighbor_index,
                                  search_radius)
-    # Find the index of the search radius in the list of search radii for this system
-    search_radii = handler.search_radii[neighbor_index]
-    idx = searchsortedfirst(search_radii, search_radius - eps(search_radius))
-
-    # Return the neighborhood search at that index
-    return handler.neighborhood_searches[neighbor_index][idx]
+    handler.neighborhood_searches[neighbor_index]
 end
 
 @inline function get_neighborhood_search(system, semi)
