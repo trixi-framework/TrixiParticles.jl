@@ -144,7 +144,7 @@ function get_neighborhood_search(handler::GridNHSHandler, system_index, neighbor
                                  search_radius)
     # Find the index of the search radius in the list of search radii for this system
     search_radii = handler.search_radii[neighbor_index]
-    idx = searchsortedfirst(search_radii, search_radius)
+    idx = searchsortedfirst(search_radii, search_radius - eps(search_radius))
 
     # Return the neighborhood search at that index
     return handler.neighborhood_searches[neighbor_index][idx]
