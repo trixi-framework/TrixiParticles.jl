@@ -217,7 +217,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Check that all systems have the same eltype
     first_system = first(systems)
     if !all(system -> eltype(system) === eltype(first_system), systems)
-        throw(ArgumentError("all systems must use the same eltype"))
+        throw(ArgumentError("`eltype(system)` must be the same for all systems in the " *
+                            "`Semidiscretization`"))
     end
     ELTYPE = eltype(first_system)
 
