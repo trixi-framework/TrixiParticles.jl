@@ -347,7 +347,7 @@ end
 
     @boundscheck begin
         if length(range) != v_nvariables(system) * n_integrated_particles(system)
-            throw(DimensionMismatch("`v_ode` range length $range_length does not match " * 
+            throw(DimensionMismatch("`v_ode` range length $range_length does not match " *
                                     "expected number of entries $expected"))
         end
     end
