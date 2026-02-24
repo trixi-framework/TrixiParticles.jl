@@ -144,12 +144,6 @@ end
 end
 
 # === Initialization ===
-# For non-TLSPH systems, do nothing
-function initialize_self_interaction_nhs(system, neighborhood_search,
-                                         parallelization_backend)
-    return system
-end
-
 function initialize_neighborhood_searches!(semi)
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
@@ -177,6 +171,12 @@ function initialize_neighborhood_search!(semi, system::TotalLagrangianSPHSystem,
                                          neighbor::TotalLagrangianSPHSystem)
     # For TLSPH, the self-interaction NHS is already initialized in the system constructor
     return semi
+end
+
+# For non-TLSPH systems, do nothing
+function initialize_self_interaction_nhs(system, neighborhood_search,
+                                         parallelization_backend)
+    return system
 end
 
 # === Neighborhood search updates (per-system) ===
