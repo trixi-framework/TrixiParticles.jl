@@ -225,7 +225,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Check that all systems have the same coordinates eltype
     if !all(system -> coordinates_eltype(system) === coordinates_eltype(first_system),
             systems)
-        throw(ArgumentError("all systems must use the same coordinates eltype"))
+        throw(ArgumentError("`coordinates_eltype(system)` must be the same " *
+                            "for all systems in the `Semidiscretization`"))
     end
     cELTYPE = coordinates_eltype(first_system)
 
