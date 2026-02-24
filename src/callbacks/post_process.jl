@@ -21,6 +21,10 @@ a fixed interval of simulation time (`dt`).
                 system with `available_data(system)`.
                 See [Custom Quantities](@ref custom_quantities)
                 for a list of pre-defined custom quantities that can be used here.
+                **Note:** When using GPU backends, all data is automatically transferred
+                to the CPU before being passed to the custom quantity functions. This
+                ensures compatibility but may introduce overhead for frequent callbacks
+                on large simulations.
 - `interval=0`: Specifies the number of time steps between each invocation of the callback.
                 If set to `0`, the callback will not be triggered based on time steps.
                 Either `interval` or `dt` must be set to something larger than 0.
@@ -257,15 +261,21 @@ function (pp::PostprocessCallback)(integrator; from_initialize=false)
             @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
         end
 
+        # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
+        v_ode_cpu, u_ode_cpu, semi_cpu = transfer2cpu(v_ode, u_ode, semi)
+        dv_ode_cpu, du_ode_cpu = transfer2cpu(dv_ode, du_ode)
+
         foreach_system(semi) do system
             if system isa AbstractBoundarySystem && pp.exclude_boundary
                 return
             end
 
             system_index = system_indices(system, semi)
+            system_cpu = semi_cpu.systems[system_index]
 
             for (key, f) in pp.func
-                result_ = custom_quantity(f, system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+                result_ = custom_quantity(f, system_cpu, dv_ode_cpu, du_ode_cpu, v_ode_cpu,
+                                          u_ode_cpu, semi_cpu, t)
                 if result_ !== nothing
                     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
                     result = transfer2cpu(result_)

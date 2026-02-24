@@ -183,7 +183,9 @@ function apply_prescribed_motion!(system::WallBoundarySystem,
     (; ismoving, coordinates, cache) = system
     (; acceleration, velocity) = cache
 
-    prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+    @trixi_timeit timer() "apply prescribed motion" begin
+        prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+    end
 
     return system
 end
