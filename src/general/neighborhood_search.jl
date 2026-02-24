@@ -104,12 +104,54 @@ function create_neighborhood_search(neighborhood_search, system::TotalLagrangian
 end
 
 # === Neighborhood search lookup ===
+abstract type AbstractNHSHandler end
+
+struct PairsNHSHandler{NHS} <: AbstractNHSHandler
+    neighborhood_searches::NHS
+end
+
+function create_neighborhood_search_handler(::Type{<:PairsNHSHandler},
+                                            neighborhood_search, systems)
+    # Create a tuple of n neighborhood searches for each of the n systems.
+    # We will need one neighborhood search for each pair of systems.
+    return Tuple(Tuple(create_neighborhood_search(neighborhood_search,
+                                                  system, neighbor)
+                           for neighbor in systems)
+                     for system in systems)
+end
+
+function get_neighborhood_search(handler::PairsNHSHandler, system_index, neighbor_index, _)
+    return handler.neighborhood_searches[system_index][neighbor_index]
+end
+
+struct GridNHSHandler{SI, NHS} <: AbstractNHSHandler
+    search_radii :: SI
+    neighborhood_searches :: NHS
+end
+
+function create_neighborhood_search_handler(::Type{<:GridNHSHandler}, nhs, systems)
+    # Find a list of search radii that will be requested for each system
+    search_radii = Tuple([compact_support(system, neighbor) for neighbor in systems] for system in systems)
+    search_radii = Tuple.(unique.(search_radii))
+
+    # For each system, create a neighborhood search for each unique search radius
+    return Tuple(Tuple(copy_neighborhood_search(nhs, search_radius, nparticles(system))
+                       for search_radius in search_radii[system_indices(system, systems)])
+                 for system in systems)
+end
+
+function get_neighborhood_search(handler::GridNHSHandler, system_index, neighbor_index,
+                                 search_radius)
+    # Find the index of the search radius in the list of search radii for this system
+    search_radii = handler.search_radii[neighbor_index]
+    idx = searchsortedfirst(search_radii, search_radius)
+
+    # Return the neighborhood search at that index
+    return handler.neighborhood_searches[neighbor_index][idx]
+end
+
 @inline function get_neighborhood_search(system, semi)
-    (; neighborhood_searches) = semi
-
-    system_index = system_indices(system, semi)
-
-    return neighborhood_searches[system_index][system_index]
+    return get_neighborhood_search(system, system, semi)
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
@@ -124,7 +166,10 @@ end
     system_index = system_indices(system, semi)
     neighbor_index = system_indices(neighbor_system, semi)
 
-    return neighborhood_searches[system_index][neighbor_index]
+    search_radius = compact_support(system, neighbor_system)
+
+    return get_neighborhood_search(neighborhood_searches, system_index, neighbor_index,
+                                   search_radius)
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem,
@@ -140,7 +185,10 @@ end
         return system.self_interaction_nhs
     end
 
-    return neighborhood_searches[system_index][neighbor_index]
+    search_radius = compact_support(system, neighbor_system)
+
+    return get_neighborhood_search(neighborhood_searches, system_index, neighbor_index,
+                                   search_radius)
 end
 
 # === Initialization ===

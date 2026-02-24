@@ -98,12 +98,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
 
-    # Create a tuple of n neighborhood searches for each of the n systems.
-    # We will need one neighborhood search for each pair of systems.
-    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
-                                                      system, neighbor)
-                           for neighbor in systems)
-                     for system in systems)
+    searches = create_neighborhood_search_handler(PairsNHSHandler, neighborhood_search, systems)
 
     # These will be set to true inside the `UpdateCallback`.
     # Some techniques require the use of this callback, and this flag can be used
@@ -152,10 +147,12 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-@inline function system_indices(system, semi)
+@inline system_indices(system, semi::Semidiscretization) = system_indices(system, semi.systems)
+
+@inline function system_indices(system, systems)
     # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
     # is ~30x slower because `hash(::System)` is very slow.
-    index = findfirst(==(system), semi.systems)
+    index = findfirst(==(system), systems)
 
     if isnothing(index)
         throw(ArgumentError("system is not in the semidiscretization"))
