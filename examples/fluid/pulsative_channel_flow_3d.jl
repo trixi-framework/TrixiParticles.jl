@@ -17,7 +17,8 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d
               tspan=(0.0, 1.0), solution=nothing,
               particle_spacing_factor=particle_spacing_factor)
 
-v_max = channel_diameter^2 * imposed_pressure_drop / (8 * dynamic_viscosity * channel_length)
+v_max = channel_diameter^2 * imposed_pressure_drop /
+        (8 * dynamic_viscosity * channel_length)
 
 function dynamic_pressure_drop(pos, t)
     return imposed_pressure_drop +

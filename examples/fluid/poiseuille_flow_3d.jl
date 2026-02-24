@@ -53,9 +53,9 @@ wall_cross_section = SphereShape(particle_spacing, channel_radius, (0.0, 0.0),
                                  layer_outwards=true, sphere_type=RoundSphere())
 
 # Extend 2D coordinates to 3D by adding x-coordinates
-wall_cross_section_coordinates = hcat(
-    particle_spacing / 2 * ones(nparticles(wall_cross_section)),
-    wall_cross_section.coordinates')'
+wall_cross_section_coordinates = hcat(particle_spacing / 2 *
+                                      ones(nparticles(wall_cross_section)),
+                                      wall_cross_section.coordinates')'
 
 wall_boundary = extrude_geometry(wall_cross_section_coordinates; particle_spacing,
                                  direction=collect(flow_direction),
@@ -66,9 +66,9 @@ fluid_cross_section = SphereShape(particle_spacing, channel_radius, (0.0, 0.0),
                                   fluid_density, sphere_type=RoundSphere())
 
 # Extend 2D coordinates to 3D by adding x-coordinates
-fluid_cross_section_coordinates = hcat(
-    particle_spacing / 2 * ones(nparticles(fluid_cross_section)),
-    fluid_cross_section.coordinates')'
+fluid_cross_section_coordinates = hcat(particle_spacing / 2 *
+                                       ones(nparticles(fluid_cross_section)),
+                                       fluid_cross_section.coordinates')'
 
 inlet_particles = extrude_geometry(fluid_cross_section_coordinates; particle_spacing,
                                    direction=collect(flow_direction),
@@ -119,8 +119,16 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid_particles, fluid_density_calcul
 open_boundary_model = BoundaryModelDynamicalPressureZhang()
 
 inlet_boundary_type = BidirectionalFlow()
-inlet_face = ([open_boundary_layers * particle_spacing, -channel_diameter, -channel_diameter],
-              [open_boundary_layers * particle_spacing, -channel_diameter, channel_diameter],
+inlet_face = ([
+                  open_boundary_layers * particle_spacing,
+                  -channel_diameter,
+                  -channel_diameter
+              ],
+              [
+                  open_boundary_layers * particle_spacing,
+                  -channel_diameter,
+                  channel_diameter
+              ],
               [open_boundary_layers * particle_spacing, channel_diameter, channel_diameter])
 inlet_reference_velocity = nothing
 inlet_reference_pressure = 0.2
@@ -167,9 +175,9 @@ min_corner = minimum(wall_boundary.coordinates .- 2 * particle_spacing, dims=2)
 max_corner = maximum(wall_boundary.coordinates .+ 2 * particle_spacing, dims=2)
 
 neighborhood_search = GridNeighborhoodSearch{3}(;
-    cell_list=FullGridCellList(; min_corner, max_corner),
-    update_strategy=ParallelUpdate()
-)
+                                                cell_list=FullGridCellList(; min_corner,
+                                                                           max_corner),
+                                                update_strategy=ParallelUpdate())
 
 semi_discretization = Semidiscretization(fluid_system, open_boundary,
                                          boundary_system,

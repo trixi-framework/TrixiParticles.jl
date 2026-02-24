@@ -52,10 +52,11 @@ sound_speed = sound_speed_factor * v_max
 flow_direction = (1.0, 0.0)
 
 channel = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density,
-                       pressure=(pos) -> outlet_pressure +
-                                         imposed_pressure_drop * (1 - (pos[1] / channel_length)),
-                       n_layers=boundary_layers, faces=(false, false, true, true),
-                       coordinates_eltype=Float64)
+                          pressure=(pos) -> outlet_pressure +
+                                            imposed_pressure_drop *
+                                            (1 - (pos[1] / channel_length)),
+                          n_layers=boundary_layers, faces=(false, false, true, true),
+                          coordinates_eltype=Float64)
 
 # The analytical solution depends on the length of the fluid domain.
 # Thus, the `BoundaryZone`s extend into the fluid domain because the pressure is not
@@ -67,7 +68,8 @@ inlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size
 
 outlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density, n_layers=boundary_layers,
-                         min_coordinates=(channel.fluid_size[1] - open_boundary_size[1], 0.0),
+                         min_coordinates=(channel.fluid_size[1] - open_boundary_size[1],
+                                          0.0),
                          faces=(false, false, true, true),
                          coordinates_eltype=Float64)
 
@@ -118,22 +120,27 @@ inlet_face = ([open_boundary_size[1], 0.0], [open_boundary_size[1], channel.flui
 inlet_reference_velocity = nothing
 inlet_reference_pressure = 0.2
 inlet_boundary_zone = BoundaryZone(; boundary_face=inlet_face, face_normal=flow_direction,
-                      open_boundary_layers, density=fluid_density, particle_spacing,
-                      reference_velocity=inlet_reference_velocity,
-                      reference_pressure=inlet_reference_pressure,
-                      initial_condition=inlet.fluid, boundary_type=inlet_boundary_type)
+                                   open_boundary_layers, density=fluid_density,
+                                   particle_spacing,
+                                   reference_velocity=inlet_reference_velocity,
+                                   reference_pressure=inlet_reference_pressure,
+                                   initial_condition=inlet.fluid,
+                                   boundary_type=inlet_boundary_type)
 
 outlet_boundary_type = BidirectionalFlow()
 outlet_face = ([channel.fluid_size[1] - open_boundary_size[1], 0.0],
-            [channel.fluid_size[1] - open_boundary_size[1], channel.fluid_size[2]])
+               [channel.fluid_size[1] - open_boundary_size[1], channel.fluid_size[2]])
 outlet_reference_velocity = nothing
 outlet_reference_pressure = 0.1
 outlet_flow_direction = (.-(flow_direction))
-outlet_boundary_zone = BoundaryZone(; boundary_face=outlet_face, face_normal=outlet_flow_direction,
-                       open_boundary_layers, density=fluid_density, particle_spacing,
-                       reference_velocity=outlet_reference_velocity,
-                       reference_pressure=outlet_reference_pressure,
-                       initial_condition=outlet.fluid, boundary_type=outlet_boundary_type)
+outlet_boundary_zone = BoundaryZone(; boundary_face=outlet_face,
+                                    face_normal=outlet_flow_direction,
+                                    open_boundary_layers, density=fluid_density,
+                                    particle_spacing,
+                                    reference_velocity=outlet_reference_velocity,
+                                    reference_pressure=outlet_reference_pressure,
+                                    initial_condition=outlet.fluid,
+                                    boundary_type=outlet_boundary_type)
 
 open_boundary = OpenBoundarySystem(inlet_boundary_zone, outlet_boundary_zone; fluid_system,
                                    boundary_model=open_boundary_model,
