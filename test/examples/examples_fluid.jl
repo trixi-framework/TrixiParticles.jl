@@ -470,7 +470,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "poiseuille_flow_2d.jl"),
-                                         tspan=(0.0, 0.02))
+                                         tspan=(0.0, 0.05))
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
@@ -480,7 +480,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "poiseuille_flow_2d.jl"),
-                                         tspan=(0.0, 0.02), wcsph=false)
+                                         tspan=(0.0, 0.05), use_wcsph=false)
         @test fluid_system isa EntropicallyDampedSPHSystem
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
