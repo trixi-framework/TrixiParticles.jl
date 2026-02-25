@@ -89,12 +89,14 @@ min_coords_inlet = (-open_boundary_layers * fluid_particle_spacing, 0.0)
 inlet = RectangularTank(fluid_particle_spacing, open_boundary_size, open_boundary_size,
                         fluid_density, n_layers=boundary_layers,
                         min_coordinates=min_coords_inlet,
+                        velocity=initial_velocity,
                         faces=(false, false, true, true))
 
 min_coords_outlet = (tank.fluid_size[1], 0.0)
 outlet = RectangularTank(fluid_particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density, n_layers=boundary_layers,
                          min_coordinates=min_coords_outlet,
+                         velocity=initial_velocity,
                          faces=(false, false, true, true))
 
 
