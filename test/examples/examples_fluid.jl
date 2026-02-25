@@ -500,7 +500,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pulsative_channel_flow_3d.jl"),
-                                         tspan=(0.0, 0.05))
+                                         simulation_end_time=0.1)
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0

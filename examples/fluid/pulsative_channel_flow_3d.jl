@@ -11,11 +11,11 @@
 # ==========================================================================================
 using TrixiParticles
 
-particle_spacing_factor = 30
+# a more reasonable particle spacing factor is 30, which takes around an hour to 0.5s simulation time
+particle_spacing_factor = 15
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
-              tspan=(0.0, 1.0), solution=nothing,
-              particle_spacing_factor=particle_spacing_factor)
+              solution=nothing, particle_spacing_factor=particle_spacing_factor)
 
 v_max = channel_diameter^2 * imposed_pressure_drop /
         (8 * dynamic_viscosity * channel_length)
@@ -28,8 +28,11 @@ end
 saving_callback = SolutionSavingCallback(dt=0.01, prefix="", output_directory="out")
 extra_callback = nothing
 
+# simulation end time has been shortened to avoid long runtimes in the example
+# a more full pulse is seen with a runtime of 3.0, which takes around 30m at particle_spacing_factor = 15 and around 6h at particle_spacing_factor = 30
+simulation_end_time = 0.5
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
-              tspan=(0.0, 12.6), particle_spacing_factor=particle_spacing_factor,
+              tspan=(0.0, simulation_end_time), particle_spacing_factor=particle_spacing_factor,
               extra_callback=extra_callback, saving_callback=saving_callback, v_max=v_max,
               inlet_reference_pressure=dynamic_pressure_drop,
               outlet_reference_pressure=dynamic_pressure_drop)
