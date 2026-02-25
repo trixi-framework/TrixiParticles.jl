@@ -506,7 +506,6 @@
         @test count_rhs_allocations(sol, semi) == 0
     end
 
-
     @trixi_testset "fluid/lid_driven_cavity_2d.jl (EDAC)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
