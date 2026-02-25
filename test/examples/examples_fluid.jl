@@ -492,7 +492,7 @@
                                                   "poiseuille_flow_3d.jl"),
                                          tspan=(0.0, 0.05))
         @test fluid_system isa WeaklyCompressibleSPHSystem
-        @test sol.retcode == ReturnCode.Success
+        @test solution.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
@@ -502,7 +502,7 @@
                                                   "pulsative_channel_flow_3d.jl"),
                                          simulation_end_time=0.1)
         @test fluid_system isa WeaklyCompressibleSPHSystem
-        @test sol.retcode == ReturnCode.Success
+        @test solution.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
