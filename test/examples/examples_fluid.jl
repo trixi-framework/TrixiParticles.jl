@@ -490,7 +490,12 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "poiseuille_flow_3d.jl"),
-                                         tspan=(0.0, 0.05))
+                                         tspan=(0.0, 0.05)) [
+            r"┌ Info: .*edge 2 length.*\n",
+            r"└ New edge 2 length.*\n",
+            r"┌ Warning: .*boundary face.*\n",
+            r"└ @ TrixiParticles .*boundary_zones\.jl:\d+\n"
+        ]
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test solution.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
@@ -500,7 +505,12 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "pulsative_channel_flow_3d.jl"),
-                                         simulation_end_time=0.1)
+                                         simulation_end_time=0.05) [
+            r"┌ Info: .*edge 2 length.*\n",
+            r"└ New edge 2 length.*\n",
+            r"┌ Warning: .*boundary face.*\n",
+            r"└ @ TrixiParticles .*boundary_zones\.jl:\d+\n"
+        ]
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test solution.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
