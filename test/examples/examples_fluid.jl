@@ -486,6 +486,27 @@
         @test count_rhs_allocations(sol, semi) == 0
     end
 
+    @trixi_testset "fluid/poiseuille_flow_3d.jl (WCSPH)" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "poiseuille_flow_3d.jl"),
+                                         tspan=(0.0, 0.05))
+        @test fluid_system isa WeaklyCompressibleSPHSystem
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/pulsative_channel_flow_3d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "pulsative_channel_flow_3d.jl"),
+                                         tspan=(0.0, 0.05))
+        @test fluid_system isa WeaklyCompressibleSPHSystem
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+
     @trixi_testset "fluid/lid_driven_cavity_2d.jl (EDAC)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
