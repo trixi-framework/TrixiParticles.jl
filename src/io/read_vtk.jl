@@ -1,8 +1,9 @@
 """
-	vtk2trixi(file::String; element_type=nothing, coordinates_eltype=nothing)
+	vtk2trixi(file::String; element_type=nothing, coordinates_eltype=nothing,
+              create_initial_condition=true)
 
 Read a VTK file and return a `NamedTuple` with keys
-`:coordinates`, `:velocity`, `:density`, `:pressure`, `:particle_spacing`, `:time`,
+`:coordinates`, `:velocity`, `:density`, `:pressure`, `:particle_spacing`, `:time`, `:initial_condition`,
 plus any custom quantities.
 Missing fields are zero-filled; `:particle_spacing` is scalar if constant, otherwise per-particle.
 
@@ -16,6 +17,9 @@ Missing fields are zero-filled; `:particle_spacing` is scalar if constant, other
 - `coordinates_eltype`: Element type for particle coordinates. By default, the type
                         stored in the VTK file is used.
                         Otherwise, data is converted to the specified type.
+- `create_initial_condition`: If `true`, an `InitialCondition` object is created
+                              and included in the returned `NamedTuple` under
+                              the key `:initial_condition`. Default is `true`.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
@@ -37,7 +41,8 @@ data = vtk2trixi(joinpath("out", "rectangular.vtu"))
 (particle_spacing = 0.1, density = [...], time = 0.0, pressure = [...], mass = [...], my_custom_quantity = 3.0, velocity = [...], coordinates = [...], initial_condition = InitialCondition{Float64, Float64}())
 ```
 """
-function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
+function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
+                   create_initial_condition=true)
     vtk_file = ReadVTK.VTKFile(file)
 
     # Retrieve data fields (e.g., pressure, velocity, ...)
@@ -99,10 +104,14 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
 
     results = NamedTuple(results)
 
-    ic = InitialCondition(; coordinates=results.coordinates,
-                          particle_spacing=results.particle_spacing,
-                          velocity=results.velocity, density=results.density,
-                          pressure=results.pressure)
+    if create_initial_condition
+        ic = InitialCondition(; coordinates=results.coordinates,
+                              particle_spacing=results.particle_spacing,
+                              velocity=results.velocity, density=results.density,
+                              pressure=results.pressure)
 
-    return (; results..., initial_condition=ic)
+        return (; results..., initial_condition=ic)
+    else
+        return results
+    end
 end
