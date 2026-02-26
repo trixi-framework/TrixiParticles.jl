@@ -419,6 +419,15 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
 
+function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in eachparticle(system)]
+    vtk["material_density"] = system.material_density
+    vtk["mass"] = system.mass
+
+    write2vtk!(vtk, v, u, t, system.boundary_model, system)
+end
+
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]

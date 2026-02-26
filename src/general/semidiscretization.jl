@@ -772,6 +772,26 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     end
 end
 
+function check_configuration(system::RigidSPHSystem, systems, nhs)
+    (; boundary_model) = system
+
+    if !isnothing(boundary_model)
+        n_particles_model = length(boundary_model.hydrodynamic_mass)
+        if n_particles_model != nparticles(system)
+            throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                                "particles, but the `RigidSPHSystem` has " *
+                                "$(nparticles(system)) particles."))
+        end
+    end
+
+    foreach_system(systems) do neighbor
+        if neighbor isa AbstractFluidSystem && boundary_model === nothing
+            throw(ArgumentError("a boundary model for `RigidSPHSystem` must be specified " *
+                                "when simulating a fluid-structure interaction."))
+        end
+    end
+end
+
 function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
     (; time_step, omega) = system
     foreach_system(systems) do neighbor
