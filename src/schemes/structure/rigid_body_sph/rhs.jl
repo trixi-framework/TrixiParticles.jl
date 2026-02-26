@@ -186,6 +186,113 @@ end
                          grad_kernel, particle)
 end
 
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::RigidSPHSystem,
+                   neighbor_system::WallBoundarySystem, semi)
+    contact_model = particle_system.boundary_contact_model
+    isnothing(contact_model) && return dv
+
+    force_per_particle = particle_system.cache.force_per_particle
+    set_zero!(force_per_particle)
+    particle_system.cache.boundary_contact_count[] = 0
+    particle_system.cache.max_boundary_penetration[] = zero(eltype(particle_system))
+
+    system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    neighbor_system_index = system_indices(neighbor_system, semi)
+    zero_tangential = zero(SVector{ndims(particle_system), eltype(particle_system)})
+
+    foreach_point_neighbor(particle_system, neighbor_system,
+                           system_coords, neighbor_coords, semi;
+                           points=each_integrated_particle(particle_system)) do particle,
+                                                                                neighbor,
+                                                                                pos_diff,
+                                                                                distance
+        distance <= eps(eltype(particle_system)) && return
+
+        penetration = contact_model.contact_distance - distance
+        penetration_effective = penetration - contact_model.penetration_slop
+        penetration_effective <= 0 && return
+
+        normal = pos_diff / distance
+        v_particle = current_velocity(v_particle_system, particle_system, particle)
+        v_boundary = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        relative_velocity = v_particle - v_boundary
+        normal_velocity = dot(relative_velocity, normal)
+        tangential_velocity = relative_velocity - normal_velocity * normal
+
+        normal_force_magnitude = normal_contact_force(contact_model, penetration_effective,
+                                                      normal_velocity,
+                                                      eltype(particle_system))
+        normal_force_magnitude <= 0 && return
+
+        contact_key = (neighbor_system_index, particle, neighbor)
+        contact_tangential_displacement = particle_system.cache.contact_tangential_displacement
+        tangential_displacement = isnothing(contact_tangential_displacement) ?
+                                  zero_tangential :
+                                  get(contact_tangential_displacement, contact_key,
+                                      zero_tangential)
+        tangential_force = tangential_contact_force(contact_model, tangential_displacement,
+                                                    tangential_velocity,
+                                                    normal_force_magnitude,
+                                                    eltype(particle_system))
+        interaction_force = normal_force_magnitude * normal + tangential_force
+
+        for dim in 1:ndims(particle_system)
+            force_per_particle[dim, particle] += interaction_force[dim]
+        end
+
+        particle_system.cache.boundary_contact_count[] += 1
+        particle_system.cache.max_boundary_penetration[] = max(particle_system.cache.max_boundary_penetration[],
+                                                               penetration_effective)
+    end
+
+    apply_resultant_force_and_torque!(dv, particle_system)
+
+    return dv
+end
+
+@inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
+                                      penetration, normal_velocity, ELTYPE)
+    elastic_force = contact_model.normal_stiffness * penetration
+    # Kelvin-Voigt normal damping: oppose relative normal motion in both
+    # compression and decompression; clamp to avoid artificial attraction.
+    damping_force = -contact_model.normal_damping * normal_velocity
+    normal_force = elastic_force + damping_force
+
+    return max(normal_force, zero(ELTYPE))
+end
+
+function tangential_contact_force(contact_model::RigidBoundaryContactModel,
+                                  tangential_displacement,
+                                  tangential_velocity,
+                                  normal_force_magnitude, ELTYPE)
+    force_trial = -contact_model.tangential_stiffness * tangential_displacement -
+                  contact_model.tangential_damping * tangential_velocity
+
+    trial_norm = norm(force_trial)
+    tangential_speed = norm(tangential_velocity)
+    static_limit = contact_model.static_friction_coefficient * normal_force_magnitude
+
+    if tangential_speed <= contact_model.stick_velocity_tolerance && trial_norm <= static_limit
+        return force_trial
+    end
+
+    kinetic_limit = contact_model.kinetic_friction_coefficient * normal_force_magnitude
+    kinetic_limit <= eps(ELTYPE) && return zero(force_trial)
+
+    if tangential_speed > eps(ELTYPE)
+        return -kinetic_limit * tangential_velocity / tangential_speed
+    end
+
+    if trial_norm > eps(ELTYPE)
+        return -kinetic_limit * force_trial / trial_norm
+    end
+
+    return zero(force_trial)
+end
+
 # Structure-structure and structure-boundary interactions are currently not modeled.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,

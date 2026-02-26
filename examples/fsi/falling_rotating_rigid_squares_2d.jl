@@ -113,13 +113,26 @@ boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_
                                                          fluid_smoothing_kernel,
                                                          fluid_smoothing_length)
 
+boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=1.0e5,
+                                                   normal_damping=800.0,
+                                                   static_friction_coefficient=0.4,
+                                                   kinetic_friction_coefficient=0.3,
+                                                   tangential_stiffness=2.0e3,
+                                                   tangential_damping=80.0,
+                                                   contact_distance=structure_particle_spacing,
+                                                   stick_velocity_tolerance=1e-5,
+                                                   penetration_slop=0.2 *
+                                                                    structure_particle_spacing)
+
 structure_system_1 = RigidSPHSystem(square1;
                                     boundary_model=boundary_model_structure_1,
+                                    boundary_contact_model=boundary_contact_model,
                                     acceleration=(0.0, -gravity),
                                     angular_velocity=square1_angular_velocity,
                                     particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidSPHSystem(square2;
                                     boundary_model=boundary_model_structure_2,
+                                    boundary_contact_model=boundary_contact_model,
                                     acceleration=(0.0, -gravity),
                                     angular_velocity=square2_angular_velocity,
                                     particle_spacing=structure_particle_spacing)
@@ -134,8 +147,9 @@ info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.01,
                                          output_directory="out",
                                          prefix="")
+update_callback = UpdateCallback()
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, update_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL49(),

@@ -1,6 +1,7 @@
 @doc raw"""
     RigidSPHSystem(initial_condition;
                    boundary_model=nothing,
+                   boundary_contact_model=nothing,
                    acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
                    angular_velocity=zero(eltype(initial_condition)),
                    particle_spacing=initial_condition.particle_spacing,
@@ -18,6 +19,8 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
+- `boundary_contact_model`: Optional rigid-wall contact model.
+                            If specified, rigid-wall collisions with Coulomb friction are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `angular_velocity`: Initial angular velocity of the rigid body.
   For 2D, pass a scalar. For 3D, pass a vector of length 3.
@@ -26,7 +29,7 @@ torque and applied consistently to all rigid particles.
                   `(coords, velocity, density, pressure, t) -> source`.
 - `color_value`: The value used to initialize the color of particles in the system.
 """
-struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
+struct RigidSPHSystem{BM, BCM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                       AV, ST, C} <: AbstractStructureSystem{NDIMS}
     initial_condition::IC
     initial_velocity::ARRAY2D # [dimension, particle]
@@ -37,6 +40,7 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     initial_angular_velocity::AV
     particle_spacing::ELTYPE
     boundary_model::BM
+    boundary_contact_model::BCM
     source_terms::ST
     cache::C
 end
@@ -44,6 +48,7 @@ end
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function RigidSPHSystem(initial_condition; boundary_model=nothing,
+                        boundary_contact_model=nothing,
                         acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                             ndims(initial_condition)),
                         angular_velocity=zero(eltype(initial_condition)),
@@ -65,6 +70,8 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                                                         ELTYPE)
 
     particle_spacing_ = convert(ELTYPE, particle_spacing)
+    boundary_contact_model_ = convert_boundary_contact_model(boundary_contact_model,
+                                                             particle_spacing_, ELTYPE)
 
     initial_velocity = copy(initial_condition.velocity)
     local_coordinates = copy(initial_condition.coordinates)
@@ -82,12 +89,13 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
 
     cache = create_cache_rigid(Val(NDIMS), ELTYPE, nparticles(initial_condition),
                                total_mass, center_of_mass, local_coordinates,
-                               initial_angular_velocity, color_value)
+                               initial_angular_velocity, boundary_contact_model_,
+                               color_value)
 
     return RigidSPHSystem(initial_condition, initial_velocity, local_coordinates,
                           mass, material_density, acceleration_,
                           initial_angular_velocity, particle_spacing_,
-                          boundary_model, source_terms, cache)
+                          boundary_model, boundary_contact_model_, source_terms, cache)
 end
 
 function convert_angular_velocity(angular_velocity, ::Val{2}, ELTYPE)
@@ -135,9 +143,11 @@ end
 
 function create_cache_rigid(::Val{2}, ELTYPE, n_particles, total_mass,
                             center_of_mass, local_coordinates,
-                            initial_angular_velocity, color_value)
+                            initial_angular_velocity, boundary_contact_model, color_value)
     force_per_particle = zeros(ELTYPE, 2, n_particles)
     relative_coordinates = copy(local_coordinates)
+    tangential_displacement = create_contact_tangential_displacement(boundary_contact_model,
+                                                                     ELTYPE, Val(2))
 
     return (; color=Int(color_value), total_mass, force_per_particle,
             relative_coordinates, center_of_mass=Ref(center_of_mass),
@@ -147,14 +157,19 @@ function create_cache_rigid(::Val{2}, ELTYPE, n_particles, total_mass,
             resultant_force=Ref(zero(SVector{2, ELTYPE})),
             resultant_torque=Ref(zero(ELTYPE)),
             angular_acceleration_force=Ref(zero(ELTYPE)),
-            gyroscopic_acceleration=Ref(zero(ELTYPE)))
+            gyroscopic_acceleration=Ref(zero(ELTYPE)),
+            contact_tangential_displacement=tangential_displacement,
+            boundary_contact_count=Ref(0),
+            max_boundary_penetration=Ref(zero(ELTYPE)))
 end
 
 function create_cache_rigid(::Val{3}, ELTYPE, n_particles, total_mass,
                             center_of_mass, local_coordinates,
-                            initial_angular_velocity, color_value)
+                            initial_angular_velocity, boundary_contact_model, color_value)
     force_per_particle = zeros(ELTYPE, 3, n_particles)
     relative_coordinates = copy(local_coordinates)
+    tangential_displacement = create_contact_tangential_displacement(boundary_contact_model,
+                                                                     ELTYPE, Val(3))
 
     return (; color=Int(color_value), total_mass, force_per_particle,
             relative_coordinates, center_of_mass=Ref(center_of_mass),
@@ -165,7 +180,10 @@ function create_cache_rigid(::Val{3}, ELTYPE, n_particles, total_mass,
             resultant_force=Ref(zero(SVector{3, ELTYPE})),
             resultant_torque=Ref(zero(SVector{3, ELTYPE})),
             angular_acceleration_force=Ref(zero(SVector{3, ELTYPE})),
-            gyroscopic_acceleration=Ref(zero(SVector{3, ELTYPE})))
+            gyroscopic_acceleration=Ref(zero(SVector{3, ELTYPE})),
+            contact_tangential_displacement=tangential_displacement,
+            boundary_contact_count=Ref(0),
+            max_boundary_penetration=Ref(zero(ELTYPE)))
 end
 
 function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
@@ -211,7 +229,7 @@ function add_initial_rotation!(initial_velocity, local_coordinates, angular_velo
     return initial_velocity
 end
 
-@inline function Base.eltype(::RigidSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
+@inline function Base.eltype(::RigidSPHSystem{<:Any, <:Any, <:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
 
@@ -357,6 +375,11 @@ function restart_with!(system::RigidSPHSystem, v, u)
                                  center_of_mass, Val(ndims(system)))
     copyto!(system.cache.relative_coordinates, system.local_coordinates)
     system.cache.center_of_mass[] = center_of_mass
+    if !isnothing(system.cache.contact_tangential_displacement)
+        empty!(system.cache.contact_tangential_displacement)
+    end
+    system.cache.boundary_contact_count[] = 0
+    system.cache.max_boundary_penetration[] = zero(eltype(system))
 
     return system
 end
@@ -479,12 +502,15 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
     acceleration_norm = norm(system.acceleration)
     spacing = particle_spacing(system, first(eachparticle(system)))
+    contact_dt = contact_time_step(system)
 
     if acceleration_norm <= eps(eltype(system)) || !isfinite(spacing) || spacing <= 0
-        return Inf
+        return cfl_number * contact_dt
     end
 
-    return cfl_number * spacing / acceleration_norm
+    acceleration_dt = cfl_number * spacing / acceleration_norm
+
+    return min(acceleration_dt, cfl_number * contact_dt)
 end
 
 # To account for boundary effects in the viscosity term of fluid-structure interactions,
@@ -551,6 +577,8 @@ function system_data(system::RigidSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     resultant_torque = system.cache.resultant_torque[]
     angular_acceleration_force = system.cache.angular_acceleration_force[]
     gyroscopic_acceleration = system.cache.gyroscopic_acceleration[]
+    boundary_contact_count = system.cache.boundary_contact_count[]
+    max_boundary_penetration = system.cache.max_boundary_penetration[]
     relative_coordinates = system.cache.relative_coordinates
 
     return (; coordinates, velocity, mass=system.mass,
@@ -561,6 +589,7 @@ function system_data(system::RigidSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
             angular_velocity,
             resultant_force, resultant_torque,
             angular_acceleration_force, gyroscopic_acceleration,
+            boundary_contact_count, max_boundary_penetration,
             density, pressure, acceleration)
 end
 
@@ -570,6 +599,7 @@ function available_data(::RigidSPHSystem)
             :center_of_mass, :center_of_mass_velocity,
             :angular_velocity, :resultant_force, :resultant_torque,
             :angular_acceleration_force, :gyroscopic_acceleration,
+            :boundary_contact_count, :max_boundary_penetration,
             :density, :pressure, :acceleration)
 end
 
@@ -579,6 +609,7 @@ function Base.show(io::IO, system::RigidSPHSystem)
     print(io, "RigidSPHSystem{", ndims(system), "}(")
     print(io, system.acceleration)
     print(io, ", ", system.boundary_model)
+    print(io, ", ", system.boundary_contact_model)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -593,6 +624,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidSPHSystem)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "initial angular velocity", system.initial_angular_velocity)
         summary_line(io, "boundary model", system.boundary_model)
+        summary_line(io, "boundary contact model", system.boundary_contact_model)
         summary_footer(io)
     end
 end

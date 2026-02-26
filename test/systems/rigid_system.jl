@@ -168,6 +168,8 @@
         @test :resultant_torque in fields
         @test :angular_acceleration_force in fields
         @test :gyroscopic_acceleration in fields
+        @test :boundary_contact_count in fields
+        @test :max_boundary_penetration in fields
 
         @test data.center_of_mass ≈ [0.0, 0.0]
         @test data.center_of_mass_velocity ≈ [0.0, 0.0]
@@ -176,6 +178,8 @@
         @test data.resultant_torque ≈ 0.0
         @test data.angular_acceleration_force ≈ 0.0
         @test data.gyroscopic_acceleration ≈ 0.0
+        @test data.boundary_contact_count == 0
+        @test data.max_boundary_penetration == 0.0
         @test data.local_coordinates ≈ rigid_system.local_coordinates
         @test data.relative_coordinates ≈ rigid_system.cache.relative_coordinates
     end
@@ -207,6 +211,183 @@
 
         @test size(data.velocity, 1) == ndims(rigid_system)
         @test size(data.acceleration, 1) == ndims(rigid_system)
+    end
+
+    @trixi_testset "Boundary Contact Model" begin
+        rigid_coordinates = reshape([0.0, 0.05], 2, 1)
+        rigid_velocity = reshape([1.0, -1.0], 2, 1)
+        rigid_mass = [1.0]
+        rigid_density = [1000.0]
+        rigid_ic = InitialCondition(; coordinates=rigid_coordinates,
+                                    velocity=rigid_velocity,
+                                    mass=rigid_mass,
+                                    density=rigid_density,
+                                    particle_spacing=0.1)
+
+        boundary_coordinates = reshape([0.0, 0.0], 2, 1)
+        boundary_mass = [1.0]
+        boundary_density = [1000.0]
+        boundary_ic = InitialCondition(; coordinates=boundary_coordinates,
+                                       mass=boundary_mass,
+                                       density=boundary_density,
+                                       particle_spacing=0.1)
+
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.15
+        boundary_model = BoundaryModelDummyParticles(boundary_density, boundary_mass,
+                                                     SummationDensity(),
+                                                     smoothing_kernel,
+                                                     smoothing_length)
+        boundary_system = WallBoundarySystem(boundary_ic, boundary_model)
+
+        boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
+                                                           normal_damping=20.0,
+                                                           static_friction_coefficient=0.6,
+                                                           kinetic_friction_coefficient=0.4,
+                                                           tangential_stiffness=200.0,
+                                                           tangential_damping=5.0,
+                                                           contact_distance=0.1,
+                                                           stick_velocity_tolerance=1e-8)
+
+        rigid_system = RigidSPHSystem(rigid_ic;
+                                      acceleration=(0.0, 0.0),
+                                      boundary_contact_model=boundary_contact_model)
+
+        @test TrixiParticles.requires_update_callback(rigid_system)
+
+        semi = Semidiscretization(rigid_system, boundary_system)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        v_ode, u_ode = ode.u0.x
+        dv_ode = zero(v_ode)
+
+        TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid_system, boundary_system, semi)
+        dv = TrixiParticles.wrap_v(dv_ode, rigid_system, semi)
+
+        @test dv[2, 1] > 0
+        @test dv[1, 1] < 0
+        @test rigid_system.cache.boundary_contact_count[] > 0
+        @test rigid_system.cache.max_boundary_penetration[] > 0
+
+        v_rigid = TrixiParticles.wrap_v(v_ode, rigid_system, semi)
+        u_rigid = TrixiParticles.wrap_u(u_ode, rigid_system, semi)
+        v_wall = TrixiParticles.wrap_v(v_ode, boundary_system, semi)
+        u_wall = TrixiParticles.wrap_u(u_ode, boundary_system, semi)
+
+        v_rigid[1, 1] = 0.0
+        v_rigid[2, 1] = -0.2
+        u_rigid_before = copy(u_rigid)
+        v_rigid_before = copy(v_rigid)
+        active_keys = Set{NTuple{3, Int}}()
+
+        modified = TrixiParticles.apply_boundary_contact_correction!(rigid_system,
+                                                                     boundary_system,
+                                                                     v_rigid, u_rigid,
+                                                                     v_wall, u_wall,
+                                                                     semi, 1e-3, active_keys)
+
+        @test !modified
+        @test u_rigid ≈ u_rigid_before
+        @test v_rigid ≈ v_rigid_before
+        @test !isempty(active_keys)
+        @test !isempty(rigid_system.cache.contact_tangential_displacement)
+    end
+
+    @trixi_testset "Rigid-Wall Collision Shape Preservation" begin
+        using LinearAlgebra: norm
+        using OrdinaryDiffEq
+        using Statistics: std
+
+        particle_spacing = 0.1
+        sphere = SphereShape(particle_spacing, 0.2, (0.0, 0.35), 3000.0,
+                             sphere_type=VoxelSphere())
+
+        wall_x = collect(-0.7:particle_spacing:0.7)
+        wall_coordinates = zeros(2, length(wall_x))
+        wall_coordinates[1, :] .= wall_x
+        wall_mass = fill(1000.0 * particle_spacing^2, length(wall_x))
+        wall_density = fill(1000.0, length(wall_x))
+        wall_ic = InitialCondition(; coordinates=wall_coordinates,
+                                   mass=wall_mass,
+                                   density=wall_density,
+                                   particle_spacing=particle_spacing)
+
+        state_equation = StateEquationCole(; sound_speed=20.0,
+                                           reference_density=1000.0,
+                                           exponent=1.0)
+        boundary_model = BoundaryModelDummyParticles(wall_density, wall_mass,
+                                                     BernoulliPressureExtrapolation(),
+                                                     WendlandC2Kernel{2}(),
+                                                     1.5 * particle_spacing;
+                                                     state_equation=state_equation)
+        wall_system = WallBoundarySystem(wall_ic, boundary_model)
+
+        boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
+                                                           normal_damping=200.0,
+                                                           static_friction_coefficient=0.3,
+                                                           kinetic_friction_coefficient=0.2,
+                                                           tangential_stiffness=1.0e3,
+                                                           tangential_damping=20.0,
+                                                           contact_distance=particle_spacing,
+                                                           penetration_slop=0.2 *
+                                                                            particle_spacing)
+
+        rigid_system = RigidSPHSystem(sphere;
+                                      acceleration=(0.0, -9.81),
+                                      boundary_contact_model=boundary_contact_model,
+                                      particle_spacing=particle_spacing)
+
+        initial_relative_coordinates = copy(rigid_system.local_coordinates)
+
+        semi = Semidiscretization(rigid_system, wall_system)
+        ode = semidiscretize(semi, (0.0, 0.2))
+        solution = solve(ode, RDPK3SpFSAL35();
+                         abstol=1e-6, reltol=1e-3,
+                         save_everystep=false,
+                         callback=UpdateCallback())
+
+        _, u_end = solution.u[end].x
+        v_end, _ = solution.u[end].x
+        u_rigid_end = TrixiParticles.wrap_u(u_end, rigid_system, semi)
+        v_rigid_end = TrixiParticles.wrap_v(v_end, rigid_system, semi)
+        final_coordinates = TrixiParticles.current_coordinates(u_rigid_end, rigid_system)
+        final_velocity = TrixiParticles.current_velocity(v_rigid_end, rigid_system)
+
+        center_of_mass = zeros(eltype(final_coordinates), 2)
+        total_mass = sum(rigid_system.mass)
+        for particle in eachindex(rigid_system.mass)
+            center_of_mass .+= rigid_system.mass[particle] .* final_coordinates[:, particle]
+        end
+        center_of_mass ./= total_mass
+
+        final_relative_coordinates = similar(final_coordinates)
+        for particle in axes(final_coordinates, 2)
+            final_relative_coordinates[:, particle] .= final_coordinates[:, particle] .-
+                                                      center_of_mass
+        end
+
+        max_pairwise_distance_error = zero(eltype(final_coordinates))
+        max_initial_distance = zero(eltype(final_coordinates))
+        for i in axes(initial_relative_coordinates, 2)
+            for j in (i + 1):size(initial_relative_coordinates, 2)
+                initial_distance = norm(initial_relative_coordinates[:, i] -
+                                        initial_relative_coordinates[:, j])
+                final_distance = norm(final_relative_coordinates[:, i] -
+                                      final_relative_coordinates[:, j])
+                max_pairwise_distance_error = max(max_pairwise_distance_error,
+                                                  abs(final_distance - initial_distance))
+                max_initial_distance = max(max_initial_distance, initial_distance)
+            end
+        end
+
+        # Ensure the rigid body reaches wall-contact regime in this setup.
+        @test minimum(final_coordinates[2, :]) < boundary_contact_model.contact_distance
+
+        relative_shape_error = max_pairwise_distance_error / max_initial_distance
+        @test relative_shape_error < 1.0e-10
+
+        # For this symmetric setup without initial rotation, all particles should
+        # move with (nearly) identical vertical velocity after impact.
+        @test std(vec(final_velocity[2, :])) < 1.0e-10
     end
 
     @trixi_testset "Configuration" begin

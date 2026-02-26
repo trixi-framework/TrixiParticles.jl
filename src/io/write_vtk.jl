@@ -428,6 +428,8 @@ function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
     resultant_torque = system.cache.resultant_torque[]
     angular_acceleration_force = system.cache.angular_acceleration_force[]
     gyroscopic_acceleration = system.cache.gyroscopic_acceleration[]
+    boundary_contact_count = system.cache.boundary_contact_count[]
+    max_boundary_penetration = system.cache.max_boundary_penetration[]
 
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]
@@ -442,6 +444,8 @@ function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
     vtk["resultant_torque"] = fill(resultant_torque, n_particles)
     vtk["angular_acceleration_force"] = fill(angular_acceleration_force, n_particles)
     vtk["gyroscopic_acceleration"] = fill(gyroscopic_acceleration, n_particles)
+    vtk["boundary_contact_count"] = fill(boundary_contact_count, n_particles)
+    vtk["max_boundary_penetration"] = fill(max_boundary_penetration, n_particles)
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end

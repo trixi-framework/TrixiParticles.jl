@@ -78,9 +78,17 @@ end
 end
 
 @inline function compact_support(system::RigidSPHSystem, model::Nothing, neighbor)
-    # Rigid interactions without a boundary model are currently not modeled.
-    # This neighborhood search exists only to keep the semidiscretization structure uniform.
+    # Rigid interactions without a boundary model are currently not modeled,
+    # except for optional rigid-wall contact (handled below).
     return zero(eltype(system))
+end
+
+@inline function compact_support(system::RigidSPHSystem, model::Nothing,
+                                 neighbor::WallBoundarySystem)
+    contact_model = system.boundary_contact_model
+    isnothing(contact_model) && return zero(eltype(system))
+
+    return contact_model.contact_distance
 end
 
 # === Neighborhood search creation ===
