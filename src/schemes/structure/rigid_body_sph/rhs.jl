@@ -84,10 +84,11 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem)
         return dv
     end
 
-    total_force, total_torque = resultant_force_and_torque(particle_system,
-                                                            cache.force_per_particle,
-                                                            cache.relative_coordinates,
-                                                            Val(ndims(particle_system)))
+    total_force,
+    total_torque = resultant_force_and_torque(particle_system,
+                                              cache.force_per_particle,
+                                              cache.relative_coordinates,
+                                              Val(ndims(particle_system)))
 
     translational_acceleration = total_force / total_mass
     angular_acceleration_force = angular_acceleration_from_torque(particle_system,
@@ -147,13 +148,15 @@ end
     return inverse_inertia * torque
 end
 
-@inline function angular_acceleration_cross_position(angular_acceleration, relative_position,
+@inline function angular_acceleration_cross_position(angular_acceleration,
+                                                     relative_position,
                                                      ::Val{2})
     return SVector(-angular_acceleration * relative_position[2],
                    angular_acceleration * relative_position[1])
 end
 
-@inline function angular_acceleration_cross_position(angular_acceleration, relative_position,
+@inline function angular_acceleration_cross_position(angular_acceleration,
+                                                     relative_position,
                                                      ::Val{3})
     return cross(angular_acceleration, relative_position)
 end
