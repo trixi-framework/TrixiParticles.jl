@@ -20,7 +20,7 @@ applying one body-averaged fluid-structure interaction force to all particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `source_terms`: Optional source terms of the form
                   `(coords, velocity, density, pressure, t) -> source`.
-- `color_value`: Color index used in postprocessing.
+- `color_value`: The value used to initialize the color of particles in the system.
 """
 struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                       ST, C} <: AbstractStructureSystem{NDIMS}
@@ -56,7 +56,8 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
     mass = copy(initial_condition.mass)
     material_density = copy(initial_condition.density)
 
-    cache = (; color=Int(color_value))
+    force_per_particle = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
+    cache = (; color=Int(color_value), force_per_particle)
 
     return RigidSPHSystem(initial_condition, local_coordinates, mass,
                           material_density, acceleration_, particle_spacing_,

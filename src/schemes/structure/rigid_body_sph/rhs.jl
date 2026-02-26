@@ -8,7 +8,9 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    total_force = zeros(eltype(dv), ndims(particle_system))
+    force_per_particle = particle_system.cache.force_per_particle
+    set_zero!(force_per_particle)
+
     total_mass = sum(particle_system.mass)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -59,7 +61,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_particle = dv_boundary + dv_viscosity_
 
         for i in 1:ndims(particle_system)
-            total_force[i] += dv_particle[i] * m_b
+            force_per_particle[i, particle] += dv_particle[i] * m_b
         end
 
         continuity_equation!(dv, v_particle_system, v_neighbor_system,
@@ -69,9 +71,15 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     if total_mass > eps(eltype(total_mass))
-        for particle in each_integrated_particle(particle_system)
-            for i in 1:ndims(particle_system)
-                dv[i, particle] += total_force[i] / total_mass
+        for i in 1:ndims(particle_system)
+            total_force_i = zero(eltype(dv))
+
+            for particle in each_integrated_particle(particle_system)
+                total_force_i += force_per_particle[i, particle]
+            end
+
+            for particle in each_integrated_particle(particle_system)
+                dv[i, particle] += total_force_i / total_mass
             end
         end
     end
@@ -109,6 +117,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidSPHSystem,
                    neighbor_system::Union{AbstractStructureSystem,
-                                          AbstractBoundarySystem}, semi)
+                                          AbstractBoundarySystem,
+                                          OpenBoundarySystem}, semi)
     return dv
 end

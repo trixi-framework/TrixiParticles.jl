@@ -77,6 +77,12 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function compact_support(system::RigidSPHSystem, model::Nothing, neighbor)
+    # Rigid interactions without a boundary model are currently not modeled.
+    # This neighborhood search exists only to keep the semidiscretization structure uniform.
+    return zero(eltype(system))
+end
+
 # === Neighborhood search creation ===
 function create_neighborhood_search(::Nothing, system, neighbor)
     nhs = TrivialNeighborhoodSearch{ndims(system)}()
