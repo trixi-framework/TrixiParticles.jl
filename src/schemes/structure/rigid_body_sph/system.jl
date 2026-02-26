@@ -246,7 +246,8 @@ function system_data(system::RigidSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     density = current_density(v, system)
     pressure = current_pressure(v, system)
 
-    return (; coordinates, velocity, mass=system.mass, material_density=system.material_density,
+    return (; coordinates, velocity, mass=system.mass,
+            material_density=system.material_density,
             density, pressure, acceleration)
 end
 
