@@ -9,7 +9,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+fluid_particle_spacing = 0.01
 fluid_smoothing_length = 1.5 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 structure_particle_spacing = fluid_particle_spacing
@@ -25,7 +25,7 @@ tspan = (0.0, 10.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
-tank_size = (2.0, 2.0)
+tank_size = (3.2, 2.0)
 
 fluid_density = 1000.0
 # Use a tank-based length scale to avoid zero sound speed in the rigid-only setup.
@@ -53,29 +53,31 @@ material_properties = (
             restitution=0.7, friction_coefficient=0.9)
 )
 
-elastic_center = (0.35, 1.5)
-wood_center = (0.75, 1.5)
-steel_center = (1.25, 1.5)
-rubber_center = (1.65, 1.5)
+wood_center = (0.45, 1.5)
+elastic_center = (1.35, 1.5)
+steel_center = (2.25, 1.5)
+rubber_center = (2.95, 1.5)
 
+# Use a round layout for all spheres and calibrate the perfect-elastic contact
+# model below to keep rebound close to wall-normal in this multi-sphere setup.
 elastic_sphere = SphereShape(structure_particle_spacing, sphere_radius, elastic_center,
                              material_properties.elastic.density,
-                             sphere_type=VoxelSphere())
+                             sphere_type=RoundSphere())
 wood_sphere = SphereShape(structure_particle_spacing, sphere_radius, wood_center,
                           material_properties.wood.density,
-                          sphere_type=VoxelSphere())
+                          sphere_type=RoundSphere())
 steel_sphere = SphereShape(structure_particle_spacing, sphere_radius, steel_center,
                            material_properties.steel.density,
-                           sphere_type=VoxelSphere())
+                           sphere_type=RoundSphere())
 rubber_sphere = SphereShape(structure_particle_spacing, sphere_radius, rubber_center,
                             material_properties.rubber.density,
-                            sphere_type=VoxelSphere())
+                            sphere_type=RoundSphere())
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = BernoulliPressureExtrapolation()
+# Use pressure-zeroing dummy particles for pure rigid-wall contact weighting.
+boundary_density_calculator = PressureZeroing()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length)
 
@@ -83,18 +85,6 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Rigid Structures
-# For the FSI we need the hydrodynamic masses and densities in the structure boundary model
-function make_boundary_model_structure(shape)
-    hydrodynamic_densities = fluid_density * ones(size(shape.density))
-    hydrodynamic_masses = hydrodynamic_densities * structure_particle_spacing^2
-
-    return BoundaryModelDummyParticles(hydrodynamic_densities,
-                                       hydrodynamic_masses,
-                                       state_equation=state_equation,
-                                       boundary_density_calculator,
-                                       fluid_smoothing_kernel,
-                                       fluid_smoothing_length)
-end
 
 @inline shear_modulus(youngs_modulus, poisson_ratio) = youngs_modulus / (2.0 *
                                                                           (1.0 + poisson_ratio))
@@ -121,7 +111,7 @@ function damping_ratio_from_restitution(restitution)
     return -log_restitution / sqrt(pi^2 + log_restitution^2)
 end
 
-function make_material_contact_model(material, center)
+function make_material_contact_model(material, center; resting_contact_projection=true)
     drop_height = max(center[2] - sphere_radius, structure_particle_spacing)
     impact_velocity = sqrt(2.0 * gravity * drop_height)
     effective_radius = sphere_radius
@@ -130,14 +120,15 @@ function make_material_contact_model(material, center)
 
     particle_mass = material.density * pi * sphere_radius^2
 
-    # Linearize Hertz-Mindlin contact around the expected peak compression
-    # from impact energy instead of using a hand-picked penetration depth.
-    hertz_coefficient = (4.0 / 3.0) * effective_E * sqrt(effective_radius)
+    # 3D Hertz-Mindlin proxy used to parameterize this 2D linear spring-damper contact model.
+    # This gives plausible relative material behavior, but not exact 2D continuum contact units.
+    hertz_proxy_coefficient = (4.0 / 3.0) * effective_E * sqrt(effective_radius)
     reference_penetration = ((5.0 / 4.0) * particle_mass * impact_velocity^2 /
-                             hertz_coefficient)^(2.0 / 5.0)
+                             hertz_proxy_coefficient)^(2.0 / 5.0)
     reference_penetration = max(reference_penetration,
                                 0.01 * structure_particle_spacing)
-    normal_stiffness = (3.0 / 2.0) * hertz_coefficient * sqrt(reference_penetration)
+    normal_stiffness = (3.0 / 2.0) * hertz_proxy_coefficient *
+                       sqrt(reference_penetration)
 
     contact_radius = sqrt(effective_radius * reference_penetration)
     tangential_stiffness = 8.0 * effective_G * contact_radius
@@ -165,18 +156,37 @@ function make_material_contact_model(material, center)
                                      stick_velocity_tolerance=max(1e-5,
                                                                   0.01 *
                                                                   impact_velocity),
-                                     penetration_slop=0.0)
+                                     penetration_slop=0.0,
+                                     torque_free=true,
+                                     resting_contact_projection)
 end
 
-elastic_contact_model = make_material_contact_model(material_properties.elastic, elastic_center)
-wood_contact_model = make_material_contact_model(material_properties.wood, wood_center)
-steel_contact_model = make_material_contact_model(material_properties.steel, steel_center)
-rubber_contact_model = make_material_contact_model(material_properties.rubber, rubber_center)
+# Use a calibrated contact model for the perfect-elastic reference sphere to
+# keep rebound close to wall-normal in this multi-sphere setup.
+elastic_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e5,
+                                                  normal_damping=0.0,
+                                                  static_friction_coefficient=0.0,
+                                                  kinetic_friction_coefficient=0.0,
+                                                  tangential_stiffness=0.0,
+                                                  tangential_damping=0.0,
+                                                  contact_distance=2.0 *
+                                                                   structure_particle_spacing,
+                                                  stick_velocity_tolerance=1e-5,
+                                                  penetration_slop=0.0,
+                                                  torque_free=true,
+                                                  resting_contact_projection=false)
+
+# Keep impact rebound physically consistent for dissipative materials by
+# disabling the resting-contact projection fallback in this impact example.
+wood_contact_model = make_material_contact_model(material_properties.wood, wood_center;
+                                                 resting_contact_projection=false)
+steel_contact_model = make_material_contact_model(material_properties.steel, steel_center;
+                                                  resting_contact_projection=false)
+rubber_contact_model = make_material_contact_model(material_properties.rubber, rubber_center;
+                                                   resting_contact_projection=false)
 
 function make_rigid_structure_system(shape, boundary_contact_model)
-    boundary_model_structure = make_boundary_model_structure(shape)
     return RigidSPHSystem(shape;
-                          boundary_model=boundary_model_structure,
                           acceleration=(0.0, -gravity),
                           boundary_contact_model=boundary_contact_model,
                           particle_spacing=structure_particle_spacing)

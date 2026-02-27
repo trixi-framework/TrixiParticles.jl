@@ -351,9 +351,11 @@ function interact!(dv, v_particle_system, u_particle_system,
             normal_velocity = dot(relative_velocity, normal)
             tangential_velocity = relative_velocity - normal_velocity * normal
 
-            normal_force_magnitude = normal_contact_force(contact_model,
-                                                          penetration_effective,
-                                                          normal_velocity, ELTYPE)
+            normal_force_magnitude,
+            normal_force_friction_reference = normal_contact_force_components(contact_model,
+                                                                              penetration_effective,
+                                                                              normal_velocity,
+                                                                              ELTYPE)
             normal_force_magnitude <= 0 && continue
 
             contact_key = (neighbor_system_index, particle, manifold)
@@ -363,7 +365,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             tangential_force = tangential_contact_force(contact_model,
                                                         tangential_displacement,
                                                         tangential_velocity,
-                                                        normal_force_magnitude,
+                                                        normal_force_friction_reference,
                                                         ELTYPE)
             interaction_force = normal_force_magnitude * normal + tangential_force
 
@@ -377,32 +379,94 @@ function interact!(dv, v_particle_system, u_particle_system,
         end
     end
 
+    if contact_model.torque_free
+        remove_resultant_contact_torque!(force_per_particle, particle_system)
+    end
+
     apply_resultant_force_and_torque!(dv, particle_system)
 
     return dv
 end
 
+function remove_resultant_contact_torque!(force_per_particle,
+                                          particle_system::RigidSPHSystem{<:Any, <:Any, 2})
+    relative_coordinates = particle_system.cache.relative_coordinates
+    torque = zero(eltype(particle_system))
+    inertia_measure = zero(eltype(particle_system))
+
+    for particle in each_integrated_particle(particle_system)
+        relative_position = extract_svector(relative_coordinates, particle_system, particle)
+        particle_force = extract_svector(force_per_particle, particle_system, particle)
+        torque += cross(relative_position, particle_force)
+        inertia_measure += dot(relative_position, relative_position)
+    end
+
+    if abs(torque) <= eps(eltype(particle_system)) ||
+       inertia_measure <= eps(eltype(particle_system))
+        return force_per_particle
+    end
+
+    alpha = -torque / inertia_measure
+    for particle in each_integrated_particle(particle_system)
+        relative_position = extract_svector(relative_coordinates, particle_system, particle)
+        correction_force = alpha * SVector(-relative_position[2], relative_position[1])
+
+        @inbounds begin
+            force_per_particle[1, particle] += correction_force[1]
+            force_per_particle[2, particle] += correction_force[2]
+        end
+    end
+
+    return force_per_particle
+end
+
+function remove_resultant_contact_torque!(force_per_particle,
+                                          particle_system::RigidSPHSystem{<:Any, <:Any, 3})
+    return force_per_particle
+end
+
 @inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
                                       penetration, normal_velocity, ELTYPE)
+    normal_force, _ = normal_contact_force_components(contact_model, penetration,
+                                                      normal_velocity, ELTYPE)
+
+    return normal_force
+end
+
+@inline function normal_friction_reference_force(contact_model::RigidBoundaryContactModel,
+                                                 penetration, normal_velocity, ELTYPE)
+    _, friction_reference_force = normal_contact_force_components(contact_model, penetration,
+                                                                  normal_velocity, ELTYPE)
+
+    return friction_reference_force
+end
+
+@inline function normal_contact_force_components(contact_model::RigidBoundaryContactModel,
+                                                 penetration, normal_velocity, ELTYPE)
     elastic_force = contact_model.normal_stiffness * penetration
     # Kelvin-Voigt normal damping: oppose relative normal motion in both
     # compression and decompression; clamp to avoid artificial attraction.
     damping_force = -contact_model.normal_damping * normal_velocity
-    normal_force = elastic_force + damping_force
+    normal_force = max(elastic_force + damping_force, zero(ELTYPE))
+    # Use the same (elastic) normal load in both tangential-history limiting
+    # and tangential-force evaluation to avoid branch inconsistencies and
+    # avoid friction spikes from impact-only damping.
+    friction_reference_force = max(elastic_force, zero(ELTYPE))
 
-    return max(normal_force, zero(ELTYPE))
+    return normal_force, friction_reference_force
 end
 
 function tangential_contact_force(contact_model::RigidBoundaryContactModel,
                                   tangential_displacement,
                                   tangential_velocity,
-                                  normal_force_magnitude, ELTYPE)
+                                  normal_force_friction_reference, ELTYPE)
     force_trial = -contact_model.tangential_stiffness * tangential_displacement -
                   contact_model.tangential_damping * tangential_velocity
 
     trial_norm = norm(force_trial)
     tangential_speed = norm(tangential_velocity)
-    static_limit = contact_model.static_friction_coefficient * normal_force_magnitude
+    static_limit = contact_model.static_friction_coefficient *
+                   normal_force_friction_reference
 
     # Stay in the static branch as long as the tangential spring-damper force is admissible.
     # This avoids high-frequency stick/slip toggling when the tangential speed is close to zero.
@@ -410,7 +474,8 @@ function tangential_contact_force(contact_model::RigidBoundaryContactModel,
         return force_trial
     end
 
-    kinetic_limit = contact_model.kinetic_friction_coefficient * normal_force_magnitude
+    kinetic_limit = contact_model.kinetic_friction_coefficient *
+                    normal_force_friction_reference
     kinetic_limit <= eps(ELTYPE) && return zero(force_trial)
 
     # Smooth kinetic friction near zero slip velocity to remove force discontinuities

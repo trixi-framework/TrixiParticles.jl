@@ -162,6 +162,7 @@ function create_cache_rigid(::Val{2}, ELTYPE, n_particles, total_mass,
             contact_tangential_displacement=tangential_displacement,
             boundary_contact_count=Ref(0),
             max_boundary_penetration=Ref(zero(ELTYPE)),
+            resting_contact_counter=Ref(0),
             manifold_cache...)
 end
 
@@ -187,6 +188,7 @@ function create_cache_rigid(::Val{3}, ELTYPE, n_particles, total_mass,
             contact_tangential_displacement=tangential_displacement,
             boundary_contact_count=Ref(0),
             max_boundary_penetration=Ref(zero(ELTYPE)),
+            resting_contact_counter=Ref(0),
             manifold_cache...)
 end
 
@@ -398,6 +400,7 @@ function restart_with!(system::RigidSPHSystem, v, u)
     end
     system.cache.boundary_contact_count[] = 0
     system.cache.max_boundary_penetration[] = zero(eltype(system))
+    system.cache.resting_contact_counter[] = 0
 
     return system
 end

@@ -8,6 +8,8 @@ struct RigidBoundaryContactModel{ELTYPE <: Real}
     contact_distance::ELTYPE
     stick_velocity_tolerance::ELTYPE
     penetration_slop::ELTYPE
+    torque_free::Bool
+    resting_contact_projection::Bool
 end
 
 function RigidBoundaryContactModel(; normal_stiffness,
@@ -18,7 +20,9 @@ function RigidBoundaryContactModel(; normal_stiffness,
                                    tangential_damping=0.0,
                                    contact_distance=0.0,
                                    stick_velocity_tolerance=1e-6,
-                                   penetration_slop=0.0)
+                                   penetration_slop=0.0,
+                                   torque_free=false,
+                                   resting_contact_projection=true)
     ELTYPE = promote_type(typeof(normal_stiffness),
                           typeof(normal_damping),
                           typeof(static_friction_coefficient),
@@ -65,7 +69,8 @@ function RigidBoundaryContactModel(; normal_stiffness,
                                      kinetic_friction_coefficient_,
                                      tangential_stiffness_, tangential_damping_,
                                      contact_distance_, stick_velocity_tolerance_,
-                                     penetration_slop_)
+                                     penetration_slop_, Bool(torque_free),
+                                     Bool(resting_contact_projection))
 end
 
 function convert_boundary_contact_model(::Nothing, particle_spacing, ELTYPE)
@@ -92,7 +97,9 @@ function convert_boundary_contact_model(model::RigidBoundaryContactModel, partic
                                      stick_velocity_tolerance=convert(ELTYPE,
                                                                       model.stick_velocity_tolerance),
                                      penetration_slop=convert(ELTYPE,
-                                                              model.penetration_slop))
+                                                              model.penetration_slop),
+                                     torque_free=model.torque_free,
+                                     resting_contact_projection=model.resting_contact_projection)
 end
 
 create_contact_tangential_displacement(::Nothing, ELTYPE, ::Val{NDIMS}) where {NDIMS} = nothing
@@ -115,6 +122,8 @@ function Base.show(io::IO, model::RigidBoundaryContactModel)
     print(io, ", contact_distance=", model.contact_distance)
     print(io, ", stick_velocity_tolerance=", model.stick_velocity_tolerance)
     print(io, ", penetration_slop=", model.penetration_slop)
+    print(io, ", torque_free=", model.torque_free)
+    print(io, ", resting_contact_projection=", model.resting_contact_projection)
     print(io, ")")
 end
 
@@ -250,13 +259,14 @@ function apply_boundary_contact_correction!(system::RigidSPHSystem{<:Any, <:Any,
                                                                                    particle] /
                                     weight_sum
             relative_velocity = particle_velocity - wall_velocity
-            tangential_velocity = relative_velocity -
-                                  dot(relative_velocity, normal) * normal
+            normal_velocity = dot(relative_velocity, normal)
+            tangential_velocity = relative_velocity - normal_velocity * normal
 
             contact_key = (neighbor_system_index, particle, manifold)
             push!(active_contact_keys, contact_key)
             update_contact_tangential_history!(system, contact_key, tangential_velocity,
-                                               normal, penetration_effective, dt,
+                                               normal, penetration_effective,
+                                               normal_velocity, dt,
                                                contact_model)
 
             contact_count += 1
@@ -275,7 +285,7 @@ end
 
 function update_contact_tangential_history!(system::RigidSPHSystem, contact_key,
                                             tangential_velocity, normal,
-                                            penetration_effective, dt,
+                                            penetration_effective, normal_velocity, dt,
                                             contact_model::RigidBoundaryContactModel)
     dt_ = isfinite(dt) && dt > 0 ? convert(eltype(system), dt) : zero(eltype(system))
     contact_map = system.cache.contact_tangential_displacement
@@ -287,7 +297,8 @@ function update_contact_tangential_history!(system::RigidSPHSystem, contact_key,
     tangential_displacement -= dot(tangential_displacement, normal) * normal
 
     if contact_model.tangential_stiffness > eps(eltype(system))
-        normal_force = contact_model.normal_stiffness * penetration_effective
+        normal_force = normal_friction_reference_force(contact_model, penetration_effective,
+                                                       normal_velocity, eltype(system))
         max_displacement = contact_model.static_friction_coefficient * normal_force /
                            contact_model.tangential_stiffness
         displacement_norm = norm(tangential_displacement)
@@ -358,22 +369,98 @@ function reset_projected_contact_history!(contact_tangential_displacement, conta
     return contact_tangential_displacement
 end
 
+@inline function reset_resting_contact_counter!(system::RigidSPHSystem)
+    system.cache.resting_contact_counter[] = 0
+
+    return system
+end
+
+@inline function update_resting_contact_counter!(system::RigidSPHSystem, in_resting_contact)
+    if in_resting_contact
+        system.cache.resting_contact_counter[] += 1
+    else
+        system.cache.resting_contact_counter[] = 0
+    end
+
+    return system.cache.resting_contact_counter[]
+end
+
+@inline function resting_contact_speed_threshold(contact_model::RigidBoundaryContactModel,
+                                                 dt_contact, velocity_floor, ELTYPE)
+    characteristic_speed = dt_contact > eps(ELTYPE) ? contact_model.contact_distance / dt_contact :
+                           zero(ELTYPE)
+
+    return max(convert(ELTYPE, 5) * velocity_floor,
+               convert(ELTYPE, 0.02) * characteristic_speed)
+end
+
+function project_resting_contact_position!(system::RigidSPHSystem{<:Any, <:Any, 2},
+                                           u_system, constraints,
+                                           penetration_tolerance)
+    total_mass = system.cache.total_mass
+    total_mass <= eps(eltype(system)) && return false
+
+    inv_total_mass = inv(total_mass)
+
+    center_of_mass_correction = zero(SVector{2, eltype(system)})
+    any_correction = false
+
+    for _ in 1:3
+        iteration_has_correction = false
+
+        for (particle, normal, _, penetration_effective) in constraints
+            penetration_effective <= penetration_tolerance && continue
+
+            applied_correction = center_of_mass_correction
+            remaining_penetration = penetration_effective -
+                                    dot(applied_correction, normal)
+            remaining_penetration <= penetration_tolerance && continue
+
+            effective_inverse_mass = inv_total_mass
+            effective_inverse_mass <= eps(eltype(system)) && continue
+
+            correction_impulse = (remaining_penetration - penetration_tolerance) /
+                                 effective_inverse_mass
+            correction_impulse <= eps(eltype(system)) && continue
+
+            center_of_mass_correction += correction_impulse * inv_total_mass * normal
+            iteration_has_correction = true
+        end
+
+        any_correction |= iteration_has_correction
+        iteration_has_correction || break
+    end
+
+    any_correction || return false
+
+    system_coords = current_coordinates(u_system, system)
+    for particle in each_integrated_particle(system)
+        @inbounds begin
+            system_coords[1, particle] += center_of_mass_correction[1]
+            system_coords[2, particle] += center_of_mass_correction[2]
+        end
+    end
+
+    return true
+end
+
 function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 2},
                                            v_system, u_system, v_ode, u_ode, semi,
                                            integrator)
     contact_model = system.boundary_contact_model
     isnothing(contact_model) && return false
-    system.cache.boundary_contact_count[] == 0 && return false
+    contact_model.resting_contact_projection || return false
+    if system.cache.boundary_contact_count[] == 0
+        reset_resting_contact_counter!(system)
+        return false
+    end
 
     dt = integrator.dt
     dt_contact = contact_time_step(contact_model, system)
     if !isfinite(dt) || dt <= 0 || !isfinite(dt_contact) || dt_contact <= 0
+        reset_resting_contact_counter!(system)
         return false
     end
-
-    # Activate fallback only if the adaptive integrator has already collapsed.
-    dt_projection_trigger = convert(eltype(system), 0.05) * dt_contact
-    dt <= dt_projection_trigger || return false
 
     center_of_mass_velocity = system.cache.center_of_mass_velocity[]
     angular_velocity = system.cache.angular_velocity[]
@@ -469,46 +556,52 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
         end
     end
 
-    isempty(constraints) && return false
+    if isempty(constraints)
+        reset_resting_contact_counter!(system)
+        return false
+    end
 
-    # Only project in a genuine resting-contact regime.
-    if max_normal_speed > 5 * velocity_floor || max_tangential_speed > 5 * velocity_floor
+    # Use a persistence-based resting-contact trigger; keep dt-ratio as a secondary
+    # early-warning signal to avoid waiting for severe adaptive-step collapse.
+    resting_speed_max = resting_contact_speed_threshold(contact_model, dt_contact,
+                                                        velocity_floor, ELTYPE)
+    in_resting_contact = max_normal_speed <= resting_speed_max &&
+                         max_tangential_speed <= resting_speed_max
+    resting_counter = update_resting_contact_counter!(system, in_resting_contact)
+    in_resting_contact || return false
+
+    dt_projection_trigger = convert(ELTYPE, 0.1) * dt_contact
+    projection_persistence_steps = 2
+    if dt > dt_projection_trigger && resting_counter < projection_persistence_steps
         return false
     end
 
     total_mass = system.cache.total_mass
     total_mass <= eps(eltype(system)) && return false
 
-    inertia = system.cache.inertia[]
-    inertia_clamped = max(inertia, eps(eltype(system)))
     inv_total_mass = inv(total_mass)
 
     projected_center_of_mass_velocity = center_of_mass_velocity
-    projected_angular_velocity = angular_velocity
+    velocity_modified = false
 
     for _ in 1:3
         any_projection = false
 
-        for (particle, normal, wall_velocity, _) in constraints
-            relative_position = extract_svector(system.cache.relative_coordinates, system,
-                                                particle)
-            particle_velocity = projected_center_of_mass_velocity +
-                                rotational_velocity_2d(projected_angular_velocity,
-                                                       relative_position)
+        for (_, normal, wall_velocity, _) in constraints
+            particle_velocity = projected_center_of_mass_velocity
             relative_velocity = particle_velocity - wall_velocity
             normal_velocity = dot(relative_velocity, normal)
             normal_velocity >= -velocity_floor && continue
 
-            moment_arm = cross(relative_position, normal)
-            effective_inverse_mass = inv_total_mass + moment_arm^2 / inertia_clamped
+            effective_inverse_mass = inv_total_mass
             effective_inverse_mass <= eps(eltype(system)) && continue
 
             impulse = -normal_velocity / effective_inverse_mass
             impulse <= eps(eltype(system)) && continue
 
             projected_center_of_mass_velocity += impulse * inv_total_mass * normal
-            projected_angular_velocity += impulse * moment_arm / inertia_clamped
             any_projection = true
+            velocity_modified = true
         end
 
         any_projection || break
@@ -517,30 +610,37 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
     if norm(projected_center_of_mass_velocity) <= velocity_floor
         projected_center_of_mass_velocity = zero(projected_center_of_mass_velocity)
     end
-    if abs(projected_angular_velocity) * system.particle_spacing <= velocity_floor
-        projected_angular_velocity = zero(projected_angular_velocity)
-    end
 
-    if projected_center_of_mass_velocity == center_of_mass_velocity &&
-       projected_angular_velocity == angular_velocity
-        return false
-    end
+    velocity_modified = velocity_modified ||
+                        norm(projected_center_of_mass_velocity -
+                             center_of_mass_velocity) > eps(ELTYPE)
 
-    system_velocity = current_velocity(v_system, system)
-    for particle in each_integrated_particle(system)
-        relative_position = extract_svector(system.cache.relative_coordinates, system, particle)
-        particle_velocity = projected_center_of_mass_velocity +
-                            rotational_velocity_2d(projected_angular_velocity,
-                                                   relative_position)
+    if velocity_modified
+        system_velocity = current_velocity(v_system, system)
+        for particle in each_integrated_particle(system)
+            relative_position = extract_svector(system.cache.relative_coordinates, system, particle)
+            particle_velocity = projected_center_of_mass_velocity +
+                                rotational_velocity_2d(angular_velocity,
+                                                       relative_position)
 
-        @inbounds begin
-            system_velocity[1, particle] = particle_velocity[1]
-            system_velocity[2, particle] = particle_velocity[2]
+            @inbounds begin
+                system_velocity[1, particle] = particle_velocity[1]
+                system_velocity[2, particle] = particle_velocity[2]
+            end
         end
     end
 
-    system.cache.center_of_mass_velocity[] = projected_center_of_mass_velocity
-    system.cache.angular_velocity[] = projected_angular_velocity
+    contact_scale = max(contact_model.contact_distance, system.particle_spacing)
+    penetration_tolerance = max(convert(ELTYPE, 1.0e-3) * contact_scale,
+                                sqrt(eps(ELTYPE)) * contact_scale)
+    position_modified = project_resting_contact_position!(system, u_system, constraints,
+                                                          penetration_tolerance)
+    state_modified = velocity_modified || position_modified
+    state_modified || return false
+
+    projection_time = hasproperty(integrator, :t) ? integrator.t : zero(ELTYPE)
+    update_final!(system, v_system, u_system, v_ode, u_ode, semi, projection_time)
+    reset_resting_contact_counter!(system)
     reset_projected_contact_history!(system.cache.contact_tangential_displacement,
                                      projection_contact_keys,
                                      projected_particles)

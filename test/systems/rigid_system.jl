@@ -328,9 +328,18 @@
         penetration = boundary_contact_model_slop.contact_distance - distance
         penetration_effective = penetration - boundary_contact_model_slop.penetration_slop
 
+        normal_slop = (rigid_coordinates[:, 1] - boundary_coordinates[:, 1]) / distance
+        relative_velocity_slop = TrixiParticles.current_velocity(v_rigid_slop, rigid_system_slop,
+                                                                 1) -
+                                 TrixiParticles.current_velocity(v_wall_slop, boundary_system, 1)
+        normal_velocity_slop = LinearAlgebra.dot(relative_velocity_slop, normal_slop)
+        normal_force_friction_reference_slop = TrixiParticles.normal_friction_reference_force(boundary_contact_model_slop,
+                                                                                               penetration_effective,
+                                                                                               normal_velocity_slop,
+                                                                                               eltype(rigid_system_slop))
+
         expected_displacement_cap = boundary_contact_model_slop.static_friction_coefficient *
-                                    boundary_contact_model_slop.normal_stiffness *
-                                    penetration_effective /
+                                    normal_force_friction_reference_slop /
                                     boundary_contact_model_slop.tangential_stiffness
         expected_raw_displacement_cap = boundary_contact_model_slop.static_friction_coefficient *
                                         boundary_contact_model_slop.normal_stiffness *
@@ -339,6 +348,77 @@
 
         @test stored_displacement_norm ≈ expected_displacement_cap atol=1e-12
         @test stored_displacement_norm < expected_raw_displacement_cap
+
+        # The tangential-history cap must use the same normal-load definition as the
+        # tangential force path, including damping at high approach speed.
+        rigid_ic_damped = InitialCondition(; coordinates=rigid_coordinates,
+                                           velocity=reshape([1.0, -2.0], 2, 1),
+                                           mass=rigid_mass,
+                                           density=rigid_density,
+                                           particle_spacing=0.1)
+        boundary_contact_model_damped = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
+                                                                  normal_damping=40.0,
+                                                                  static_friction_coefficient=0.6,
+                                                                  kinetic_friction_coefficient=0.4,
+                                                                  tangential_stiffness=2.0e6,
+                                                                  tangential_damping=0.0,
+                                                                  contact_distance=0.1,
+                                                                  penetration_slop=0.0,
+                                                                  stick_velocity_tolerance=1e-8)
+        rigid_system_damped = RigidSPHSystem(rigid_ic_damped;
+                                             acceleration=(0.0, 0.0),
+                                             boundary_contact_model=boundary_contact_model_damped)
+        semi_damped = Semidiscretization(rigid_system_damped, boundary_system)
+        ode_damped = semidiscretize(semi_damped, (0.0, 0.01))
+        v_ode_damped, u_ode_damped = ode_damped.u0.x
+        v_rigid_damped = TrixiParticles.wrap_v(v_ode_damped, rigid_system_damped, semi_damped)
+        u_rigid_damped = TrixiParticles.wrap_u(u_ode_damped, rigid_system_damped, semi_damped)
+        v_wall_damped = TrixiParticles.wrap_v(v_ode_damped, boundary_system, semi_damped)
+        u_wall_damped = TrixiParticles.wrap_u(u_ode_damped, boundary_system, semi_damped)
+        active_keys_damped = Set{NTuple{3, Int}}()
+
+        TrixiParticles.apply_boundary_contact_correction!(rigid_system_damped, boundary_system,
+                                                          v_rigid_damped, u_rigid_damped,
+                                                          v_wall_damped, u_wall_damped,
+                                                          semi_damped, 1e-3,
+                                                          active_keys_damped)
+
+        @test length(active_keys_damped) == 1
+        damped_key = first(active_keys_damped)
+        damped_displacement = rigid_system_damped.cache.contact_tangential_displacement[damped_key]
+        damped_displacement_norm = LinearAlgebra.norm(damped_displacement)
+        damped_distance = LinearAlgebra.norm(rigid_coordinates[:, 1] - boundary_coordinates[:, 1])
+        damped_penetration = boundary_contact_model_damped.contact_distance - damped_distance
+        damped_penetration_effective = damped_penetration -
+                                       boundary_contact_model_damped.penetration_slop
+        damped_normal = (rigid_coordinates[:, 1] - boundary_coordinates[:, 1]) / damped_distance
+        relative_velocity_damped = TrixiParticles.current_velocity(v_rigid_damped,
+                                                                   rigid_system_damped, 1) -
+                                   TrixiParticles.current_velocity(v_wall_damped, boundary_system,
+                                                                   1)
+        normal_velocity_damped = LinearAlgebra.dot(relative_velocity_damped, damped_normal)
+        normal_force_friction_reference_damped = TrixiParticles.normal_friction_reference_force(boundary_contact_model_damped,
+                                                                                                 damped_penetration_effective,
+                                                                                                 normal_velocity_damped,
+                                                                                                 eltype(rigid_system_damped))
+        expected_damped_cap = boundary_contact_model_damped.static_friction_coefficient *
+                              normal_force_friction_reference_damped /
+                              boundary_contact_model_damped.tangential_stiffness
+        elastic_only_damped_cap = boundary_contact_model_damped.static_friction_coefficient *
+                                  boundary_contact_model_damped.normal_stiffness *
+                                  damped_penetration_effective /
+                                  boundary_contact_model_damped.tangential_stiffness
+        total_normal_force_damped = TrixiParticles.normal_contact_force(boundary_contact_model_damped,
+                                                                        damped_penetration_effective,
+                                                                        normal_velocity_damped,
+                                                                        eltype(rigid_system_damped))
+        total_force_damped_cap = boundary_contact_model_damped.static_friction_coefficient *
+                                 total_normal_force_damped /
+                                 boundary_contact_model_damped.tangential_stiffness
+
+        @test damped_displacement_norm ≈ expected_damped_cap atol=1e-12
+        @test damped_displacement_norm ≈ elastic_only_damped_cap atol=1e-12
+        @test damped_displacement_norm < total_force_damped_cap
     end
 
     @trixi_testset "Projection Fallback" begin
@@ -466,6 +546,40 @@
                                                                                          dt_contact))
 
         @test !modified_no_projection
+
+        function effective_penetration(system, u_state, wall_system, u_wall_state, contact_model)
+            system_coords_local = TrixiParticles.current_coordinates(u_state, system)
+            wall_coords_local = TrixiParticles.current_coordinates(u_wall_state, wall_system)
+            distance_local = LinearAlgebra.norm(system_coords_local[:, 1] - wall_coords_local[:, 1])
+            penetration_local = contact_model.contact_distance - distance_local
+
+            return max(zero(eltype(system)),
+                       penetration_local - contact_model.penetration_slop)
+        end
+
+        penetration_before_persistent = effective_penetration(rigid_system_no_projection,
+                                                              u_rigid_no_projection,
+                                                              boundary_system,
+                                                              u_wall_no_projection,
+                                                              boundary_contact_model)
+        modified_persistent = TrixiParticles.project_resting_contact_velocity!(rigid_system_no_projection,
+                                                                               v_rigid_no_projection,
+                                                                               u_rigid_no_projection,
+                                                                               v_ode_no_projection,
+                                                                               u_ode_no_projection,
+                                                                               semi_no_projection,
+                                                                               (; dt=0.2 *
+                                                                                      dt_contact))
+        penetration_after_persistent = effective_penetration(rigid_system_no_projection,
+                                                             u_rigid_no_projection,
+                                                             boundary_system,
+                                                             u_wall_no_projection,
+                                                             boundary_contact_model)
+
+        @test modified_persistent
+        @test penetration_after_persistent <= penetration_before_persistent
+        @test penetration_after_persistent <=
+              1.01e-3 * boundary_contact_model.contact_distance
     end
 
     @trixi_testset "Rigid-Wall Collision Shape Preservation" begin
@@ -564,6 +678,107 @@
         # For this symmetric setup without initial rotation, all particles should
         # move with (nearly) identical vertical velocity after impact.
         @test std(vec(final_velocity[2, :])) < 1.0e-10
+    end
+
+    @trixi_testset "Perfect Elastic Rigid-Wall Energy Conservation" begin
+        using LinearAlgebra: dot
+        using OrdinaryDiffEq
+
+        particle_spacing = 0.05
+        sphere = SphereShape(particle_spacing, 0.1, (0.0, 0.25), 1200.0;
+                             sphere_type=RoundSphere(), velocity=(0.0, -1.0))
+
+        wall_x = collect(-0.4:particle_spacing:0.4)
+        wall_coordinates = zeros(2, length(wall_x))
+        wall_coordinates[1, :] .= wall_x
+        wall_mass = fill(1000.0 * particle_spacing^2, length(wall_x))
+        wall_density = fill(1000.0, length(wall_x))
+        wall_ic = InitialCondition(; coordinates=wall_coordinates,
+                                   mass=wall_mass,
+                                   density=wall_density,
+                                   particle_spacing=particle_spacing)
+
+        state_equation = StateEquationCole(; sound_speed=20.0,
+                                           reference_density=1000.0,
+                                           exponent=1.0)
+        wall_model = BoundaryModelDummyParticles(wall_density, wall_mass,
+                                                 BernoulliPressureExtrapolation(),
+                                                 WendlandC2Kernel{2}(),
+                                                 1.5 * particle_spacing;
+                                                 state_equation=state_equation)
+        wall_system = WallBoundarySystem(wall_ic, wall_model)
+
+        boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
+                                                           normal_damping=0.0,
+                                                           static_friction_coefficient=0.0,
+                                                           kinetic_friction_coefficient=0.0,
+                                                           tangential_stiffness=0.0,
+                                                           tangential_damping=0.0,
+                                                           contact_distance=particle_spacing,
+                                                           penetration_slop=0.0,
+                                                           torque_free=true,
+                                                           resting_contact_projection=false,
+                                                           stick_velocity_tolerance=1e-8)
+
+        rigid_system = RigidSPHSystem(sphere;
+                                      acceleration=(0.0, 0.0),
+                                      boundary_contact_model=boundary_contact_model,
+                                      particle_spacing=particle_spacing)
+
+        semi = Semidiscretization(rigid_system, wall_system)
+        ode = semidiscretize(semi, (0.0, 0.6))
+        solution = solve(ode, RDPK3SpFSAL35();
+                         abstol=1e-8, reltol=1e-6,
+                         save_everystep=true,
+                         callback=UpdateCallback())
+
+        @test solution.retcode == ReturnCode.Success
+        @test length(solution.t) > 2
+
+        function total_kinetic_energy(v_state)
+            v_rigid = TrixiParticles.wrap_v(v_state, rigid_system, semi)
+            velocity = TrixiParticles.current_velocity(v_rigid, rigid_system)
+            kinetic_energy = zero(eltype(rigid_system))
+
+            for particle in eachindex(rigid_system.mass)
+                particle_velocity = velocity[:, particle]
+                kinetic_energy += 0.5 * rigid_system.mass[particle] *
+                                  dot(particle_velocity, particle_velocity)
+            end
+
+            return kinetic_energy
+        end
+
+        function mean_vertical_velocity(v_state)
+            v_rigid = TrixiParticles.wrap_v(v_state, rigid_system, semi)
+            velocity = TrixiParticles.current_velocity(v_rigid, rigid_system)
+
+            return sum(velocity[2, :]) / size(velocity, 2)
+        end
+
+        function minimum_wall_clearance(u_state)
+            u_rigid = TrixiParticles.wrap_u(u_state, rigid_system, semi)
+            coordinates = TrixiParticles.current_coordinates(u_rigid, rigid_system)
+            wall_top = maximum(wall_coordinates[2, :])
+
+            return minimum(coordinates[2, :]) - wall_top
+        end
+
+        initial_ke = total_kinetic_energy(solution.u[1].x[1])
+        final_ke = total_kinetic_energy(solution.u[end].x[1])
+        relative_ke_error = abs(final_ke - initial_ke) / initial_ke
+
+        vertical_velocity_history = [mean_vertical_velocity(state.x[1]) for state in solution.u]
+        final_clearance = minimum_wall_clearance(solution.u[end].x[2])
+
+        # Ensure this is an actual bounce (sign change in vertical velocity)
+        # and that final state is separated from the wall.
+        @test minimum(vertical_velocity_history) < -0.9
+        @test maximum(vertical_velocity_history) > 0.8
+        @test vertical_velocity_history[end] > 0.8
+        @test final_clearance > 1.2 * boundary_contact_model.contact_distance
+
+        @test relative_ke_error < 1e-3
     end
 
     @trixi_testset "Boundary Contact Resolution Invariance" begin
