@@ -290,6 +290,182 @@
         @test v_rigid ≈ v_rigid_before
         @test !isempty(active_keys)
         @test !isempty(rigid_system.cache.contact_tangential_displacement)
+
+        # Tangential history limiter must use the same slop-adjusted penetration
+        # that is used by the normal-force path.
+        boundary_contact_model_slop = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
+                                                                normal_damping=0.0,
+                                                                static_friction_coefficient=0.6,
+                                                                kinetic_friction_coefficient=0.4,
+                                                                tangential_stiffness=2.0e6,
+                                                                tangential_damping=0.0,
+                                                                contact_distance=0.1,
+                                                                penetration_slop=0.04,
+                                                                stick_velocity_tolerance=1e-8)
+        rigid_system_slop = RigidSPHSystem(rigid_ic;
+                                           acceleration=(0.0, 0.0),
+                                           boundary_contact_model=boundary_contact_model_slop)
+        semi_slop = Semidiscretization(rigid_system_slop, boundary_system)
+        ode_slop = semidiscretize(semi_slop, (0.0, 0.01))
+        v_ode_slop, u_ode_slop = ode_slop.u0.x
+        v_rigid_slop = TrixiParticles.wrap_v(v_ode_slop, rigid_system_slop, semi_slop)
+        u_rigid_slop = TrixiParticles.wrap_u(u_ode_slop, rigid_system_slop, semi_slop)
+        v_wall_slop = TrixiParticles.wrap_v(v_ode_slop, boundary_system, semi_slop)
+        u_wall_slop = TrixiParticles.wrap_u(u_ode_slop, boundary_system, semi_slop)
+        active_keys_slop = Set{NTuple{3, Int}}()
+
+        TrixiParticles.apply_boundary_contact_correction!(rigid_system_slop, boundary_system,
+                                                          v_rigid_slop, u_rigid_slop,
+                                                          v_wall_slop, u_wall_slop,
+                                                          semi_slop, 1e-3,
+                                                          active_keys_slop)
+
+        @test length(active_keys_slop) == 1
+        contact_key = first(active_keys_slop)
+        stored_displacement = rigid_system_slop.cache.contact_tangential_displacement[contact_key]
+        stored_displacement_norm = LinearAlgebra.norm(stored_displacement)
+        distance = LinearAlgebra.norm(rigid_coordinates[:, 1] - boundary_coordinates[:, 1])
+        penetration = boundary_contact_model_slop.contact_distance - distance
+        penetration_effective = penetration - boundary_contact_model_slop.penetration_slop
+
+        expected_displacement_cap = boundary_contact_model_slop.static_friction_coefficient *
+                                    boundary_contact_model_slop.normal_stiffness *
+                                    penetration_effective /
+                                    boundary_contact_model_slop.tangential_stiffness
+        expected_raw_displacement_cap = boundary_contact_model_slop.static_friction_coefficient *
+                                        boundary_contact_model_slop.normal_stiffness *
+                                        penetration /
+                                        boundary_contact_model_slop.tangential_stiffness
+
+        @test stored_displacement_norm ≈ expected_displacement_cap atol=1e-12
+        @test stored_displacement_norm < expected_raw_displacement_cap
+    end
+
+    @trixi_testset "Projection Fallback" begin
+        rigid_coordinates = reshape([0.0, 0.05], 2, 1)
+        rigid_velocity = reshape([2.0e-3, -2.0e-3], 2, 1)
+        rigid_mass = [1.0]
+        rigid_density = [1000.0]
+        rigid_ic = InitialCondition(; coordinates=rigid_coordinates,
+                                    velocity=rigid_velocity,
+                                    mass=rigid_mass,
+                                    density=rigid_density,
+                                    particle_spacing=0.1)
+
+        boundary_coordinates = reshape([0.0, 0.0], 2, 1)
+        boundary_mass = [1.0]
+        boundary_density = [1000.0]
+        boundary_ic = InitialCondition(; coordinates=boundary_coordinates,
+                                       mass=boundary_mass,
+                                       density=boundary_density,
+                                       particle_spacing=0.1)
+
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.15
+        boundary_model = BoundaryModelDummyParticles(boundary_density, boundary_mass,
+                                                     SummationDensity(),
+                                                     smoothing_kernel,
+                                                     smoothing_length)
+        boundary_system = WallBoundarySystem(boundary_ic, boundary_model)
+
+        boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
+                                                           normal_damping=20.0,
+                                                           static_friction_coefficient=0.6,
+                                                           kinetic_friction_coefficient=0.4,
+                                                           tangential_stiffness=1.0e4,
+                                                           tangential_damping=5.0,
+                                                           contact_distance=0.1,
+                                                           stick_velocity_tolerance=1e-2)
+        rigid_system = RigidSPHSystem(rigid_ic;
+                                      acceleration=(0.0, 0.0),
+                                      boundary_contact_model=boundary_contact_model)
+        semi = Semidiscretization(rigid_system, boundary_system)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        v_ode, u_ode = ode.u0.x
+        v_rigid = TrixiParticles.wrap_v(v_ode, rigid_system, semi)
+        u_rigid = TrixiParticles.wrap_u(u_ode, rigid_system, semi)
+        v_wall = TrixiParticles.wrap_v(v_ode, boundary_system, semi)
+        u_wall = TrixiParticles.wrap_u(u_ode, boundary_system, semi)
+        TrixiParticles.update_final!(rigid_system, v_rigid, u_rigid, v_ode, u_ode, semi, 0.0)
+
+        active_keys = Set{NTuple{3, Int}}()
+        TrixiParticles.apply_boundary_contact_correction!(rigid_system, boundary_system,
+                                                          v_rigid, u_rigid,
+                                                          v_wall, u_wall,
+                                                          semi, 1e-3, active_keys)
+
+        @test rigid_system.cache.boundary_contact_count[] > 0
+        @test !isempty(active_keys)
+        @test !isempty(rigid_system.cache.contact_tangential_displacement)
+
+        dt_contact = TrixiParticles.contact_time_step(rigid_system)
+        modified = TrixiParticles.project_resting_contact_velocity!(rigid_system,
+                                                                    v_rigid, u_rigid,
+                                                                    v_ode, u_ode,
+                                                                    semi,
+                                                                    (; dt=0.01 *
+                                                                           dt_contact))
+
+        @test modified
+
+        system_coords = TrixiParticles.current_coordinates(u_rigid, rigid_system)
+        wall_coords = TrixiParticles.current_coordinates(u_wall, boundary_system)
+        normal = system_coords[:, 1] - wall_coords[:, 1]
+        normal ./= LinearAlgebra.norm(normal)
+        relative_velocity = TrixiParticles.current_velocity(v_rigid, rigid_system, 1) -
+                            TrixiParticles.current_velocity(v_wall, boundary_system, 1)
+        velocity_floor = max(0.1 * boundary_contact_model.stick_velocity_tolerance,
+                             sqrt(eps(eltype(rigid_system))))
+        @test LinearAlgebra.dot(relative_velocity, normal) >= -velocity_floor -
+              100 * eps(velocity_floor)
+
+        for key in active_keys
+            @test !haskey(rigid_system.cache.contact_tangential_displacement, key)
+        end
+
+        rigid_system_no_projection = RigidSPHSystem(rigid_ic;
+                                                    acceleration=(0.0, 0.0),
+                                                    boundary_contact_model=boundary_contact_model)
+        semi_no_projection = Semidiscretization(rigid_system_no_projection, boundary_system)
+        ode_no_projection = semidiscretize(semi_no_projection, (0.0, 0.01))
+        v_ode_no_projection, u_ode_no_projection = ode_no_projection.u0.x
+        v_rigid_no_projection = TrixiParticles.wrap_v(v_ode_no_projection,
+                                                      rigid_system_no_projection,
+                                                      semi_no_projection)
+        u_rigid_no_projection = TrixiParticles.wrap_u(u_ode_no_projection,
+                                                      rigid_system_no_projection,
+                                                      semi_no_projection)
+        v_wall_no_projection = TrixiParticles.wrap_v(v_ode_no_projection, boundary_system,
+                                                     semi_no_projection)
+        u_wall_no_projection = TrixiParticles.wrap_u(u_ode_no_projection, boundary_system,
+                                                     semi_no_projection)
+        TrixiParticles.update_final!(rigid_system_no_projection,
+                                     v_rigid_no_projection,
+                                     u_rigid_no_projection,
+                                     v_ode_no_projection,
+                                     u_ode_no_projection,
+                                     semi_no_projection, 0.0)
+
+        active_keys_no_projection = Set{NTuple{3, Int}}()
+        TrixiParticles.apply_boundary_contact_correction!(rigid_system_no_projection,
+                                                          boundary_system,
+                                                          v_rigid_no_projection,
+                                                          u_rigid_no_projection,
+                                                          v_wall_no_projection,
+                                                          u_wall_no_projection,
+                                                          semi_no_projection, 1e-3,
+                                                          active_keys_no_projection)
+
+        modified_no_projection = TrixiParticles.project_resting_contact_velocity!(rigid_system_no_projection,
+                                                                                  v_rigid_no_projection,
+                                                                                  u_rigid_no_projection,
+                                                                                  v_ode_no_projection,
+                                                                                  u_ode_no_projection,
+                                                                                  semi_no_projection,
+                                                                                  (; dt=0.2 *
+                                                                                         dt_contact))
+
+        @test !modified_no_projection
     end
 
     @trixi_testset "Rigid-Wall Collision Shape Preservation" begin

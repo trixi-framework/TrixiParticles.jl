@@ -206,7 +206,8 @@ function apply_boundary_contact_correction!(system::RigidSPHSystem,
         distance <= eps(eltype(system)) && return
 
         penetration = contact_model.contact_distance - distance
-        penetration <= contact_model.penetration_slop && return
+        penetration_effective = penetration - contact_model.penetration_slop
+        penetration_effective <= 0 && return
 
         contact_key = (neighbor_system_index, particle, neighbor)
         push!(active_contact_keys, contact_key)
@@ -218,10 +219,11 @@ function apply_boundary_contact_correction!(system::RigidSPHSystem,
         tangential_velocity = relative_velocity -
                               dot(relative_velocity, normal) * normal
         update_contact_tangential_history!(system, contact_key, tangential_velocity,
-                                           normal, penetration, dt, contact_model)
+                                           normal, penetration_effective, dt,
+                                           contact_model)
 
         contact_count += 1
-        max_penetration = max(max_penetration, penetration)
+        max_penetration = max(max_penetration, penetration_effective)
     end
 
     system.cache.boundary_contact_count[] += contact_count
@@ -235,7 +237,7 @@ end
 
 function update_contact_tangential_history!(system::RigidSPHSystem, contact_key,
                                             tangential_velocity, normal,
-                                            penetration, dt,
+                                            penetration_effective, dt,
                                             contact_model::RigidBoundaryContactModel)
     dt_ = isfinite(dt) && dt > 0 ? convert(eltype(system), dt) : zero(eltype(system))
     contact_map = system.cache.contact_tangential_displacement
@@ -247,7 +249,7 @@ function update_contact_tangential_history!(system::RigidSPHSystem, contact_key,
     tangential_displacement -= dot(tangential_displacement, normal) * normal
 
     if contact_model.tangential_stiffness > eps(eltype(system))
-        normal_force = contact_model.normal_stiffness * penetration
+        normal_force = contact_model.normal_stiffness * penetration_effective
         max_displacement = contact_model.static_friction_coefficient * normal_force /
                            contact_model.tangential_stiffness
         displacement_norm = norm(tangential_displacement)

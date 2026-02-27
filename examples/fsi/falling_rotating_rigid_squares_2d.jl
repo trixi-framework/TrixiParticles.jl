@@ -147,13 +147,15 @@ function make_material_contact_model(material, side_length, bottom_left)
     # 2D mass proxy used by this setup.
     particle_mass = material.density * side_length^2
 
-    # Linearize Hertz-Mindlin contact around expected peak compression from impact energy.
-    hertz_coefficient = (4.0 / 3.0) * effective_E * sqrt(equivalent_radius)
+    # 3D Hertz-Mindlin proxy used to parameterize this 2D linear spring-damper contact model.
+    # This gives plausible relative material behavior, but not exact 2D continuum contact units.
+    hertz_proxy_coefficient = (4.0 / 3.0) * effective_E * sqrt(equivalent_radius)
     reference_penetration = ((5.0 / 4.0) * particle_mass * impact_velocity^2 /
-                             hertz_coefficient)^(2.0 / 5.0)
+                             hertz_proxy_coefficient)^(2.0 / 5.0)
     reference_penetration = max(reference_penetration,
                                 0.01 * structure_particle_spacing)
-    normal_stiffness = (3.0 / 2.0) * hertz_coefficient * sqrt(reference_penetration)
+    normal_stiffness = (3.0 / 2.0) * hertz_proxy_coefficient *
+                       sqrt(reference_penetration)
 
     contact_radius = sqrt(equivalent_radius * reference_penetration)
     tangential_stiffness = 8.0 * effective_G * contact_radius
