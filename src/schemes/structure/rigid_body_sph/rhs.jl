@@ -275,15 +275,23 @@ function tangential_contact_force(contact_model::RigidBoundaryContactModel,
     tangential_speed = norm(tangential_velocity)
     static_limit = contact_model.static_friction_coefficient * normal_force_magnitude
 
-    if tangential_speed <= contact_model.stick_velocity_tolerance && trial_norm <= static_limit
+    # Stay in the static branch as long as the tangential spring-damper force is admissible.
+    # This avoids high-frequency stick/slip toggling when the tangential speed is close to zero.
+    if trial_norm <= static_limit
         return force_trial
     end
 
     kinetic_limit = contact_model.kinetic_friction_coefficient * normal_force_magnitude
     kinetic_limit <= eps(ELTYPE) && return zero(force_trial)
 
+    # Smooth kinetic friction near zero slip velocity to remove force discontinuities
+    # that can force adaptive ODE solvers into extremely small time steps.
+    regularization_velocity = max(contact_model.stick_velocity_tolerance,
+                                  sqrt(eps(ELTYPE)))
+
     if tangential_speed > eps(ELTYPE)
-        return -kinetic_limit * tangential_velocity / tangential_speed
+        speed_factor = tanh(tangential_speed / regularization_velocity)
+        return -kinetic_limit * speed_factor * tangential_velocity / tangential_speed
     end
 
     if trial_norm > eps(ELTYPE)

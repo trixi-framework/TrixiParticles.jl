@@ -172,6 +172,12 @@ function update_rigid_contact_eachstep!(system::RigidSPHSystem, v_ode, u_ode, se
     remove_inactive_contact_pairs!(system.cache.contact_tangential_displacement,
                                    active_contact_keys)
 
+    # Fallback for persistent resting contacts: project rigid-body velocity to enforce
+    # non-penetration when the adaptive solver collapses to very small time steps.
+    state_modified = project_resting_contact_velocity!(system, v_system, u_system,
+                                                       v_ode, u_ode, semi, integrator)
+    state_modified && u_modified!(integrator, true)
+
     return system
 end
 
@@ -263,4 +269,150 @@ function remove_inactive_contact_pairs!(contact_tangential_displacement, active_
     end
 
     return contact_tangential_displacement
+end
+
+project_resting_contact_velocity!(system, v_system, u_system, v_ode, u_ode, semi,
+                                  integrator) = false
+
+@inline function rotational_velocity_2d(angular_velocity, relative_position)
+    return SVector(-angular_velocity * relative_position[2],
+                   angular_velocity * relative_position[1])
+end
+
+function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 2},
+                                           v_system, u_system, v_ode, u_ode, semi,
+                                           integrator)
+    contact_model = system.boundary_contact_model
+    isnothing(contact_model) && return false
+    system.cache.boundary_contact_count[] == 0 && return false
+
+    dt = integrator.dt
+    dt_contact = contact_time_step(contact_model, system)
+    if !isfinite(dt) || dt <= 0 || !isfinite(dt_contact) || dt_contact <= 0
+        return false
+    end
+
+    # Activate fallback only if the adaptive integrator has already collapsed.
+    dt_projection_trigger = convert(eltype(system), 0.05) * dt_contact
+    dt <= dt_projection_trigger || return false
+
+    center_of_mass_velocity = system.cache.center_of_mass_velocity[]
+    angular_velocity = system.cache.angular_velocity[]
+    velocity_floor = max(convert(eltype(system), 0.1) *
+                         contact_model.stick_velocity_tolerance,
+                         sqrt(eps(eltype(system))))
+
+    system_coords = current_coordinates(u_system, system)
+    constraint_type = Tuple{Int, SVector{2, eltype(system)}, SVector{2, eltype(system)}}
+    constraints = constraint_type[]
+    max_normal_speed = zero(eltype(system))
+    max_tangential_speed = zero(eltype(system))
+
+    foreach_system(semi) do neighbor_system
+        neighbor_system isa WallBoundarySystem || return
+        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+        neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
+                               points=each_integrated_particle(system),
+                               parallelization_backend=SerialBackend()) do particle, neighbor,
+                                                                           pos_diff, distance
+            distance <= eps(eltype(system)) && return
+
+            penetration = contact_model.contact_distance - distance
+            penetration_effective = penetration - contact_model.penetration_slop
+            penetration_effective <= 0 && return
+
+            normal = pos_diff / distance
+            relative_position = extract_svector(system.cache.relative_coordinates, system,
+                                                particle)
+            particle_velocity = center_of_mass_velocity +
+                                rotational_velocity_2d(angular_velocity, relative_position)
+            wall_velocity = current_velocity(v_neighbor, neighbor_system, neighbor)
+            relative_velocity = particle_velocity - wall_velocity
+            normal_velocity = dot(relative_velocity, normal)
+            tangential_velocity = relative_velocity - normal_velocity * normal
+
+            max_normal_speed = max(max_normal_speed, abs(normal_velocity))
+            max_tangential_speed = max(max_tangential_speed, norm(tangential_velocity))
+
+            push!(constraints, (particle, normal, wall_velocity))
+        end
+    end
+
+    isempty(constraints) && return false
+
+    # Only project in a genuine resting-contact regime.
+    if max_normal_speed > 5 * velocity_floor || max_tangential_speed > 5 * velocity_floor
+        return false
+    end
+
+    total_mass = system.cache.total_mass
+    total_mass <= eps(eltype(system)) && return false
+
+    inertia = system.cache.inertia[]
+    inertia_clamped = max(inertia, eps(eltype(system)))
+    inv_total_mass = inv(total_mass)
+
+    projected_center_of_mass_velocity = center_of_mass_velocity
+    projected_angular_velocity = angular_velocity
+
+    for _ in 1:3
+        any_projection = false
+
+        for (particle, normal, wall_velocity) in constraints
+            relative_position = extract_svector(system.cache.relative_coordinates, system,
+                                                particle)
+            particle_velocity = projected_center_of_mass_velocity +
+                                rotational_velocity_2d(projected_angular_velocity,
+                                                       relative_position)
+            relative_velocity = particle_velocity - wall_velocity
+            normal_velocity = dot(relative_velocity, normal)
+            normal_velocity >= -velocity_floor && continue
+
+            moment_arm = cross(relative_position, normal)
+            effective_inverse_mass = inv_total_mass + moment_arm^2 / inertia_clamped
+            effective_inverse_mass <= eps(eltype(system)) && continue
+
+            impulse = -normal_velocity / effective_inverse_mass
+            impulse <= eps(eltype(system)) && continue
+
+            projected_center_of_mass_velocity += impulse * inv_total_mass * normal
+            projected_angular_velocity += impulse * moment_arm / inertia_clamped
+            any_projection = true
+        end
+
+        any_projection || break
+    end
+
+    if norm(projected_center_of_mass_velocity) <= velocity_floor
+        projected_center_of_mass_velocity = zero(projected_center_of_mass_velocity)
+    end
+    if abs(projected_angular_velocity) * system.particle_spacing <= velocity_floor
+        projected_angular_velocity = zero(projected_angular_velocity)
+    end
+
+    if projected_center_of_mass_velocity == center_of_mass_velocity &&
+       projected_angular_velocity == angular_velocity
+        return false
+    end
+
+    system_velocity = current_velocity(v_system, system)
+    for particle in each_integrated_particle(system)
+        relative_position = extract_svector(system.cache.relative_coordinates, system, particle)
+        particle_velocity = projected_center_of_mass_velocity +
+                            rotational_velocity_2d(projected_angular_velocity,
+                                                   relative_position)
+
+        @inbounds begin
+            system_velocity[1, particle] = particle_velocity[1]
+            system_velocity[2, particle] = particle_velocity[2]
+        end
+    end
+
+    system.cache.center_of_mass_velocity[] = projected_center_of_mass_velocity
+    system.cache.angular_velocity[] = projected_angular_velocity
+
+    return true
 end

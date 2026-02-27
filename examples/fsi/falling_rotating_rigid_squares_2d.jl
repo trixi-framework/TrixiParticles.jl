@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+fluid_particle_spacing = 0.01
 structure_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -20,7 +20,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 1.0)
+tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 1.0)
@@ -39,9 +39,14 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 square1_side_length = 0.4
 square2_side_length = 0.3
 
-# Approximate densities for a floating and a sinking square
-square1_density = 600.0
-square2_density = 1500.0
+# Material properties [SI units]
+wall_material = (; youngs_modulus=3.0e10, poisson_ratio=0.2)
+material_properties = (
+    wood=(; density=650.0, youngs_modulus=1.0e10, poisson_ratio=0.35,
+          restitution=0.35, friction_coefficient=0.5),
+    steel=(; density=7850.0, youngs_modulus=2.1e11, poisson_ratio=0.29,
+           restitution=0.8, friction_coefficient=0.55)
+)
 
 square1_nparticles_side = round(Int, square1_side_length / structure_particle_spacing)
 square2_nparticles_side = round(Int, square2_side_length / structure_particle_spacing)
@@ -53,11 +58,11 @@ square2_bottom_left = (1.25, 1.55)
 square1 = RectangularShape(structure_particle_spacing,
                            (square1_nparticles_side, square1_nparticles_side),
                            square1_bottom_left,
-                           density=square1_density)
+                           density=material_properties.wood.density)
 square2 = RectangularShape(structure_particle_spacing,
                            (square2_nparticles_side, square2_nparticles_side),
                            square2_bottom_left,
-                           density=square2_density)
+                           density=material_properties.steel.density)
 
 # Initial rigid-body angular velocities [rad/s]
 square1_angular_velocity = 5.0
@@ -91,48 +96,111 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 # ==========================================================================================
 # ==== Rigid Structures
 # For FSI we need hydrodynamic masses and densities in the structure boundary model.
-hydrodynamic_densities_1 = fluid_density * ones(size(square1.density))
-hydrodynamic_masses_1 = hydrodynamic_densities_1 *
-                        structure_particle_spacing^ndims(fluid_system)
+function make_boundary_model_structure(shape)
+    hydrodynamic_densities = fluid_density * ones(size(shape.density))
+    hydrodynamic_masses = hydrodynamic_densities *
+                          structure_particle_spacing^ndims(fluid_system)
 
-boundary_model_structure_1 = BoundaryModelDummyParticles(hydrodynamic_densities_1,
-                                                         hydrodynamic_masses_1,
-                                                         state_equation=state_equation,
-                                                         boundary_density_calculator,
-                                                         fluid_smoothing_kernel,
-                                                         fluid_smoothing_length)
+    return BoundaryModelDummyParticles(hydrodynamic_densities,
+                                       hydrodynamic_masses,
+                                       state_equation=state_equation,
+                                       boundary_density_calculator,
+                                       fluid_smoothing_kernel,
+                                       fluid_smoothing_length)
+end
 
-hydrodynamic_densities_2 = fluid_density * ones(size(square2.density))
-hydrodynamic_masses_2 = hydrodynamic_densities_2 *
-                        structure_particle_spacing^ndims(fluid_system)
+@inline shear_modulus(youngs_modulus, poisson_ratio) = youngs_modulus / (2.0 *
+                                                                          (1.0 + poisson_ratio))
 
-boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_2,
-                                                         hydrodynamic_masses_2,
-                                                         state_equation=state_equation,
-                                                         boundary_density_calculator,
-                                                         fluid_smoothing_kernel,
-                                                         fluid_smoothing_length)
+function effective_youngs_modulus(material, wall)
+    return 1.0 / ((1.0 - material.poisson_ratio^2) / material.youngs_modulus +
+                  (1.0 - wall.poisson_ratio^2) / wall.youngs_modulus)
+end
 
-boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=1.0e5,
-                                                   normal_damping=800.0,
-                                                   static_friction_coefficient=0.4,
-                                                   kinetic_friction_coefficient=0.3,
-                                                   tangential_stiffness=2.0e3,
-                                                   tangential_damping=80.0,
-                                                   contact_distance=structure_particle_spacing,
-                                                   stick_velocity_tolerance=1e-5,
-                                                   penetration_slop=0.2 *
-                                                                    structure_particle_spacing)
+function effective_shear_modulus(material, wall)
+    shear_material = shear_modulus(material.youngs_modulus, material.poisson_ratio)
+    shear_wall = shear_modulus(wall.youngs_modulus, wall.poisson_ratio)
+
+    return 1.0 / ((2.0 - material.poisson_ratio) / shear_material +
+                  (2.0 - wall.poisson_ratio) / shear_wall)
+end
+
+function damping_ratio_from_restitution(restitution)
+    restitution_clamped = clamp(restitution, 0.0, 1.0)
+    restitution_clamped >= 1.0 && return 0.0
+    restitution_clamped <= eps(restitution_clamped) && return 1.0
+
+    log_restitution = log(restitution_clamped)
+    return -log_restitution / sqrt(pi^2 + log_restitution^2)
+end
+
+function make_material_contact_model(material, side_length, bottom_left)
+    # For non-round bodies we use an equivalent local contact radius based on the half side.
+    equivalent_radius = 0.5 * side_length
+    center = (bottom_left[1] + 0.5 * side_length, bottom_left[2] + 0.5 * side_length)
+    drop_height = max(center[2] - 0.5 * side_length - initial_fluid_size[2],
+                      structure_particle_spacing)
+    impact_velocity = sqrt(2.0 * gravity * drop_height)
+    effective_E = effective_youngs_modulus(material, wall_material)
+    effective_G = effective_shear_modulus(material, wall_material)
+
+    # 2D mass proxy used by this setup.
+    particle_mass = material.density * side_length^2
+
+    # Linearize Hertz-Mindlin contact around expected peak compression from impact energy.
+    hertz_coefficient = (4.0 / 3.0) * effective_E * sqrt(equivalent_radius)
+    reference_penetration = ((5.0 / 4.0) * particle_mass * impact_velocity^2 /
+                             hertz_coefficient)^(2.0 / 5.0)
+    reference_penetration = max(reference_penetration,
+                                0.01 * structure_particle_spacing)
+    normal_stiffness = (3.0 / 2.0) * hertz_coefficient * sqrt(reference_penetration)
+
+    contact_radius = sqrt(equivalent_radius * reference_penetration)
+    tangential_stiffness = 8.0 * effective_G * contact_radius
+
+    damping_ratio = damping_ratio_from_restitution(material.restitution)
+    normal_damping = 2.0 * damping_ratio * sqrt(normal_stiffness * particle_mass)
+    tangential_damping = 2.0 * damping_ratio * sqrt(tangential_stiffness * particle_mass)
+
+    static_friction = material.friction_coefficient
+    kinetic_friction = 0.9 * static_friction
+
+    if static_friction <= eps(static_friction)
+        tangential_stiffness = 0.0
+        tangential_damping = 0.0
+    end
+
+    return RigidBoundaryContactModel(; normal_stiffness,
+                                     normal_damping,
+                                     static_friction_coefficient=static_friction,
+                                     kinetic_friction_coefficient=kinetic_friction,
+                                     tangential_stiffness,
+                                     tangential_damping,
+                                     contact_distance=2.0 * structure_particle_spacing,
+                                     stick_velocity_tolerance=max(1e-5,
+                                                                  0.01 * impact_velocity),
+                                     penetration_slop=0.0)
+end
+
+boundary_model_structure_1 = make_boundary_model_structure(square1)
+boundary_model_structure_2 = make_boundary_model_structure(square2)
+
+boundary_contact_model_1 = make_material_contact_model(material_properties.wood,
+                                                       square1_side_length,
+                                                       square1_bottom_left)
+boundary_contact_model_2 = make_material_contact_model(material_properties.steel,
+                                                       square2_side_length,
+                                                       square2_bottom_left)
 
 structure_system_1 = RigidSPHSystem(square1;
                                     boundary_model=boundary_model_structure_1,
-                                    boundary_contact_model=boundary_contact_model,
+                                    boundary_contact_model=boundary_contact_model_1,
                                     acceleration=(0.0, -gravity),
                                     angular_velocity=square1_angular_velocity,
                                     particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidSPHSystem(square2;
                                     boundary_model=boundary_model_structure_2,
-                                    boundary_contact_model=boundary_contact_model,
+                                    boundary_contact_model=boundary_contact_model_2,
                                     acceleration=(0.0, -gravity),
                                     angular_velocity=square2_angular_velocity,
                                     particle_spacing=structure_particle_spacing)
