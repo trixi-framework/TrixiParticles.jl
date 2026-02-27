@@ -699,18 +699,25 @@ end
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system
-        foreach_system(semi) do neighbor
-            # Construct string for the interactions timer.
-            # Avoid allocations from string construction when no timers are used.
-            if timeit_debug_enabled()
-                system_index = system_indices(system, semi)
-                neighbor_index = system_indices(neighbor, semi)
-                timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-            else
-                timer_str = ""
-            end
+        if system isa WeaklyCompressibleSPHSystem && false
+            system_index = system_indices(system, semi)
+            timer_str = "$(timer_name(system))$system_index-*"
 
-            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
+            @trixi_timeit timer() timer_str interact_all!(dv_ode, v_ode, u_ode, system, semi)
+        else
+            foreach_system(semi) do neighbor
+                # Construct string for the interactions timer.
+                # Avoid allocations from string construction when no timers are used.
+                if timeit_debug_enabled()
+                    system_index = system_indices(system, semi)
+                    neighbor_index = system_indices(neighbor, semi)
+                    timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+                else
+                    timer_str = ""
+                end
+
+                interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
+            end
         end
     end
 
