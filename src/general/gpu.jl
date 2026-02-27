@@ -1,3 +1,7 @@
+const AbstractGPUArray = Union{GPUArraysCore.AbstractGPUArray,
+                               ThreadedBroadcastArray{<:Any, <:Any,
+                                                      <:GPUArraysCore.AbstractGPUArray}}
+
 # Adapt.jl provides a function `adapt(to, x)`, which adapts a value `x` to `to`.
 # In practice, this means that we can use `adapt(CuArray, system)` to adapt a system to
 # the `CuArray` type.

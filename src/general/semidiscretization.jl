@@ -315,7 +315,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     u0_ode_ = allocate(semi.parallelization_backend, cELTYPE, sum(sizes_u))
     v0_ode_ = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_v))
 
-    # if semi.parallelization_backend isa KernelAbstractions.Backend
+    # if semi.parallelization_backend isa KernelAbstractions.GPU
     #     u0_ode = u0_ode_
     #     v0_ode = v0_ode_
     # else

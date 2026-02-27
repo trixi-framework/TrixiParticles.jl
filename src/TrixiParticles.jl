@@ -12,7 +12,7 @@ using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallb
 using FastPow: @fastpow
 using FileIO: FileIO
 using ForwardDiff: ForwardDiff
-using GPUArraysCore: AbstractGPUArray
+using GPUArraysCore: GPUArraysCore
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det

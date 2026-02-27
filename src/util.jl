@@ -238,13 +238,13 @@ end
 Base.copyto!(dest::ThreadedBroadcastArray, indices1::CartesianIndices, src::AbstractArray, indices2::CartesianIndices) =
     copyto!(parent(dest), indices1, src, indices2)
 
-function Base.mapreduce(f, op, A::ThreadedBroadcastArray{<:Any, <:Any, <:AbstractGPUArray},
+function Base.mapreduce(f, op, A::ThreadedBroadcastArray{<:Any, <:Any, <:GPUArraysCore.AbstractGPUArray},
                         As::Union{AbstractArray, Broadcast.Broadcasted}...;
                         dims=:, init=nothing)
     mapreduce(f, op, parent(A), As...; dims=dims, init=init)
 end
 
-function Base.any(f::Function, A::ThreadedBroadcastArray{<:Any, <:Any, <:AbstractGPUArray})
+function Base.any(f::Function, A::ThreadedBroadcastArray{<:Any, <:Any, <:GPUArraysCore.AbstractGPUArray})
     any(f, parent(A))
 end
 
