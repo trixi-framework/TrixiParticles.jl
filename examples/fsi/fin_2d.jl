@@ -2,6 +2,11 @@ using TrixiParticles
 using OrdinaryDiffEqLowStorageRK
 using OrdinaryDiffEqSymplecticRK
 
+function convert_ic(ic, T)
+    return InitialCondition{ndims(ic)}(ic.coordinates, ic.velocity, ic.mass, ic.density,
+                                      ic.pressure, T(ic.particle_spacing))
+end
+
 # ==========================================================================================
 # ==== Resolution
 n_particles_y = 4
@@ -52,6 +57,7 @@ point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
 # Returns `InitialCondition`
 shape_sampled = ComplexShape(geometry; particle_spacing, density=density,
                              grid_offset=center, point_in_geometry_algorithm)
+shape_sampled = TrixiParticles.@set shape_sampled.coordinates = Float64.(shape_sampled.coordinates)
 
 # Beam and clamped particles
 length_clamp = round(Int, 0.15 / particle_spacing) * particle_spacing # m
@@ -113,6 +119,7 @@ if packing
 
     boundary_packing = sample_boundary(foot_sdf; boundary_density=density,
                                     boundary_thickness=4 * particle_spacing)
+    boundary_packing = TrixiParticles.@set boundary_packing.coordinates = Float64.(boundary_packing.coordinates)
     boundary_packing = setdiff(boundary_packing, beam)
 
     background_pressure = 1.0
