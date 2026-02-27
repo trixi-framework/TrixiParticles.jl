@@ -2,6 +2,7 @@ module TrixiParticles
 
 using Reexport: @reexport
 
+using Accessors: @set
 using Adapt: Adapt
 using Base: @propagate_inbounds
 using CSV: CSV
@@ -81,7 +82,7 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel, LaguerreGaussKernel
 export StateEquationCole, StateEquationIdealGas, StateEquationAdaptiveCole
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
-       ViscosityMorrisSGS
+       ViscosityMorrisSGS, ViscosityCarreauYasuda
 export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffusionAntuono
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
