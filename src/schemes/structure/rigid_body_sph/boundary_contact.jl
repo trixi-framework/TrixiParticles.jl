@@ -156,16 +156,18 @@ function update_rigid_contact_eachstep!(system::RigidSPHSystem, v_ode, u_ode, se
     system.cache.max_boundary_penetration[] = zero(eltype(system))
 
     active_contact_keys = Set{NTuple{3, Int}}()
-    foreach_system(semi) do neighbor_system
-        if neighbor_system isa WallBoundarySystem
-            v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-            u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+    @trixi_timeit timer() "update collision history" begin
+        foreach_system(semi) do neighbor_system
+            if neighbor_system isa WallBoundarySystem
+                v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+                u_neighbor = wrap_u(u_ode, neighbor_system, semi)
 
-            apply_boundary_contact_correction!(system, neighbor_system,
-                                               v_system, u_system,
-                                               v_neighbor, u_neighbor,
-                                               semi, integrator.dt,
-                                               active_contact_keys)
+                apply_boundary_contact_correction!(system, neighbor_system,
+                                                   v_system, u_system,
+                                                   v_neighbor, u_neighbor,
+                                                   semi, integrator.dt,
+                                                   active_contact_keys)
+            end
         end
     end
 
@@ -174,8 +176,10 @@ function update_rigid_contact_eachstep!(system::RigidSPHSystem, v_ode, u_ode, se
 
     # Fallback for persistent resting contacts: project rigid-body velocity to enforce
     # non-penetration when the adaptive solver collapses to very small time steps.
-    state_modified = project_resting_contact_velocity!(system, v_system, u_system,
-                                                       v_ode, u_ode, semi, integrator)
+    state_modified = @trixi_timeit timer() "collision projection" begin
+        project_resting_contact_velocity!(system, v_system, u_system,
+                                          v_ode, u_ode, semi, integrator)
+    end
     state_modified && u_modified!(integrator, true)
 
     return system
