@@ -148,6 +148,7 @@ function create_cache_rigid(::Val{2}, ELTYPE, n_particles, total_mass,
     relative_coordinates = copy(local_coordinates)
     tangential_displacement = create_contact_tangential_displacement(boundary_contact_model,
                                                                      ELTYPE, Val(2))
+    manifold_cache = create_contact_manifold_cache(Val(2), ELTYPE, n_particles)
 
     return (; color=Int(color_value), total_mass, force_per_particle,
             relative_coordinates, center_of_mass=Ref(center_of_mass),
@@ -160,7 +161,8 @@ function create_cache_rigid(::Val{2}, ELTYPE, n_particles, total_mass,
             gyroscopic_acceleration=Ref(zero(ELTYPE)),
             contact_tangential_displacement=tangential_displacement,
             boundary_contact_count=Ref(0),
-            max_boundary_penetration=Ref(zero(ELTYPE)))
+            max_boundary_penetration=Ref(zero(ELTYPE)),
+            manifold_cache...)
 end
 
 function create_cache_rigid(::Val{3}, ELTYPE, n_particles, total_mass,
@@ -170,6 +172,7 @@ function create_cache_rigid(::Val{3}, ELTYPE, n_particles, total_mass,
     relative_coordinates = copy(local_coordinates)
     tangential_displacement = create_contact_tangential_displacement(boundary_contact_model,
                                                                      ELTYPE, Val(3))
+    manifold_cache = create_contact_manifold_cache(Val(3), ELTYPE, n_particles)
 
     return (; color=Int(color_value), total_mass, force_per_particle,
             relative_coordinates, center_of_mass=Ref(center_of_mass),
@@ -183,7 +186,22 @@ function create_cache_rigid(::Val{3}, ELTYPE, n_particles, total_mass,
             gyroscopic_acceleration=Ref(zero(SVector{3, ELTYPE})),
             contact_tangential_displacement=tangential_displacement,
             boundary_contact_count=Ref(0),
-            max_boundary_penetration=Ref(zero(ELTYPE)))
+            max_boundary_penetration=Ref(zero(ELTYPE)),
+            manifold_cache...)
+end
+
+function create_contact_manifold_cache(::Val{NDIMS}, ELTYPE,
+                                       n_particles) where {NDIMS}
+    max_manifolds = 8
+
+    return (; contact_manifold_count=zeros(Int, n_particles),
+            contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
+            contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
+            contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
+            contact_manifold_wall_velocity_sum=zeros(ELTYPE, NDIMS, max_manifolds,
+                                                     n_particles),
+            contact_manifold_tangential_displacement_sum=zeros(ELTYPE, NDIMS,
+                                                               max_manifolds, n_particles))
 end
 
 function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
