@@ -164,18 +164,11 @@ end
 
 # Use a calibrated contact model for the perfect-elastic reference sphere to
 # keep rebound close to wall-normal in this multi-sphere setup.
-elastic_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e5,
-                                                  normal_damping=0.0,
-                                                  static_friction_coefficient=0.0,
-                                                  kinetic_friction_coefficient=0.0,
-                                                  tangential_stiffness=0.0,
-                                                  tangential_damping=0.0,
-                                                  contact_distance=2.0 *
-                                                                   structure_particle_spacing,
-                                                  stick_velocity_tolerance=1e-5,
-                                                  penetration_slop=0.0,
-                                                  torque_free=true,
-                                                  resting_contact_projection=false)
+elastic_contact_model = PerfectElasticBoundaryContactModel(; normal_stiffness=2.0e5,
+                                                           contact_distance=2.0 *
+                                                                            structure_particle_spacing,
+                                                           stick_velocity_tolerance=1e-5,
+                                                           torque_free=true)
 
 # Keep all materials in one solve, but enable resting-contact projection for
 # dissipative materials to prevent adaptive-step collapse once they settle.

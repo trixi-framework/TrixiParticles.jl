@@ -249,6 +249,21 @@
                                                            contact_distance=0.1,
                                                            stick_velocity_tolerance=1e-8)
 
+        perfect_elastic_model = PerfectElasticBoundaryContactModel(; normal_stiffness=2.0e4,
+                                                                    contact_distance=0.1,
+                                                                    stick_velocity_tolerance=1e-8,
+                                                                    torque_free=true)
+        @test perfect_elastic_model.normal_stiffness ≈ 2.0e4
+        @test iszero(perfect_elastic_model.normal_damping)
+        @test iszero(perfect_elastic_model.static_friction_coefficient)
+        @test iszero(perfect_elastic_model.kinetic_friction_coefficient)
+        @test iszero(perfect_elastic_model.tangential_stiffness)
+        @test iszero(perfect_elastic_model.tangential_damping)
+        @test perfect_elastic_model.contact_distance ≈ 0.1
+        @test iszero(perfect_elastic_model.penetration_slop)
+        @test perfect_elastic_model.torque_free
+        @test !perfect_elastic_model.resting_contact_projection
+
         rigid_system = RigidSPHSystem(rigid_ic;
                                       acceleration=(0.0, 0.0),
                                       boundary_contact_model=boundary_contact_model)
@@ -768,18 +783,11 @@
                                                  state_equation=state_equation)
         wall_system = WallBoundarySystem(wall_ic, wall_model)
 
-        boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e5,
-                                                           normal_damping=0.0,
-                                                           static_friction_coefficient=0.0,
-                                                           kinetic_friction_coefficient=0.0,
-                                                           tangential_stiffness=0.0,
-                                                           tangential_damping=0.0,
-                                                           contact_distance=2.0 *
-                                                                            particle_spacing,
-                                                           penetration_slop=0.0,
-                                                           torque_free=true,
-                                                           resting_contact_projection=false,
-                                                           stick_velocity_tolerance=1e-8)
+        boundary_contact_model = PerfectElasticBoundaryContactModel(; normal_stiffness=2.0e5,
+                                                                    contact_distance=2.0 *
+                                                                                     particle_spacing,
+                                                                    torque_free=true,
+                                                                    stick_velocity_tolerance=1e-8)
 
         rigid_system = RigidSPHSystem(sphere;
                                       acceleration=(0.0, 0.0),

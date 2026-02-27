@@ -50,21 +50,14 @@ wall_system = WallBoundarySystem(wall_ic, wall_model)
 # - no tangential stiffness/damping
 # - no friction
 # - disable resting-contact projection so rebound is not suppressed
-boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e5,
-                                                   normal_damping=0.0,
-                                                   static_friction_coefficient=0.0,
-                                                   kinetic_friction_coefficient=0.0,
-                                                   tangential_stiffness=0.0,
-                                                   tangential_damping=0.0,
-                                                   # Use >= 2h to avoid tunneling and preserve
-                                                   # a stable, symmetric rebound at fine
-                                                   # resolutions.
-                                                   contact_distance=2.0 *
-                                                                    structure_particle_spacing,
-                                                   penetration_slop=0.0,
-                                                   torque_free=true,
-                                                   resting_contact_projection=false,
-                                                   stick_velocity_tolerance=1e-8)
+boundary_contact_model = PerfectElasticBoundaryContactModel(; normal_stiffness=2.0e5,
+                                                            # Use >= 2h to avoid tunneling and preserve
+                                                            # a stable, symmetric rebound at fine
+                                                            # resolutions.
+                                                            contact_distance=2.0 *
+                                                                             structure_particle_spacing,
+                                                            torque_free=true,
+                                                            stick_velocity_tolerance=1e-8)
 
 rigid_system = RigidSPHSystem(sphere;
                               acceleration=(0.0, -gravity),

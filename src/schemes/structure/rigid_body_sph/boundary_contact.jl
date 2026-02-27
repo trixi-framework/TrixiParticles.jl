@@ -73,6 +73,37 @@ function RigidBoundaryContactModel(; normal_stiffness,
                                      Bool(resting_contact_projection))
 end
 
+"""
+    PerfectElasticBoundaryContactModel(; normal_stiffness, contact_distance=0.0,
+                                       stick_velocity_tolerance=1e-8,
+                                       torque_free=true)
+
+Create a rigid-wall contact model for idealized elastic impacts:
+- zero normal damping
+- zero tangential stiffness/damping
+- zero friction
+- zero penetration slop
+- resting-contact projection disabled
+
+This is a convenience wrapper around `RigidBoundaryContactModel`.
+"""
+function PerfectElasticBoundaryContactModel(; normal_stiffness,
+                                            contact_distance=0.0,
+                                            stick_velocity_tolerance=1e-8,
+                                            torque_free=true)
+    return RigidBoundaryContactModel(; normal_stiffness,
+                                     normal_damping=0.0,
+                                     static_friction_coefficient=0.0,
+                                     kinetic_friction_coefficient=0.0,
+                                     tangential_stiffness=0.0,
+                                     tangential_damping=0.0,
+                                     contact_distance,
+                                     stick_velocity_tolerance,
+                                     penetration_slop=0.0,
+                                     torque_free,
+                                     resting_contact_projection=false)
+end
+
 function convert_boundary_contact_model(::Nothing, particle_spacing, ELTYPE)
     return nothing
 end
