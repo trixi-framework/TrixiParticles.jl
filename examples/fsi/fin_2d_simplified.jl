@@ -147,7 +147,7 @@ structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothi
                                         n_clamped_particles, #clamped_particles_motion=boundary_motion,
                                         velocity_averaging=nothing,
                                         boundary_model=boundary_model_structure,
-                                        viscosity=ArtificialViscosityMonaghan(alpha=0.01),
+                                        viscosity=ArtificialViscosityMonaghan(alpha=0.1),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
@@ -161,7 +161,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            smoothing_length_fluid, viscosity=viscosity_fluid,
                                            density_diffusion=density_diffusion,
                                            shifting_technique=ParticleShiftingTechnique(sound_speed_factor=0.2, v_max_factor=0.0),
-                                        #    pressure_acceleration=tensile_instability_control,
+                                           pressure_acceleration=tensile_instability_control,
                                            buffer_size=n_buffer_particles)
 # fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
 #                                            sound_speed, viscosity=ViscosityAdami(; nu),
