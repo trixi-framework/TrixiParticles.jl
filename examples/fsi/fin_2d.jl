@@ -81,7 +81,7 @@ boundary_layers = 3
 # fully sampled.
 # Note: Due to the dynamics at the inlets and outlets of open boundaries,
 # it is recommended to use `open_boundary_layers > boundary_layers`
-open_boundary_layers = 6
+open_boundary_layers = 10
 
 fluid_density = 1000.0
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
@@ -255,7 +255,7 @@ structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothi
                                         modulus, poisson_ratio;
                                         n_clamped_particles, clamped_particles_motion=boundary_motion,
                                         boundary_model=boundary_model_structure,
-                                        velocity_averaging=nothing,
+                                        velocity_averaging=TrixiParticles.VelocityAveraging(5e-4),
                                         viscosity=ArtificialViscosityMonaghan(alpha=0.1),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
@@ -293,7 +293,7 @@ else
     open_boundary_model = BoundaryModelDynamicalPressureZhang()
     # open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
     reference_velocity_in = SVector(1.0, 0.0)
-    reference_pressure_in = nothing
+    reference_pressure_in = 0.0
     reference_density_in = nothing
     boundary_type_in = InFlow()
     face_in = ([0.0, 0.0], [0.0, tank_size[2]])
@@ -305,12 +305,10 @@ else
                         reference_velocity=reference_velocity_in,
                         initial_condition=inlet.fluid, boundary_type=boundary_type_in)
 
-    reference_velocity_out = nothing
-    reference_pressure_out = 0.0
+    reference_velocity_out = SVector(1.0, 0.0)
+    reference_pressure_out = nothing
     reference_density_out = nothing
-    # Vortices with negative x-velocity can pass through the outlet,
-    # which a pure outflow boundary cannot handle.
-    boundary_type_out = BidirectionalFlow()
+    boundary_type_out = OutFlow()
     face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], tank_size[2]])
     outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
                         open_boundary_layers, density=fluid_density, particle_spacing,
@@ -321,8 +319,7 @@ else
 
     open_boundary_system = OpenBoundarySystem(inflow, outflow; fluid_system,
                                     boundary_model=open_boundary_model,
-                                    buffer_size=n_buffer_particles,
-                                    shifting_technique=nothing)
+                                    buffer_size=n_buffer_particles)
 
     wall = union(tank.boundary, inlet.boundary, outlet.boundary)
     min_corner = minimum(wall.coordinates, dims=2) .- 5 * fluid_particle_spacing
