@@ -283,6 +283,34 @@ project_resting_contact_velocity!(system, v_system, u_system, v_ode, u_ode, semi
                    angular_velocity * relative_position[1])
 end
 
+function add_or_merge_resting_constraint!(constraints,
+                                          particle, normal, wall_velocity,
+                                          penetration_effective, normal_merge_cos)
+    for i in eachindex(constraints)
+        existing_particle, existing_normal, _, existing_penetration = constraints[i]
+        if existing_particle == particle && dot(existing_normal, normal) >= normal_merge_cos
+            if penetration_effective > existing_penetration
+                constraints[i] = (particle, normal, wall_velocity, penetration_effective)
+            end
+            return constraints
+        end
+    end
+
+    push!(constraints, (particle, normal, wall_velocity, penetration_effective))
+
+    return constraints
+end
+
+function reset_projected_contact_history!(contact_tangential_displacement, contact_keys)
+    isnothing(contact_tangential_displacement) && return contact_tangential_displacement
+
+    for key in contact_keys
+        delete!(contact_tangential_displacement, key)
+    end
+
+    return contact_tangential_displacement
+end
+
 function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 2},
                                            v_system, u_system, v_ode, u_ode, semi,
                                            integrator)
@@ -307,13 +335,17 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
                          sqrt(eps(eltype(system))))
 
     system_coords = current_coordinates(u_system, system)
-    constraint_type = Tuple{Int, SVector{2, eltype(system)}, SVector{2, eltype(system)}}
+    constraint_type = Tuple{Int, SVector{2, eltype(system)}, SVector{2, eltype(system)},
+                            eltype(system)}
     constraints = constraint_type[]
+    projection_contact_keys = Set{NTuple{3, Int}}()
+    normal_merge_cos = convert(eltype(system), 0.995)
     max_normal_speed = zero(eltype(system))
     max_tangential_speed = zero(eltype(system))
 
     foreach_system(semi) do neighbor_system
         neighbor_system isa WallBoundarySystem || return
+        neighbor_system_index = system_indices(neighbor_system, semi)
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
@@ -341,7 +373,11 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
             max_normal_speed = max(max_normal_speed, abs(normal_velocity))
             max_tangential_speed = max(max_tangential_speed, norm(tangential_velocity))
 
-            push!(constraints, (particle, normal, wall_velocity))
+            contact_key = (neighbor_system_index, particle, neighbor)
+            push!(projection_contact_keys, contact_key)
+            add_or_merge_resting_constraint!(constraints,
+                                             particle, normal, wall_velocity,
+                                             penetration_effective, normal_merge_cos)
         end
     end
 
@@ -365,7 +401,7 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
     for _ in 1:3
         any_projection = false
 
-        for (particle, normal, wall_velocity) in constraints
+        for (particle, normal, wall_velocity, _) in constraints
             relative_position = extract_svector(system.cache.relative_coordinates, system,
                                                 particle)
             particle_velocity = projected_center_of_mass_velocity +
@@ -417,6 +453,8 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
 
     system.cache.center_of_mass_velocity[] = projected_center_of_mass_velocity
     system.cache.angular_velocity[] = projected_angular_velocity
+    reset_projected_contact_history!(system.cache.contact_tangential_displacement,
+                                     projection_contact_keys)
 
     return true
 end
