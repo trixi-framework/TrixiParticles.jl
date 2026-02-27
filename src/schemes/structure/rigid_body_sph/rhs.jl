@@ -300,10 +300,9 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Gather grid-independent contact manifolds from all wall-neighbor contacts.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
+                           points=each_integrated_particle(particle_system),
+                           parallelization_backend=SerialBackend()) do particle, neighbor,
+                                                                       pos_diff, distance
         distance <= eps(ELTYPE) && return
 
         penetration = contact_model.contact_distance - distance
@@ -317,14 +316,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         manifold = find_or_add_contact_manifold!(particle_system.cache, particle,
                                                  normal, normal_merge_cos, ELTYPE)
-        contact_key = (neighbor_system_index, particle, neighbor)
-        tangential_displacement = isnothing(contact_map) ?
-                                  zero_tangential :
-                                  get(contact_map, contact_key, zero_tangential)
-
         accumulate_contact_manifold!(particle_system.cache, particle, manifold, contact_weight,
                                      normal, v_boundary, penetration_effective,
-                                     tangential_displacement)
+                                     zero_tangential)
     end
 
     # Apply one interaction force per manifold to make the model independent of
@@ -362,11 +356,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                           normal_velocity, ELTYPE)
             normal_force_magnitude <= 0 && continue
 
+            contact_key = (neighbor_system_index, particle, manifold)
             tangential_displacement = isnothing(contact_map) ?
                                       zero_tangential :
-                                      weighted_manifold_vector(particle_system.cache.contact_manifold_tangential_displacement_sum,
-                                                               manifold, particle, weight_sum,
-                                                               Val(NDIMS), ELTYPE)
+                                      get(contact_map, contact_key, zero_tangential)
             tangential_force = tangential_contact_force(contact_model,
                                                         tangential_displacement,
                                                         tangential_velocity,

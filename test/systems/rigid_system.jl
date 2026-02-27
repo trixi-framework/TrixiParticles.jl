@@ -566,6 +566,131 @@
         @test std(vec(final_velocity[2, :])) < 1.0e-10
     end
 
+    @trixi_testset "Boundary Contact Resolution Invariance" begin
+        using OrdinaryDiffEq
+
+        function make_wall_system(wall_spacing, n_layers)
+            wall_x = collect(-0.8:wall_spacing:0.8)
+            n_per_layer = length(wall_x)
+            n_wall_particles = n_per_layer * n_layers
+            wall_coordinates = zeros(2, n_wall_particles)
+            wall_mass = fill(1000.0 * wall_spacing^2, n_wall_particles)
+            wall_density = fill(1000.0, n_wall_particles)
+
+            index = 1
+            for layer in 0:(n_layers - 1), x in wall_x
+                wall_coordinates[1, index] = x
+                wall_coordinates[2, index] = -layer * wall_spacing
+                index += 1
+            end
+
+            wall_ic = InitialCondition(; coordinates=wall_coordinates,
+                                       mass=wall_mass,
+                                       density=wall_density,
+                                       particle_spacing=wall_spacing)
+            state_equation = StateEquationCole(; sound_speed=20.0,
+                                               reference_density=1000.0,
+                                               exponent=1.0)
+            wall_model = BoundaryModelDummyParticles(wall_density, wall_mass,
+                                                     BernoulliPressureExtrapolation(),
+                                                     WendlandC2Kernel{2}(),
+                                                     1.5 * wall_spacing;
+                                                     state_equation=state_equation)
+
+            return WallBoundarySystem(wall_ic, wall_model), maximum(wall_coordinates[2, :])
+        end
+
+        function run_resolution_case(wall_spacing, n_layers)
+            structure_spacing = 0.1
+            sphere = SphereShape(structure_spacing, 0.2, (0.0, 0.6), 3000.0,
+                                 sphere_type=VoxelSphere())
+
+            boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=4.0e4,
+                                                               normal_damping=150.0,
+                                                               static_friction_coefficient=0.0,
+                                                               kinetic_friction_coefficient=0.0,
+                                                               tangential_stiffness=0.0,
+                                                               tangential_damping=0.0,
+                                                               contact_distance=2.0 *
+                                                                                structure_spacing,
+                                                               penetration_slop=0.0,
+                                                               stick_velocity_tolerance=1e-6)
+
+            rigid_system = RigidSPHSystem(sphere;
+                                          acceleration=(0.0, -9.81),
+                                          boundary_contact_model=boundary_contact_model,
+                                          particle_spacing=structure_spacing)
+            wall_system, wall_top = make_wall_system(wall_spacing, n_layers)
+
+            semi = Semidiscretization(rigid_system, wall_system)
+            ode = semidiscretize(semi, (0.0, 0.6))
+            solution = solve(ode, RDPK3SpFSAL35();
+                             abstol=1e-7, reltol=5e-4,
+                             save_everystep=true,
+                             callback=UpdateCallback())
+
+            center_of_mass_y = similar(solution.t)
+            minimum_y = similar(solution.t)
+            total_mass = sum(rigid_system.mass)
+
+            for i in eachindex(solution.t)
+                _, u_state = solution.u[i].x
+                u_rigid = TrixiParticles.wrap_u(u_state, rigid_system, semi)
+                coords = TrixiParticles.current_coordinates(u_rigid, rigid_system)
+
+                center_y = zero(eltype(coords))
+                for particle in eachindex(rigid_system.mass)
+                    center_y += rigid_system.mass[particle] * coords[2, particle]
+                end
+                center_of_mass_y[i] = center_y / total_mass
+                minimum_y[i] = minimum(coords[2, :])
+            end
+
+            contact_distance = boundary_contact_model.contact_distance
+            impact_index = findfirst(y -> y <= wall_top + contact_distance, minimum_y)
+            rebound_height = isnothing(impact_index) ? NaN :
+                             maximum(center_of_mass_y[impact_index:end])
+            max_penetration = maximum(max(zero(eltype(minimum_y)),
+                                          wall_top + contact_distance - y)
+                                      for y in minimum_y)
+            min_dt = minimum(diff(solution.t))
+
+            return (; solution, rebound_height, max_penetration, min_dt)
+        end
+
+        baseline = run_resolution_case(0.1, 1)
+        finer_wall = run_resolution_case(0.08, 1)
+        layered_wall = run_resolution_case(0.1, 3)
+
+        for result in (baseline, finer_wall, layered_wall)
+            @test result.solution.retcode == ReturnCode.Success
+            @test isfinite(result.rebound_height)
+            @test result.max_penetration > 0
+            @test result.min_dt > 1.0e-10
+        end
+
+        rebound_tolerance_spacing = 0.03
+        penetration_tolerance_spacing = 0.12
+        rebound_tolerance_layers = 0.02
+        penetration_tolerance_layers = 0.03
+
+        rebound_variation_finer = abs(finer_wall.rebound_height - baseline.rebound_height) /
+                                  baseline.rebound_height
+        rebound_variation_layered = abs(layered_wall.rebound_height - baseline.rebound_height) /
+                                    baseline.rebound_height
+        penetration_variation_finer = abs(finer_wall.max_penetration -
+                                          baseline.max_penetration) /
+                                      baseline.max_penetration
+        penetration_variation_layered = abs(layered_wall.max_penetration -
+                                            baseline.max_penetration) /
+                                        baseline.max_penetration
+
+        @test rebound_variation_finer < rebound_tolerance_spacing
+        @test rebound_variation_layered < rebound_tolerance_layers
+        @test penetration_variation_finer < penetration_tolerance_spacing
+        @test penetration_variation_layered < penetration_tolerance_layers
+    end
+
     @trixi_testset "Configuration" begin
         coordinates = [1.0 2.0
                        1.0 2.0]

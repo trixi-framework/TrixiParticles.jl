@@ -185,45 +185,83 @@ function update_rigid_contact_eachstep!(system::RigidSPHSystem, v_ode, u_ode, se
     return system
 end
 
-function apply_boundary_contact_correction!(system::RigidSPHSystem,
+function apply_boundary_contact_correction!(system::RigidSPHSystem{<:Any, <:Any, NDIMS},
                                             neighbor_system::WallBoundarySystem,
                                             v_system, u_system,
                                             v_neighbor, u_neighbor,
-                                            semi, dt, active_contact_keys)
+                                            semi, dt, active_contact_keys) where {NDIMS}
     contact_model = system.boundary_contact_model
     isnothing(contact_model) && return false
+
+    reset_contact_manifold_cache!(system.cache)
 
     system_coords = current_coordinates(u_system, system)
     neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
     neighbor_system_index = system_indices(neighbor_system, semi)
+    ELTYPE = eltype(system)
+    zero_tangential = zero(SVector{NDIMS, ELTYPE})
+    normal_merge_cos = convert(ELTYPE, 0.995)
 
     contact_count = 0
-    max_penetration = zero(eltype(system))
+    max_penetration = zero(ELTYPE)
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(system),
                            parallelization_backend=SerialBackend()) do particle, neighbor,
                                                                        pos_diff, distance
-        distance <= eps(eltype(system)) && return
+        distance <= eps(ELTYPE) && return
 
         penetration = contact_model.contact_distance - distance
         penetration_effective = penetration - contact_model.penetration_slop
         penetration_effective <= 0 && return
 
-        contact_key = (neighbor_system_index, particle, neighbor)
-        push!(active_contact_keys, contact_key)
-
         normal = pos_diff / distance
+        wall_velocity = current_velocity(v_neighbor, neighbor_system, neighbor)
+        contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor, ELTYPE)
+        contact_weight <= eps(ELTYPE) && return
 
-        relative_velocity = current_velocity(v_system, system, particle) -
-                            current_velocity(v_neighbor, neighbor_system, neighbor)
-        tangential_velocity = relative_velocity -
-                              dot(relative_velocity, normal) * normal
-        update_contact_tangential_history!(system, contact_key, tangential_velocity,
-                                           normal, penetration_effective, dt,
-                                           contact_model)
+        manifold = find_or_add_contact_manifold!(system.cache, particle, normal,
+                                                 normal_merge_cos, ELTYPE)
+        accumulate_contact_manifold!(system.cache, particle, manifold, contact_weight,
+                                     normal, wall_velocity, penetration_effective,
+                                     zero_tangential)
+    end
 
-        contact_count += 1
-        max_penetration = max(max_penetration, penetration_effective)
+    for particle in each_integrated_particle(system)
+        n_manifolds = system.cache.contact_manifold_count[particle]
+        n_manifolds == 0 && continue
+
+        particle_velocity = current_velocity(v_system, system, particle)
+
+        for manifold in 1:n_manifolds
+            weight_sum = system.cache.contact_manifold_weight_sum[manifold, particle]
+            weight_sum <= eps(ELTYPE) && continue
+
+            normal = weighted_manifold_vector(system.cache.contact_manifold_normal_sum,
+                                              manifold, particle, weight_sum, Val(NDIMS),
+                                              ELTYPE)
+            normal_norm = norm(normal)
+            normal_norm <= eps(ELTYPE) && continue
+            normal /= normal_norm
+
+            wall_velocity = weighted_manifold_vector(system.cache.contact_manifold_wall_velocity_sum,
+                                                     manifold, particle, weight_sum,
+                                                     Val(NDIMS), ELTYPE)
+            penetration_effective = system.cache.contact_manifold_penetration_sum[manifold,
+                                                                                   particle] /
+                                    weight_sum
+            relative_velocity = particle_velocity - wall_velocity
+            tangential_velocity = relative_velocity -
+                                  dot(relative_velocity, normal) * normal
+
+            contact_key = (neighbor_system_index, particle, manifold)
+            push!(active_contact_keys, contact_key)
+            update_contact_tangential_history!(system, contact_key, tangential_velocity,
+                                               normal, penetration_effective, dt,
+                                               contact_model)
+
+            contact_count += 1
+            max_penetration = max(max_penetration, penetration_effective)
+        end
     end
 
     system.cache.boundary_contact_count[] += contact_count
@@ -303,11 +341,18 @@ function add_or_merge_resting_constraint!(constraints,
     return constraints
 end
 
-function reset_projected_contact_history!(contact_tangential_displacement, contact_keys)
+function reset_projected_contact_history!(contact_tangential_displacement, contact_keys,
+                                          projected_particles=nothing)
     isnothing(contact_tangential_displacement) && return contact_tangential_displacement
 
     for key in contact_keys
         delete!(contact_tangential_displacement, key)
+    end
+
+    if !isnothing(projected_particles)
+        for key in collect(keys(contact_tangential_displacement))
+            key[2] in projected_particles && delete!(contact_tangential_displacement, key)
+        end
     end
 
     return contact_tangential_displacement
@@ -332,21 +377,27 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
 
     center_of_mass_velocity = system.cache.center_of_mass_velocity[]
     angular_velocity = system.cache.angular_velocity[]
-    velocity_floor = max(convert(eltype(system), 0.1) *
+    ELTYPE = eltype(system)
+    zero_tangential = zero(SVector{2, ELTYPE})
+    velocity_floor = max(convert(ELTYPE, 0.1) *
                          contact_model.stick_velocity_tolerance,
-                         sqrt(eps(eltype(system))))
+                         sqrt(eps(ELTYPE)))
 
     system_coords = current_coordinates(u_system, system)
     constraint_type = Tuple{Int, SVector{2, eltype(system)}, SVector{2, eltype(system)},
                             eltype(system)}
     constraints = constraint_type[]
     projection_contact_keys = Set{NTuple{3, Int}}()
+    projected_particles = Set{Int}()
     normal_merge_cos = convert(eltype(system), 0.995)
     max_normal_speed = zero(eltype(system))
     max_tangential_speed = zero(eltype(system))
 
     foreach_system(semi) do neighbor_system
         neighbor_system isa WallBoundarySystem || return
+
+        reset_contact_manifold_cache!(system.cache)
+
         neighbor_system_index = system_indices(neighbor_system, semi)
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
@@ -363,23 +414,58 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
             penetration_effective <= 0 && return
 
             normal = pos_diff / distance
+            wall_velocity = current_velocity(v_neighbor, neighbor_system, neighbor)
+            contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor,
+                                                      ELTYPE)
+            contact_weight <= eps(ELTYPE) && return
+
+            manifold = find_or_add_contact_manifold!(system.cache, particle, normal,
+                                                     normal_merge_cos, ELTYPE)
+            accumulate_contact_manifold!(system.cache, particle, manifold, contact_weight,
+                                         normal, wall_velocity, penetration_effective,
+                                         zero_tangential)
+        end
+
+        for particle in each_integrated_particle(system)
+            n_manifolds = system.cache.contact_manifold_count[particle]
+            n_manifolds == 0 && continue
+
             relative_position = extract_svector(system.cache.relative_coordinates, system,
                                                 particle)
             particle_velocity = center_of_mass_velocity +
                                 rotational_velocity_2d(angular_velocity, relative_position)
-            wall_velocity = current_velocity(v_neighbor, neighbor_system, neighbor)
-            relative_velocity = particle_velocity - wall_velocity
-            normal_velocity = dot(relative_velocity, normal)
-            tangential_velocity = relative_velocity - normal_velocity * normal
 
-            max_normal_speed = max(max_normal_speed, abs(normal_velocity))
-            max_tangential_speed = max(max_tangential_speed, norm(tangential_velocity))
+            for manifold in 1:n_manifolds
+                weight_sum = system.cache.contact_manifold_weight_sum[manifold, particle]
+                weight_sum <= eps(ELTYPE) && continue
 
-            contact_key = (neighbor_system_index, particle, neighbor)
-            push!(projection_contact_keys, contact_key)
-            add_or_merge_resting_constraint!(constraints,
-                                             particle, normal, wall_velocity,
-                                             penetration_effective, normal_merge_cos)
+                normal = weighted_manifold_vector(system.cache.contact_manifold_normal_sum,
+                                                  manifold, particle, weight_sum, Val(2),
+                                                  ELTYPE)
+                normal_norm = norm(normal)
+                normal_norm <= eps(ELTYPE) && continue
+                normal /= normal_norm
+
+                wall_velocity = weighted_manifold_vector(system.cache.contact_manifold_wall_velocity_sum,
+                                                         manifold, particle, weight_sum,
+                                                         Val(2), ELTYPE)
+                penetration_effective = system.cache.contact_manifold_penetration_sum[manifold,
+                                                                                       particle] /
+                                        weight_sum
+                relative_velocity = particle_velocity - wall_velocity
+                normal_velocity = dot(relative_velocity, normal)
+                tangential_velocity = relative_velocity - normal_velocity * normal
+
+                max_normal_speed = max(max_normal_speed, abs(normal_velocity))
+                max_tangential_speed = max(max_tangential_speed, norm(tangential_velocity))
+
+                contact_key = (neighbor_system_index, particle, manifold)
+                push!(projection_contact_keys, contact_key)
+                push!(projected_particles, particle)
+                add_or_merge_resting_constraint!(constraints,
+                                                 particle, normal, wall_velocity,
+                                                 penetration_effective, normal_merge_cos)
+            end
         end
     end
 
@@ -456,7 +542,8 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
     system.cache.center_of_mass_velocity[] = projected_center_of_mass_velocity
     system.cache.angular_velocity[] = projected_angular_velocity
     reset_projected_contact_history!(system.cache.contact_tangential_displacement,
-                                     projection_contact_keys)
+                                     projection_contact_keys,
+                                     projected_particles)
 
     return true
 end
