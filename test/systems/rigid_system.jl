@@ -684,7 +684,7 @@
         using LinearAlgebra: dot
         using OrdinaryDiffEq
 
-        particle_spacing = 0.05
+        particle_spacing = 0.01
         sphere = SphereShape(particle_spacing, 0.1, (0.0, 0.25), 1200.0;
                              sphere_type=RoundSphere(), velocity=(0.0, -1.0))
 
@@ -708,13 +708,14 @@
                                                  state_equation=state_equation)
         wall_system = WallBoundarySystem(wall_ic, wall_model)
 
-        boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
+        boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e5,
                                                            normal_damping=0.0,
                                                            static_friction_coefficient=0.0,
                                                            kinetic_friction_coefficient=0.0,
                                                            tangential_stiffness=0.0,
                                                            tangential_damping=0.0,
-                                                           contact_distance=particle_spacing,
+                                                           contact_distance=2.0 *
+                                                                            particle_spacing,
                                                            penetration_slop=0.0,
                                                            torque_free=true,
                                                            resting_contact_projection=false,
@@ -764,11 +765,22 @@
             return minimum(coordinates[2, :]) - wall_top
         end
 
+        function center_of_mass_x(u_state)
+            u_rigid = TrixiParticles.wrap_u(u_state, rigid_system, semi)
+            coordinates = TrixiParticles.current_coordinates(u_rigid, rigid_system)
+            total_mass = sum(rigid_system.mass)
+
+            return sum(rigid_system.mass .* coordinates[1, :]) / total_mass
+        end
+
         initial_ke = total_kinetic_energy(solution.u[1].x[1])
         final_ke = total_kinetic_energy(solution.u[end].x[1])
         relative_ke_error = abs(final_ke - initial_ke) / initial_ke
 
         vertical_velocity_history = [mean_vertical_velocity(state.x[1]) for state in solution.u]
+        center_of_mass_x_history = [center_of_mass_x(state.x[2]) for state in solution.u]
+        max_abs_com_x_drift = maximum(abs(com_x - center_of_mass_x_history[1])
+                                      for com_x in center_of_mass_x_history)
         final_clearance = minimum_wall_clearance(solution.u[end].x[2])
 
         # Ensure this is an actual bounce (sign change in vertical velocity)
@@ -777,6 +789,7 @@
         @test maximum(vertical_velocity_history) > 0.8
         @test vertical_velocity_history[end] > 0.8
         @test final_clearance > 1.2 * boundary_contact_model.contact_distance
+        @test max_abs_com_x_drift < 1e-6
 
         @test relative_ke_error < 1e-3
     end
