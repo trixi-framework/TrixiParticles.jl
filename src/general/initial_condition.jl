@@ -99,7 +99,7 @@ initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, 
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct InitialCondition{ELTYPE, C, MATRIX, VECTOR, N}
+struct InitialCondition{ELTYPE, C, MATRIX <: AbstractArray{ELTYPE}, VECTOR <: AbstractVector{ELTYPE}, N}
     particle_spacing :: ELTYPE
     coordinates      :: C      # Array{coordinates_eltype, 2}
     velocity         :: MATRIX # Array{ELTYPE, 2}
