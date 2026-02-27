@@ -203,8 +203,7 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
             density_diffusion_ = density_diffusion
         end
 
-        cache = (; density_calculator=ContinuityDensity(),
-                 density_diffusion=density_diffusion_,
+        cache = (; density_diffusion=density_diffusion_,
                  pressure_boundary=pressure_boundary,
                  density_rest=density_rest, cache...)
 
@@ -670,8 +669,8 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
                                                            neighbor)
             for i in axes(velocity_neighbor, 1)
                 @inbounds sample_velocity[i,
-                                          point] += velocity_neighbor[i] * volume_b *
-                                                    W_ab
+                point] += velocity_neighbor[i] * volume_b *
+                          W_ab
             end
         end
     end
