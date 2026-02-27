@@ -417,8 +417,8 @@
                                  boundary_contact_model_damped.tangential_stiffness
 
         @test damped_displacement_norm ≈ expected_damped_cap atol=1e-12
-        @test damped_displacement_norm ≈ elastic_only_damped_cap atol=1e-12
-        @test damped_displacement_norm < total_force_damped_cap
+        @test damped_displacement_norm ≈ total_force_damped_cap atol=1e-12
+        @test damped_displacement_norm > elastic_only_damped_cap
     end
 
     @trixi_testset "Projection Fallback" begin
@@ -580,6 +580,66 @@
         @test penetration_after_persistent <= penetration_before_persistent
         @test penetration_after_persistent <=
               1.01e-3 * boundary_contact_model.contact_distance
+
+        # Off-center resting contact should project both translational and
+        # angular rigid-body velocity components.
+        rigid_coordinates_angular = [0.0 0.12
+                                     0.05 0.2]
+        rigid_velocity_angular = [0.0 0.0
+                                  -3.0e-3 -3.0e-3]
+        rigid_mass_angular = [1.0, 1.0]
+        rigid_density_angular = [1000.0, 1000.0]
+        rigid_ic_angular = InitialCondition(; coordinates=rigid_coordinates_angular,
+                                            velocity=rigid_velocity_angular,
+                                            mass=rigid_mass_angular,
+                                            density=rigid_density_angular,
+                                            particle_spacing=0.1)
+        rigid_system_angular = RigidSPHSystem(rigid_ic_angular;
+                                              acceleration=(0.0, 0.0),
+                                              boundary_contact_model=boundary_contact_model)
+        semi_angular = Semidiscretization(rigid_system_angular, boundary_system)
+        ode_angular = semidiscretize(semi_angular, (0.0, 0.01))
+        v_ode_angular, u_ode_angular = ode_angular.u0.x
+        v_rigid_angular = TrixiParticles.wrap_v(v_ode_angular, rigid_system_angular, semi_angular)
+        u_rigid_angular = TrixiParticles.wrap_u(u_ode_angular, rigid_system_angular, semi_angular)
+        v_wall_angular = TrixiParticles.wrap_v(v_ode_angular, boundary_system, semi_angular)
+        u_wall_angular = TrixiParticles.wrap_u(u_ode_angular, boundary_system, semi_angular)
+        TrixiParticles.update_final!(rigid_system_angular, v_rigid_angular, u_rigid_angular,
+                                     v_ode_angular, u_ode_angular, semi_angular, 0.0)
+
+        active_keys_angular = Set{NTuple{3, Int}}()
+        TrixiParticles.apply_boundary_contact_correction!(rigid_system_angular, boundary_system,
+                                                          v_rigid_angular, u_rigid_angular,
+                                                          v_wall_angular, u_wall_angular,
+                                                          semi_angular, 1e-3,
+                                                          active_keys_angular)
+        @test rigid_system_angular.cache.boundary_contact_count[] > 0
+
+        dt_contact_angular = TrixiParticles.contact_time_step(rigid_system_angular)
+        angular_before = rigid_system_angular.cache.angular_velocity[]
+        modified_angular = TrixiParticles.project_resting_contact_velocity!(rigid_system_angular,
+                                                                            v_rigid_angular,
+                                                                            u_rigid_angular,
+                                                                            v_ode_angular,
+                                                                            u_ode_angular,
+                                                                            semi_angular,
+                                                                            (; dt=0.01 *
+                                                                                   dt_contact_angular))
+        angular_after = rigid_system_angular.cache.angular_velocity[]
+        @test modified_angular
+        @test abs(angular_after) > abs(angular_before) + 100 * eps(abs(angular_before))
+
+        system_coords_angular = TrixiParticles.current_coordinates(u_rigid_angular,
+                                                                   rigid_system_angular)
+        wall_coords_angular = TrixiParticles.current_coordinates(u_wall_angular, boundary_system)
+        normal_angular = system_coords_angular[:, 1] - wall_coords_angular[:, 1]
+        normal_angular ./= LinearAlgebra.norm(normal_angular)
+        relative_velocity_angular = TrixiParticles.current_velocity(v_rigid_angular,
+                                                                    rigid_system_angular, 1) -
+                                    TrixiParticles.current_velocity(v_wall_angular,
+                                                                    boundary_system, 1)
+        @test LinearAlgebra.dot(relative_velocity_angular, normal_angular) >=
+              -velocity_floor - 100 * eps(velocity_floor)
     end
 
     @trixi_testset "Rigid-Wall Collision Shape Preservation" begin

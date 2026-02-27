@@ -448,10 +448,9 @@ end
     # compression and decompression; clamp to avoid artificial attraction.
     damping_force = -contact_model.normal_damping * normal_velocity
     normal_force = max(elastic_force + damping_force, zero(ELTYPE))
-    # Use the same (elastic) normal load in both tangential-history limiting
-    # and tangential-force evaluation to avoid branch inconsistencies and
-    # avoid friction spikes from impact-only damping.
-    friction_reference_force = max(elastic_force, zero(ELTYPE))
+    # Use the same (total) normal load for tangential-history limiting and
+    # tangential-force evaluation for physically consistent Coulomb limits.
+    friction_reference_force = normal_force
 
     return normal_force, friction_reference_force
 end

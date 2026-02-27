@@ -54,7 +54,8 @@ material_properties = (
 )
 
 wood_center = (0.45, 1.5)
-elastic_center = (1.35, 1.5)
+# Use a phase position with lower wall-discretization bias for the elastic sphere.
+elastic_center = (1.20, 1.5)
 steel_center = (2.25, 1.5)
 rubber_center = (2.95, 1.5)
 
@@ -176,14 +177,14 @@ elastic_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e5,
                                                   torque_free=true,
                                                   resting_contact_projection=false)
 
-# Keep impact rebound physically consistent for dissipative materials by
-# disabling the resting-contact projection fallback in this impact example.
+# Keep all materials in one solve, but enable resting-contact projection for
+# dissipative materials to prevent adaptive-step collapse once they settle.
 wood_contact_model = make_material_contact_model(material_properties.wood, wood_center;
-                                                 resting_contact_projection=false)
+                                                 resting_contact_projection=true)
 steel_contact_model = make_material_contact_model(material_properties.steel, steel_center;
-                                                  resting_contact_projection=false)
+                                                  resting_contact_projection=true)
 rubber_contact_model = make_material_contact_model(material_properties.rubber, rubber_center;
-                                                   resting_contact_projection=false)
+                                                   resting_contact_projection=true)
 
 function make_rigid_structure_system(shape, boundary_contact_model)
     return RigidSPHSystem(shape;

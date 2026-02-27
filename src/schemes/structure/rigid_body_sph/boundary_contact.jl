@@ -336,18 +336,21 @@ end
 
 function add_or_merge_resting_constraint!(constraints,
                                           particle, normal, wall_velocity,
+                                          relative_position,
                                           penetration_effective, normal_merge_cos)
     for i in eachindex(constraints)
-        existing_particle, existing_normal, _, existing_penetration = constraints[i]
+        existing_particle, existing_normal, _, _, existing_penetration = constraints[i]
         if existing_particle == particle && dot(existing_normal, normal) >= normal_merge_cos
             if penetration_effective > existing_penetration
-                constraints[i] = (particle, normal, wall_velocity, penetration_effective)
+                constraints[i] = (particle, normal, wall_velocity, relative_position,
+                                  penetration_effective)
             end
             return constraints
         end
     end
 
-    push!(constraints, (particle, normal, wall_velocity, penetration_effective))
+    push!(constraints, (particle, normal, wall_velocity, relative_position,
+                        penetration_effective))
 
     return constraints
 end
@@ -396,27 +399,33 @@ end
 
 function project_resting_contact_position!(system::RigidSPHSystem{<:Any, <:Any, 2},
                                            u_system, constraints,
-                                           penetration_tolerance)
+                                           penetration_tolerance,
+                                           inv_inertia)
     total_mass = system.cache.total_mass
     total_mass <= eps(eltype(system)) && return false
 
     inv_total_mass = inv(total_mass)
 
     center_of_mass_correction = zero(SVector{2, eltype(system)})
+    angular_correction = zero(eltype(system))
     any_correction = false
 
     for _ in 1:3
         iteration_has_correction = false
 
-        for (particle, normal, _, penetration_effective) in constraints
+        for (_, normal, _, relative_position, penetration_effective) in constraints
             penetration_effective <= penetration_tolerance && continue
 
-            applied_correction = center_of_mass_correction
+            applied_correction = center_of_mass_correction +
+                                 rotational_velocity_2d(angular_correction,
+                                                        relative_position)
             remaining_penetration = penetration_effective -
                                     dot(applied_correction, normal)
             remaining_penetration <= penetration_tolerance && continue
 
-            effective_inverse_mass = inv_total_mass
+            normal_lever = cross(relative_position, normal)
+            effective_inverse_mass = inv_total_mass +
+                                     normal_lever^2 * inv_inertia
             effective_inverse_mass <= eps(eltype(system)) && continue
 
             correction_impulse = (remaining_penetration - penetration_tolerance) /
@@ -424,6 +433,7 @@ function project_resting_contact_position!(system::RigidSPHSystem{<:Any, <:Any, 
             correction_impulse <= eps(eltype(system)) && continue
 
             center_of_mass_correction += correction_impulse * inv_total_mass * normal
+            angular_correction += correction_impulse * normal_lever * inv_inertia
             iteration_has_correction = true
         end
 
@@ -435,9 +445,13 @@ function project_resting_contact_position!(system::RigidSPHSystem{<:Any, <:Any, 
 
     system_coords = current_coordinates(u_system, system)
     for particle in each_integrated_particle(system)
+        relative_position = extract_svector(system.cache.relative_coordinates, system, particle)
+        position_correction = center_of_mass_correction +
+                              rotational_velocity_2d(angular_correction,
+                                                     relative_position)
         @inbounds begin
-            system_coords[1, particle] += center_of_mass_correction[1]
-            system_coords[2, particle] += center_of_mass_correction[2]
+            system_coords[1, particle] += position_correction[1]
+            system_coords[2, particle] += position_correction[2]
         end
     end
 
@@ -472,7 +486,7 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
 
     system_coords = current_coordinates(u_system, system)
     constraint_type = Tuple{Int, SVector{2, eltype(system)}, SVector{2, eltype(system)},
-                            eltype(system)}
+                            SVector{2, eltype(system)}, eltype(system)}
     constraints = constraint_type[]
     projection_contact_keys = Set{NTuple{3, Int}}()
     projected_particles = Set{Int}()
@@ -551,6 +565,7 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
                 push!(projected_particles, particle)
                 add_or_merge_resting_constraint!(constraints,
                                                  particle, normal, wall_velocity,
+                                                 relative_position,
                                                  penetration_effective, normal_merge_cos)
             end
         end
@@ -580,26 +595,35 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
     total_mass <= eps(eltype(system)) && return false
 
     inv_total_mass = inv(total_mass)
+    inertia = system.cache.inertia[]
+    inv_inertia = (!contact_model.torque_free && inertia > eps(ELTYPE)) ? inv(inertia) :
+                  zero(ELTYPE)
 
     projected_center_of_mass_velocity = center_of_mass_velocity
+    projected_angular_velocity = angular_velocity
     velocity_modified = false
 
     for _ in 1:3
         any_projection = false
 
-        for (_, normal, wall_velocity, _) in constraints
-            particle_velocity = projected_center_of_mass_velocity
+        for (_, normal, wall_velocity, relative_position, _) in constraints
+            particle_velocity = projected_center_of_mass_velocity +
+                                rotational_velocity_2d(projected_angular_velocity,
+                                                       relative_position)
             relative_velocity = particle_velocity - wall_velocity
             normal_velocity = dot(relative_velocity, normal)
             normal_velocity >= -velocity_floor && continue
 
-            effective_inverse_mass = inv_total_mass
+            normal_lever = cross(relative_position, normal)
+            effective_inverse_mass = inv_total_mass +
+                                     normal_lever^2 * inv_inertia
             effective_inverse_mass <= eps(eltype(system)) && continue
 
             impulse = -normal_velocity / effective_inverse_mass
             impulse <= eps(eltype(system)) && continue
 
             projected_center_of_mass_velocity += impulse * inv_total_mass * normal
+            projected_angular_velocity += impulse * normal_lever * inv_inertia
             any_projection = true
             velocity_modified = true
         end
@@ -611,16 +635,24 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
         projected_center_of_mass_velocity = zero(projected_center_of_mass_velocity)
     end
 
+    contact_scale = max(contact_model.contact_distance, system.particle_spacing)
+    angular_velocity_floor = convert(ELTYPE, 0.1) * velocity_floor /
+                             max(contact_scale, sqrt(eps(ELTYPE)))
+    if abs(projected_angular_velocity) <= angular_velocity_floor
+        projected_angular_velocity = zero(projected_angular_velocity)
+    end
+
     velocity_modified = velocity_modified ||
                         norm(projected_center_of_mass_velocity -
-                             center_of_mass_velocity) > eps(ELTYPE)
+                             center_of_mass_velocity) > eps(ELTYPE) ||
+                        abs(projected_angular_velocity - angular_velocity) > eps(ELTYPE)
 
     if velocity_modified
         system_velocity = current_velocity(v_system, system)
         for particle in each_integrated_particle(system)
             relative_position = extract_svector(system.cache.relative_coordinates, system, particle)
             particle_velocity = projected_center_of_mass_velocity +
-                                rotational_velocity_2d(angular_velocity,
+                                rotational_velocity_2d(projected_angular_velocity,
                                                        relative_position)
 
             @inbounds begin
@@ -630,11 +662,11 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
         end
     end
 
-    contact_scale = max(contact_model.contact_distance, system.particle_spacing)
     penetration_tolerance = max(convert(ELTYPE, 1.0e-3) * contact_scale,
                                 sqrt(eps(ELTYPE)) * contact_scale)
     position_modified = project_resting_contact_position!(system, u_system, constraints,
-                                                          penetration_tolerance)
+                                                          penetration_tolerance,
+                                                          inv_inertia)
     state_modified = velocity_modified || position_modified
     state_modified || return false
 
