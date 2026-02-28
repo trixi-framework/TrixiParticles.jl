@@ -15,6 +15,29 @@
     LinearizedHertzMindlinBoundaryContactModel
 ```
 
+### Which Model To Choose
+
+Use [`PerfectElasticBoundaryContactModel`](@ref) for idealized validation cases
+where you want near-lossless normal rebounds (for example, elastic sphere-wall
+benchmarking).
+
+Use [`LinearizedHertzMindlinBoundaryContactModel`](@ref) for material-driven
+engineering scenarios (wood/steel/rubber-like behavior with restitution and
+friction).
+
+All rigid/FSI examples follow the same construction pattern:
+
+```julia
+contact_model_spec = LinearizedHertzMindlinBoundaryContactModel(; ...)
+
+rigid_system = RigidSPHSystem(shape;
+                              boundary_contact_model=contact_model_spec,
+                              ...)
+```
+
+`RigidSPHSystem` converts the typed specification model to the runtime
+[`RigidBoundaryContactModel`](@ref) internally.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "prescribed_motion.jl")]

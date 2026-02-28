@@ -106,33 +106,35 @@ drop_height_2 = max(sphere2_center[2] - sphere2_radius - initial_fluid_size[2],
 impact_velocity_1 = sqrt(2.0 * gravity * drop_height_1)
 impact_velocity_2 = sqrt(2.0 * gravity * drop_height_2)
 
-boundary_contact_model_1 = LinearizedHertzMindlinBoundaryContactModel(;
-                                                                       material=material_properties.wood,
-                                                                       wall_material,
-                                                                       radius=sphere1_radius,
-                                                                       impact_velocity=impact_velocity_1,
-                                                                       particle_spacing=structure_particle_spacing,
-                                                                       ndims=2,
-                                                                       torque_free=false,
-                                                                       resting_contact_projection=true)
-boundary_contact_model_2 = LinearizedHertzMindlinBoundaryContactModel(;
-                                                                       material=material_properties.steel,
-                                                                       wall_material,
-                                                                       radius=sphere2_radius,
-                                                                       impact_velocity=impact_velocity_2,
-                                                                       particle_spacing=structure_particle_spacing,
-                                                                       ndims=2,
-                                                                       torque_free=false,
-                                                                       resting_contact_projection=true)
+boundary_contact_model_spec_1 = LinearizedHertzMindlinBoundaryContactModel(;
+                                                                            material=material_properties.wood,
+                                                                            wall_material,
+                                                                            radius=sphere1_radius,
+                                                                            impact_velocity=impact_velocity_1,
+                                                                            particle_spacing=structure_particle_spacing,
+                                                                            ndims=2,
+                                                                            torque_free=false,
+                                                                            resting_contact_projection=true)
+boundary_contact_model_spec_2 = LinearizedHertzMindlinBoundaryContactModel(;
+                                                                            material=material_properties.steel,
+                                                                            wall_material,
+                                                                            radius=sphere2_radius,
+                                                                            impact_velocity=impact_velocity_2,
+                                                                            particle_spacing=structure_particle_spacing,
+                                                                            ndims=2,
+                                                                            torque_free=false,
+                                                                            resting_contact_projection=true)
 
+# RigidSPHSystem converts each typed contact specification to runtime
+# `RigidBoundaryContactModel` coefficients internally.
 structure_system_1 = RigidSPHSystem(sphere1;
                                     boundary_model=boundary_model_structure_1,
-                                    boundary_contact_model=boundary_contact_model_1,
+                                    boundary_contact_model=boundary_contact_model_spec_1,
                                     acceleration=(0.0, -gravity),
                                     particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidSPHSystem(sphere2;
                                     boundary_model=boundary_model_structure_2,
-                                    boundary_contact_model=boundary_contact_model_2,
+                                    boundary_contact_model=boundary_contact_model_spec_2,
                                     acceleration=(0.0, -gravity),
                                     particle_spacing=structure_particle_spacing)
 

@@ -78,6 +78,23 @@
                 @test count_rhs_allocations(sol, semi) == 0
             end
         end
+
+        @trixi_testset "structure rigid-contact API consistency" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "falling_rigid_sphere_2d.jl"),
+                                             tspan=(0.0, 0.05))
+
+            @test elastic_contact_model_spec isa PerfectElasticBoundaryContactModel
+            @test wood_contact_model_spec isa LinearizedHertzMindlinBoundaryContactModel
+            @test steel_contact_model_spec isa LinearizedHertzMindlinBoundaryContactModel
+            @test rubber_contact_model_spec isa LinearizedHertzMindlinBoundaryContactModel
+
+            @test structure_system_elastic.boundary_contact_model isa RigidBoundaryContactModel
+            @test structure_system_wood.boundary_contact_model isa RigidBoundaryContactModel
+            @test structure_system_steel.boundary_contact_model isa RigidBoundaryContactModel
+            @test structure_system_rubber.boundary_contact_model isa RigidBoundaryContactModel
+        end
     end
 
     @testset verbose=true "FSI" begin
@@ -259,6 +276,19 @@
             else
                 @test count_rhs_allocations(sol, semi) == 0
             end
+        end
+
+        @trixi_testset "fsi rigid-contact API consistency" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "falling_rigid_spheres_2d.jl"),
+                                             tspan=(0.0, 0.05))
+
+            @test boundary_contact_model_spec_1 isa LinearizedHertzMindlinBoundaryContactModel
+            @test boundary_contact_model_spec_2 isa LinearizedHertzMindlinBoundaryContactModel
+
+            @test structure_system_1.boundary_contact_model isa RigidBoundaryContactModel
+            @test structure_system_2.boundary_contact_model isa RigidBoundaryContactModel
         end
     end
 

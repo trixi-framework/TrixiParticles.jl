@@ -129,36 +129,38 @@ impact_velocity_2 = sqrt(2.0 * gravity * drop_height_2)
 body_mass_1 = material_properties.wood.density * square1_side_length^2
 body_mass_2 = material_properties.steel.density * square2_side_length^2
 
-boundary_contact_model_1 = LinearizedHertzMindlinBoundaryContactModel(;
-                                                                       material=material_properties.wood,
-                                                                       wall_material,
-                                                                       radius=square1_equivalent_radius,
-                                                                       impact_velocity=impact_velocity_1,
-                                                                       body_mass=body_mass_1,
-                                                                       particle_spacing=structure_particle_spacing,
-                                                                       ndims=2,
-                                                                       torque_free=false,
-                                                                       resting_contact_projection=true)
-boundary_contact_model_2 = LinearizedHertzMindlinBoundaryContactModel(;
-                                                                       material=material_properties.steel,
-                                                                       wall_material,
-                                                                       radius=square2_equivalent_radius,
-                                                                       impact_velocity=impact_velocity_2,
-                                                                       body_mass=body_mass_2,
-                                                                       particle_spacing=structure_particle_spacing,
-                                                                       ndims=2,
-                                                                       torque_free=false,
-                                                                       resting_contact_projection=true)
+boundary_contact_model_spec_1 = LinearizedHertzMindlinBoundaryContactModel(;
+                                                                            material=material_properties.wood,
+                                                                            wall_material,
+                                                                            radius=square1_equivalent_radius,
+                                                                            impact_velocity=impact_velocity_1,
+                                                                            body_mass=body_mass_1,
+                                                                            particle_spacing=structure_particle_spacing,
+                                                                            ndims=2,
+                                                                            torque_free=false,
+                                                                            resting_contact_projection=true)
+boundary_contact_model_spec_2 = LinearizedHertzMindlinBoundaryContactModel(;
+                                                                            material=material_properties.steel,
+                                                                            wall_material,
+                                                                            radius=square2_equivalent_radius,
+                                                                            impact_velocity=impact_velocity_2,
+                                                                            body_mass=body_mass_2,
+                                                                            particle_spacing=structure_particle_spacing,
+                                                                            ndims=2,
+                                                                            torque_free=false,
+                                                                            resting_contact_projection=true)
 
+# RigidSPHSystem converts each typed contact specification to runtime
+# `RigidBoundaryContactModel` coefficients internally.
 structure_system_1 = RigidSPHSystem(square1;
                                     boundary_model=boundary_model_structure_1,
-                                    boundary_contact_model=boundary_contact_model_1,
+                                    boundary_contact_model=boundary_contact_model_spec_1,
                                     acceleration=(0.0, -gravity),
                                     angular_velocity=square1_angular_velocity,
                                     particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidSPHSystem(square2;
                                     boundary_model=boundary_model_structure_2,
-                                    boundary_contact_model=boundary_contact_model_2,
+                                    boundary_contact_model=boundary_contact_model_spec_2,
                                     acceleration=(0.0, -gravity),
                                     angular_velocity=square2_angular_velocity,
                                     particle_spacing=structure_particle_spacing)

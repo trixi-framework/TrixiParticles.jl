@@ -50,18 +50,20 @@ wall_system = WallBoundarySystem(wall_ic, wall_model)
 # - no tangential stiffness/damping
 # - no friction
 # - disable resting-contact projection so rebound is not suppressed
-boundary_contact_model = PerfectElasticBoundaryContactModel(; normal_stiffness=2.0e5,
-                                                            # Use >= 2h to avoid tunneling and preserve
-                                                            # a stable, symmetric rebound at fine
-                                                            # resolutions.
-                                                            contact_distance=2.0 *
-                                                                             structure_particle_spacing,
-                                                            torque_free=true,
-                                                            stick_velocity_tolerance=1e-8)
+boundary_contact_model_spec = PerfectElasticBoundaryContactModel(; normal_stiffness=2.0e5,
+                                                                 # Use >= 2h to avoid tunneling and preserve
+                                                                 # a stable, symmetric rebound at fine
+                                                                 # resolutions.
+                                                                 contact_distance=2.0 *
+                                                                                  structure_particle_spacing,
+                                                                 torque_free=true,
+                                                                 stick_velocity_tolerance=1e-8)
 
+# RigidSPHSystem converts the typed contact specification to the runtime
+# `RigidBoundaryContactModel` coefficients internally.
 rigid_system = RigidSPHSystem(sphere;
                               acceleration=(0.0, -gravity),
-                              boundary_contact_model=boundary_contact_model,
+                              boundary_contact_model=boundary_contact_model_spec,
                               particle_spacing=structure_particle_spacing)
 
 # ==========================================================================================
@@ -146,7 +148,7 @@ wall_top = maximum(wall_coordinates[2, :])
 clearance_history = [minimum_wall_clearance(state.x[2], rigid_system, semi, wall_top)
                      for state in sol.u]
 
-contact_clearance_threshold = 1.2 * boundary_contact_model.contact_distance
+contact_clearance_threshold = 1.2 * boundary_contact_model_spec.contact_distance
 impact_start = findfirst(clearance -> clearance <= contact_clearance_threshold,
                          clearance_history)
 pre_impact_index = isnothing(impact_start) ? nothing : max(impact_start - 1, 1)

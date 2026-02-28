@@ -89,56 +89,59 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
 # Use a calibrated contact model for the perfect-elastic reference sphere to
 # keep rebound close to wall-normal in this multi-sphere setup.
-elastic_contact_model = PerfectElasticBoundaryContactModel(; normal_stiffness=2.0e5,
-                                                           contact_distance=2.0 *
-                                                                            structure_particle_spacing,
-                                                           stick_velocity_tolerance=1e-5,
-                                                           torque_free=true)
+elastic_contact_model_spec = PerfectElasticBoundaryContactModel(; normal_stiffness=2.0e5,
+                                                                contact_distance=2.0 *
+                                                                                 structure_particle_spacing,
+                                                                stick_velocity_tolerance=1e-5,
+                                                                torque_free=true)
 
 # Keep all materials in one solve, but enable resting-contact projection for
 # dissipative materials to prevent adaptive-step collapse once they settle.
 # The factory uses Hertz-Mindlin linearization with a 2D per-unit-thickness
 # mass proxy in this example setup.
-wood_contact_model = LinearizedHertzMindlinBoundaryContactModel(; material=material_properties.wood,
-                                                                wall_material,
-                                                                radius=sphere_radius,
-                                                                center=wood_center,
-                                                                gravity,
-                                                                particle_spacing=structure_particle_spacing,
-                                                                ndims=2,
-                                                                torque_free=true,
-                                                                resting_contact_projection=true)
-steel_contact_model = LinearizedHertzMindlinBoundaryContactModel(; material=material_properties.steel,
-                                                                 wall_material,
-                                                                 radius=sphere_radius,
-                                                                 center=steel_center,
-                                                                 gravity,
-                                                                 particle_spacing=structure_particle_spacing,
-                                                                 ndims=2,
-                                                                 torque_free=true,
-                                                                 resting_contact_projection=true)
-rubber_contact_model = LinearizedHertzMindlinBoundaryContactModel(; material=material_properties.rubber,
-                                                                  wall_material,
-                                                                  radius=sphere_radius,
-                                                                  center=rubber_center,
-                                                                  gravity,
-                                                                  particle_spacing=structure_particle_spacing,
-                                                                  ndims=2,
-                                                                  torque_free=true,
-                                                                  resting_contact_projection=true)
+wood_contact_model_spec = LinearizedHertzMindlinBoundaryContactModel(; material=material_properties.wood,
+                                                                     wall_material,
+                                                                     radius=sphere_radius,
+                                                                     center=wood_center,
+                                                                     gravity,
+                                                                     particle_spacing=structure_particle_spacing,
+                                                                     ndims=2,
+                                                                     torque_free=true,
+                                                                     resting_contact_projection=true)
+steel_contact_model_spec = LinearizedHertzMindlinBoundaryContactModel(; material=material_properties.steel,
+                                                                      wall_material,
+                                                                      radius=sphere_radius,
+                                                                      center=steel_center,
+                                                                      gravity,
+                                                                      particle_spacing=structure_particle_spacing,
+                                                                      ndims=2,
+                                                                      torque_free=true,
+                                                                      resting_contact_projection=true)
+rubber_contact_model_spec = LinearizedHertzMindlinBoundaryContactModel(; material=material_properties.rubber,
+                                                                       wall_material,
+                                                                       radius=sphere_radius,
+                                                                       center=rubber_center,
+                                                                       gravity,
+                                                                       particle_spacing=structure_particle_spacing,
+                                                                       ndims=2,
+                                                                       torque_free=true,
+                                                                       resting_contact_projection=true)
 
-function make_rigid_structure_system(shape, boundary_contact_model)
+function make_rigid_structure_system(shape, boundary_contact_model_spec)
+    # RigidSPHSystem converts the typed contact specification to the runtime
+    # `RigidBoundaryContactModel` coefficients internally.
     return RigidSPHSystem(shape;
                           acceleration=(0.0, -gravity),
-                          boundary_contact_model=boundary_contact_model,
+                          boundary_contact_model=boundary_contact_model_spec,
                           particle_spacing=structure_particle_spacing)
 end
 
 structure_system_elastic = make_rigid_structure_system(elastic_sphere,
-                                                       elastic_contact_model)
-structure_system_wood = make_rigid_structure_system(wood_sphere, wood_contact_model)
-structure_system_steel = make_rigid_structure_system(steel_sphere, steel_contact_model)
-structure_system_rubber = make_rigid_structure_system(rubber_sphere, rubber_contact_model)
+                                                       elastic_contact_model_spec)
+structure_system_wood = make_rigid_structure_system(wood_sphere, wood_contact_model_spec)
+structure_system_steel = make_rigid_structure_system(steel_sphere, steel_contact_model_spec)
+structure_system_rubber = make_rigid_structure_system(rubber_sphere,
+                                                      rubber_contact_model_spec)
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(boundary_system,
