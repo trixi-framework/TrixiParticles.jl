@@ -127,7 +127,6 @@ function collect_resting_contact_constraints!(system::RigidSPHSystem{<:Any, <:An
     normal_merge_cos = convert(ELTYPE, 0.995)
     max_normal_speed = zero(eltype(system))
     max_tangential_speed = zero(eltype(system))
-    system_coords = current_coordinates(u_system, system)
 
     foreach_system(semi) do neighbor_system
         neighbor_system isa WallBoundarySystem || return
@@ -137,30 +136,13 @@ function collect_resting_contact_constraints!(system::RigidSPHSystem{<:Any, <:An
         neighbor_system_index = system_indices(neighbor_system, semi)
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
-        neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
-
-        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
-                               points=each_integrated_particle(system),
-                               parallelization_backend=SerialBackend()) do particle, neighbor,
-                                                                           pos_diff, distance
-            distance <= eps(eltype(system)) && return
-
-            penetration = contact_model.contact_distance - distance
-            penetration_effective = penetration - contact_model.penetration_slop
-            penetration_effective <= 0 && return
-
-            normal = pos_diff / distance
-            wall_velocity = current_velocity(v_neighbor, neighbor_system, neighbor)
-            contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor,
-                                                      ELTYPE)
-            contact_weight <= eps(ELTYPE) && return
-
-            manifold = find_or_add_contact_manifold!(system.cache, particle, normal,
-                                                     normal_merge_cos, ELTYPE)
-            accumulate_contact_manifold!(system.cache, particle, manifold, contact_weight,
-                                         normal, wall_velocity, penetration_effective,
-                                         zero_tangential)
-        end
+        update_contact_manifold_cache!(system, neighbor_system,
+                                       u_system,
+                                       v_neighbor, u_neighbor,
+                                       semi,
+                                       contact_model,
+                                       normal_merge_cos, zero_tangential,
+                                       ELTYPE)
 
         for particle in each_integrated_particle(system)
             n_manifolds = system.cache.contact_manifold_count[particle]

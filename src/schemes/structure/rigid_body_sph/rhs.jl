@@ -289,8 +289,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     particle_system.cache.boundary_contact_count[] = 0
     particle_system.cache.max_boundary_penetration[] = zero(eltype(particle_system))
 
-    system_coords = current_coordinates(u_particle_system, particle_system)
-    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
     neighbor_system_index = system_indices(neighbor_system, semi)
     ELTYPE = eltype(particle_system)
     zero_tangential = zero(SVector{NDIMS, ELTYPE})
@@ -298,28 +296,13 @@ function interact!(dv, v_particle_system, u_particle_system,
     normal_merge_cos = convert(ELTYPE, 0.995)
 
     # Gather grid-independent contact manifolds from all wall-neighbor contacts.
-    foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_coords, semi;
-                           points=each_integrated_particle(particle_system),
-                           parallelization_backend=SerialBackend()) do particle, neighbor,
-                                                                       pos_diff, distance
-        distance <= eps(ELTYPE) && return
-
-        penetration = contact_model.contact_distance - distance
-        penetration_effective = penetration - contact_model.penetration_slop
-        penetration_effective <= 0 && return
-
-        normal = pos_diff / distance
-        v_boundary = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor, ELTYPE)
-        contact_weight <= eps(ELTYPE) && return
-
-        manifold = find_or_add_contact_manifold!(particle_system.cache, particle,
-                                                 normal, normal_merge_cos, ELTYPE)
-        accumulate_contact_manifold!(particle_system.cache, particle, manifold, contact_weight,
-                                     normal, v_boundary, penetration_effective,
-                                     zero_tangential)
-    end
+    update_contact_manifold_cache!(particle_system, neighbor_system,
+                                   u_particle_system,
+                                   v_neighbor_system, u_neighbor_system,
+                                   semi,
+                                   contact_model,
+                                   normal_merge_cos, zero_tangential,
+                                   ELTYPE)
 
     # Apply one interaction force per manifold to make the model independent of
     # boundary-neighbor multiplicity.
