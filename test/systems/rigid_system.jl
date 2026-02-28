@@ -260,8 +260,9 @@
         @test perfect_elastic_model.stick_velocity_tolerance ≈ 1e-8
         @test perfect_elastic_model.torque_free
 
-        perfect_elastic_model_runtime = TrixiParticles.convert_boundary_contact_model(perfect_elastic_model,
-                                                                                       0.1, Float64)
+        perfect_elastic_model_runtime = TrixiParticles.RigidBoundaryContactModel(perfect_elastic_model,
+                                                                                 0.1,
+                                                                                 Float64)
         @test perfect_elastic_model_runtime isa RigidBoundaryContactModel
         @test perfect_elastic_model_runtime.normal_stiffness ≈ 2.0e4
         @test iszero(perfect_elastic_model_runtime.normal_damping)
@@ -291,8 +292,8 @@
         @test contact_spec_2d.contact_distance_factor ≈ 2.0
         @test iszero(contact_spec_2d.contact_distance)
 
-        contact_model_2d = TrixiParticles.convert_boundary_contact_model(contact_spec_2d,
-                                                                         0.01, Float64)
+        contact_model_2d = TrixiParticles.RigidBoundaryContactModel(contact_spec_2d,
+                                                                    0.01, Float64)
         @test contact_model_2d isa RigidBoundaryContactModel
         @test contact_model_2d.normal_stiffness > 0
         @test contact_model_2d.normal_damping > 0
@@ -352,8 +353,8 @@
                                                                       impact_velocity=5.0,
                                                                       particle_spacing=0.01,
                                                                       ndims=3)
-        contact_model_3d = TrixiParticles.convert_boundary_contact_model(contact_spec_3d,
-                                                                         0.01, Float64)
+        contact_model_3d = TrixiParticles.RigidBoundaryContactModel(contact_spec_3d,
+                                                                    0.01, Float64)
         @test contact_model_3d isa RigidBoundaryContactModel
         @test contact_model_3d.normal_stiffness > 0
         @test contact_model_3d.normal_damping > 0
@@ -369,8 +370,8 @@
                                                                         impact_velocity=2.0,
                                                                         particle_spacing=0.01,
                                                                         ndims=2)
-        frictionless_model = TrixiParticles.convert_boundary_contact_model(frictionless_spec,
-                                                                           0.01, Float64)
+        frictionless_model = TrixiParticles.RigidBoundaryContactModel(frictionless_spec,
+                                                                      0.01, Float64)
         @test iszero(frictionless_model.static_friction_coefficient)
         @test iszero(frictionless_model.kinetic_friction_coefficient)
         @test iszero(frictionless_model.tangential_stiffness)
@@ -392,10 +393,10 @@
                                                                                   impact_velocity=2.0,
                                                                                   particle_spacing=0.01,
                                                                                   ndims=3)
-        model_restitution_low = TrixiParticles.convert_boundary_contact_model(model_restitution_low_spec,
-                                                                              0.01, Float64)
-        model_restitution_high = TrixiParticles.convert_boundary_contact_model(model_restitution_high_spec,
-                                                                               0.01, Float64)
+        model_restitution_low = TrixiParticles.RigidBoundaryContactModel(model_restitution_low_spec,
+                                                                         0.01, Float64)
+        model_restitution_high = TrixiParticles.RigidBoundaryContactModel(model_restitution_high_spec,
+                                                                          0.01, Float64)
         @test model_restitution_low.normal_damping > model_restitution_high.normal_damping
 
         rigid_system = RigidSPHSystem(rigid_ic;

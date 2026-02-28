@@ -70,8 +70,9 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                                                         ELTYPE)
 
     particle_spacing_ = convert(ELTYPE, particle_spacing)
-    boundary_contact_model_ = convert_boundary_contact_model(boundary_contact_model,
-                                                             particle_spacing_, ELTYPE)
+    boundary_contact_model_ = isnothing(boundary_contact_model) ? nothing :
+                              RigidBoundaryContactModel(boundary_contact_model,
+                                                        particle_spacing_, ELTYPE)
 
     initial_velocity = copy(initial_condition.velocity)
     local_coordinates = copy(initial_condition.coordinates)
