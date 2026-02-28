@@ -91,7 +91,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        BernoulliPressureExtrapolation, PressureBoundaries
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
 export HertzContactModel, LinearContactModel, RigidBoundaryContactModel,
-       PerfectElasticBoundaryContactModel
+       PerfectElasticBoundaryContactModel, LinearizedHertzMindlinBoundaryContactModel
 export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir

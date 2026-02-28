@@ -264,6 +264,116 @@
         @test perfect_elastic_model.torque_free
         @test !perfect_elastic_model.resting_contact_projection
 
+        wall_material = (; youngs_modulus=3.0e10, poisson_ratio=0.2)
+        wood_material = (; density=650.0, youngs_modulus=1.0e10, poisson_ratio=0.35,
+                         restitution=0.35, friction_coefficient=0.5)
+        contact_model_2d = LinearizedHertzMindlinBoundaryContactModel(; material=wood_material,
+                                                                       wall_material,
+                                                                       radius=0.16,
+                                                                       center=(0.45,
+                                                                               1.5),
+                                                                       gravity=9.81,
+                                                                       particle_spacing=0.01,
+                                                                       ndims=2,
+                                                                       torque_free=true,
+                                                                       resting_contact_projection=true)
+        @test contact_model_2d isa RigidBoundaryContactModel
+        @test contact_model_2d.normal_stiffness > 0
+        @test contact_model_2d.normal_damping > 0
+        @test contact_model_2d.tangential_stiffness > 0
+        @test contact_model_2d.tangential_damping > 0
+        @test contact_model_2d.contact_distance ≈ 0.02
+        @test contact_model_2d.resting_contact_projection
+        @test contact_model_2d.torque_free
+
+        # Keep parity with the previous example-local 2D calibration.
+        drop_height = max(1.5 - 0.16, 0.01)
+        impact_velocity_legacy = sqrt(2.0 * 9.81 * drop_height)
+        shear_wood = wood_material.youngs_modulus / (2.0 * (1.0 + wood_material.poisson_ratio))
+        shear_wall = wall_material.youngs_modulus / (2.0 * (1.0 + wall_material.poisson_ratio))
+        effective_E_legacy = 1.0 / ((1.0 - wood_material.poisson_ratio^2) /
+                             wood_material.youngs_modulus +
+                             (1.0 - wall_material.poisson_ratio^2) /
+                             wall_material.youngs_modulus)
+        effective_G_legacy = 1.0 / ((2.0 - wood_material.poisson_ratio) / shear_wood +
+                             (2.0 - wall_material.poisson_ratio) / shear_wall)
+        mass_legacy = wood_material.density * pi * 0.16^2
+        hertz_coeff_legacy = (4.0 / 3.0) * effective_E_legacy * sqrt(0.16)
+        reference_penetration_legacy = ((5.0 / 4.0) * mass_legacy *
+                                        impact_velocity_legacy^2 /
+                                        hertz_coeff_legacy)^(2.0 / 5.0)
+        reference_penetration_legacy = max(reference_penetration_legacy, 0.01 * 0.01)
+        normal_stiffness_legacy = (3.0 / 2.0) * hertz_coeff_legacy *
+                                  sqrt(reference_penetration_legacy)
+        tangential_stiffness_legacy = 8.0 * effective_G_legacy *
+                                      sqrt(0.16 * reference_penetration_legacy)
+        damping_ratio_legacy = let restitution_clamped = clamp(wood_material.restitution,
+                                                                0.0, 1.0)
+            if restitution_clamped >= 1.0
+                0.0
+            elseif restitution_clamped <= eps(restitution_clamped)
+                1.0
+            else
+                log_restitution = log(restitution_clamped)
+                -log_restitution / sqrt(pi^2 + log_restitution^2)
+            end
+        end
+        normal_damping_legacy = 2.0 * damping_ratio_legacy *
+                                sqrt(normal_stiffness_legacy * mass_legacy)
+        tangential_damping_legacy = 2.0 * damping_ratio_legacy *
+                                    sqrt(tangential_stiffness_legacy * mass_legacy)
+        stick_tol_legacy = max(1e-5, 0.01 * impact_velocity_legacy)
+
+        @test contact_model_2d.normal_stiffness ≈ normal_stiffness_legacy rtol=1e-12
+        @test contact_model_2d.tangential_stiffness ≈ tangential_stiffness_legacy rtol=1e-12
+        @test contact_model_2d.normal_damping ≈ normal_damping_legacy rtol=1e-12
+        @test contact_model_2d.tangential_damping ≈ tangential_damping_legacy rtol=1e-12
+        @test contact_model_2d.stick_velocity_tolerance ≈ stick_tol_legacy rtol=1e-12
+
+        contact_model_3d = LinearizedHertzMindlinBoundaryContactModel(; material=wood_material,
+                                                                       wall_material,
+                                                                       radius=0.16,
+                                                                       impact_velocity=5.0,
+                                                                       particle_spacing=0.01,
+                                                                       ndims=3)
+        @test contact_model_3d isa RigidBoundaryContactModel
+        @test contact_model_3d.normal_stiffness > 0
+        @test contact_model_3d.normal_damping > 0
+        @test contact_model_3d.tangential_stiffness > 0
+        @test contact_model_3d.tangential_damping > 0
+        @test contact_model_3d.contact_distance ≈ 0.02
+
+        frictionless_material = (; density=1200.0, youngs_modulus=2.0e9, poisson_ratio=0.35,
+                                 restitution=1.0, friction_coefficient=0.0)
+        frictionless_model = LinearizedHertzMindlinBoundaryContactModel(; material=frictionless_material,
+                                                                         wall_material,
+                                                                         radius=0.16,
+                                                                         impact_velocity=2.0,
+                                                                         particle_spacing=0.01,
+                                                                         ndims=2)
+        @test iszero(frictionless_model.static_friction_coefficient)
+        @test iszero(frictionless_model.kinetic_friction_coefficient)
+        @test iszero(frictionless_model.tangential_stiffness)
+        @test iszero(frictionless_model.tangential_damping)
+
+        restitution_low = (; density=650.0, youngs_modulus=1.0e10, poisson_ratio=0.35,
+                           restitution=0.3, friction_coefficient=0.5)
+        restitution_high = (; density=650.0, youngs_modulus=1.0e10, poisson_ratio=0.35,
+                            restitution=0.8, friction_coefficient=0.5)
+        model_restitution_low = LinearizedHertzMindlinBoundaryContactModel(; material=restitution_low,
+                                                                            wall_material,
+                                                                            radius=0.16,
+                                                                            impact_velocity=2.0,
+                                                                            particle_spacing=0.01,
+                                                                            ndims=3)
+        model_restitution_high = LinearizedHertzMindlinBoundaryContactModel(; material=restitution_high,
+                                                                             wall_material,
+                                                                             radius=0.16,
+                                                                             impact_velocity=2.0,
+                                                                             particle_spacing=0.01,
+                                                                             ndims=3)
+        @test model_restitution_low.normal_damping > model_restitution_high.normal_damping
+
         rigid_system = RigidSPHSystem(rigid_ic;
                                       acceleration=(0.0, 0.0),
                                       boundary_contact_model=boundary_contact_model)

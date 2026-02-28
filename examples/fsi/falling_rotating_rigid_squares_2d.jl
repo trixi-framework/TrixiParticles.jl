@@ -109,90 +109,46 @@ function make_boundary_model_structure(shape)
                                        fluid_smoothing_length)
 end
 
-@inline shear_modulus(youngs_modulus, poisson_ratio) = youngs_modulus / (2.0 *
-                                                                          (1.0 + poisson_ratio))
-
-function effective_youngs_modulus(material, wall)
-    return 1.0 / ((1.0 - material.poisson_ratio^2) / material.youngs_modulus +
-                  (1.0 - wall.poisson_ratio^2) / wall.youngs_modulus)
-end
-
-function effective_shear_modulus(material, wall)
-    shear_material = shear_modulus(material.youngs_modulus, material.poisson_ratio)
-    shear_wall = shear_modulus(wall.youngs_modulus, wall.poisson_ratio)
-
-    return 1.0 / ((2.0 - material.poisson_ratio) / shear_material +
-                  (2.0 - wall.poisson_ratio) / shear_wall)
-end
-
-function damping_ratio_from_restitution(restitution)
-    restitution_clamped = clamp(restitution, 0.0, 1.0)
-    restitution_clamped >= 1.0 && return 0.0
-    restitution_clamped <= eps(restitution_clamped) && return 1.0
-
-    log_restitution = log(restitution_clamped)
-    return -log_restitution / sqrt(pi^2 + log_restitution^2)
-end
-
-function make_material_contact_model(material, side_length, bottom_left)
-    # For non-round bodies we use an equivalent local contact radius based on the half side.
-    equivalent_radius = 0.5 * side_length
-    center = (bottom_left[1] + 0.5 * side_length, bottom_left[2] + 0.5 * side_length)
-    drop_height = max(center[2] - 0.5 * side_length - initial_fluid_size[2],
-                      structure_particle_spacing)
-    impact_velocity = sqrt(2.0 * gravity * drop_height)
-    effective_E = effective_youngs_modulus(material, wall_material)
-    effective_G = effective_shear_modulus(material, wall_material)
-
-    # 2D mass proxy used by this setup.
-    particle_mass = material.density * side_length^2
-
-    # 3D Hertz-Mindlin proxy used to parameterize this 2D linear spring-damper contact model.
-    # This gives plausible relative material behavior, but not exact 2D continuum contact units.
-    hertz_proxy_coefficient = (4.0 / 3.0) * effective_E * sqrt(equivalent_radius)
-    reference_penetration = ((5.0 / 4.0) * particle_mass * impact_velocity^2 /
-                             hertz_proxy_coefficient)^(2.0 / 5.0)
-    reference_penetration = max(reference_penetration,
-                                0.01 * structure_particle_spacing)
-    normal_stiffness = (3.0 / 2.0) * hertz_proxy_coefficient *
-                       sqrt(reference_penetration)
-
-    contact_radius = sqrt(equivalent_radius * reference_penetration)
-    tangential_stiffness = 8.0 * effective_G * contact_radius
-
-    damping_ratio = damping_ratio_from_restitution(material.restitution)
-    normal_damping = 2.0 * damping_ratio * sqrt(normal_stiffness * particle_mass)
-    tangential_damping = 2.0 * damping_ratio * sqrt(tangential_stiffness * particle_mass)
-
-    static_friction = material.friction_coefficient
-    kinetic_friction = 0.9 * static_friction
-
-    if static_friction <= eps(static_friction)
-        tangential_stiffness = 0.0
-        tangential_damping = 0.0
-    end
-
-    return RigidBoundaryContactModel(; normal_stiffness,
-                                     normal_damping,
-                                     static_friction_coefficient=static_friction,
-                                     kinetic_friction_coefficient=kinetic_friction,
-                                     tangential_stiffness,
-                                     tangential_damping,
-                                     contact_distance=2.0 * structure_particle_spacing,
-                                     stick_velocity_tolerance=max(1e-5,
-                                                                  0.01 * impact_velocity),
-                                     penetration_slop=0.0)
-end
-
 boundary_model_structure_1 = make_boundary_model_structure(square1)
 boundary_model_structure_2 = make_boundary_model_structure(square2)
 
-boundary_contact_model_1 = make_material_contact_model(material_properties.wood,
-                                                       square1_side_length,
-                                                       square1_bottom_left)
-boundary_contact_model_2 = make_material_contact_model(material_properties.steel,
-                                                       square2_side_length,
-                                                       square2_bottom_left)
+# Use Hertz-Mindlin linearization with equivalent-radius and 2D body-mass proxy
+# calibration for non-round bodies.
+square1_equivalent_radius = 0.5 * square1_side_length
+square2_equivalent_radius = 0.5 * square2_side_length
+square1_center = (square1_bottom_left[1] + square1_equivalent_radius,
+                  square1_bottom_left[2] + square1_equivalent_radius)
+square2_center = (square2_bottom_left[1] + square2_equivalent_radius,
+                  square2_bottom_left[2] + square2_equivalent_radius)
+drop_height_1 = max(square1_center[2] - square1_equivalent_radius - initial_fluid_size[2],
+                    structure_particle_spacing)
+drop_height_2 = max(square2_center[2] - square2_equivalent_radius - initial_fluid_size[2],
+                    structure_particle_spacing)
+impact_velocity_1 = sqrt(2.0 * gravity * drop_height_1)
+impact_velocity_2 = sqrt(2.0 * gravity * drop_height_2)
+body_mass_1 = material_properties.wood.density * square1_side_length^2
+body_mass_2 = material_properties.steel.density * square2_side_length^2
+
+boundary_contact_model_1 = LinearizedHertzMindlinBoundaryContactModel(;
+                                                                       material=material_properties.wood,
+                                                                       wall_material,
+                                                                       radius=square1_equivalent_radius,
+                                                                       impact_velocity=impact_velocity_1,
+                                                                       body_mass=body_mass_1,
+                                                                       particle_spacing=structure_particle_spacing,
+                                                                       ndims=2,
+                                                                       torque_free=false,
+                                                                       resting_contact_projection=true)
+boundary_contact_model_2 = LinearizedHertzMindlinBoundaryContactModel(;
+                                                                       material=material_properties.steel,
+                                                                       wall_material,
+                                                                       radius=square2_equivalent_radius,
+                                                                       impact_velocity=impact_velocity_2,
+                                                                       body_mass=body_mass_2,
+                                                                       particle_spacing=structure_particle_spacing,
+                                                                       ndims=2,
+                                                                       torque_free=false,
+                                                                       resting_contact_projection=true)
 
 structure_system_1 = RigidSPHSystem(square1;
                                     boundary_model=boundary_model_structure_1,

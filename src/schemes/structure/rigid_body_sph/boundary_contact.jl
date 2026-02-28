@@ -104,6 +104,148 @@ function PerfectElasticBoundaryContactModel(; normal_stiffness,
                                      resting_contact_projection=false)
 end
 
+@inline _contact_shear_modulus(youngs_modulus, poisson_ratio) = youngs_modulus / (2.0 *
+                                                                                   (1.0 +
+                                                                                    poisson_ratio))
+
+@inline function _contact_effective_youngs_modulus(material, wall_material)
+    return 1.0 / ((1.0 - material.poisson_ratio^2) / material.youngs_modulus +
+                  (1.0 - wall_material.poisson_ratio^2) / wall_material.youngs_modulus)
+end
+
+@inline function _contact_effective_shear_modulus(material, wall_material)
+    shear_material = _contact_shear_modulus(material.youngs_modulus, material.poisson_ratio)
+    shear_wall = _contact_shear_modulus(wall_material.youngs_modulus,
+                                        wall_material.poisson_ratio)
+
+    return 1.0 / ((2.0 - material.poisson_ratio) / shear_material +
+                  (2.0 - wall_material.poisson_ratio) / shear_wall)
+end
+
+@inline function _damping_ratio_from_restitution(restitution)
+    restitution_clamped = clamp(restitution, 0.0, 1.0)
+    restitution_clamped >= 1.0 && return zero(restitution_clamped)
+    restitution_clamped <= eps(restitution_clamped) && return one(restitution_clamped)
+
+    log_restitution = log(restitution_clamped)
+    return -log_restitution / sqrt(pi^2 + log_restitution^2)
+end
+
+@inline function _impact_speed_from_inputs(impact_velocity, center, gravity, radius,
+                                           particle_spacing)
+    if !isnothing(impact_velocity)
+        return abs(impact_velocity)
+    end
+
+    isnothing(center) &&
+        throw(ArgumentError("provide `impact_velocity` or `center` + `gravity`"))
+    isnothing(gravity) &&
+        throw(ArgumentError("provide `impact_velocity` or `center` + `gravity`"))
+
+    gravity_magnitude = gravity isa Number ? abs(gravity) : norm(gravity)
+    drop_height = max(center[end] - radius, particle_spacing)
+    return sqrt(2.0 * gravity_magnitude * drop_height)
+end
+
+"""
+    LinearizedHertzMindlinBoundaryContactModel(; material, wall_material, radius,
+                                               particle_spacing, ndims,
+                                               impact_velocity=nothing,
+                                               center=nothing, gravity=nothing,
+                                               body_mass=nothing,
+                                               contact_distance=2.0 * particle_spacing,
+                                               stick_velocity_tolerance=nothing,
+                                               resting_contact_projection=true,
+                                               torque_free=true)
+
+Create a `RigidBoundaryContactModel` by linearizing Hertz-Mindlin contact around a
+reference impact condition.
+
+- For `ndims=3`, mass defaults to the 3D sphere mass (`ρ * 4/3 * π * r^3`).
+- For `ndims=2`, mass defaults to a 2D per-unit-thickness proxy (`ρ * π * r^2`),
+  so this is a practical proxy calibration rather than an exact 2D continuum model.
+
+Either provide `impact_velocity` directly, or provide `center` and `gravity` to infer it.
+"""
+function LinearizedHertzMindlinBoundaryContactModel(; material, wall_material, radius,
+                                                    particle_spacing, ndims,
+                                                    impact_velocity=nothing,
+                                                    center=nothing, gravity=nothing,
+                                                    body_mass=nothing,
+                                                    contact_distance=2.0 *
+                                                                     particle_spacing,
+                                                    stick_velocity_tolerance=nothing,
+                                                    resting_contact_projection=true,
+                                                    torque_free=true)
+    ndims == 2 || ndims == 3 ||
+        throw(ArgumentError("`ndims` must be 2 or 3"))
+    radius > 0 ||
+        throw(ArgumentError("`radius` must be positive"))
+    particle_spacing > 0 ||
+        throw(ArgumentError("`particle_spacing` must be positive"))
+    contact_distance >= 0 ||
+        throw(ArgumentError("`contact_distance` must be non-negative"))
+    material.friction_coefficient >= 0 ||
+        throw(ArgumentError("`material.friction_coefficient` must be non-negative"))
+
+    impact_speed = _impact_speed_from_inputs(impact_velocity, center, gravity,
+                                             radius, particle_spacing)
+
+    effective_radius = radius
+    effective_youngs_modulus = _contact_effective_youngs_modulus(material, wall_material)
+    effective_shear_modulus = _contact_effective_shear_modulus(material, wall_material)
+
+    body_mass_ = if isnothing(body_mass)
+        hasproperty(material, :density) ||
+            throw(ArgumentError("`material.density` is required when `body_mass` is not provided"))
+        ndims == 2 ? material.density * pi * radius^2 :
+        material.density * (4.0 / 3.0) * pi * radius^3
+    else
+        body_mass
+    end
+    body_mass_ > 0 ||
+        throw(ArgumentError("`body_mass` must be positive"))
+
+    hertz_coefficient = (4.0 / 3.0) * effective_youngs_modulus * sqrt(effective_radius)
+    reference_penetration = ((5.0 / 4.0) * body_mass_ * impact_speed^2 /
+                             hertz_coefficient)^(2.0 / 5.0)
+    reference_penetration = max(reference_penetration,
+                                0.01 * particle_spacing)
+
+    normal_stiffness = (3.0 / 2.0) * hertz_coefficient * sqrt(reference_penetration)
+    contact_radius = sqrt(effective_radius * reference_penetration)
+    tangential_stiffness = 8.0 * effective_shear_modulus * contact_radius
+
+    damping_ratio = _damping_ratio_from_restitution(material.restitution)
+    normal_damping = 2.0 * damping_ratio * sqrt(normal_stiffness * body_mass_)
+    tangential_damping = 2.0 * damping_ratio * sqrt(tangential_stiffness * body_mass_)
+
+    static_friction = material.friction_coefficient
+    kinetic_friction = 0.9 * static_friction
+
+    if static_friction <= eps(static_friction)
+        tangential_stiffness = zero(tangential_stiffness)
+        tangential_damping = zero(tangential_damping)
+    end
+
+    stick_velocity_tolerance_ = isnothing(stick_velocity_tolerance) ?
+                                max(convert(typeof(impact_speed), 1e-5),
+                                    0.01 * impact_speed) :
+                                stick_velocity_tolerance
+
+    return RigidBoundaryContactModel(; normal_stiffness,
+                                     normal_damping,
+                                     static_friction_coefficient=static_friction,
+                                     kinetic_friction_coefficient=kinetic_friction,
+                                     tangential_stiffness,
+                                     tangential_damping,
+                                     contact_distance,
+                                     stick_velocity_tolerance=stick_velocity_tolerance_,
+                                     penetration_slop=0.0,
+                                     torque_free,
+                                     resting_contact_projection)
+end
+
 function convert_boundary_contact_model(::Nothing, particle_spacing, ELTYPE)
     return nothing
 end

@@ -8,6 +8,13 @@
     BoundaryDEMSystem
 ```
 
+## Rigid-Wall Contact Helpers
+
+```@docs
+    PerfectElasticBoundaryContactModel
+    LinearizedHertzMindlinBoundaryContactModel
+```
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "prescribed_motion.jl")]
