@@ -629,6 +629,12 @@
         @test !isempty(rigid_system.cache.contact_tangential_displacement)
 
         dt_contact = TrixiParticles.contact_time_step(rigid_system)
+        @test !TrixiParticles.resting_projection_triggered(0.2 * dt_contact, dt_contact, 1,
+                                                          eltype(rigid_system))
+        @test TrixiParticles.resting_projection_triggered(0.2 * dt_contact, dt_contact, 2,
+                                                          eltype(rigid_system))
+        @test TrixiParticles.resting_projection_triggered(0.01 * dt_contact, dt_contact, 0,
+                                                          eltype(rigid_system))
         modified = TrixiParticles.project_resting_contact_velocity!(rigid_system,
                                                                     v_rigid, u_rigid,
                                                                     v_ode, u_ode,

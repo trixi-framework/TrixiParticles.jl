@@ -24,6 +24,41 @@ end
 
 update_rigid_contact_eachstep!(system, v_ode, u_ode, semi, t, integrator) = system
 
+function update_contact_manifold_step!(system::RigidSPHSystem, v_ode, u_ode, semi, dt,
+                                       v_system, u_system, active_contact_keys)
+    foreach_system(semi) do neighbor_system
+        neighbor_system isa WallBoundarySystem || return
+
+        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+
+        apply_boundary_contact_correction!(system, neighbor_system,
+                                           v_system, u_system,
+                                           v_neighbor, u_neighbor,
+                                           semi, dt,
+                                           active_contact_keys)
+    end
+
+    return active_contact_keys
+end
+
+function update_contact_history_step!(system::RigidSPHSystem, active_contact_keys)
+    remove_inactive_contact_pairs!(system.cache.contact_tangential_displacement,
+                                   active_contact_keys)
+
+    return active_contact_keys
+end
+
+function apply_optional_resting_projection_step!(system::RigidSPHSystem,
+                                                 v_system, u_system,
+                                                 v_ode, u_ode, semi, integrator)
+    state_modified = project_resting_contact_velocity!(system, v_system, u_system,
+                                                       v_ode, u_ode, semi, integrator)
+    state_modified && u_modified!(integrator, true)
+
+    return state_modified
+end
+
 function update_rigid_contact_eachstep!(system::RigidSPHSystem, v_ode, u_ode, semi, t,
                                         integrator)
     contact_model = system.boundary_contact_model
@@ -36,54 +71,37 @@ function update_rigid_contact_eachstep!(system::RigidSPHSystem, v_ode, u_ode, se
     system.cache.max_boundary_penetration[] = zero(eltype(system))
 
     active_contact_keys = Set{NTuple{3, Int}}()
-    @trixi_timeit timer() "update collision history" begin
-        foreach_system(semi) do neighbor_system
-            if neighbor_system isa WallBoundarySystem
-                v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-                u_neighbor = wrap_u(u_ode, neighbor_system, semi)
-
-                apply_boundary_contact_correction!(system, neighbor_system,
-                                                   v_system, u_system,
-                                                   v_neighbor, u_neighbor,
-                                                   semi, integrator.dt,
-                                                   active_contact_keys)
-            end
-        end
+    @trixi_timeit timer() "contact manifold update" begin
+        update_contact_manifold_step!(system, v_ode, u_ode, semi, integrator.dt,
+                                      v_system, u_system, active_contact_keys)
     end
 
-    remove_inactive_contact_pairs!(system.cache.contact_tangential_displacement,
-                                   active_contact_keys)
+    @trixi_timeit timer() "history update" begin
+        update_contact_history_step!(system, active_contact_keys)
+    end
 
     # Fallback for persistent resting contacts: project rigid-body velocity to enforce
     # non-penetration when the adaptive solver collapses to very small time steps.
-    state_modified = @trixi_timeit timer() "collision projection" begin
-        project_resting_contact_velocity!(system, v_system, u_system,
-                                          v_ode, u_ode, semi, integrator)
+    @trixi_timeit timer() "collision projection" begin
+        apply_optional_resting_projection_step!(system,
+                                                v_system, u_system,
+                                                v_ode, u_ode, semi, integrator)
     end
-    state_modified && u_modified!(integrator, true)
 
     return system
 end
 
-function apply_boundary_contact_correction!(system::RigidSPHSystem{<:Any, <:Any, NDIMS},
-                                            neighbor_system::WallBoundarySystem,
-                                            v_system, u_system,
-                                            v_neighbor, u_neighbor,
-                                            semi, dt, active_contact_keys) where {NDIMS}
-    contact_model = system.boundary_contact_model
-    isnothing(contact_model) && return false
-
-    reset_contact_manifold_cache!(system.cache)
-
+function update_contact_manifold_cache!(system::RigidSPHSystem{<:Any, <:Any, NDIMS},
+                                        neighbor_system::WallBoundarySystem,
+                                        u_system,
+                                        v_neighbor, u_neighbor,
+                                        semi,
+                                        contact_model::RigidBoundaryContactModel,
+                                        normal_merge_cos, zero_tangential,
+                                        ELTYPE) where {NDIMS}
     system_coords = current_coordinates(u_system, system)
     neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
-    neighbor_system_index = system_indices(neighbor_system, semi)
-    ELTYPE = eltype(system)
-    zero_tangential = zero(SVector{NDIMS, ELTYPE})
-    normal_merge_cos = convert(ELTYPE, 0.995)
 
-    contact_count = 0
-    max_penetration = zero(ELTYPE)
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(system),
                            parallelization_backend=SerialBackend()) do particle, neighbor,
@@ -105,6 +123,18 @@ function apply_boundary_contact_correction!(system::RigidSPHSystem{<:Any, <:Any,
                                      normal, wall_velocity, penetration_effective,
                                      zero_tangential)
     end
+
+    return system.cache
+end
+
+function update_contact_history_from_manifolds!(system::RigidSPHSystem{<:Any, <:Any, NDIMS},
+                                                neighbor_system_index,
+                                                v_system, dt,
+                                                active_contact_keys,
+                                                contact_model::RigidBoundaryContactModel,
+                                                ELTYPE) where {NDIMS}
+    contact_count = 0
+    max_penetration = zero(ELTYPE)
 
     for particle in each_integrated_particle(system)
         n_manifolds = system.cache.contact_manifold_count[particle]
@@ -144,6 +174,36 @@ function apply_boundary_contact_correction!(system::RigidSPHSystem{<:Any, <:Any,
             max_penetration = max(max_penetration, penetration_effective)
         end
     end
+
+    return contact_count, max_penetration
+end
+
+function apply_boundary_contact_correction!(system::RigidSPHSystem{<:Any, <:Any, NDIMS},
+                                            neighbor_system::WallBoundarySystem,
+                                            v_system, u_system,
+                                            v_neighbor, u_neighbor,
+                                            semi, dt, active_contact_keys) where {NDIMS}
+    contact_model = system.boundary_contact_model
+    isnothing(contact_model) && return false
+
+    reset_contact_manifold_cache!(system.cache)
+    neighbor_system_index = system_indices(neighbor_system, semi)
+    ELTYPE = eltype(system)
+    zero_tangential = zero(SVector{NDIMS, ELTYPE})
+    normal_merge_cos = convert(ELTYPE, 0.995)
+
+    update_contact_manifold_cache!(system, neighbor_system,
+                                   u_system,
+                                   v_neighbor, u_neighbor,
+                                   semi, contact_model,
+                                   normal_merge_cos, zero_tangential,
+                                   ELTYPE)
+    contact_count, max_penetration = update_contact_history_from_manifolds!(system,
+                                                                            neighbor_system_index,
+                                                                            v_system, dt,
+                                                                            active_contact_keys,
+                                                                            contact_model,
+                                                                            ELTYPE)
 
     system.cache.boundary_contact_count[] += contact_count
     system.cache.max_boundary_penetration[] = max(system.cache.max_boundary_penetration[],
@@ -196,4 +256,3 @@ function remove_inactive_contact_pairs!(contact_tangential_displacement, active_
 
     return contact_tangential_displacement
 end
-
