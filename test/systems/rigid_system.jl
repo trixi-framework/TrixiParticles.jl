@@ -253,30 +253,46 @@
                                                                     contact_distance=0.1,
                                                                     stick_velocity_tolerance=1e-8,
                                                                     torque_free=true)
+        @test perfect_elastic_model isa PerfectElasticBoundaryContactModel
         @test perfect_elastic_model.normal_stiffness ≈ 2.0e4
-        @test iszero(perfect_elastic_model.normal_damping)
-        @test iszero(perfect_elastic_model.static_friction_coefficient)
-        @test iszero(perfect_elastic_model.kinetic_friction_coefficient)
-        @test iszero(perfect_elastic_model.tangential_stiffness)
-        @test iszero(perfect_elastic_model.tangential_damping)
         @test perfect_elastic_model.contact_distance ≈ 0.1
-        @test iszero(perfect_elastic_model.penetration_slop)
+        @test perfect_elastic_model.contact_distance_factor ≈ 1.0
+        @test perfect_elastic_model.stick_velocity_tolerance ≈ 1e-8
         @test perfect_elastic_model.torque_free
-        @test !perfect_elastic_model.resting_contact_projection
+
+        perfect_elastic_model_runtime = TrixiParticles.convert_boundary_contact_model(perfect_elastic_model,
+                                                                                       0.1, Float64)
+        @test perfect_elastic_model_runtime isa RigidBoundaryContactModel
+        @test perfect_elastic_model_runtime.normal_stiffness ≈ 2.0e4
+        @test iszero(perfect_elastic_model_runtime.normal_damping)
+        @test iszero(perfect_elastic_model_runtime.static_friction_coefficient)
+        @test iszero(perfect_elastic_model_runtime.kinetic_friction_coefficient)
+        @test iszero(perfect_elastic_model_runtime.tangential_stiffness)
+        @test iszero(perfect_elastic_model_runtime.tangential_damping)
+        @test perfect_elastic_model_runtime.contact_distance ≈ 0.1
+        @test iszero(perfect_elastic_model_runtime.penetration_slop)
+        @test perfect_elastic_model_runtime.torque_free
+        @test !perfect_elastic_model_runtime.resting_contact_projection
 
         wall_material = (; youngs_modulus=3.0e10, poisson_ratio=0.2)
         wood_material = (; density=650.0, youngs_modulus=1.0e10, poisson_ratio=0.35,
                          restitution=0.35, friction_coefficient=0.5)
-        contact_model_2d = LinearizedHertzMindlinBoundaryContactModel(; material=wood_material,
-                                                                       wall_material,
-                                                                       radius=0.16,
-                                                                       center=(0.45,
-                                                                               1.5),
-                                                                       gravity=9.81,
-                                                                       particle_spacing=0.01,
-                                                                       ndims=2,
-                                                                       torque_free=true,
-                                                                       resting_contact_projection=true)
+        contact_spec_2d = LinearizedHertzMindlinBoundaryContactModel(; material=wood_material,
+                                                                      wall_material,
+                                                                      radius=0.16,
+                                                                      center=(0.45,
+                                                                              1.5),
+                                                                      gravity=9.81,
+                                                                      particle_spacing=0.01,
+                                                                      ndims=2,
+                                                                      torque_free=true,
+                                                                      resting_contact_projection=true)
+        @test contact_spec_2d isa LinearizedHertzMindlinBoundaryContactModel
+        @test contact_spec_2d.contact_distance_factor ≈ 2.0
+        @test iszero(contact_spec_2d.contact_distance)
+
+        contact_model_2d = TrixiParticles.convert_boundary_contact_model(contact_spec_2d,
+                                                                         0.01, Float64)
         @test contact_model_2d isa RigidBoundaryContactModel
         @test contact_model_2d.normal_stiffness > 0
         @test contact_model_2d.normal_damping > 0
@@ -330,12 +346,14 @@
         @test contact_model_2d.tangential_damping ≈ tangential_damping_legacy rtol=1e-12
         @test contact_model_2d.stick_velocity_tolerance ≈ stick_tol_legacy rtol=1e-12
 
-        contact_model_3d = LinearizedHertzMindlinBoundaryContactModel(; material=wood_material,
-                                                                       wall_material,
-                                                                       radius=0.16,
-                                                                       impact_velocity=5.0,
-                                                                       particle_spacing=0.01,
-                                                                       ndims=3)
+        contact_spec_3d = LinearizedHertzMindlinBoundaryContactModel(; material=wood_material,
+                                                                      wall_material,
+                                                                      radius=0.16,
+                                                                      impact_velocity=5.0,
+                                                                      particle_spacing=0.01,
+                                                                      ndims=3)
+        contact_model_3d = TrixiParticles.convert_boundary_contact_model(contact_spec_3d,
+                                                                         0.01, Float64)
         @test contact_model_3d isa RigidBoundaryContactModel
         @test contact_model_3d.normal_stiffness > 0
         @test contact_model_3d.normal_damping > 0
@@ -345,12 +363,14 @@
 
         frictionless_material = (; density=1200.0, youngs_modulus=2.0e9, poisson_ratio=0.35,
                                  restitution=1.0, friction_coefficient=0.0)
-        frictionless_model = LinearizedHertzMindlinBoundaryContactModel(; material=frictionless_material,
-                                                                         wall_material,
-                                                                         radius=0.16,
-                                                                         impact_velocity=2.0,
-                                                                         particle_spacing=0.01,
-                                                                         ndims=2)
+        frictionless_spec = LinearizedHertzMindlinBoundaryContactModel(; material=frictionless_material,
+                                                                        wall_material,
+                                                                        radius=0.16,
+                                                                        impact_velocity=2.0,
+                                                                        particle_spacing=0.01,
+                                                                        ndims=2)
+        frictionless_model = TrixiParticles.convert_boundary_contact_model(frictionless_spec,
+                                                                           0.01, Float64)
         @test iszero(frictionless_model.static_friction_coefficient)
         @test iszero(frictionless_model.kinetic_friction_coefficient)
         @test iszero(frictionless_model.tangential_stiffness)
@@ -360,18 +380,22 @@
                            restitution=0.3, friction_coefficient=0.5)
         restitution_high = (; density=650.0, youngs_modulus=1.0e10, poisson_ratio=0.35,
                             restitution=0.8, friction_coefficient=0.5)
-        model_restitution_low = LinearizedHertzMindlinBoundaryContactModel(; material=restitution_low,
-                                                                            wall_material,
-                                                                            radius=0.16,
-                                                                            impact_velocity=2.0,
-                                                                            particle_spacing=0.01,
-                                                                            ndims=3)
-        model_restitution_high = LinearizedHertzMindlinBoundaryContactModel(; material=restitution_high,
-                                                                             wall_material,
-                                                                             radius=0.16,
-                                                                             impact_velocity=2.0,
-                                                                             particle_spacing=0.01,
-                                                                             ndims=3)
+        model_restitution_low_spec = LinearizedHertzMindlinBoundaryContactModel(; material=restitution_low,
+                                                                                 wall_material,
+                                                                                 radius=0.16,
+                                                                                 impact_velocity=2.0,
+                                                                                 particle_spacing=0.01,
+                                                                                 ndims=3)
+        model_restitution_high_spec = LinearizedHertzMindlinBoundaryContactModel(; material=restitution_high,
+                                                                                  wall_material,
+                                                                                  radius=0.16,
+                                                                                  impact_velocity=2.0,
+                                                                                  particle_spacing=0.01,
+                                                                                  ndims=3)
+        model_restitution_low = TrixiParticles.convert_boundary_contact_model(model_restitution_low_spec,
+                                                                              0.01, Float64)
+        model_restitution_high = TrixiParticles.convert_boundary_contact_model(model_restitution_high_spec,
+                                                                               0.01, Float64)
         @test model_restitution_low.normal_damping > model_restitution_high.normal_damping
 
         rigid_system = RigidSPHSystem(rigid_ic;
