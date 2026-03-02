@@ -130,23 +130,13 @@
                 @test count_rhs_allocations(sol, semi) == 0
             end
 
-            # Now use split integration and verify that we need fewer than 400 iterations
-            split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
+            # Use split integration and verify that we need fewer than 400 iterations
+            split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
                                                          dt=5e-5)
-            @trixi_test_nowarn trixi_include(@__MODULE__,
-                                             joinpath(examples_dir(), "fsi",
-                                                      "dam_break_plate_2d.jl"),
-                                             # Use rounded dimensions to avoid warnings
-                                             initial_fluid_size=(0.15, 0.29),
-                                             # Move plate closer to be able to use a shorter
-                                             # tspan and make CI faster.
-                                             plate_position=(0.2, 0.0),
-                                             tspan=(0.0, 0.2),
-                                             E=1e7, # Stiffer plate
-                                             maxiters=400,
-                                             extra_callback=split_integration) [
-                r"\[ Info: To create the self-interaction neighborhood search.*\n"
-            ]
+            callbacks = CallbackSet(info_callback, saving_callback, split_integration)
+            @trixi_test_nowarn sol = solve(ode, RDPK3SpFSAL49(), maxiters=400,
+                                           save_everystep=false, callback=callbacks)
+
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -156,35 +146,37 @@
                 @test count_rhs_allocations(sol, semi) == 0
             end
 
-            # Now use split integration and verify that it is actually used for TLSPH
+            # Use stage-level coupling and verify that it is not compatible with
+            # the fluid time integration scheme `RDPK3SpFSAL49`.
+            split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                                         dt=5e-5, stage_coupling=true)
+            callbacks = CallbackSet(info_callback, saving_callback, split_integration)
+
+            msg = "stage-level coupling with `SplitIntegrationCallback` requires that"
+            @test_throws msg solve(ode, RDPK3SpFSAL49(), maxiters=400,
+                                   save_everystep=false, callback=callbacks)
+
+            # Use stage-level coupling with a compatible fluid time integration scheme
+            split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                                         stage_coupling=true, dt=5e-5)
+            stepsize_callback = StepsizeCallback(cfl=1.2)
+            callbacks = CallbackSet(info_callback, saving_callback, split_integration,
+                                    stepsize_callback)
+            @trixi_test_nowarn sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                                           maxiters=400, dt=1.0,
+                                           save_everystep=false, callback=callbacks)
+
+            # Use split integration and verify that it is actually used for TLSPH
             # by using a time step that is too large and verifying that it is crashing.
-            split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
-                                                         dt=2e-4)
-            @trixi_test_nowarn trixi_include(@__MODULE__,
-                                             joinpath(examples_dir(), "fsi",
-                                                      "dam_break_plate_2d.jl"),
-                                             # Use rounded dimensions to avoid warnings
-                                             initial_fluid_size=(0.15, 0.29),
-                                             # Move plate closer to be able to use a shorter
-                                             # tspan and make CI faster.
-                                             plate_position=(0.2, 0.0),
-                                             tspan=(0.0, 0.2),
-                                             E=1e7, # Stiffer plate
-                                             maxiters=500,
-                                             extra_callback=split_integration) [
-                r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                "┌ Warning: Instability detected. Aborting\n",
-                r".*dt was forced below floating point epsilon.*\n",
-                r"└ @ SciMLBase.*\n"
-            ]
-            @test sol.retcode == ReturnCode.Unstable
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
-            else
-                @test count_rhs_allocations(sol, semi) == 0
-            end
+            split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                                         stage_coupling=true, dt=2e-4)
+            callbacks = CallbackSet(info_callback, saving_callback, split_integration,
+                                    stepsize_callback)
+
+            msg = "`SplitIntegrationCallback` failed with return code Unstable."
+            @test_throws msg solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                                   maxiters=400, dt=1.0,
+                                   save_everystep=false, callback=callbacks)
         end
 
         @trixi_testset "fsi/dam_break_gate_2d.jl" begin
